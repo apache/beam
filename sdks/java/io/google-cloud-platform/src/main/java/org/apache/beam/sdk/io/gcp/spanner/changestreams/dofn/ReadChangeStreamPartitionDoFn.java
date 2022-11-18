@@ -28,6 +28,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStream
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.BytesThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.NullThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
@@ -67,7 +69,11 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
-  private final ThroughputEstimator<DataChangeRecord> throughputEstimator;
+  /**
+   * Needs to be set through the {@link
+   * ReadChangeStreamPartitionDoFn#setThroughputEstimator(BytesThroughputEstimator)} call.
+   */
+  private ThroughputEstimator<DataChangeRecord> throughputEstimator;
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
@@ -84,19 +90,17 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * @param mapperFactory the {@link MapperFactory} to construct {@link ChangeStreamRecordMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
-   * @param throughputEstimator an estimator to calculate local throughput.
    */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
-      ChangeStreamMetrics metrics,
-      ThroughputEstimator<DataChangeRecord> throughputEstimator) {
+      ChangeStreamMetrics metrics) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
-    this.throughputEstimator = throughputEstimator;
+    this.throughputEstimator = new NullThroughputEstimator<>();
   }
 
   @GetInitialWatermarkEstimatorState
@@ -228,5 +232,16 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
     return queryChangeStreamAction.run(
         partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
+  }
+
+  /**
+   * Sets the estimator to calculate the backlog of this function. Must be called after the
+   * initialization of this DoFn.
+   *
+   * @param throughputEstimator an estimator to calculate local throughput.
+   */
+  public void setThroughputEstimator(
+      BytesThroughputEstimator<DataChangeRecord> throughputEstimator) {
+    this.throughputEstimator = throughputEstimator;
   }
 }

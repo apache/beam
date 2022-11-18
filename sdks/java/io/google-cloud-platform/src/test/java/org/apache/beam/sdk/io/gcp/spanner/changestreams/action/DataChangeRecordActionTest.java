@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.BytesThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
@@ -46,11 +46,11 @@ public class DataChangeRecordActionTest {
   private RestrictionTracker<TimestampRange, Timestamp> tracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
-  private ThroughputEstimator<DataChangeRecord> throughputEstimator;
+  private BytesThroughputEstimator<DataChangeRecord> throughputEstimator;
 
   @Before
   public void setUp() {
-    throughputEstimator = mock(ThroughputEstimator.class);
+    throughputEstimator = mock(BytesThroughputEstimator.class);
     action = new DataChangeRecordAction(throughputEstimator);
     partition = mock(PartitionMetadata.class);
     tracker = mock(RestrictionTracker.class);

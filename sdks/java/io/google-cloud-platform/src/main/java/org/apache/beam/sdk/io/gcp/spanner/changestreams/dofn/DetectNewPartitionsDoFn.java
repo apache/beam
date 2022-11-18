@@ -57,11 +57,12 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   private static final Duration DEFAULT_RESUME_DURATION = Duration.millis(100L);
 
   private final Duration resumeDuration;
-  private final long averagePartitionBytesSize;
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
+  private long averagePartitionBytesSize;
+  private boolean averagePartitionBytesSizeSet;
   private transient DetectNewPartitionsAction detectNewPartitionsAction;
 
   /**
@@ -72,25 +73,22 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
    * executed according to the default resume interval as in {@link
    * DetectNewPartitionsDoFn#DEFAULT_RESUME_DURATION} (best effort).
    *
-   * @param averagePartitionBytesSize the estimated average size of a partition record used in the
-   *     backlog bytes calculation ({@link org.apache.beam.sdk.transforms.DoFn.GetSize})
    * @param daoFactory the {@link DaoFactory} to construct {@link PartitionMetadataDao}s
    * @param mapperFactory the {@link MapperFactory} to construct {@link PartitionMetadataMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
    */
   public DetectNewPartitionsDoFn(
-      long averagePartitionBytesSize,
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
       ChangeStreamMetrics metrics) {
-    this.averagePartitionBytesSize = averagePartitionBytesSize;
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
     this.resumeDuration = DEFAULT_RESUME_DURATION;
+    this.averagePartitionBytesSizeSet = false;
   }
 
   @GetInitialWatermarkEstimatorState
@@ -119,6 +117,10 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
 
   @GetSize
   public double getSize(@Restriction TimestampRange restriction) {
+    if (!averagePartitionBytesSizeSet) {
+      LOG.warn(
+          "Average partition bytes size has not been initialized, GetSize will always return 0, which will interfere with autoscaling.");
+    }
     final com.google.cloud.Timestamp readTimestamp = restriction.getFrom();
     final PartitionMetadataDao dao = daoFactory.getPartitionMetadataDao();
     final long partitionsToSchedule = dao.countPartitionsCreatedAfter(readTimestamp);
@@ -161,5 +163,17 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     return detectNewPartitionsAction.run(tracker, receiver, watermarkEstimator);
+  }
+
+  /**
+   * Sets the average partition bytes size to estimate the backlog of this DoFn. Must be called
+   * after the initialization of this DoFn.
+   *
+   * @param averagePartitionBytesSize the estimated average size of a partition record used in the
+   *     backlog bytes calculation ({@link org.apache.beam.sdk.transforms.DoFn.GetSize})
+   */
+  public void setAveragePartitionBytesSize(long averagePartitionBytesSize) {
+    this.averagePartitionBytesSize = averagePartitionBytesSize;
+    this.averagePartitionBytesSizeSet = true;
   }
 }

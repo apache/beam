@@ -35,7 +35,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStream
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.BytesThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
@@ -80,8 +80,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     final DaoFactory daoFactory = mock(DaoFactory.class);
     final MapperFactory mapperFactory = mock(MapperFactory.class);
     final ChangeStreamMetrics metrics = mock(ChangeStreamMetrics.class);
-    final ThroughputEstimator<DataChangeRecord> throughputEstimator =
-        mock(ThroughputEstimator.class);
+    final BytesThroughputEstimator<DataChangeRecord> throughputEstimator =
+        mock(BytesThroughputEstimator.class);
     final ActionFactory actionFactory = mock(ActionFactory.class);
     final PartitionMetadataDao partitionMetadataDao = mock(PartitionMetadataDao.class);
     final ChangeStreamDao changeStreamDao = mock(ChangeStreamDao.class);
@@ -92,9 +92,8 @@ public class ReadChangeStreamPartitionDoFnTest {
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
     queryChangeStreamAction = mock(QueryChangeStreamAction.class);
 
-    doFn =
-        new ReadChangeStreamPartitionDoFn(
-            daoFactory, mapperFactory, actionFactory, metrics, throughputEstimator);
+    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
+    doFn.setThroughputEstimator(throughputEstimator);
 
     partition =
         PartitionMetadata.newBuilder()

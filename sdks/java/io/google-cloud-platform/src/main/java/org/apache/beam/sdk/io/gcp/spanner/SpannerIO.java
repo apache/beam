@@ -67,7 +67,6 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -79,8 +78,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitions
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.InitializeDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.PostProcessingMetricsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.BytesThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.SizeEstimator;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
@@ -1589,11 +1588,6 @@ public class SpannerIO {
         throw new IllegalArgumentException("Start time cannot be after end time.");
       }
 
-      // Gets the coders for the pipeline's elements (for throughput estimation)
-      final Coder<PartitionMetadata> partitionMetadataCoder =
-          coderFor(PartitionMetadata.class, input);
-      final Coder<DataChangeRecord> dataChangeRecordCoder = coderFor(DataChangeRecord.class, input);
-
       final DatabaseId changeStreamDatabaseId =
           DatabaseId.of(
               getSpannerConfig().getProjectId().get(),
@@ -1644,14 +1638,6 @@ public class SpannerIO {
               : getInclusiveEndAt();
       final MapperFactory mapperFactory = new MapperFactory();
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
-      final SizeEstimator<DataChangeRecord> dataChangeRecordSizeEstimator =
-          new SizeEstimator<>(dataChangeRecordCoder);
-      final ThroughputEstimator<DataChangeRecord> dataChangeRecordThroughputEstimator =
-          new ThroughputEstimator<>(THROUGHPUT_WINDOW_SECONDS, dataChangeRecordSizeEstimator);
-      final SizeEstimator<PartitionMetadata> partitionMetadataSizeEstimator =
-          new SizeEstimator<>(partitionMetadataCoder);
-      final long averagePartitionBytesSize =
-          partitionMetadataSizeEstimator.sizeOf(ChangeStreamsConstants.SAMPLE_PARTITION);
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
       final DaoFactory daoFactory =
           new DaoFactory(
@@ -1666,15 +1652,9 @@ public class SpannerIO {
       final InitializeDoFn initializeDoFn =
           new InitializeDoFn(daoFactory, mapperFactory, startTimestamp, endTimestamp);
       final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-          new DetectNewPartitionsDoFn(
-              averagePartitionBytesSize, daoFactory, mapperFactory, actionFactory, metrics);
+          new DetectNewPartitionsDoFn(daoFactory, mapperFactory, actionFactory, metrics);
       final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-          new ReadChangeStreamPartitionDoFn(
-              daoFactory,
-              mapperFactory,
-              actionFactory,
-              metrics,
-              dataChangeRecordThroughputEstimator);
+          new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
       final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
           new PostProcessingMetricsDoFn(metrics);
 
@@ -1685,27 +1665,34 @@ public class SpannerIO {
           .as(SpannerChangeStreamOptions.class)
           .setMetadataTable(partitionMetadataTableName);
 
-      PCollection<byte[]> impulseOut = input.apply(Impulse.create());
-      PCollection<DataChangeRecord> results =
+      final PCollection<byte[]> impulseOut = input.apply(Impulse.create());
+      final PCollection<PartitionMetadata> partitionsOut =
           impulseOut
               .apply("Initialize the connector", ParDo.of(initializeDoFn))
-              .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
+              .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn));
+      final Coder<PartitionMetadata> partitionMetadataCoder = partitionsOut.getCoder();
+      final SizeEstimator<PartitionMetadata> partitionMetadataSizeEstimator =
+          new SizeEstimator<>(partitionMetadataCoder);
+      final long averagePartitionBytesSize =
+          partitionMetadataSizeEstimator.sizeOf(ChangeStreamsConstants.SAMPLE_PARTITION);
+      detectNewPartitionsDoFn.setAveragePartitionBytesSize(averagePartitionBytesSize);
+
+      final PCollection<DataChangeRecord> dataChangeRecordsOut =
+          partitionsOut
               .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
               .apply("Gather metrics", ParDo.of(postProcessingMetricsDoFn));
+      final Coder<DataChangeRecord> dataChangeRecordCoder = dataChangeRecordsOut.getCoder();
+      final SizeEstimator<DataChangeRecord> dataChangeRecordSizeEstimator =
+          new SizeEstimator<>(dataChangeRecordCoder);
+      final BytesThroughputEstimator<DataChangeRecord> throughputEstimator =
+          new BytesThroughputEstimator<>(THROUGHPUT_WINDOW_SECONDS, dataChangeRecordSizeEstimator);
+      readChangeStreamPartitionDoFn.setThroughputEstimator(throughputEstimator);
 
       impulseOut
           .apply(WithTimestamps.of(e -> GlobalWindow.INSTANCE.maxTimestamp()))
-          .apply(Wait.on(results))
+          .apply(Wait.on(dataChangeRecordsOut))
           .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
-      return results;
-    }
-
-    private <T> Coder<T> coderFor(Class<T> clazz, PBegin input) {
-      try {
-        return input.getPipeline().getCoderRegistry().getCoder(clazz);
-      } catch (CannotProvideCoderException e) {
-        throw new IllegalStateException("Can not provide coder for " + clazz.getSimpleName(), e);
-      }
+      return dataChangeRecordsOut;
     }
   }
 

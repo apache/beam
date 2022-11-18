@@ -38,15 +38,15 @@ import org.apache.beam.sdk.coders.Coder;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ThroughputEstimatorTest {
+public class BytesThroughputEstimatorTest {
   private static final double DELTA = 1e-10;
   private static final int WINDOW_SIZE_SECONDS = 10;
-  private ThroughputEstimator<byte[]> estimator;
+  private BytesThroughputEstimator<byte[]> estimator;
 
   @Before
   public void setup() {
     final SizeEstimator<byte[]> sizeEstimator = new SizeEstimator<>(new TestCoder());
-    estimator = new ThroughputEstimator<>(WINDOW_SIZE_SECONDS, sizeEstimator);
+    estimator = new BytesThroughputEstimator<>(WINDOW_SIZE_SECONDS, sizeEstimator);
   }
 
   @Test

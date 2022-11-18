@@ -17,28 +17,22 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.cloud.Timestamp;
-import java.io.Serializable;
+import org.junit.Test;
 
-/** An estimator to calculate the throughput of the outputted elements from a DoFn. */
-public interface ThroughputEstimator<T> extends Serializable {
-  /**
-   * Updates the estimator with the size of the records.
-   *
-   * @param timeOfRecords the committed timestamp of the records
-   * @param element the element to estimate the byte size of
-   */
-  void update(Timestamp timeOfRecords, T element);
+public class NullThroughputEstimatorTest {
+  private static final double DELTA = 1e-10;
 
-  /** Returns the estimated throughput for now. */
-  default double get() {
-    return getFrom(Timestamp.now());
+  @Test
+  public void alwaysReturns0AsEstimatedThroughput() {
+    final NullThroughputEstimator<byte[]> estimator = new NullThroughputEstimator<>();
+    assertEquals(estimator.get(), 0D, DELTA);
+
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(1, 0), new byte[10]);
+    assertEquals(estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(1, 0)), 0D, DELTA);
+    estimator.update(Timestamp.ofTimeSecondsAndNanos(2, 0), new byte[20]);
+    assertEquals(estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(2, 0)), 0D, DELTA);
   }
-
-  /**
-   * Returns the estimated throughput for a specified time.
-   *
-   * @param time the specified timestamp to check throughput
-   */
-  double getFrom(Timestamp time);
 }
