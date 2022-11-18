@@ -121,8 +121,12 @@ public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
       if (deque.size() == 0) {
         return 0D;
       }
-      return deque.stream()
-          .reduce(BigDecimal.ZERO, (acc, entry) -> acc.add(entry.getBytes()), BigDecimal::add)
+      BigDecimal throughput = BigDecimal.ZERO;
+      for (ThroughputEntry entry : deque) {
+        throughput = throughput.add(entry.getBytes());
+      }
+      return throughput
+          // Prevents negative values
           .max(BigDecimal.ZERO)
           .divide(BigDecimal.valueOf(windowSizeSeconds), MathContext.DECIMAL128)
           // Cap it to Double.MAX_VALUE
