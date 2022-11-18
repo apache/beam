@@ -16,9 +16,10 @@
 # limitations under the License.
 ###############################################################################
 #Dokerfile to set up the Beam Go SDK
-ARG BASE_IMAGE=golang:1.18-bullseye
+ARG BASE_IMAGE
 FROM $BASE_IMAGE
-ARG SDK_TAG=2.42.0
+ARG SDK_TAG
+ARG SDK_TAG_LOCAL
 
 # Setup Go Environment
 ENV GOPATH /go
@@ -30,36 +31,19 @@ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" &&\
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
+# Setup Go SDK dependencies
+COPY beam /opt/playground/beam
+COPY setup_sdk.sh /
+
+ENV BEAM_SRC /opt/playground/beam
+ENV PREPARED_MOD_DIR /opt/playground/prepared_folder
+RUN /setup_sdk.sh /opt/playground/prepared_folder
+
 # Prepare Application
 COPY src /go/src/playground/backend
 
-ENV PREPARED_MOD_DIR=/opt/playground/prepared_folder/
-RUN mkdir -p /opt/playground/ $PREPARED_MOD_DIR
-WORKDIR $PREPARED_MOD_DIR
-
-# Setup Go SDK dependencies
-COPY beam /opt/playground/beam
-
-ENV PIPELINES_FOLDER_NAME="executable_files"
-
-ENV BEAM_PKG github.com/apache/beam/sdks/v2@v2.99.99-unpublished
-RUN go mod init $PIPELINES_FOLDER_NAME
-RUN go mod edit -require=$BEAM_PKG
-
-if SDK_TAG == unpublished
-RUN go mod edit -replace=$BEAM_PKG=/opt/playground/beam
-fi
-
-RUN go get -x github.com/apache/beam/sdks/v2/go/pkg/beam@v2.99.99-unpublished
-RUN go get -x github.com/apache/beam/sdks/v2/go/test/integration@v2.99.99-unpublished
-
-RUN go mod download -x all
-
 # Build Application
-
-#RUN
 WORKDIR /go/src/playground/backend
-RUN ls
 # Build Application
 RUN go mod download &&\
     go mod tidy &&\
