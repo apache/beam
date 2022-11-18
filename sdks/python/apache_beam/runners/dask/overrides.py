@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 import dataclasses
-
 import typing as t
 
 import apache_beam as beam
