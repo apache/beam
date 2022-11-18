@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import java.util.Collection;
-import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -28,6 +27,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.execution.ExplainMode;
 import org.apache.spark.util.Utils;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +71,7 @@ public final class EvaluationContext {
         LOG.debug("Evaluating dataset {}:\n{}", ds.name(), execPlan);
       }
       // force evaluation using a dummy foreach action
-      evaluate(ds.name(), () -> dataset.foreach(NOOP));
+      evaluate(ds.name(), dataset);
     }
   }
 
@@ -79,10 +79,11 @@ public final class EvaluationContext {
    * The purpose of this utility is to mark the evaluation of Spark actions, both during Pipeline
    * translation, when evaluation is required, and when finally evaluating the pipeline.
    */
-  public static void evaluate(String name, Runnable action) {
+  public static <T> void evaluate(String name, Dataset<T> ds) {
     long startMs = System.currentTimeMillis();
     try {
-      action.run();
+      // force evaluation using a dummy foreach action
+      ds.foreach(NOOP);
       LOG.info("Evaluated dataset {} in {}", name, durationSince(startMs));
     } catch (RuntimeException e) {
       LOG.error("Failed to evaluate dataset {}: {}", name, Throwables.getRootCause(e).getMessage());
@@ -94,14 +95,14 @@ public final class EvaluationContext {
    * The purpose of this utility is to mark the evaluation of Spark actions, both during Pipeline
    * translation, when evaluation is required, and when finally evaluating the pipeline.
    */
-  public static <T> T evaluate(String name, Callable<T> action) {
+  public static <T extends @NonNull Object> T[] collect(String name, Dataset<T> ds) {
     long startMs = System.currentTimeMillis();
     try {
-      T t = action.call();
-      LOG.info("Evaluated dataset {} in {}", name, durationSince(startMs));
-      return t;
+      T[] res = (T[]) ds.collect();
+      LOG.info("Collected dataset {} in {} [size: {}]", name, durationSince(startMs), res.length);
+      return res;
     } catch (Exception e) {
-      LOG.error("Failed to evaluate dataset {}: {}", name, Throwables.getRootCause(e).getMessage());
+      LOG.error("Failed to collect dataset {}: {}", name, Throwables.getRootCause(e).getMessage());
       throw new RuntimeException(e);
     }
   }

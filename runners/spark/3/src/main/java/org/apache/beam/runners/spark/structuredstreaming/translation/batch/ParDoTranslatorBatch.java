@@ -226,10 +226,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
           (Coder<WindowedValue<?>>)
               (Coder<?>) WindowedValue.getFullCoder(pc.getCoder(), windowCoder);
       Dataset<WindowedValue<?>> broadcastSet = context.getDataset((PCollection) pc);
-      List<WindowedValue<?>> valuesList =
-          EvaluationContext.evaluate(sideInput.getName(), broadcastSet::collectAsList);
+      WindowedValue<?>[] values = EvaluationContext.collect(sideInput.getName(), broadcastSet);
       List<byte[]> codedValues = new ArrayList<>();
-      for (WindowedValue<?> v : valuesList) {
+      for (WindowedValue<?> v : values) {
         codedValues.add(CoderHelpers.toByteArray(v, windowedValueCoder));
       }
 
