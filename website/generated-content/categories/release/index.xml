@@ -3475,14 +3475,13 @@ limitations under the License.
 &lt;p>We are happy to present the new 2.43.0 release of Beam.
 This release includes both improvements and new functionality.
 See the &lt;a href="/get-started/downloads/#2430-2022-11-17">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in {$RELEASE_VERSION}, check out the &lt;a href="https://github.com/apache/beam/milestone/5?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;p>For more information on changes in 2.43.0, check out the &lt;a href="https://github.com/apache/beam/milestone/5?closed=1">detailed release notes&lt;/a>.&lt;/p>
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
 &lt;li>Python 3.10 support in Apache Beam (&lt;a href="https://github.com/apache/beam/issues/21458">#21458&lt;/a>).&lt;/li>
 &lt;li>An initial implementation of a runner that allows us to run Beam pipelines on Dask. Try it out and give us feedback! (Python) (&lt;a href="https://github.com/apache/beam/issues/18962">#18962&lt;/a>).&lt;/li>
 &lt;/ul>
-&lt;p>{$TOPICS e.g.:}&lt;/p>
-&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;h2 id="ios">I/Os&lt;/h2>
 &lt;ul>
 &lt;li>Decreased TextSource CPU utilization by 2.3x (Java) (&lt;a href="https://github.com/apache/beam/issues/23193">#23193&lt;/a>).&lt;/li>
 &lt;li>Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) (&lt;a href="https://github.com/apache/beam/issues/22146">#22146&lt;/a>).&lt;/li>
@@ -3491,7 +3490,7 @@ See the &lt;a href="/get-started/downloads/#2430-2022-11-17">download page&lt;/a
 (&lt;a href="https://github.com/apache/beam/issues/23564">#23564&lt;/a> and &lt;a href="https://github.com/apache/beam/issues/23559">#23559&lt;/a>).&lt;/li>
 &lt;li>Bumped google-cloud-spanner dependency version to 3.x for Python SDK (&lt;a href="https://github.com/apache/beam/issues/21198">#21198&lt;/a>).&lt;/li>
 &lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
 &lt;ul>
 &lt;li>Dataframe wrapper added in Go SDK via Cross-Language (with automatic expansion service). (Go) (&lt;a href="https://github.com/apache/beam/issues/23384">#23384&lt;/a>).&lt;/li>
 &lt;li>Name all Java threads to aid in debugging (&lt;a href="https://github.com/apache/beam/issues/23049">#23049&lt;/a>).&lt;/li>
@@ -3500,19 +3499,19 @@ See the &lt;a href="/get-started/downloads/#2430-2022-11-17">download page&lt;/a
 For example, this feature makes it possible to access Google Drive backed tables in BigQuery (&lt;a href="https://github.com/apache/beam/issues/23290">#23290&lt;/a>).&lt;/li>
 &lt;li>An example for using Python RunInference from Java (&lt;a href="https://github.com/apache/beam/pull/23619">#23290&lt;/a>).&lt;/li>
 &lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
 &lt;ul>
 &lt;li>CoGroupByKey transform in Python SDK has changed the output typehint. The typehint component representing grouped values changed from List to Iterable,
 which more accurately reflects the nature of the arbitrarily large output collection. &lt;a href="https://github.com/apache/beam/issues/21556">#21556&lt;/a> Beam users may see an error on transforms downstream from CoGroupByKey. Users must change methods expecting a List to expect an Iterable going forward. See &lt;a href="https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0">document&lt;/a> for information and fixes.&lt;/li>
 &lt;li>The PortableRunner for Spark assumes Spark 3 as default Spark major version unless configured otherwise using &lt;code>--spark_version&lt;/code>.
 Spark 2 support is deprecated and will be removed soon (&lt;a href="https://github.com/apache/beam/issues/23728">#23728&lt;/a>).&lt;/li>
 &lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
 &lt;ul>
 &lt;li>Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Numeric/Decimal type values (&lt;a href="https://github.com/apache/beam/issues/19817">#19817&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!&lt;/p>
+&lt;p>According to git shortlog, the following people contributed to the 2.43.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Ahmed Abualsaud
 AlexZMLyu
 Alexey Romanenko

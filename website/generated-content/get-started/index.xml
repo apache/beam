@@ -1608,8 +1608,8 @@ may change at any point and are not guaranteed to remain compatible across versi
 &lt;p>Additionally, any API may change before the first stable release, i.e., between
 versions denoted &lt;code>0.x.y&lt;/code>.&lt;/p>
 &lt;h2 id="releases">Releases&lt;/h2>
-&lt;h3 id="2430-2022-11-08">2.43.0 (2022-11-08)&lt;/h3>
-&lt;p>Official &lt;a href="https://archive.apache.org/dist/beam/2.43.0/apache-beam-2.43.0-source-release.zip">source code download&lt;/a>.
+&lt;h3 id="2430-2022-11-17">2.43.0 (2022-11-17)&lt;/h3>
+&lt;p>Official &lt;a href="https://downloads.apache.org/beam/2.43.0/apache-beam-2.43.0-source-release.zip">source code download&lt;/a>.
 &lt;a href="https://downloads.apache.org/beam/2.43.0/apache-beam-2.43.0-source-release.zip.sha512">SHA-512&lt;/a>.
 &lt;a href="https://downloads.apache.org/beam/2.43.0/apache-beam-2.43.0-source-release.zip.asc">signature&lt;/a>.&lt;/p>
 &lt;p>&lt;a href="https://github.com/apache/beam/releases/tag/v2.43.0">Release notes&lt;/a>
