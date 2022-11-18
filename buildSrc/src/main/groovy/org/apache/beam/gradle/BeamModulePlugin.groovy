@@ -463,7 +463,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cdap_version = "6.5.1"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
-    def errorprone_version = "2.10.0"
+    def errorprone_version = "2.16"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
     def gax_version = "2.19.2"
     def google_clients_version = "2.0.0"
