@@ -17,4 +17,4 @@
 # under the License.
 #
 
-bucket  = "my-tfstate-bucket-1"
+bucket  = "pg-second"
