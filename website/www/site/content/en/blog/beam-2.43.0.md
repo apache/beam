@@ -1,12 +1,13 @@
 ---
-title:  "Apache Beam 2.43.0"
-date:   2022-11-17 22:00:00 Z
+title:  "Apache Beam 2.42.0"
+date:   2022-11-17 09:00:00 -0700
 categories:
-  - blog
-  - release
+- blog
+- release
 authors:
-  - chamikara
+- chamikara
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
