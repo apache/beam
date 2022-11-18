@@ -61,18 +61,22 @@ public class BytesThroughputEstimatorTest {
     estimator.update(Timestamp.ofTimeSecondsAndNanos(3, 0), new byte[20]);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(5, 0), new byte[30]);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(10, 0), new byte[40]);
+    // (10 + 20 + 30 + 40) / 10 sec window = 10
     assertEquals(10D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(11, 0)), DELTA);
 
     estimator.update(Timestamp.ofTimeSecondsAndNanos(20, 0), new byte[10]);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(21, 0), new byte[20]);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(21, 0), new byte[10]);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(29, 0), new byte[40]);
+    // (10 + 20 + 10 + 40) / 10 sec window = 8
     assertEquals(8D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(30, 0)), DELTA);
 
     estimator.update(Timestamp.ofTimeSecondsAndNanos(31, 0), new byte[10]);
     estimator.update(Timestamp.ofTimeSecondsAndNanos(35, 0), new byte[40]);
+    // (10 + 40) / 10 sec window = 5
     assertEquals(5D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(41, 0)), DELTA);
 
+    // No values in the past 10 seconds
     assertEquals(0D, estimator.getFrom(Timestamp.ofTimeSecondsAndNanos(50, 0)), DELTA);
   }
 
