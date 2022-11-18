@@ -37,7 +37,7 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
 - [Terraform](https://www.terraform.io/)
 - [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
-## 1. Setup the Google Cloud Build  for your GCP project
+## 1. Setup the Google Cloud Build for your GCP project
 
 The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to setup Cloud Build for Playground:
 - Required API services
@@ -73,6 +73,7 @@ bucket = "bucket_name"     # The name of bucket - will be used for terraform tfs
 ```
 
 5. Push the `environment_name` folder to your GitHub repository `github_repository_name` and branch `github_repository_branch`.
+(Cloud Build needs file be present in GitHub repository it is connected to)
 
 **Note:** Some regions can be prohibited for Cloud Build. Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations) for supported locations.
 
