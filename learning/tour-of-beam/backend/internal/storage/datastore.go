@@ -229,8 +229,9 @@ func (d *DatastoreDb) SaveContentTrees(ctx context.Context, trees []tob.ContentT
 	return nil
 }
 
-// Get learning unit content by unitId
-func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (unit *tob.Unit, err error) {
+// get a custom projection of a learning unit
+func (d *DatastoreDb) getUnit(ctx context.Context, sdk tob.Sdk, unitId string,
+	projectionFunc func(*datastore.Query) *datastore.Query) (unit *tob.Unit, err error) {
 	var tbNodes []TbLearningNode
 	rootKey := pgNameKey(TbLearningPathKind, sdk.StorageID(), nil)
 
@@ -238,6 +239,7 @@ func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId st
 		Namespace(PgNamespace).
 		Ancestor(rootKey).
 		FilterField("id", "=", unitId)
+	query = projectionFunc(query)
 
 	_, err = d.Client.GetAll(ctx, query, &tbNodes)
 	if err != nil {
@@ -256,6 +258,27 @@ func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId st
 		return nil, fmt.Errorf("wrong node type: %v, unit expected", node.Type)
 	}
 	return node.Unit, nil
+}
+
+// Get learning unit content by unitId
+func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (unit *tob.Unit, err error) {
+	return d.getUnit(ctx, sdk, unitId, func(q *datastore.Query) *datastore.Query {
+		return q
+	})
+}
+
+// Check if the unit exists, returns ErrNoUnit if not
+func (d *DatastoreDb) CheckUnitExists(ctx context.Context, sdk tob.Sdk, unitId string) (err error) {
+	unit, err := d.getUnit(ctx, sdk, unitId, func(q *datastore.Query) *datastore.Query {
+		return q.Project("__key__", "type")
+	})
+	if err != nil {
+		return err
+	}
+	if unit == nil {
+		return tob.ErrNoUnit
+	}
+	return nil
 }
 
 func (d *DatastoreDb) SaveUser(ctx context.Context, uid string) error {

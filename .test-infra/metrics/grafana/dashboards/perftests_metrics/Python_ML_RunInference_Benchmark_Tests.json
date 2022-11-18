@@ -1067,7 +1067,7 @@
     ]
   },
   "timezone": "",
-  "title": "Python ML RunInference Benchmarks",
+  "title": "Python ML RunInference Benchmarks (description: https://s.apache.org/beam-ml-metrics)",
   "uid": "ZpS8Uf44z",
   "version": 1
 }

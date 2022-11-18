@@ -39,7 +39,7 @@ class ModuleWidget extends StatelessWidget {
       children: [
         ModuleTitleWidget(
           module: module,
-          onTap: () => contentTreeController.onNodeTap(module),
+          onTap: () => contentTreeController.openNode(module),
         ),
         ...module.nodes
             .map(

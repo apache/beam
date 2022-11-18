@@ -27,7 +27,7 @@ import 'example_loader.dart';
 
 /// Loads a given example from the local cache, then adds info from network.
 ///
-/// This loader assumes that [ExampleState] is loading all examples to
+/// This loader assumes that [ExampleCache] is loading all examples to
 /// its cache. So it only completes if this is successful.
 class StandardExampleLoader extends ExampleLoader {
   final StandardExampleLoadingDescriptor descriptor;
@@ -41,7 +41,7 @@ class StandardExampleLoader extends ExampleLoader {
     required this.descriptor,
     required this.exampleCache,
   }) {
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _load() async {

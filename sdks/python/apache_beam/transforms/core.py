@@ -316,6 +316,9 @@ class RestrictionProvider(object):
 
     The return value must be non-negative.
 
+    Must be thread safe. Will be invoked concurrently during bundle processing
+    due to runner initiated splitting and progress estimation.
+
     This API is required to be implemented.
     """
     raise NotImplementedError
@@ -843,7 +846,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     else:
       raise TypeError(
           "Expected Iterator in return type annotation for "
-          f"{method!r}, did you mean Iterator[{return_type}]?")
+          f"{method!r}, did you mean Iterator[{return_type}]? Note Beam DoFn "
+          "process and process_batch methods are expected to produce "
+          "generators - they should 'yield' rather than 'return'.")
 
   def get_output_batch_type(
       self, input_element_type
@@ -2738,6 +2743,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
   def expand(self, pcoll):
 
     from apache_beam.transforms.trigger import AccumulationMode
+    from apache_beam.transforms.util import _IdentityWindowFn
+
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
 
@@ -2797,11 +2804,15 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     precombined_hot = (
         hot
         # Avoid double counting that may happen with stacked accumulating mode.
-        | 'WindowIntoDiscarding' >> WindowInto(
-            pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
+        | 'ForceDiscardingAccumulation' >> WindowInto(
+            _IdentityWindowFn(pcoll.windowing.windowfn.get_window_coder()),
+            trigger=pcoll.windowing.triggerfn,
+            accumulation_mode=AccumulationMode.DISCARDING,
+            timestamp_combiner=pcoll.windowing.timestamp_combiner,
+            allowed_lateness=pcoll.windowing.allowed_lateness)
         | CombinePerKey(PreCombineFn())
-        | Map(StripNonce)
-        | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
+        | Map(StripNonce))
+
     return ((cold, precombined_hot)
             | Flatten()
             | CombinePerKey(PostCombineFn()))

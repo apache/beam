@@ -28,6 +28,7 @@ environment:
 
 dependencies:
   app_state: ^0.8.1
+  collection: ^1.16.0
   easy_localization: ^3.0.1
   easy_localization_ext: ^0.1.0
   easy_localization_loader: ^1.0.0

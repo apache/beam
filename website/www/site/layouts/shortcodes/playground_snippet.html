@@ -9,4 +9,38 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. See accompanying LICENSE file.
 */}}
-{{ $sdk := .Get "language" }}{{ if eq $sdk "py" }}{{ $sdk = "python" }}{{ end }}<div class="language-{{ .Get "language" }} playground-snippet" data-sdk="{{ $sdk }}" data-example="{{ .Get "example" }}"></div>
+{{/*
+
+Creates an embedded Playground tab with a given example. Must be used within 'playground' shortcode
+because here only a div is created and not an iframe. It is 'playground' that actually creates
+an iframe.
+
+Required parameters:
+- example - the example ID or snippet ID.
+- language - the string to be passed as SDK to playground. 'py' translates to 'python'.
+
+Optional parameters:
+- readonly - comma-separated section names to make read-only.
+- show - section name, hides everything except it, makes the entire code read-only.
+- unfold - comma-separated section names, folds all blocks not overlapping with them.
+
+*/}}
+
+{{ $sdk := .Get "language" }}
+{{ if eq $sdk "py" }}
+    {{ $sdk = "python" }}
+{{ end }}
+<div
+    class="language-{{ .Get "language" }} playground-snippet"
+    data-sdk="{{ $sdk }}"
+    data-example="{{ .Get "example" }}"
+    {{ if .Get "readonly" }}
+        data-readonly="{{ .Get "readonly" }}"
+    {{ end }}
+    {{ if .Get "show" }}
+        data-show="{{ .Get "show" }}"
+    {{ end }}
+    {{ if .Get "unfold" }}
+        data-unfold="{{ .Get "unfold" }}"
+    {{ end }}
+></div>

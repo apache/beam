@@ -26,6 +26,7 @@ import 'catalog_default_example_loader.dart';
 import 'content_example_loader.dart';
 import 'empty_example_loader.dart';
 import 'example_loader_factory.dart';
+import 'http_example_loader.dart';
 import 'standard_example_loader.dart';
 import 'user_shared_example_loader.dart';
 
@@ -38,6 +39,7 @@ class ExamplesLoader {
     defaultFactory.add(CatalogDefaultExampleLoader.new);
     defaultFactory.add(ContentExampleLoader.new);
     defaultFactory.add(EmptyExampleLoader.new);
+    defaultFactory.add(HttpExampleLoader.new);
     defaultFactory.add(StandardExampleLoader.new);
     defaultFactory.add(UserSharedExampleLoader.new);
   }

@@ -19,8 +19,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
 enum Complexity {
-  @JsonValue('UNSPECIFIED')
-  unspecified,
   @JsonValue('BASIC')
   basic,
   @JsonValue('MEDIUM')
@@ -29,7 +27,7 @@ enum Complexity {
   advanced,
   ;
 
-  static Complexity fromString(String complexity) {
+  static Complexity? fromString(String? complexity) {
     switch (complexity) {
       case 'basic':
         return Complexity.basic;
@@ -37,9 +35,8 @@ enum Complexity {
         return Complexity.medium;
       case 'advanced':
         return Complexity.advanced;
-      case 'unspecified':
-        return Complexity.unspecified;
     }
-    throw Exception('Unknown complexity: $complexity');
+
+    return null;
   }
 }

@@ -99,7 +99,7 @@ jobs:
         working-directory: ./sdks/typescript
       - run: npm run build
         working-directory: ./sdks/typescript
-      - run: npm test -- --grep "@xlang"
+      - run: npm test -- --grep "@xlang" --grep "@ulr"
         working-directory: ./sdks/typescript
         env:
           BEAM_SERVICE_OVERRIDES: '{"python:*": "python"}'

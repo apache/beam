@@ -41,7 +41,7 @@ def ingest_data(ingested_dataset_path: str, base_artifact_path: str):
   to the data it has 'ingested' as jsonlines.
 
   Args:
-    data_ingestion_target (str): uri to the data that was scraped and 
+    data_ingestion_target (str): uri to the data that was scraped and
     ingested by the component"""
   # timestamp as unique id for the component execution
   timestamp = int(time.time())

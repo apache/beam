@@ -22,6 +22,7 @@
 
 set -e
 
-ttsc -p .
+# Using npx to execute ttsc from the local node_modules environment.
+npx ttsc -p .
 mkdir -p dist/resources
 cp ../java/extensions/python/src/main/resources/org/apache/beam/sdk/extensions/python/bootstrap_beam_venv.py dist/resources

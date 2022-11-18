@@ -215,6 +215,7 @@ task torchInferenceTest {
     }
 
 }
+
 // Scikit-learn RunInference IT tests
 task sklearnInferenceTest {
   dependsOn 'installGcpTest'
@@ -235,10 +236,38 @@ task sklearnInferenceTest {
     }
 }
 
+// TensorFlow Extended (TFX) RunInference IT tests
+task tfxInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/examples/inference/tfx_bsl/requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_tensorflow and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 // Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'torchInferenceTest',
-  'sklearnInferenceTest'
+  'sklearnInferenceTest',
+  'tfxInferenceTest'
   ]
 }

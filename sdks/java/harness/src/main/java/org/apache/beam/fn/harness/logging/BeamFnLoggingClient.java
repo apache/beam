@@ -46,7 +46,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp;
@@ -121,7 +121,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logRecordHandler = new LogRecordHandler();
     logRecordHandler.setLevel(Level.ALL);
     logRecordHandler.setFormatter(DEFAULT_FORMATTER);
-    logRecordHandler.executeOn(options.as(GcsOptions.class).getExecutorService());
+    logRecordHandler.executeOn(options.as(ExecutorOptions.class).getScheduledExecutorService());
     outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
   }

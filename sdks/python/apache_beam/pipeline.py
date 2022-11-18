@@ -178,6 +178,9 @@ class Pipeline(object):
 
     FileSystems.set_options(self._options)
 
+    pickle_library = self._options.view_as(SetupOptions).pickle_library
+    pickler.set_library(pickle_library)
+
     if runner is None:
       runner = self._options.view_as(StandardOptions).runner
       if runner is None:
