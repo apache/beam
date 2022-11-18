@@ -476,6 +476,20 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testCoalesceNotNull() {
+    String sql = "SELECT COALESCE(@p0, \"yay\") AS ColA";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of("p0", Value.createSimpleNullValue(TypeKind.TYPE_STRING));
+
+    PCollection<Row> stream = execute(sql, params);
+
+    final Schema schema = Schema.builder().addStringField("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("yay").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testCoalesceSingleArgument() {
     String sql = "SELECT COALESCE(@p0) AS ColA";
     ImmutableMap<String, Value> params =
