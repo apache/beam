@@ -18,6 +18,22 @@
 
 plugins { id 'org.apache.beam.module' }
 
+configurations {
+  provided
+}
+
+dependencies {
+  // provided dependencies are declared early so they can be resolved in shadowClosure
+
+  // :sdks:java:core and transitive dependencies
+  provided project(path: ":model:pipeline", configuration: "shadow")
+  provided project(path: ":sdks:java:core", configuration: "shadow")
+  provided library.java.joda_time
+  provided library.java.slf4j_api
+  provided library.java.vendored_grpc_1_48_1
+  provided library.java.vendored_guava_26_0_jre
+}
+
 applyJavaNature(
   classesTriggerCheckerBugs: [
     'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
@@ -27,13 +43,13 @@ applyJavaNature(
   validateShadowJar: false,
   testShadowJar: true,
   shadowClosure:
-  // Create an uber jar without repackaging for the SDK harness
-  // TODO: We have been releasing this in the past, consider not
-  // releasing it since its typically bad practice to release 'all'
-  // jars.
   {
     dependencies {
-      exclude(dependency(".*:avro:.*"))
+      // Exclude provided and transient dependencies
+      project.configurations.provided.getResolvedConfiguration()
+          .getLenientConfiguration().getAllModuleDependencies().each {
+        exclude(dependency(it.getModuleGroup() + ":" + it.getModuleName() + ":.*"))
+      }
     }
   },
 )
@@ -43,19 +59,13 @@ ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
-  implementation project(path: ":model:pipeline", configuration: "shadow")
-  implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
   implementation project(":sdks:java:fn-execution")
   implementation library.java.jamm
-  implementation library.java.joda_time
-  implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_48_1
-  shadow library.java.vendored_guava_26_0_jre
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
-  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTestRuntimeClasspath project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
 }

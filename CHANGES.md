@@ -78,6 +78,8 @@
   dependency of the Java SDK Harness. Some users of a portable runner (such as Dataflow Runner v2)
   may have an undeclared dependency on this package (for example using GCS with
   TextIO) and will now need to declare the dependency.
+* `beam-sdks-java-core` is no longer a dependency of the Java SDK Harness. Users of a portable
+  runner (such as Dataflow Runner v2) will need to provide this package and its dependencies.
 
 ## Deprecations
 
