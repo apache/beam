@@ -56,7 +56,7 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 /**
- * Utility methods for converting Avro {@link GenericRecord} objects to dynamic protocol message, 
+ * Utility methods for converting Avro {@link GenericRecord} objects to dynamic protocol message,
  * for use with the Storage write API.
  */
 public class AvroGenericRecordToStorageApiProto {
@@ -156,6 +156,7 @@ public class AvroGenericRecordToStorageApiProto {
   /**
    * Given an Avro Schema, returns a protocol-buffer Descriptor that can be used to write data using
    * the BigQuery Storage API.
+   *
    * @param schema An Avro Schema
    * @return Returns the Descriptor created from the provided Schema
    * @throws com.google.protobuf.Descriptors.DescriptorValidationException
@@ -172,8 +173,9 @@ public class AvroGenericRecordToStorageApiProto {
   }
 
   /**
-   * Given an Avro {@link GenericRecord} object, returns a protocol-buffer message that can be used 
+   * Given an Avro {@link GenericRecord} object, returns a protocol-buffer message that can be used
    * to write data using the BigQuery Storage streaming API.
+   *
    * @param descriptor The Descriptor for the DynamicMessage result
    * @param record An Avro GenericRecord
    * @return A dynamic message representation of a Proto payload to be used for StorageWrite API
