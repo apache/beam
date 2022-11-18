@@ -18,6 +18,11 @@
 //   description: FlatMap elements example.
 //   multifile: false
 //   context_line: 33
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;

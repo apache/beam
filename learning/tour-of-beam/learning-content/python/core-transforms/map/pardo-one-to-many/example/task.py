@@ -19,6 +19,11 @@
 #   description: ParDo one-to-many example.
 #   multifile: false
 #   context_line: 50
+#   categories:
+#     - Quickstart
+#   complexity: BASIC
+#   tags:
+#     - hellobeam
 
 import apache_beam as beam
 

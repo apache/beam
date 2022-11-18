@@ -18,6 +18,11 @@
 //   description: GroupByKey example.
 //   multifile: false
 //   context_line: 35
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;

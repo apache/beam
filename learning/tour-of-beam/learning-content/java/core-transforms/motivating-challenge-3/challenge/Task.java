@@ -45,7 +45,6 @@ public class Task {
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     public static void main(String[] args) {
-        LOG.info("Running Task");
 
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
@@ -91,7 +90,6 @@ public class Task {
 
         }
     }
-
 
     static PCollection<String> checkExistUpperWordsInLowerCaseView(PCollection<String> upperCaseWords, PCollectionView<List<String>> lowerCaseWordsView) {
         return upperCaseWords;

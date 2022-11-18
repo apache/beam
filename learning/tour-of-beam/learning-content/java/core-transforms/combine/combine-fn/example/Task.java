@@ -16,6 +16,17 @@
  *  limitations under the License.
  */
 
+  // beam-playground:
+//   name: combine-fn
+//   description: Combine Fn example.
+//   multifile: false
+//   context_line: 44
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
+
 import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.learning.katas.util.Log;
@@ -28,6 +39,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 
 public class Task {
 

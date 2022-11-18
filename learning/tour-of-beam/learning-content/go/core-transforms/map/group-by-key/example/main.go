@@ -18,6 +18,11 @@
 //   description: GroupByKey example.
 //   multifile: false
 //   context_line: 33
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 package main
 

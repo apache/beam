@@ -15,8 +15,8 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: CoreTransformsChallenge1
-#   description: Core Transforms first motivating challenge.
+#   name: CoreTransformsSolution1
+#   description: Core Transforms first motivating solution.
 #   multifile: false
 #   context_line: 23
 #   categories:

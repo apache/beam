@@ -15,8 +15,8 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: CoreTransformsChallenge4
-#   description: Core Transforms fourth motivating challenge.
+#   name: CoreTransformsSolution4
+#   description: Core Transforms fourth motivating solution.
 #   multifile: false
 #   context_line: 23
 #   categories:

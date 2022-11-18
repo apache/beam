@@ -18,6 +18,11 @@
 //   description: Composite example.
 //   multifile: false
 //   context_line: 34
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 package main
 

@@ -18,6 +18,11 @@
 //   description: Branching example.
 //   multifile: false
 //   context_line: 32
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 package main
 
 import (
