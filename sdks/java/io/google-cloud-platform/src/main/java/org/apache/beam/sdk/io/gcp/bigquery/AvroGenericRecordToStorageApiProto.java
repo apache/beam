@@ -56,8 +56,8 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 /**
- * Utility methods for converting Beam {@link Row} objects to dynamic protocol message, for use with
- * the Storage write API.
+ * Utility methods for converting Avro {@link GenericRecord} objects to dynamic protocol message, 
+ * for use with the Storage write API.
  */
 public class AvroGenericRecordToStorageApiProto {
 
@@ -105,10 +105,10 @@ public class AvroGenericRecordToStorageApiProto {
               LogicalTypes.decimal(1).getName(), AvroGenericRecordToStorageApiProto::convertDecimal)
           .put(
               LogicalTypes.timestampMicros().getName(),
-              (logicalType, value) -> convertTimestamp(value))
+              (logicalType, value) -> convertTimestamp(value, true))
           .put(
               LogicalTypes.timestampMillis().getName(),
-              (logicalType, value) -> convertTimestamp(value))
+              (logicalType, value) -> convertTimestamp(value, false))
           .put(LogicalTypes.uuid().getName(), (logicalType, value) -> convertUUID(value))
           .build();
 
@@ -122,9 +122,9 @@ public class AvroGenericRecordToStorageApiProto {
     }
   }
 
-  static Long convertTimestamp(Object value) {
+  static Long convertTimestamp(Object value, boolean micros) {
     if (value instanceof ReadableInstant) {
-      return ((ReadableInstant) value).getMillis();
+      return ((ReadableInstant) value).getMillis() * (micros ? 1000 : 1);
     } else {
       Preconditions.checkArgument(
           value instanceof Long, "Expecting a value as Long type (millis).");
@@ -156,6 +156,9 @@ public class AvroGenericRecordToStorageApiProto {
   /**
    * Given an Avro Schema, returns a protocol-buffer Descriptor that can be used to write data using
    * the BigQuery Storage API.
+   * @param schema An Avro Schema
+   * @return Returns the Descriptor created from the provided Schema
+   * @throws com.google.protobuf.Descriptors.DescriptorValidationException
    */
   public static Descriptor getDescriptorFromSchema(Schema schema)
       throws DescriptorValidationException {
@@ -169,8 +172,11 @@ public class AvroGenericRecordToStorageApiProto {
   }
 
   /**
-   * Given a Beam {@link Row} object, returns a protocol-buffer message that can be used to write
-   * data using the BigQuery Storage streaming API.
+   * Given an Avro {@link GenericRecord} object, returns a protocol-buffer message that can be used 
+   * to write data using the BigQuery Storage streaming API.
+   * @param descriptor The Descriptor for the DynamicMessage result
+   * @param record An Avro GenericRecord
+   * @return A dynamic message representation of a Proto payload to be used for StorageWrite API
    */
   public static DynamicMessage messageFromGenericRecord(
       Descriptor descriptor, GenericRecord record) {
