@@ -64,6 +64,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -265,6 +266,7 @@ public class BigQueryUtils {
           .put(SqlTypes.DATETIME.getIdentifier(), StandardSQLTypeName.DATETIME)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
           .put("Enum", StandardSQLTypeName.STRING)
+          .put(MicrosInstant.IDENTIFIER, StandardSQLTypeName.TIMESTAMP)
           .build();
 
   private static final String BIGQUERY_MAP_KEY_FIELD_NAME = "key";

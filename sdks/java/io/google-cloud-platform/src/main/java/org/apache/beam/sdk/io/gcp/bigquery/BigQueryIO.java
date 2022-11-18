@@ -2880,15 +2880,6 @@ public class BigQueryIO {
             "withAutoSchemaUpdate only supported when using storage-api writes.");
       }
 
-      if (method != Write.Method.FILE_LOADS) {
-        // we only support writing avro for FILE_LOADS
-        checkArgument(
-            getAvroRowWriterFactory() == null,
-            "Writing avro formatted data is only supported for FILE_LOADS, however "
-                + "the method was %s",
-            method);
-      }
-
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
@@ -3165,6 +3156,26 @@ public class BigQueryIO {
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsBeamRow<>(
                   dynamicDestinations, elementSchema, elementToRowFunction);
+        } else if (getAvroRowWriterFactory() != null) {
+          // we can configure the avro to storage write api proto converter for this
+          // assuming the format function returns an Avro GenericRecord
+          // and there is a schema defined
+          checkArgument(
+              getJsonSchema() != null
+                  || getDynamicDestinations() != null
+                  || getSchemaFromView() != null,
+              "A schema must be provided for avro rows to be used with StorageWrite API.");
+
+          RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>
+              recordWriterFactory =
+                  (RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>)
+                      rowWriterFactory;
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
+              Optional.ofNullable(getAvroSchemaFactory()).orElse(DEFAULT_AVRO_SCHEMA_FACTORY);
+
+          storageApiDynamicDestinations =
+              new StorageApiDynamicDestinationsGenericRecord<>(
+                  dynamicDestinations, avroSchemaFactory, recordWriterFactory.getToAvroFn());
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
               (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;
