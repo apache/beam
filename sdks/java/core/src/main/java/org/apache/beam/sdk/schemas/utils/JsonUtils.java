@@ -26,6 +26,11 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.Row;
+import org.everit.json.schema.ArraySchema;
+import org.everit.json.schema.NumberSchema;
+import org.everit.json.schema.ObjectSchema;
+import org.everit.json.schema.ReferenceSchema;
+import org.json.JSONObject;
 
 /** Utils to convert JSON records to Beam {@link Row}. */
 @Experimental(Kind.SCHEMAS)
@@ -71,6 +76,77 @@ public class JsonUtils {
         return RowJsonUtils.rowToJson(objectMapper, input);
       }
     };
+  }
+
+  public static Schema beamSchemaFromJsonSchema(String jsonSchemaStr) {
+    org.everit.json.schema.ObjectSchema jsonSchema = jsonSchemaFromString(jsonSchemaStr);
+    return beamSchemaFromJsonSchema(jsonSchema);
+  }
+
+  private static Schema beamSchemaFromJsonSchema(org.everit.json.schema.ObjectSchema jsonSchema) {
+    Schema.Builder beamSchemaBuilder = Schema.builder();
+    for (String propertyName : jsonSchema.getPropertySchemas().keySet()) {
+      org.everit.json.schema.Schema propertySchema =
+          jsonSchema.getPropertySchemas().get(propertyName);
+      if (propertySchema == null) {
+        throw new IllegalArgumentException("Unable to parse schema " + jsonSchema.toString());
+      }
+      if (propertySchema.getClass().equals(org.everit.json.schema.ObjectSchema.class)) {
+        beamSchemaBuilder =
+            beamSchemaBuilder.addField(
+                Schema.Field.of(propertyName, beamTypeFromJsonSchemaType(propertySchema)));
+      } else if (propertySchema.getClass().equals(org.everit.json.schema.ArraySchema.class)) {
+        beamSchemaBuilder =
+            beamSchemaBuilder.addField(
+                Schema.Field.of(
+                    propertyName,
+                    Schema.FieldType.array(
+                        beamTypeFromJsonSchemaType(
+                            ((ArraySchema) propertySchema).getAllItemSchema()))));
+      } else {
+        try {
+          beamSchemaBuilder =
+              beamSchemaBuilder.addField(
+                  Schema.Field.of(propertyName, beamTypeFromJsonSchemaType(propertySchema)));
+        } catch (IllegalArgumentException e) {
+          throw new IllegalArgumentException("Unsupported field type in field " + propertyName, e);
+        }
+      }
+    }
+    return beamSchemaBuilder.build();
+  }
+
+  private static Schema.FieldType beamTypeFromJsonSchemaType(
+      org.everit.json.schema.Schema propertySchema) {
+    if (propertySchema.getClass().equals(org.everit.json.schema.ObjectSchema.class)) {
+      return Schema.FieldType.row(beamSchemaFromJsonSchema((ObjectSchema) propertySchema));
+    } else if (propertySchema.getClass().equals(org.everit.json.schema.BooleanSchema.class)) {
+      return Schema.FieldType.BOOLEAN;
+    } else if (propertySchema.getClass().equals(org.everit.json.schema.NumberSchema.class)) {
+      return ((NumberSchema) propertySchema).requiresInteger()
+          ? Schema.FieldType.INT64
+          : Schema.FieldType.DOUBLE;
+    }
+    if (propertySchema.getClass().equals(org.everit.json.schema.StringSchema.class)) {
+      return Schema.FieldType.STRING;
+    } else if (propertySchema.getClass().equals(org.everit.json.schema.ReferenceSchema.class)) {
+      org.everit.json.schema.Schema sch = ((ReferenceSchema) propertySchema).getReferredSchema();
+      return beamTypeFromJsonSchemaType(sch);
+    } else {
+      throw new IllegalArgumentException(
+          "Unsupported schema type: " + propertySchema.getClass().toString());
+    }
+  }
+
+  private static org.everit.json.schema.ObjectSchema jsonSchemaFromString(String jsonSchema) {
+    JSONObject parsedSchema = new JSONObject(jsonSchema);
+    org.everit.json.schema.Schema schemaValidator =
+        org.everit.json.schema.loader.SchemaLoader.load(parsedSchema);
+    if (!schemaValidator.getClass().equals(ObjectSchema.class)) {
+      throw new IllegalArgumentException(
+          String.format("The schema is not a valid object schema:\n%s", jsonSchema));
+    }
+    return (org.everit.json.schema.ObjectSchema) schemaValidator;
   }
 
   private abstract static class JsonToRowFn<T> extends SimpleFunction<T, Row> {
