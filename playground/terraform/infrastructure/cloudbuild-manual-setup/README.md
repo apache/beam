@@ -65,7 +65,7 @@ gke_name                      = "playground-backend"        # Playground GKE Clu
 state_bucket                  = "bucket_name"               # GCS bucket name for Beam Playground temp files
 ```
 
-4. Create and fill `state.tfbackend` configuration file as follows:
+4. Create and fill `state.tfbackend` configuration file in same `environment_name` folder as follows:
 
 
 ```
