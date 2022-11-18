@@ -28,9 +28,5 @@ variable "region" {
 variable "cloudbuild_service_account_id" {
   type        = string
   description = "The ID of the cloud build service account responsible for provisioning Google Cloud resources"
-}
-
-variable "cloudbuild_logs_bucket_name" {
-  type = string
-  description = "Globally unique ID of your logs bucket for Cloud Build"
+  default     = "playground-cloudbuild-sa"
 }
