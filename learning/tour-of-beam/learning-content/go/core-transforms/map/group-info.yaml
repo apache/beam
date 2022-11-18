@@ -22,6 +22,5 @@ name: Map
 content:
   - pardo-one-to-one
   - pardo-one-to-many
-  - map-elements
   - group-by-key
   - co-group-by-key

@@ -16,6 +16,17 @@
  *  limitations under the License.
  */
 
+ // beam-playground:
+//   name: binary-combine-fn
+//   description: Core Transforms third motivating challenge.
+//   multifile: false
+//   context_line: 44
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
+
 import java.math.BigInteger;
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
@@ -27,6 +38,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 
 public class Task {
 

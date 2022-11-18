@@ -18,6 +18,11 @@
 //   description: Side-inputs example.
 //   multifile: false
 //   context_line: 36
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 package main
 

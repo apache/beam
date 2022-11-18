@@ -19,6 +19,11 @@
 #   description: Partition example.
 #   multifile: false
 #   context_line: 49
+#   categories:
+#     - Quickstart
+#   complexity: BASIC
+#   tags:
+#     - hellobeam
 
 import apache_beam as beam
 

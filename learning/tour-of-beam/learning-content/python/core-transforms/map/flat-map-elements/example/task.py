@@ -19,7 +19,11 @@
 #   description: FlatMap elements example.
 #   multifile: false
 #   context_line: 43
-
+#   categories:
+#     - Quickstart
+#   complexity: BASIC
+#   tags:
+#     - hellobeam
 import apache_beam as beam
 
 # Output PCollection

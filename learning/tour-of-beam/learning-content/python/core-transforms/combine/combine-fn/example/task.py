@@ -15,6 +15,17 @@
 
 import apache_beam as beam
 
+# beam-playground:
+#   name: combine-fn
+#   description: Combine Fn example.
+#   multifile: false
+#   context_line: 42
+#   categories:
+#     - Quickstart
+#   complexity: BASIC
+#   tags:
+#     - hellobeam
+
 # Output PCollection
 class Output(beam.PTransform):
     class _OutputFn(beam.DoFn):

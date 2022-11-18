@@ -76,11 +76,11 @@ public class Task {
     }
 
     static PCollection<KV<String,Long>> countPerElement(PCollection<String> input) {
-        return Pipeline.create().apply(Create.of(KV.of("",0L)))
+        return Pipeline.create().apply(Create.of(KV.of("",0L)));
     }
 
     static PCollection<KV<String, Long>> convertPCollectionToLowerCase(PCollection<KV<String, Long>> input) {
-        return Pipeline.create().apply(Create.of(KV.of("",0L)))
+        return Pipeline.create().apply(Create.of(KV.of("",0L)));
     }
 
     static PCollection<KV<String, Long>> mergePCollections(PCollection<KV<String, Long>> input1, PCollection<KV<String, Long>> input2, PCollection<KV<String, Long>> input3) {
@@ -92,7 +92,7 @@ public class Task {
     }
 
     static PCollection<KV<String,Iterable<Long>>> groupByKey(PCollection<KV<String, Long>> input) {
-        return Pipeline.create().apply(Create.of(KV.of("",Arrays.asList(0L))))
+        return Pipeline.create().apply(Create.of(KV.of("",Arrays.asList(0L))));
     }
 
     static class LogOutput<T> extends DoFn<T, T> {

@@ -18,6 +18,11 @@
 //   description: Composite example.
 //   multifile: false
 //   context_line: 33
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 

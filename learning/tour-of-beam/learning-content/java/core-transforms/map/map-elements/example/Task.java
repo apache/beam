@@ -18,6 +18,11 @@
 //   description: Map elements example.
 //   multifile: false
 //   context_line: 31
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

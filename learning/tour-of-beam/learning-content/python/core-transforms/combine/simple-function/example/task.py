@@ -16,6 +16,17 @@
 
 import apache_beam as beam
 
+# beam-playground:
+#   name: simple-function-combine
+#   description: Simple function combine example.
+#   multifile: false
+#   context_line: 42
+#   categories:
+#     - Quickstart
+#   complexity: BASIC
+#   tags:
+#     - hellobeam
+
 # Output PCollection
 class Output(beam.PTransform):
     class _OutputFn(beam.DoFn):

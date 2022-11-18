@@ -15,8 +15,8 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: CoreTransformsChallenge3
-#   description: Core Transforms third motivating challenge.
+#   name: CoreTransformsSolution3
+#   description: Core Transforms third motivating solution.
 #   multifile: false
 #   context_line: 23
 #   categories:
