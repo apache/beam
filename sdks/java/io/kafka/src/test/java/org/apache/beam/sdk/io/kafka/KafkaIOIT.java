@@ -61,6 +61,7 @@ import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -73,6 +74,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -543,6 +545,68 @@ public class KafkaIOIT {
     readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
 
     return readResult;
+  }
+
+  @Test
+  public void testWatermarkUpdateWithSparseMessages() throws IOException {
+    AdminClient client =
+        AdminClient.create(
+            ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
+
+    String topicName = "SparseDataTopicPartition-" + UUID.randomUUID();
+    Map<Integer, String> records = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      records.put(i, String.valueOf(i));
+    }
+
+    try {
+      client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
+
+      writePipeline
+          .apply("Generate Write Elements", Create.of(records))
+          .apply(
+              "Write to Kafka",
+              KafkaIO.<Integer, String>write()
+                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                  .withTopic(topicName)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(StringSerializer.class));
+
+      writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+
+      client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
+
+      PCollection<String> values =
+          sdfReadPipeline
+              .apply(
+                  "Read from Kafka",
+                  KafkaIO.<Integer, String>read()
+                      .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                      .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+                      .withTopic(topicName)
+                      .withKeyDeserializer(IntegerDeserializer.class)
+                      .withValueDeserializer(StringDeserializer.class)
+                      .withoutMetadata())
+              .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+              .apply("GroupKey", GroupByKey.create())
+              .apply("GetValues", Values.create())
+              .apply("Flatten", FlatMapElements.into(TypeDescriptor.of(String.class)).via(iterable -> iterable));
+
+      PAssert.that(values).containsInAnyOrder("0" , "1", "2", "3", "4");
+
+      PipelineResult readResult = sdfReadPipeline.run();
+
+      PipelineResult.State readState =
+          readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout() / 2));
+
+      cancelIfTimeouted(readResult, readState);
+      // Fail the test if pipeline failed.
+      assertNotEquals(readState, PipelineResult.State.FAILED);
+    } finally {
+      client.deleteTopics(ImmutableSet.of(topicName));
+    }
+
+
   }
 
   private static class KeyByPartition
