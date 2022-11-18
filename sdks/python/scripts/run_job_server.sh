@@ -102,7 +102,7 @@ case $STARTSTOP in
     fi
 
     echo "Launching job server @ $JOB_PORT ..."
-    java -jar $JOB_SERVER_JAR --job-port=$JOB_PORT --artifact-port=$ARTIFACT_PORT --expansion-port=0 $ADDITIONAL_ARGS >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
+    java -jar $JOB_SERVER_JAR --job-port=$JOB_PORT --artifact-port=$ARTIFACT_PORT --expansion-port=0 --flink-conf-dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
     mypid=$!
     if kill -0 $mypid >/dev/null 2>&1; then
       echo $mypid >> $pid
