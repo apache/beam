@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG GO_BASE_IMAGE=golang:1.18-bullseye
-ARG SDK_TAG=2.42.0
+ARG SDK_TAG
 ARG BASE_IMAGE=apache/beam_python3.7_sdk:$SDK_TAG
 FROM $GO_BASE_IMAGE AS build
 
