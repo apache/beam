@@ -273,6 +273,7 @@ message SaveSnippetRequest {
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
   Complexity complexity = 4;
+  string persistence_key = 5;
 }
 
 // SaveSnippetResponse contains information of the generated ID.

@@ -17,6 +17,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -113,12 +114,14 @@ func TestGetUnitContent(t *testing.T) {
 
 func TestNegative(t *testing.T) {
 	for i, params := range []struct {
-		portEnvName string
-		queryParams map[string]string
-		headers     map[string]string
-		expected    ErrorResponse
+		portEnvName  string
+		queryParams  map[string]string
+		headers      map[string]string
+		expectedCode int
+		expected     ErrorResponse
 	}{
 		{PORT_GET_CONTENT_TREE, nil, nil,
+			http.StatusBadRequest,
 			ErrorResponse{
 				Code:    "BAD_FORMAT",
 				Message: "unknown sdk",
@@ -126,10 +129,12 @@ func TestNegative(t *testing.T) {
 		},
 		{PORT_GET_CONTENT_TREE, map[string]string{"sdk": "scio"}, nil,
 			// TODO: actually here should be a NOT_FOUND error
+			http.StatusInternalServerError,
 			ErrorResponse{Code: "INTERNAL_ERROR", Message: "storage error"},
 		},
 		{PORT_GET_UNIT_CONTENT, map[string]string{"sdk": "python", "id": "unknown_unitId"},
 			nil,
+			http.StatusNotFound,
 			ErrorResponse{
 				Code:    "NOT_FOUND",
 				Message: "unit not found",
@@ -140,6 +145,7 @@ func TestNegative(t *testing.T) {
 		{PORT_GET_USER_PROGRESS,
 			map[string]string{"sdk": "python"},
 			map[string]string{"authorization": "bad_header"},
+			http.StatusUnauthorized,
 			ErrorResponse{
 				Code:    "UNAUTHORIZED",
 				Message: "bad auth header",
@@ -155,9 +161,7 @@ func TestNegative(t *testing.T) {
 
 		var resp ErrorResponse
 		err := Get(&resp, url, params.queryParams, params.headers)
-		if err != nil {
-			t.Fatal(err)
-		}
+		checkBadHttpCode(t, err, params.expectedCode)
 		assert.Equal(t, params.expected, resp)
 	}
 }

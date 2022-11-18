@@ -137,6 +137,8 @@ class StagerTest(unittest.TestCase):
             # Per PEP-0427 in wheel filenames non-alphanumeric characters
             # in distribution name are replaced with underscore.
             distribution_name = distribution_name.replace('-', '_')
+            if args[17] == 'manylinux2014_x86_64':
+              args[17] = 'manylinux_2_17_x86_64.' + args[17]
             package_file = '%s-%s-%s%s-%s-%s.whl' % (
                 distribution_name,
                 distribution_version,

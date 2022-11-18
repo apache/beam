@@ -57,8 +57,8 @@ func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, pas
 	}
 
 	var port = "5432/tcp"
-	dbURL := func(port nat.Port) string {
-		return fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", username, password, port.Port(), dbname)
+	dbURL := func(host string, port nat.Port) string {
+		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port.Port(), dbname)
 	}
 
 	req := testcontainers.GenericContainerRequest{
@@ -66,6 +66,7 @@ func setupTestContainer(t *testing.T, ctx context.Context, dbname, username, pas
 			Image:        "postgres",
 			ExposedPorts: []string{port},
 			Env:          env,
+			Hostname:     "localhost",
 			WaitingFor:   wait.ForSQL(nat.Port(port), "postgres", dbURL).Timeout(time.Second * 5),
 		},
 		Started: true,

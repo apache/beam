@@ -26,6 +26,8 @@ type Iface interface {
 	SaveContentTrees(ctx context.Context, trees []tob.ContentTree) error
 
 	GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (*tob.Unit, error)
+	// Check if the unit exists, returns ErrNoUnit if not
+	CheckUnitExists(ctx context.Context, sdk tob.Sdk, unitId string) error
 
 	SaveUser(ctx context.Context, uid string) error
 	GetUserProgress(ctx context.Context, sdk tob.Sdk, uid string) (*tob.SdkProgress, error)

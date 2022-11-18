@@ -112,6 +112,9 @@
   @media (max-width: $tablet) {
     width: 350px;
   }
+  @media (max-width: $ak-breakpoint-xs) {
+    width: 270px;
+  }
 
   .case-study-card-description {
     height: 185px;

@@ -337,7 +337,7 @@ rules:
   addLabels: ['typescript']
 - valueFor: 'Component'
   contains: 'test-failures'
-  addLabels: ['test-failures']
+  addLabels: ['failing test']
 - valueFor: 'Component'
   contains: 'testing'
   addLabels: ['tests']
