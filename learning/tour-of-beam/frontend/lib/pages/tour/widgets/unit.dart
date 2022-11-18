@@ -42,8 +42,6 @@ class UnitWidget extends StatelessWidget {
       animation: contentTreeController,
       builder: (context, child) {
         final isSelected = contentTreeController.currentNode?.id == unit.id;
-        // TODO(nausharipov): get sdk
-        final isCompleted = cache.getCompletedUnits('go').contains(unit.id);
 
         return ClickableWidget(
           onTap: () => contentTreeController.openNode(unit),
@@ -59,7 +57,9 @@ class UnitWidget extends StatelessWidget {
                 AnimatedBuilder(
                   animation: cache,
                   builder: (context, child) => UnitProgressIndicator(
-                    isCompleted: isCompleted,
+                    // TODO(nausharipov): get sdk
+                    isCompleted:
+                        cache.getCompletedUnits('go').contains(unit.id),
                     isSelected: isSelected,
                   ),
                 ),
@@ -69,8 +69,8 @@ class UnitWidget extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
