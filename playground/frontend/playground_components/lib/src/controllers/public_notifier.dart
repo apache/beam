@@ -16,13 +16,8 @@
  * limitations under the License.
  */
 
-<<<<<<<< HEAD:playground/frontend/playground_components/lib/src/controllers/public_notifier.dart
 import 'package:flutter/material.dart';
 
 class PublicNotifier extends ChangeNotifier {
   void notifyPublic() => notifyListeners();
-========
-class StorageKeys {
-  static const sdkId = 'sdkId';
->>>>>>>> origin/tour-header-sdk-selector:learning/tour-of-beam/frontend/lib/constants/storage_keys.dart
 }

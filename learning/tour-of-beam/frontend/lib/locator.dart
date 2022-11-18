@@ -33,8 +33,8 @@ import 'state.dart';
 
 Future<void> initializeServiceLocator() async {
   _initializeAuth();
-  _initializeCaches();
   _initializeState();
+  _initializeCaches();
 }
 
 void _initializeAuth() {
