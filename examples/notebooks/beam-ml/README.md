@@ -43,3 +43,27 @@ https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_infere
 
 3. To run most notebooks, you need to change the Google Cloud project and bucket
 to your project and bucket.
+
+## Notebooks
+
+This section contains the following example notebooks.
+
+### Prediction and inference with pretrained models
+
+* [Apache Beam RunInference for PyTorch](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch.ipynb)
+* [Apache Beam RunInference for scikit-learn](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_sklearn.ipynb)
+* [Apache Beam RunInference with TensorFlow](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow.ipynb)
+* [Use RunInference in Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb)
+
+### Custom inference
+
+* [Bring your own machine learning (ML) model to Apache Beam RunInference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb)
+* [Remote inference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb)
+
+### Multi-model pipelines
+
+* [Ensemble model using an image captioning and ranking](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_multi_model.ipynb)
+
+### Data processing
+
+* [Preprocessing with the Apache Beam DataFrames API](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb)
