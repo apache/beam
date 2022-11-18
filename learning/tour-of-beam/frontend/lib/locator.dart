@@ -29,6 +29,7 @@ import 'repositories/client/client.dart';
 import 'repositories/client/cloud_functions_client.dart';
 import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
+import 'state.dart';
 
 Future<void> initializeServiceLocator() async {
   _initializeAuth();
@@ -51,6 +52,7 @@ void _initializeCaches() {
 }
 
 void _initializeState() {
+  GetIt.instance.registerSingleton(AppNotifier());
   GetIt.instance.registerSingleton(
     PageStack(
       bottomPage: WelcomePage(),

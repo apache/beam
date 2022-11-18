@@ -47,6 +47,11 @@ class ContentTreeController extends ChangeNotifier {
 
   Sdk get sdk => Sdk.parseOrCreate(_sdkId);
   String get sdkId => _sdkId;
+  set sdkId(String newValue) {
+    _sdkId = newValue;
+    notifyListeners();
+  }
+
   List<String> get treeIds => _treeIds;
   NodeModel? get currentNode => _currentNode;
 
