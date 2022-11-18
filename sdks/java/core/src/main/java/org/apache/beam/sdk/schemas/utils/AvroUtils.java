@@ -158,7 +158,7 @@ public class AvroUtils {
     public static TypeWithNullability create(org.apache.avro.Schema avroSchema) {
       return new TypeWithNullability(avroSchema);
     }
-    
+
     TypeWithNullability(org.apache.avro.Schema avroSchema) {
       if (avroSchema.getType() == org.apache.avro.Schema.Type.UNION) {
         List<org.apache.avro.Schema> types = avroSchema.getTypes();
@@ -189,12 +189,12 @@ public class AvroUtils {
         nullable = false;
       }
     }
-    
-    public Boolean isNullable(){
+
+    public Boolean isNullable() {
       return nullable;
     }
-    
-    public org.apache.avro.Schema getType(){
+
+    public org.apache.avro.Schema getType() {
       return type;
     }
   }
