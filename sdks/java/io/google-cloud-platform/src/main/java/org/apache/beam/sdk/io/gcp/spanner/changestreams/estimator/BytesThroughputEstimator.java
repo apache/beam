@@ -37,6 +37,7 @@ import java.util.Deque;
 public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
 
   private static final long serialVersionUID = -3597929310338724800L;
+  private static final BigDecimal MAX_DOUBLE = BigDecimal.valueOf(Double.MAX_VALUE);
 
   /** Keeps track of how many bytes of throughput have been seen in a given timestamp. */
   private static class ThroughputEntry implements Serializable {
@@ -124,6 +125,8 @@ public class BytesThroughputEstimator<T> implements ThroughputEstimator<T> {
           .reduce(BigDecimal.ZERO, (acc, entry) -> acc.add(entry.getBytes()), BigDecimal::add)
           .max(BigDecimal.ZERO)
           .divide(BigDecimal.valueOf(windowSizeSeconds), MathContext.DECIMAL128)
+          // Cap it to Double.MAX_VALUE
+          .min(MAX_DOUBLE)
           .doubleValue();
     }
   }

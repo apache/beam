@@ -64,6 +64,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   private static final long serialVersionUID = -7574596218085711975L;
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
+  private static final BigDecimal MAX_DOUBLE = BigDecimal.valueOf(Double.MAX_VALUE);
 
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
@@ -159,7 +160,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
         timeGapInSeconds
             .multiply(throughput)
             // Cap it at Double.MAX_VALUE to avoid an overflow.
-            .min(BigDecimal.valueOf(Double.MAX_VALUE))
+            .min(MAX_DOUBLE)
             .doubleValue();
     LOG.debug(
         "getSize() = {} ({} timeGapInSeconds * {} throughput)", size, timeGapInSeconds, throughput);
