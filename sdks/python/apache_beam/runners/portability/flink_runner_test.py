@@ -18,6 +18,7 @@
 
 import argparse
 import logging
+import pathlib
 import shlex
 import typing
 import unittest
@@ -55,13 +56,14 @@ _LOGGER = logging.getLogger(__name__)
 
 Row = typing.NamedTuple("Row", [("col1", int), ("col2", str)])
 beam.coders.registry.register_coder(Row, beam.coders.RowCoder)
+default_flink_conf_path = pathlib.Path(__file__).parent.joinpath('../flink/src/test/resources/').resolve()
 
 
 class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   _use_grpc = True
   _use_subprocesses = True
 
-  conf_dir = True
+  conf_dir = None
   expansion_port = None
   flink_job_server_jar = None
 
@@ -167,7 +169,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
           '--flink-master',
           '[local]',
           '--flink-conf-dir',
-          cls.conf_dir,
+          cls.conf_dir if cls.conf_dir is not None else default_flink_conf_path,
           '--artifacts-dir',
           tmp_dir,
           '--job-port',
