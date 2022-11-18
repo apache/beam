@@ -40,8 +40,21 @@ applyJavaNature(
     'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',
   ],
   automaticModuleName: 'org.apache.beam.fn.harness',
-  validateShadowJar: false,
   testShadowJar: true,
+  shadowJarValidationExcludes: [
+    "junit/**",
+    "io/github/classgraph/**",
+    "nonapi/io/github/classgraph/**",
+    "org/apache/beam/fn/harness/**",
+    "org/apache/beam/model/fnexecution/**",
+    "org/apache/beam/runners/core/**",
+    "org/apache/beam/runners/core/construction/**",
+    "org/apache/beam/sdk/fn/**",
+    "org/checkerframework/**",
+    "org/github/jamm/**",
+    "org/hamcrest/**",
+    "org/junit/**",
+  ],
   shadowClosure:
   {
     dependencies {
