@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.transforms.reflect;
 
 // Do not add a package declaration: this test excersizes handling of the default package, see
 // https://github.com/apache/beam/issues/22784
