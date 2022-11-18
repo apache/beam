@@ -225,14 +225,6 @@ The RunInference API is available with the Beam Java SDK versions 2.41.0 and lat
 
 If you run into problems with your pipeline or job, this section lists issues that you might encounter and provides suggestions for how to fix them.
 
-### Incorrect inferences in the PredictionResult object
-
-In some cases, the `PredictionResults` output might not include the correct predictions in the `inferences` field. This issue occurs when you use a model whose inferences return a dictionary that maps keys to predictions and other metadata. An example return type is `Dict[str, Tensor]`.
-
-The RunInference API currently expects outputs to be an `Iterable[Any]`. Example return types are `Iterable[Tensor]` or `Iterable[Dict[str, Tensor]]`. When RunInference zips the inputs with the predictions, the predictions iterate over the dictionary keys instead of the batch elements. The result is that the key name is preserved but the prediction tensors are discarded. For more information, see the [Pytorch RunInference PredictionResult is a Dict](https://github.com/apache/beam/issues/22240) issue in the Apache Beam GitHub project.
-
-To work with the current RunInference implementation, you can create a wrapper class that overrides the `model(input)` call. In PyTorch, for example, your wrapper would override the `forward()` function and return an output with the appropriate format of `List[Dict[str, torch.Tensor]]`. For more information, see the [HuggingFace language modeling example](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py#L49).
-
 ### Unable to batch tensor elements
 
 RunInference uses dynamic batching. However, the RunInference API cannot batch tensor elements of different sizes, so samples passed to the RunInferene transform must be the same dimension or length. If you provide images of different sizes or word embeddings of different lengths, the following error might occur:
