@@ -49,9 +49,7 @@ class TobScaffold extends StatelessWidget {
           const SizedBox(width: BeamSizes.size12),
           const _ActionVerticalPadding(child: ToggleThemeButton()),
           const SizedBox(width: BeamSizes.size6),
-          const _ActionVerticalPadding(
-            child: _isAuthorized ? Avatar() : LoginButton(),
-          ),
+          const _Profile(),
           const SizedBox(width: BeamSizes.size16),
         ],
       ),
