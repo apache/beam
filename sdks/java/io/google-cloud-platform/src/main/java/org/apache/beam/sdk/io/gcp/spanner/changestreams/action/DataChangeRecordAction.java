@@ -84,13 +84,12 @@ public class DataChangeRecordAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
-    LOG.debug("[" + token + "] Processing data record " + record.getCommitTimestamp());
+    LOG.debug("[{}] Processing data record {}", token, record.getCommitTimestamp());
 
     final Timestamp commitTimestamp = record.getCommitTimestamp();
     final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
     if (!tracker.tryClaim(commitTimestamp)) {
-      LOG.debug(
-          "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
+      LOG.debug("[{}] Could not claim queryChangeStream({}), stopping", token, commitTimestamp);
       return Optional.of(ProcessContinuation.stop());
     }
     outputReceiver.outputWithTimestamp(record, commitInstant);
@@ -98,7 +97,7 @@ public class DataChangeRecordAction {
 
     throughputEstimator.update(Timestamp.now(), record);
 
-    LOG.debug("[" + token + "] Data record action completed successfully");
+    LOG.debug("[{}] Data record action completed successfully", token);
     return Optional.empty();
   }
 }

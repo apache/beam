@@ -155,13 +155,15 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final BigDecimal timeGapInSeconds =
         BigDecimal.valueOf(newTracker(partition, range).getProgress().getWorkRemaining());
     final BigDecimal throughput = BigDecimal.valueOf(this.throughputEstimator.get());
+    final double size =
+        timeGapInSeconds
+            .multiply(throughput)
+            // Cap it at Double.MAX_VALUE to avoid an overflow.
+            .min(BigDecimal.valueOf(Double.MAX_VALUE))
+            .doubleValue();
     LOG.debug(
-        "Reported getSize() - remaining work: " + timeGapInSeconds + " throughput:" + throughput);
-    return timeGapInSeconds
-        .multiply(throughput)
-        // Cap it at Double.MAX_VALUE to avoid an overflow.
-        .min(BigDecimal.valueOf(Double.MAX_VALUE))
-        .doubleValue();
+        "getSize() = {} ({} timeGapInSeconds * {} throughput)", size, timeGapInSeconds, throughput);
+    return size;
   }
 
   @NewTracker
@@ -227,8 +229,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
     final String token = partition.getPartitionToken();
 
-    LOG.debug(
-        "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
+    LOG.debug("[{}] Processing element with restriction {}", token, tracker.currentRestriction());
 
     return queryChangeStreamAction.run(
         partition, tracker, receiver, watermarkEstimator, bundleFinalizer);

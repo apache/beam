@@ -127,13 +127,10 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
     final long sizeEstimate = partitionsToSchedule * averagePartitionBytesSize;
 
     LOG.debug(
-        "getSize() = "
-            + sizeEstimate
-            + " ("
-            + partitionsToSchedule
-            + " partitionsToSchedule * "
-            + averagePartitionBytesSize
-            + " averagePartitionBytesSize)");
+        "getSize() = {} ({} partitionsToSchedule * {} averagePartitionBytesSize)",
+        sizeEstimate,
+        partitionsToSchedule,
+        averagePartitionBytesSize);
     return sizeEstimate;
   }
 

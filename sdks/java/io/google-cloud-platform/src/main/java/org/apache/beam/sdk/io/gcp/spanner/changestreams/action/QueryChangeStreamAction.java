@@ -193,12 +193,12 @@ public class QueryChangeStreamAction {
                 childPartitionsRecordAction.run(
                     updatedPartition, (ChildPartitionsRecord) record, tracker, watermarkEstimator);
           } else {
-            LOG.error("[" + token + "] Unknown record type " + record.getClass());
+            LOG.error("[{}] Unknown record type {}", token, record.getClass());
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
           }
 
           if (maybeContinuation.isPresent()) {
-            LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
+            LOG.debug("[{}] Continuation present, returning {}", token, maybeContinuation);
             bundleFinalizer.afterBundleCommit(
                 Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
                 updateWatermarkCallback(token, watermarkEstimator));
@@ -219,24 +219,21 @@ public class QueryChangeStreamAction {
       */
       if (isTimestampOutOfRange(e)) {
         LOG.debug(
-            "["
-                + token
-                + "] query change stream is out of range for "
-                + startTimestamp
-                + " to "
-                + endTimestamp
-                + ", finishing stream");
+            "[{}] query change stream is out of range for {} to {}, finishing stream",
+            token,
+            startTimestamp,
+            endTimestamp);
       } else {
         throw e;
       }
     }
 
-    LOG.debug("[" + token + "] change stream completed successfully");
+    LOG.debug("[{}] change stream completed successfully", token);
     if (tracker.tryClaim(endTimestamp)) {
-      LOG.debug("[" + token + "] Finishing partition");
+      LOG.debug("[{}] Finishing partition", token);
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
-      LOG.info("[" + token + "] Partition finished");
+      LOG.info("[{}] Partition finished", token);
     }
     return ProcessContinuation.stop();
   }
@@ -245,15 +242,15 @@ public class QueryChangeStreamAction {
       String token, WatermarkEstimator<Instant> watermarkEstimator) {
     return () -> {
       final Instant watermark = watermarkEstimator.currentWatermark();
-      LOG.debug("[" + token + "] Updating current watermark to " + watermark);
+      LOG.debug("[{}] Updating current watermark to {}", token, watermark);
       try {
         partitionMetadataDao.updateWatermark(
             token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
-          LOG.debug("[" + token + "] Unable to update the current watermark, partition NOT FOUND");
+          LOG.debug("[{}] Unable to update the current watermark, partition NOT FOUND", token);
         } else {
-          LOG.error("[" + token + "] Error updating the current watermark: " + e.getMessage(), e);
+          LOG.error("[{}] Error updating the current watermark: {}", token, e.getMessage(), e);
         }
       }
     };
