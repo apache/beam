@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:app_state/app_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -26,11 +27,13 @@ import 'package:playground_components/playground_components.dart';
 import '../../auth/notifier.dart';
 import '../../components/builders/content_tree.dart';
 import '../../components/builders/sdks.dart';
-import '../../components/filler_text.dart';
+import '../../components/login/content.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 import '../../models/module.dart';
+import '../../state.dart';
+import '../tour/page.dart';
 import 'state.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -41,6 +44,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
+      showSdkSelector: false,
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
             ? _WideWelcome(notifier)
@@ -60,12 +64,12 @@ class _WideWelcome extends StatelessWidget {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: const [
           Expanded(
-            child: _SdkSelection(notifier),
+            child: _SdkSelection(),
           ),
           Expanded(
-            child: _TourSummary(notifier),
+            child: _TourSummary(),
           ),
         ],
       ),
@@ -81,23 +85,22 @@ class _NarrowWelcome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [
-        _SdkSelection(notifier),
-        _TourSummary(notifier),
+      children: const [
+        _SdkSelection(),
+        _TourSummary(),
       ],
     );
   }
 }
 
 class _SdkSelection extends StatelessWidget {
-  final WelcomeNotifier notifier;
-
-  const _SdkSelection(this.notifier);
+  const _SdkSelection();
 
   static const double _minimalHeight = 900;
 
   @override
   Widget build(BuildContext context) {
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return Container(
       constraints: BoxConstraints(
         minHeight: MediaQuery.of(context).size.height -
@@ -130,12 +133,14 @@ class _SdkSelection extends StatelessWidget {
                     }
 
                     return AnimatedBuilder(
-                      animation: notifier,
+                      animation: appNotifier,
                       builder: (context, child) => _Buttons(
                         sdks: sdks,
-                        sdkId: notifier.sdkId,
-                        setSdkId: (v) => notifier.sdkId = v,
-                        onStartPressed: notifier.startTour,
+                        sdkId: appNotifier.sdkId,
+                        setSdkId: (v) => appNotifier.sdkId = v,
+                        onStartPressed: () {
+                          startTour(appNotifier.sdkId);
+                        },
                       ),
                     );
                   },
@@ -147,19 +152,25 @@ class _SdkSelection extends StatelessWidget {
       ),
     );
   }
+
+  void startTour(String? sdkId) {
+    if (sdkId == null) {
+      return;
+    }
+    GetIt.instance.get<PageStack>().push(TourPage(sdkId: sdkId));
+  }
 }
 
 class _TourSummary extends StatelessWidget {
-  final WelcomeNotifier notifier;
-
-  const _TourSummary(this.notifier);
+  const _TourSummary();
 
   @override
   Widget build(BuildContext context) {
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return AnimatedBuilder(
-      animation: notifier,
+      animation: appNotifier,
       builder: (context, child) {
-        final sdkId = notifier.sdkId;
+        final sdkId = appNotifier.sdkId;
         if (sdkId == null) {
           return Container();
         }
@@ -201,8 +212,6 @@ class _IntroText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = GetIt.instance.get<AuthNotifier>();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -216,13 +225,32 @@ class _IntroText extends StatelessWidget {
           color: BeamColors.grey2,
           constraints: const BoxConstraints(maxWidth: _dividerMaxWidth),
         ),
-        RichText(
-          text: TextSpan(
-            style: Theme.of(context).textTheme.bodyLarge,
-            children: [
+        const _IntroTextBody(),
+      ],
+    );
+  }
+}
+
+class _IntroTextBody extends StatelessWidget {
+  const _IntroTextBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = GetIt.instance.get<AuthNotifier>();
+    return AnimatedBuilder(
+      animation: auth,
+      builder: (context, child) => RichText(
+        text: TextSpan(
+          style: Theme.of(context).textTheme.bodyLarge,
+          children: [
+            TextSpan(
+              text: 'pages.welcome.ifSaveProgress'.tr(),
+            ),
+            if (auth.isAuthenticated)
               TextSpan(
-                text: 'pages.welcome.ifSaveProgress'.tr(),
-              ),
+                text: 'pages.welcome.signIn'.tr(),
+              )
+            else
               TextSpan(
                 text: 'pages.welcome.signIn'.tr(),
                 style: Theme.of(context)
@@ -230,16 +258,27 @@ class _IntroText extends StatelessWidget {
                     .bodyLarge!
                     .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
-                  ..onTap = () async {
-                    // TODO(nausharipov): popup with auth methods?
-                    await auth.signIn(AuthMethod.google);
+                  ..onTap = () {
+                    _openLoginDialog(context);
                   },
               ),
-              TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
-            ],
-          ),
+            TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  void _openLoginDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: LoginContent(
+          onLoggedIn: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
     );
   }
 }
@@ -402,7 +441,6 @@ class _ModuleBody extends StatelessWidget {
       padding: _modulePadding,
       child: Column(
         children: [
-          // const FillerText(width: 20),
           const SizedBox(height: BeamSizes.size16),
           Divider(
             color: themeData.dividerColor,
@@ -421,7 +459,6 @@ class _LastModuleBody extends StatelessWidget {
     return Container(
       margin: _moduleLeftMargin,
       padding: _modulePadding,
-      // child: const FillerText(width: 20),
     );
   }
 }

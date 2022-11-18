@@ -23,54 +23,77 @@ import 'package:playground_components/playground_components.dart';
 import '../../../cache/content_tree.dart';
 import '../../../models/group.dart';
 import '../../../models/node.dart';
+import '../../../models/unit.dart';
 
 class ContentTreeController extends ChangeNotifier {
   String _sdkId;
   List<String> _treeIds;
   NodeModel? _currentNode;
   final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
-  final expandedIds = <String>{};
+  final _expandedIds = <String>{};
+
+  Set<String> get expandedIds => _expandedIds;
 
   ContentTreeController({
     required String initialSdkId,
     List<String> initialTreeIds = const [],
   })  : _sdkId = initialSdkId,
         _treeIds = initialTreeIds {
-    expandedIds.addAll(initialTreeIds);
+    _expandedIds.addAll(initialTreeIds);
+
     _contentTreeCache.addListener(_onContentTreeCacheChange);
     _onContentTreeCacheChange();
   }
 
   Sdk get sdk => Sdk.parseOrCreate(_sdkId);
   String get sdkId => _sdkId;
+  set sdkId(String newValue) {
+    _sdkId = newValue;
+    notifyListeners();
+  }
+
   List<String> get treeIds => _treeIds;
   NodeModel? get currentNode => _currentNode;
 
-  void onNodeTap(NodeModel node) {
+  void openNode(NodeModel node) {
+    if (!_expandedIds.contains(node.id)) {
+      _expandedIds.add(node.id);
+    }
+
     if (node == _currentNode) {
       return;
     }
 
-    expandedIds.add(node.id);
-
     if (node is GroupModel) {
-      _currentNode = node.nodes.first;
-    } else {
+      openNode(node.nodes.first);
+    } else if (node is UnitModel) {
       _currentNode = node;
     }
+
     if (_currentNode != null) {
       _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
     }
     notifyListeners();
   }
 
-  List<String> _getNodeAncestors(NodeModel node, List<String> ancestors) {
+  void expandGroup(GroupModel group) {
+    _expandedIds.add(group.id);
+    notifyListeners();
+  }
+
+  void collapseGroup(GroupModel group) {
+    _expandedIds.remove(group.id);
+    notifyListeners();
+  }
+
+  List<String> _getNodeAncestors(NodeModel node, List<String> ancestorIds) {
     if (node.parent != null) {
-      ancestors.add(node.parent!.id);
-      return _getNodeAncestors(node.parent!, ancestors);
-    } else {
-      return ancestors.reversed.toList();
+      return _getNodeAncestors(
+        node.parent!,
+        [...ancestorIds, node.parent!.id],
+      );
     }
+    return ancestorIds.reversed.toList();
   }
 
   void _onContentTreeCacheChange() {
@@ -79,8 +102,10 @@ class ContentTreeController extends ChangeNotifier {
       return;
     }
 
-    _currentNode = contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.getFirstUnit();
-    _treeIds = _getNodeAncestors(_currentNode!, [_currentNode!.id]);
+    openNode(
+      contentTree.getNodeByTreeIds(_treeIds) ?? contentTree.getFirstUnit(),
+    );
+
     notifyListeners();
   }
 

@@ -22,20 +22,22 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../auth/method.dart';
 import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 
 class LoginContent extends StatelessWidget {
-  final void Function() closeOverlay;
+  final VoidCallback onLoggedIn;
   const LoginContent({
-    required this.closeOverlay,
+    required this.onLoggedIn,
   });
 
   @override
   Widget build(BuildContext context) {
     return _Body(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             'ui.signIn',
@@ -48,7 +50,7 @@ class LoginContent extends StatelessWidget {
           ).tr(),
           const _Divider(),
           _BrandedLoginButtons(
-            closeOverlay: closeOverlay,
+            onLoggedIn: onLoggedIn,
           ),
         ],
       ),
@@ -89,9 +91,9 @@ class _Divider extends StatelessWidget {
 }
 
 class _BrandedLoginButtons extends StatelessWidget {
-  final void Function() closeOverlay;
+  final VoidCallback onLoggedIn;
   const _BrandedLoginButtons({
-    required this.closeOverlay,
+    required this.onLoggedIn,
   });
 
   @override
@@ -142,8 +144,8 @@ class _BrandedLoginButtons extends StatelessWidget {
         const SizedBox(height: BeamSizes.size16),
         ElevatedButton.icon(
           onPressed: () async {
-            await auth.signIn(AuthMethod.google);
-            closeOverlay();
+            await auth.logIn(AuthMethod.google);
+            onLoggedIn();
           },
           style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,
           icon: SvgPicture.asset(Assets.svg.googleLogo),

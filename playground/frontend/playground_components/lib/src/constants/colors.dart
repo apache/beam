@@ -52,6 +52,8 @@ class BeamLightThemeColors {
   static const primaryBackground = BeamColors.white;
   static const secondaryBackground = Color(0xffFCFCFC);
   static const selectedUnitColor = Color(0xffE6E7E9);
+  static const selectedProgressColor = BeamColors.grey3;
+  static const unselectedProgressColor = selectedUnitColor;
   static const grey = Color(0xffE5E5E5);
   static const listBackground = BeamColors.grey3;
   static const text = BeamColors.darkBlue;
@@ -69,6 +71,8 @@ class BeamDarkThemeColors {
   static const primaryBackground = Color(0xff18181B);
   static const secondaryBackground = BeamColors.darkGrey;
   static const selectedUnitColor = Color(0xff626267);
+  static const selectedProgressColor = BeamColors.grey1;
+  static const unselectedProgressColor = selectedUnitColor;
   static const grey = Color(0xff3F3F46);
   static const listBackground = Color(0xff606772);
   static const text = Color(0xffffffff);

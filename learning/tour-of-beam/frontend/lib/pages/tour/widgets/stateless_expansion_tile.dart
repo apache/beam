@@ -16,39 +16,38 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'login_content.dart';
+import '../../../components/expansion_tile_wrapper.dart';
 
-class LoginButton extends StatelessWidget {
-  const LoginButton();
+class StatelessExpansionTile extends StatelessWidget {
+  final bool isExpanded;
+  final ValueChanged<bool>? onExpansionChanged;
+  final Widget title;
+  final Widget child;
+
+  const StatelessExpansionTile({
+    required this.isExpanded,
+    required this.onExpansionChanged,
+    required this.title,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        _openOverlay(context);
-      },
-      child: const Text('ui.signIn').tr(),
-    );
-  }
-
-  void _openOverlay(BuildContext context) {
-    OverlayEntry? overlay;
-    overlay = OverlayEntry(
-      builder: (context) => DismissibleOverlay(
-        close: overlay!.remove,
-        child: Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: LoginContent(
-            closeOverlay: overlay.remove,
-          ),
+    return ExpansionTileWrapper(
+      ExpansionTile(
+        key: ValueKey(isExpanded),
+        initiallyExpanded: isExpanded,
+        tilePadding: EdgeInsets.zero,
+        onExpansionChanged: onExpansionChanged,
+        title: title,
+        childrenPadding: const EdgeInsets.only(
+          left: BeamSizes.size24,
         ),
+        children: [child],
       ),
     );
-    Overlay.of(context)?.insert(overlay);
   }
 }

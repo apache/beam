@@ -17,14 +17,15 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../generated/assets.gen.dart';
+import '../../../cache/user_progress.dart';
 import '../../../models/unit.dart';
 import '../controllers/content_tree.dart';
-import 'tour_progress_indicator.dart';
+import 'unit_progress_indicator.dart';
 
-class UnitWidget extends StatefulWidget {
+class UnitWidget extends StatelessWidget {
   final UnitModel unit;
   final ContentTreeController contentTreeController;
 
@@ -34,52 +35,42 @@ class UnitWidget extends StatefulWidget {
   });
 
   @override
-  State<UnitWidget> createState() => _UnitWidgetState();
-}
-
-class _UnitWidgetState extends State<UnitWidget> {
-  @override
-  void initState() {
-    super.initState();
-    widget.contentTreeController.addListener(_rebuild);
-  }
-
-  @override
-  void dispose() {
-    widget.contentTreeController.removeListener(_rebuild);
-    super.dispose();
-  }
-
-  void _rebuild() {
-    setState(() {});
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final bool isSelected =
-        widget.contentTreeController.currentNode?.id == widget.unit.id;
-    return ClickableWidget(
-      onTap: () => widget.contentTreeController.onNodeTap(widget.unit),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).selectedRowColor : null,
-          borderRadius: BorderRadius.circular(BeamSizes.size3),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
-        child: Row(
-          children: [
-            TourProgressIndicator(
-              // TODO(nausharipov): fix indicator colors in mockups
-              assetPath: isSelected
-                  ? Assets.svg.unitProgressSelected0
-                  : Assets.svg.unitProgress0,
+    final cache = GetIt.instance.get<UserProgressCache>();
+
+    return AnimatedBuilder(
+      animation: contentTreeController,
+      builder: (context, child) {
+        final isSelected = contentTreeController.currentNode?.id == unit.id;
+
+        return ClickableWidget(
+          onTap: () => contentTreeController.openNode(unit),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isSelected ? Theme.of(context).selectedRowColor : null,
+              borderRadius: BorderRadius.circular(BeamSizes.size3),
             ),
-            Expanded(
-              child: Text(widget.unit.title),
+            padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
+            child: Row(
+              children: [
+                // TODO(nausharipov): finish
+                AnimatedBuilder(
+                  animation: cache,
+                  builder: (context, child) => UnitProgressIndicator(
+                    // TODO(nausharipov): get sdk
+                    isCompleted:
+                        cache.getCompletedUnits('go').contains(unit.id),
+                    isSelected: isSelected,
+                  ),
+                ),
+                Expanded(
+                  child: Text(unit.title),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

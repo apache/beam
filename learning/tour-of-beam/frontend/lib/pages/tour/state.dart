@@ -25,12 +25,16 @@ import '../../cache/unit_content.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
+import '../../state.dart';
 import 'controllers/content_tree.dart';
+import 'controllers/unit.dart';
 import 'path.dart';
 
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
+  final UnitController unitController;
+  final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   UnitContentModel? _currentUnitContent;
 
@@ -41,9 +45,15 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
           initialSdkId: initialSdkId,
           initialTreeIds: initialTreeIds,
         ),
+        unitController = UnitController(
+            // TODO(nausharipov): finish
+            // unitId: contentTreeController.currentNode.id,
+            // sdkId: initialSdkId,
+            ),
         playgroundController = _createPlaygroundController(initialSdkId) {
     contentTreeController.addListener(_onChanged);
     _unitContentCache.addListener(_onChanged);
+    _appNotifier.addListener(_setSdk);
     _onChanged();
   }
 
@@ -52,6 +62,14 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         sdkId: contentTreeController.sdkId,
         treeIds: contentTreeController.treeIds,
       );
+
+  void _setSdk() {
+    final sdkId = _appNotifier.sdkId;
+    if (sdkId != null) {
+      playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
+      contentTreeController.sdkId = sdkId;
+    }
+  }
 
   void _onChanged() {
     emitPathChanged();
@@ -152,6 +170,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   void dispose() {
     _unitContentCache.removeListener(_onChanged);
     contentTreeController.removeListener(_onChanged);
+    _appNotifier.removeListener(_setSdk);
     super.dispose();
   }
 }

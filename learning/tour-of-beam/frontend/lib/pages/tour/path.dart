@@ -51,6 +51,7 @@ class TourPath extends PagePath {
 
     final treeIds = (treeIdsString == null)
         ? const <String>[]
+        // TODO(nausharipov): use RegExp to remove the slash
         : treeIdsString.substring(1).split('/');
 
     return TourPath(

@@ -53,11 +53,11 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-  apiKey: "AIzaSyCLiOH31h9WRGjt6fEHHEwj5ev8X13ZAgQ",
-  authDomain: "sandbox-playground-002.firebaseapp.com",
-  projectId: "sandbox-playground-002",
-  storageBucket: "sandbox-playground-002.appspot.com",
-  messagingSenderId: "358160552171",
-  appId: "1:358160552171:web:39fba96946d1c6c6c12eae"
+    apiKey: 'AIzaSyD_Nj83s6-EJ_2QxsOzA0W9hULuhwe5FXk',
+    appId: '1:358160552171:web:39fba96946d1c6c6c12eae',
+    messagingSenderId: '358160552171',
+    projectId: 'sandbox-playground-002',
+    authDomain: 'sandbox-playground-002.firebaseapp.com',
+    storageBucket: 'sandbox-playground-002.appspot.com',
   );
 }

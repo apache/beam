@@ -16,24 +16,26 @@
  * limitations under the License.
  */
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../auth/notifier.dart';
-import '../auth/stage_enum.dart';
+import '../state.dart';
 import 'footer.dart';
-import 'login/login_button.dart';
+import 'login/button.dart';
 import 'logo.dart';
 import 'profile/avatar.dart';
 import 'sdk_dropdown.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
+  final bool showSdkSelector;
 
   const TobScaffold({
     super.key,
     required this.child,
+    required this.showSdkSelector,
   });
 
   @override
@@ -41,13 +43,16 @@ class TobScaffold extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Logo(),
-        actions: const [
-          _ActionVerticalPadding(child: SdkDropdown()),
-          SizedBox(width: BeamSizes.size12),
-          _ActionVerticalPadding(child: ToggleThemeButton()),
-          SizedBox(width: BeamSizes.size6),
-          _Profile(),
-          SizedBox(width: BeamSizes.size16),
+        actions: [
+          if (showSdkSelector)
+            const _ActionVerticalPadding(child: _SdkSelector()),
+          const SizedBox(width: BeamSizes.size12),
+          const _ActionVerticalPadding(child: ToggleThemeButton()),
+          const SizedBox(width: BeamSizes.size6),
+          const _ActionVerticalPadding(
+            child: _isAuthorized ? Avatar() : LoginButton(),
+          ),
+          const SizedBox(width: BeamSizes.size16),
         ],
       ),
       body: Column(
@@ -65,15 +70,11 @@ class _Profile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notifier = GetIt.instance.get<AuthNotifier>();
-
     return _ActionVerticalPadding(
-      child: AnimatedBuilder(
-        animation: notifier,
-        builder: (context, child) =>
-            notifier.authStage == AuthStage.authenticated
-                ? const Avatar()
-                : const LoginButton(),
+      child: StreamBuilder(
+        stream: FirebaseAuth.instance.userChanges(),
+        builder: (context, user) =>
+            user.hasData ? Avatar(user: user.data!) : const LoginButton(),
       ),
     );
   }
@@ -89,6 +90,26 @@ class _ActionVerticalPadding extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
       child: child,
+    );
+  }
+}
+
+class _SdkSelector extends StatelessWidget {
+  const _SdkSelector();
+
+  @override
+  Widget build(BuildContext context) {
+    final notifier = GetIt.instance.get<AppNotifier>();
+    return AnimatedBuilder(
+      animation: notifier,
+      builder: (context, child) => notifier.sdkId == null
+          ? Container()
+          : SdkDropdown(
+              sdkId: notifier.sdkId!,
+              onChanged: (sdkId) {
+                notifier.sdkId = sdkId;
+              },
+            ),
     );
   }
 }

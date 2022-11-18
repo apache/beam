@@ -20,74 +20,30 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'stage_enum.dart';
-
-enum AuthMethod {
-  google,
-  github,
-}
+import 'method.dart';
 
 class AuthNotifier extends ChangeNotifier {
-  // TODO(nausharipov): discuss HTTP Strict Forward Secrecy & proper headers
-  // https://pub.dev/packages/flutter_secure_storage#configure-web-version
-  AuthStage _authStage = AuthStage.loading;
-  final _authProviders = {
-    AuthMethod.google: GoogleAuthProvider(),
-    AuthMethod.github: GithubAuthProvider(),
-  };
-  static const _storage = FlutterSecureStorage();
-  static const _tokenStorageKey = 'token';
-  String? _token;
+  final _firebase = FirebaseAuth.instance;
+  final _authProviders = UnmodifiableAuthMethodMap(
+    google: GoogleAuthProvider(),
+    github: GithubAuthProvider(),
+  );
 
   AuthNotifier() {
-    unawaited(_read());
-  }
-
-  AuthStage get authStage => _authStage;
-
-  Future<void> signIn(AuthMethod authMethod) async {
-    if (_authStage == AuthStage.unauthenticated) {
-      // TODO(nausharipov): is switch better here than _authProviders?
-      final UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithPopup(_authProviders[authMethod]!);
-      final User? user = userCredential.user;
-
-      if (user != null) {
-        await _updateStorageToken(user.uid);
-      }
+    _firebase.authStateChanges().listen((user) async {
       notifyListeners();
-    }
+    });
   }
 
-  Future<void> signOut() async {
-    await FirebaseAuth.instance.signOut();
-    await _updateStorageToken(null);
-    notifyListeners();
+  bool get isAuthenticated => _firebase.currentUser != null;
+
+  Future<String?> get token async => await _firebase.currentUser?.getIdToken();
+
+  Future<void> logIn(AuthMethod authMethod) async {
+    await _firebase.signInWithPopup(_authProviders.get(authMethod));
   }
 
-  Future<void> _updateStorageToken(String? value) async {
-    // TODO(nausharipov): use FirebaseAuth.instance.currentUser instead?
-    await _storage.write(
-      key: _tokenStorageKey,
-      value: value,
-    );
-    await _read();
-  }
-
-  Future<void> _read() async {
-    _token = await _storage.read(key: _tokenStorageKey);
-    if (_token == null) {
-      _authStage = AuthStage.unauthenticated;
-    } else {
-      _authStage = AuthStage.verifying;
-      await _dummyDelay();
-      _authStage = AuthStage.authenticated;
-    }
-    notifyListeners();
-  }
-
-  Future<void> _dummyDelay() async {
-    await Future.delayed(const Duration(seconds: 2));
+  Future<void> logOut() async {
+    await _firebase.signOut();
   }
 }
