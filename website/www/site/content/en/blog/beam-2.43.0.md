@@ -25,15 +25,14 @@ See the [download page](/get-started/downloads/#2430-2022-11-17) for this releas
 
 <!--more-->
 
-For more information on changes in {$RELEASE_VERSION}, check out the [detailed release notes](https://github.com/apache/beam/milestone/5?closed=1).
+For more information on changes in 2.43.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/5?closed=1).
 
 ## Highlights
 
 * Python 3.10 support in Apache Beam ([#21458](https://github.com/apache/beam/issues/21458)).
 * An initial implementation of a runner that allows us to run Beam pipelines on Dask. Try it out and give us feedback! (Python) ([#18962](https://github.com/apache/beam/issues/18962)).
 
-{$TOPICS e.g.:}
-### I/Os
+## I/Os
 
 * Decreased TextSource CPU utilization by 2.3x (Java) ([#23193](https://github.com/apache/beam/issues/23193)).
 * Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) ([#22146](https://github.com/apache/beam/issues/22146)).
@@ -42,7 +41,7 @@ For more information on changes in {$RELEASE_VERSION}, check out the [detailed r
   ([#23564](https://github.com/apache/beam/issues/23564) and [#23559](https://github.com/apache/beam/issues/23559)).
 * Bumped google-cloud-spanner dependency version to 3.x for Python SDK ([#21198](https://github.com/apache/beam/issues/21198)).
 
-### New Features / Improvements
+## New Features / Improvements
 
 * Dataframe wrapper added in Go SDK via Cross-Language (with automatic expansion service). (Go) ([#23384](https://github.com/apache/beam/issues/23384)).
 * Name all Java threads to aid in debugging ([#23049](https://github.com/apache/beam/issues/23049)).
@@ -51,20 +50,20 @@ For more information on changes in {$RELEASE_VERSION}, check out the [detailed r
   For example, this feature makes it possible to access Google Drive backed tables in BigQuery ([#23290](https://github.com/apache/beam/issues/23290)).
 * An example for using Python RunInference from Java ([#23290](https://github.com/apache/beam/pull/23619)).
 
-### Breaking Changes
+## Breaking Changes
 
 * CoGroupByKey transform in Python SDK has changed the output typehint. The typehint component representing grouped values changed from List to Iterable,
   which more accurately reflects the nature of the arbitrarily large output collection. [#21556](https://github.com/apache/beam/issues/21556) Beam users may see an error on transforms downstream from CoGroupByKey. Users must change methods expecting a List to expect an Iterable going forward. See [document](https://docs.google.com/document/d/1RIzm8-g-0CyVsPb6yasjwokJQFoKHG4NjRUcKHKINu0) for information and fixes.
 * The PortableRunner for Spark assumes Spark 3 as default Spark major version unless configured otherwise using `--spark_version`.
   Spark 2 support is deprecated and will be removed soon ([#23728](https://github.com/apache/beam/issues/23728)).
 
-### Bugfixes
+## Bugfixes
 
 * Fixed Python cross-language JDBC IO Connector cannot read or write rows containing Numeric/Decimal type values ([#19817](https://github.com/apache/beam/issues/19817)).
 
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.43.0 release. Thank you to all contributors!
 
 Ahmed Abualsaud
 AlexZMLyu
