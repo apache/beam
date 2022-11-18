@@ -21,8 +21,8 @@ The DaskRunner is a runner implementation that executes a graph of
 transformations across processes and workers via Dask distributed's
 scheduler.
 """
-import dataclasses
 import argparse
+import dataclasses
 import typing as t
 
 from apache_beam import pvalue
