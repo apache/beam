@@ -64,6 +64,7 @@ from google.protobuf import text_format  # pylint: disable=attr-defined
 
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.io.gcp import gcsio
 from apache_beam.runners import runner
 from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability import local_job_service_main
@@ -474,7 +475,12 @@ def render_one(options):
       except UnicodeDecodeError:
         ext = '.pb'
   else:
-    with open(options.pipeline_proto, 'rb') as fin:
+    if options.pipeline_proto.startswith('gs://'):
+      open_fn = gcsio.GcsIO().open
+    else:
+      open_fn = open
+
+    with open_fn(options.pipeline_proto, 'rb') as fin:
       content = fin.read()
     ext = os.path.splitext(options.pipeline_proto)[-1]
 
