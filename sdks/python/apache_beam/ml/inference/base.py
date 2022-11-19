@@ -145,6 +145,9 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
           'inference_args were provided, but should be None because this '
           'framework does not expect extra arguments on inferences.')
 
+  def get_model_path(self):
+    raise NotImplementedError
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
@@ -400,6 +403,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
+    self._model_path = None
 
   def _load_model(self, model_path: Optional[str] = None):
     def load():
@@ -413,11 +417,31 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_byte_size = memory_after - memory_before
       self._metrics_collector.cache_load_model_metrics(
           load_model_latency_ms, model_byte_size)
-      return model
+
+      # save the most recent seen model in the shared object.
+      # A weakref to the dict cannot be created. So subclass the
+      # dict for the shared cache.
+      class ModelContainer(Dict):
+        pass
+
+      self.model_container = ModelContainer()
+      self.model_container['model'] = model
+      self.model_container['model_path'] = model_path
+      return self.model_container
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
-    return self._shared_model_handle.acquire(load, tag='test_same_tag')
+    cached_object = self._shared_model_handle.acquire(load)
+    if cached_object['model_path'] != model_path:
+      # Model path is updated to a new path. Replace the current cached model
+      # with the new model.
+      cached_object = self._shared_model_handle.acquire(load, tag=model_path)
+      # (TODO): provide a unique ID as metrics_namespace to distinguish between
+      # different models. Once a new model is observed, a new metrics collector
+      # object needs to be used.
+      self._metrics_collector = _MetricsCollector(
+          self._model_handler.get_metrics_namespace())
+    return cached_object
 
   def setup(self):
     metrics_namespace = (
@@ -426,8 +450,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._metrics_collector = _MetricsCollector(metrics_namespace)
 
   # model_path will be passed to the DoFn as side input.
-  def process(self, batch, inference_args):
-    self._model = self._load_model()
+  def process(self, batch, inference_args, model_path=None):
+    # if self._model_path != model_path:
+    self._model = self._load_model(model_path)['model']
+
     start_time = _to_microseconds(self._clock.time_ns())
     try:
       result_generator = self._model_handler.run_inference(
