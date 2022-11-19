@@ -482,7 +482,7 @@ def render_one(options):
   RenderRunner().run_pipeline(
       None,
       pipeline_options.PipelineOptions(**vars(options)),
-      self._pipeline_proto)
+      pipeline_proto)
 
 
 def run_server(options):
