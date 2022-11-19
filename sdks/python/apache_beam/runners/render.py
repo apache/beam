@@ -483,7 +483,8 @@ def render_one(options):
   elif ext == '.json':
     pipeline_proto = json_format.Parse(content, beam_runner_api_pb2.Pipeline())
   else:
-    pipeline_proto = beam_runner_api_pb2.Pipeline.ParseFromString(content)
+    pipeline_proto = beam_runner_api_pb2.Pipeline()
+    pipeline_proto.ParseFromString(content)
 
   RenderRunner().run_pipeline(
       None,
