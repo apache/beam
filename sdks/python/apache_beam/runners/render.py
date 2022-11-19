@@ -451,6 +451,9 @@ def run(argv):
   options = parser.parse_args(argv)
 
   if options.pipeline_proto:
+    if not options.render_output and options.render_port < 0:
+        options.render_port = 0
+
     render_one(options)
 
     if options.render_output:
