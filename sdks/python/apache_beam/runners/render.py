@@ -114,6 +114,11 @@ class RenderOptions(pipeline_options.PipelineOptions):
         '--render_highlight_attributes',
         default='',
         help='Graphviz attributes to add to all highlighted nodes.')
+    parser.add_argument(
+        '--log_proto',
+        default=False,
+        action='store_true',
+        help='Set to also log input pipeline proto to stdout.')
     return parser
 
 
@@ -385,6 +390,8 @@ class RenderRunner(runner.PipelineRunner):
     if not pipeline_proto:
       pipeline_proto = pipeline_object.to_runner_api()
     render_options = options.view_as(RenderOptions)
+    if render_options.log_proto:
+      logging.info(pipeline_proto)
     renderer = PipelineRenderer(pipeline_proto, render_options)
     renderer.page()
 
