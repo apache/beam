@@ -452,8 +452,11 @@ def run(argv):
 
   if options.pipeline_proto:
     render_one(options)
-  else:
-    run_server(options)
+
+    if options.render_output:
+        sys.exit()
+
+  run_server(options)
 
 
 def render_one(options):
