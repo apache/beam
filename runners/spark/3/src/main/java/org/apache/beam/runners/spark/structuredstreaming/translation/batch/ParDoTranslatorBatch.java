@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.translation.EvaluationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
@@ -143,6 +144,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
       // by use of an encoder.
       // For any other storage level, persist as Dataset, so we can select columns by TupleTag
       // individually without restoring the entire row.
+      // In both cases caching of the outputs in the translation context is disabled to avoid
+      // caching the same data twice.
       if (MEMORY_ONLY().equals(storageLevel)) {
 
         RDD<Tuple2<Integer, WindowedValue<Object>>> allTagsRDD =
@@ -160,7 +163,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
                   .map(fun1(Tuple2::_2), WINDOWED_VALUE_CTAG);
 
           cxt.putDataset(
-              cxt.getOutput(key), cxt.getSparkSession().createDataset(rddByTag, encoders.get(id)));
+              cxt.getOutput(key),
+              cxt.getSparkSession().createDataset(rddByTag, encoders.get(id)),
+              false);
         }
       } else {
         // Persist as wide rows with one column per TupleTag to support different schemas
@@ -177,7 +182,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
           TypedColumn<Tuple2<Integer, WindowedValue<Object>>, WindowedValue<Object>> col =
               (TypedColumn) col(id.toString()).as(encoders.get(id));
 
-          cxt.putDataset(cxt.getOutput(key), allTagsDS.filter(col.isNotNull()).select(col));
+          cxt.putDataset(cxt.getOutput(key), allTagsDS.filter(col.isNotNull()).select(col), false);
         }
       }
     } else {
@@ -220,10 +225,10 @@ class ParDoTranslatorBatch<InputT, OutputT>
       Coder<WindowedValue<?>> windowedValueCoder =
           (Coder<WindowedValue<?>>)
               (Coder<?>) WindowedValue.getFullCoder(pc.getCoder(), windowCoder);
-      Dataset<WindowedValue<?>> broadcastSet = context.getSideInputDataset(sideInput);
-      List<WindowedValue<?>> valuesList = broadcastSet.collectAsList();
+      Dataset<WindowedValue<?>> broadcastSet = context.getDataset((PCollection) pc);
+      WindowedValue<?>[] values = EvaluationContext.collect(sideInput.getName(), broadcastSet);
       List<byte[]> codedValues = new ArrayList<>();
-      for (WindowedValue<?> v : valuesList) {
+      for (WindowedValue<?> v : values) {
         codedValues.add(CoderHelpers.toByteArray(v, windowedValueCoder));
       }
 

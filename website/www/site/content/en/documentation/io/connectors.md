@@ -1,5 +1,6 @@
 ---
 title: "I/O Connectors"
+aliases: [built-in]
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -133,7 +134,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>ParquetIO</td>
+    <td>ParquetIO (<a href="/documentation/io/built-in/parquet/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -390,7 +391,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
   </tr>
   <tr>
-    <td>HadoopFormatIO</td>
+    <td>HadoopFormatIO (<a href="/documentation/io/built-in/hadoop/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -416,7 +417,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
   </tr>
   <tr>
-    <td>HCatalogIO</td>
+    <td>HCatalogIO (<a href="/documentation/io/built-in/hcatalog/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -468,7 +469,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigQueryIO</td>
+    <td>BigQueryIO (<a href="/documentation/io/built-in/google-bigquery/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -522,7 +523,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>SnowflakeIO</td>
+    <td>SnowflakeIO (<a href="/documentation/io/built-in/snowflake">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">

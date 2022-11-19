@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.splunk;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.http.ByteArrayContent;
+import com.google.api.client.http.GZipEncoding;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
 import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler.BackOffRequired;
@@ -104,6 +105,8 @@ abstract class HttpEventPublisher {
 
   abstract Boolean disableCertificateValidation();
 
+  abstract Boolean enableGzipHttpCompression();
+
   /**
    * Executes a POST for the list of {@link SplunkEvent} objects into Splunk's Http Event Collector
    * endpoint.
@@ -115,6 +118,10 @@ abstract class HttpEventPublisher {
 
     HttpContent content = getContent(events);
     HttpRequest request = requestFactory().buildPostRequest(genericUrl(), content);
+
+    if (enableGzipHttpCompression()) {
+      request.setEncoding(new GZipEncoding());
+    }
 
     HttpBackOffUnsuccessfulResponseHandler responseHandler =
         new HttpBackOffUnsuccessfulResponseHandler(getConfiguredBackOff());
@@ -208,6 +215,8 @@ abstract class HttpEventPublisher {
 
     abstract Boolean disableCertificateValidation();
 
+    abstract Builder setEnableGzipHttpCompression(Boolean enableGzipHttpCompression);
+
     abstract Builder setMaxElapsedMillis(Integer maxElapsedMillis);
 
     abstract Integer maxElapsedMillis();
@@ -248,6 +257,19 @@ abstract class HttpEventPublisher {
           disableCertificateValidation,
           "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
       return setDisableCertificateValidation(disableCertificateValidation);
+    }
+
+    /**
+     * Method to specify if HTTP requests sent to Splunk HEC should be GZIP encoded.
+     *
+     * @param enableGzipHttpCompression whether to enable Gzip encoding.
+     * @return {@link Builder}
+     */
+    public Builder withEnableGzipHttpCompression(Boolean enableGzipHttpCompression) {
+      checkNotNull(
+          enableGzipHttpCompression,
+          "withEnableGzipHttpCompression(enableGzipHttpCompression) called with null input.");
+      return setEnableGzipHttpCompression(enableGzipHttpCompression);
     }
 
     /**

@@ -21,7 +21,12 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "links": [],
+  "links": [
+    {
+      "name": "Documentation",
+      "url": "https://s.apache.org/beam-ml-metrics"
+    },
+  ],
   "panels": [
     {
       "aliasColors": {},

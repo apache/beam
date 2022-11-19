@@ -76,3 +76,13 @@ type UnitProgress struct {
 type SdkProgress struct {
 	Units []UnitProgress `json:"units"`
 }
+
+type UserCodeFile struct {
+	Name    string `json:"name"`
+	Content string `json:"content"`
+	IsMain  bool   `json:"isMain,omitempty"`
+}
+type UserCodeRequest struct {
+	Files           []UserCodeFile `json:"files"`
+	PipelineOptions string         `json:"pipelineOptions"`
+}

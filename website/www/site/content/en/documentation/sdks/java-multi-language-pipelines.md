@@ -50,6 +50,9 @@ already have these environments set up, first complete the
 For running with portable DirectRunner, you need to have Docker installed
 locally and the Docker daemon should be running. This is not needed for Dataflow.
 
+For running on Dataflow, you need a Google Cloud project with billing enabled and a
+[Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets).
+
 This example relies on Python pandas package 1.4.0 or later which is unavailable
 for Python versions earlier than 3.8. Hence please make sure that the default Python
 version installed in your system is 3.8 or later.
@@ -70,7 +73,7 @@ transforms are identified by their fully qualified name. For example,
 package, so its fully qualified name is
 `apache_beam.dataframe.transforms.DataframeTransform`.
 The example pipeline,
-[PythonDataframeWordCount](https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java),
+[PythonDataframeWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java),
 passes this fully qualified name to
 [PythonExternalTransform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/python/PythonExternalTransform.html).
 
@@ -138,6 +141,9 @@ default Beam SDK, you might need to run your own expansion service. In such
 cases, [start the expansion service](#advanced-start-an-expansion-service)
 before running your pipeline.
 
+Before running the pipeline, make sure to perform the
+[runner specific setup](https://beam.apache.org/get-started/quickstart-java/#run-a-pipeline) for your selected Beam runner.
+
 ### Run with Dataflow runner at HEAD (Beam 2.41.0 and later)
 
 > **Note:** Due to [issue#23717](https://github.com/apache/beam/issues/23717),
@@ -188,7 +194,7 @@ python -m apache_beam.runners.portability.local_job_service_main -p $JOB_SERVER_
    (this guide requires that your JAVA_HOME is set to Java 11).
 
 ```
-./gradlew :sdks:java:container:java11:docker
+./gradlew :sdks:java:container:java11:docker -Pjava11Home=$JAVA_HOME
 ```
 
 5. Run the pipeline.
@@ -238,14 +244,14 @@ follow these steps:
 2. Install Apache Beam with `gcp` and `dataframe` packages.
 
 ```
-pip install apache-beam[gcp,dataframe]
+pip install 'apache-beam[gcp,dataframe]'
 ```
 
 4. Run the following command
 
-   ```
-   python -m apache_beam.runners.portability.expansion_service_main -p <PORT> --fully_qualified_name_glob "*"
-   ```
+```
+python -m apache_beam.runners.portability.expansion_service_main -p <PORT> --fully_qualified_name_glob "*"
+```
 
 The command runs
 [expansion_service_main.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service_main.py), which starts the standard expansion service. When you use

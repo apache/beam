@@ -23,14 +23,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.structuredstreaming.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetricSource;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.CompositeSource;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.SparkBeamMetricSource;
+import org.apache.beam.runners.spark.structuredstreaming.translation.EvaluationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
+import org.apache.beam.runners.spark.structuredstreaming.translation.SparkSessionFactory;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
@@ -42,9 +44,10 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.spark.SparkContext;
 import org.apache.spark.SparkEnv$;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
+import org.apache.spark.sql.SparkSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,7 +149,7 @@ public final class SparkStructuredStreamingRunner
     AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
 
-    final TranslationContext translationContext = translatePipeline(pipeline);
+    final EvaluationContext evaluationContext = translatePipeline(pipeline);
 
     final ExecutorService executorService =
         Executors.newSingleThreadExecutor(
@@ -155,14 +158,14 @@ public final class SparkStructuredStreamingRunner
         executorService.submit(
             () -> {
               // TODO initialise other services: checkpointing, metrics system, listeners, ...
-              translationContext.startPipeline();
+              evaluationContext.evaluate();
             });
     executorService.shutdown();
 
     Runnable onTerminalState =
         options.getUseActiveSparkSession()
             ? () -> {}
-            : () -> translationContext.getSparkSession().stop();
+            : () -> evaluationContext.getSparkSession().stop();
     SparkStructuredStreamingPipelineResult result =
         new SparkStructuredStreamingPipelineResult(submissionFuture, onTerminalState);
 
@@ -182,8 +185,8 @@ public final class SparkStructuredStreamingRunner
     return result;
   }
 
-  private TranslationContext translatePipeline(Pipeline pipeline) {
-    PipelineTranslator.detectTranslationMode(pipeline, options);
+  private EvaluationContext translatePipeline(Pipeline pipeline) {
+    PipelineTranslator.detectStreamingMode(pipeline, options);
     Preconditions.checkArgument(
         !options.isStreaming(), "%s does not support streaming pipelines.", getClass().getName());
 
@@ -195,17 +198,18 @@ public final class SparkStructuredStreamingRunner
       SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     }
 
+    if (!ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
+      ProjectionPushdownOptimizer.optimize(pipeline);
+    }
+
     PipelineTranslator.replaceTransforms(pipeline, options);
     prepareFilesToStage(options);
-    PipelineTranslator pipelineTranslator = new PipelineTranslatorBatch(options);
 
-    final JavaSparkContext jsc =
-        JavaSparkContext.fromSparkContext(
-            pipelineTranslator.getTranslationContext().getSparkSession().sparkContext());
-    initAccumulators(options, jsc);
+    final SparkSession sparkSession = SparkSessionFactory.getOrCreateSession(options);
+    initAccumulators(sparkSession.sparkContext());
 
-    pipelineTranslator.translate(pipeline);
-    return pipelineTranslator.getTranslationContext();
+    PipelineTranslator pipelineTranslator = new PipelineTranslatorBatch();
+    return pipelineTranslator.translate(pipeline, sparkSession, options);
   }
 
   private void registerMetricsSource(String appName) {
@@ -224,10 +228,9 @@ public final class SparkStructuredStreamingRunner
   }
 
   /** Init Metrics/Aggregators accumulators. This method is idempotent. */
-  public static void initAccumulators(
-      SparkStructuredStreamingPipelineOptions opts, JavaSparkContext jsc) {
+  public static void initAccumulators(SparkContext sparkContext) {
     // Init metrics accumulators
-    MetricsAccumulator.init(jsc);
-    AggregatorsAccumulator.init(jsc);
+    MetricsAccumulator.init(sparkContext);
+    AggregatorsAccumulator.init(sparkContext);
   }
 }
