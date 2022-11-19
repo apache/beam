@@ -137,7 +137,7 @@ class _SdkSelection extends StatelessWidget {
                         sdkId: appNotifier.sdkId,
                         setSdkId: (v) => appNotifier.sdkId = v,
                         onStartPressed: () {
-                          startTour(appNotifier.sdkId);
+                          _startTour(appNotifier.sdkId);
                         },
                       ),
                     );
@@ -151,7 +151,7 @@ class _SdkSelection extends StatelessWidget {
     );
   }
 
-  void startTour(String? sdkId) {
+  void _startTour(String? sdkId) {
     if (sdkId == null) {
       return;
     }

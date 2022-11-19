@@ -46,7 +46,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         playgroundController = _createPlaygroundController(initialSdkId) {
     contentTreeController.addListener(_onChanged);
     _unitContentCache.addListener(_onChanged);
-    _appNotifier.addListener(_setSdk);
+    _appNotifier.addListener(_onAppNotifierChanged);
     _onChanged();
   }
 
@@ -56,7 +56,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         treeIds: contentTreeController.treeIds,
       );
 
-  void _setSdk() {
+  void _onAppNotifierChanged() {
     final sdkId = _appNotifier.sdkId;
     if (sdkId != null) {
       playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
@@ -163,7 +163,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   void dispose() {
     _unitContentCache.removeListener(_onChanged);
     contentTreeController.removeListener(_onChanged);
-    _appNotifier.removeListener(_setSdk);
+    _appNotifier.removeListener(_onAppNotifierChanged);
     super.dispose();
   }
 }

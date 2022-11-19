@@ -23,7 +23,7 @@ import 'builders/sdks.dart';
 
 class SdkDropdown extends StatelessWidget {
   final String sdkId;
-  final void Function(String? sdkId) onChanged;
+  final ValueChanged<String?> onChanged;
   const SdkDropdown({
     required this.sdkId,
     required this.onChanged,
