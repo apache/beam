@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.Mutation;
-
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
