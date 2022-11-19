@@ -17,7 +17,6 @@
 # pytype: skip-file
 
 import argparse
-import logging
 import subprocess
 import unittest
 
@@ -31,7 +30,7 @@ default_options = render.RenderOptions._add_argparse_args(
 class RenderRunnerTest(unittest.TestCase):
   def test_basic_graph(self):
     p = beam.Pipeline()
-    pcoll = (
+    _ = (
         p | beam.Impulse() | beam.Map(lambda _: 2)
         | 'CustomName' >> beam.Map(lambda x: x * x))
     dot = render.PipelineRenderer(p.to_runner_api(), default_options).to_dot()
@@ -42,14 +41,13 @@ class RenderRunnerTest(unittest.TestCase):
   def test_side_input(self):
     p = beam.Pipeline()
     pcoll = p | beam.Impulse() | beam.FlatMap(lambda x: [1, 2, 3])
-    dot = renderer = render.PipelineRenderer(
-        p.to_runner_api(), default_options).to_dot()
+    dot = render.PipelineRenderer(p.to_runner_api(), default_options).to_dot()
     self.assertEqual(dot.count('->'), 1)
     self.assertNotIn('dotted', dot)
 
-    pcoll | beam.Map(lambda x, side: x * side, side=beam.pvalue.AsList(pcoll))
-    dot = renderer = render.PipelineRenderer(
-        p.to_runner_api(), default_options).to_dot()
+    _ = pcoll | beam.Map(
+        lambda x, side: x * side, side=beam.pvalue.AsList(pcoll))
+    dot = render.PipelineRenderer(p.to_runner_api(), default_options).to_dot()
     self.assertEqual(dot.count('->'), 3)
     self.assertIn('dotted', dot)
 
@@ -68,14 +66,14 @@ class RenderRunnerTest(unittest.TestCase):
 
   def test_dot_well_formed(self):
     try:
-      subprocess.run(['dot', '--version'], capture_output=True)
+      subprocess.run(['dot', '--version'], capture_output=True, check=True)
     except FileNotFoundError:
       self.skipTest('dot executable not installed')
     p = beam.Pipeline()
     _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
     pipeline_proto = p.to_runner_api()
     renderer = render.PipelineRenderer(pipeline_proto, default_options)
-    # This doesn't actually look at the output, but ensures dot executes correctly.
+    # Doesn't actually look at the output, but ensures dot executes correctly.
     renderer.render_data()
     create_transform_id, = [
         id

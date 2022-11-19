@@ -60,7 +60,7 @@ import time
 import urllib.parse
 
 from google.protobuf import json_format
-from google.protobuf import text_format  # pylint: disable=attr-defined
+from google.protobuf import text_format
 
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -68,7 +68,6 @@ from apache_beam.io.gcp import gcsio
 from apache_beam.runners import runner
 from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability import local_job_service_main
-from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.fn_api_runner import translations
 
 # From the Beam site, circa November 2022.
@@ -280,7 +279,7 @@ class PipelineRenderer:
   def info(self):
     if len(self.highlighted) != 1:
       return ''
-    transform_id, = self.highlighted
+    transform_id = self.highlighted[0]
     return f'<pre>{self.pipeline.components.transforms[transform_id]}</pre>'
 
   def layout_dot(self):
@@ -332,7 +331,9 @@ class PipelineRenderer:
       for path in self.options.render_output:
         format = os.path.splitext(path)[-1][1:]
         result = subprocess.run(
-            ['dot', '-Kneato', '-n2', '-T' + format, '-o', path], input=layout)
+            ['dot', '-Kneato', '-n2', '-T' + format, '-o', path],
+            input=layout,
+            check=False)
         if result.returncode:
           logging.error(
               "Failed render pipeline as %r: exit %s", path, result.returncode)
@@ -460,12 +461,12 @@ def run(argv):
 
   if options.pipeline_proto:
     if not options.render_output and options.render_port < 0:
-        options.render_port = 0
+      options.render_port = 0
 
     render_one(options)
 
     if options.render_output:
-        sys.exit()
+      sys.exit()
 
   run_server(options)
 
@@ -500,9 +501,7 @@ def render_one(options):
     pipeline_proto.ParseFromString(content)
 
   RenderRunner().run_pipeline(
-      None,
-      pipeline_options.PipelineOptions(**vars(options)),
-      pipeline_proto)
+      None, pipeline_options.PipelineOptions(**vars(options)), pipeline_proto)
 
 
 def run_server(options):
