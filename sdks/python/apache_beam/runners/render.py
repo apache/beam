@@ -100,8 +100,8 @@ class RenderOptions(pipeline_options.PipelineOptions):
         help='A set of regular expressions for transform names that should be '
         'not be expanded.  For example, one could pass "\bRead.*" to indicate '
         'the inner structure of read nodes should not be expanded. '
-        'If not give, defaults to the top-level nodes if interactively serving '
-        'the graph and expanding all nodes otherwise.')
+        'If not given, defaults to the top-level nodes if interactively '
+        'serving the graph and expanding all nodes otherwise.')
     parser.add_argument(
         '--render_edge_attributes',
         default='',
