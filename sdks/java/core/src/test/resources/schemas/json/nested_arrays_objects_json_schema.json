@@ -1,6 +1,5 @@
 {
   "$id": "https://example.com/arrays.schema.json",
-  "description": "A representation of a person, company, organization, or place",
   "type": "object",
   "properties": {
     "fruits": {

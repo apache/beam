@@ -91,11 +91,15 @@ public class JsonUtils {
       if (propertySchema == null) {
         throw new IllegalArgumentException("Unable to parse schema " + jsonSchema.toString());
       }
-      if (propertySchema.getClass().equals(org.everit.json.schema.ObjectSchema.class)) {
+      if (propertySchema instanceof org.everit.json.schema.ObjectSchema) {
         beamSchemaBuilder =
             beamSchemaBuilder.addField(
                 Schema.Field.of(propertyName, beamTypeFromJsonSchemaType(propertySchema)));
-      } else if (propertySchema.getClass().equals(org.everit.json.schema.ArraySchema.class)) {
+      } else if (propertySchema instanceof org.everit.json.schema.ArraySchema) {
+        if (((ArraySchema) propertySchema).getAllItemSchema() == null) {
+          throw new IllegalArgumentException(
+              "Array schema is not properly formatted or unsupported: " + propertyName);
+        }
         beamSchemaBuilder =
             beamSchemaBuilder.addField(
                 Schema.Field.of(
@@ -118,23 +122,29 @@ public class JsonUtils {
 
   private static Schema.FieldType beamTypeFromJsonSchemaType(
       org.everit.json.schema.Schema propertySchema) {
-    if (propertySchema.getClass().equals(org.everit.json.schema.ObjectSchema.class)) {
+    if (propertySchema instanceof org.everit.json.schema.ObjectSchema) {
       return Schema.FieldType.row(beamSchemaFromJsonSchema((ObjectSchema) propertySchema));
-    } else if (propertySchema.getClass().equals(org.everit.json.schema.BooleanSchema.class)) {
+    } else if (propertySchema instanceof org.everit.json.schema.BooleanSchema) {
       return Schema.FieldType.BOOLEAN;
-    } else if (propertySchema.getClass().equals(org.everit.json.schema.NumberSchema.class)) {
+    } else if (propertySchema instanceof org.everit.json.schema.NumberSchema) {
       return ((NumberSchema) propertySchema).requiresInteger()
           ? Schema.FieldType.INT64
           : Schema.FieldType.DOUBLE;
     }
-    if (propertySchema.getClass().equals(org.everit.json.schema.StringSchema.class)) {
+    if (propertySchema instanceof org.everit.json.schema.StringSchema) {
       return Schema.FieldType.STRING;
-    } else if (propertySchema.getClass().equals(org.everit.json.schema.ReferenceSchema.class)) {
+    } else if (propertySchema instanceof org.everit.json.schema.ReferenceSchema) {
       org.everit.json.schema.Schema sch = ((ReferenceSchema) propertySchema).getReferredSchema();
       return beamTypeFromJsonSchemaType(sch);
+    } else if (propertySchema instanceof org.everit.json.schema.ArraySchema) {
+      if (((ArraySchema) propertySchema).getAllItemSchema() == null) {
+        throw new IllegalArgumentException(
+            "Array schema is not properly formatted or unsupported: " + propertySchema);
+      }
+      return Schema.FieldType.array(
+          beamTypeFromJsonSchemaType(((ArraySchema) propertySchema).getAllItemSchema()));
     } else {
-      throw new IllegalArgumentException(
-          "Unsupported schema type: " + propertySchema.getClass().toString());
+      throw new IllegalArgumentException("Unsupported schema type: " + propertySchema.getClass());
     }
   }
 
@@ -142,9 +152,9 @@ public class JsonUtils {
     JSONObject parsedSchema = new JSONObject(jsonSchema);
     org.everit.json.schema.Schema schemaValidator =
         org.everit.json.schema.loader.SchemaLoader.load(parsedSchema);
-    if (!schemaValidator.getClass().equals(ObjectSchema.class)) {
+    if (!(schemaValidator instanceof ObjectSchema)) {
       throw new IllegalArgumentException(
-          String.format("The schema is not a valid object schema:\n%s", jsonSchema));
+          String.format("The schema is not a valid object schema:%n %s", jsonSchema));
     }
     return (org.everit.json.schema.ObjectSchema) schemaValidator;
   }

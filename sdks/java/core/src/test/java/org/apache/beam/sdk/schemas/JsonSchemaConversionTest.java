@@ -19,12 +19,14 @@ package org.apache.beam.sdk.schemas;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertThrows;
 
-import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -69,6 +71,93 @@ public class JsonSchemaConversionTest {
                       Schema.of(
                           Schema.Field.of("veggieName", Schema.FieldType.STRING),
                           Schema.Field.of("veggieLike", Schema.FieldType.BOOLEAN))))));
+    }
+  }
+
+  @Test
+  public void testArrayNestedArrayObjectJsonSchemaToBeamSchema() throws IOException {
+    try (InputStream inputStream =
+        getClass().getResourceAsStream("/schemas/json/array_nested_array_json_schema.json")) {
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
+
+      assertThat(parsedSchema.getFieldNames(), containsInAnyOrder("complexMatrix"));
+      assertThat(
+          parsedSchema.getFields().stream().map(Schema.Field::getType).collect(Collectors.toList()),
+          containsInAnyOrder(
+              Schema.FieldType.array(
+                  Schema.FieldType.array(
+                      Schema.FieldType.row(
+                          Schema.of(
+                              Schema.Field.of("imaginary", Schema.FieldType.DOUBLE),
+                              Schema.Field.of("real", Schema.FieldType.DOUBLE)))))));
+    }
+  }
+
+  @Test
+  public void testObjectNestedObjectArrayJsonSchemaToBeamSchema() throws IOException {
+    try (InputStream inputStream =
+        getClass()
+            .getResourceAsStream("/schemas/json/object_nested_object_and_array_json_schema.json")) {
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
+
+      assertThat(parsedSchema.getFieldNames(), containsInAnyOrder("classroom"));
+      assertThat(
+          parsedSchema.getFields().stream().map(Schema.Field::getType).collect(Collectors.toList()),
+          containsInAnyOrder(
+              Schema.FieldType.row(
+                  Schema.of(
+                      Schema.Field.of("teacher", Schema.FieldType.STRING),
+                      Schema.Field.of(
+                          "classroom",
+                          Schema.FieldType.row(
+                              Schema.of(
+                                  Schema.Field.of(
+                                      "students",
+                                      Schema.FieldType.array(
+                                          Schema.FieldType.row(
+                                              Schema.of(
+                                                  Schema.Field.of("name", Schema.FieldType.STRING),
+                                                  Schema.Field.of(
+                                                      "age", Schema.FieldType.INT64))))),
+                                  Schema.Field.of("building", Schema.FieldType.STRING))))))));
+    }
+  }
+
+  @Test
+  public void testUnsupportedTupleArrays() throws IOException {
+    try (InputStream inputStream =
+        getClass().getResourceAsStream("/schemas/json/unsupported_tuple_arrays.json")) {
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+
+      IllegalArgumentException thrownException =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> {
+                JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
+              });
+
+      assertThat(
+          thrownException.getMessage(), containsString("Array schema is not properly formatted"));
+    }
+  }
+
+  @Test
+  public void testUnsupportedNestedTupleArrays() throws IOException {
+    try (InputStream inputStream =
+        getClass().getResourceAsStream("/schemas/json/unsupported_nested_tuple_array.json")) {
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+
+      IllegalArgumentException thrownException =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> {
+                JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
+              });
+
+      assertThat(
+          thrownException.getMessage(), containsString("Array schema is not properly formatted"));
     }
   }
 }
