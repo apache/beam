@@ -21,6 +21,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
+import pandas as pd
 import requests
 
 try:
@@ -31,8 +32,8 @@ except KeyError as e:
       'A Github Personal Access token is required '
       'to create Github Issues.')
 
-_BEAM_REPO_OWNER = 'AnandInguva'
-_BEAM_REPO_NAME = 'beam'
+_BEAM_GITHUB_REPO_OWNER = 'AnandInguva'
+_BEAM_GITHUB_REPO_NAME = 'beam'
 _HEADERS = {
     "Authorization": 'token {}'.format(_GITHUB_TOKEN),
     "Accept": "application/vnd.github+json"
@@ -71,10 +72,10 @@ def create_or_comment_issue(
   # Issue number was not provided or issue with provided number
   # is closed. In that case, create a new issue.
   url = "https://api.github.com/repos/{}/{}/issues".format(
-      _BEAM_REPO_OWNER, _BEAM_REPO_NAME)
+      _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME)
   data = {
-      'owner': _BEAM_REPO_OWNER,
-      'repo': _BEAM_REPO_NAME,
+      'owner': _BEAM_GITHUB_REPO_OWNER,
+      'repo': _BEAM_GITHUB_REPO_NAME,
       'title': title,
       'body': description,
   }
@@ -98,12 +99,12 @@ def comment_on_issue(issue_number: int,
       then comment on the issue with the using comment_description.
   """
   url = 'https://api.github.com/repos/{}/{}/issues/{}'.format(
-      _BEAM_REPO_OWNER, _BEAM_REPO_NAME, issue_number)
+      _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
   open_issue_response = requests.get(
       url,
       json.dumps({
-          'owner': _BEAM_REPO_OWNER,
-          'repo': _BEAM_REPO_NAME,
+          'owner': _BEAM_GITHUB_REPO_OWNER,
+          'repo': _BEAM_GITHUB_REPO_NAME,
           'issue_number': issue_number
       }),
       headers=_HEADERS)
@@ -111,8 +112,8 @@ def comment_on_issue(issue_number: int,
   open_issue_response = open_issue_response.json()
   if status_code == 200 and open_issue_response['state'] == 'open':
     data = {
-        'owner': _BEAM_REPO_OWNER,
-        'repo': _BEAM_REPO_NAME,
+        'owner': _BEAM_GITHUB_REPO_OWNER,
+        'repo': _BEAM_GITHUB_REPO_NAME,
         'body': comment_description,
         issue_number: issue_number,
     }
@@ -125,7 +126,7 @@ def comment_on_issue(issue_number: int,
 
 def get_issue_description(
     metric_name: str,
-    timestamps: List,
+    timestamps: List[pd.Timestamp],
     metric_values: List,
     change_point_index: int,
     max_results_to_display: int = 5) -> str:
@@ -147,12 +148,11 @@ def get_issue_description(
   # TODO: Add mean and median before and after the changepoint index.
   indices_to_display = []
   upper_bound = min(
-      change_point_index + max_results_to_display, len(metric_values))
-  for i in range(change_point_index, upper_bound):
-    indices_to_display.append(i)
+      change_point_index + max_results_to_display + 1, len(metric_values))
   lower_bound = max(0, change_point_index - max_results_to_display)
-  for i in range(lower_bound, change_point_index):
+  for i in range(lower_bound, upper_bound):
     indices_to_display.append(i)
+
   indices_to_display.sort()
   description = _ISSUE_DESCRIPTION_HEADER.format(metric_name) + 2 * '\n'
   for i in indices_to_display:
