@@ -45,7 +45,22 @@ class Output(beam.PTransform):
     input | beam.ParDo(self._OutputFn(self.prefix))
 
 class Accum:
-  current = [{}]
+  def __init__(self):
+    self._cnt = {}
+
+  def add(self, word, cnt=1):
+    self._cnt.setdefault(word, 0)
+    self._cnt[word] += cnt
+    return self
+
+  def merge(self, another):
+    for w, cnt in another._cnt:
+      self.add(w, cnt)
+    return self
+
+  def extract_output(self):
+    return self._cnt
+
 
 class AverageFn(beam.CombineFn):
 
@@ -53,16 +68,16 @@ class AverageFn(beam.CombineFn):
     return Accum()
 
   def add_input(self, accumulator, element):
-    word = accumulator
-    return word + element
+    return accumulator.add(element)
 
   def merge_accumulators(self, accumulators):
-    sums = zip(*accumulators)
-    return sums
+    first = accumulators.pop()
+    while accumulators:
+      first.merge(accumulators.pop())
+    return first
 
   def extract_output(self, accumulator):
-    sum = accumulator
-    return sum
+    return accumulator.extract_output()
 
 
 
