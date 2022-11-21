@@ -91,7 +91,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	if len(info.Datasets) != 0 {
 		kafkaMockClusters, prepareParamsVal, err := emulators.PrepareMockClustersAndGetPrepareParams(info)
 		if err != nil {
-			return nil, errors.InternalError(errorTitleRunCode, "Failed to prepare a mock emulator cluster")
+			return nil, cerrors.InternalError(errorTitleRunCode, "Failed to prepare a mock emulator cluster")
 		}
 		kafkaMockCluster = kafkaMockClusters[0]
 		prepareParams = prepareParamsVal
