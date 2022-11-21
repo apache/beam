@@ -43,16 +43,30 @@ variable "cloudbuild_service_account_id" {
   default     = "playground-cloudbuild-sa"
 }
 
-variable "playground_environment_name" {}
+variable "playground_environment_name" {
+  description = "Environment where to deploy Playground. Located in playground/terraform/environment/{environment_name}"
+}
 
-variable "playground_dns_name" {}
+variable "playground_dns_name" {
+  description = "DNS record name for Playground website"
+}
 
-variable "playground_network_name" {}
+variable "playground_network_name" {
+  description = "GCP VPC Network Name for Playground deployment"
+}
 
-variable "playground_gke_name" {}
+variable "playground_gke_name" {
+  description = "Playground GKE Cluster name"
+}
 
-variable "state_bucket" {}
+variable "state_bucket" {
+  description = "GCS bucket name for Beam Playground temp files and Terraform state"
+}
 
-variable "image_tag" {}
+variable "image_tag" {
+  description = "The tag name for docker images of Playground containers"
+}
 
-variable "docker_repository_root" {}
+variable "docker_repository_root" {
+  description = "The name of GCP Artifact Registry Repository where Playground images will be saved to"
+}
