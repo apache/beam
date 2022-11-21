@@ -18,7 +18,7 @@
 name: Failing Test
 description: Report a failing test
 title: "[Failing Test]: "
-labels: ["bug", "awaiting triage", "test-failures"]
+labels: ["bug", "awaiting triage", "failing test"]
 assignees:
   - octocat
 body:
