@@ -16,30 +16,9 @@
 package service
 
 import (
-	"log"
-
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
-	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
 )
 
-func MakePgSaveRequest(userRequest tob.UserCodeRequest, sdk tob.Sdk, persistence_key string) pb.SaveSnippetRequest {
-	filesProto := make([]*pb.SnippetFile, 0)
-	for _, file := range userRequest.Files {
-		filesProto = append(filesProto,
-			&pb.SnippetFile{
-				Name:    file.Name,
-				Content: file.Content,
-				IsMain:  file.IsMain,
-			})
-	}
-	sdkIdx, ok := pb.Sdk_value[sdk.StorageID()]
-	if !ok {
-		log.Panicf("Playground SDK undefined for: %v", sdk)
-	}
-	return pb.SaveSnippetRequest{
-		Sdk:             pb.Sdk(sdkIdx),
-		Files:           filesProto,
-		PipelineOptions: userRequest.PipelineOptions,
-		PersistenceKey:  persistence_key,
-	}
+func makePersistenceKey(sdk tob.Sdk, unitId, uid string) string {
+	return "mock_persistence_key"
 }

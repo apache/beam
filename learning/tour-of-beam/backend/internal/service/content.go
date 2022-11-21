@@ -82,7 +82,8 @@ func (s *Svc) SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string,
 		return err
 	}
 
-	req := MakePgSaveRequest(userRequest, sdk)
+	persistence_key := makePersistenceKey(sdk, unitId, uid)
+	req := MakePgSaveRequest(userRequest, sdk, persistence_key)
 	resp, err := s.PgClient.SaveSnippet(ctx, &req)
 	if err != nil {
 		return err
