@@ -23,9 +23,17 @@
   "graphTooltip": 0,
   "links": [
     {
-      "name": "Documentation",
+      "asDropdown": false,
+      "icon": "info",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Explanation of Benchmarks",
+      "tooltip": "Documentation of metrics used",
+      "type": "link",
       "url": "https://s.apache.org/beam-ml-metrics"
-    },
+    }
   ],
   "panels": [
     {
