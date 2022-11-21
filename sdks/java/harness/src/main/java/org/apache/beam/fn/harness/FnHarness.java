@@ -41,6 +41,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
@@ -50,7 +51,6 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
@@ -217,8 +217,7 @@ public class FnHarness {
 
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     ShortIdMap metricsShortIds = new ShortIdMap();
-    ExecutorService executorService =
-        options.as(ExecutorOptions.class).getScheduledExecutorService();
+    ExecutorService executorService = options.as(GcsOptions.class).getExecutorService();
     ExecutionStateSampler executionStateSampler =
         new ExecutionStateSampler(options, System::currentTimeMillis);
 
@@ -246,7 +245,8 @@ public class FnHarness {
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(idGenerator, channelFactory, outboundObserverFactory);
 
-      FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
+      FinalizeBundleHandler finalizeBundleHandler =
+          new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());
 
       Function<String, BeamFnApi.ProcessBundleDescriptor> getProcessBundleDescriptor =
           new Function<String, ProcessBundleDescriptor>() {
