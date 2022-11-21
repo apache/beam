@@ -66,7 +66,7 @@ class RenderRunnerTest(unittest.TestCase):
 
   def test_dot_well_formed(self):
     try:
-      subprocess.run(['dot', '--version'], capture_output=True, check=True)
+      subprocess.run(['dot', '-V'], capture_output=True, check=True)
     except FileNotFoundError:
       self.skipTest('dot executable not installed')
     p = beam.Pipeline()
