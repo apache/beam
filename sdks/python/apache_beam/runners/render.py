@@ -303,7 +303,7 @@ class PipelineRenderer:
           self.latest_positions[name] = box['pos']
         elif 'bb' in box:
           x0, y0, x1, y1 = [float(r) for r in box['bb'].split(',')]
-          pos = '{(x0+x1)/2},{(y0+y1)/2}'
+          self.latest_positions[name] = '{(x0+x1)/2},{(y0+y1)/2}'
 
     return layout
 
