@@ -735,7 +735,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
-        zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-1",
+        zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-5",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
         quickcheck_generators                       : "com.pholser:junit-quickcheck-generators:$quickcheck_version",
         arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
@@ -990,8 +990,12 @@ class BeamModulePlugin implements Plugin<Project> {
       skipDefRegexes += configuration.classesTriggerCheckerBugs.keySet()
       String skipDefCombinedRegex = skipDefRegexes.collect({ regex -> "(${regex})"}).join("|")
 
+      List<String> skipUsesRegexes = []
+      // zstd-jni is not annotated, handles Zstd(De)CompressCtx.loadDict(null) just fine
+      skipUsesRegexes << "^com\\.github\\.luben\\.zstd\\..*"
       // SLF4J logger handles null log message parameters
-      String skipUsesRegex = "^org\\.slf4j\\.Logger.*"
+      skipUsesRegexes << "^org\\.slf4j\\.Logger.*"
+      String skipUsesCombinedRegex = skipUsesRegexes.collect({ regex -> "(${regex})"}).join("|")
 
       project.apply plugin: 'org.checkerframework'
       project.checkerFramework {
@@ -1012,7 +1016,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         extraJavacArgs = [
           "-AskipDefs=${skipDefCombinedRegex}",
-          "-AskipUses=${skipUsesRegex}",
+          "-AskipUses=${skipUsesCombinedRegex}",
           "-AsuppressWarnings=annotation.not.completed",
         ]
 
