@@ -19,6 +19,7 @@
 // ignore_for_file: unsafe_html
 
 import 'dart:html' as html;
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -26,8 +27,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/params.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/messages/models/set_content_message.dart';
-import 'package:playground/utils/javascript_post_message.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
@@ -58,16 +57,12 @@ class EmbeddedActions extends StatelessWidget {
   void _openStandalonePlayground(PlaygroundController controller) {
     // The empty list forces the parsing of EmptyExampleLoadingDescriptor
     // and prevents the glimpse of the default catalog example.
-    final window = html.window.open(
-      '/?$kExamplesParam=[]&$kSdkParam=${controller.sdk?.id}',
-      '',
-    );
 
-    javaScriptPostMessageRepeated(
-      window,
-      SetContentMessage(
-        descriptor: controller.getLoadingDescriptor(),
-      ),
+    var descriptors = controller.getLoadingDescriptor().toJson()['descriptors'];
+    var json = jsonEncode(descriptors);
+    html.window.open(
+      '/?$kExamplesParam=$json&$kSdkParam=${controller.sdk?.id}',
+      '',
     );
   }
 }
