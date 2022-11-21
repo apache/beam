@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderProvider;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -47,13 +48,16 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.storage.StorageLevel;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.reflect.ClassTag;
 
 /**
  * The pipeline translator translates a Beam {@link Pipeline} into a Spark correspondence, that can
@@ -123,7 +127,8 @@ public abstract class PipelineTranslator {
    */
   private static final class TranslationResult<T> implements EvaluationContext.NamedDataset<T> {
     private final String name;
-    private @Nullable Dataset<WindowedValue<T>> dataset = null;
+    private @MonotonicNonNull Dataset<WindowedValue<T>> dataset = null;
+    private @MonotonicNonNull Broadcast<SideInputValues<T>> sideInputBroadcast = null;
     private final Set<PTransform<?, ?>> dependentTransforms = new HashSet<>();
 
     private TranslationResult(PCollection<?> pCol) {
@@ -142,7 +147,7 @@ public abstract class PipelineTranslator {
   }
 
   /** Shared, mutable state during the translation of a pipeline and omitted afterwards. */
-  interface TranslationState extends EncoderProvider {
+  public interface TranslationState extends EncoderProvider {
     <T> Dataset<WindowedValue<T>> getDataset(PCollection<T> pCollection);
 
     <T> void putDataset(
@@ -151,6 +156,9 @@ public abstract class PipelineTranslator {
     default <T> void putDataset(PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset) {
       putDataset(pCollection, dataset, true);
     }
+
+    <T> Broadcast<SideInputValues<T>> getSideInputBroadcast(
+        PCollection<T> pCollection, SideInputValues.Loader<T> loader);
 
     SerializablePipelineOptions getSerializableOptions();
 
@@ -237,6 +245,17 @@ public abstract class PipelineTranslator {
     }
 
     @Override
+    public <T> Broadcast<SideInputValues<T>> getSideInputBroadcast(
+        PCollection<T> pCollection, SideInputValues.Loader<T> loader) {
+      TranslationResult<T> result = getResult(pCollection);
+      if (result.sideInputBroadcast == null) {
+        SideInputValues<T> sideInputValues = loader.apply(checkStateNotNull(result.dataset));
+        result.sideInputBroadcast = broadcast(sparkSession, sideInputValues);
+      }
+      return result.sideInputBroadcast;
+    }
+
+    @Override
     public SerializablePipelineOptions getSerializableOptions() {
       return serializableOptions;
     }
@@ -245,6 +264,10 @@ public abstract class PipelineTranslator {
     public SparkSession getSparkSession() {
       return sparkSession;
     }
+  }
+
+  private static <T> Broadcast<T> broadcast(SparkSession session, T t) {
+    return session.sparkContext().broadcast(t, (ClassTag) ClassTag.AnyRef());
   }
 
   /**
