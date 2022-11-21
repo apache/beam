@@ -136,6 +136,10 @@ func TestSaveGetProgress(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		assert.Equal(t, len(exp.Units), len(resp.Units))
+		assert.Equal(t, exp.Units[1].Id, resp.Units[1].Id)
+		// snippet_id is derived from random uid
+		exp.Units[1].UserSnippetId = resp.Units[1].UserSnippetId
 		assert.Equal(t, exp, resp)
 	})
 }

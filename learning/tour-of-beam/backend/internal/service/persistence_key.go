@@ -16,9 +16,28 @@
 package service
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"os"
+	"strings"
+
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
 
 func makePersistenceKey(sdk tob.Sdk, unitId, uid string) string {
-	return "mock_persistence_key"
+	h := sha256.New()
+	// never share!
+	plainKey := strings.Join(
+		[]string{os.Getenv("PERSISTENCE_KEY_SALT"), sdk.String(), unitId, uid},
+		"|")
+	_, err := h.Write([]byte(plainKey))
+	if err != nil {
+		panic(err)
+	}
+	raw := h.Sum(nil)
+
+	// base64 encode to pass as protobuf string
+	encoded := base64.URLEncoding.EncodeToString(raw)
+
+	return encoded
 }
