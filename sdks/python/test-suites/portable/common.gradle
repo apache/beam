@@ -363,6 +363,9 @@ project.tasks.register("xlangSpannerIOIT") {
             // suppress metric name collision warning logs
             '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
     ]
+    if (project.hasProperty('flinkConfDir')) {
+      pipelineOpts += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
+    }
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
             "suite": "postCommitIT-flink-py${pythonVersionSuffix}",
