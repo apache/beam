@@ -91,6 +91,21 @@ def _compare_prediction_result(a, b):
       expected in zip(a.inference, b.inference)))
 
 
+def _assign_or_fail(args):
+  """CUDA error checking."""
+  from cuda import cuda
+  err, ret = args[0], args[1:]
+  if isinstance(err, cuda.CUresult):
+    if err != cuda.CUresult.CUDA_SUCCESS:
+      raise RuntimeError("Cuda Error: {}".format(err))
+  else:
+    raise RuntimeError("Unknown error type: {}".format(err))
+  # Special case so that no unpacking is needed at call-site.
+  if len(ret) == 1:
+    return ret[0]
+  return ret
+
+
 def _custom_tensorRT_inference_fn(batch, engine, inference_args):
   from cuda import cuda
   (
