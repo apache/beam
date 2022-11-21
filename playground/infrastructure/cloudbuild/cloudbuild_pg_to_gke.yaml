@@ -26,19 +26,6 @@ steps:
           -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Pdns-name="$_DNS_NAME"'
       ]
 
-# Substitutions can be changed in GCP Cloud Build Triggers UI
-substitutions:
-  # The name of your environment in beam/playground/terraform/environment/
-  _ENVIRONMENT_NAME: "test"
-  # The name of your DNS for Playground
-  _DNS_NAME: "dev-playground.online"
-  # The name of your Docker tag
-  _TAG: "playground"
-  # The name of your GKE cluster (from terraform.tfvars)
-  _GKE_NAME: "playground-cluster"
-  # The name of docker repository root (from outputs of first trigger result)
-  _DOCKER_REPOSITORY_ROOT: "$LOCATION-docker.pkg.dev/$PROJECT_ID/playground-repository"
-
 # This option enables writing logs to Cloud Logging
 options:
   logging: CLOUD_LOGGING_ONLY

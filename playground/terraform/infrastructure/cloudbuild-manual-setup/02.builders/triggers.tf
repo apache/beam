@@ -38,11 +38,11 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
   }
 
   substitutions = {
-    _ENVIRONMENT_NAME: var.playground_environment_name
-    _DNS_NAME: var.playground_dns_name
-    _NETWORK_NAME: var.playground_network_name
-    _GKE_NAME: var.playground_gke_name
-    _STATE_BUCKET: var.state_bucket
+    _ENVIRONMENT_NAME : var.playground_environment_name
+    _DNS_NAME : var.playground_dns_name
+    _NETWORK_NAME : var.playground_network_name
+    _GKE_NAME : var.playground_gke_name
+    _STATE_BUCKET : var.state_bucket
   }
 
   service_account = data.google_service_account.cloudbuild_sa.id
@@ -67,13 +67,13 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   }
 
   substitutions = {
-    _ENVIRONMENT_NAME: var.playground_environment_name
-    _DNS_NAME: var.playground_dns_name
-    _NETWORK_NAME: var.playground_network_name
-    _GKE_NAME: var.playground_gke_name
-    _STATE_BUCKET: var.state_bucket
-    _TAG: var.image_tag
-    _DOCKER_REPOSITORY_ROOT: var.docker_repository_root
+    _ENVIRONMENT_NAME : var.playground_environment_name
+    _DNS_NAME : var.playground_dns_name
+    _NETWORK_NAME : var.playground_network_name
+    _GKE_NAME : var.playground_gke_name
+    _STATE_BUCKET : var.state_bucket
+    _TAG : var.image_tag
+    _DOCKER_REPOSITORY_ROOT : var.docker_repository_root
   }
 
   service_account = data.google_service_account.cloudbuild_sa.id

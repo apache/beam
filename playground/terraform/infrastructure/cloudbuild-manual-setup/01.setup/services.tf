@@ -17,7 +17,7 @@
 
 // Provision the required Google Cloud services
 resource "google_project_service" "required_services" {
-  project  = var.project_id
+  project = var.project_id
   for_each = toset([
     "cloudresourcemanager",
     "cloudbuild",

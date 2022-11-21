@@ -46,12 +46,26 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
 #### To execute the module:
 
 1. Set following environment variables:
-   - STATE_BUCKET - GCP Storage bucket name to save Terraform state
-   - GOOGLE_PROJECT - GCP Project ID
-   - GOOGLE_REGION - GCP region to save resources to
+   - `STATE_BUCKET`: GCP Storage bucket name to save Terraform state
+   - `GOOGLE_PROJECT`: GCP Project ID
+   - `GOOGLE_REGION`: GCP region to save resources to
+   - `ENVIRONMENT_NAME`: Environment where Playground will be deployed (located at playground/terraform/environment/environment_name)
+   - `DNS_NAME`: DNS for deployed Playground webpage
+   - `NETWORK_NAME`: GCP VPC Network Name for Playground deployment
+   - `GKE_NAME`: Playground GKE Cluster name
+   - `TAG`: Tag for Playground images
+   - `DOCKER_REPOSITORY_ROOT`: GCP Artifact Registry repository name to store Playground container images
 
 ```console
-    export STATE_BUCKET="state_bucket" GOOGLE_PROJECT="project_id" GOOGLE_REGION="region"
+    export STATE_BUCKET="state_bucket" \
+    GOOGLE_PROJECT="project_id" \
+    GOOGLE_REGION="region" \
+    ENVIRONMENT_NAME="env_name" \
+    DNS_NAME="dns_name" \
+    NETWORK_NAME="network_name" \
+    GKE_NAME="gke_name" \
+    TAG="tag" \
+    DOCKER_REPOSITORY_ROOT="us-central1-docker.pkg.dev/playground-repository"
 ```
 **Note:**  Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations)     for the list of all supported locations.
 
@@ -93,35 +107,37 @@ cd ../02.builders
 
 # Run terraform scripts
 terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply -var "project_id=$GOOGLE_PROJECT" -var "region=$GOOGLE_REGION"
+
+terraform apply \
+-var "project_id=$GOOGLE_PROJECT" \
+-var "region=$GOOGLE_REGION" \
+-var "playground_environment_name=$ENVIRONMENT_NAME" \
+-var "playground_dns_name=$DNS_NAME" \
+-var "playground_network_name=$NETWORK_NAME" \
+-var "playground_gke_name=$GKE_NAME" \
+-var "state_bucket=$STATE_BUCKET" \
+-var "image_tag=$TAG" \
+-var "docker_repository_root=$DOCKER_REPOSITORY_ROOT"
 ```
 
 ## 4. Run Cloud Build `Playground-infrastructure-trigger` to deploy Playground infrastructure
 
-1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (Example: us-central1).
+1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (In our example: us-central1).
 2. Open Trigger: `Playground-infrastructure-trigger`.
-3. Scroll down to `Advanced` - `Substitutions variables` and Click on `+ ADD VARIABLE`.
-4. Assign values for the next variables:
-    - `_ENVIRONMENT_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; # *Created "environment_name"*
-    - `_DNS_NAME`  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your DNS record name*
-    - `_LOGS_BUCKET_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GCP logs bucket name `logs_bucket`*
-5. Click `Save` and Run the trigger `Playground-infrastructure-trigger`.
+3. Scroll down to `Source` - `Repository` to ensure that Apache Beam GitHub repository is connected.
+   - Click on drop-down menu and press `CONNECT NEW REPOSITORY` in case it was not automatically connected.
+4. Click `Save` and Run the trigger `Playground-infrastructure-trigger`.
 
-6. Once Playground infrastructure has been deployed, please navigate to
+5. Once Playground infrastructure has been deployed, please navigate to
    [Playground deployment README](https://github.com/apache/beam/tree/master/playground/terraform#deploy-playground-infrastructure) and execute step #2:
-   `Add following DNS A records for the discovered static IP address`
+   `Add following DNS A records for the discovered static IP address` expanding use of variable `DNS_NAME`.
 
 ## 5. Run Cloud Build `Playground-to-gke-trigger` to deploy Playground to GKE
 
-1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (Example: us-central1).
+1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (In our example: us-central1).
 2. Open Trigger: `Playground-to-gke-trigger`.
-3. Scroll down to `Advanced` - `Substitutions variables` and Click on `+ ADD VARIABLE`.
-4. Assign values for the next variables:
-    - `_ENVIRONMENT_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  # *Created "environment_name"*
-    - `_DNS_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  &nbsp;  &nbsp;  *# Your DNS record name*
-    - `_TAG` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Tag name for your Playground container images*
-    - `_GKE_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GKE cluster name (configured in terraform.tfvars)*
-    - `_LOGS_BUCKET_NAME` &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *# Your GCP logs bucket name `logs_bucket`*
+3.  Scroll down to `Source` - `Repository` to ensure that Apache Beam GitHub repository is connected.
+    - Click on drop-down menu and press `CONNECT NEW REPOSITORY` in case it was not automatically connected.
 5. Click `Save` and Run the trigger `Playground-to-gke-trigger`.
 
 ## 6. Validate Playground deployment
