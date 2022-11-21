@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-from apache_beam.metrics import MetricsFilter
 import logging
 import math
 import random
@@ -35,6 +34,7 @@ from apache_beam import GroupByKey
 from apache_beam import Map
 from apache_beam import WindowInto
 from apache_beam.coders import coders
+from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
