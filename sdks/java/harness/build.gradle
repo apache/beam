@@ -32,6 +32,8 @@ dependencies {
   provided library.java.slf4j_api
   provided library.java.vendored_grpc_1_48_1
   provided library.java.vendored_guava_26_0_jre
+
+  provided library.java.jamm
 }
 
 applyJavaNature(
@@ -51,7 +53,6 @@ applyJavaNature(
     "org/apache/beam/runners/core/construction/**",
     "org/apache/beam/sdk/fn/**",
     "org/checkerframework/**",
-    "org/github/jamm/**",
     "org/hamcrest/**",
     "org/junit/**",
   ],
@@ -75,7 +76,6 @@ dependencies {
   implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
   implementation project(":sdks:java:fn-execution")
-  implementation library.java.jamm
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   shadowTestRuntimeClasspath project(path: ":sdks:java:core", configuration: "shadowTest")
