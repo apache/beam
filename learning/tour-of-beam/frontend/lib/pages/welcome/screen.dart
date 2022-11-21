@@ -99,7 +99,7 @@ class _SdkSelection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appNotifier = GetIt.instance.get<AppNotifier>();
+    final app = GetIt.instance.get<AppNotifier>();
     return Container(
       constraints: BoxConstraints(
         minHeight: MediaQuery.of(context).size.height -
@@ -132,13 +132,13 @@ class _SdkSelection extends StatelessWidget {
                     }
 
                     return AnimatedBuilder(
-                      animation: appNotifier,
+                      animation: app,
                       builder: (context, child) => _Buttons(
                         sdks: sdks,
-                        sdkId: appNotifier.sdkId,
-                        setSdkId: (v) => appNotifier.sdkId = v,
+                        sdkId: app.sdkId,
+                        setSdkId: (v) => app.sdkId = v,
                         onStartPressed: () {
-                          _startTour(appNotifier.sdkId);
+                          _startTour(app.sdkId);
                         },
                       ),
                     );
@@ -165,11 +165,11 @@ class _TourSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appNotifier = GetIt.instance.get<AppNotifier>();
+    final app = GetIt.instance.get<AppNotifier>();
     return AnimatedBuilder(
-      animation: appNotifier,
+      animation: app,
       builder: (context, child) {
-        final sdkId = appNotifier.sdkId;
+        final sdkId = app.sdkId;
         if (sdkId == null) {
           return Container();
         }

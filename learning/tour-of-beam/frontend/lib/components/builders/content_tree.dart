@@ -33,13 +33,13 @@ class ContentTreeBuilder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<ContentTreeCache>();
+    final contentTree = GetIt.instance.get<ContentTreeCache>();
 
     return AnimatedBuilder(
-      animation: cache,
+      animation: contentTree,
       builder: (context, child) => builder(
         context,
-        cache.getContentTree(sdkId),
+        contentTree.getContentTree(sdkId),
         child,
       ),
     );

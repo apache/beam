@@ -36,10 +36,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
   late UnitController currentUnitController;
-  final _appNotifier = GetIt.instance.get<AppNotifier>();
-  final _authNotifier = GetIt.instance.get<AuthNotifier>();
-  final _unitContentCache = GetIt.instance.get<UnitContentCache>();
-  final _userProgressCache = GetIt.instance.get<UserProgressCache>();
+  final _app = GetIt.instance.get<AppNotifier>();
+  final _auth = GetIt.instance.get<AuthNotifier>();
+  final _unitContent = GetIt.instance.get<UnitContentCache>();
+  final _userProgress = GetIt.instance.get<UserProgressCache>();
   UnitContentModel? _currentUnitContent;
 
   TourNotifier({
@@ -51,10 +51,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         ),
         playgroundController = _createPlaygroundController(initialSdkId) {
     contentTreeController.addListener(_onUnitChanged);
-    _unitContentCache.addListener(_onUnitChanged);
-    _appNotifier.addListener(_onAppNotifierChanged);
-    _appNotifier.addListener(_onUserProgressChanged);
-    _authNotifier.addListener(_onUserProgressChanged);
+    _unitContent.addListener(_onUnitChanged);
+    _app.addListener(_onAppNotifierChanged);
+    _app.addListener(_onUserProgressChanged);
+    _auth.addListener(_onUserProgressChanged);
     _onUnitChanged();
   }
 
@@ -67,11 +67,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       );
 
   void _onUserProgressChanged() {
-    _userProgressCache.updateCompletedUnits();
+    _userProgress.updateCompletedUnits();
   }
 
   void _onAppNotifierChanged() {
-    final sdkId = _appNotifier.sdkId;
+    final sdkId = _app.sdkId;
     if (sdkId != null) {
       playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
       contentTreeController.sdkId = sdkId;
@@ -82,7 +82,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
-      final content = _unitContentCache.getUnitContent(
+      final content = _unitContent.getUnitContent(
         contentTreeController.sdkId,
         currentNode.id,
       );
@@ -182,12 +182,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   @override
   void dispose() {
-    _unitContentCache.removeListener(_onUnitChanged);
+    _unitContent.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
-    _appNotifier.removeListener(_onUserProgressChanged);
-    _authNotifier.removeListener(_onUserProgressChanged);
+    _app.removeListener(_onUserProgressChanged);
+    _auth.removeListener(_onUserProgressChanged);
     currentUnitController.removeListener(_onUserProgressChanged);
-    _appNotifier.removeListener(_onAppNotifierChanged);
+    _app.removeListener(_onAppNotifierChanged);
     super.dispose();
   }
 }

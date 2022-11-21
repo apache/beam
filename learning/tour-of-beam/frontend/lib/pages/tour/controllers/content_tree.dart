@@ -30,7 +30,7 @@ class ContentTreeController extends ChangeNotifier {
   List<String> _treeIds;
   // TODO(nausharipov): non-nullable currentNode?
   NodeModel? _currentNode;
-  final _contentTreeCache = GetIt.instance.get<ContentTreeCache>();
+  final _contentTree = GetIt.instance.get<ContentTreeCache>();
   final _expandedIds = <String>{};
 
   Set<String> get expandedIds => _expandedIds;
@@ -42,7 +42,7 @@ class ContentTreeController extends ChangeNotifier {
         _treeIds = initialTreeIds {
     _expandedIds.addAll(initialTreeIds);
 
-    _contentTreeCache.addListener(_onContentTreeCacheChange);
+    _contentTree.addListener(_onContentTreeCacheChange);
     _onContentTreeCacheChange();
   }
 
@@ -98,7 +98,7 @@ class ContentTreeController extends ChangeNotifier {
   }
 
   void _onContentTreeCacheChange() {
-    final contentTree = _contentTreeCache.getContentTree(_sdkId);
+    final contentTree = _contentTree.getContentTree(_sdkId);
     if (contentTree == null) {
       return;
     }
@@ -112,7 +112,7 @@ class ContentTreeController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _contentTreeCache.removeListener(_onContentTreeCacheChange);
+    _contentTree.removeListener(_onContentTreeCacheChange);
     super.dispose();
   }
 }

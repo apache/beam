@@ -95,15 +95,15 @@ class _SdkSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notifier = GetIt.instance.get<AppNotifier>();
+    final app = GetIt.instance.get<AppNotifier>();
     return AnimatedBuilder(
-      animation: notifier,
-      builder: (context, child) => notifier.sdkId == null
+      animation: app,
+      builder: (context, child) => app.sdkId == null
           ? Container()
           : SdkDropdown(
-              sdkId: notifier.sdkId!,
+              sdkId: app.sdkId!,
               onChanged: (sdkId) {
-                notifier.sdkId = sdkId;
+                app.sdkId = sdkId;
               },
             ),
     );
