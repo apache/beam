@@ -40,8 +40,8 @@ body:
     attributes:
       label: Issue Failure
       options:
-      - "Test is flaky"
-      - "Test is continually failing"
+      - "Failure: Test is flaky"
+      - "Failure: Test is continually failing"
     required: true
   - type: dropdown
     id: priority
