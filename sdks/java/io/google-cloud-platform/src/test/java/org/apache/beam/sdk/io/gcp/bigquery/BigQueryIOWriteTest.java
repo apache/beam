@@ -1080,7 +1080,7 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testWriteAvro() throws Exception {
     if (useStreaming) {
-      // only streaming inserts does not support avro types
+      // only streaming inserts don't support avro types
       return;
     }
     p.apply(
