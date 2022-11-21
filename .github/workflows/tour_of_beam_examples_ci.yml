@@ -16,7 +16,7 @@
 name: Tour Of Beam Examples CI
 
 on:
-  push:
+  pull_request:
     paths:
      - ./.github/workflows/playground_examples_ci_reusable.yml
      - ./.github/workflows/tour_of_beam_examples_ci.yml
