@@ -88,5 +88,4 @@ func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 ```
 
-
 Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.
