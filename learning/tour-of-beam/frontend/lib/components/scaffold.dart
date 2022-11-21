@@ -30,12 +30,10 @@ import 'sdk_dropdown.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
-  final bool showSdkSelector;
 
   const TobScaffold({
     super.key,
     required this.child,
-    required this.showSdkSelector,
   });
 
   @override
@@ -44,14 +42,13 @@ class TobScaffold extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Logo(),
-        actions: [
-          if (showSdkSelector)
-            const _ActionVerticalPadding(child: _SdkSelector()),
-          const SizedBox(width: BeamSizes.size12),
-          const _ActionVerticalPadding(child: ToggleThemeButton()),
-          const SizedBox(width: BeamSizes.size6),
-          const _Profile(),
-          const SizedBox(width: BeamSizes.size16),
+        actions: const [
+          _ActionVerticalPadding(child: _SdkSelector()),
+          SizedBox(width: BeamSizes.size12),
+          _ActionVerticalPadding(child: ToggleThemeButton()),
+          SizedBox(width: BeamSizes.size6),
+          _Profile(),
+          SizedBox(width: BeamSizes.size16),
         ],
       ),
       body: Column(
