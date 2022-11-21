@@ -45,7 +45,8 @@ body:
       options:
       - "Failure: Test is flaky"
       - "Failure: Test is continually failing"
-    required: true
+    validations:
+      required: true
   - type: dropdown
     id: priority
     attributes:
