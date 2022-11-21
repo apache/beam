@@ -22,9 +22,8 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../../cache/user_progress.dart';
 import '../../../models/unit.dart';
-import '../../../state.dart';
 import '../controllers/content_tree.dart';
-import 'unit_progress_indicator.dart';
+import 'completeness_indicator.dart';
 
 class UnitWidget extends StatelessWidget {
   final UnitModel unit;
@@ -37,8 +36,7 @@ class UnitWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<UserProgressCache>();
-    final app = GetIt.instance.get<AppNotifier>();
+    final userProgress = GetIt.instance.get<UserProgressCache>();
 
     return AnimatedBuilder(
       animation: contentTreeController,
@@ -55,16 +53,11 @@ class UnitWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
             child: Row(
               children: [
-                // TODO(nausharipov): finish
                 AnimatedBuilder(
-                  animation: app,
-                  builder: (context, child) => AnimatedBuilder(
-                    animation: cache,
-                    builder: (context, child) => UnitProgressIndicator(
-                      isCompleted:
-                          cache.getCompletedUnits(app.sdkId!).contains(unit.id),
-                      isSelected: isSelected,
-                    ),
+                  animation: userProgress,
+                  builder: (context, child) => CompletenessIndicator(
+                    isCompleted: userProgress.isUnitCompleted(unit.id),
+                    isSelected: isSelected,
                   ),
                 ),
                 Expanded(

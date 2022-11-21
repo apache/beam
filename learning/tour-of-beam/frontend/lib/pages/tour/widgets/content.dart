@@ -17,14 +17,13 @@
  */
 
 import 'package:easy_localization/easy_localization.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../../auth/notifier.dart';
 import '../../../cache/user_progress.dart';
 import '../../../constants/sizes.dart';
-import '../../../state.dart';
 import '../state.dart';
 import 'unit_content.dart';
 
@@ -104,17 +103,15 @@ class _CompleteUnitButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
-    final cache = GetIt.instance.get<UserProgressCache>();
-    final app = GetIt.instance.get<AppNotifier>();
+    final userProgress = GetIt.instance.get<UserProgressCache>();
+    final auth = GetIt.instance.get<AuthNotifier>();
 
     return AnimatedBuilder(
-      animation: cache,
+      animation: userProgress,
       builder: (context, child) {
-        // TODO(nausharipov): finish
-        final isDisabled = cache.getCompletedUnits(app.sdkId!).contains(
-                  notifier.contentTreeController.currentNode?.id,
-                ) ||
-            FirebaseAuth.instance.currentUser == null;
+        final isCompleted = userProgress
+            .isUnitCompleted(notifier.contentTreeController.currentNode?.id);
+        final isDisabled = !auth.isAuthenticated || isCompleted;
 
         return Flexible(
           child: OutlinedButton(
@@ -131,7 +128,8 @@ class _CompleteUnitButton extends StatelessWidget {
                 ),
               ),
             ),
-            onPressed: isDisabled ? null : _completeUnit,
+            onPressed:
+                isDisabled ? null : notifier.currentUnitController.completeUnit,
             child: const Text(
               'pages.tour.completeUnit',
               overflow: TextOverflow.ellipsis,
@@ -139,16 +137,6 @@ class _CompleteUnitButton extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  void _completeUnit() {
-    // TODO(nausharipov): finish
-    final app = GetIt.instance.get<AppNotifier>();
-
-    notifier.unitController.completeUnit(
-      app.sdkId!,
-      notifier.contentTreeController.currentNode!.id,
     );
   }
 }

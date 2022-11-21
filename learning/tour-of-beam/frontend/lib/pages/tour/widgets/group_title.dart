@@ -23,8 +23,7 @@ import 'package:playground_components/playground_components.dart';
 import '../../../cache/user_progress.dart';
 import '../../../models/group.dart';
 import '../../../models/node.dart';
-import '../../../state.dart';
-import 'unit_progress_indicator.dart';
+import 'completeness_indicator.dart';
 
 class GroupTitleWidget extends StatelessWidget {
   final GroupModel group;
@@ -52,52 +51,43 @@ class GroupTitleWidget extends StatelessWidget {
   }
 }
 
-// TODO(nausharipov): finish
 class _GroupProgressIndicator extends StatelessWidget {
   final GroupModel group;
   const _GroupProgressIndicator({required this.group});
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<UserProgressCache>();
-    final app = GetIt.instance.get<AppNotifier>();
+    final userProgress = GetIt.instance.get<UserProgressCache>();
 
     return AnimatedBuilder(
-      animation: app,
-      builder: (context, child) => AnimatedBuilder(
-        animation: cache,
-        builder: (context, child) {
-          final progress = _getGroupProgress(
-            group.nodes,
-            // TODO(nausharipov): get once somewhere
-            cache.getCompletedUnits(app.sdkId!),
-          );
+      animation: userProgress,
+      builder: (context, child) {
+        final progress = _getGroupProgress(
+          group.nodes,
+          userProgress.getCompletedUnits(),
+        );
 
-          if (progress == 1) {
-            // TODO(nausharipov): finish
-            return const UnitProgressIndicator(
-              isCompleted: true,
-              isSelected: false,
-            );
-          }
-
-          return Container(
-            margin: const EdgeInsets.symmetric(
-              horizontal: BeamSizes.size6,
-            ),
-            height: BeamSizes.size8,
-            width: BeamSizes.size8,
-            child: CircularProgressIndicator(
-              strokeWidth: BeamSizes.size3,
-              color: BeamColors.green,
-              backgroundColor: Theme.of(context)
-                  .extension<BeamThemeExtension>()!
-                  .unselectedProgressColor,
-              value: progress,
-            ),
+        if (progress == 1) {
+          return const CompletenessIndicator(
+            isCompleted: true,
+            isSelected: false,
           );
-        },
-      ),
+        }
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: BeamSizes.size6),
+          height: BeamSizes.size8,
+          width: BeamSizes.size8,
+          child: CircularProgressIndicator(
+            strokeWidth: BeamSizes.size3,
+            color: BeamColors.green,
+            backgroundColor: Theme.of(context)
+                .extension<BeamThemeExtension>()!
+                .unselectedProgressColor,
+            value: progress,
+          ),
+        );
+      },
     );
   }
 

@@ -22,11 +22,11 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../../generated/assets.gen.dart';
 
-class UnitProgressIndicator extends StatelessWidget {
+class CompletenessIndicator extends StatelessWidget {
   final bool isCompleted;
   final bool isSelected;
 
-  const UnitProgressIndicator({
+  const CompletenessIndicator({
     required this.isCompleted,
     required this.isSelected,
   });

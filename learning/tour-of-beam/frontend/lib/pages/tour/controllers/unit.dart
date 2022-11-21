@@ -19,22 +19,20 @@
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../../cache/user_progress.dart';
 import '../../../repositories/client/client.dart';
 
 class UnitController extends ChangeNotifier {
-  // TODO(nausharipov): finish
-  // final String unitId;
-  // final String sdkId;
+  final String unitId;
+  final String sdkId;
 
-  // UnitController({
-  //   required this.unitId,
-  //   required this.sdkId,
-  // });
+  UnitController({
+    required this.unitId,
+    required this.sdkId,
+  });
 
-  Future<void> completeUnit(String sdkId, String unitId) async {
+  Future<void> completeUnit() async {
     final client = GetIt.instance.get<TobClient>();
     await client.postUnitComplete(sdkId, unitId);
-    GetIt.instance.get<UserProgressCache>().updateCompletedUnits(sdkId);
+    notifyListeners();
   }
 }

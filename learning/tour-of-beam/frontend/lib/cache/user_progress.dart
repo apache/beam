@@ -20,44 +20,35 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
-import '../auth/notifier.dart';
 import '../models/user_progress.dart';
 import '../state.dart';
 import 'cache.dart';
 
 class UserProgressCache extends Cache {
-  final _app = GetIt.instance.get<AppNotifier>();
-  final _auth = GetIt.instance.get<AuthNotifier>();
-  UserProgressCache({required super.client}) {
-    _auth.addListener(_onChanged);
-    _app.addListener(_onChanged);
-  }
+  UserProgressCache({required super.client});
 
   final _completedUnits = <String>{};
   Future<List<UserProgressModel>?>? _future;
 
-  void _onChanged() {
-    if (_app.sdkId != null) {
-      updateCompletedUnits(_app.sdkId!);
-    }
+  bool isUnitCompleted(String? unitId) {
+    return getCompletedUnits().contains(unitId);
   }
 
-  Set<String> updateCompletedUnits(String sdkId) {
+  void updateCompletedUnits() {
     _future = null;
-    return getCompletedUnits(sdkId);
+    getCompletedUnits();
   }
 
-  Set<String> getCompletedUnits(String sdkId) {
-    print(['gcu', _future]);
-    if (_future == null) {
+  Set<String> getCompletedUnits() {
+    final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
+    if (sdkId != null && _future == null) {
       unawaited(_loadCompletedUnits(sdkId));
     }
 
     return _completedUnits;
   }
 
-  Future<Set<String>> _loadCompletedUnits(String sdkId) async {
-    print(['lcu']);
+  Future<void> _loadCompletedUnits(String sdkId) async {
     _future = client.getUserProgress(sdkId);
     final result = await _future;
 
@@ -70,6 +61,5 @@ class UserProgressCache extends Cache {
       }
     }
     notifyListeners();
-    return _completedUnits;
   }
 }

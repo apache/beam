@@ -21,7 +21,9 @@ import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
+import '../../cache/user_progress.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
@@ -33,9 +35,11 @@ import 'path.dart';
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
-  final UnitController unitController;
+  late UnitController currentUnitController;
   final _appNotifier = GetIt.instance.get<AppNotifier>();
+  final _authNotifier = GetIt.instance.get<AuthNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
+  final _userProgressCache = GetIt.instance.get<UserProgressCache>();
   UnitContentModel? _currentUnitContent;
 
   TourNotifier({
@@ -45,23 +49,26 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
           initialSdkId: initialSdkId,
           initialTreeIds: initialTreeIds,
         ),
-        unitController = UnitController(
-            // TODO(nausharipov): finish
-            // unitId: contentTreeController.currentNode.id,
-            // sdkId: initialSdkId,
-            ),
         playgroundController = _createPlaygroundController(initialSdkId) {
-    contentTreeController.addListener(_onChanged);
-    _unitContentCache.addListener(_onChanged);
+    contentTreeController.addListener(_onUnitChanged);
+    _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
-    _onChanged();
+    _appNotifier.addListener(_onUserProgressChanged);
+    _authNotifier.addListener(_onUserProgressChanged);
+    _onUnitChanged();
   }
+
+  // TODO(nausharipov): currentUnitId getter?
 
   @override
   PagePath get path => TourPath(
         sdkId: contentTreeController.sdkId,
         treeIds: contentTreeController.treeIds,
       );
+
+  void _onUserProgressChanged() {
+    _userProgressCache.updateCompletedUnits();
+  }
 
   void _onAppNotifierChanged() {
     final sdkId = _appNotifier.sdkId;
@@ -71,7 +78,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
   }
 
-  void _onChanged() {
+  void _onUnitChanged() {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
@@ -79,7 +86,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         contentTreeController.sdkId,
         currentNode.id,
       );
-
+      _setCurrentUnitController(contentTreeController.sdkId, currentNode.id);
       _setCurrentUnitContent(content);
     } else {
       _emptyPlayground();
@@ -89,6 +96,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   UnitContentModel? get currentUnitContent => _currentUnitContent;
+
+  void _setCurrentUnitController(String sdkId, String unitId) {
+    currentUnitController = UnitController(
+      unitId: unitId,
+      sdkId: sdkId,
+    )..addListener(_onUserProgressChanged);
+  }
 
   void _setCurrentUnitContent(UnitContentModel? content) {
     if (content == _currentUnitContent) {
@@ -168,8 +182,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   @override
   void dispose() {
-    _unitContentCache.removeListener(_onChanged);
-    contentTreeController.removeListener(_onChanged);
+    _unitContentCache.removeListener(_onUnitChanged);
+    contentTreeController.removeListener(_onUnitChanged);
+    _appNotifier.removeListener(_onUserProgressChanged);
+    _authNotifier.removeListener(_onUserProgressChanged);
+    currentUnitController.removeListener(_onUserProgressChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
     super.dispose();
   }
