@@ -172,6 +172,31 @@ public class PartitionMetadataDao {
   }
 
   /**
+   * Counts all partitions with a {@link PartitionMetadataAdminDao#COLUMN_CREATED_AT} less than the
+   * given timestamp.
+   */
+  public long countPartitionsCreatedAfter(Timestamp timestamp) {
+    final Statement statement =
+        Statement.newBuilder(
+                "SELECT COUNT(*) as count FROM "
+                    + metadataTableName
+                    + " WHERE "
+                    + COLUMN_CREATED_AT
+                    + " > @timestamp")
+            .bind("timestamp")
+            .to(timestamp)
+            .build();
+
+    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
+      if (resultSet.next()) {
+        return resultSet.getLong("count");
+      } else {
+        return 0;
+      }
+    }
+  }
+
+  /**
    * Inserts the partition metadata.
    *
    * @param row the partition metadata to be inserted
