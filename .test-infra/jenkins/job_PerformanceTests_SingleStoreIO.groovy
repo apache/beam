@@ -36,7 +36,7 @@ void waitFor(job, Kubernetes k8s, String resource) {
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate,'H H/6 * * *')
+  common.setAutoJob(delegate,'H H/12 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java SingleStoreIO Performance Test',
