@@ -64,11 +64,15 @@ from google.protobuf import text_format
 
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.io.gcp import gcsio
 from apache_beam.runners import runner
 from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability import local_job_service_main
 from apache_beam.runners.portability.fn_api_runner import translations
+
+try:
+  from apache_beam.io.gcp import gcsio
+except ImportError:
+  gcsio = None
 
 # From the Beam site, circa November 2022.
 DEFAULT_EDGE_STYLE = 'color="#ff570b"'
@@ -484,6 +488,8 @@ def render_one(options):
         ext = '.pb'
   else:
     if options.pipeline_proto.startswith('gs://'):
+      if gcsio is None:
+        raise ImportError('GCS not available; please install apache_beam[gcp]')
       open_fn = gcsio.GcsIO().open
     else:
       open_fn = open
