@@ -30,12 +30,12 @@ Let’s take a look at the different building blocks that we need to create an e
 
 ![Overview of AI/ML building blocks and where Apache Beam can be used](/images/ml-workflows.svg)
 
-1. Data ingestion: incoming new data is stored in your file system or database, or it's published to a messaging queue.
-2. **Data validation**: after you receieve your data, check the quality of your data. For example, you might want to detect outliers and calculate standard deviations and class distributions.
-3. **Data preprocessing**: after you validate your data, transform the data so that it is ready to use to train your model.
-4. Model training: when your data is ready, you can start training your AI/ML model. This step is typically repeated multiple times, depending on the quality of your trained model.
-5. Model validation: before you deploy your new model, validate its performance and accuracy.
-6. **Model deployment**: deploy your model, using it to run inference on new or existing data.
+1. Data ingestion: Incoming new data is stored in your file system or database, or it's published to a messaging queue.
+2. **Data validation**: After you receieve your data, check the quality of your data. For example, you might want to detect outliers and calculate standard deviations and class distributions.
+3. **Data preprocessing**: After you validate your data, transform the data so that it is ready to use to train your model.
+4. Model training: When your data is ready, you can start training your AI/ML model. This step is typically repeated multiple times, depending on the quality of your trained model.
+5. Model validation: Before you deploy your new model, validate its performance and accuracy.
+6. **Model deployment**: Deploy your model, using it to run inference on new or existing data.
 
 To keep your model up to date and performing well as your data grows and evolves, run these steps multiple times. In addition, you can apply MLOps to your project to automate the AI/ML workflows throughout the model and data lifecycle. Use orchestrators to automate this flow and to handle the transition between the different building blocks in your project.
 
@@ -43,7 +43,7 @@ You can use Apache Beam for data validation, data preprocessing, and model deplo
 
 ## Data processing
 
-You can use Apache Beam for data validation and preprocessing by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of [IO connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data, which allows you to integrate it with your existing file system, database, or messaging queue.
+You can use Apache Beam for data validation and preprocessing by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of [I/O connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data, which allows you to integrate it with your existing file system, database, or messaging queue.
 
 When developing your ML model, you can also first explore your data with the [Beam DataFrame API](https://beam.apache.org/documentation/dsls/dataframes/overview/). The DataFrom API lets you identify and implement the required preprocessing steps, making it easier for you to move your pipeline to production.
 

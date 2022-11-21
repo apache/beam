@@ -53,7 +53,7 @@ Caveat: The Beam orchestrator is not meant to be a TFX orchestrator used in prod
 
 ## Preprocessing example
 
-This section describes two orchestrated ML workflows, one with Kubeflow Pipelines (KFP) and one with Tensorflow Extended (TFX). These two frameworks both creating workflows but have their own distinct advantages and disadvantages:
+This section describes two orchestrated ML workflows, one with Kubeflow Pipelines (KFP) and one with Tensorflow Extended (TFX). These two frameworks both create workflows but have their own distinct advantages and disadvantages:
 - KFP requires you to create your workflow components from scratch, and requires a user to explicitly indicate which artifacts should be passed between components and in what way.
 - TFX offers a number of prebuilt components and takes care of the artifact passing more implicitly.
  When choosing between the two frameworks, you need to consider the trade-off between flexibility and programming overhead.
@@ -99,7 +99,7 @@ The following diagram shows our target file structure:
         │           └── train.py
         └── requirements.txt
 
-The full preprocessing component specification is shown in the folllowing illustration. The inputs are the path where the ingested dataset was saved by the ingest component and a path to a directory where the component can store artifacts. Additionally, some inputs specify how and where the Apache Beam pipeline runs. The specifications for the ingestion and train components are similar and can be found in the [ingestion component.yaml](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/components/ingestion/component.yaml) file and in the [train component.yaml](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/components/train/component.yaml) fil, respectively.
+The full preprocessing component specification is shown in the folllowing illustration. The inputs are the path where the ingested dataset was saved by the ingest component and a path to a directory where the component can store artifacts. Additionally, some inputs specify how and where the Apache Beam pipeline runs. The specifications for the ingestion and train components are similar and can be found in the [ingestion component.yaml](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/components/ingestion/component.yaml) file and in the [train component.yaml](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/components/train/component.yaml) file, respectively.
 
 >Note: we are using the KFP v1 SDK, because v2 is still in [beta](https://www.kubeflow.org/docs/started/support/#application-status). The v2 SDK introduces some new options for specifying the component interface with more native support for input and output artifacts. To see how to migrate components from v1 to v2, consult the [KFP docs](https://www.kubeflow.org/docs/components/pipelines/sdk-v2/v2-component-io/).
 
@@ -218,7 +218,7 @@ This function only defines the logical steps that must be performed during prepr
 
 #### Train
 
-The Trainer component behaves like the Transform component, but instead of looking for a `preprocessing_fn`, it requires a `run_fn` function to be present in the specified `module_file`. Our simple implementation creates a stub model using `tf.Keras` and saves the resulting model to a directory.
+The Trainer component behaves like the Transform component, but instead of looking for a `preprocessing_fn`, it requires a `run_fn` function in the specified `module_file`. Our simple implementation creates a stub model using `tf.Keras` and saves the resulting model to a directory.
 
 {{< highlight file="sdks/python/apache_beam/examples/ml-orchestration/tfx/coco_captions_utils.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/ml-orchestration/tfx/coco_captions_utils.py" tfx_run_fn >}}
