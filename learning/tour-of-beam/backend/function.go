@@ -86,7 +86,7 @@ func MakePlaygroundClient(ctx context.Context) pb.PlaygroundServiceClient {
 	// * PLAYGROUND_ROUTER_HOST: playground API host/port
 	if os.Getenv("TOB_MOCK") > "" {
 		fmt.Println("Using mock playground client")
-		return pb.GetMockClient()
+		return service.GetMockClient()
 	} else {
 		host := os.Getenv("PLAYGROUND_ROUTER_HOST")
 		cc, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
