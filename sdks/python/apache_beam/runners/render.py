@@ -470,7 +470,7 @@ def run(argv):
     render_one(options)
 
     if options.render_output:
-      sys.exit()
+      return
 
   run_server(options)
 
