@@ -15,14 +15,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# OnlineClustering Example
+# Online Clustering Example
 
-The OnlineClustering example demonstrates how to setup a realtime clustering pipeline that can read text from Pub/Sub, convert the text into an embedding using a language model, and cluster the text using BIRCH.
+The online clustering example demonstrates how to set up a real-time clustering pipeline that can read text from Pub/Sub, convert the text into an embedding using a language model, and cluster the text using BIRCH.
 
-### Dataset for Clustering
-The example uses a dataset called [emotion](https://huggingface.co/datasets/emotion). It contains 20,000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train, validation, and test. Because it contains the text and the category (class) of the dataset, it's a supervised dataset. To access this dataset, use [HuggingFace Datasets](https://huggingface.co/docs/datasets/index).
+## Dataset for Clustering
+This example uses a dataset called [emotion](https://huggingface.co/datasets/emotion) that contains 20,000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train, validation, and test. Because it contains the text and the category (class) of the dataset, it's a supervised dataset. To access this dataset, use the [Hugging Face datasets page](https://huggingface.co/docs/datasets/index).
 
-The following shows examples from the train split of the dataset:
+The following text shows examples from the train split of the dataset:
 
 
 | Text        | Type of emotion |
@@ -34,8 +34,8 @@ The following shows examples from the train split of the dataset:
 | i feel you know basically like a fake in the realm of science fiction | Sadness |
 | i began having them several times a week feeling tortured by the hallucinations moving people and figures sounds and vibrations | Fear |
 
-### Clustering Algorithm
-For the clustering of tweets, we use an incremental clustering algorithm called BIRCH. It stands for balanced iterative reducing and clustering using hierarchies and is an unsupervised data mining algorithm used to perform hierarchical clustering over particularly large datasets. An advantage of BIRCH is its ability to incrementally and dynamically cluster incoming, multi-dimensional metric data points in an attempt to produce the best quality clustering for a given set of resources (memory and time constraints).
+## Clustering Algorithm
+For the clustering of tweets, we use an incremental clustering algorithm called BIRCH. It stands for balanced iterative reducing and clustering using hierarchies, and it is an unsupervised data mining algorithm used to perform hierarchical clustering over particularly large datasets. An advantage of BIRCH is its ability to incrementally and dynamically cluster incoming, multi-dimensional metric data points in an attempt to produce the best quality clustering for a given set of resources (memory and time constraints).
 
 
 ## Ingestion to Pub/Sub
@@ -43,7 +43,7 @@ The example starts by ingesting the data into [Pub/Sub](https://cloud.google.com
 
 You can find the full example code for ingesting data into Pub/Sub in [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/online_clustering/write_data_to_pubsub_pipeline/)
 
-The file structure for ingestion pipeline is shown in the following diagram:
+The file structure for the ingestion pipeline is shown in the following diagram:
 
     write_data_to_pubsub_pipeline/
     ├── pipeline/
@@ -73,9 +73,9 @@ First, install the required packages.
 
 
 The `write_data_to_pubsub_pipeline` contains four different transforms:
-1. Load the emotion dataset using HuggingFace datasets (for simplicity, we take samples from three classes instead of six).
+1. Load the emotion dataset using Hugging Face datasets (for simplicity, we take samples from three classes instead of six).
 2. Associate each piece of text with a unique identifier (UID).
-3. Convert the text into the format that Pub/Sub is expecting.
+3. Convert the text into the format that Pub/Sub expects.
 4. Write the formatted message to Pub/Sub.
 
 
@@ -104,7 +104,7 @@ The file structure for clustering_pipeline is:
 
 `config.py` defines variables that are used multiple times, like Google Cloud PROJECT_ID and NUM_WORKERS.
 
-`setup.py` defines the packages andrequirements for the pipeline to run.
+`setup.py` defines the packages and requirements for the pipeline to run.
 
 `main.py` contains the pipeline code and some additional function used for running the pipeline.
 
@@ -124,7 +124,7 @@ The pipeline can be broken down into the following steps:
 6. Perform BIRCH clustering using stateful processing.
 7. Print the texts assigned to clusters.
 
-The following code snippet shows the first two steps of the pipeline, where message from Pub/Sub is read and converted into a dictionary.
+The following code shows the first two steps of the pipeline, where a message from Pub/Sub is read and converted into a dictionary.
 
 {{< highlight >}}
     docs = (
@@ -164,7 +164,7 @@ Tokenized output is then passed to the language model for getting the embeddings
 
 {{< /highlight >}}
 
-To make better cluster, after getting the embedding for each piece of Twitter text, the embeddings are normalized.
+To make better clusters, after getting the embedding for each piece of Twitter text, the embeddings are normalized.
 
 {{< highlight >}}
     | "Normalize Embedding" >> beam.ParDo(NormalizeEmbedding())
@@ -175,7 +175,7 @@ To make better cluster, after getting the embedding for each piece of Twitter te
 ### StatefulOnlineClustering
 Because the data is streaming, you need to use an iterative clustering algorithm, like BIRCH. And because the algorithm is iterative, you need a mechanism to store the previous state so that when Twitter text arrives, it can be updated. **Stateful processing** enables a `DoFn` to have persistent state, which can be read and written during the processing of each element. For more information about stateful processing, see [Stateful processing with Apache Beam](https://beam.apache.org/blog/stateful-processing/).
 
-In this example, every time a new message is Read from Pub/Sub, you retrieve the existing state of the clustering model, update it, and write it back to the state.
+In this example, every time a new message is read from Pub/Sub, you retrieve the existing state of the clustering model, update it, and write it back to the state.
 
 {{< highlight >}}
     clustering = (

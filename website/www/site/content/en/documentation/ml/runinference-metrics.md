@@ -17,7 +17,7 @@ limitations under the License.
 
 # RunInference Metrics
 
-This example demonstrates and explains different metrics that are available when using the [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) transform to perform inference using a machine learning model. The example uses a pipeline that reads a list of sentences, tokenizes the text, and uses the transformer-based model `distilbert-base-uncased-finetuned-sst-2-english` with `RunInference` to classify the texts into two classes.
+This example demonstrates and explains different metrics that are available when using the [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) transform to perform inference using a machine learning model. The example uses a pipeline that reads a list of sentences, tokenizes the text, and uses the transformer-based model `distilbert-base-uncased-finetuned-sst-2-english` with `RunInference` to classify the pieces of text into two classes.
 
 When you run the pipeline with the Dataflow runner on CPU and GPU, different RunInference metrics are available. This example demonstrates both types of metrics.
 
@@ -25,7 +25,7 @@ When you run the pipeline with the Dataflow runner on CPU and GPU, different Run
 - You can see RunInference benchmarks on the [Performance test metrics](http://s.apache.org/beam-community-metrics/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1) page.
 
 
-The following diagram shows the file structure for entire pipeline.
+The following diagram shows the file structure for the entire pipeline.
 
     runinference_metrics/
     ├── pipeline/
@@ -50,7 +50,7 @@ The following diagram shows the file structure for entire pipeline.
 
 ## Run the Pipeline
 
-Install the required packages. For this example, you need access to a Google Cloud Project, and you need to configure the Google Cloud variables, like `PROJECT_ID`, `REGION`, and others, in the `config.py` file. To use GPUs, follow the setup instructions in the [PyTorch GPU minimal pipeline](https://github.com/GoogleCloudPlatform/python-docs-samples/tree/main/dataflow/gpu-examples/pytorch-minimal) example on GitHub.
+Install the required packages. For this example, you need access to a Google Cloud project, and you need to configure the Google Cloud variables, like `PROJECT_ID`, `REGION`, and others, in the `config.py` file. To use GPUs, follow the setup instructions in the [PyTorch GPU minimal pipeline](https://github.com/GoogleCloudPlatform/python-docs-samples/tree/main/dataflow/gpu-examples/pytorch-minimal) example on GitHub.
 
 
 1. Dataflow with CPU: `python main.py --mode cloud --device CPU`
@@ -76,7 +76,7 @@ The pipeline includes the following steps:
 
 ## RunInference Metrics
 
-As mentioned previously, we benchmarked the performance of RunInference using Dataflow on both CPU and GPU. You can see these metrics in the Google Cloud console, or you can use the line below to print the metrics:
+As mentioned previously, we benchmarked the performance of RunInference using Dataflow on both CPU and GPU. You can see these metrics in the Google Cloud console, or you can use the following line to print the metrics:
 
 {{< highlight >}}
 metrics = pipeline.result.metrics().query(beam.metrics.MetricsFilter())
@@ -91,7 +91,7 @@ Some metrics commonly used for benchmarking are:
 
 * `num_inferences`: Represents the total number of elements passed to `run_inference()`.
 
-* `inference_batch_latency_micro_secs_MEAN`: Represents the average time it takes to perform inference across all batches of examples, measured in microseconds.
+* `inference_batch_latency_micro_secs_MEAN`: Represents the average time taken to perform inference across all batches of examples, measured in microseconds.
 
 * `inference_request_batch_size_COUNT`: Represents the total number of samples across all batches of examples (created from `beam.BatchElements`) to be passed to `run_inference()`.
 

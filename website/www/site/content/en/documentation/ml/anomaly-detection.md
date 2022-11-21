@@ -17,13 +17,13 @@ limitations under the License.
 
 # Anomaly Detection Example
 
-The anomaly detection example demonstrates how to set up an anomaly detection pipeline that reads text from Pub/Sub in real time, and then detects anomaly using a trained HDBSCAN clustering model.
+The anomaly detection example demonstrates how to set up an anomaly detection pipeline that reads text from Pub/Sub in real time, and then detects anomalies using a trained HDBSCAN clustering model.
 
 
 ## Dataset for Anomaly Detection
-This example uses a dataset called [emotion](https://huggingface.co/datasets/emotion) that contains 20,000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train (for training), validation, and test (for performance evaluation). Because it contains the text and the category (class) of the dataset, it is a supervised dataset. You can use [HuggingFace Datasets](https://huggingface.co/docs/datasets/index) to access this dataset.
+This example uses a dataset called [emotion](https://huggingface.co/datasets/emotion) that contains 20,000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train (for training), validation, and test (for performance evaluation). Because it contains the text and the category (class) of the dataset, it is a supervised dataset. You can use the [Hugging Face datasets page](https://huggingface.co/docs/datasets/index) to access this dataset.
 
-The following shows examples from the train split of the dataset:
+The following text shows examples from the train split of the dataset:
 
 
 | Text        | Type of emotion |
@@ -36,7 +36,7 @@ The following shows examples from the train split of the dataset:
 | i began having them several times a week feeling tortured by the hallucinations moving people and figures sounds and vibrations | Fear |
 
 ## Anomaly Detection Algorithm
-[HDBSCAN](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html) is a clustering algorithm that extends DBSCAN by converting it into a hierarchical clustering algorithm, and then extracting a flat clustering based in the stability of clusters. When trained, the model predicts -1 if a new data point is an outlier, otherwise it predicts one of the existing clusters.
+[HDBSCAN](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html) is a clustering algorithm that extends DBSCAN by converting it into a hierarchical clustering algorithm and then extracting a flat clustering based in the stability of clusters. When trained, the model predicts `-1` if a new data point is an outlier, otherwise it predicts one of the existing clusters.
 
 
 ## Ingestion to Pub/Sub
@@ -44,7 +44,7 @@ Ingest the data into [Pub/Sub](https://cloud.google.com/pubsub/docs/overview) so
 
 You can see the full example code for ingesting data into Pub/Sub in [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/anomaly_detection/write_data_to_pubsub_pipeline/)
 
-The file structure for ingestion pipeline is shown in the following diagram:
+The file structure for the ingestion pipeline is shown in the following diagram:
 
     write_data_to_pubsub_pipeline/
     ├── pipeline/
@@ -60,22 +60,22 @@ The file structure for ingestion pipeline is shown in the following diagram:
 
 `pipeline/options.py` contains the pipeline options to configure the Dataflow pipeline.
 
-`config.py` defines some variables that are used multiple times, like Google Cloud PROJECT_ID and NUM_WORKERS.
+`config.py` defines variables that are used multiple times, like Google Cloud PROJECT_ID and NUM_WORKERS.
 
 `setup.py` defines the packages and requirements for the pipeline to run.
 
-`main.py` contains the pipeline code and some additional function used for running the pipeline.
+`main.py` contains the pipeline code and additional functions used for running the pipeline.
 
 ### Run the Pipeline
-To run the pipeline, install the required packages.For this example, you need access to a Google Cloud Project, and you need to configure the Google Cloud variables, like `PROJECT_ID`, `REGION`, `PubSub TOPIC_ID`, and others in the `config.py` file.
+To run the pipeline, install the required packages.For this example, you need access to a Google Cloud project, and you need to configure the Google Cloud variables, like `PROJECT_ID`, `REGION`, `PubSub TOPIC_ID`, and others in the `config.py` file.
 
 1. Locally on your machine: `python main.py`
 2. On GCP for Dataflow: `python main.py --mode cloud`
 
 The `write_data_to_pubsub_pipeline` contains four different transforms:
-1. Load the emotion dataset using HuggingFace datasets (for simplicity, we take samples from three classes instead of six).
+1. Load the emotion dataset using Hugging Face datasets (for simplicity, we take samples from three classes instead of six).
 2. Associate each piece of text with a unique identifier (UID).
-3. Convert the text into the format that Pub/Sub is expecting.
+3. Convert the text into the format that Pub/Sub expects.
 4. Write the formatted message to Pub/Sub.
 
 
@@ -108,7 +108,7 @@ The following diagram shows the file structure for the anomaly_detection pipelin
 `main.py` contains the pipeline code and additional functions used to run the pipeline.
 
 ### Run the Pipeline
-Install the required packages and push data to Pub/Sub.  For this example, you need access to a Google Cloud Project, and you need to configure the Google Cloud variables, like `PROJECT_ID`, `REGION`, `PubSub SUBSCRIPTION_ID`, and others in the `config.py` file.
+Install the required packages and push the data to Pub/Sub.  For this example, you need access to a Google Cloud project, and you need to configure the Google Cloud variables, like `PROJECT_ID`, `REGION`, `PubSub SUBSCRIPTION_ID`, and others in the `config.py` file.
 
 1. Locally on your machine: `python main.py`
 2. On GCP for Dataflow: `python main.py --mode cloud`
@@ -136,9 +136,13 @@ The following code snippet shows the first two steps of the pipeline:
     )
 {{< /highlight >}}
 
-We will now focus on important steps of pipeline: tokenizing the text, getting embedding using RunInference and finally getting prediction from HDBSCAN model.
+The next section describes the following pipeline steps:
 
-### Gett Embedding from a Language Model
+- Tokenizing the text
+- Getting embedding using RunInference
+- Getting predictions from the HDBSCAN model
+
+### Get Embedding from a Language Model
 
 In order to do clustering with text data, first map the text into vectors of numerical values suitable for statistical analysis. This example uses a transformer-based language model called [sentence-transformers/stsb-distilbert-base/stsb-distilbert-base](https://huggingface.co/sentence-transformers/stsb-distilbert-base). This model maps sentences and paragraphs to a 768 dimensional dense vector space, and you can use it for tasks like clustering or semantic search. 
 
@@ -150,13 +154,13 @@ Because the language model is expecting a tokenized input instead of raw text, s
         | "Tokenize Text" >> beam.Map(tokenize_sentence)
 {{< /highlight >}}
 
-Here, `tokenize_sentence` is a function that takes a dictionary with a text and an ID, tokenizes the text, and returns a tuple of the text and ID and the tokenized output.
+Here, `tokenize_sentence` is a function that takes a dictionary with a text and an ID, tokenizes the text, and returns a tuple of the text and ID as well as the tokenized output.
 
 {{< highlight file="sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/pipeline/transformations.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/pipeline/transformations.py" tokenization >}}
 {{< /highlight >}}
 
-Tokenized output is then passed to the language model for getting the embeddings. To get embeddings from the language model, we use `RunInference()` from Apache Beam.
+Tokenized output is then passed to the language model to get the embeddings. To get embeddings from the language model, we use `RunInference()` from Apache Beam.
 
 {{< highlight >}}
     | "Get Embedding" >> RunInference(KeyedModelHandler(embedding_model_handler))
@@ -173,13 +177,13 @@ where `embedding_model_handler` is:
     )
 {{< /highlight >}}
 
-We defined `PytorchNoBatchModelHandler` as a wrapper to `PytorchModelHandler` to limit batch size to one.
+We define `PytorchNoBatchModelHandler` as a wrapper to `PytorchModelHandler` to limit batch size to one.
 
 {{< highlight file="sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/main.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/main.py" PytorchNoBatchModelHandler >}}
 {{< /highlight >}}
 
-Because the `forward()` for `DistilBertModel` doesn't return the embeddings, we custom defined the model_class `ModelWrapper` to get the vector embedding.
+Because the `forward()` for `DistilBertModel` doesn't return the embeddings, we custom define the model_class `ModelWrapper` to get the vector embedding.
 
 {{< highlight file="sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/pipeline/transformations.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/pipeline/transformations.py" DistilBertModelWrapper >}}
@@ -214,13 +218,13 @@ where `clustering_model_handler` is:
     )
 {{< /highlight >}}
 
-We define `CustomSklearnModelHandlerNumpy` as a wrapper to `SklearnModelHandlerNumpy` to limit batch size to one and to override the `run_inference` so that `hdbscan.approximate_predict()` is used to get anomaly predictions.
+We define `CustomSklearnModelHandlerNumpy` as a wrapper to `SklearnModelHandlerNumpy` to limit batch size to one and to override `run_inference` so that `hdbscan.approximate_predict()` is used to get anomaly predictions.
 
 {{< highlight file="sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/pipeline/transformations.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/inference/anomaly_detection/anomaly_detection_pipeline/pipeline/transformations.py" CustomSklearnModelHandlerNumpy >}}
 {{< /highlight >}}
 
-After getting the model predictions, decode the output from `RunInference` into a dictionary. Next, store the prediction in a BigQuery table for analysis and update the HDBSCAN model, and send an email alert if the prediction is an anomaly.
+After getting the model predictions, decode the output from `RunInference` into a dictionary. Next, store the prediction in a BigQuery table for analysis, update the HDBSCAN model, and send an email alert if the prediction is an anomaly.
 
 {{< highlight >}}
     _ = (
