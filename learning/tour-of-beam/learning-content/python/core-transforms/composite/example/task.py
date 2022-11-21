@@ -29,36 +29,36 @@ import apache_beam as beam
 
 # Output PCollection
 class Output(beam.PTransform):
-    class _OutputFn(beam.DoFn):
-        def __init__(self, prefix=''):
-            super().__init__()
-            self.prefix = prefix
+  class _OutputFn(beam.DoFn):
+    def __init__(self, prefix=''):
+      super().__init__()
+      self.prefix = prefix
 
-        def process(self, element):
-            print(self.prefix+str(element))
+    def process(self, element):
+      print(self.prefix+str(element))
 
-    def __init__(self, label=None,prefix=''):
-        super().__init__(label)
-        self.prefix = prefix
+  def __init__(self, label=None,prefix=''):
+    super().__init__(label)
+    self.prefix = prefix
 
-    def expand(self, input):
-        input | beam.ParDo(self._OutputFn(self.prefix))
+  def expand(self, input):
+    input | beam.ParDo(self._OutputFn(self.prefix))
 
 
 
 class ExtractAndMultiplyNumbers(beam.PTransform):
 
-    def expand(self, pcoll):
-        return (pcoll
-                # First operation
-                | beam.FlatMap(lambda line: map(int, line.split(',')))
-                # Second operation
-                | beam.Map(lambda num: num * 10)
-                )
+  def expand(self, pcoll):
+    return (pcoll
+        # First operation
+        | beam.FlatMap(lambda line: map(int, line.split(',')))
+        # Second operation
+        | beam.Map(lambda num: num * 10)
+        )
 
 
 with beam.Pipeline() as p:
 
-    (p | beam.Create(['1,2,3,4,5', '6,7,8,9,10'])
-     | ExtractAndMultiplyNumbers()
-     | Output())
+  (p | beam.Create(['1,2,3,4,5', '6,7,8,9,10'])
+   | ExtractAndMultiplyNumbers()
+   | Output())

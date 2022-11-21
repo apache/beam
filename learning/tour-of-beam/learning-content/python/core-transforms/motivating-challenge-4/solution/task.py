@@ -29,49 +29,61 @@ import apache_beam as beam
 
 # Output PCollection
 class Output(beam.PTransform):
-    class _OutputFn(beam.DoFn):
-        def __init__(self, prefix=''):
-            super().__init__()
-            self.prefix = prefix
+  class _OutputFn(beam.DoFn):
+    def __init__(self, prefix=''):
+      super().__init__()
+      self.prefix = prefix
 
-        def process(self, element):
-            print(self.prefix+str(element))
+    def process(self, element):
+      print(self.prefix+str(element))
 
-    def __init__(self, label=None,prefix=''):
-        super().__init__(label)
-        self.prefix = prefix
+  def __init__(self, label=None,prefix=''):
+    super().__init__(label)
+    self.prefix = prefix
 
-    def expand(self, input):
-        input | beam.ParDo(self._OutputFn(self.prefix))
+  def expand(self, input):
+    input | beam.ParDo(self._OutputFn(self.prefix))
 
 class Accum:
-    current = [{}]
+  def __init__(self):
+    self._cnt = {}
 
-    def __init__(self):
+  def add(self, word, cnt=1):
+    self._cnt.setdefault(word, 0)
+    self._cnt[word] += cnt
+    return self
+
+  def merge(self, another):
+    for w, cnt in another._cnt:
+      self.add(w, cnt)
+    return self
+
+  def extract_output(self):
+    return self._cnt
 
 
 class AverageFn(beam.CombineFn):
 
-    def create_accumulator(self):
-        return Accum()
+  def create_accumulator(self):
+    return Accum()
 
-    def add_input(self, accumulator, element):
-        word = accumulator
-        return word + element
+  def add_input(self, accumulator, element):
+    return accumulator.add(element)
 
-    def merge_accumulators(self, accumulators):
-        sums = zip(*accumulators)
-        return sums
+  def merge_accumulators(self, accumulators):
+    first = accumulators.pop()
+    while accumulators:
+      first.merge(accumulators.pop())
+    return first
 
-    def extract_output(self, accumulator):
-        sum = accumulator
-        return sum
+  def extract_output(self, accumulator):
+    return accumulator.extract_output()
 
 
 
 with beam.Pipeline() as p:
   parts = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
-            | beam.FlatMap(lambda sentence: sentence.split()) \
-            | beam.Filter(lambda word: not word.isspace() or word.isalnum()) \
-            | beam.CombineGlobally(AverageFn()) \
-            | Output()
+      | beam.FlatMap(lambda sentence: sentence.split()) \
+      | beam.Filter(lambda word: not word.isspace() or word.isalnum()) \
+      | beam.CombineGlobally(AverageFn()) \
+      | Output()
