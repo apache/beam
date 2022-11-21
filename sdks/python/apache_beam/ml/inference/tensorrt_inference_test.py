@@ -206,8 +206,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     This tests creating TensorRT network from scratch. Test replicates the same
     ONNX network above but natively in TensorRT. After network creation, network
     is used to build a TensorRT engine. Single feature tensors batched into size
-    of 4 are used as input. This routes through a custom inference function rather
-    than the default.
+    of 4 are used as input. This routes through a custom inference function.
     """
     inference_runner = TensorRTEngineHandlerNumPy(
         min_batch_size=4,
