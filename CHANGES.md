@@ -74,6 +74,10 @@
 
 * `ParquetIO.withSplit` was removed since splittable reading has been the default behavior since 2.35.0. The effect of
   this change is to drop support for non-splittable reading (Java)([#23832](https://github.com/apache/beam/issues/23832)).
+* `beam-sdks-java-extensions-google-cloud-platform-core` is no longer a
+  dependency of the Java SDK Harness. Some users of a portable runner (such as Dataflow Runner v2)
+  may have an undeclared dependency on this package (for example using GCS with
+  TextIO) and will now need to declare the dependency.
 
 ## Deprecations
 
