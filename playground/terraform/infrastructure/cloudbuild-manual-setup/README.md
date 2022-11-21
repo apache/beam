@@ -32,52 +32,30 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
     - Service Account User
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
 - An existing GCP Bucket to save Terraform state - `state_bucket`
-- An existing GCP Bucket to save Cloud Build logs - `logs_bucket`
 - DNS name for your Playground deployment instance
 - [Terraform](https://www.terraform.io/)
 - [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
 
-## 1. Setup the Google Cloud Build for your GCP project
+## 1. Set up the Google Cloud Build for your GCP project
 
-The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to setup Cloud Build for Playground:
+The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to set up Cloud Build for Playground:
 - Required API services
 - Cloud Build service account - `playground-cloudbuild-sa`
 - IAM permissions for Cloud Build service account - `playground-cloudbuild-sa`
 
 #### To execute the module:
 
-1. Create a folder `playground/terraform/environment/{environment_name}` (further referred to as `environment_name`) to define a new environment for Playground.
-2. Create `terraform.tfvars` file in the newly created `environment_name` folder.
-3. Fill the `terraform.tfvars` configuration file as follows:
-
+1. Set following environment variables:
+   - STATE_BUCKET - GCP Storage bucket name to save Terraform state
+   - GOOGLE_PROJECT - GCP Project ID
+   - GOOGLE_REGION - GCP region to save resources to
 
 ```console
-project_id                    = "project_id"                # Your Project ID
-region                        = "us-central1"               # Your GCP region name where resources will be provisioned
-location                      = "us-central1-b"             # Select the deployment location from available in the specified region
-cloudbuild_service_account_id = "playground-cloudbuild-sa"  # The name of Cloud Build service account
-github_repository_name        = "beam"                      # The name of the GitHub repo to be connected with Cloud Build. Example: In https://github.com/example/foo is 'foo'
-github_repository_owner       = "repo_owner_name"           # Owner of the GitHub repo to be connected with Cloud Build. Example: In https://github.com/example/foo is 'example'.
-github_repository_branch      = "branch_name"               # The name of the GitHub repo branch to be connected with Cloud Build
-
-network_name                  = "network_name"              # GCP VPC Network Name for Playground deployment
-gke_name                      = "playground-backend"        # Playground GKE Cluster name
-state_bucket                  = "bucket_name"               # GCS bucket name for Beam Playground temp files
+    export STATE_BUCKET="state_bucket" GOOGLE_PROJECT="project_id" GOOGLE_REGION="region"
 ```
-
-4. Create and fill `state.tfbackend` configuration file in same `environment_name` folder as follows:
-
-
-```
-bucket = "bucket_name"     # The name of bucket - will be used for terraform tfstate file
-```
-
-5. Push the `environment_name` folder to your GitHub repository `github_repository_name` and branch `github_repository_branch`.
-(Cloud Build needs file be present in GitHub repository it is connected to)
-
 **Note:**  Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations)     for the list of all supported locations.
 
-6. Run commands:
+2. Run commands:
 
 
 ```console
@@ -91,22 +69,20 @@ gcloud auth application-default login
 cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
 
 # Run terraform scripts
-terraform init -backend-config="../../../environment/{environment_name}/state.tfbackend"
-terraform plan -var-file="../../../environment/{environment_name}/terraform.tfvars"
-terraform apply -var-file="../../../environment/{environment_name}/terraform.tfvars"
+terraform init -backend-config="bucket=$STATE_BUCKET"
+terraform apply -var "project_id=$GOOGLE_PROJECT"
 ```
 
-## 2. Connect GitHub repository and Cloud Build
+## 2. Connect Apache Beam GitHub repository and GCP Cloud Build
 
 **Note:** Ensure correct `region` is set in [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page before proceeding further.
 
-Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github)
-to connect the GitHub repository `https://github.com/{github_repository_owner}/{github_repository_name}` and `{github_branch_name}` with Cloud Build.
+Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect Apache Beam GitHub repository and GCP Cloud Build.
 
-## 3. Setup the Google Cloud Build triggers
+## 3. Set up the Google Cloud Build triggers
 
 The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` provisions:
-- Cloud Build triggers to build and deploy Beam Playground.
+- Cloud Build triggers to build and deploy Beam Playground
 
 #### To execute the module
 
@@ -116,9 +92,8 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` pr
 cd ../02.builders
 
 # Run terraform scripts
-terraform init -backend-config="../../../environment/{environment_name}/state.tfbackend"
-terraform plan -var-file="../../../environment/{environment_name}/terraform.tfvars"
-terraform apply -var-file="../../../environment/{environment_name}/terraform.tfvars"
+terraform init -backend-config="bucket=$STATE_BUCKET"
+terraform apply -var "project_id=$GOOGLE_PROJECT" -var "region=$GOOGLE_REGION"
 ```
 
 ## 4. Run Cloud Build `Playground-infrastructure-trigger` to deploy Playground infrastructure

@@ -27,16 +27,22 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
   description = "Builds the base image and then runs cloud build config file to deploy Playground infrastructure"
 
   source_to_build {
-    uri       = "https://github.com/${var.github_repository_owner}/${var.github_repository_name}"
-    ref       = "refs/heads/${var.github_repository_branch}"
+    uri       = "https://github.com/apache/beam"
+    ref       = "refs/heads/master"
     repo_type = "GITHUB"
   }
 
   git_file_source {
     path      = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
-    uri       = "https://github.com/${var.github_repository_owner}/${var.github_repository_name}"
-    revision  = "refs/heads/${var.github_repository_branch}"
     repo_type = "GITHUB"
+  }
+
+  substitutions = {
+    _ENVIRONMENT_NAME: var.playground_environment_name
+    _DNS_NAME: var.playground_dns_name
+    _NETWORK_NAME: var.playground_network_name
+    _GKE_NAME: var.playground_gke_name
+    _STATE_BUCKET: var.state_bucket
   }
 
   service_account = data.google_service_account.cloudbuild_sa.id
@@ -50,16 +56,24 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   description = "Builds the base image and then runs cloud build config file to deploy Playground to GKE"
 
   source_to_build {
-    uri       = "https://github.com/${var.github_repository_owner}/${var.github_repository_name}"
-    ref       = "refs/heads/${var.github_repository_branch}"
+    uri       = "https://github.com/apache/beam"
+    ref       = "refs/heads/master"
     repo_type = "GITHUB"
   }
 
   git_file_source {
-    path      = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
-    uri       = "https://github.com/${var.github_repository_owner}/${var.github_repository_name}"
-    revision  = "refs/heads/${var.github_repository_branch}"
+    path      = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
     repo_type = "GITHUB"
+  }
+
+  substitutions = {
+    _ENVIRONMENT_NAME: var.playground_environment_name
+    _DNS_NAME: var.playground_dns_name
+    _NETWORK_NAME: var.playground_network_name
+    _GKE_NAME: var.playground_gke_name
+    _STATE_BUCKET: var.state_bucket
+    _TAG: var.image_tag
+    _DOCKER_REPOSITORY_ROOT: var.docker_repository_root
   }
 
   service_account = data.google_service_account.cloudbuild_sa.id
