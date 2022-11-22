@@ -70,7 +70,7 @@ The RunInference API doesn't currently support making remote inference calls usi
 
 * API quotas and the heavy load you might incur on your external API. To optimize the calls to an external API, you can confgure `PipelineOptions` to limit the parallel calls to the external remote API.
 
-* Be prepared to encounter, identify, and handle failure as gracefully as possible. Use techniques like `Exponential backoff` and `Dead letter queues`.
+* Be prepared to encounter, identify, and handle failure as gracefully as possible. Use techniques like exponential backoff and dead-letter queues (unprocessed messages queues).
 
 * When running inference with an external API, batch your input together to allow for more efficient execution.
 
