@@ -81,7 +81,7 @@ The `write_data_to_pubsub_pipeline` contains four different transforms:
 
 ## Clustering on Streaming Data
 
-After ingeting the data to Pub/Sub, examine the second pipeline, where we read the streaming message from Pub/Sub, convert the text to a embedding using a language model, and cluster the embedding using BIRCH.
+After ingesting the data to Pub/Sub, examine the second pipeline, where we read the streaming message from Pub/Sub, convert the text to a embedding using a language model, and cluster the embedding using BIRCH.
 
 You can find the full example code for all the steps mentioned previously in [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/online_clustering/clustering_pipeline/).
 
