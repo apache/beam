@@ -590,9 +590,11 @@ public class KafkaIOIT {
               .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
               .apply("GroupKey", GroupByKey.create())
               .apply("GetValues", Values.create())
-              .apply("Flatten", FlatMapElements.into(TypeDescriptor.of(String.class)).via(iterable -> iterable));
+              .apply(
+                  "Flatten",
+                  FlatMapElements.into(TypeDescriptor.of(String.class)).via(iterable -> iterable));
 
-      PAssert.that(values).containsInAnyOrder("0" , "1", "2", "3", "4");
+      PAssert.that(values).containsInAnyOrder("0", "1", "2", "3", "4");
 
       PipelineResult readResult = sdfReadPipeline.run();
 
@@ -605,8 +607,6 @@ public class KafkaIOIT {
     } finally {
       client.deleteTopics(ImmutableSet.of(topicName));
     }
-
-
   }
 
   private static class KeyByPartition
