@@ -35,7 +35,7 @@ jobs:
   update_master:
     needs: update_release_branch
     runs-on: [self-hosted, ubuntu-20.04]
-      env:
+    env:
       MASTER_BRANCH: master
       NEXT_RELEASE: ${{ github.event.inputs.NEXT_VERSION }}
       SCRIPT_DIR: ./release/src/main/scripts
