@@ -36,7 +36,7 @@ For more details please see [SparkReceiverIO readme](https://github.com/apache/b
 In order to read from `Spark Receiver` you will need to pass:
 
 - `getOffsetFn`, which is `SerializableFunction` that defines how to get `Long` record offset from a record.
-- `receiverBuilder`, which is 
+- `receiverBuilder`, which is needed for building instances of `Spark Receiver` that use Apache Beam mechanisms instead of Spark environment.
 
 You can easily create `receiverBuilder` object by passing the following parameters:
 
