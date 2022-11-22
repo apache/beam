@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
-import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.encoderFor;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.kvEncoder;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.windowedValueEncoder;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
@@ -28,16 +26,15 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TransformInputs;
+import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.TranslationState;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TupleTag;
@@ -51,22 +48,24 @@ import scala.Tuple2;
 import scala.reflect.ClassTag;
 
 /**
- * Supports translation between a Beam transform, and Spark's operations on Datasets.
+ * A {@link TransformTranslator} provides the capability to translate a specific primitive or
+ * composite {@link PTransform} into its Spark correspondence.
  *
- * <p>WARNING: Do not make this class serializable! It could easily hide situations where
- * unnecessary references leak into Spark closures.
+ * <p>WARNING: {@link TransformTranslator TransformTranslators} should never be serializable! This
+ * could easily hide situations where unnecessary references leak into Spark closures.
  */
+@Internal
 public abstract class TransformTranslator<
     InT extends PInput, OutT extends POutput, TransformT extends PTransform<? extends InT, OutT>> {
 
   protected abstract void translate(TransformT transform, Context cxt) throws IOException;
 
-  public final void translate(
+  final void translate(
       TransformT transform,
       AppliedPTransform<InT, OutT, PTransform<InT, OutT>> appliedTransform,
-      TranslationContext cxt)
+      TranslationState translationState)
       throws IOException {
-    translate(transform, new Context(appliedTransform, cxt));
+    translate(transform, new Context(appliedTransform, translationState));
   }
 
   /**
@@ -76,20 +75,25 @@ public abstract class TransformTranslator<
    * <p>This should be overridden where necessary. If a transform is know to be unsupported, this
    * should throw a runtime exception to give early feedback before any part of the pipeline is run.
    */
-  public boolean canTranslate(TransformT transform) {
+  protected boolean canTranslate(TransformT transform) {
     return true;
   }
 
-  protected class Context {
+  /**
+   * Available mutable context to translate a {@link PTransform}. The context is backed by the
+   * shared {@link TranslationState} of the {@link PipelineTranslator}.
+   */
+  protected class Context implements TranslationState {
     private final AppliedPTransform<InT, OutT, PTransform<InT, OutT>> transform;
-    private final TranslationContext cxt;
+    private final TranslationState state;
+
     private @MonotonicNonNull InT pIn = null;
     private @MonotonicNonNull OutT pOut = null;
 
-    protected Context(
-        AppliedPTransform<InT, OutT, PTransform<InT, OutT>> transform, TranslationContext cxt) {
+    private Context(
+        AppliedPTransform<InT, OutT, PTransform<InT, OutT>> transform, TranslationState state) {
       this.transform = transform;
-      this.cxt = cxt;
+      this.state = state;
     }
 
     public InT getInput() {
@@ -101,6 +105,10 @@ public abstract class TransformTranslator<
 
     public Map<TupleTag<?>, PCollection<?>> getInputs() {
       return transform.getInputs();
+    }
+
+    public Map<TupleTag<?>, PCollection<?>> getOutputs() {
+      return transform.getOutputs();
     }
 
     public OutT getOutput() {
@@ -118,69 +126,53 @@ public abstract class TransformTranslator<
       return pc;
     }
 
-    public Map<TupleTag<?>, PCollection<?>> getOutputs() {
-      return transform.getOutputs();
-    }
-
     public AppliedPTransform<InT, OutT, PTransform<InT, OutT>> getCurrentTransform() {
       return transform;
     }
 
+    @Override
     public <T> Dataset<WindowedValue<T>> getDataset(PCollection<T> pCollection) {
-      return cxt.getDataset(pCollection);
+      return state.getDataset(pCollection);
     }
 
-    public <T> void putDataset(PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset) {
-      cxt.putDataset(pCollection, dataset);
+    @Override
+    public <T> void putDataset(
+        PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache) {
+      state.putDataset(pCollection, dataset, cache);
     }
 
+    @Override
     public SerializablePipelineOptions getSerializableOptions() {
-      return cxt.getSerializableOptions();
+      return state.getSerializableOptions();
     }
 
     public PipelineOptions getOptions() {
-      return cxt.getSerializableOptions().get();
-    }
-
-    // FIXME Types don't guarantee anything!
-    public <ViewT, ElemT> void setSideInputDataset(
-        PCollectionView<ViewT> value, Dataset<WindowedValue<ElemT>> set) {
-      cxt.setSideInputDataset(value, set);
-    }
-
-    public <T> Dataset<T> getSideInputDataset(PCollectionView<?> sideInput) {
-      return cxt.getSideInputDataSet(sideInput);
+      return state.getSerializableOptions().get();
     }
 
     public <T> Dataset<WindowedValue<T>> createDataset(
         List<WindowedValue<T>> data, Encoder<WindowedValue<T>> enc) {
       return data.isEmpty()
-          ? cxt.getSparkSession().emptyDataset(enc)
-          : cxt.getSparkSession().createDataset(data, enc);
+          ? getSparkSession().emptyDataset(enc)
+          : getSparkSession().createDataset(data, enc);
     }
 
     public <T> Broadcast<T> broadcast(T value) {
-      return cxt.getSparkSession().sparkContext().broadcast(value, (ClassTag) ClassTag.AnyRef());
+      return getSparkSession().sparkContext().broadcast(value, (ClassTag) ClassTag.AnyRef());
     }
 
+    @Override
     public SparkSession getSparkSession() {
-      return cxt.getSparkSession();
+      return state.getSparkSession();
     }
 
-    public <T> Encoder<T> encoderOf(Coder<T> coder) {
-      return coder instanceof KvCoder ? kvEncoderOf((KvCoder) coder) : getOrCreateEncoder(coder);
+    @Override
+    public <T> Encoder<T> encoderOf(Coder<T> coder, Factory<T> factory) {
+      return state.encoderOf(coder, factory);
     }
 
-    public <K, V> Encoder<KV<K, V>> kvEncoderOf(KvCoder<K, V> coder) {
-      return cxt.encoderOf(coder, c -> kvEncoder(keyEncoderOf(coder), valueEncoderOf(coder)));
-    }
-
-    public <K, V> Encoder<K> keyEncoderOf(KvCoder<K, V> coder) {
-      return getOrCreateEncoder(coder.getKeyCoder());
-    }
-
-    public <K, V> Encoder<V> valueEncoderOf(KvCoder<K, V> coder) {
-      return getOrCreateEncoder(coder.getValueCoder());
+    public <T1, T2> Encoder<Tuple2<T1, T2>> tupleEncoder(Encoder<T1> e1, Encoder<T2> e2) {
+      return Encoders.tuple(e1, e2);
     }
 
     public <T> Encoder<WindowedValue<T>> windowedEncoder(Coder<T> coder) {
@@ -191,30 +183,14 @@ public abstract class TransformTranslator<
       return windowedValueEncoder(enc, windowEncoder());
     }
 
-    public <T1, T2> Encoder<Tuple2<T1, T2>> tupleEncoder(Encoder<T1> e1, Encoder<T2> e2) {
-      return Encoders.tuple(e1, e2);
-    }
-
     public <T, W extends BoundedWindow> Encoder<WindowedValue<T>> windowedEncoder(
         Coder<T> coder, Coder<W> windowCoder) {
-      return windowedValueEncoder(encoderOf(coder), getOrCreateWindowCoder(windowCoder));
+      return windowedValueEncoder(encoderOf(coder), encoderOf(windowCoder));
     }
 
     public Encoder<BoundedWindow> windowEncoder() {
-      checkState(
-          !transform.getInputs().isEmpty(), "Transform has no inputs, cannot get windowCoder!");
-      Coder<BoundedWindow> coder =
-          ((PCollection) getInput()).getWindowingStrategy().getWindowFn().windowCoder();
-      return cxt.encoderOf(coder, c -> encoderFor(c));
-    }
-
-    private <W extends BoundedWindow> Encoder<BoundedWindow> getOrCreateWindowCoder(
-        Coder<W> coder) {
-      return cxt.encoderOf((Coder<BoundedWindow>) coder, c -> encoderFor(c));
-    }
-
-    private <T> Encoder<T> getOrCreateEncoder(Coder<T> coder) {
-      return cxt.encoderOf(coder, c -> encoderFor(c));
+      checkState(!getInputs().isEmpty(), "Transform has no inputs, cannot get windowCoder!");
+      return encoderOf(windowCoder((PCollection) getInput()));
     }
   }
 

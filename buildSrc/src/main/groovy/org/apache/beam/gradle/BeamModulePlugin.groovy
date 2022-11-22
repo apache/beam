@@ -463,6 +463,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cdap_version = "6.5.1"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
+    def dbcp2_version = "2.8.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
     def gax_version = "2.19.2"
@@ -492,6 +493,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.21.7"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
+    def singlestore_jdbc_version = "1.1.4"
     def slf4j_version = "1.7.30"
     def spark2_version = "2.4.8"
     def spark3_version = "3.1.2"
@@ -571,6 +573,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_io                                  : "commons-io:commons-io:2.7",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
+        dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.3",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
@@ -703,6 +706,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
         sbe_tool                                    : "uk.co.real-logic:sbe-tool:$sbe_tool_version",
+        singlestore_jdbc                            : "com.singlestore:singlestore-jdbc-client:$singlestore_jdbc_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
         slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
@@ -731,7 +735,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
-        zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-1",
+        zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-5",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
         quickcheck_generators                       : "com.pholser:junit-quickcheck-generators:$quickcheck_version",
         arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
@@ -986,8 +990,12 @@ class BeamModulePlugin implements Plugin<Project> {
       skipDefRegexes += configuration.classesTriggerCheckerBugs.keySet()
       String skipDefCombinedRegex = skipDefRegexes.collect({ regex -> "(${regex})"}).join("|")
 
+      List<String> skipUsesRegexes = []
+      // zstd-jni is not annotated, handles Zstd(De)CompressCtx.loadDict(null) just fine
+      skipUsesRegexes << "^com\\.github\\.luben\\.zstd\\..*"
       // SLF4J logger handles null log message parameters
-      String skipUsesRegex = "^org\\.slf4j\\.Logger.*"
+      skipUsesRegexes << "^org\\.slf4j\\.Logger.*"
+      String skipUsesCombinedRegex = skipUsesRegexes.collect({ regex -> "(${regex})"}).join("|")
 
       project.apply plugin: 'org.checkerframework'
       project.checkerFramework {
@@ -995,11 +1003,9 @@ class BeamModulePlugin implements Plugin<Project> {
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
 
-        if (!parseBooleanProperty(project, 'enableCheckerFramework') && !project.jenkins.isCIBuild) {
-          skipCheckerFramework = true
-        } else {
-          skipCheckerFramework = false
-        }
+        // Only skip checkerframework if explicitly requested
+        skipCheckerFramework = project.hasProperty('enableCheckerFramework') &&
+            !parseBooleanProperty(project, 'enableCheckerFramework')
 
         // Always exclude checkerframework on tests. It's slow, and it often
         // raises erroneous error because we don't have checker annotations for
@@ -1010,7 +1016,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         extraJavacArgs = [
           "-AskipDefs=${skipDefCombinedRegex}",
-          "-AskipUses=${skipUsesRegex}",
+          "-AskipUses=${skipUsesCombinedRegex}",
           "-AsuppressWarnings=annotation.not.completed",
         ]
 

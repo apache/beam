@@ -340,6 +340,7 @@ tasks.register("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py37:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py37:directRunnerIT")
   dependsOn(":sdks:python:test-suites:direct:py37:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py37:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:direct:py37:mongodbioIT")
   dependsOn(":sdks:python:test-suites:portable:py37:postCommitPy37")
   dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
