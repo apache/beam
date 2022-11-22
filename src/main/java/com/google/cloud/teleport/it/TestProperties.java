@@ -40,6 +40,7 @@ public final class TestProperties {
   public static final String ARTIFACT_BUCKET_KEY = "artifactBucket";
   public static final String PROJECT_KEY = "project";
   public static final String REGION_KEY = "region";
+  public static final String STAGE_BUCKET = "stageBucket";
   public static final String SPEC_PATH_KEY = "specPath";
 
   // From environment variables
@@ -52,8 +53,12 @@ public final class TestProperties {
   private static final String CLI_ERR_MSG = "-D%s is required on the command line";
   private static final String ENV_VAR_MSG = "%s is required as an environment variable";
 
+  public static boolean hasAccessToken() {
+    return getProperty(ACCESS_TOKEN_KEY, null, Type.ENVIRONMENT_VARIABLE) != null;
+  }
+
   public static String accessToken() {
-    return getProperty(ACCESS_TOKEN_KEY, Type.ENVIRONMENT_VARIABLE);
+    return getProperty(ACCESS_TOKEN_KEY, Type.ENVIRONMENT_VARIABLE, true);
   }
 
   public static Credentials googleCredentials() {
@@ -61,11 +66,11 @@ public final class TestProperties {
   }
 
   public static String artifactBucket() {
-    return getProperty(ARTIFACT_BUCKET_KEY, Type.PROPERTY);
+    return getProperty(ARTIFACT_BUCKET_KEY, Type.PROPERTY, true);
   }
 
   public static String project() {
-    return getProperty(PROJECT_KEY, Type.PROPERTY);
+    return getProperty(PROJECT_KEY, Type.PROPERTY, true);
   }
 
   public static String region() {
@@ -73,16 +78,25 @@ public final class TestProperties {
   }
 
   public static String specPath() {
-    return getProperty(SPEC_PATH_KEY, Type.PROPERTY);
+    return getProperty(SPEC_PATH_KEY, Type.PROPERTY, false);
+  }
+
+  public static String stageBucket() {
+    return getProperty(STAGE_BUCKET, Type.PROPERTY, false);
   }
 
   /** Gets a property or throws an exception if it is not found. */
-  private static String getProperty(String name, Type type) {
+  private static String getProperty(String name, Type type, boolean required) {
     String value = getProperty(name, null, type);
-    String errMsg =
-        type == Type.PROPERTY ? String.format(CLI_ERR_MSG, name) : String.format(ENV_VAR_MSG, name);
 
-    checkState(value != null, errMsg);
+    if (required) {
+      String errMsg =
+          type == Type.PROPERTY
+              ? String.format(CLI_ERR_MSG, name)
+              : String.format(ENV_VAR_MSG, name);
+      checkState(value != null, errMsg);
+    }
+
     return value;
   }
 

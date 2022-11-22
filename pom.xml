@@ -28,48 +28,27 @@
 
   <properties>
     <autovalue.version>1.8.2</autovalue.version>
-    <beam.version>2.38.0</beam.version>
-    <cloud-bom.version>24.2.0</cloud-bom.version>
     <cloud-storage.version>2.2.2</cloud-storage.version>
-    <java.version>11</java.version>
-    <junit.version>4.13.1</junit.version>
     <guava.version>31.0.1-jre</guava.version>
-    <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
     <mockito.version>3.7.7</mockito.version>
     <mockito-inline.version>4.5.1</mockito-inline.version>
     <puppycrawl.version>8.7</puppycrawl.version>
-    <re2j.version>1.5</re2j.version>
-    <slf4j.version>1.7.25</slf4j.version>
-    <surefire.version>2.21.0</surefire.version>
-    <truth.version>1.0.1</truth.version>
+    <dataflow-api.version>v1b3-rev20210818-1.32.1</dataflow-api.version>
   </properties>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>com.google.cloud</groupId>
-        <artifactId>libraries-bom</artifactId>
-        <version>${cloud-bom.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <dependencies>
     <!-- Templates Annotations -->
     <dependency>
       <groupId>com.google.cloud.teleport.metadata</groupId>
       <artifactId>metadata</artifactId>
-      <version>${metadata.version}</version>
+      <version>${project.version}</version>
     </dependency>
-
     <!-- Beam. Try to minimize Beam dependencies, since this is about testing
       pipelines, not writing them. -->
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-      <version>${beam.version}</version>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-dataflow</artifactId>
+      <version>${dataflow-api.version}</version>
     </dependency>
 
     <!-- Google Cloud -->
@@ -81,6 +60,18 @@
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-bigquery</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigtable</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-spanner</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-pubsub</artifactId>
     </dependency>
 
     <dependency>

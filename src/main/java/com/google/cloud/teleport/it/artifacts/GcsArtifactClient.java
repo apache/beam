@@ -16,7 +16,7 @@
 package com.google.cloud.teleport.it.artifacts;
 
 import static com.google.cloud.teleport.it.artifacts.ArtifactUtils.createRunId;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
@@ -24,6 +24,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.common.base.Joiner;
 import com.google.re2j.Pattern;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,7 +32,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

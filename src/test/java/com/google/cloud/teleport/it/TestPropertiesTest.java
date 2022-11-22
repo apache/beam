@@ -85,6 +85,6 @@ public final class TestPropertiesTest {
     System.setProperty(TestProperties.PROJECT_KEY, PROJECT);
     System.setProperty(TestProperties.REGION_KEY, REGION);
 
-    assertThrows(IllegalStateException.class, TestProperties::specPath);
+    assertThat(TestProperties.specPath()).isNull();
   }
 }

@@ -17,7 +17,7 @@ package com.google.cloud.teleport.it.spanner;
 
 import static com.google.cloud.teleport.it.common.ResourceManagerUtils.generatePadding;
 import static com.google.cloud.teleport.it.common.ResourceManagerUtils.generateResourceId;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.CharMatcher;
 import com.google.re2j.Pattern;

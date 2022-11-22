@@ -15,9 +15,9 @@
  */
 package com.google.cloud.teleport.it.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.hash.Hashing.goodFastHash;
 import static java.lang.Math.min;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.hash.HashFunction;
 import com.google.re2j.Pattern;
@@ -115,7 +115,8 @@ public class ResourceManagerUtils {
       throw new IllegalArgumentException(
           "Project ID "
               + idToCheck
-              + " is not a valid ID. Only letters, numbers, hyphens, single quotes and exclamation points are allowed.");
+              + " is not a valid ID. Only letters, numbers, hyphens, single quotes and exclamation"
+              + " points are allowed.");
     }
   }
 }

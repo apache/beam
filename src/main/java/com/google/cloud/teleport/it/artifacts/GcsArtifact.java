@@ -16,7 +16,7 @@
 package com.google.cloud.teleport.it.artifacts;
 
 import com.google.cloud.storage.Blob;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import com.google.common.annotations.VisibleForTesting;
 
 /** Represents a single blob in GCS. */
 public final class GcsArtifact implements Artifact {
