@@ -170,7 +170,7 @@ Using the following specification file and snippet with the necessary [requireme
 
 Working with TFX is similar to the approach for KFP illustrated previously: Define the individual workflow components, connect them in a pipeline object, and run the pipeline in the target environment. What makes TFX different is that it has already built a set of Python packages that are libraries to create workflow components. Unlike with the KFP example, you don't need to start from scratch by writing and containerizing the code.
 
-With TFX, you need to choose which TFX components are relevant to your workflow and use the library to adapt their functionality to your use case. The following diagram shows the available components and their corresponding libraries. 
+With TFX, you need to choose which TFX components are relevant to your workflow and use the library to adapt their functionality to your use case. The following diagram shows the available components and their corresponding libraries.
 
 ![TFX libraries and components](https://www.tensorflow.org/static/tfx/guide/images/libraries_components.png)
 

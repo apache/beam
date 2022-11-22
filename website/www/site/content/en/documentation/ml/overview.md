@@ -20,7 +20,7 @@ limitations under the License.
 Beam <3 machine learning. Being productive and successful as a machine learning practitioner is often dependent on your ability to efficiently leverage large volumes of data in a way that is uniquely tailored to your resources, requirements, and budget. Whether starting your next AI/ML project or upscaling an existing project, consider adding Apache Beam to your project.
 
 * Apache Beam enables you to process large volumes of data, both for preprocessing and for inference.
-* It allows you to experiment with your data during the exploration phase of your project and provides a seamless transition when 
+* It allows you to experiment with your data during the exploration phase of your project and provides a seamless transition when
   upscaling your data pipelines as part of your MLOps ecosystem in a production environment.
 * It enables you to run your model in production on a varying data load, both in batch and streaming.
 
