@@ -117,8 +117,10 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
         '--artifact-port',
         artifact_port,
         '--expansion-port',
-        expansion_port
+        expansion_port,
+        '--flink-conf-dir',
+        '/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources'
     ]
-    if self.flink_conf_dir is not None:
-      args += ['--flink-conf-dir', self.flink_conf_dir]
+    # if self.flink_conf_dir is not None:
+    #   args += ['--flink-conf-dir', self.flink_conf_dir]
     return args
