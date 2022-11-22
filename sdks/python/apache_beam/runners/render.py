@@ -41,7 +41,7 @@ be started which allows for interactive exploration of the pipeline graph.
 As an alternative to starting a job server, a single pipeline can be rendered
 by passing a pipeline proto file to `--pipeline_proto`.
 
-Requires the that graphviz dot executable be available in the path.
+Requires the graphviz dot executable to be available in the path.
 """
 
 import argparse
@@ -100,7 +100,7 @@ class RenderOptions(pipeline_options.PipelineOptions):
     parser.add_argument(
         '--render_leaf_composite_nodes',
         action='append',
-        help='A set of regular expressions for transform names that should be '
+        help='A set of regular expressions for transform names that should '
         'not be expanded.  For example, one could pass "\bRead.*" to indicate '
         'the inner structure of read nodes should not be expanded. '
         'If not given, defaults to the top-level nodes if interactively '
@@ -214,7 +214,7 @@ class PipelineRenderer:
       yield self.transform_node(transform_id)
       transform_inputs = set(transform.inputs.values())
       for name, output in transform.outputs.items():
-        # For outputs that are also inputs, it's ambiguous whether the are
+        # For outputs that are also inputs, it's ambiguous whether they are
         # consumed as the outputs of this transform, or of the upstream
         # transform. Render the latter.
         if output in transform_inputs:
@@ -302,7 +302,7 @@ class PipelineRenderer:
                        check=True).stdout)
     for box in json_out['objects']:
       name = box.get('name', None)
-      if box.get('name', None) in self.pipeline.components.transforms:
+      if name in self.pipeline.components.transforms:
         if 'pos' in box:
           self.latest_positions[name] = box['pos']
         elif 'bb' in box:
