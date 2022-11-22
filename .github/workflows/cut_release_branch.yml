@@ -44,7 +44,6 @@ jobs:
         run: |
           if [[ $NEXT_RELEASE =~ ([0-9]\.[0-9]*\.[0-9]) ]]; then
             echo "NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}" >> $GITHUB_ENV
-          fi
           else
             echo "The input for NEXT_RELEASE does not match a valid format [0-9].[0-9].[0-9]"
             exit 1
@@ -78,7 +77,6 @@ jobs:
           if [[ ${RELEASE} =~ ([0-9]\.[0-9]*\.[0-9]) ]]; then
             echo "RELEASE_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
             echo "RELEASE_BRANCH=release-${RELEASE}" >> $GITHUB_ENV
-          fi
           else
             echo "The input for RELEASE does not match a valid format [0-9].[0-9].[0-9]"
             exit 1
