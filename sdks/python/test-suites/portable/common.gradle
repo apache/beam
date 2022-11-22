@@ -364,7 +364,7 @@ project.tasks.register("xlangSpannerIOIT") {
             '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
     ]
     if (project.hasProperty('flinkConfDir')) {
-      pipelineOpts += ["--flink-conf-dir=${project.property('flinkConfDir')}"]
+      pipelineOpts += ["--flink_conf_dir=${project.property('flinkConfDir')}"]
     }
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,

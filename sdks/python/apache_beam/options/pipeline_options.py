@@ -1464,6 +1464,7 @@ class FlinkRunnerOptions(PipelineOptions):
         ' directly, rather than starting up a job server.'
         ' Only applies when flink_master is set to a'
         ' cluster address.  Requires Python 3.6+.')
+    parser.add_argument('--flink_conf_dir', help='Path to flink-conf-dir')
     parser.add_argument(
         '--parallelism',
         type=int,

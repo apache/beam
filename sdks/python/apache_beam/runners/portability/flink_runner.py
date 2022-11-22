@@ -87,6 +87,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
     self._jar = options.flink_job_server_jar
     self._master_url = options.flink_master
     self._flink_version = options.flink_version
+    self.flink_conf_dir = options.flink_conf_dir
 
   def path_to_jar(self):
     if self._jar:
@@ -106,7 +107,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):
-    return [
+    args = [
         '--flink-master',
         self._master_url,
         '--artifacts-dir',
@@ -118,3 +119,6 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
         '--expansion-port',
         expansion_port
     ]
+    if self.flink_conf_dir is not None:
+      args += ['--flink-conf-dir', self.flink_conf_dir]
+    return args
