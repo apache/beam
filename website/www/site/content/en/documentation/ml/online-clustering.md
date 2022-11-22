@@ -106,7 +106,7 @@ The file structure for clustering_pipeline is:
 
 `setup.py` defines the packages and requirements for the pipeline to run.
 
-`main.py` contains the pipeline code and some additional function used for running the pipeline.
+`main.py` contains the pipeline code and some additional functions used for running the pipeline.
 
 ### Run the Pipeline
 Install the required packages and push data to Pub/Sub.
