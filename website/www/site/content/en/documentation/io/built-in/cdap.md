@@ -29,7 +29,7 @@ A `CdapIO` is a transform for reading data from source or writing data to sink C
 - [ServiceNow Batch Source](https://github.com/data-integrations/servicenow-plugins/blob/develop/src/main/java/io/cdap/plugin/servicenow/source/ServiceNowSource.java)
 - [Zendesk Batch Source](https://github.com/data-integrations/zendesk/blob/develop/src/main/java/io/cdap/plugin/zendesk/source/batch/ZendeskBatchSource.java)
 
-Also, any other CDAP Batch plugin based on Hadoop's `InputFormat` or `OutputFormat` can be used. They can be easily added to the list of supported by class name plugins, for more details please see [CdapIO readme](). 
+Also, any other CDAP Batch plugin based on Hadoop's `InputFormat` or `OutputFormat` can be used. They can be easily added to the list of supported by class name plugins, for more details please see [CdapIO readme](https://github.com/apache/beam/blob/master/sdks/java/io/cdap/README.md).
 
 ## Streaming plugins support
 
@@ -66,7 +66,7 @@ Some CDAP plugins are already supported and can be used just by plugin class nam
 For example:
 
 {{< highlight java >}}
-CdapIO.Read<NullWritable, JsonElement> readTransform = 
+CdapIO.Read<NullWritable, JsonElement> readTransform =
 CdapIO.<NullWritable, JsonElement>read()
     .withCdapPluginClass(HubspotBatchSource.class)
     .withPluginConfig(pluginConfig)
@@ -88,7 +88,7 @@ Then you will be able to pass this `Plugin` object to `CdapIO`.
 For example:
 
 {{< highlight java >}}
-CdapIO.Read<String, String> readTransform = 
+CdapIO.Read<String, String> readTransform =
 CdapIO.<String, String>read()
     .withCdapPlugin(
         Plugin.createBatch(
@@ -108,7 +108,7 @@ p.apply("read", readTransform);
 {{< highlight java >}}
 SourceHubspotConfig pluginConfig =
     new ConfigWrapper<>(SourceHubspotConfig.class).withParams(pluginConfigParams).build();
-CdapIO<NullWritable, JsonElement> readTransform = 
+CdapIO<NullWritable, JsonElement> readTransform =
 CdapIO.<NullWritable, JsonElement>read()
     .withCdapPluginClass(HubspotBatchSource.class)
     .withPluginConfig(pluginConfig)
@@ -122,7 +122,7 @@ p.apply("readFromHubspotPlugin", readTransform);
 {{< highlight java >}}
 SalesforceSourceConfig pluginConfig =
     new ConfigWrapper<>(SalesforceSourceConfig.class).withParams(pluginConfigParams).build();
-CdapIO<Schema, LinkedHashMap> readTransform = 
+CdapIO<Schema, LinkedHashMap> readTransform =
 CdapIO.<Schema, LinkedHashMap>read()
     .withCdapPluginClass(SalesforceBatchSource.class)
     .withPluginConfig(pluginConfig)
@@ -136,7 +136,7 @@ p.apply("readFromSalesforcePlugin", readTransform);
 {{< highlight java >}}
 ServiceNowSourceConfig pluginConfig =
     new ConfigWrapper<>(ServiceNowSourceConfig.class).withParams(pluginConfigParams).build();
-CdapIO<NullWritable, StructuredRecord> readTransform = 
+CdapIO<NullWritable, StructuredRecord> readTransform =
 CdapIO.<NullWritable, StructuredRecord>read()
     .withCdapPluginClass(ServiceNowSource.class)
     .withPluginConfig(pluginConfig)
@@ -150,7 +150,7 @@ p.apply("readFromServiceNowPlugin", readTransform);
 {{< highlight java >}}
 ZendeskBatchSourceConfig pluginConfig =
     new ConfigWrapper<>(ZendeskBatchSourceConfig.class).withParams(pluginConfigParams).build();
-CdapIO<NullWritable, StructuredRecord> readTransform = 
+CdapIO<NullWritable, StructuredRecord> readTransform =
 CdapIO.<NullWritable, StructuredRecord>read()
     .withCdapPluginClass(ZendeskBatchSource.class)
     .withPluginConfig(pluginConfig)
@@ -187,7 +187,7 @@ Some CDAP plugins are already supported and can be used just by plugin class nam
 For example:
 
 {{< highlight java >}}
-CdapIO.Write<NullWritable, String> readTransform = 
+CdapIO.Write<NullWritable, String> readTransform =
 CdapIO.<NullWritable, String>write()
     .withCdapPluginClass(HubspotBatchSink.class)
     .withPluginConfig(pluginConfig)
@@ -210,7 +210,7 @@ Then you will be able to pass this `Plugin` object to `CdapIO`.
 For example:
 
 {{< highlight java >}}
-CdapIO.Write<String, String> writeTransform = 
+CdapIO.Write<String, String> writeTransform =
 CdapIO.<String, String>write()
     .withCdapPlugin(
         Plugin.createBatch(
@@ -231,7 +231,7 @@ p.apply("write", writeTransform);
 {{< highlight java >}}
 SinkHubspotConfig pluginConfig =
     new ConfigWrapper<>(SinkHubspotConfig.class).withParams(pluginConfigParams).build();
-CdapIO<NullWritable, String> writeTransform = 
+CdapIO<NullWritable, String> writeTransform =
 CdapIO.<NullWritable, String>write()
     .withCdapPluginClass(pluginClass)
     .withPluginConfig(pluginConfig)
@@ -246,7 +246,7 @@ p.apply("writeToHubspotPlugin", writeTransform);
 {{< highlight java >}}
 SalesforceSinkConfig pluginConfig =
     new ConfigWrapper<>(SalesforceSinkConfig.class).withParams(pluginConfigParams).build();
-CdapIO<NullWritable, CSVRecord> writeTransform = 
+CdapIO<NullWritable, CSVRecord> writeTransform =
 CdapIO.<NullWritable, CSVRecord>write()
     .withCdapPluginClass(pluginClass)
     .withPluginConfig(pluginConfig)
@@ -297,9 +297,9 @@ p.apply("read", readTransform);
 If CDAP plugin is not supported by plugin class name, you can easily build `Plugin` object by passing the following parameters:
 
 - Class of CDAP Streaming plugin.
-- `getOffsetFn` which is `SerializableFunction` that defines how to get `Long` record offset for CDAP Plugin class.
-- `receiverClass` which is Spark (v 2.4) `Receiver` class associated with CDAP plugin.
-- (Optionally) `getReceiverArgsFromConfigFn` which is `SerializableFunction` that defines how to get constructor arguments for Spark `Receiver` using `PluginConfig` object.
+- `getOffsetFn`, which is `SerializableFunction` that defines how to get `Long` record offset from a record.
+- `receiverClass`, which is Spark (v 2.4) `Receiver` class associated with CDAP plugin.
+- (Optionally) `getReceiverArgsFromConfigFn`, which is `SerializableFunction` that defines how to get constructor arguments for Spark `Receiver` using `PluginConfig` object.
 
 Then you will be able to pass this `Plugin` object to `CdapIO`.
 
@@ -324,8 +324,8 @@ p.apply("read", readTransform);
 
 Optionally you can pass the following optional parameters:
 
-- `pullFrequencySec` which is delay in seconds between polling for new records updates.
-- `startOffset` which is inclusive start offset from which the reading should be started.
+- `pullFrequencySec`, which is delay in seconds between polling for new records updates.
+- `startOffset`, which is inclusive start offset from which the reading should be started.
 
 For example:
 
@@ -390,6 +390,3 @@ p.apply("readFromSalesforcePlugin", readTransform);
 {{< /highlight >}}
 
 To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap).
-
-
-
