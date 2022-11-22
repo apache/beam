@@ -39,7 +39,11 @@ If `--render_port` is set to a non-negative value, a local http server will
 be started which allows for interactive exploration of the pipeline graph.
 
 As an alternative to starting a job server, a single pipeline can be rendered
-by passing a pipeline proto file to `--pipeline_proto`.
+by passing a pipeline proto file to `--pipeline_proto`.  For example
+
+  python -m apache_beam.runners.render  \\
+      --pipeline_proto gs://<staging_location>/pipeline.pb  \\
+      --render_output=/tmp/pipeline.svg
 
 Requires the graphviz dot executable to be available in the path.
 """
@@ -60,7 +64,7 @@ import time
 import urllib.parse
 
 from google.protobuf import json_format
-from google.protobuf import text_format  # pylint: disable=attr-defined
+from google.protobuf import text_format  # type: ignore
 
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -287,8 +291,6 @@ class PipelineRenderer:
     return f'<pre>{self.pipeline.components.transforms[transform_id]}</pre>'
 
   def layout_dot(self):
-    with open('out.dot', 'w') as fout:
-      fout.write(self.to_dot())
     layout = subprocess.run(['dot', '-Tdot'],
                             input=self.to_dot().encode('utf-8'),
                             capture_output=True,
@@ -307,7 +309,7 @@ class PipelineRenderer:
           self.latest_positions[name] = box['pos']
         elif 'bb' in box:
           x0, y0, x1, y1 = [float(r) for r in box['bb'].split(',')]
-          self.latest_positions[name] = '{(x0+x1)/2},{(y0+y1)/2}'
+          self.latest_positions[name] = f'{(x0+x1)/2},{(y0+y1)/2}'
 
     return layout
 
