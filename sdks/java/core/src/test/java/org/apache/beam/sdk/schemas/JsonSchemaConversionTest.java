@@ -37,7 +37,7 @@ public class JsonSchemaConversionTest {
   @Test
   public void testBasicJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
-        getClass().getResourceAsStream("/schemas/json/basic_json_schema.json")) {
+        getClass().getResourceAsStream("/json-schema/basic_json_schema.json")) {
       String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
@@ -57,7 +57,7 @@ public class JsonSchemaConversionTest {
   @Test
   public void testNestedStructsJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
-        getClass().getResourceAsStream("/schemas/json/nested_arrays_objects_json_schema.json")) {
+        getClass().getResourceAsStream("/json-schema/nested_arrays_objects_json_schema.json")) {
       String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
@@ -77,7 +77,7 @@ public class JsonSchemaConversionTest {
   @Test
   public void testArrayNestedArrayObjectJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
-        getClass().getResourceAsStream("/schemas/json/array_nested_array_json_schema.json")) {
+        getClass().getResourceAsStream("/json-schema/array_nested_array_json_schema.json")) {
       String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
@@ -98,7 +98,7 @@ public class JsonSchemaConversionTest {
   public void testObjectNestedObjectArrayJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass()
-            .getResourceAsStream("/schemas/json/object_nested_object_and_array_json_schema.json")) {
+            .getResourceAsStream("/json-schema/object_nested_object_and_array_json_schema.json")) {
       String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
@@ -126,9 +126,35 @@ public class JsonSchemaConversionTest {
   }
 
   @Test
+  public void testArrayWithNestedRefsBeamSchema() throws IOException {
+    try (InputStream inputStream =
+        getClass().getResourceAsStream("/json-schema/ref_with_ref_json_schema.json")) {
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
+
+      assertThat(parsedSchema.getFieldNames(), containsInAnyOrder("vegetables"));
+      assertThat(
+          parsedSchema.getFields().stream().map(Schema.Field::getType).collect(Collectors.toList()),
+          containsInAnyOrder(
+              Schema.FieldType.array(
+                  Schema.FieldType.row(
+                      Schema.of(
+                          Schema.Field.of("veggieName", Schema.FieldType.STRING),
+                          Schema.Field.of("veggieLike", Schema.FieldType.BOOLEAN),
+                          Schema.Field.of(
+                              "origin",
+                              Schema.FieldType.row(
+                                  Schema.of(
+                                      Schema.Field.of("country", Schema.FieldType.STRING),
+                                      Schema.Field.of("town", Schema.FieldType.STRING),
+                                      Schema.Field.of("region", Schema.FieldType.STRING)))))))));
+    }
+  }
+
+  @Test
   public void testUnsupportedTupleArrays() throws IOException {
     try (InputStream inputStream =
-        getClass().getResourceAsStream("/schemas/json/unsupported_tuple_arrays.json")) {
+        getClass().getResourceAsStream("/json-schema/unsupported_tuple_arrays.json")) {
       String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
 
       IllegalArgumentException thrownException =
@@ -146,7 +172,7 @@ public class JsonSchemaConversionTest {
   @Test
   public void testUnsupportedNestedTupleArrays() throws IOException {
     try (InputStream inputStream =
-        getClass().getResourceAsStream("/schemas/json/unsupported_nested_tuple_array.json")) {
+        getClass().getResourceAsStream("/json-schema/unsupported_nested_tuple_array.json")) {
       String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
 
       IllegalArgumentException thrownException =
