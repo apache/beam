@@ -59,7 +59,7 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
 ```console
     export STATE_BUCKET="state_bucket" \
     GOOGLE_PROJECT="project_id" \
-    GOOGLE_REGION="region" \
+    GOOGLE_REGION="us-central1" \
     ENVIRONMENT_NAME="env_name" \
     DNS_NAME="dns_name" \
     NETWORK_NAME="network_name" \
