@@ -40,6 +40,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
   private final CreateDisposition createDisposition;
   private final boolean ignoreUnknownValues;
   private final int schemaUpdateRetries;
+  private final boolean autoSchemaUpdates;
   private static final TableSchemaCache SCHEMA_CACHE =
       new TableSchemaCache(Duration.standardSeconds(1));
   private static final Logger LOG =
@@ -54,12 +55,14 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       SerializableFunction<T, TableRow> formatFunction,
       CreateDisposition createDisposition,
       boolean ignoreUnknownValues,
-      int schemaUpdateRetries) {
+      int schemaUpdateRetries,
+      boolean autoSchemaUpdates) {
     super(inner);
     this.formatFunction = formatFunction;
     this.createDisposition = createDisposition;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.schemaUpdateRetries = schemaUpdateRetries;
+    this.autoSchemaUpdates = autoSchemaUpdates;
   }
 
   static void clearSchemaCache() throws ExecutionException, InterruptedException {
@@ -180,7 +183,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
                     ignoreUnknownValues);
             return new AutoValue_StorageApiWritePayload(msg.toByteArray(), localDescriptorHash);
           } catch (SchemaTooNarrowException e) {
-            if (attempt > schemaUpdateRetries) {
+            if (!autoSchemaUpdates || attempt > schemaUpdateRetries) {
               throw e;
             }
             // The input record has fields not found in the schema, and ignoreUnknownValues=false.

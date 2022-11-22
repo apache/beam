@@ -389,7 +389,7 @@ Guidelines for creating a Beam data store Kubernetes script:
 
 #### Jenkins jobs {#jenkins-jobs}
 
-You can find examples of existing IOIT jenkins job definitions in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) directory. Look for files caled job_PerformanceTest_*.groovy. The most prominent examples are:
+You can find examples of existing IOIT jenkins job definitions in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) directory. Look for files called job_PerformanceTest_*.groovy. The most prominent examples are:
 * [JDBC](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_JDBC.groovy) IOIT job
 * [MongoDB](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_MongoDBIO_IT.groovy) IOIT job
 * [File-based](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_FileBasedIO_IT.groovy) IOIT jobs

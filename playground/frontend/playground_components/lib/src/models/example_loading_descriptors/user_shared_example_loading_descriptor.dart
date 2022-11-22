@@ -23,8 +23,12 @@ class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   const UserSharedExampleLoadingDescriptor({
     required this.snippetId,
+    super.viewOptions,
   });
 
   @override
-  List<Object> get props => [snippetId];
+  List<Object> get props => [
+        snippetId,
+        viewOptions,
+      ];
 }

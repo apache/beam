@@ -68,7 +68,6 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.dataflow.util.PackageUtil.PackageAttributes;
 import org.apache.beam.runners.dataflow.util.PackageUtil.StagedFile;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
@@ -79,6 +78,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.RegexMatcher;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -413,7 +413,7 @@ public class PackageUtilTest {
       directPackageUtil.stageClasspathElements(
           ImmutableList.of(makeStagedFile(tmpFile.getAbsolutePath())),
           STAGING_PATH,
-          fastNanoClockAndSleeper,
+          fastNanoClockAndSleeper::sleep,
           createOptions);
     } finally {
       verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));
@@ -441,7 +441,7 @@ public class PackageUtilTest {
       directPackageUtil.stageClasspathElements(
           ImmutableList.of(makeStagedFile(tmpFile.getAbsolutePath())),
           STAGING_PATH,
-          fastNanoClockAndSleeper,
+          fastNanoClockAndSleeper::sleep,
           createOptions);
       fail("Expected RuntimeException");
     } catch (RuntimeException e) {
@@ -484,7 +484,7 @@ public class PackageUtilTest {
       directPackageUtil.stageClasspathElements(
           ImmutableList.of(makeStagedFile(tmpFile.getAbsolutePath())),
           STAGING_PATH,
-          fastNanoClockAndSleeper,
+          fastNanoClockAndSleeper::sleep,
           createOptions);
     } finally {
       verify(mockGcsUtil).getObjects(anyListOf(GcsPath.class));

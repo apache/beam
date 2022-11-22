@@ -45,6 +45,13 @@ package main
 //     - Options
 //     - Combiners
 //     - Quickstart
+//   complexity: ADVANCED
+//   tags:
+//     - count
+//     - stream
+//     - windowing
+//     - io
+//     - strings
 
 import (
 	"context"

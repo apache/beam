@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -96,7 +97,12 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
             (StreamingModeExecutionContext.StreamingModeStepContext)
                 stepContext.namespacedToUser());
     this.elementsToProcess = new LinkedBlockingQueue<>();
-    this.singleThreadExecutor = Executors.newSingleThreadExecutor();
+    this.singleThreadExecutor =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("FetchAndFilterStreamingSideInput-thread")
+                .build());
   }
 
   /** A {@link PCollectionView} which forwards all calls to its delegate. */

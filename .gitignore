@@ -120,12 +120,13 @@ website/www/yarn-error.log
 **/node_modules
 
 # Dart/Flutter
-**/.dart_tool
-**/.packages
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
+**/.dart_tool
 **/generated_plugin_registrant.dart
+**/*.g.dart
 **/*.mocks.dart
+**/.packages
 
 # Ignore Beam Playground Terraform
 **/.terraform
@@ -133,3 +134,6 @@ website/www/yarn-error.log
 **/*.tfstate.*
 **/*.hcl
 **/*.tfvars
+
+# Ignore Katas auto-generated files
+**/*-remote-info.yaml

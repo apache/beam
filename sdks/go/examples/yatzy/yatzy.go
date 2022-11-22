@@ -27,6 +27,11 @@ package main
 //   categories:
 //     - IO
 //     - Side Input
+//   complexity: ADVANCED
+//   tags:
+//     - pipeline
+//     - random
+//     - numbers
 
 import (
 	"context"

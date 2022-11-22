@@ -146,8 +146,8 @@ class BatchLoads<DestinationT, ElementT>
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private final @Nullable String kmsKey;
-  private final boolean clusteringEnabled;
   private final String tempDataset;
+  private Coder<TableDestination> tableDestinationCoder;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -186,9 +186,10 @@ class BatchLoads<DestinationT, ElementT>
     this.elementCoder = elementCoder;
     this.kmsKey = kmsKey;
     this.rowWriterFactory = rowWriterFactory;
-    this.clusteringEnabled = clusteringEnabled;
     schemaUpdateOptions = Collections.emptySet();
     this.tempDataset = tempDataset;
+    this.tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
   }
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
@@ -493,7 +494,8 @@ class BatchLoads<DestinationT, ElementT>
                             maxRetryJobs,
                             kmsKey,
                             loadJobProjectId))
-                    .withSideInputs(copyJobIdPrefixView));
+                    .withSideInputs(copyJobIdPrefixView))
+            .setCoder(tableDestinationCoder);
 
     PCollectionList<TableDestination> allSuccessfulWrites =
         PCollectionList.of(successfulSinglePartitionWrites).and(successfulMultiPartitionWrites);
@@ -754,9 +756,6 @@ class BatchLoads<DestinationT, ElementT>
       PCollectionView<String> loadJobIdPrefixView) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList(loadJobIdPrefixView);
     sideInputs.addAll(dynamicDestinations.getSideInputs());
-
-    Coder<TableDestination> tableDestinationCoder =
-        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
 
     Coder<KV<ShardedKey<DestinationT>, WritePartition.Result>> partitionsCoder =
         KvCoder.of(

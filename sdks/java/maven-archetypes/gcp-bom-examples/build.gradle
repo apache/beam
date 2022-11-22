@@ -35,7 +35,7 @@ processResources {
             'junit.version': dependencies.create(project.library.java.junit).getVersion(),
             'pubsub.version': dependencies.create(project.library.java.google_api_services_pubsub).getVersion(),
             'slf4j.version': dependencies.create(project.library.java.slf4j_api).getVersion(),
-            'spark.version': dependencies.create(project.library.java.spark_core).getVersion(),
+            'spark.version': dependencies.create(project.library.java.spark3_core).getVersion(),
             'nemo.version': dependencies.create(project.library.java.nemo_compiler_frontend_beam).getVersion(),
             'hadoop.version': dependencies.create(project.library.java.hadoop_client).getVersion(),
             'mockito.version': dependencies.create(project.library.java.mockito_core).getVersion(),

@@ -337,7 +337,7 @@ rules:
   addLabels: ['typescript']
 - valueFor: 'Component'
   contains: 'test-failures'
-  addLabels: ['test-failures']
+  addLabels: ['failing test']
 - valueFor: 'Component'
   contains: 'testing'
   addLabels: ['tests']
@@ -347,3 +347,9 @@ rules:
 - valueFor: 'Component'
   contains: 'website'
   addLabels: ['website']
+- valueFor: 'Failure'
+  contains: 'Test is flaky'
+  addLabels: ['flaky', 'tests']
+- valueFor: 'Failure'
+  contains: 'Test is continually failing'
+  addLabels: ['permared', 'failing test', 'tests']

@@ -29,5 +29,4 @@ ALLOWED_BUCKET_LIST = [
     "dataflow-samples",
     "beam-samples",
     "apache-beam-samples",
-    "playground-precompiled-objects",
 ]

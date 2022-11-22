@@ -17,7 +17,7 @@
 ###############################################################################
 
 # Docker hub: https://hub.docker.com/r/google/cloud-sdk
-FROM google/cloud-sdk:alpine
+FROM google/cloud-sdk:389.0.0-alpine
 
 # Install required components
 RUN apk add --update --no-cache openjdk8-jre \

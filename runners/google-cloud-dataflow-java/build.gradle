@@ -55,7 +55,7 @@ processResources {
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
     'dataflow.legacy_container_version' : 'beam-master-20220816',
-    'dataflow.fnapi_container_version' : 'beam-master-20220923',
+    'dataflow.fnapi_container_version' : 'beam-master-20221022',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -142,6 +142,7 @@ def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
 def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerJavaImageContainer = "${dockerImageRoot}/java"
@@ -167,6 +168,7 @@ def runnerV2PipelineOptions = [
   "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
   // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
   "--experiments=use_unified_worker,use_runner_v2,shuffle_mode=appliance",
+  "--firestoreDb=${firestoreDb}",
 ]
 
 def commonLegacyExcludeCategories = [
@@ -591,6 +593,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
+          "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'
@@ -622,6 +625,7 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
           "--dataflowKmsKey=${dataflowKmsKey}",
+          "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'

@@ -19,8 +19,8 @@
 def basePath = '..'
 /* All properties required for loading the Spark build script */
 project.ext {
-  // Set the version of all Spark-related dependencies here.
-  spark_version = '3.1.2'
+  // Spark 3 version as defined in BeamModulePlugin
+  spark_version = spark3_version
   spark_scala_version = '2.12'
   copySourceBase = false // disabled to use Spark 3 as primary dev version
   archives_base_name = 'beam-runners-spark-3'
@@ -29,7 +29,10 @@ project.ext {
 // Load the main build script which contains all build logic.
 apply from: "$basePath/spark_runner.gradle"
 
+// Generates runQuickstartJavaSpark task (can only support 1 version of Spark)
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
 
+// Additional supported Spark versions (used in compatibility tests)
 def sparkVersions = [
     "330": "3.3.0",
     "321": "3.2.1"

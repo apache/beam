@@ -113,7 +113,7 @@ task precommit {
 }
 
 task generate {
-  dependsOn("flutterClean")
+  dependsOn("cleanFlutter")
   dependsOn("pubGet")
 
   group = "build"
@@ -127,7 +127,7 @@ task generate {
   }
 }
 
-task flutterClean {
+task cleanFlutter {
   group = "build"
   description = "Remove build artifacts"
 
@@ -166,7 +166,7 @@ docker {
   tags containerImageTags()
   buildArgs(['FLUTTER_VERSION': project.rootProject.hasProperty(["flutter-version"]) ?
                                 project.rootProject["flutter-version"] :
-                                "3.0.1-stable" ])
+                                "3.3.2" ])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

@@ -38,17 +38,24 @@ func NewDatastoreMapper(ctx context.Context, appEnv *environment.ApplicationEnvs
 
 func (m *DatastoreMapper) ToSnippet(info *pb.SaveSnippetRequest) *entity.Snippet {
 	nowDate := time.Now()
+
+	origin := constants.UserSnippetOrigin
+	if info.PersistenceKey > "" {
+		origin = constants.TbUserSnippetOrigin
+	}
 	snippet := entity.Snippet{
 		IDMeta: &entity.IDMeta{Salt: m.props.Salt, IdLength: m.props.IdLength},
 		//OwnerId property will be used in Tour of Beam project
 		Snippet: &entity.SnippetEntity{
-			SchVer:        utils.GetSchemaVerKey(m.ctx, m.appEnv.SchemaVersion()),
-			Sdk:           utils.GetSdkKey(m.ctx, info.Sdk.String()),
-			PipeOpts:      info.PipelineOptions,
-			Created:       nowDate,
-			LVisited:      nowDate,
-			Origin:        constants.UserSnippetOrigin,
-			NumberOfFiles: len(info.Files),
+			SchVer:         utils.GetSchemaVerKey(m.ctx, m.appEnv.SchemaVersion()),
+			Sdk:            utils.GetSdkKey(m.ctx, info.Sdk.String()),
+			PipeOpts:       info.PipelineOptions,
+			Created:        nowDate,
+			LVisited:       nowDate,
+			Origin:         origin,
+			NumberOfFiles:  len(info.Files),
+			Complexity:     info.Complexity.String(),
+			PersistenceKey: info.PersistenceKey,
 		},
 	}
 	return &snippet

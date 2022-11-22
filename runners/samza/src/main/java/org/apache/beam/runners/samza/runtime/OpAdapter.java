@@ -21,13 +21,17 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Queue;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.runners.samza.SamzaPipelineExceptionContext;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.translation.TranslationContext;
+import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.runners.samza.util.SamzaPipelineExceptionListener;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -57,9 +61,7 @@ public class OpAdapter<InT, OutT, K>
 
   private final Op<InT, OutT, K> op;
   private final String transformFullName;
-  private transient List<OpMessage<OutT>> outputList;
-  private transient CompletionStage<Collection<OpMessage<OutT>>> outputFuture;
-  private transient Instant outputWatermark;
+  private final transient SamzaPipelineOptions samzaPipelineOptions;
   private transient OpEmitter<OutT> emitter;
   private transient Config config;
   private transient Context context;
@@ -67,18 +69,19 @@ public class OpAdapter<InT, OutT, K>
 
   public static <InT, OutT, K> AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
       Op<InT, OutT, K> op, TranslationContext ctx) {
-    return new OpAdapter<>(op, ctx.getTransformFullName());
+    return new OpAdapter<>(op, ctx.getTransformFullName(), ctx.getPipelineOptions());
   }
 
-  private OpAdapter(Op<InT, OutT, K> op, String transformFullName) {
+  private OpAdapter(
+      Op<InT, OutT, K> op, String transformFullName, SamzaPipelineOptions samzaPipelineOptions) {
     this.op = op;
     this.transformFullName = transformFullName;
+    this.samzaPipelineOptions = samzaPipelineOptions;
   }
 
   @Override
   public final void init(Context context) {
-    this.outputList = new ArrayList<>();
-    this.emitter = new OpEmitterImpl();
+    this.emitter = new OpEmitterImpl<>();
     this.config = context.getJobContext().getConfig();
     this.context = context;
     this.exceptionListeners =
@@ -97,8 +100,6 @@ public class OpAdapter<InT, OutT, K>
 
   @Override
   public synchronized CompletionStage<Collection<OpMessage<OutT>>> apply(OpMessage<InT> message) {
-    assert outputList.isEmpty();
-
     try {
       switch (message.getType()) {
         case ELEMENT:
@@ -116,32 +117,18 @@ public class OpAdapter<InT, OutT, K>
       }
     } catch (Exception e) {
       LOG.error("Exception happened in transform: {}", transformFullName, e);
-      notifyExceptionListeners(transformFullName, e);
+      notifyExceptionListeners(transformFullName, e, samzaPipelineOptions);
       throw UserCodeException.wrap(e);
     }
 
     CompletionStage<Collection<OpMessage<OutT>>> resultFuture =
-        CompletableFuture.completedFuture(new ArrayList<>(outputList));
+        CompletableFuture.completedFuture(emitter.collectOutput());
 
-    if (outputFuture != null) {
-      resultFuture =
-          resultFuture.thenCombine(
-              outputFuture,
-              (res1, res2) -> {
-                res1.addAll(res2);
-                return res1;
-              });
-    }
-
-    outputList.clear();
-    outputFuture = null;
-    return resultFuture;
+    return FutureUtils.combineFutures(resultFuture, emitter.collectFuture());
   }
 
   @Override
   public synchronized Collection<OpMessage<OutT>> processWatermark(long time) {
-    assert outputList.isEmpty();
-
     try {
       op.processWatermark(new Instant(time), emitter);
     } catch (Exception e) {
@@ -150,21 +137,17 @@ public class OpAdapter<InT, OutT, K>
       throw UserCodeException.wrap(e);
     }
 
-    final List<OpMessage<OutT>> results = new ArrayList<>(outputList);
-    outputList.clear();
-    return results;
+    return emitter.collectOutput();
   }
 
   @Override
   public synchronized Long getOutputWatermark() {
-    return outputWatermark != null ? outputWatermark.getMillis() : null;
+    return emitter.collectWatermark();
   }
 
   @Override
   public synchronized Collection<OpMessage<OutT>> onCallback(
       KeyedTimerData<K> keyedTimerData, long time) {
-    assert outputList.isEmpty();
-
     try {
       op.processTimer(keyedTimerData, emitter);
     } catch (Exception e) {
@@ -172,9 +155,7 @@ public class OpAdapter<InT, OutT, K>
       throw UserCodeException.wrap(e);
     }
 
-    final List<OpMessage<OutT>> results = new ArrayList<>(outputList);
-    outputList.clear();
-    return results;
+    return emitter.collectOutput();
   }
 
   @Override
@@ -182,17 +163,27 @@ public class OpAdapter<InT, OutT, K>
     op.close();
   }
 
-  private class OpEmitterImpl implements OpEmitter<OutT> {
+  static class OpEmitterImpl<OutT> implements OpEmitter<OutT> {
+    private final Queue<OpMessage<OutT>> outputQueue;
+    private CompletionStage<Collection<OpMessage<OutT>>> outputFuture;
+    private Instant outputWatermark;
+
+    OpEmitterImpl() {
+      outputQueue = new ConcurrentLinkedQueue<>();
+    }
+
     @Override
     public void emitElement(WindowedValue<OutT> element) {
-      outputList.add(OpMessage.ofElement(element));
+      outputQueue.add(OpMessage.ofElement(element));
     }
 
     @Override
     public void emitFuture(CompletionStage<Collection<WindowedValue<OutT>>> resultFuture) {
-      outputFuture =
+      final CompletionStage<Collection<OpMessage<OutT>>> resultFutureWrapped =
           resultFuture.thenApply(
               res -> res.stream().map(OpMessage::ofElement).collect(Collectors.toList()));
+
+      outputFuture = FutureUtils.combineFutures(outputFuture, resultFutureWrapped);
     }
 
     @Override
@@ -202,16 +193,41 @@ public class OpAdapter<InT, OutT, K>
 
     @Override
     public <T> void emitView(String id, WindowedValue<Iterable<T>> elements) {
-      outputList.add(OpMessage.ofSideInput(id, elements));
+      outputQueue.add(OpMessage.ofSideInput(id, elements));
+    }
+
+    @Override
+    public Collection<OpMessage<OutT>> collectOutput() {
+      final List<OpMessage<OutT>> outputList = new ArrayList<>();
+      OpMessage<OutT> output;
+      while ((output = outputQueue.poll()) != null) {
+        outputList.add(output);
+      }
+      return outputList;
+    }
+
+    @Override
+    public CompletionStage<Collection<OpMessage<OutT>>> collectFuture() {
+      final CompletionStage<Collection<OpMessage<OutT>>> future = outputFuture;
+      outputFuture = null;
+      return future;
+    }
+
+    @Override
+    public Long collectWatermark() {
+      final Instant watermark = outputWatermark;
+      outputWatermark = null;
+      return watermark == null ? null : watermark.getMillis();
     }
   }
 
-  private void notifyExceptionListeners(String transformFullName, Exception e) {
+  private void notifyExceptionListeners(
+      String transformFullName, Exception e, SamzaPipelineOptions samzaPipelineOptions) {
     try {
       exceptionListeners.forEach(
           listener -> {
             listener
-                .getExceptionListener()
+                .getExceptionListener(samzaPipelineOptions)
                 .onException(new SamzaPipelineExceptionContext(transformFullName, e));
           });
     } catch (Exception t) {

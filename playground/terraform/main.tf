@@ -22,13 +22,16 @@ module "infrastructure" {
   project_id                    = var.project_id
   environment                   = var.environment
   region                        = var.region
+  network_region                = var.region
+  redis_region                  = var.region
+  location                      = var.location
   #GCS
   bucket_examples_name          = var.bucket_examples_name
   bucket_examples_location      = var.bucket_examples_location
   bucket_examples_storage_class = var.bucket_examples_storage_class
   #Artifact Registry
   repository_id                 = var.repository_id
-  repository_location           = var.repository_location
+  repository_location           = var.region
   #Redis
   redis_version                 = var.redis_version
   redis_name                    = var.redis_name
@@ -41,7 +44,7 @@ module "infrastructure" {
   gke_machine_type              = var.gke_machine_type
   gke_node_count                = var.gke_node_count
   gke_name                      = var.gke_name
-  gke_location                  = var.gke_location
+  gke_location                  = var.location
   service_account               = var.service_account
 }
 
@@ -81,11 +84,8 @@ module "applications" {
   scio_max_instance   = var.scio_max_instance
   scio_min_instance   = var.scio_min_instance
 
-  location               = var.application_location
+ # location               = var.application_location
   create_default_service = var.create_default_service
   state_bucket           = var.state_bucket
   state_prefix           = var.state_prefix
 }
-
-
-
