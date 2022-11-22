@@ -60,7 +60,7 @@ import time
 import urllib.parse
 
 from google.protobuf import json_format
-from google.protobuf import text_format
+from google.protobuf import text_format  # pylint: disable=attr-defined
 
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -72,7 +72,7 @@ from apache_beam.runners.portability.fn_api_runner import translations
 try:
   from apache_beam.io.gcp import gcsio
 except ImportError:
-  gcsio = None
+  gcsio = None  # type: ignore
 
 # From the Beam site, circa November 2022.
 DEFAULT_EDGE_STYLE = 'color="#ff570b"'
