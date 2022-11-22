@@ -33,6 +33,7 @@ on:
 
 jobs:
   update_master:
+    needs: update_release_branch
     runs-on: [self-hosted, ubuntu-20.04]
       env:
       MASTER_BRANCH: master
@@ -42,15 +43,12 @@ jobs:
       - name: Validate Next Version
         run: |
           if [[ $NEXT_RELEASE =~ ([0-9]\.[0-9]*\.[0-9]) ]]; then
-            NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}
+            echo "NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}" >> $GITHUB_ENV
           fi
-          if [[ -z "$NEXT_VERSION_IN_BASE_BRANCH" ]]; then
+          else
             echo "The input for NEXT_RELEASE does not match a valid format [0-9].[0-9].[0-9]"
             exit 1
           fi
-          echo "NEXT_VERSION_IN_BASE_BRANCH=${NEXT_VERSION_IN_BASE_BRANCH}" >> $GITHUB_ENV
-      - name: Echo value
-        run: |
           echo "NEXT_VERSION_IN_BASE_BRANCH: $NEXT_VERSION_IN_BASE_BRANCH"
       - name: Check out code
         uses: actions/checkout@v3
@@ -66,10 +64,7 @@ jobs:
           echo "==============================================================="
       - name: Commit and Push to master branch files with Next Version
         run: |
-          git add buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
-          git add gradle.properties
-          git add sdks/python/apache_beam/version.py
-          git add sdks/go/pkg/beam/core/core.go
+          git add *
           git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
           git push origin ${MASTER_BRANCH}
 
@@ -81,16 +76,13 @@ jobs:
       - name: Validate Release Version
         run: |
           if [[ ${RELEASE} =~ ([0-9]\.[0-9]*\.[0-9]) ]]; then
-            RELEASE_VERSION=${BASH_REMATCH[1]}
+            echo "RELEASE_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+            echo "RELEASE_BRANCH=release-${RELEASE}" >> $GITHUB_ENV
           fi
-          if [[ -z "$RELEASE_VERSION" ]]; then
+          else
             echo "The input for RELEASE does not match a valid format [0-9].[0-9].[0-9]"
             exit 1
           fi
-          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
-          echo "RELEASE_BRANCH=release-${RELEASE}" >> $GITHUB_ENV
-      - name: Echo value
-        run: |
           echo "RELEASE_VERSION: ${RELEASE_VERSION}"
       - name: Check out code
         uses: actions/checkout@v3
