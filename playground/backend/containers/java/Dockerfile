@@ -63,9 +63,14 @@ RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java
 # Install Beam SDK Core
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-core.jar
-# Imstall Beam Examples
+# Install Beam Examples
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
     mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
+# Install jars for Playground graphs
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-construction-java/$BEAM_VERSION/beam-runners-core-construction-java-$BEAM_VERSION.jar &&\
+    mv beam-runners-core-construction-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-core-construction-java-$BEAM_VERSION.jar
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-model-pipeline/$BEAM_VERSION/beam-model-pipeline-$BEAM_VERSION.jar &&\
+    mv beam-model-pipeline-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-model-pipeline-$BEAM_VERSION.jar
 # Install Beam SDK Core tests
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
