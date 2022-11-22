@@ -60,7 +60,7 @@ A typical data preprocessing pipeline consists of the following steps:
 1. Read and write data: Read and write the data from your file system, database, or messaging queue. Apache Beam has a rich set of [IO connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data.
 2. Data cleaning: Filter and clean your data before using it in your ML model. You might remove duplicate or irrelevant data, correct mistakes in your dataset, filter out unwanted outliers, or handle missing data.
 3. Data transformations: Your data needs to fit the expected input your model needs to train. You might need to normalize, one-hot encode, scale, or vectorize your data.
-4. Data enrichment: You might want to enrich your data with external data sources to make your data more meaningful or easier for an ML model to interpret. For example, you might want to transform a city name or address into a coordinate.
+4. Data enrichment: You might want to enrich your data with external data sources to make your data more meaningful or easier for an ML model to interpret. For example, you might want to transform a city name or address into a set of coordinates.
 5. Data validation and metrics: Make sure your data adheres to a specific set of requirements that can be validated in your pipeline. Report metrics from your data, such as the class distributions.
 
 You can use an Apache Beam pipeline to implement all of these steps. This example shows a pipeline that demonstrates all of the steps previously mentioned:
