@@ -86,10 +86,12 @@ Prerequisites:
     * Billing API
     * Cloud Functions API
     * Firebase Admin API
+    * Secret Manager API
  - set environment variables:
    * PROJECT_ID: GCP id
    * REGION: the region, "us-central1" fe
  - existing setup of Playground backend in a project
+ - create a secret `persistence_key_salt` in Secret Manager
 
 1. Deploy Datastore indexes (but don't delete existing Playground indexes!)
 ```
@@ -101,7 +103,9 @@ gcloud datastore indexes create ./internal/storage/index.yaml
 for endpoint in getSdkList getContentTree getUnitComplete getUserProgress postUnitComplete postUserCode; do
 gcloud functions deploy $endpoint --entry-point $endpoint \
   --region $REGION --runtime go116 --allow-unauthenticated \
-  --trigger-http --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID"
+  --trigger-http \
+  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID" \
+  --set-secrets 'PERSISTENCE_KEY_SALT=persistence_key_salt:latest"
 done
 
 ```
