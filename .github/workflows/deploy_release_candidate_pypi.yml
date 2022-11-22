@@ -1,0 +1,123 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This workflow will deploy a Release Candidate to pypi, includes:
+## 1. Download python binary artifacts
+## 2. Deploy Release Candidate to pypi
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Deploy Release Candidate Pypi
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE:
+        description: Beam version of current release
+        required: true
+      RC_NUMBER:
+        description: RC version for the release
+        required: true
+      DEPLOY:
+        description: Deploy to pypi (yes/no)
+        required: false
+        default: no
+permissions:
+  actions: read
+
+jobs:
+  deploy_release_candidate:
+    runs-on: [self-hosted, ubuntu-20.04]
+    env:
+      BEAM_ROOT_DIR: beam
+      RC_TAG: v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC_NUMBER }}
+      SCRIPT_DIR: scripts/ci/release
+      GIT_REPO_URL: https://github.com/apache/beam
+      GITHUB_TOKEN: ${{ github.token }}
+#      TODO: Set TWINE_USERNAME and TWINE_PASSWORD as GHA Secrets or Runner ENVs and remove these
+      TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+      TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Set git config
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+      - name: Setting env vars
+        run: |
+          echo "================Checking Environment Variables=============="
+          echo "will download artifacts for ${RC_TAG} built by github actions"
+          LOCAL_CLONE_DIR=beam_release_${RC_TAG}
+          echo "LOCAL_CLONE_DIR=$LOCAL_CLONE_DIR" >> $GITHUB_ENV
+          LOCAL_CLONE_DIR_ROOT=$(pwd)/${LOCAL_CLONE_DIR}
+          echo "LOCAL_CLONE_DIR_ROOT=$LOCAL_CLONE_DIR_ROOT" >> $GITHUB_ENV
+          PYTHON_ARTIFACTS_DIR=${LOCAL_CLONE_DIR_ROOT}/python
+          echo "PYTHON_ARTIFACTS_DIR=$PYTHON_ARTIFACTS_DIR" >> $GITHUB_ENV
+      - name: Clone release branch
+        run: |
+          mkdir "${LOCAL_CLONE_DIR}"
+          cd $LOCAL_CLONE_DIR
+          echo "===================Cloning Beam Release Branch=================="
+          git clone --depth 1 --branch $RC_TAG $GIT_REPO_URL $BEAM_ROOT_DIR
+          cd $BEAM_ROOT_DIR
+          RELEASE_COMMIT=$(git rev-list -n 1 $RC_TAG)
+          echo "RELEASE_COMMIT=$RELEASE_COMMIT" >> $GITHUB_ENV
+      - name: Install python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install python dependencies
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install requests python-dateutil
+      - name: Download python artifacts
+        run: |
+          python3 "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
+          --github-user "${GITHUB_ACTOR}" \
+          --repo-url "${{ github.event.inputs.GIT_REPO_BASE_URL }}" \
+          --rc-tag "${RC_TAG}" \
+          --release-commit "${RELEASE_COMMIT}" \
+          --artifacts_dir "${PYTHON_ARTIFACTS_DIR}" \
+          --rc_number "${{ github.event.inputs.RC_NUMBER }}"
+      - name: Check Hash Values
+        working-directory: ${{env.PYTHON_ARTIFACTS_DIR}}
+        run: |
+          echo "------Checking Hash Value for apache-beam-${RELEASE}rc$${{ github.event.inputs.RC_NUMBER }}".zip-----"
+          sha512sum -c "apache-beam-${RELEASE}rc${{ github.event.inputs.RC_NUMBER }}".zip.sha512"
+
+          for artifact in *.whl; do
+            echo "----------Checking Hash Value for ${artifact} wheel-----------"
+            sha512sum -c "${artifact}.sha512"
+          done
+
+          echo "===================Removing sha512 files======================="
+          rm $(ls | grep -i ".*.sha512$")
+      - name: Upload rc to pypi
+        working-directory: ${{env.PYTHON_ARTIFACTS_DIR}}
+        run: |
+          echo "====================Upload rc to pypi========================"
+          pip install twine
+
+          mkdir dist && mv $(ls | grep apache) dist && cd dist
+          echo "Will upload the following files to PyPI:"
+          ls
+
+          if [[ "${{ github.event.inputs.DEPLOY }}" == yes ]] ; then
+             twine upload *
+          else
+            echo "Skipping deployment to PyPI. Run the script with DEPLOY:yes to stage the artifacts."
+          fi
