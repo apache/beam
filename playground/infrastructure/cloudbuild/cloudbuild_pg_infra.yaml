@@ -45,14 +45,14 @@ steps:
         'bucket = "$_STATE_BUCKET"'\
         > playground/terraform/environment/$_ENVIRONMENT_NAME/state.tfbackend 
 
+# This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
+  - name: 'us-docker.pkg.dev/$PROJECT_ID/gcr.io/builder:playground'
+    entrypoint: "/bin/bash"
+    args: ['-c', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="$_ENVIRONMENT_NAME" -Pdns-name="$_DNS_NAME"']
+
 # Pushing built image to GCP Artifact Registry repository
 images:
   - 'us-docker.pkg.dev/$PROJECT_ID/gcr.io/builder:playground'
-
-# This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
-  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/playground-repository/builder:playground'
-    entrypoint: "/bin/bash"
-    args: ['-c', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="$_ENVIRONMENT_NAME" -Pdns-name="$_DNS_NAME"']
 
 # This option enables writing logs to Cloud Logging
 options:

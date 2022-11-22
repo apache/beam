@@ -17,7 +17,7 @@
 
 steps:
   # This stage uses pre-built Docker container to run gradle task for Playground pre-config and deployment to GKE
-  - name: '$LOCATION-docker.pkg.dev/$PROJECT_ID/playground-repository/builder:playground'
+  - name: 'us-docker.pkg.dev/$PROJECT_ID/gcr.io/builder:playground'
     entrypoint: "/bin/bash"
     args:
       [
