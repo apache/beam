@@ -343,6 +343,7 @@ if __name__ == '__main__':
           'azure': [
             'azure-storage-blob >=12.3.2',
             'azure-core >=1.7.0',
+            'azure-identity >=1.12.0',
           ],
         #(TODO): Some tests using Pandas implicitly calls inspect.stack()
         # with python 3.10 leading to incorrect stacktrace.
