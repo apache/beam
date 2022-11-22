@@ -267,9 +267,7 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryDirectReadSchemaTransformConfiguration config =
-        BigQueryDirectReadSchemaTransformConfiguration.builder()
-            .setTableSpec(TABLE_SPEC)
-            .build();
+        BigQueryDirectReadSchemaTransformConfiguration.builder().setTableSpec(TABLE_SPEC).build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
     BigQueryDirectReadPCollectionRowTupleTransform readTransform =
