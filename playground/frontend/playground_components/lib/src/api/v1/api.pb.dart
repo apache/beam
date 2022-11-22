@@ -1,27 +1,9 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
 //
 // @dart = 2.12
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+// ignore_for_file: annotate_overrides,camel_case_types,constant_identifier_names,directives_ordering,library_prefixes,non_constant_identifier_names,prefer_final_fields,return_of_invalid_type,unnecessary_const,unnecessary_import,unnecessary_this,unused_import,unused_shown_name
 
 import 'dart:core' as $core;
 
@@ -2037,6 +2019,7 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
     ..e<Sdk>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..e<Complexity>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.COMPLEXITY_UNSPECIFIED, valueOf: Complexity.valueOf, enumValues: Complexity.values)
+    ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'persistenceKey')
     ..hasRequiredFields = false
   ;
 
@@ -2046,6 +2029,7 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
     Sdk? sdk,
     $core.String? pipelineOptions,
     Complexity? complexity,
+    $core.String? persistenceKey,
   }) {
     final _result = create();
     if (files != null) {
@@ -2059,6 +2043,9 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
     }
     if (complexity != null) {
       _result.complexity = complexity;
+    }
+    if (persistenceKey != null) {
+      _result.persistenceKey = persistenceKey;
     }
     return _result;
   }
@@ -2112,6 +2099,15 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
   $core.bool hasComplexity() => $_has(3);
   @$pb.TagNumber(4)
   void clearComplexity() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get persistenceKey => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set persistenceKey($core.String v) { $_setString(4, v); }
+  @$pb.TagNumber(5)
+  $core.bool hasPersistenceKey() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearPersistenceKey() => clearField(5);
 }
 
 class SaveSnippetResponse extends $pb.GeneratedMessage {
