@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../generated/assets.gen.dart';
-import 'user_menu.dart';
+import '../functions.dart';
 
 class Avatar extends StatelessWidget {
   final User user;
@@ -32,7 +32,7 @@ class Avatar extends StatelessWidget {
     final photoUrl = user.photoURL;
     return GestureDetector(
       onTap: () {
-        _openOverlay(context);
+        openLoginOverlay(context, user);
       },
       child: CircleAvatar(
         backgroundColor: BeamColors.white,
@@ -42,27 +42,5 @@ class Avatar extends StatelessWidget {
             : NetworkImage(photoUrl),
       ),
     );
-  }
-
-  void _openOverlay(BuildContext context) {
-    final overlayCloser = PublicNotifier();
-    OverlayEntry? overlay;
-    overlay = OverlayEntry(
-      builder: (context) {
-        overlayCloser.addListener(overlay!.remove);
-        return DismissibleOverlay(
-          close: overlayCloser.notifyPublic,
-          child: Positioned(
-            right: BeamSizes.size10,
-            top: BeamSizes.appBarHeight,
-            child: UserMenu(
-              onLoggedOut: overlayCloser.notifyPublic,
-              user: user,
-            ),
-          ),
-        );
-      },
-    );
-    Overlay.of(context)?.insert(overlay);
   }
 }

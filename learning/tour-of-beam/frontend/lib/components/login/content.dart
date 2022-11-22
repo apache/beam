@@ -29,6 +29,7 @@ import '../../generated/assets.gen.dart';
 
 class LoginContent extends StatelessWidget {
   final VoidCallback onLoggedIn;
+
   const LoginContent({
     required this.onLoggedIn,
   });
@@ -60,6 +61,7 @@ class LoginContent extends StatelessWidget {
 
 class _Body extends StatelessWidget {
   final Widget child;
+
   const _Body({required this.child});
 
   @override
@@ -92,6 +94,7 @@ class _Divider extends StatelessWidget {
 
 class _BrandedLoginButtons extends StatelessWidget {
   final VoidCallback onLoggedIn;
+
   const _BrandedLoginButtons({
     required this.onLoggedIn,
   });

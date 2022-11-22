@@ -47,7 +47,7 @@ class TobScaffold extends StatelessWidget {
           SizedBox(width: BeamSizes.size12),
           _ActionVerticalPadding(child: ToggleThemeButton()),
           SizedBox(width: BeamSizes.size6),
-          _Profile(),
+          _ActionVerticalPadding(child: _Profile()),
           SizedBox(width: BeamSizes.size16),
         ],
       ),
@@ -66,12 +66,10 @@ class _Profile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ActionVerticalPadding(
-      child: StreamBuilder(
-        stream: FirebaseAuth.instance.userChanges(),
-        builder: (context, user) =>
-            user.hasData ? Avatar(user: user.data!) : const LoginButton(),
-      ),
+    return StreamBuilder(
+      stream: FirebaseAuth.instance.userChanges(),
+      builder: (context, user) =>
+          user.hasData ? Avatar(user: user.data!) : const LoginButton(),
     );
   }
 }

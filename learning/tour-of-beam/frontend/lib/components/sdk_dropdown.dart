@@ -24,6 +24,7 @@ import 'builders/sdks.dart';
 class SdkDropdown extends StatelessWidget {
   final String sdkId;
   final ValueChanged<String> onChanged;
+
   const SdkDropdown({
     required this.sdkId,
     required this.onChanged,
@@ -40,9 +41,9 @@ class SdkDropdown extends StatelessWidget {
         return _DropdownWrapper(
           child: DropdownButton(
             value: sdkId,
-            onChanged: (value) {
-              if (value != null) {
-                onChanged(value);
+            onChanged: (sdk) {
+              if (sdk != null) {
+                onChanged(sdk);
               }
             },
             items: sdks

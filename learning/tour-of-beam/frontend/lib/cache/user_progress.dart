@@ -60,6 +60,7 @@ class UserProgressCache extends Cache {
         }
       }
     }
+
     notifyListeners();
   }
 }

@@ -97,8 +97,9 @@ class _ContentFooter extends StatelessWidget {
 }
 
 class _CompleteUnitButton extends StatelessWidget {
-  final TourNotifier notifier;
-  const _CompleteUnitButton(this.notifier);
+  // TODO(nausharipov): rename notifier to tour everywhere?
+  final TourNotifier tour;
+  const _CompleteUnitButton(this.tour);
 
   @override
   Widget build(BuildContext context) {
@@ -109,9 +110,8 @@ class _CompleteUnitButton extends StatelessWidget {
     return AnimatedBuilder(
       animation: userProgress,
       builder: (context, child) {
-        final isCompleted = userProgress
-            .isUnitCompleted(notifier.contentTreeController.currentNode?.id);
-        final isDisabled = !auth.isAuthenticated || isCompleted;
+        final isDisabled =
+            !auth.isAuthenticated || tour.isCurrentUnitCompleted();
 
         return Flexible(
           child: OutlinedButton(
@@ -129,7 +129,7 @@ class _CompleteUnitButton extends StatelessWidget {
               ),
             ),
             onPressed:
-                isDisabled ? null : notifier.currentUnitController.completeUnit,
+                isDisabled ? null : tour.currentUnitController.completeUnit,
             child: const Text(
               'pages.tour.completeUnit',
               overflow: TextOverflow.ellipsis,

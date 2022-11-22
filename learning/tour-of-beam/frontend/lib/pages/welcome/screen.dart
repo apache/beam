@@ -133,7 +133,7 @@ class _SdkSelection extends StatelessWidget {
 
                     return AnimatedBuilder(
                       animation: app,
-                      builder: (context, child) => _Buttons(
+                      builder: (context, child) => _SdkButtons(
                         sdks: sdks,
                         sdkId: app.sdkId,
                         setSdkId: (v) => app.sdkId = v,
@@ -282,13 +282,13 @@ class _IntroTextBody extends StatelessWidget {
   }
 }
 
-class _Buttons extends StatelessWidget {
+class _SdkButtons extends StatelessWidget {
   final List<Sdk> sdks;
   final String? sdkId;
   final ValueChanged<String> setSdkId;
   final VoidCallback onStartPressed;
 
-  const _Buttons({
+  const _SdkButtons({
     required this.sdks,
     required this.sdkId,
     required this.setSdkId,

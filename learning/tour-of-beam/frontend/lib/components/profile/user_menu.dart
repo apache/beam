@@ -106,6 +106,7 @@ class _Info extends StatelessWidget {
 
 class _Buttons extends StatelessWidget {
   final VoidCallback closeOverlay;
+
   const _Buttons({
     required this.closeOverlay,
   });

@@ -66,6 +66,21 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         treeIds: contentTreeController.treeIds,
       );
 
+  bool isCurrentUnitCompleted() {
+    return _userProgress.isUnitCompleted(
+      contentTreeController.currentNode?.id,
+    );
+  }
+
+  UnitContentModel? get currentUnitContent => _currentUnitContent;
+
+  void _setCurrentUnitController(String sdkId, String unitId) {
+    currentUnitController = UnitController(
+      unitId: unitId,
+      sdkId: sdkId,
+    )..addListener(_onUserProgressChanged);
+  }
+
   void _onUserProgressChanged() {
     _userProgress.updateCompletedUnits();
   }
@@ -93,15 +108,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
 
     notifyListeners();
-  }
-
-  UnitContentModel? get currentUnitContent => _currentUnitContent;
-
-  void _setCurrentUnitController(String sdkId, String unitId) {
-    currentUnitController = UnitController(
-      unitId: unitId,
-      sdkId: sdkId,
-    )..addListener(_onUserProgressChanged);
   }
 
   void _setCurrentUnitContent(UnitContentModel? content) {
@@ -184,10 +190,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   void dispose() {
     _unitContent.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
-    _app.removeListener(_onUserProgressChanged);
-    _auth.removeListener(_onUserProgressChanged);
     currentUnitController.removeListener(_onUserProgressChanged);
+    _app.removeListener(_onUserProgressChanged);
     _app.removeListener(_onAppNotifierChanged);
+    _auth.removeListener(_onUserProgressChanged);
     super.dispose();
   }
 }
