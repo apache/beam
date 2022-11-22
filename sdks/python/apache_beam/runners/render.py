@@ -149,7 +149,7 @@ class PipelineRenderer:
       is_leaf = lambda name: any(
           re.match(pattern, name)
           for patterns in options.render_leaf_composite_nodes
-          for pattern in pattern.split(','))
+          for pattern in patterns.split(','))
       self.leaf_composites = set()
 
       def mark_leaves(transform_ids):

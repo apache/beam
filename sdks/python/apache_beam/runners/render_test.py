@@ -17,6 +17,7 @@
 # pytype: skip-file
 
 import argparse
+import logging
 import subprocess
 import unittest
 
@@ -81,3 +82,8 @@ class RenderRunnerTest(unittest.TestCase):
         if transform.unique_name == 'Create']
     renderer.update(toggle=[create_transform_id])
     renderer.render_data()
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
