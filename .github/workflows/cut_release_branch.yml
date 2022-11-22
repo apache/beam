@@ -48,7 +48,6 @@ jobs:
             echo "The input for NEXT_RELEASE does not match a valid format [0-9].[0-9].[0-9]"
             exit 1
           fi
-          echo "NEXT_VERSION_IN_BASE_BRANCH: $NEXT_VERSION_IN_BASE_BRANCH"
       - name: Check out code
         uses: actions/checkout@v3
       - name: Set git config
@@ -81,7 +80,6 @@ jobs:
             echo "The input for RELEASE does not match a valid format [0-9].[0-9].[0-9]"
             exit 1
           fi
-          echo "RELEASE_VERSION: ${RELEASE_VERSION}"
       - name: Check out code
         uses: actions/checkout@v3
       - name: Set git config
