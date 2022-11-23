@@ -21,7 +21,9 @@ import 'package:flutter_code_editor/flutter_code_editor.dart';
 
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
+import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
+import '../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import '../models/example_view_options.dart';
 import '../models/sdk.dart';
 
@@ -99,9 +101,12 @@ class SnippetEditingController extends ChangeNotifier {
   /// Creates an [ExampleLoadingDescriptor] that can recover the
   /// current content.
   ExampleLoadingDescriptor getLoadingDescriptor() {
-    // TODO: Return other classes for unchanged standard examples,
-    //  user-shared examples, and an empty editor,
-    //  https://github.com/apache/beam/issues/23252
+    if (codeController.fullText.isEmpty) {
+      return EmptyExampleLoadingDescriptor(sdk: sdk);
+    }
+    if (selectedExample != null && !isChanged) {
+      return StandardExampleLoadingDescriptor(path: _selectedExample!.path);
+    }
     return ContentExampleLoadingDescriptor(
       complexity: _selectedExample?.complexity,
       content: codeController.fullText,

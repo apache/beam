@@ -31,4 +31,11 @@ class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
         path,
         viewOptions,
       ];
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'example': path,
+    };
+  }
 }

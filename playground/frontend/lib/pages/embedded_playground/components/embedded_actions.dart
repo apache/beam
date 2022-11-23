@@ -27,6 +27,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/params.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/messages/models/set_content_message.dart';
+import 'package:playground/utils/javascript_post_message.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
@@ -58,11 +60,25 @@ class EmbeddedActions extends StatelessWidget {
     // The empty list forces the parsing of EmptyExampleLoadingDescriptor
     // and prevents the glimpse of the default catalog example.
 
-    var descriptors = controller.getLoadingDescriptor().toJson()['descriptors'];
-    var json = jsonEncode(descriptors);
-    html.window.open(
+    final loadingDescriptor = controller.getLoadingDescriptor();
+    final contentDescriptor =
+        loadingDescriptor.whereType<ContentExampleLoadingDescriptor>();
+    final standardDescriptor =
+        loadingDescriptor.whereType<StandardExampleLoadingDescriptor>();
+
+    final json = jsonEncode(standardDescriptor.toJson()['descriptors']);
+    final window = html.window.open(
       '/?$kExamplesParam=$json&$kSdkParam=${controller.sdk?.id}',
       '',
     );
+
+    if (contentDescriptor.descriptors.isNotEmpty) {
+      javaScriptPostMessageRepeated(
+        window,
+        SetContentMessage(
+          descriptor: contentDescriptor,
+        ),
+      );
+    }
   }
 }
