@@ -37,7 +37,7 @@ public interface MultimapState<K, V> extends State {
 
   /**
    * Associates the specified value with the specified key in this multimap. Existing values
-   * associated with the same key will not be overwritten.
+   * associated with the same key will not be removed.
    *
    * <p>Changes will not be reflected in the results returned by previous calls to {@link
    * ReadableState#read} on the results any of the reading methods({@link #get}, {@link #keys},

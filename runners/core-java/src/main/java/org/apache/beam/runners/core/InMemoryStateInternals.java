@@ -21,6 +21,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -509,7 +510,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized ReadableState<Iterable<V>> get(K key) {
+    public ReadableState<Iterable<V>> get(K key) {
       return CollectionViewState.of(contents.get(keyCoder.structuralValue(key)));
     }
 
@@ -523,13 +524,14 @@ public class InMemoryStateInternals<K> implements StateInternals {
       return new ReadableState<Iterable<Map.Entry<K, Iterable<V>>>>() {
         @Override
         public Iterable<Map.Entry<K, Iterable<V>>> read() {
-          List<Map.Entry<K, Iterable<V>>> result = new ArrayList<>();
+          List<Map.Entry<K, Iterable<V>>> result =
+              Lists.newArrayListWithExpectedSize(structuralKeysMapping.size());
           for (Map.Entry<Object, K> entry : structuralKeysMapping.entrySet()) {
             result.add(
                 new AbstractMap.SimpleEntry(
                     entry.getValue(), ImmutableList.copyOf(contents.get(entry.getKey()))));
           }
-          return ImmutableList.copyOf(result);
+          return Collections.unmodifiableList(result);
         }
 
         @Override
@@ -540,9 +542,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized ReadableState<
-            @UnknownKeyFor @NonNull @Initialized Boolean>
-        containsKey(K key) {
+    public ReadableState<Boolean> containsKey(K key) {
       return new ReadableState<Boolean>() {
         @Override
         public Boolean read() {
@@ -550,16 +550,14 @@ public class InMemoryStateInternals<K> implements StateInternals {
         }
 
         @Override
-        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+        public ReadableState<Boolean> readLater() {
           return this;
         }
       };
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized ReadableState<
-            @UnknownKeyFor @NonNull @Initialized Boolean>
-        isEmpty() {
+    public ReadableState<Boolean> isEmpty() {
       return new ReadableState<Boolean>() {
         @Override
         public Boolean read() {
@@ -567,7 +565,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
         }
 
         @Override
-        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+        public ReadableState<Boolean> readLater() {
           return this;
         }
       };
