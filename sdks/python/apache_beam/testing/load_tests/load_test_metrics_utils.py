@@ -622,9 +622,14 @@ class AssignTimestamps(beam.DoFn):
         element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))
 
 
-class FetchMetrics:
-  @staticmethod
-  def fetch_from_bq(
+class MetricsFetcher:
+  def get_metrics(self):
+    raise NotImplementedError
+
+
+class BigQueryMetricsFetcher(MetricsFetcher):
+  def get_metrics(
+      self,
       project_name=None,
       table=None,
       dataset=None,
