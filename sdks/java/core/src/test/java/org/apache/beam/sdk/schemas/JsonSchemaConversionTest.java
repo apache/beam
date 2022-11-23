@@ -183,7 +183,8 @@ public class JsonSchemaConversionTest {
               });
 
       assertThat(
-          thrownException.getMessage(), containsString("Array schema is not properly formatted"));
+          thrownException.getCause().getMessage(),
+          containsString("Array schema is not properly formatted"));
     }
   }
 }

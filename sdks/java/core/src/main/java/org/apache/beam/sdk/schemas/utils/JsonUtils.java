@@ -91,14 +91,12 @@ public class JsonUtils {
       if (propertySchema == null) {
         throw new IllegalArgumentException("Unable to parse schema " + jsonSchema.toString());
       }
-      if (propertySchema instanceof org.everit.json.schema.ObjectSchema) {
-        beamSchemaBuilder =
-            beamSchemaBuilder.addField(
-                Schema.Field.of(propertyName, beamTypeFromJsonSchemaType(propertySchema)));
-      } else if (propertySchema instanceof org.everit.json.schema.ArraySchema) {
+      if (propertySchema instanceof org.everit.json.schema.ArraySchema) {
         if (((ArraySchema) propertySchema).getAllItemSchema() == null) {
           throw new IllegalArgumentException(
-              "Array schema is not properly formatted or unsupported: " + propertyName);
+              "Array schema is not properly formatted or unsupported ("
+                  + propertyName
+                  + "). Note that JSON-schema's tuple-like arrays are not supported by Beam.");
         }
         beamSchemaBuilder =
             beamSchemaBuilder.addField(
@@ -113,7 +111,9 @@ public class JsonUtils {
               beamSchemaBuilder.addField(
                   Schema.Field.of(propertyName, beamTypeFromJsonSchemaType(propertySchema)));
         } catch (IllegalArgumentException e) {
-          throw new IllegalArgumentException("Unsupported field type in field " + propertyName, e);
+          throw new IllegalArgumentException(
+              "Unsupported field type " + propertySchema.getClass() + " in field " + propertyName,
+              e);
         }
       }
     }
@@ -139,7 +139,9 @@ public class JsonUtils {
     } else if (propertySchema instanceof org.everit.json.schema.ArraySchema) {
       if (((ArraySchema) propertySchema).getAllItemSchema() == null) {
         throw new IllegalArgumentException(
-            "Array schema is not properly formatted or unsupported: " + propertySchema);
+            "Array schema is not properly formatted or unsupported ("
+                + propertySchema
+                + "). Note that JSON-schema's tuple-like arrays are not supported by Beam.");
       }
       return Schema.FieldType.array(
           beamTypeFromJsonSchemaType(((ArraySchema) propertySchema).getAllItemSchema()));
