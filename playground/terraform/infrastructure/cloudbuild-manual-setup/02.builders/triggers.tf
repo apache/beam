@@ -62,7 +62,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   }
 
   git_file_source {
-    path      = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
+    path      = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
     repo_type = "GITHUB"
   }
 
