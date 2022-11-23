@@ -1,5 +1,4 @@
 #!/bin/bash
-
 mkdir playground/terraform/environment/$_ENVIRONMENT_NAME
 printf '%s\n' \
 'project_id = "$PROJECT_ID"' \

@@ -1,5 +1,4 @@
 #!/bin/bash
-
 GO_VERSION=1.18
 
 sudo apt update >/dev/null
