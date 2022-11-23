@@ -17,7 +17,7 @@
 
 steps:
 # This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
-  - name: 'us-docker.pkg.dev/$PROJECT_ID/gcr.io/builder:playground'
+  - name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
     entrypoint: 'bash'
     args: ['./env_init.sh', './tfvars_init.sh', './gradlew playground:terraform:InitInfrastructure -Pproject_environment="$_ENVIRONMENT_NAME" -Pdns-name="$_DNS_NAME"']
 
