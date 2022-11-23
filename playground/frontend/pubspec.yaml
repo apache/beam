@@ -37,6 +37,7 @@ dependencies:
   flutter_svg: ^1.0.3
   flutter_web_plugins: { sdk: flutter }
   google_fonts: ^3.0.1
+  highlight: ^0.7.0
   intl: ^0.17.0
   onmessage: ^0.2.0
   playground_components: { path: playground_components }

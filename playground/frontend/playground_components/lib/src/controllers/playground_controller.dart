@@ -21,6 +21,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
 
 import '../cache/example_cache.dart';
 import '../models/example.dart';
@@ -34,6 +35,8 @@ import '../repositories/code_repository.dart';
 import '../repositories/models/run_code_request.dart';
 import '../repositories/models/run_code_result.dart';
 import '../repositories/models/shared_file.dart';
+import '../services/symbols/loaders/map.dart';
+import '../services/symbols/symbols_notifier.dart';
 import '../util/pipeline_options.dart';
 import 'example_loaders/examples_loader.dart';
 import 'snippet_editing_controller.dart';
@@ -146,6 +149,7 @@ class PlaygroundController with ChangeNotifier {
       );
 
       controller.selectedExample = example;
+      _ensureSymbolsInitialized();
     } else {
       final controller = _getOrCreateSnippetEditingController(
         example.sdk,
@@ -169,10 +173,22 @@ class PlaygroundController with ChangeNotifier {
       sdk,
       loadDefaultIfNot: true,
     );
+    _ensureSymbolsInitialized();
 
     if (notify) {
       notifyListeners();
     }
+  }
+
+  void _ensureSymbolsInitialized() {
+    final mode = _sdk?.highlightMode;
+    final loader = symbolLoadersByMode[mode];
+
+    if (mode == null || loader == null) {
+      return;
+    }
+
+    GetIt.instance.get<SymbolsNotifier>().addLoaderIfNot(mode, loader);
   }
 
   // TODO(alexeyinkin): Remove, used only in tests, refactor them.
