@@ -64,10 +64,10 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
     DNS_NAME="dns_name" \
     NETWORK_NAME="network_name" \
     GKE_NAME="gke_name" \
-    TAG="tag" \
+    TAG="tag_name" \
     DOCKER_REPOSITORY_ROOT="us-central1-docker.pkg.dev/playground-repository"
 ```
-**Note:**  Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations)     for the list of all supported locations.
+**Note:**  Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations) for the list of all supported locations.
 
 2. Run commands:
 

@@ -17,14 +17,29 @@
 
 steps:
   # This stage uses pre-built Docker container to run gradle task for Playground pre-config and deployment to GKE
-  - name: 'us-docker.pkg.dev/$PROJECT_ID/gcr.io/builder:playground'
+  - name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
     entrypoint: "/bin/bash"
     args:
-      [
-        '-c', './gradlew playground:terraform:prepareConfig -Pdns-name="$_DNS_NAME" && 
-        ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="$_DOCKER_REPOSITORY_ROOT" 
-          -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Pdns-name="$_DNS_NAME"'
-      ]
+      - "-c"
+      - |
+        chmod +x playground/infrastructure/cloudbuild/env_init.sh \
+        && ./playground/infrastructure/cloudbuild/env_init.sh
+        mkdir playground/terraform/environment/$_ENVIRONMENT_NAME
+        printf '%s\n' \
+        'project_id = "$PROJECT_ID"' \
+        'network_name = "$_NETWORK_NAME"' \
+        'gke_name = "$_GKE_NAME"' \
+        'region = "$LOCATION"' \
+        'location = "$LOCATION-a"' \
+        'state_bucket = "$_STATE_BUCKET"' \
+        'bucket_examples_name = "$_STATE_BUCKET-examples"' \
+        > playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
+        printf \
+        'bucket = "$_STATE_BUCKET"'\
+        > playground/terraform/environment/$_ENVIRONMENT_NAME/state.tfbackend 
+        ./gradlew playground:terraform:prepareConfig -Pdns-name="$_DNS_NAME"
+        ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="$_DOCKER_REPOSITORY_ROOT" \
+        -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Pdns-name="$_DNS_NAME"
 
 # This option enables writing logs to Cloud Logging
 options:

@@ -46,4 +46,4 @@ apt-get update && apt install -y kubectl
 
 # Install golang
 curl -O https://dl.google.com/go/go"$GO_VERSION".linux-amd64.tar.gz
-tar -C /usr/local -xvf go"$GO_VERSION".linux-amd64.tar.gz
+tar -C /usr/local -xvf go"$GO_VERSION".linux-amd64.tar.gz > /dev/null
