@@ -29,7 +29,7 @@ The Pytorch RunInference Image Classification 50K benchmark runs an
 [example image classification pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification.py)
 using various different resnet image classification models (the benchmarks on
 [Beam's dashboard](http://s.apache.org/beam-community-metrics/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1)
-display [resnet101](https://huggingface.co/microsoft/resnet-101) and [resnet152](https://huggingface.co/microsoft/resnet-152))
+display [resnet101](https://pytorch.org/vision/main/models/generated/torchvision.models.resnet101.html) and [resnet152](https://pytorch.org/vision/stable/models/generated/torchvision.models.resnet152.html))
 against 50,000 example images from the OpenImage dataset. The benchmarks produce
 the following metrics:
 
@@ -37,6 +37,16 @@ the following metrics:
 - Mean Inference Batch Latency - the average amount of time it takes to perform inference on a given batch of images
 - Mean Load Model Latency - the average amount of time it takes to load a model. This is done once per DoFn instance on worker
 startup, so the cost is amortized across the pipeline.
+
+Approximate size of the models used in the tests
+* resnet101: 170.5 MB
+* resnet152: 230.4 MB
+
+The above tests are configured to run using following configurations
+ * machine_type: n1-standard-2
+ * num_workers: 75
+ * autoscaling_algorithm: NONE
+ * disk_size_gb: 50
 
 ## Pytorch RunInference Language Modeling
 
@@ -51,3 +61,13 @@ the following metrics:
 - Mean Inference Batch Latency - the average amount of time it takes to perform inference on a given batch of images
 - Mean Load Model Latency - the average amount of time it takes to load a model. This is done once per DoFn instance on worker
 startup, so the cost is amortized across the pipeline.
+
+Approximate size of the models used in the tests
+* bert-base-uncased: 417.7 MB
+* bert-large-uncased: 1.2 GB
+
+The above tests are configured to run using following configurations
+ * machine_type: n1-standard-2
+ * num_workers: 250
+ * autoscaling_algorithm: NONE
+ * disk_size_gb: 75
