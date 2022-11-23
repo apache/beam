@@ -100,7 +100,7 @@ gcloud datastore indexes create ./internal/storage/index.yaml
 
 2. Deploy cloud functions
 ```
-for endpoint in getSdkList getContentTree getUnitComplete getUserProgress postUnitComplete postUserCode; do
+for endpoint in getSdkList getContentTree getUnitContent getUserProgress postUnitComplete postUserCode; do
 gcloud functions deploy $endpoint --entry-point $endpoint \
   --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http \
@@ -114,7 +114,7 @@ done
 - DATASTORE_PROJECT_ID: Google Cloud PROJECT_ID
 - GOOGLE_PROJECT_ID: Google Cloud PROJECT_ID (consumed by Firebase Admin SDK)
 - GOOGLE_APPLICATION_CREDENTIALS: path to json auth key
-- TOB_LEARNING_PATH: path the content tree root
+- TOB_LEARNING_ROOT: path the content tree root
 
 4. Populate datastore
 ```
