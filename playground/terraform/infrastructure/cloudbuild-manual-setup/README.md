@@ -65,7 +65,7 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
     NETWORK_NAME="network_name" \
     GKE_NAME="gke_name" \
     TAG="tag_name" \
-    DOCKER_REPOSITORY_ROOT="us-central1-docker.pkg.dev/playground-repository"
+    DOCKER_REPOSITORY_ROOT="us-central1-docker.pkg.dev/$GOOGLE_PROJECT/playground-repository"
 ```
 **Note:**  Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations) for the list of all supported locations.
 
