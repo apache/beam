@@ -128,6 +128,7 @@ class _CompleteUnitButton extends StatelessWidget {
                 ),
               ),
             ),
+            // TODO(nausharipov): add loading
             onPressed:
                 isDisabled ? null : tour.currentUnitController.completeUnit,
             child: const Text(
