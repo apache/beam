@@ -171,7 +171,7 @@ export GCP_REGION=<GCP region>
 
 mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.multilanguage.PythonDataframeWordCount \
     -Dexec.args="--runner=DataflowRunner --project=$GCP_PROJECT \
-                 --region=us-central1 \
+                 --region=$GCP_REGION \
                  --gcpTempLocation=gs://$GCP_BUCKET/multi-language-beam/tmp \
                  --output=gs://$GCP_BUCKET/multi-language-beam/output" \
     -Pdataflow-runner
