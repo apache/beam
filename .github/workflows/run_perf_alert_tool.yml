@@ -17,7 +17,7 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Change Point Analyzer
+name: Run performance alerting tool on Python load tests.
 
 on:
   schedule:
@@ -33,7 +33,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: 3.8
       - name: Get Apache Beam Build dependencies
         working-directory: ./sdks/python
         run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
@@ -47,6 +47,6 @@ jobs:
       - name: Run Change Point Analysis.
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
-        run: python analysis.py --change_point_sibling_distance=10 --changepoint_to_recent_run_window=10
+        run: python analysis.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
