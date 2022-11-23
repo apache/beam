@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -72,6 +73,9 @@ public class SpannerWriteSchemaTransformProvider
             @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
             @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
         buildTransform() {
+      // TODO: For now we are allowing ourselves to fail at runtime, but we could
+      //    perform validations here at expansion time. This TODO is to add a few
+      //    validations (e.g. table/database/instance existence, schema match, etc).
       return new PTransform<@NonNull PCollectionRowTuple, @NonNull PCollectionRowTuple>() {
         @Override
         public PCollectionRowTuple expand(@NonNull PCollectionRowTuple input) {
@@ -98,30 +102,31 @@ public class SpannerWriteSchemaTransformProvider
                   .addStringField("tableId")
                   .addStringField("mutationData")
                   .build();
-          result
-              .getFailedMutations()
-              .apply(
-                  FlatMapElements.into(TypeDescriptors.rows())
-                      .via(
-                          mtg ->
-                              Objects.requireNonNull(mtg).attached().stream()
-                                  .map(
-                                      mutation ->
-                                          Row.withSchema(failureSchema)
-                                              .addValue(mutation.getOperation().toString())
-                                              .addValue(configuration.getInstanceId())
-                                              .addValue(configuration.getDatabaseId())
-                                              .addValue(mutation.getTable())
-                                              // TODO(pabloem): Figure out how to represent
-                                              // mutation
-                                              //  contents in DLQ
-                                              .addValue(
-                                                  Iterators.toString(
-                                                      mutation.getValues().iterator()))
-                                              .build())
-                                  .collect(Collectors.toList())))
-              .setRowSchema(failureSchema);
-          return PCollectionRowTuple.empty(input.getPipeline());
+          PCollection<Row> failures =
+              result
+                  .getFailedMutations()
+                  .apply(
+                      FlatMapElements.into(TypeDescriptors.rows())
+                          .via(
+                              mtg ->
+                                  Objects.requireNonNull(mtg).attached().stream()
+                                      .map(
+                                          mutation ->
+                                              Row.withSchema(failureSchema)
+                                                  .addValue(mutation.getOperation().toString())
+                                                  .addValue(configuration.getInstanceId())
+                                                  .addValue(configuration.getDatabaseId())
+                                                  .addValue(mutation.getTable())
+                                                  // TODO(pabloem): Figure out how to represent
+                                                  // mutation
+                                                  //  contents in DLQ
+                                                  .addValue(
+                                                      Iterators.toString(
+                                                          mutation.getValues().iterator()))
+                                                  .build())
+                                      .collect(Collectors.toList())))
+                  .setRowSchema(failureSchema);
+          return PCollectionRowTuple.of("failures", failures);
         }
       };
     }
@@ -141,7 +146,7 @@ public class SpannerWriteSchemaTransformProvider
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
       outputCollectionNames() {
-    return Collections.emptyList();
+    return Collections.singletonList("failures");
   }
 
   @AutoValue
