@@ -424,7 +424,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "mean_load_model_latency_milli_seconds_resnet101",
+          "alias": "mean_inference_batch_latency_resnet101",
           "groupBy": [
             {
               "params": [
@@ -462,7 +462,7 @@
           "tags": []
         },
         {
-          "alias": "mean_load_model_latency_milli_seconds_resnet_152",
+          "alias": "mean_inference_batch_latency_resnet_152",
           "groupBy": [
             {
               "params": [
@@ -593,7 +593,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "$mean_inference_batch_latency_bert_base_uncased",
+          "alias": "mean_inference_batch_latency_bert_base_uncased",
           "groupBy": [
             {
               "params": [
@@ -762,7 +762,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "mean_load_model_latency_milli_seconds_resnet101",
+          "alias": "mean_load_model_latency_resnet101",
           "groupBy": [
             {
               "params": [
@@ -800,7 +800,7 @@
           "tags": []
         },
         {
-          "alias": "mean_load_model_latency_milli_seconds_resnet_152",
+          "alias": "mean_load_model_latency_resnet_152",
           "groupBy": [
             {
               "params": [
@@ -931,7 +931,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "mean_load_model_latency_milli_seconds_bert_base_uncased",
+          "alias": "mean_load_model_latency_bert_base_uncased",
           "groupBy": [
             {
               "params": [
@@ -969,7 +969,7 @@
           "tags": []
         },
         {
-          "alias": "mean_load_model_latency_milli_seconds_bert_large_uncased",
+          "alias": "mean_load_model_latency_bert_large_uncased",
           "groupBy": [
             {
               "params": [
