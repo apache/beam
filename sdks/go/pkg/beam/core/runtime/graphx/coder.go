@@ -216,9 +216,6 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		}
 
 		id := components[1]
-		kind := coder.KV
-		root := typex.KVType
-
 		elm, err := b.peek(id)
 		if err != nil {
 			return nil, err
@@ -226,15 +223,15 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 
 		switch elm.GetSpec().GetUrn() {
 		case urnIterableCoder, urnStateBackedIterableCoder:
-			id = elm.GetComponentCoderIds()[0]
-			kind = coder.CoGBK
-			root = typex.CoGBKType
+			iterElmID := elm.GetComponentCoderIds()[0]
 
 			// TODO(https://github.com/apache/beam/issues/18032): If CoGBK with > 1 input, handle as special GBK. We expect
 			// it to be encoded as CoGBK<K,LP<CoGBKList<V,W,..>>>. Remove this handling once
 			// CoGBK has a first-class representation.
 
-			if ids, ok := b.isCoGBKList(id); ok {
+			// If the value is an iterable, and a special CoGBK type, then expand it to the real
+			// CoGBK signature, instead of the special type.
+			if ids, ok := b.isCoGBKList(iterElmID); ok {
 				// CoGBK<K,V,W,..>
 
 				values, err := b.Coders(ids)
@@ -242,9 +239,11 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 					return nil, err
 				}
 
-				t := typex.New(root, append([]typex.FullType{key.T}, coder.Types(values)...)...)
-				return &coder.Coder{Kind: kind, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
+				t := typex.New(typex.CoGBKType, append([]typex.FullType{key.T}, coder.Types(values)...)...)
+				return &coder.Coder{Kind: coder.CoGBK, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
 			}
+			// It's valid to have a KV<k,Iter<v>> without being a CoGBK, and validating if we need to change to
+			// a CoGBK is done at the DataSource, since that's when we can check against the downstream nodes.
 		}
 
 		value, err := b.Coder(id)
@@ -252,8 +251,8 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 
-		t := typex.New(root, key.T, value.T)
-		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
+		t := typex.New(typex.KVType, key.T, value.T)
+		return &coder.Coder{Kind: coder.KV, T: t, Components: []*coder.Coder{key, value}}, nil
 
 	case urnLengthPrefixCoder:
 		if len(components) != 1 {

@@ -49,60 +49,62 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 	baz := custom("baz", reflectx.Int)
 
 	tests := []struct {
-		name string
-		c    *coder.Coder
+		name       string
+		c          *coder.Coder
+		equivalent *coder.Coder
 	}{
 		{
-			"bytes",
-			coder.NewBytes(),
+			name: "bytes",
+			c:    coder.NewBytes(),
 		},
 		{
-			"bool",
-			coder.NewBool(),
+			name: "bool",
+			c:    coder.NewBool(),
 		},
 		{
-			"varint",
-			coder.NewVarInt(),
+			name: "varint",
+			c:    coder.NewVarInt(),
 		},
 		{
-			"double",
-			coder.NewDouble(),
+			name: "double",
+			c:    coder.NewDouble(),
 		},
 		{
-			"string",
-			coder.NewString(),
+			name: "string",
+			c:    coder.NewString(),
 		},
 		{
-			"foo",
-			foo,
+			name: "foo",
+			c:    foo,
 		},
 		{
-			"bar",
-			bar,
+			name: "bar",
+			c:    bar,
 		},
 		{
-			"baz",
-			baz,
+			name: "baz",
+			c:    baz,
 		},
 		{
-			"W<bytes>",
-			coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
+			name: "W<bytes>",
+			c:    coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
 		},
 		{
-			"N<bytes>",
-			coder.NewN(coder.NewBytes()),
+			name: "N<bytes>",
+			c:    coder.NewN(coder.NewBytes()),
 		},
 		{
-			"KV<foo,bar>",
-			coder.NewKV([]*coder.Coder{foo, bar}),
+			name: "KV<foo,bar>",
+			c:    coder.NewKV([]*coder.Coder{foo, bar}),
 		},
 		{
-			"CoGBK<foo,bar>",
-			coder.NewCoGBK([]*coder.Coder{foo, bar}),
+			name:       "CoGBK<foo,bar>",
+			c:          coder.NewCoGBK([]*coder.Coder{foo, bar}),
+			equivalent: coder.NewKV([]*coder.Coder{foo, coder.NewI(bar)}),
 		},
 		{
-			"CoGBK<foo,bar,baz>",
-			coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
+			name: "CoGBK<foo,bar,baz>",
+			c:    coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
 		},
 		{
 			name: "R[graphx.registeredNamedTypeForTest]",
@@ -124,7 +126,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
 			}
-			if len(coders) != 1 || !test.c.Equals(coders[0]) {
+			if test.equivalent != nil && !test.equivalent.Equals(coders[0]) {
+				t.Errorf("Unmarshal(Marshal(%v)) = %v, want equivalent", test.equivalent, coders)
+			}
+			if test.equivalent == nil && !test.c.Equals(coders[0]) {
 				t.Errorf("Unmarshal(Marshal(%v)) = %v, want identity", test.c, coders)
 			}
 		})
@@ -149,7 +154,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
 			}
-			if len(coders) != 1 || !test.c.Equals(coders[0]) {
+			if test.equivalent != nil && !test.equivalent.Equals(coders[0]) {
+				t.Errorf("Unmarshal(Marshal(%v)) = %v, want equivalent", test.equivalent, coders)
+			}
+			if test.equivalent == nil && !test.c.Equals(coders[0]) {
 				t.Errorf("Unmarshal(Marshal(%v)) = %v, want identity", test.c, coders)
 			}
 		})
