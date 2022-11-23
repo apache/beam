@@ -44,7 +44,7 @@ from apache_beam.testing.analyzers.github_issues_utils import create_or_comment_
 from apache_beam.testing.analyzers.github_issues_utils import get_issue_description
 from apache_beam.testing.load_tests import load_test_metrics_utils
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
-from apache_beam.testing.load_tests.load_test_metrics_utils import FetchMetrics
+from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
 from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
 
 _BQ_PROJECT_NAME = 'apache-beam-testing'
@@ -61,6 +61,7 @@ ISSUE_URL = 'issue_url'
 # number of results to display on the issue description
 # from change point index in both directions.
 _NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION = 10
+_NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS = 100
 
 SCHEMA = [{
     'name': UNIQUE_ID, 'field_type': 'STRING', 'mode': 'REQUIRED'
@@ -169,7 +170,9 @@ def find_existing_issue(
   LIMIT 1
   """
   try:
-    df = FetchMetrics.fetch_from_bq(query_template=query_template)
+    df = BigQueryMetricsFetcher().get_metrics(
+        query_template=query_template,
+        limit=_NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
   except exceptions.NotFound:
     # If no table found, that means this is first performance regression
     # on the current test+metric.
@@ -192,7 +195,7 @@ def read_test_config(config_file_path: str) -> Dict:
   return config
 
 
-def run(config_file_path: Optional[Dict] = None) -> None:
+def run(config_file_path: str = None) -> None:
   """
   run is the entry point to run change point analysis on test metric
   data, which is read from config file, and if there is a performance
@@ -209,128 +212,139 @@ def run(config_file_path: Optional[Dict] = None) -> None:
   tests_config: Dict[Dict[str, Any]] = read_test_config(config_file_path)
 
   # min_runs_between_change_points, num_runs_in_change_point_window can be
-  # defined in the config file for each test whihc are used
+  # defined in the config file for each test which are used
   # to avoid filing GitHub issues for duplicate change points. Please take
   # a look at the README for more information on the parameters defined in the
   # config file.
-  for _, params in tests_config.items():
-    metric_name = params['metric_name']
-    # replace . with _ in test_name. This test name would be used later
-    # as a BQ table name and the BQ table doesn't accept . in the name.
-    test_name = params['test_name'].replace('.', '_')
-    if params['source'] == 'big_query':
-      metric_data: pd.DataFrame = FetchMetrics.fetch_from_bq(
-          project_name=params['project'],
-          dataset=params['metrics_dataset'],
-          table=params['metrics_table'],
-          metric_name=metric_name)
-    else:
-      # (TODO): Implement fetching metric_data from InfluxDB.
-      raise ValueError(
-          'For change point analysis, only big_query is'
-          'accepted as source.')
+  for test_id, params in tests_config.items():
+    try:
+      metric_name = params['metric_name']
+      # replace . with _ in test_name. This test name would be used later
+      # as a BQ table name and the BQ table doesn't accept . in the name.
+      test_name = params['test_name'].replace('.', '_') + f'_{metric_name}'
+      if params['source'] == 'big_query':
+        metric_data: pd.DataFrame = BigQueryMetricsFetcher().get_metrics(
+            project_name=params['project'],
+            dataset=params['metrics_dataset'],
+            table=params['metrics_table'],
+            metric_name=metric_name)
+      else:
+        # (TODO): Implement fetching metric_data from InfluxDB.
+        raise ValueError(
+            'For change point analysis, only big_query is'
+            'accepted as source.')
 
-    labels = params['labels']
-    min_runs_between_change_points = params['min_runs_between_change_points']
-    num_runs_in_change_point_window = params['num_runs_in_change_point_window']
+      labels = params['labels']
+      min_runs_between_change_points = params['min_runs_between_change_points']
+      num_runs_in_change_point_window = params[
+          'num_runs_in_change_point_window']
 
-    metric_values = metric_data[load_test_metrics_utils.VALUE_LABEL]
-    timestamps = metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL]
+      metric_values = metric_data[load_test_metrics_utils.VALUE_LABEL]
+      timestamps = metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL]
 
-    cp_analyzer = ChangePointAnalysis(
-        metric_name=metric_name, data=metric_values)
+      cp_analyzer = ChangePointAnalysis(
+          metric_name=metric_name, data=metric_values)
 
-    change_points_idx = cp_analyzer.edivisive_means()
-    if not change_points_idx:
-      continue
+      change_points_idx = cp_analyzer.edivisive_means()
+      if not change_points_idx:
+        continue
 
-    # Consider the latest change points to observe the latest perf alerts.
-    change_points_idx.sort(reverse=True)
-    change_point_index = change_points_idx[0]
-    change_point_timestamp = timestamps[change_point_index]
+      # Consider the latest change points to observe the latest perf alerts.
+      change_points_idx.sort(reverse=True)
+      change_point_index = change_points_idx[0]
+      change_point_timestamp = timestamps[change_point_index]
 
-    # check if the change point lies in the valid window.
-    # window - Number of runs between the
-    # num_runs_in_change_point_window run and the most recent run.
-    if not is_change_point_in_valid_window(num_runs_in_change_point_window,
-                                           change_point_index):
-      logging.info(
-          'Performance regression found for the test: %s. '
-          'but not creating an alert since the Change Point '
-          'lies outside the '
-          'num_runs_in_change_point_window distance.' % test_name)
-      continue
+      # check if the change point lies in the valid window.
+      # window - Number of runs between the
+      # num_runs_in_change_point_window run and the most recent run.
+      if not is_change_point_in_valid_window(num_runs_in_change_point_window,
+                                             change_point_index):
+        logging.info(
+            'Performance regression found for the test: %s. '
+            'but not creating an alert since the Change Point '
+            'lies outside the '
+            'num_runs_in_change_point_window distance.' % test_name)
+        continue
 
-    # Look for an existing GitHub issue related to the current change point.
-    # It can be interpreted sibling change point.
-    # Sibling change point is a change point that lies in the distance of
-    # min_runs_between_change_points in both directions from the current change
-    # point index.
-    # Here, distance can be interpreted as number of runs between two change
-    # points. The idea here is that sibling change point will also point to
-    # the same performance regression.
-    min_timestamp_index = min(
-        change_point_index + min_runs_between_change_points,
-        len(timestamps) - 1)
-    max_timestamp_index = max(
-        0, change_point_index - min_runs_between_change_points)
-    sibling_change_point_min_timestamp = timestamps[min_timestamp_index]
-    sibling_change_point_max_timestamp = timestamps[max_timestamp_index]
+      # Look for an existing GitHub issue related to the current change point.
+      # It can be interpreted sibling change point.
+      # Sibling change point is a change point that lies in the distance of
+      # min_runs_between_change_points in both directions from the current
+      # change point index.
+      # Here, distance can be interpreted as number of runs between two change
+      # points. The idea here is that sibling change point will also point to
+      # the same performance regression.
+      min_timestamp_index = min(
+          change_point_index + min_runs_between_change_points,
+          len(timestamps) - 1)
+      max_timestamp_index = max(
+          0, change_point_index - min_runs_between_change_points)
+      sibling_change_point_min_timestamp = timestamps[min_timestamp_index]
+      sibling_change_point_max_timestamp = timestamps[max_timestamp_index]
 
-    create_alert, last_created_issue_number = (
-      find_existing_issue(
-        metric_name=metric_name,
-        test_name=test_name,
-        change_point_timestamp=change_point_timestamp,
-        sibling_change_point_max_timestamp=sibling_change_point_max_timestamp,
-        sibling_change_point_min_timestamp=sibling_change_point_min_timestamp
-      )
-    )
-
-    logging.info(
-        "Create performance alert for the "
-        "test %s: %s" % (test_name, create_alert))
-    if create_alert:
-      issue_description = get_issue_description(
+      create_alert, last_created_issue_number = (
+        find_existing_issue(
           metric_name=metric_name,
-          timestamps=timestamps,
-          metric_values=metric_values,
-          change_point_index=change_point_index,
-          max_results_to_display=_NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION)
-      issue_number, issue_url = create_or_comment_issue(
-        title=TITLE_TEMPLATE.format(test_name, metric_name),
-        description=issue_description,
-        labels=labels,
-        issue_number=last_created_issue_number
-      )
-
-      logging.info(
-          'Performance regression is alerted on issue #%s. Link to '
-          'the issue: %s' % (issue_number, issue_url))
-      issue_creation_timestamp = pd.Timestamp(
-          datetime.now().replace(tzinfo=timezone.utc))
-      issue_metadata = GitHubIssueMetaData(
-          issue_timestamp=issue_creation_timestamp,
           test_name=test_name,
-          metric_name=metric_name,
-          test_id=uuid.uuid4().hex,
-          change_point=metric_values[change_point_index],
-          issue_number=issue_number,
-          issue_url=issue_url,
-          change_point_timestamp=timestamps[change_point_index])
+          change_point_timestamp=change_point_timestamp,
+          sibling_change_point_max_timestamp=sibling_change_point_max_timestamp,
+          sibling_change_point_min_timestamp=sibling_change_point_min_timestamp
+        )
+      )
 
-      # publish GH issue metadata to GH issue. This metadata would be
-      # used for finding the sibling change point.
-      bq_metrics_publisher = BigQueryMetricsPublisher(
-          project_name=_BQ_PROJECT_NAME,
-          dataset=_BQ_DATASET,
-          table=test_name,
-          bq_schema=SCHEMA)
-
-      bq_metrics_publisher.publish([asdict(issue_metadata)])
       logging.info(
-          'GitHub metadata is published to Big Query Dataset %s'
-          ', table %s' % (_BQ_DATASET, test_name))
+          "Create performance alert for the "
+          "test %s: %s" % (test_name, create_alert))
+      if create_alert:
+        issue_description = get_issue_description(
+            metric_name=metric_name,
+            timestamps=timestamps,
+            metric_values=metric_values,
+            change_point_index=change_point_index,
+            max_results_to_display=_NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION)
+        issue_number, issue_url = create_or_comment_issue(
+          title=TITLE_TEMPLATE.format(test_name, metric_name),
+          description=issue_description,
+          labels=labels,
+          issue_number=last_created_issue_number
+        )
+
+        logging.info(
+            'Performance regression is alerted on issue #%s. Link to '
+            'the issue: %s' % (issue_number, issue_url))
+        issue_creation_timestamp = pd.Timestamp(
+            datetime.now().replace(tzinfo=timezone.utc))
+        issue_metadata = GitHubIssueMetaData(
+            issue_timestamp=issue_creation_timestamp,
+            test_name=test_name,
+            metric_name=metric_name,
+            test_id=uuid.uuid4().hex,
+            change_point=metric_values[change_point_index],
+            issue_number=issue_number,
+            issue_url=issue_url,
+            change_point_timestamp=timestamps[change_point_index])
+
+        # publish GH issue metadata to GH issue. This metadata would be
+        # used for finding the sibling change point.
+        bq_metrics_publisher = BigQueryMetricsPublisher(
+            project_name=_BQ_PROJECT_NAME,
+            dataset=_BQ_DATASET,
+            table=test_name,
+            bq_schema=SCHEMA)
+
+        bq_metrics_publisher.publish([asdict(issue_metadata)])
+        logging.info(
+            'GitHub metadata is published to Big Query Dataset %s'
+            ', table %s' % (_BQ_DATASET, test_name))
+    except:  # pylint: disable=bare-except
+      logging.warning(
+          "Failed to run change point analysis on "
+          "%s. Please check if the config value for the"
+          "%s are matching with the values defined on the "
+          "performance/load test. "
+          "If there is a bug in the implementation "
+          "of change point analysis, please open a GitHub issue "
+          "at https://github.com/apache/beam/issues. " % (test_id, test_id))
 
 
 if __name__ == '__main__':

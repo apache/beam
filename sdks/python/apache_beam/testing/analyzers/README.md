@@ -25,7 +25,7 @@
 Performance regressions or improvements detected with the [Change Point Analysis](https://en.wikipedia.org/wiki/Change_detection) using [edivisive](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30) 
 analyzer are automatically filed as Beam GitHub issues with a label `perf-alert`.
 
-The GitHub issue description will contain the information on the affected metric by providing the metric values for N consecutive runs with timestamps
+The GitHub issue description will contain the information on the affected test and metric by providing the metric values for N consecutive runs with timestamps
 before and after the observed change point. Observed change point is pointed as `Anomaly` in the issue description. 
 
 Example: [sample perf alert GitHub issue](https://github.com/AnandInguva/beam/issues/83).
@@ -59,6 +59,8 @@ test_1:
 **Note**: If the source is **BigQuery**, the metrics_dataset, metrics_table, project and metric_name should match with the values defined for performance/load tests.
 The above example uses this [test configuration](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30) 
 to fill up the values required to fetch the data from source.
+
+<h3>Different ways to avoid false positive change points</h3>
 
 **min_runs_between_change_points**: As the metric data moves across the runs, the change point analysis can place the 
 change point in a slightly different place. These change points refer to the same regression and are just noise.
