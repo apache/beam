@@ -230,6 +230,7 @@ project.tasks.register("flinkExamples") {
             "--environment_type=LOOPBACK",
             "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
             "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+            "--flink_conf_dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources",
             '--sdk_harness_log_level_overrides=' +
                 // suppress info level flink.runtime log flood
                 '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
@@ -309,6 +310,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
         "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        "--flink_conf_dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources",
         '--sdk_harness_log_level_overrides=' +
             // suppress info level flink.runtime log flood
             '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
@@ -364,9 +366,6 @@ project.tasks.register("xlangSpannerIOIT") {
             // suppress metric name collision warning logs
             '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
     ]
-    if (project.hasProperty('flinkConfDir')) {
-      pipelineOpts += ["--flink_conf_dir=${project.property('flinkConfDir')}"]
-    }
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
             "suite": "postCommitIT-flink-py${pythonVersionSuffix}",
