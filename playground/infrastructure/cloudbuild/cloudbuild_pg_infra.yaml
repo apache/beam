@@ -18,9 +18,9 @@
 steps:
 # This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
   - name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
-    entrypoint: 'bash'
+    entrypoint: "/bin/bash"
     args:
-      - '-c'
+      - "-c"
       - |
         playground/infrastructure/cloudbuild/env_init.sh \
         && playground/infrastructure/cloudbuild/tfvars_init.sh \
