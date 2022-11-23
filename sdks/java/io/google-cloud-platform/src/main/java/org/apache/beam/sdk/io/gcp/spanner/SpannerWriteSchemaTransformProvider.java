@@ -49,8 +49,7 @@ public class SpannerWriteSchemaTransformProvider
         SpannerWriteSchemaTransformProvider.SpannerWriteSchemaTransformConfiguration> {
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<
-          SpannerWriteSchemaTransformConfiguration>
+  protected @UnknownKeyFor @NonNull @Initialized Class<SpannerWriteSchemaTransformConfiguration>
       configurationClass() {
     return SpannerWriteSchemaTransformConfiguration.class;
   }
