@@ -37,8 +37,8 @@ steps:
         printf \
         'bucket = "$_STATE_BUCKET"'\
         > playground/terraform/environment/$_ENVIRONMENT_NAME/state.tfbackend 
-        ./gradlew playground:terraform:prepareConfig -Pdns-name="$_DNS_NAME"
-        ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="$_DOCKER_REPOSITORY_ROOT" \
+        ./gradlew playground:terraform:prepareConfig -Pdns-name="$_DNS_NAME" \
+        && ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="$_DOCKER_REPOSITORY_ROOT" \
         -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Pdns-name="$_DNS_NAME"
 
 # This option enables writing logs to Cloud Logging
