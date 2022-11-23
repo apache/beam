@@ -15,14 +15,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# OnlineClustering Example
+# Online Clustering Example
 
-The OnlineClustering example demonstrates how to setup a realtime clustering pipeline that can read text from PubSub, convert the text into an embedding using a language model, and cluster them using BIRCH.
+The online clustering example demonstrates how to set up a real-time clustering pipeline that can read text from Pub/Sub, convert the text into an embedding using a language model, and cluster the text using BIRCH.
 
-### Dataset for Clustering
-For the example, we use a dataset called [emotion](https://huggingface.co/datasets/emotion). It comprises of 20,000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train, validation and test. It is a supervised dataset as it contains the text and the category(class) of the dataset. This dataset can easily be accessed using [HuggingFace Datasets](https://huggingface.co/docs/datasets/index).
+## Dataset for Clustering
+This example uses a dataset called [emotion](https://huggingface.co/datasets/emotion) that contains 20,000 English Twitter messages with 6 basic emotions: anger, fear, joy, love, sadness, and surprise. The dataset has three splits: train, validation, and test. Because it contains the text and the category (class) of the dataset, it's a supervised dataset. To access this dataset, use the [Hugging Face datasets page](https://huggingface.co/docs/datasets/index).
 
-To have a better understanding of the dataset, here are some examples from the train split of the dataset:
+The following text shows examples from the train split of the dataset:
 
 
 | Text        | Type of emotion |
@@ -34,16 +34,16 @@ To have a better understanding of the dataset, here are some examples from the t
 | i feel you know basically like a fake in the realm of science fiction | Sadness |
 | i began having them several times a week feeling tortured by the hallucinations moving people and figures sounds and vibrations | Fear |
 
-### Clustering Algorithm
-For the clustering of tweets, we use an incremental clustering algorithm called BIRCH. It stands for balanced iterative reducing and clustering using hierarchies and is an unsupervised data mining algorithm used to perform hierarchical clustering over particularly large data-sets. An advantage of BIRCH is its ability to incrementally and dynamically cluster incoming, multi-dimensional metric data points in an attempt to produce the best quality clustering for a given set of resources (memory and time constraints).
+## Clustering Algorithm
+For the clustering of tweets, we use an incremental clustering algorithm called BIRCH. It stands for balanced iterative reducing and clustering using hierarchies, and it is an unsupervised data mining algorithm used to perform hierarchical clustering over particularly large datasets. An advantage of BIRCH is its ability to incrementally and dynamically cluster incoming, multi-dimensional metric data points in an attempt to produce the best quality clustering for a given set of resources (memory and time constraints).
 
 
-## Ingestion to PubSub
-We first ingest the data into [PubSub](https://cloud.google.com/pubsub/docs/overview) so that while clustering we can read the tweets from PubSub. PubSub is a messaging service for exchanging event data among applications and services. It is used for streaming analytics and data integration pipelines to ingest and distribute data.
+## Ingestion to Pub/Sub
+The example starts by ingesting the data into [Pub/Sub](https://cloud.google.com/pubsub/docs/overview) so that we can read the tweets from Pub/Sub while clustering. Pub/Sub is a messaging service for exchanging event data among applications and services. Streaming analytics and data integration pipelines use Pub/Sub to ingest and distribute data.
 
-The full example code for ingesting data to PubSub can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/online_clustering/write_data_to_pubsub_pipeline/)
+You can find the full example code for ingesting data into Pub/Sub in [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/online_clustering/write_data_to_pubsub_pipeline/)
 
-The file structure for ingestion pipeline is:
+The file structure for the ingestion pipeline is shown in the following diagram:
 
     write_data_to_pubsub_pipeline/
     ├── pipeline/
@@ -55,35 +55,35 @@ The file structure for ingestion pipeline is:
     ├── main.py
     └── setup.py
 
-`pipeline/utils.py` contains the code for loading the emotion dataset and two `beam.DoFn` that are used for data transformation
+`pipeline/utils.py` contains the code for loading the emotion dataset and two `beam.DoFn` that are used for data transformation.
 
-`pipeline/options.py` contains the pipeline options to configure the Dataflow pipeline
+`pipeline/options.py` contains the pipeline options to configure the Dataflow pipeline.
 
-`config.py` defines some variables like GCP PROJECT_ID, NUM_WORKERS that are used multiple times
+`config.py` defines some variables that are used multiple times, like GCP PROJECT_ID and NUM_WORKERS.
 
-`setup.py` defines the packages/requirements for the pipeline to run
+`setup.py` defines the packages and requirements for the pipeline to run.
 
-`main.py` contains the pipeline code and some additional function used for running the pipeline
+`main.py` contains the pipeline code and some additional function used for running the pipeline.
 
-### How to Run the Pipeline ?
-First, make sure you have installed the required packages.
+## Run the Pipeline
+First, install the required packages.
 
 1. Locally on your machine: `python main.py`
 2. On GCP for Dataflow: `python main.py --mode cloud`
 
 
 The `write_data_to_pubsub_pipeline` contains four different transforms:
-1. Load emotion dataset using HuggingFace Datasets (We take samples from 3 classes instead of 6 for simplicity)
-2. Associate each text with a unique identifier (UID)
-3. Convert the text into a format PubSub is expecting
-4. Write the formatted message to PubSub
+1. Load the emotion dataset using Hugging Face datasets (for simplicity, we take samples from three classes instead of six).
+2. Associate each piece of text with a unique identifier (UID).
+3. Convert the text into the format that Pub/Sub expects.
+4. Write the formatted message to Pub/Sub.
 
 
 ## Clustering on Streaming Data
 
-After having the data ingested to PubSub, we can now look into the second pipeline, where we read the streaming message from PubSub, convert the text to a embedding using a language model and cluster them using BIRCH.
+After ingesting the data to Pub/Sub, examine the second pipeline, where we read the streaming message from Pub/Sub, convert the text to a embedding using a language model, and cluster the embedding using BIRCH.
 
-The full example code for all the steps mentioned above can be found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/online_clustering/clustering_pipeline/).
+You can find the full example code for all the steps mentioned previously in [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/online_clustering/clustering_pipeline/).
 
 
 The file structure for clustering_pipeline is:
@@ -98,33 +98,33 @@ The file structure for clustering_pipeline is:
     ├── main.py
     └── setup.py
 
-`pipeline/transformations.py` contains the code for different `beam.DoFn` that are used in the pipeline
+`pipeline/transformations.py` contains the code for the different `beam.DoFn` that are used in the pipeline.
 
-`pipeline/options.py` contains the pipeline options to configure the Dataflow pipeline
+`pipeline/options.py` contains the pipeline options to configure the Dataflow pipeline.
 
-`config.py` defines some variables like GCP PROJECT_ID, NUM_WORKERS that are used multiple times
+`config.py` defines variables that are used multiple times, like Google Cloud PROJECT_ID and NUM_WORKERS.
 
-`setup.py` defines the packages/requirements for the pipeline to run
+`setup.py` defines the packages and requirements for the pipeline to run.
 
-`main.py` contains the pipeline code and some additional function used for running the pipeline
+`main.py` contains the pipeline code and some additional functions used for running the pipeline.
 
-### How to Run the Pipeline ?
-First, make sure you have installed the required packages and you have pushed data to PubSub.
+### Run the Pipeline
+Install the required packages and push data to Pub/Sub.
 
 1. Locally on your machine: `python main.py`
 2. On GCP for Dataflow: `python main.py --mode cloud`
 
-The pipeline can be broken down into few simple steps:
+The pipeline can be broken down into the following steps:
 
-1. Reading the message from PubSub
-2. Converting the PubSub message into a PCollection of dictionary where key is UID and value is twitter text
-3. Encoding the text into transformer-readable token ID integers using a tokenizer
-4. Using RunInference to get the vector embedding from a Transformer based Language Model
-5. Normalizing the embedding for Clustering
-6. Performing BIRCH Clustering using Stateful Processing
-7. Printing the texts assigned to clusters
+1. Read the message from Pub/Sub.
+2. Convert the Pub/Sub message into a `PCollection` of dictionaries where the key is the UID and the value is the Twitter text.
+3. Encode the text into transformer-readable token ID integers using a tokenizer.
+4. Use RunInference to get the vector embedding from a transformer-based language model.
+5. Normalize the embedding for clustering.
+6. Perform BIRCH clustering using stateful processing.
+7. Print the texts assigned to clusters.
 
-The code snippet for first two steps of pipeline where message from PubSub is read and converted into a dictionary
+The following code shows the first two steps of the pipeline, where a message from Pub/Sub is read and converted into a dictionary.
 
 {{< highlight >}}
     docs = (
@@ -136,14 +136,18 @@ The code snippet for first two steps of pipeline where message from PubSub is re
 {{< /highlight >}}
 
 
-We now closely look at three important steps of pipeline where we tokenize the text, fed the tokenized text to get embedding from a Transformer based Language Model and performing clustering using [Stateful Processing](https://beam.apache.org/blog/stateful-processing/).
+The next sections examine three important pipeline steps:
+
+1. Tokenize the text.
+2. Feed the tokenized text to get embedding from a transformer-based language model.
+3. Perform clustering using [stateful processing](https://beam.apache.org/blog/stateful-processing/).
 
 
-### Getting Embedding from a Language Model
+### Get Embedding from a Language Model
 
-In order to do clustering with text data, we first need to map the text into vectors of numerical values suitable for statistical analysis. We use a transformer based language model called [sentence-transformers/stsb-distilbert-base/stsb-distilbert-base](https://huggingface.co/sentence-transformers/stsb-distilbert-base). It maps sentences & paragraphs to a 768 dimensional dense vector space and can be used for tasks like clustering or semantic search. But, we first need to tokenize the text as the language model is expecting a tokenized input instead of raw text.
+In order cluster text data, you need to map the text into vectors of numerical values suitable for statistical analysis. This example uses a transformer-based language model called [sentence-transformers/stsb-distilbert-base/stsb-distilbert-base](https://huggingface.co/sentence-transformers/stsb-distilbert-base). It maps sentences and paragraphs to a 768 dimensional dense vector space, and you can use it for tasks like clustering or semantic search.
 
-Tokenization can be seen as a preprocessing task as it transforms text in a way that it can be fed into the model for getting predictions.
+Because the language model is expecting a tokenized input instead of raw text, start by tokenizing the text. Tokenization is a preprocessing task that transforms text so that it can be fed into the model for getting predictions.
 
 {{< highlight >}}
     normalized_embedding = (
@@ -151,17 +155,16 @@ Tokenization can be seen as a preprocessing task as it transforms text in a way 
         | "Tokenize Text" >> beam.Map(tokenize_sentence)
 {{< /highlight >}}
 
-Here, `tokenize_sentence` is a function that takes a dictionary with a text and an id, tokenizes the text, and returns a tuple (text, id) and the tokenized output.
+Here, `tokenize_sentence` is a function that takes a dictionary with a text and an ID, tokenizes the text, and returns a tuple (text, id) and the tokenized output.
 
-
-Tokenized output is then passed to the language model for getting the embeddings. For getting embeddings from language model, we use `RunInference()` from beam.
+Tokenized output is then passed to the language model for getting the embeddings. For getting embeddings from the language model, we use `RunInference()` from Apache Beam.
 
 {{< highlight >}}
     | "Get Embedding" >> RunInference(KeyedModelHandler(model_handler))
 
 {{< /highlight >}}
 
-After getting the embedding for each twitter text, the embeddings are normalized as it helps to make better clusters.
+To make better clusters, after getting the embedding for each piece of Twitter text, the embeddings are normalized.
 
 {{< highlight >}}
     | "Normalize Embedding" >> beam.ParDo(NormalizeEmbedding())
@@ -170,9 +173,9 @@ After getting the embedding for each twitter text, the embeddings are normalized
 
 
 ### StatefulOnlineClustering
-As the data is coming in a streaming fashion, so to cluster them we need an iterative clustering algorithm like BIRCH. As, the algorithm is iterative, we need a mechanism to store the previous state so that when a twitter text arrives, it can be updated accordingly.  **Stateful Processing** enables a `DoFn` to have persistent state which can be read and written during the processing of each element. One can read about Stateful Processing in the official documentation from Beam: [Link](https://beam.apache.org/blog/stateful-processing/).
+Because the data is streaming, you need to use an iterative clustering algorithm, like BIRCH. And because the algorithm is iterative, you need a mechanism to store the previous state so that when Twitter text arrives, it can be updated. **Stateful processing** enables a `DoFn` to have persistent state, which can be read and written during the processing of each element. For more information about stateful processing, see [Stateful processing with Apache Beam](https://beam.apache.org/blog/stateful-processing/).
 
-In this example, every time a new message is Read from PubSub, we retrieve the existing state of the clustering model, update it and write it back to the state.
+In this example, every time a new message is read from Pub/Sub, you retrieve the existing state of the clustering model, update it, and write it back to the state.
 
 {{< highlight >}}
     clustering = (
@@ -182,9 +185,9 @@ In this example, every time a new message is Read from PubSub, we retrieve the e
     )
 {{< /highlight >}}
 
-As BIRCH doesn't support parallelization, so we need to make sure that all the StatefulProcessing is taking place only by one worker. In order to do that, we use the `Beam.Map` to associate each text to the same key `1`.
+Because BIRCH doesn't support parallelization, you need to make sure that only one worker is doing all of the stateful processing. To do that, use `Beam.Map` to associate each text to the same key `1`.
 
-`StatefulOnlineClustering` is a `DoFn` that an embedding of a text and updates the clustering model. For storing the state it uses `ReadModifyWriteStateSpec` state object that acts as a container for storage.
+`StatefulOnlineClustering` is a `DoFn` that takes an embedding of a text and updates the clustering model. To store the state, it uses the `ReadModifyWriteStateSpec` state object, which acts as a container for storage.
 
 {{< highlight >}}
 
@@ -197,22 +200,22 @@ class StatefulOnlineClustering(beam.DoFn):
 
 {{< /highlight >}}
 
-We declare four different `ReadModifyWriteStateSpec objects`:
+This example declares four different `ReadModifyWriteStateSpec objects`:
 
-* `BIRCH_MODEL_SPEC`: holds the state of clustering model
-* `DATA_ITEMS_SPEC`: holds the twitter texts seen so far
-* `EMBEDDINGS_SPEC`: holds the normalized embeddings
-* `UPDATE_COUNTER_SPEC`: holds the number of texts processed
+* `BIRCH_MODEL_SPEC` holds the state of clustering model.
+* `DATA_ITEMS_SPEC` holds the Twitter texts seen so far.
+* `EMBEDDINGS_SPEC` holds the normalized embeddings.
+* `UPDATE_COUNTER_SPEC` holds the number of texts processed.
 
 
-These `ReadModifyWriteStateSpec objects` are passed as an additional argument to the `process` function. When a news item comes in, we retrieve the existing state of the different objects, update them and then write them back as persistent shared state.
+These `ReadModifyWriteStateSpec` objects are passed as an additional argument to the `process` function. When a news item comes in, we retrieve the existing state of the different objects, update them, and then write them back as persistent shared state.
 
 {{< highlight file="sdks/python/apache_beam/examples/inference/online_clustering/clustering_pipeline/pipeline/transformations.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/inference/online_clustering/clustering_pipeline/pipeline/transformations.py" stateful_clustering >}}
 {{< /highlight >}}
 
 
-`GetUpdates` is a `DoFn` that prints the cluster assigned to each twitter message, every time a new message arrives.
+`GetUpdates` is a `DoFn` that prints the cluster assigned to each Twitter message every time a new message arrives.
 
 {{< highlight >}}
 updated_clusters = clustering | "Format Update" >> beam.ParDo(GetUpdates())

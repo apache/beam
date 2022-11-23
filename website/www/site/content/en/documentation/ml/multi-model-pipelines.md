@@ -17,45 +17,43 @@ limitations under the License.
 
 # Multi-model pipelines
 
-Apache Beam allows you to develop multi-model pipelines. In this specific scenario, you can ingest
-and transform some input data, run it through a model, and then pass the outcome of your first model
+Apache Beam allows you to develop multi-model pipelines. This example demonstrates how to ingest
+and transform input data, run it through a model, and then pass the outcome of your first model
 into a second model. This page explains how multi-model pipelines work and gives an overview of what
 you need to know to build one.
 
 Before reading this section, it is recommended that you become familiar with the information in
-the [Pipeline development lifecycle](https://beam.apache.org/documentation/pipelines/design-your-pipeline/)
-.
+the [Pipeline development lifecycle](https://beam.apache.org/documentation/pipelines/design-your-pipeline/).
 
 ## How to build a Multi-model pipeline with Beam
 
-A typical machine learning workflow involves a series of data transformation steps such as data
-ingestion, data processing tasks, inference, and post-processing. Beam enables you to orchestrate
-all of those steps together by encapsulating them in a single Beam DAG. This allows you to build
+A typical machine learning workflow involves a series of data transformation steps, such as data
+ingestion, data processing tasks, inference, and post-processing. Apache Beam enables you to orchestrate
+all of those steps together by encapsulating them in a single Apache Beam Directed Acyclic Graph (DAG), which allows you to build
 resilient and scalable end-to-end machine learning systems.
 
-To deploy your machine learning model in a Beam pipeline, you can use
-the [`RunInferenceAPI`](https://beam.apache.org/documentation/sdks/python-machine-learning/) which
+To deploy your machine learning model in an Apache Beam pipeline, use
+the [`RunInferenceAPI`](https://beam.apache.org/documentation/sdks/python-machine-learning/), which
 facilitates the integration of your model as a `PTransform` step in your DAG. Composing
-multiple `RunInference` transforms within a single DAG allows us to build a pipeline that consists
-of multiple ML models. This way Beam supports the development of complex ML systems.
+multiple `RunInference` transforms within a single DAG makes it possible to build a pipeline that consists
+of multiple ML models. In this way, Apache Beam supports the development of complex ML systems.
 
-There are different patterns that can be used to build multi-model pipelines in Beam. Let’s have a
-look at a few of them.
+You can use different patterns to build multi-model pipelines in Apache Beam. This page explores A/B patterns and cascade patterns.
 
 ### A/B Pattern
 
 The A/B pattern describes a framework multiple where ML models are running in parallel. One
 application for this pattern is to test the performance of different machine learning models and
 decide whether a new model is an improvement over an existing one. This is also known as the
-“Champion/Challenger” method. Here, we typically define a business metric to compare the performance
+“Champion/Challenger” method. Typically, you define a business metric to compare the performance
 of a control model with the current model.
 
 An example could be recommendation engine models where you have an existing model that recommends
 ads based on the user’s preferences and activity history. When deciding to deploy a new model, you
-could split the incoming user traffic into two branches where half of the users are exposed to the
+could split the incoming user traffic into two branches, where half of the users are exposed to the
 new model and the other half to the current one.
 
-Afterwards, you could then measure the average click-through rate (CTR) of ads for both sets of
+After, you can measure the average click-through rate (CTR) of ads for both sets of
 users over a defined period of time to determine if the new model is performing better than the
 existing one.
 
@@ -73,12 +71,12 @@ model_b_predictions = userset_b_traffic | RunInference(<model_handler_B>)
 ```
 
 Where `beam.partition` is used to split the data source into 50/50 split partitions. For more
-information on data partitioning,
+information about data partitioning,
 see [Partition](https://beam.apache.org/documentation/transforms/python/elementwise/partition/).
 
 ### Cascade Pattern
 
-The Cascade pattern is used to solve use-cases where the solution involves a series of ML models. In
+The Cascade pattern is used when the solution to a problem involves a series of ML models. In
 this scenario, the output of a model is typically transformed to a suitable format using
 a `PTransform` before passing it to another model.
 
@@ -89,9 +87,7 @@ with pipeline as p:
    model_b_predictions = model_a_predictions | beam.ParDo(post_processing()) | RunInference(<model_handler_B>)
 ```
 
-In
-this [notebook](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/run_inference_multi_model.ipynb)
-, we show an end-to-end example of a cascade pipeline used for generating and ranking image
+The [Ensemble model using an image captioning and ranking example](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/run_inference_multi_model.ipynb) notebook shows an end-to-end example of a cascade pipeline used to generate and rank image
 captions. The solution consists of two open-source models:
 
 1. **A caption generation model ([BLIP](https://github.com/salesforce/BLIP))** that generates

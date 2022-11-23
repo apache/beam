@@ -16,14 +16,19 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization_ext/easy_localization_ext.dart';
+// To build and run the app, copy this file to './config.g.dart'
+// This is a temporary solution while we cannot have 'config.g.dart'
+// in the repository.
+// TODO: https://github.com/apache/beam/issues/24200
 
-class PlaygroundComponents {
-  static const packageName = 'playground_components';
-
-  // TODO(alexeyinkin): Make const when this is fixed: https://github.com/aissat/easy_localization_loader/issues/39
-  static final translationLoader = YamlPackageAssetLoader(
-    packageName,
-    path: 'assets/translations',
-  );
-}
+const String kAnalyticsUA = 'UA-73650088-2';
+const String kApiClientURL =
+    'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
+const String kApiJavaClientURL =
+    'https://backend-java-beta-dot-apache-beam-testing.appspot.com';
+const String kApiGoClientURL =
+    'https://backend-go-beta-dot-apache-beam-testing.appspot.com';
+const String kApiPythonClientURL =
+    'https://backend-python-beta-dot-apache-beam-testing.appspot.com';
+const String kApiScioClientURL =
+    'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';
