@@ -146,7 +146,7 @@ public class QueryChangeStreamActionTest {
     when(resultSet.next()).thenReturn(true);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(rowAsStruct);
     when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
-    when(changeStreamRecordMapper.toChangeStreamRecords(partition, rowAsStruct, resultSetMetadata))
+    when(changeStreamRecordMapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata))
         .thenReturn(Arrays.asList(record1, record2));
     when(dataChangeRecordAction.run(
             partition,
@@ -215,7 +215,7 @@ public class QueryChangeStreamActionTest {
     when(resultSet.next()).thenReturn(true);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(rowAsStruct);
     when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
-    when(changeStreamRecordMapper.toChangeStreamRecords(partition, rowAsStruct, resultSetMetadata))
+    when(changeStreamRecordMapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata))
         .thenReturn(Arrays.asList(record1, record2));
     when(heartbeatRecordAction.run(partition, record1, restrictionTracker, watermarkEstimator))
         .thenReturn(Optional.empty());
@@ -257,7 +257,7 @@ public class QueryChangeStreamActionTest {
     when(resultSet.next()).thenReturn(true);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(rowAsStruct);
     when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
-    when(changeStreamRecordMapper.toChangeStreamRecords(partition, rowAsStruct, resultSetMetadata))
+    when(changeStreamRecordMapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata))
         .thenReturn(Arrays.asList(record1, record2));
     when(childPartitionsRecordAction.run(
             partition, record1, restrictionTracker, watermarkEstimator))
@@ -307,7 +307,7 @@ public class QueryChangeStreamActionTest {
     when(resultSet.next()).thenReturn(true);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(rowAsStruct);
     when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
-    when(changeStreamRecordMapper.toChangeStreamRecords(partition, rowAsStruct, resultSetMetadata))
+    when(changeStreamRecordMapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata))
         .thenReturn(Arrays.asList(record1, record2));
     when(childPartitionsRecordAction.run(
             partition, record2, restrictionTracker, watermarkEstimator))

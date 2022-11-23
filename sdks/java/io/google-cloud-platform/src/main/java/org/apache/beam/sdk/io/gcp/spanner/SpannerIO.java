@@ -34,6 +34,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
@@ -43,6 +44,7 @@ import com.google.cloud.spanner.Mutation.Op;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.PartitionOptions;
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerOptions;
@@ -1593,9 +1595,6 @@ public class SpannerIO {
               getMetadataInstance(), changeStreamDatabaseId.getInstanceId().getInstance());
       final String partitionMetadataDatabaseId =
           MoreObjects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
-      final String partitionMetadataTableName =
-          MoreObjects.firstNonNull(
-              getMetadataTable(), generatePartitionMetadataTableName(partitionMetadataDatabaseId));
 
       SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
       // Set default retryable errors for ReadChangeStream
@@ -1623,6 +1622,14 @@ public class SpannerIO {
               .setInstanceId(StaticValueProvider.of(partitionMetadataInstanceId))
               .setDatabaseId(StaticValueProvider.of(partitionMetadataDatabaseId))
               .build();
+      final boolean isSpannerChangeStreamDatabasePostgres = isPostgres(changeStreamSpannerConfig);
+      final boolean isSpannerMetadataDatabasePostgres = isPostgres(partitionMetadataSpannerConfig);
+      LOG.info("The Spanner database is postgres: " + isSpannerChangeStreamDatabasePostgres);
+      LOG.info("The Spanner metadata database is postgres: " + isSpannerMetadataDatabasePostgres);
+      final String partitionMetadataTableName =
+          MoreObjects.firstNonNull(
+              getMetadataTable(), generatePartitionMetadataTableName(
+                  partitionMetadataDatabaseId, isSpannerMetadataDatabasePostgres));
       final String changeStreamName = getChangeStreamName();
       final Timestamp startTimestamp = getInclusiveStartAt();
       // Uses (Timestamp.MAX - 1ns) at max for end timestamp, because we add 1ns to transform the
@@ -1631,7 +1638,7 @@ public class SpannerIO {
           getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) > 0
               ? MAX_INCLUSIVE_END_AT
               : getInclusiveEndAt();
-      final MapperFactory mapperFactory = new MapperFactory();
+      final MapperFactory mapperFactory = new MapperFactory(isSpannerChangeStreamDatabasePostgres);
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       final ThroughputEstimator throughputEstimator = new ThroughputEstimator();
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
@@ -1642,7 +1649,9 @@ public class SpannerIO {
               partitionMetadataSpannerConfig,
               partitionMetadataTableName,
               rpcPriority,
-              input.getPipeline().getOptions().getJobName());
+              input.getPipeline().getOptions().getJobName(),
+              isSpannerChangeStreamDatabasePostgres,
+              isSpannerMetadataDatabasePostgres);
       final ActionFactory actionFactory = new ActionFactory();
 
       final InitializeDoFn initializeDoFn =
@@ -1675,6 +1684,28 @@ public class SpannerIO {
           .apply(Wait.on(results))
           .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
       return results;
+    }
+  }
+
+  private static boolean isPostgres(SpannerConfig spannerConfig) {
+    DatabaseClient databaseClient =
+        SpannerAccessor.getOrCreate(spannerConfig).getDatabaseClient();
+    final String getDatabaseDialectStmt =
+        "SELECT option_value FROM information_schema.database_options WHERE option_name = "
+            + "'database_dialect'";
+    try (ResultSet resultSet =
+        databaseClient
+            .singleUseReadOnlyTransaction()
+            .executeQuery(Statement.of(getDatabaseDialectStmt))) {
+      if (resultSet.next()) {
+        String dialect = resultSet.getString("option_value");
+        if (dialect.equals("POSTGRESQL")) {
+          return true;
+        } else if (dialect.equals("GOOGLE_STANDARD_SQL")) {
+          return false;
+        }
+      }
+      throw new IllegalArgumentException("Could not retrieve database dialect");
     }
   }
 
