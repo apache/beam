@@ -77,4 +77,10 @@ class ExamplesLoadingDescriptor {
       'descriptors': descriptors.map((d) => d.toJson()).toList(growable: false),
     };
   }
+
+  ExamplesLoadingDescriptor whereType<T extends ExampleLoadingDescriptor>() {
+    return ExamplesLoadingDescriptor(
+      descriptors: descriptors.whereType<T>().toList(growable: false),
+    );
+  }
 }

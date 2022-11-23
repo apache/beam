@@ -159,16 +159,10 @@ Future<void> main() async {
       {
         'descriptors': [
           {
-            'sdk': 'python',
-            'content': 'ex2',
-            'name': 'Kata',
-            'complexity': 'basic'
+            'example': 'SDK_PYTHON/Category/Name2'
           },
           {
-            'sdk': 'go',
-            'content': 'ex1',
-            'name': 'Example',
-            'complexity': 'medium'
+            'example': 'SDK_GO/Category/Name',
           },
         ],
       },
