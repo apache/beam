@@ -1,15 +1,31 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 GO_VERSION=1.18
 
-sudo apt update >/dev/null
+apt update >/dev/null
 
 # Install JRE
-sudo apt install -y default-jre && sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
+apt install -y default-jre && apt install -y apt-transport-https ca-certificates curl software-properties-common
 
 # Install Docker
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
-sudo apt install -y docker-ce
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+apt install -y docker-ce
 
 #Install Helm
 curl -fsSLo get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
@@ -17,16 +33,16 @@ chmod 700 get_helm.sh
 ./get_helm.sh
 
 # Install Terraform
-wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-sudo apt update -y && sudo apt install -y terraform
+wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list
+apt update -y && apt install -y terraform
 
 # Install kubectl
-sudo apt-get install -y apt-transport-https ca-certificates gnupg
+apt-get install -y apt-transport-https ca-certificates gnupg
 curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
 echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" \
-| sudo tee /etc/apt/sources.list.d/kubernetes.list
-sudo apt-get update && sudo apt install -y kubectl
+| tee /etc/apt/sources.list.d/kubernetes.list
+apt-get update && apt install -y kubectl
 
 # Install golang
 curl -O https://dl.google.com/go/go"$GO_VERSION".linux-amd64.tar.gz
