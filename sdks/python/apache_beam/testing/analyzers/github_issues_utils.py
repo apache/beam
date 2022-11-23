@@ -44,6 +44,7 @@ _ISSUE_DESCRIPTION_HEADER = """
   Affected metric: `{}`
 """
 _METRIC_INFO = "timestamp: {}, metric_value: `{}`"
+_AWAITING_TRIAGE_LABEL = 'awaiting triage'
 
 
 def create_or_comment_issue(
@@ -67,6 +68,9 @@ def create_or_comment_issue(
       issue_number=issue_number,
       comment_description=description)
     if commented_on_issue:
+      # Add awaiting triage will help the beam developers to triage issue
+      # sooner than later.
+      add_label_to_issue(issue_number, labels=[_AWAITING_TRIAGE_LABEL])
       return issue_number, comment_url
 
   # Issue number was not provided or issue with provided number
@@ -80,7 +84,7 @@ def create_or_comment_issue(
       'body': description,
   }
   if labels:
-    data['labels'] = labels
+    data['labels'] = labels + [_AWAITING_TRIAGE_LABEL]
   response = requests.post(
       url=url, data=json.dumps(data), headers=_HEADERS).json()
   return response['number'], response['html_url']
@@ -122,6 +126,15 @@ def comment_on_issue(issue_number: int,
     return True, response.json()['html_url']
 
   return False, None
+
+
+def add_label_to_issue(issue_number: int, labels: List[str] = None):
+  url = 'https://api.github.com/repos/{}/{}/issues/{}/labels'.format(
+      _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
+  data = {}
+  if labels:
+    data['labels'] = labels
+    requests.post(url, json.dumps(data), headers=_HEADERS)
 
 
 def get_issue_description(
