@@ -38,6 +38,12 @@ the following metrics:
 - Mean Load Model Latency - the average amount of time it takes to load a model. This is done once per DoFn instance on worker
 startup, so the cost is amortized across the pipeline.
 
+The above tests are configured to run using following configurations
+ * machine_type: n1-highmem-2
+ * num_workers: 75
+ * autoscaling_algorithm: NONE
+ * disk_size_gb: 50
+
 ## Pytorch RunInference Language Modeling
 
 The Pytorch RunInference Language Modeling benchmark runs an
@@ -51,3 +57,9 @@ the following metrics:
 - Mean Inference Batch Latency - the average amount of time it takes to perform inference on a given batch of images
 - Mean Load Model Latency - the average amount of time it takes to load a model. This is done once per DoFn instance on worker
 startup, so the cost is amortized across the pipeline.
+
+The above tests are configured to run using following configurations
+ * machine_type: n1-highmem-2
+ * num_workers: 250
+ * autoscaling_algorithm: NONE
+ * disk_size_gb: 75
