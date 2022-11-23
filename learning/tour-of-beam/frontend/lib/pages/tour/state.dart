@@ -128,7 +128,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
     final exampleCache = ExampleCache(
       exampleRepository: exampleRepository,
-      hasCatalog: false,
     );
 
     final playgroundController = PlaygroundController(

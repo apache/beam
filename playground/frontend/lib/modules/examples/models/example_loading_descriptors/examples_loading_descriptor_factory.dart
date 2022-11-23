@@ -24,7 +24,7 @@ import 'package:playground/modules/examples/models/example_token_type.dart';
 import 'package:playground_components/playground_components.dart';
 
 class ExamplesLoadingDescriptorFactory {
-  static const _defaultSdk = Sdk.java;
+  static const defaultSdk = Sdk.java;
 
   static ExamplesLoadingDescriptor fromUriParts({
     required String path,
@@ -81,7 +81,7 @@ class ExamplesLoadingDescriptorFactory {
     }
 
     return result.isEmpty
-        ? [EmptyExampleLoadingDescriptor(sdk: sdk ?? _defaultSdk)]
+        ? [EmptyExampleLoadingDescriptor(sdk: sdk ?? defaultSdk)]
         : result;
   }
 
@@ -126,7 +126,7 @@ class ExamplesLoadingDescriptorFactory {
       return null;
     }
 
-    final sdk = Sdk.tryParse(params[kSdkParam]) ?? _defaultSdk;
+    final sdk = Sdk.tryParse(params[kSdkParam]) ?? defaultSdk;
 
     return ExamplesLoadingDescriptor(
       descriptors: [
@@ -172,7 +172,7 @@ class ExamplesLoadingDescriptorFactory {
     return ExamplesLoadingDescriptor(
       descriptors: [
         EmptyExampleLoadingDescriptor(
-          sdk: Sdk.tryParse(params[kSdkParam]) ?? _defaultSdk,
+          sdk: Sdk.tryParse(params[kSdkParam]) ?? defaultSdk,
         ),
       ],
       lazyLoadDescriptors: _emptyLazyLoadDescriptors,

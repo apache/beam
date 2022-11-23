@@ -17,9 +17,12 @@
  */
 
 import '../../models/example.dart';
+import '../../models/sdk.dart';
 
 abstract class ExampleLoader {
   const ExampleLoader();
+
+  Sdk? get sdk;
 
   Future<Example> get future;
 }

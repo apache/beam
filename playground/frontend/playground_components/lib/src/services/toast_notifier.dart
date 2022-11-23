@@ -16,12 +16,30 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'dart:async';
 
-import 'services/symbols/symbols_notifier.dart';
-import 'services/toast_notifier.dart';
+import 'package:rxdart/rxdart.dart';
 
-Future<void> initializeServiceLocator() async {
-  GetIt.instance.registerSingleton(SymbolsNotifier());
-  GetIt.instance.registerSingleton(ToastNotifier());
+import '../models/toast.dart';
+
+class ToastNotifier {
+  final _controller = BehaviorSubject<Toast>();
+  Stream<Toast> get toasts => _controller.stream;
+
+  void add(Toast toast) {
+    _controller.add(toast);
+  }
+
+  void addException(Exception ex) {
+    add(
+      Toast(
+        text: ex.toString(),
+        type: ToastType.error,
+      ),
+    );
+  }
+
+  void dispose() {
+    unawaited(_controller.close());
+  }
 }

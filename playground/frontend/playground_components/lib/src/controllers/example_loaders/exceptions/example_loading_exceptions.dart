@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'package:easy_localization/easy_localization.dart';
 
-import 'services/symbols/symbols_notifier.dart';
-import 'services/toast_notifier.dart';
+class ExampleLoadingException implements Exception {
+  final Exception inner;
 
-Future<void> initializeServiceLocator() async {
-  GetIt.instance.registerSingleton(SymbolsNotifier());
-  GetIt.instance.registerSingleton(ToastNotifier());
+  ExampleLoadingException(this.inner);
+
+  @override
+  String toString() => 'errors.loadingExample'.tr();
 }

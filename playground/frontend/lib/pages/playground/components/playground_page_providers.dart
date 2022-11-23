@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:playground/config.g.dart';
-import 'package:playground/constants/params.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/analytics/google_analytics_service.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
@@ -34,9 +35,8 @@ class PlaygroundPageProviders extends StatelessWidget {
   final Widget child;
 
   const PlaygroundPageProviders({
-    Key? key,
     required this.child,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -65,8 +65,7 @@ class PlaygroundPageProviders extends StatelessWidget {
 
             final exampleCache = ExampleCache(
               exampleRepository: exampleRepository,
-              hasCatalog: !isEmbedded(),
-            )..init();
+            );
 
             final controller = PlaygroundController(
               examplesLoader: ExamplesLoader(),
@@ -78,7 +77,8 @@ class PlaygroundPageProviders extends StatelessWidget {
               path: Uri.base.path,
               params: Uri.base.queryParameters,
             );
-            controller.examplesLoader.load(descriptor);
+
+            unawaited(_load(controller, descriptor));
 
             final handler = MessagesDebouncer(
               handler: MessagesHandler(playgroundController: controller),
@@ -97,5 +97,23 @@ class PlaygroundPageProviders extends StatelessWidget {
       ],
       child: child,
     );
+  }
+
+  Future<void> _load(
+    PlaygroundController controller,
+    ExamplesLoadingDescriptor descriptor,
+  ) async {
+    try {
+      await controller.examplesLoader.load(descriptor);
+    } on Exception catch (ex) {
+      PlaygroundComponents.toastNotifier.addException(ex);
+
+      if (controller.sdk == null) {
+        controller.setSdk(
+          descriptor.initialSdk ?? ExamplesLoadingDescriptorFactory.defaultSdk,
+          loadDefaultIfNot: false,
+        );
+      }
+    }
   }
 }

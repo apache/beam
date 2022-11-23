@@ -23,10 +23,12 @@ import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 class ShareTabs extends StatelessWidget {
+  final VoidCallback onError;
   final TabController tabController;
 
   const ShareTabs({
     super.key,
+    required this.onError,
     required this.tabController,
   });
 
@@ -38,6 +40,7 @@ class ShareTabs extends StatelessWidget {
         builder: (context, playgroundController, _) {
           if (playgroundController.isExampleChanged) {
             return SnippetSaveAndShareTabs(
+              onError: onError,
               playgroundController: playgroundController,
               tabController: tabController,
             );

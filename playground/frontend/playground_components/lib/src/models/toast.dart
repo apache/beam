@@ -16,12 +16,25 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'package:equatable/equatable.dart';
 
-import 'services/symbols/symbols_notifier.dart';
-import 'services/toast_notifier.dart';
+class Toast with EquatableMixin {
+  final String text;
+  final ToastType type;
 
-Future<void> initializeServiceLocator() async {
-  GetIt.instance.registerSingleton(SymbolsNotifier());
-  GetIt.instance.registerSingleton(ToastNotifier());
+  const Toast({
+    required this.text,
+    required this.type,
+  });
+
+  @override
+  List<Object> get props => [
+        text,
+        type,
+      ];
+}
+
+enum ToastType {
+  error,
+  info,
 }

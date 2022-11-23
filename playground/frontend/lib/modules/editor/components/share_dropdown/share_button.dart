@@ -57,7 +57,9 @@ class ShareButton extends StatelessWidget {
         height: _kShareDropdownHeight,
         width: _kShareDropdownWidth,
         dropdownAlign: DropdownAlignment.right,
-        createDropdown: (close) => const ShareDropdownBody(),
+        createDropdown: (closeCallback) => ShareDropdownBody(
+          onError: closeCallback,
+        ),
       ),
     );
   }

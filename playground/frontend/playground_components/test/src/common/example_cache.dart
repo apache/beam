@@ -16,12 +16,16 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'package:mockito/annotations.dart';
 
-import 'services/symbols/symbols_notifier.dart';
-import 'services/toast_notifier.dart';
+import 'package:playground_components/playground_components.dart';
 
-Future<void> initializeServiceLocator() async {
-  GetIt.instance.registerSingleton(SymbolsNotifier());
-  GetIt.instance.registerSingleton(ToastNotifier());
+@GenerateMocks([ExampleCache])
+class _C {} // ignore: unused_element
+
+/// Creates an [ExampleCache] with a broken URL so all requests fail.
+ExampleCache createFailingExampleCache() {
+  return ExampleCache(
+    exampleRepository: ExampleRepository(client: GrpcExampleClient(url: '')),
+  );
 }

@@ -19,11 +19,13 @@
 import '../../cache/example_cache.dart';
 import '../../models/example.dart';
 import '../../models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
+import '../../models/sdk.dart';
 import 'example_loader.dart';
 
 class UserSharedExampleLoader extends ExampleLoader {
   final UserSharedExampleLoadingDescriptor descriptor;
   final ExampleCache exampleCache;
+  Example? _example;
 
   UserSharedExampleLoader({
     required this.descriptor,
@@ -31,6 +33,10 @@ class UserSharedExampleLoader extends ExampleLoader {
   });
 
   @override
-  Future<Example> get future =>
-      exampleCache.loadSharedExample(descriptor.snippetId);
+  Sdk? get sdk => _example?.sdk;
+
+  @override
+  Future<Example> get future async {
+    return _example = await exampleCache.loadSharedExample(descriptor.snippetId);
+  }
 }

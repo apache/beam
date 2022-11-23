@@ -25,7 +25,9 @@ import '../playground_controller.dart';
 import 'catalog_default_example_loader.dart';
 import 'content_example_loader.dart';
 import 'empty_example_loader.dart';
+import 'example_loader.dart';
 import 'example_loader_factory.dart';
+import 'exceptions/example_loading_exceptions.dart';
 import 'http_example_loader.dart';
 import 'standard_example_loader.dart';
 import 'user_shared_example_loader.dart';
@@ -48,22 +50,67 @@ class ExamplesLoader {
     _playgroundController = value;
   }
 
+  /// Loads examples from [descriptor]'s immediate list.
+  ///
+  /// Sets empty editor for SDKs of failed examples.
   Future<void> load(ExamplesLoadingDescriptor descriptor) async {
     if (_descriptor == descriptor) {
       return;
     }
 
     _descriptor = descriptor;
-    await Future.wait(
-      descriptor.descriptors.map(
-        (one) => loadOne(group: descriptor, one: one),
-      ),
-    );
+    final loaders = <ExampleLoader>[];
+
+    for (final one in descriptor.descriptors) {
+      final loader = _createLoader(one);
+      if (loader == null) {
+        continue;
+      }
+      loaders.add(loader);
+    }
+
+    try {
+      final loadFutures = loaders.map(_loadOne);
+      await Future.wait(loadFutures);
+    } on Exception catch (ex) {
+      _emptyMissing(loaders);
+      throw ExampleLoadingException(ex);
+    }
 
     final sdk = descriptor.initialSdk;
     if (sdk != null) {
       _playgroundController!.setSdk(sdk);
     }
+  }
+
+  ExampleLoader? _createLoader(ExampleLoadingDescriptor descriptor) {
+    final loader = defaultFactory.create(
+      descriptor: descriptor,
+      exampleCache: _playgroundController!.exampleCache,
+    );
+
+    if (loader == null) {
+      // TODO: Log.
+      print('Cannot create example loader for $descriptor');
+      return null;
+    }
+
+    return loader;
+  }
+
+  void _emptyMissing(List<ExampleLoader> loaders) {
+    loaders.forEach(_emptyIfMissing);
+  }
+
+  Future<void> _emptyIfMissing(ExampleLoader loader) async {
+    final sdk = loader.sdk;
+
+    if (sdk == null) {
+      return;
+    }
+
+    final setCurrent = _shouldSetCurrentSdk(sdk);
+    _playgroundController!.setEmptyIfNotExists(sdk, setCurrentSdk: setCurrent);
   }
 
   Future<void> loadDefaultIfAny(Sdk sdk) async {
@@ -74,32 +121,33 @@ class ExamplesLoader {
       return;
     }
 
-    return loadOne(
-      group: group,
-      one: one,
-    );
-  }
-
-  Future<void> loadOne({
-    required ExamplesLoadingDescriptor group,
-    required ExampleLoadingDescriptor one,
-  }) async {
-    final loader = defaultFactory.create(
-      descriptor: one,
-      exampleCache: _playgroundController!.exampleCache,
-    );
-
+    final loader = _createLoader(one);
     if (loader == null) {
-      // TODO: Log.
-      print('Cannot create example loader for $one');
       return;
     }
 
+    await _loadOne(loader);
+  }
+
+  Future<void> _loadOne(ExampleLoader loader) async {
     final example = await loader.future;
     _playgroundController!.setExample(
       example,
-      setCurrentSdk:
-          example.sdk == group.initialSdk || group.initialSdk == null,
+      setCurrentSdk: _shouldSetCurrentSdk(example.sdk),
     );
+  }
+
+  bool _shouldSetCurrentSdk(Sdk sdk) {
+    final descriptor = _descriptor;
+
+    if (descriptor == null) {
+      return false;
+    }
+
+    if (descriptor.initialSdk == null) {
+      return true;
+    }
+
+    return descriptor.initialSdk == sdk;
   }
 }

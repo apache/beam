@@ -24,7 +24,11 @@ import 'package:playground_components/playground_components.dart';
 const _kTabsCount = 2;
 
 class ShareDropdownBody extends StatefulWidget {
-  const ShareDropdownBody({super.key});
+  final VoidCallback onError;
+
+  const ShareDropdownBody({
+    required this.onError,
+  });
 
   @override
   State<ShareDropdownBody> createState() => _ShareDropdownBodyState();
@@ -50,7 +54,10 @@ class _ShareDropdownBodyState extends State<ShareDropdownBody>
           tabsWidget: ShareTabsHeaders(tabController: tabController),
         ),
         Expanded(
-          child: ShareTabs(tabController: tabController),
+          child: ShareTabs(
+            tabController: tabController,
+            onError: widget.onError,
+          ),
         ),
       ],
     );

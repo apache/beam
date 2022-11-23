@@ -88,14 +88,16 @@ class PlaygroundPage extends StatelessWidget {
                   ),
                 ],
               ),
-              body: Column(
-                children: [
-                  const Expanded(child: PlaygroundPageBody()),
-                  Semantics(
-                    container: true,
-                    child: const PlaygroundPageFooter(),
-                  ),
-                ],
+              body: ToastListenerWidget(
+                child: Column(
+                  children: [
+                    const Expanded(child: PlaygroundPageBody()),
+                    Semantics(
+                      container: true,
+                      child: const PlaygroundPageFooter(),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

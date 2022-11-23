@@ -26,6 +26,7 @@ import 'package:get_it/get_it.dart';
 import '../cache/example_cache.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
+import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/examples_loading_descriptor.dart';
 import '../models/intents.dart';
 import '../models/outputs.dart';
@@ -38,6 +39,7 @@ import '../repositories/models/shared_file.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
 import '../util/pipeline_options.dart';
+import 'example_loaders/empty_example_loader.dart';
 import 'example_loaders/examples_loader.dart';
 import 'snippet_editing_controller.dart';
 
@@ -89,6 +91,7 @@ class PlaygroundController with ChangeNotifier {
     _snippetEditingControllers[sdk] = result;
 
     if (loadDefaultIfNot) {
+      // TODO(alexeyinkin): Show loading indicator if loading.
       examplesLoader.loadDefaultIfAny(sdk);
     }
 
@@ -137,6 +140,22 @@ class PlaygroundController with ChangeNotifier {
       selectedExample?.type != ExampleType.test &&
       [Sdk.java, Sdk.python].contains(sdk);
 
+  void setEmptyIfNotExists(
+    Sdk sdk, {
+    required bool setCurrentSdk,
+  }) {
+    if (_snippetEditingControllers.containsKey(sdk)) {
+      return;
+    }
+
+    final example = EmptyExampleLoader(
+      descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
+      exampleCache: exampleCache,
+    ).example;
+
+    setExample(example, setCurrentSdk: setCurrentSdk);
+  }
+
   void setExample(
     Example example, {
     required bool setCurrentSdk,
@@ -167,11 +186,12 @@ class PlaygroundController with ChangeNotifier {
   void setSdk(
     Sdk sdk, {
     bool notify = true,
+    bool loadDefaultIfNot = true,
   }) {
     _sdk = sdk;
     _getOrCreateSnippetEditingController(
       sdk,
-      loadDefaultIfNot: true,
+      loadDefaultIfNot: loadDefaultIfNot,
     );
     _ensureSymbolsInitialized();
 
@@ -364,10 +384,10 @@ class PlaygroundController with ChangeNotifier {
     }
   }
 
-  Future<String> getSnippetId() {
+  Future<String> saveSnippet() {
     final controller = requireSnippetEditingController();
 
-    return exampleCache.getSnippetId(
+    return exampleCache.saveSnippet(
       files: [
         SharedFile(code: controller.codeController.fullText, isMain: true),
       ],

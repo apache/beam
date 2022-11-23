@@ -16,12 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
-
-import 'services/symbols/symbols_notifier.dart';
-import 'services/toast_notifier.dart';
-
-Future<void> initializeServiceLocator() async {
-  GetIt.instance.registerSingleton(SymbolsNotifier());
-  GetIt.instance.registerSingleton(ToastNotifier());
+enum LoadingStatus {
+  loading,
+  done,
+  error,
 }

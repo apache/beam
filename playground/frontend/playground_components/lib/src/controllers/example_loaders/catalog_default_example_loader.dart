@@ -19,6 +19,7 @@
 import '../../cache/example_cache.dart';
 import '../../models/example.dart';
 import '../../models/example_loading_descriptors/catalog_default_example_loading_descriptor.dart';
+import '../../models/sdk.dart';
 import 'example_loader.dart';
 
 class CatalogDefaultExampleLoader extends ExampleLoader {
@@ -31,12 +32,15 @@ class CatalogDefaultExampleLoader extends ExampleLoader {
   });
 
   @override
-  Future<Example> get future async {
-    if (!exampleCache.hasCatalog) {
-      throw Exception('Default example requires a catalog in ExampleState');
-    }
+  Sdk get sdk => descriptor.sdk;
 
-    await exampleCache.loadDefaultExamplesIfNot();
+  @override
+  Future<Example> get future async {
+    await Future.wait([
+      exampleCache.loadAllPrecompiledObjectsIfNot(),
+      exampleCache.loadDefaultExamplesIfNot(),
+    ]);
+
     final result = exampleCache.defaultExamplesBySdk[descriptor.sdk];
 
     if (result == null) {

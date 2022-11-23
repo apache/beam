@@ -25,16 +25,14 @@ import 'package:provider/provider.dart';
 
 class ExpansionPanelItem extends StatelessWidget {
   final ExampleBase example;
+  final VoidCallback onSelected;
   final ExampleBase selectedExample;
-  final AnimationController animationController;
-  final OverlayEntry? dropdown;
 
   const ExpansionPanelItem({
     Key? key,
     required this.example,
+    required this.onSelected,
     required this.selectedExample,
-    required this.animationController,
-    required this.dropdown,
   }) : super(key: key);
 
   @override
@@ -83,8 +81,7 @@ class ExpansionPanelItem extends StatelessWidget {
   }
 
   void _closeDropdown(ExampleCache exampleCache) {
-    animationController.reverse();
-    dropdown?.remove();
     exampleCache.changeSelectorVisibility();
+    onSelected();
   }
 }

@@ -27,18 +27,15 @@ import 'package:playground_components/playground_components.dart';
 class CategoryExpansionPanel extends StatelessWidget {
   final String categoryName;
   final List<ExampleBase> examples;
+  final VoidCallback onSelected;
   final ExampleBase selectedExample;
-  final AnimationController animationController;
-  final OverlayEntry? dropdown;
 
   const CategoryExpansionPanel({
-    Key? key,
     required this.categoryName,
     required this.examples,
+    required this.onSelected,
     required this.selectedExample,
-    required this.animationController,
-    required this.dropdown,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -80,9 +77,8 @@ class CategoryExpansionPanel extends StatelessWidget {
       items.add(
         ExpansionPanelItem(
           example: example,
+          onSelected: onSelected,
           selectedExample: selectedExample,
-          animationController: animationController,
-          dropdown: dropdown,
         ),
       );
     }

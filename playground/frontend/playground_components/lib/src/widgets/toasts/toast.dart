@@ -16,12 +16,23 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'package:flutter/material.dart';
 
-import 'services/symbols/symbols_notifier.dart';
-import 'services/toast_notifier.dart';
+import '../../constants/sizes.dart';
+import '../../models/toast.dart';
 
-Future<void> initializeServiceLocator() async {
-  GetIt.instance.registerSingleton(SymbolsNotifier());
-  GetIt.instance.registerSingleton(ToastNotifier());
+class ToastWidget extends StatelessWidget {
+  final Toast toast;
+
+  const ToastWidget(this.toast, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(BeamSizes.size10),
+        child: Text(toast.text),
+      ),
+    );
+  }
 }

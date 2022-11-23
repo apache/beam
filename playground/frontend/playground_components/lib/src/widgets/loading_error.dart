@@ -16,12 +16,18 @@
  * limitations under the License.
  */
 
-import 'package:get_it/get_it.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/widgets.dart';
 
-import 'services/symbols/symbols_notifier.dart';
-import 'services/toast_notifier.dart';
+class LoadingErrorWidget extends StatelessWidget {
+  const LoadingErrorWidget({
+    super.key,
+  });
 
-Future<void> initializeServiceLocator() async {
-  GetIt.instance.registerSingleton(SymbolsNotifier());
-  GetIt.instance.registerSingleton(ToastNotifier());
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: const Text('errors.loading').tr(),
+    );
+  }
 }

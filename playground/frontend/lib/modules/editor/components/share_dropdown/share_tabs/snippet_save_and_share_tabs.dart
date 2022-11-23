@@ -16,24 +16,51 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tabs/example_share_tabs.dart';
 import 'package:playground_components/playground_components.dart';
 
-class SnippetSaveAndShareTabs extends StatelessWidget {
+class SnippetSaveAndShareTabs extends StatefulWidget {
+  final VoidCallback onError;
   final PlaygroundController playgroundController;
   final TabController tabController;
 
   const SnippetSaveAndShareTabs({
     super.key,
+    required this.onError,
     required this.playgroundController,
     required this.tabController,
   });
 
   @override
+  State<SnippetSaveAndShareTabs> createState() => _SnippetSaveAndShareTabsState();
+}
+
+class _SnippetSaveAndShareTabsState extends State<SnippetSaveAndShareTabs> {
+  Future<String>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_initSaving());
+  }
+
+  Future<void> _initSaving() async {
+    try {
+      _future = widget.playgroundController.saveSnippet();
+      await _future;
+    } on Exception catch (ex) {
+      PlaygroundComponents.toastNotifier.addException(ex);
+      widget.onError();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: playgroundController.getSnippetId(),
+      future: _future,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const LoadingIndicator();
@@ -41,7 +68,7 @@ class SnippetSaveAndShareTabs extends StatelessWidget {
 
         return ExampleShareTabs(
           examplePath: snapshot.data.toString(),
-          tabController: tabController,
+          tabController: widget.tabController,
         );
       },
     );

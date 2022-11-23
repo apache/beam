@@ -38,7 +38,6 @@ void main() {
   setUp(() {
     exampleCache = ExampleCache(
       exampleRepository: mockExampleRepository,
-      hasCatalog: true,
     );
 
     playgroundController = PlaygroundController(

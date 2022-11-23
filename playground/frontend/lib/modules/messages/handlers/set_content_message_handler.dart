@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
 import 'package:playground/modules/messages/handlers/abstract_message_handler.dart';
 import 'package:playground/modules/messages/models/abstract_message.dart';
 import 'package:playground/modules/messages/models/set_content_message.dart';
@@ -38,7 +39,20 @@ class SetContentMessageHandler extends AbstractMessageHandler {
     return MessageHandleResult.handled;
   }
 
-  void _handle(SetContentMessage message) {
-    playgroundController.examplesLoader.load(message.descriptor);
+  void _handle(SetContentMessage message) async {
+    final descriptor = message.descriptor;
+
+    try {
+      await playgroundController.examplesLoader.load(descriptor);
+    } on Exception catch (ex) {
+      PlaygroundComponents.toastNotifier.addException(ex);
+
+      if (playgroundController.sdk == null) {
+        playgroundController.setSdk(
+          descriptor.initialSdk ?? ExamplesLoadingDescriptorFactory.defaultSdk,
+          loadDefaultIfNot: false,
+        );
+      }
+    }
   }
 }
