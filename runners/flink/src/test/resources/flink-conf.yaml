@@ -16,6 +16,5 @@
 # under the License.
 #
 
-parallelism.default: 23
 taskmanager.memory.network.fraction: 0.2
 taskmanager.memory.network.max: 2gb
