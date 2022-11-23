@@ -20,7 +20,6 @@ package org.apache.beam.sdk.expansion.service;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -43,8 +42,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({"rawtypes"})
 public class ExpansionServiceSchemaTransformProvider
     implements TransformProvider<PCollectionRowTuple, PCollectionRowTuple> {
-
-  static final String DEFAULT_INPUT_TAG = "INPUT";
 
   private Map<String, org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider>
       schemaTransformProviders = new HashMap<>();
@@ -77,34 +74,20 @@ public class ExpansionServiceSchemaTransformProvider
 
   @Override
   public PCollectionRowTuple createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
-    if (inputs.size() == 0) {
-      return PCollectionRowTuple.empty(p);
+    PCollectionRowTuple inputRowTuple = PCollectionRowTuple.empty(p);
+    for (Map.Entry<String, PCollection<?>> entry : inputs.entrySet()) {
+      inputRowTuple = inputRowTuple.and(entry.getKey(), (PCollection<Row>) entry.getValue());
     }
-    if (inputs.size() == 1) {
-      return PCollectionRowTuple.of(
-          DEFAULT_INPUT_TAG, (PCollection<Row>) inputs.values().iterator().next());
-    } else {
-      PCollectionRowTuple inputRowTuple = PCollectionRowTuple.empty(p);
-      for (Map.Entry<String, PCollection<?>> entry : inputs.entrySet()) {
-        inputRowTuple = inputRowTuple.and(entry.getKey(), (PCollection<Row>) entry.getValue());
-      }
-      return inputRowTuple;
-    }
+    return inputRowTuple;
   }
 
   @Override
   public Map<String, PCollection<?>> extractOutputs(PCollectionRowTuple output) {
-    if (output.getAll().size() == 0) {
-      return Collections.emptyMap();
-    } else if (output.getAll().size() == 1) {
-      return ImmutableMap.of("output", output.getAll().values().iterator().next());
-    } else {
-      ImmutableMap.Builder<String, PCollection<?>> pCollectionMap = ImmutableMap.builder();
-      for (String key : output.getAll().keySet()) {
-        pCollectionMap.put(key, output.get(key));
-      }
-      return pCollectionMap.build();
+    ImmutableMap.Builder<String, PCollection<?>> pCollectionMap = ImmutableMap.builder();
+    for (String key : output.getAll().keySet()) {
+      pCollectionMap.put(key, output.get(key));
     }
+    return pCollectionMap.build();
   }
 
   @Override

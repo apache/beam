@@ -184,7 +184,10 @@ public class ExpansionServiceSchemaTransformProviderTest {
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> outputPC =
           input
-              .get("INPUT")
+              .getAll()
+              .values()
+              .iterator()
+              .next()
               .apply(
                   MapElements.via(
                       new InferableFunction<Row, String>() {
