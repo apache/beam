@@ -56,7 +56,8 @@ _LOGGER = logging.getLogger(__name__)
 
 Row = typing.NamedTuple("Row", [("col1", int), ("col2", str)])
 beam.coders.registry.register_coder(Row, beam.coders.RowCoder)
-default_flink_conf_path = pathlib.Path(__file__).parent.joinpath('../flink/src/test/resources/').resolve()
+default_flink_conf_path = pathlib.Path(__file__).parent.joinpath(
+    '../flink/src/test/resources/').resolve()
 
 
 class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
