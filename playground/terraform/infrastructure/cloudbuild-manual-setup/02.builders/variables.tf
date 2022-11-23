@@ -70,3 +70,11 @@ variable "image_tag" {
 variable "docker_repository_root" {
   description = "The name of GCP Artifact Registry Repository where Playground images will be saved to"
 }
+
+variable "playground_region" {
+  description = "Region (us-central1) where playground infrastructure will be deployed"
+}
+
+variable "playground_location" {
+  description = "Location (us-central1-b) where playground infrastructure will be deployed"
+}

@@ -48,7 +48,9 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
 1. Set following environment variables:
    - `STATE_BUCKET`: GCP Storage bucket name to save Terraform state
    - `GOOGLE_PROJECT`: GCP Project ID
-   - `GOOGLE_REGION`: GCP region to save resources to
+   - `GOOGLE_REGION`: GCP region to save triggers to
+   - `PLAYGROUND_REGION`: GCP Region (us-central1) where playground infrastructure will be deployed
+   - `PLAYGROUND_LOCATION`: GCP Location (us-central1-b) where playground infrastructure will be deployed
    - `ENVIRONMENT_NAME`: Environment where Playground will be deployed (located at playground/terraform/environment/environment_name)
    - `DNS_NAME`: DNS for deployed Playground webpage
    - `NETWORK_NAME`: GCP VPC Network Name for Playground deployment
@@ -60,6 +62,8 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
     export STATE_BUCKET="state_bucket" \
     GOOGLE_PROJECT="project_id" \
     GOOGLE_REGION="us-central1" \
+    PLAYGROUND_REGION="us-central1" \
+    PLAYGROUND_LOCATION="us-central1-b" \
     ENVIRONMENT_NAME="env_name" \
     DNS_NAME="dns_name" \
     NETWORK_NAME="network_name" \
@@ -111,6 +115,8 @@ terraform init -backend-config="bucket=$STATE_BUCKET"
 terraform apply \
 -var "project_id=$GOOGLE_PROJECT" \
 -var "region=$GOOGLE_REGION" \
+-var "playground_region=$PLAYGROUND_REGION" \
+- var "playground_location=$PLAYGROUND_LOCATION" \
 -var "playground_environment_name=$ENVIRONMENT_NAME" \
 -var "playground_dns_name=$DNS_NAME" \
 -var "playground_network_name=$NETWORK_NAME" \
