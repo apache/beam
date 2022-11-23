@@ -270,6 +270,9 @@ if [[ -z $PIPELINE_OPTS ]]; then
 
   fi
 
+  if [[ "$RUNNER" = "FlinkRunner" ]]; then
+    opts+=("flink_conf_dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources")
+
   # Add --disable_runner_v2 if provided
   if [[ "$DISABLE_RUNNER_V2" = true ]]; then
     opts+=("--experiments=disable_runner_v2")
