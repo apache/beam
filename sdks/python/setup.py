@@ -249,8 +249,7 @@ if __name__ == '__main__':
         'hdfs>=2.1.0,<3.0.0',
         'httplib2>=0.8,<0.21.0',
         'numpy>=1.14.3,<1.23.0',
-        # Tight bound since minor version releases caused breakages.
-        'objsize>=0.5.2,<0.6.0',
+        'objsize>=0.6.1,<0.7.0',
         'pymongo>=3.8.0,<4.0.0',
         'proto-plus>=1.7.1,<2',
         'pydot>=1.2.0,<2',
@@ -344,6 +343,7 @@ if __name__ == '__main__':
           'azure': [
             'azure-storage-blob >=12.3.2',
             'azure-core >=1.7.0',
+            'azure-identity >=1.12.0',
           ],
         #(TODO): Some tests using Pandas implicitly calls inspect.stack()
         # with python 3.10 leading to incorrect stacktrace.
