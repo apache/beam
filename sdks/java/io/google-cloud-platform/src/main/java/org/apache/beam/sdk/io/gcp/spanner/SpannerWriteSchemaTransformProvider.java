@@ -44,27 +44,27 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 @AutoService(SchemaTransformProvider.class)
-public class SpannerSchemaTransformWriteProvider
+public class SpannerWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
-        SpannerSchemaTransformWriteProvider.SpannerSchemaTransformWriteConfiguration> {
+        SpannerWriteSchemaTransformProvider.SpannerWriteSchemaTransformConfiguration> {
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<
-          SpannerSchemaTransformWriteProvider.SpannerSchemaTransformWriteConfiguration>
+          SpannerWriteSchemaTransformConfiguration>
       configurationClass() {
-    return SpannerSchemaTransformWriteConfiguration.class;
+    return SpannerWriteSchemaTransformConfiguration.class;
   }
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      SpannerSchemaTransformWriteConfiguration configuration) {
+      SpannerWriteSchemaTransformConfiguration configuration) {
     return new SpannerSchemaTransformWrite(configuration);
   }
 
   static class SpannerSchemaTransformWrite implements SchemaTransform, Serializable {
-    private final SpannerSchemaTransformWriteConfiguration configuration;
+    private final SpannerWriteSchemaTransformConfiguration configuration;
 
-    SpannerSchemaTransformWrite(SpannerSchemaTransformWriteConfiguration configuration) {
+    SpannerSchemaTransformWrite(SpannerWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
@@ -147,7 +147,7 @@ public class SpannerSchemaTransformWriteProvider
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
-  public abstract static class SpannerSchemaTransformWriteConfiguration implements Serializable {
+  public abstract static class SpannerWriteSchemaTransformConfiguration implements Serializable {
     public abstract String getInstanceId();
 
     public abstract String getDatabaseId();
@@ -155,7 +155,7 @@ public class SpannerSchemaTransformWriteProvider
     public abstract String getTableId();
 
     public static Builder builder() {
-      return new AutoValue_SpannerSchemaTransformWriteProvider_SpannerSchemaTransformWriteConfiguration
+      return new AutoValue_SpannerWriteSchemaTransformProvider_SpannerWriteSchemaTransformConfiguration
           .Builder();
     }
 
@@ -167,7 +167,7 @@ public class SpannerSchemaTransformWriteProvider
 
       public abstract Builder setTableId(String tableId);
 
-      public abstract SpannerSchemaTransformWriteConfiguration build();
+      public abstract SpannerWriteSchemaTransformConfiguration build();
     }
   }
 }

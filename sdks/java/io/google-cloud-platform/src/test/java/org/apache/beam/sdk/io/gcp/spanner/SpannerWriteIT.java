@@ -224,9 +224,9 @@ public class SpannerWriteIT {
                                     .build()))
                 .setRowSchema(tableSchema))
         .apply(
-            new SpannerSchemaTransformWriteProvider()
+            new SpannerWriteSchemaTransformProvider()
                 .from(
-                    SpannerSchemaTransformWriteProvider.SpannerSchemaTransformWriteConfiguration
+                    SpannerWriteSchemaTransformProvider.SpannerWriteSchemaTransformConfiguration
                         .builder()
                         .setDatabaseId(databaseName)
                         .setInstanceId(options.getInstanceId())
