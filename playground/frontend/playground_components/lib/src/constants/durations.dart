@@ -16,28 +16,6 @@
  * limitations under the License.
  */
 
-import 'package:equatable/equatable.dart';
-
-/// An entity for a popup notification.
-///
-/// Named after 'fluttertoast' package.
-class Toast with EquatableMixin {
-  final String text;
-  final ToastType type;
-
-  const Toast({
-    required this.text,
-    required this.type,
-  });
-
-  @override
-  List<Object> get props => [
-        text,
-        type,
-      ];
-}
-
-enum ToastType {
-  error,
-  info,
+class BeamDurations {
+  static const toast = Duration(seconds: 3);
 }

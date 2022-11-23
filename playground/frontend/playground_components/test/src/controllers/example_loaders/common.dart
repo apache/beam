@@ -31,7 +31,7 @@ class TestExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   });
 
   @override
-  List<Object?> get props => [sdk];
+  List<Object?> get props => [sdk, ok];
 }
 
 class TestExampleLoader extends ExampleLoader {

@@ -218,9 +218,9 @@ class MockExampleCache extends _i1.Mock implements _i10.ExampleCache {
         returnValueForMissingStub: Future<void>.value(),
       ) as _i7.Future<void>);
   @override
-  _i7.Future<void> loadDefaultExamplesIfNot() => (super.noSuchMethod(
+  _i7.Future<void> loadDefaultPrecompiledObjectsIfNot() => (super.noSuchMethod(
         Invocation.method(
-          #loadDefaultExamplesIfNot,
+          #loadDefaultPrecompiledObjectsIfNot,
           [],
         ),
         returnValue: Future<void>.value(),

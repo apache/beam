@@ -29,7 +29,6 @@ const exampleMock1 = Example(
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
-  pipelineOptions: '',
   complexity: Complexity.basic,
 );
 
@@ -41,25 +40,21 @@ const exampleMock2 = Example(
   type: ExampleType.kata,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
-  pipelineOptions: '',
   complexity: Complexity.basic,
 );
 
 const exampleWithoutSourceMock = ExampleBase(
   sdk: Sdk.python,
   name: 'Test example',
-  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
-  pipelineOptions: '',
   complexity: Complexity.basic,
 );
 
 const exampleWithAllAdditionsMock = Example(
   sdk: Sdk.python,
   name: 'Test example',
-  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
@@ -67,7 +62,6 @@ const exampleWithAllAdditionsMock = Example(
   outputs: 'test outputs',
   logs: 'test outputs',
   graph: 'test outputs',
-  pipelineOptions: '',
   complexity: Complexity.basic,
 );
 
@@ -75,10 +69,8 @@ const exampleMockGo = Example(
   sdk: Sdk.go,
   source: 'ex1',
   name: 'Example',
-  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_GO/Category/Name',
-  pipelineOptions: '',
   complexity: Complexity.medium,
 );

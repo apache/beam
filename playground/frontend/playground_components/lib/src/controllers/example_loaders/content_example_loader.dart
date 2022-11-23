@@ -42,7 +42,6 @@ class ContentExampleLoader extends ExampleLoader {
         path: '',
         sdk: descriptor.sdk,
         source: descriptor.content,
-        tags: [],
         type: ExampleType.example,
       );
 }

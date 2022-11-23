@@ -68,8 +68,6 @@ void main() async {
     examplesLoader = ExamplesLoader();
     examplesLoader.setPlaygroundController(playgroundController);
     TestExampleLoader.register(examplesLoader.defaultFactory);
-
-    // toastNotifier.reset();
   });
 
   group('ExamplesLoader.', () {

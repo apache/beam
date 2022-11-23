@@ -165,6 +165,14 @@ class MockPlaygroundController extends _i1.Mock
         returnValue: _FakeSnippetEditingController_3(),
       ) as _i5.SnippetEditingController);
   @override
+  void setEmptyIfNoSdk(_i11.Sdk? sdk) => super.noSuchMethod(
+        Invocation.method(
+          #setEmptyIfNoSdk,
+          [sdk],
+        ),
+        returnValueForMissingStub: null,
+      );
+  @override
   void setEmptyIfNotExists(
     _i11.Sdk? sdk, {
     bool? setCurrentSdk,
@@ -194,16 +202,12 @@ class MockPlaygroundController extends _i1.Mock
   void setSdk(
     _i11.Sdk? sdk, {
     bool? notify = true,
-    bool? loadDefaultIfNot = true,
   }) =>
       super.noSuchMethod(
         Invocation.method(
           #setSdk,
           [sdk],
-          {
-            #notify: notify,
-            #loadDefaultIfNot: loadDefaultIfNot,
-          },
+          {#notify: notify},
         ),
         returnValueForMissingStub: null,
       );
@@ -472,9 +476,9 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
         returnValueForMissingStub: Future<void>.value(),
       ) as _i12.Future<void>);
   @override
-  _i12.Future<void> loadDefaultExamplesIfNot() => (super.noSuchMethod(
+  _i12.Future<void> loadDefaultPrecompiledObjectsIfNot() => (super.noSuchMethod(
         Invocation.method(
-          #loadDefaultExamplesIfNot,
+          #loadDefaultPrecompiledObjectsIfNot,
           [],
         ),
         returnValue: Future<void>.value(),

@@ -38,7 +38,7 @@ class CatalogDefaultExampleLoader extends ExampleLoader {
   Future<Example> get future async {
     await Future.wait([
       exampleCache.loadAllPrecompiledObjectsIfNot(),
-      exampleCache.loadDefaultExamplesIfNot(),
+      exampleCache.loadDefaultPrecompiledObjectsIfNot(),
     ]);
 
     final result = exampleCache.defaultExamplesBySdk[descriptor.sdk];

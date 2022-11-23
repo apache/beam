@@ -108,12 +108,9 @@ class PlaygroundPageProviders extends StatelessWidget {
     } on Exception catch (ex) {
       PlaygroundComponents.toastNotifier.addException(ex);
 
-      if (controller.sdk == null) {
-        controller.setSdk(
-          descriptor.initialSdk ?? ExamplesLoadingDescriptorFactory.defaultSdk,
-          loadDefaultIfNot: false,
-        );
-      }
+      controller.setEmptyIfNoSdk(
+        descriptor.initialSdk ?? ExamplesLoadingDescriptorFactory.defaultSdk,
+      );
     }
   }
 }

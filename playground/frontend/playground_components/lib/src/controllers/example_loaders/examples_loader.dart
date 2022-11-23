@@ -59,15 +59,7 @@ class ExamplesLoader {
     }
 
     _descriptor = descriptor;
-    final loaders = <ExampleLoader>[];
-
-    for (final one in descriptor.descriptors) {
-      final loader = _createLoader(one);
-      if (loader == null) {
-        continue;
-      }
-      loaders.add(loader);
-    }
+    final loaders = descriptor.descriptors.map(_createLoader).whereNotNull();
 
     try {
       final loadFutures = loaders.map(_loadOne);
@@ -98,7 +90,7 @@ class ExamplesLoader {
     return loader;
   }
 
-  void _emptyMissing(List<ExampleLoader> loaders) {
+  void _emptyMissing(Iterable<ExampleLoader> loaders) {
     loaders.forEach(_emptyIfMissing);
   }
 
@@ -109,8 +101,10 @@ class ExamplesLoader {
       return;
     }
 
-    final setCurrent = _shouldSetCurrentSdk(sdk);
-    _playgroundController!.setEmptyIfNotExists(sdk, setCurrentSdk: setCurrent);
+    _playgroundController!.setEmptyIfNotExists(
+      sdk,
+      setCurrentSdk: _shouldSetCurrentSdk(sdk),
+    );
   }
 
   Future<void> loadDefaultIfAny(Sdk sdk) async {

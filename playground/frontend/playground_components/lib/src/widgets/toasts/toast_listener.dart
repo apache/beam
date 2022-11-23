@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../constants/durations.dart';
 import '../../models/toast.dart' as beamtoast;
 import '../../services/toast_notifier.dart';
 import 'toast.dart';
@@ -53,7 +54,7 @@ class _ToastListenerWidgetState extends State<ToastListenerWidget> {
   void _onToast(beamtoast.Toast toast) {
     _flutterToast.showToast(
       gravity: ToastGravity.TOP,
-      toastDuration: const Duration(seconds: 3),
+      toastDuration: BeamDurations.toast,
       child: ToastWidget(toast),
     );
   }

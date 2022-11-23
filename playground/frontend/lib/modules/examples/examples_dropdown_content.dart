@@ -53,11 +53,11 @@ class _ExamplesDropdownContentState extends State<ExamplesDropdownContent> {
         return const LoadingIndicator();
 
       case LoadingStatus.done:
-        return _buildDone();
+        return _buildLoaded();
     }
   }
 
-  Widget _buildDone() {
+  Widget _buildLoaded() {
     return Column(
       children: [
         SearchField(controller: _searchController),

@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
 import 'package:playground/modules/messages/handlers/abstract_message_handler.dart';
 import 'package:playground/modules/messages/models/abstract_message.dart';
@@ -35,11 +37,11 @@ class SetContentMessageHandler extends AbstractMessageHandler {
       return MessageHandleResult.notHandled;
     }
 
-    _handle(message);
+    unawaited(_handle(message));
     return MessageHandleResult.handled;
   }
 
-  void _handle(SetContentMessage message) async {
+  Future<void> _handle(SetContentMessage message) async {
     final descriptor = message.descriptor;
 
     try {
@@ -47,12 +49,9 @@ class SetContentMessageHandler extends AbstractMessageHandler {
     } on Exception catch (ex) {
       PlaygroundComponents.toastNotifier.addException(ex);
 
-      if (playgroundController.sdk == null) {
-        playgroundController.setSdk(
-          descriptor.initialSdk ?? ExamplesLoadingDescriptorFactory.defaultSdk,
-          loadDefaultIfNot: false,
-        );
-      }
+      playgroundController.setEmptyIfNoSdk(
+        descriptor.initialSdk ?? ExamplesLoadingDescriptorFactory.defaultSdk,
+      );
     }
   }
 }

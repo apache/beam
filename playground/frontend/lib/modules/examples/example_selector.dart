@@ -49,8 +49,8 @@ class ExampleSelector extends StatefulWidget {
 }
 
 class _ExampleSelectorState extends State<ExampleSelector> {
-  final GlobalKey selectorKey = LabeledGlobalKey('ExampleSelector');
-  OverlayEntry? examplesDropdown;
+  final _selectorKey = LabeledGlobalKey('ExampleSelector');
+  OverlayEntry? _overlayEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -62,14 +62,14 @@ class _ExampleSelectorState extends State<ExampleSelector> {
       ),
       child: Consumer<PlaygroundController>(
         builder: (context, playgroundController, child) => TextButton(
-          key: selectorKey,
+          key: _selectorKey,
           onPressed: () {
             if (widget.isSelectorOpened) {
-              examplesDropdown?.remove();
+              _overlayEntry?.remove();
             } else {
               unawaited(_loadCatalogIfNot(playgroundController));
-              examplesDropdown = createExamplesDropdown();
-              Overlay.of(context)?.insert(examplesDropdown!);
+              _overlayEntry = createExamplesDropdown();
+              Overlay.of(context)?.insert(_overlayEntry!);
             }
             widget.changeSelectorVisibility();
           },
@@ -97,7 +97,7 @@ class _ExampleSelectorState extends State<ExampleSelector> {
   }
 
   OverlayEntry createExamplesDropdown() {
-    Offset dropdownOffset = findDropdownOffset(key: selectorKey);
+    Offset dropdownOffset = findDropdownOffset(key: _selectorKey);
 
     return OverlayEntry(
       builder: (context) {
@@ -156,7 +156,7 @@ class _ExampleSelectorState extends State<ExampleSelector> {
   }
 
   void _closeDropdown(ExampleCache exampleCache) {
-    examplesDropdown?.remove();
+    _overlayEntry?.remove();
     exampleCache.changeSelectorVisibility();
   }
 }

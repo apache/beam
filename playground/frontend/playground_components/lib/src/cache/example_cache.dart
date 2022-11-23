@@ -51,28 +51,28 @@ class ExampleCache extends ChangeNotifier {
 
   Future<void> get allExamplesFuture => _allExamplesCompleter.future;
 
-  Future<void>? _allExamplesAttemptFuture;
+  Future<void>? _allPrecompiledObjectsAttemptFuture;
 
   ExampleCache({
     required ExampleRepository exampleRepository,
   }) : _exampleRepository = exampleRepository;
 
   Future<void> loadAllPrecompiledObjectsIfNot() async {
-    if (_allExamplesAttemptFuture != null) {
-      return await _allExamplesAttemptFuture;
+    if (_allPrecompiledObjectsAttemptFuture != null) {
+      return await _allPrecompiledObjectsAttemptFuture;
     }
 
     try {
-      _allExamplesAttemptFuture = _loadAllPrecompiledObjects();
-      await _allExamplesAttemptFuture!;
+      _allPrecompiledObjectsAttemptFuture = _loadAllPrecompiledObjects();
+      await _allPrecompiledObjectsAttemptFuture!;
     } on Exception catch (ex) {
-      _allExamplesAttemptFuture = null;
+      _allPrecompiledObjectsAttemptFuture = null;
       throw CatalogLoadingException(ex);
     }
   }
 
   LoadingStatus get catalogStatus {
-    if (_allExamplesAttemptFuture == null) {
+    if (_allPrecompiledObjectsAttemptFuture == null) {
       return LoadingStatus.error;
     }
 
@@ -129,7 +129,6 @@ class ExampleCache extends ChangeNotifier {
       sdk: result.sdk,
       source: result.files.first.code,
       pipelineOptions: result.pipelineOptions,
-      tags: [],
       type: ExampleType.example,
     );
   }
@@ -241,7 +240,7 @@ class ExampleCache extends ChangeNotifier {
     defaultExamplesBySdk[sdk] = await loadExampleInfo(exampleWithoutInfo);
   }
 
-  Future<void> loadDefaultExamplesIfNot() async {
+  Future<void> loadDefaultPrecompiledObjectsIfNot() async {
     if (defaultExamplesBySdk.isNotEmpty) {
       return;
     }

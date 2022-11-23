@@ -140,6 +140,19 @@ class PlaygroundController with ChangeNotifier {
       selectedExample?.type != ExampleType.test &&
       [Sdk.java, Sdk.python].contains(sdk);
 
+  /// If no SDK is selected, sets it to [sdk] and creates an empty state for it.
+  void setEmptyIfNoSdk(Sdk sdk) {
+    if (_sdk != null) {
+      return;
+    }
+
+    setExample(
+      EmptyExampleLoader.createExample(sdk),
+      setCurrentSdk: true,
+    );
+  }
+
+  /// If the state for [sdk] does not exists, creates an empty state for it.
   void setEmptyIfNotExists(
     Sdk sdk, {
     required bool setCurrentSdk,
@@ -148,12 +161,10 @@ class PlaygroundController with ChangeNotifier {
       return;
     }
 
-    final example = EmptyExampleLoader(
-      descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
-      exampleCache: exampleCache,
-    ).example;
-
-    setExample(example, setCurrentSdk: setCurrentSdk);
+    setExample(
+      EmptyExampleLoader.createExample(sdk),
+      setCurrentSdk: setCurrentSdk,
+    );
   }
 
   void setExample(
@@ -186,12 +197,11 @@ class PlaygroundController with ChangeNotifier {
   void setSdk(
     Sdk sdk, {
     bool notify = true,
-    bool loadDefaultIfNot = true,
   }) {
     _sdk = sdk;
     _getOrCreateSnippetEditingController(
       sdk,
-      loadDefaultIfNot: loadDefaultIfNot,
+      loadDefaultIfNot: true,
     );
     _ensureSymbolsInitialized();
 
