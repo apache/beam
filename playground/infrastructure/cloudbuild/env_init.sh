@@ -20,12 +20,12 @@ GO_VERSION=1.18
 apt update >/dev/null
 
 # Install JRE
-apt install -y default-jre && apt install -y apt-transport-https ca-certificates curl software-properties-common
+apt install -y default-jre && apt install -y apt-transport-https ca-certificates curl software-properties-common gnupg2
 
 # Install Docker
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
-apt install -y docker-ce
+curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+apt update && apt install -y docker-ce
 
 #Install Helm
 curl -fsSLo get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
