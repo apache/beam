@@ -20,7 +20,7 @@ limitations under the License. See accompanying LICENSE file.
         {{ range where $pages "Params.category" "study" }}
         <div class="case-study-card">
             <div class="case-study-card-img">
-                <img src="{{.Params.icon}}"></i>
+                <img src="{{.Params.icon}}" loading="lazy"></i>
             </div>
             <h3 class="case-study-card-title">{{ .Params.cardTitle }}</h3>
             <p class="case-study-card-description">{{ .Params.cardDescription }}</p>
@@ -47,7 +47,7 @@ limitations under the License. See accompanying LICENSE file.
         {{ end }}
     </div>
     <div class="case-study-row-button-container">
-        <a href="mailto:dev@beam.apache.org?subject=Beam Website Add New Case Study" class="case-study-primary-button">
+        <a href="https://github.com/apache/beam/blob/master/website/ADD_CASE_STUDY.md" class="case-study-primary-button" target="_blank" rel="noopener noreferrer">
             Share your story
         </a>
     </div>
@@ -57,13 +57,13 @@ limitations under the License. See accompanying LICENSE file.
             {{ if .Params.hasLink }}
             <a class="case-study-used-by-card--responsive case-study-used-by-card case-study-used-by-card--with-link" href="{{ .Params.hasLink }}" target="_blank" rel="noopener noreferrer">
                 <div class="case-study-used-by-card-img">
-                    <img src="{{.Params.icon}}"></i>
+                    <img src="{{.Params.icon}}" loading="lazy"></i>
                 </div>
             </a>
             {{ else }}
             <div class="case-study-used-by-card case-study-used-by-card--responsive">
                 <div class="case-study-used-by-card-img">
-                    <img src="{{.Params.icon}}"></i>
+                    <img src="{{.Params.icon}}" loading="lazy"></i>
                 </div>
                 <div class="case-study-used-by-card-description">
                     {{ .Params.cardDescription | safeHTML }}

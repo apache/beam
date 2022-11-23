@@ -21,7 +21,20 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "info",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Explanation of Benchmarks",
+      "tooltip": "Documentation of metrics used",
+      "type": "link",
+      "url": "https://s.apache.org/beam-ml-metrics"
+    }
+  ],
   "panels": [
     {
       "aliasColors": {},
@@ -1067,7 +1080,7 @@
     ]
   },
   "timezone": "",
-  "title": "Python ML RunInference Benchmarks (description: https://s.apache.org/beam-ml-metrics)",
+  "title": "Python ML RunInference Benchmarks",
   "uid": "ZpS8Uf44z",
   "version": 1
 }

@@ -31,7 +31,9 @@ import 'l10n/l10n.dart';
 void main() async {
   FlutterIssue106664Workaround.instance.apply();
   setPathUrlStrategy();
+  WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
+  await PlaygroundComponents.ensureInitialized();
 
   await findSystemLocale();
   runApp(

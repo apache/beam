@@ -123,14 +123,17 @@ jobs:
         with:
             cache-read-only: false
 
-      - name: Build Python SDK runner base image
-        if: env.SDK == 'python'
+      - name: Build an SDK runner base image and set SDK_TAG if needed
         run: |
              set -uex
-             ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
-             echo "SDK_TAG=${DOCKERTAG}" >> $GITHUB_ENV
-      
-      # TODO build from the current ./sdks/... for Java and Go
+             # TODO make this a part of playground:backend:containers:python:docker task
+             if [ "$SDK" == "python" ]; then
+               # builds apache/beam_python3.7_sdk:$DOCKERTAG image
+               ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
+               # and set SDK_TAG to DOCKERTAG so that the next step would find it
+               echo "SDK_TAG=${DOCKERTAG}" >> $GITHUB_ENV
+             fi
+
       - name: Build SDK Backend Docker image
         run: |
              set -ex
@@ -139,6 +142,8 @@ jobs:
                 opts="$opts -Psdk-tag=$SDK_TAG"
              fi
 
+             # by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
+             # TODO Java SDK doesn't, it uses 2.42.0, fix this
              ./gradlew -i playground:backend:containers:$SDK:docker $opts
 
       - name: Set docker image
