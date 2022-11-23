@@ -50,10 +50,10 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
 
 `CdapHubspotToTxt` pipeline parameters:
 - `authToken` - Hubspot Private Application Access token
-- `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Batch Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsource.md)
+- `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Batch Source](https://github.com/akvelon/cdap-hubspot/blob/release-1.1.0-authorization/docs/Hubspot-batchsource.md)
 - `outputTxtFilePathPrefix` - path to output folder with filename prefix. It will write a set of .txt files with names like {prefix}-###.
 
-Please see CDAP [Hubspot Batch Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsource.md) for more information.
+Please see CDAP [Hubspot Batch Source](https://github.com/akvelon/cdap-hubspot/blob/release-1.1.0-authorization/docs/Hubspot-batchsource.md) for more information.
 
 To execute this pipeline, specify the parameters in the following format:
 
@@ -75,12 +75,12 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
 
 `CdapHubspotStreamingToTxt` pipeline parameters:
 - `authToken` - Hubspot Private Application Access token
-- `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md)
+- `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Streaming Source](https://github.com/akvelon/cdap-hubspot/blob/release-1.1.0-authorization/docs/Hubspot-streamingsource.md)
 - `outputTxtFilePathPrefix` - path to output folder with filename prefix. It will write a set of .txt files with names like {prefix}-###.
 - `pullFrequencySec` - delay in seconds between polling for new records updates. (Optional)
 - `startOffset` - inclusive start offset from which the reading should be started. (Optional)
 
-Please see CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md) for more information.
+Please see CDAP [Hubspot Streaming Source](https://github.com/akvelon/cdap-hubspot/blob/release-1.1.0-authorization/docs/Hubspot-streamingsource.md) for more information.
 
 To execute this pipeline, specify the parameters in the following format:
 
@@ -104,11 +104,11 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.TxtT
 
 `TxtToCdapHubspot` pipeline parameters:
 - `authToken` - Hubspot Private Application Access token
-- `objectType` - Hubspot objects to pull supported by [Hubspot Batch Sink](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsink.md)
+- `objectType` - Hubspot objects to pull supported by [Hubspot Batch Sink](https://github.com/akvelon/cdap-hubspot/blob/release-1.1.0-authorization/docs/Hubspot-batchsink.md)
 - `inputTxtFilePath` - input .txt file path
 - `locksDirPath` - locks directory path where locks will be stored. This parameter is needed for Hadoop External Synchronization (mechanism for acquiring locks related to the write job).
 
-Please see CDAP [Hubspot Batch Sink](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsink.md) for more information.
+Please see CDAP [Hubspot Batch Sink](https://github.com/akvelon/cdap-hubspot/blob/release-1.1.0-authorization/docs/Hubspot-batchsink.md) for more information.
 
 To execute this pipeline, specify the parameters in the following format:
 
