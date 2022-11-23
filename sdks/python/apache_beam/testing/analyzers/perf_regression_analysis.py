@@ -134,6 +134,8 @@ class ChangePointAnalysis:
     Args:
      pvalue: p value for the permutation test.
      permutations: Number of permutations for the permutation test.
+     For more information, please look at
+     https://pypi.org/project/signal-processing-algorithms/
 
     Performs edivisive means on the data and returns the indices of the
     Change points.
