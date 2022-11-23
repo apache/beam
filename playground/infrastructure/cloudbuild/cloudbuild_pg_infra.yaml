@@ -18,11 +18,12 @@
 steps:
 # This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
   - name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
-    entrypoint: "bash"
+    entrypoint: "/bin/bash"
     args:
       - "-c"
       - |
-        cd playground/infrastructure/cloudbuild && chmod +x env_init.sh && ./env_init.sh \
+        chmod +x playground/infrastructure/cloudbuild/env_init.sh \
+        && ./playground/infrastructure/cloudbuild/env_init.sh
         mkdir playground/terraform/environment/$_ENVIRONMENT_NAME
         printf '%s\n' \
         'project_id = "$PROJECT_ID"' \
@@ -36,7 +37,7 @@ steps:
         printf \
         'bucket = "$_STATE_BUCKET"'\
         > playground/terraform/environment/$_ENVIRONMENT_NAME/state.tfbackend 
-        && ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="$_ENVIRONMENT_NAME" -Pdns-name="$_DNS_NAME"
+        ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="$_ENVIRONMENT_NAME" -Pdns-name="$_DNS_NAME"
 
 # This option enables writing logs to Cloud Logging
 options:

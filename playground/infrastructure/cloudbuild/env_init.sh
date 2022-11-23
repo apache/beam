@@ -20,7 +20,7 @@ GO_VERSION=1.18
 apt update >/dev/null
 
 # Install JRE
-apt install -y default-jre && apt install -y apt-transport-https ca-certificates curl software-properties-common gnupg2
+apt install -y default-jre && apt install -y apt-transport-https ca-certificates curl software-properties-common gnupg2 wget
 
 # Install Docker
 curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
