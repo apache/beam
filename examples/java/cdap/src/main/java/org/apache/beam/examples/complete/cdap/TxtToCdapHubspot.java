@@ -64,7 +64,7 @@ import org.slf4j.LoggerFactory;
  * # Running the pipeline
  * To execute this pipeline, specify the parameters in the following format:
  * {@code
- * --apikey=your-api-key \
+ * --authToken=your-private-app-access-token \
  * --referenceName=your-reference-name \
  * --objectType=your-object-type \
  * --inputTxtFilePath=your-path-to-input-file \

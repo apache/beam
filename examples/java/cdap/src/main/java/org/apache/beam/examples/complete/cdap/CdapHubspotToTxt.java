@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * # Running the pipeline
  * To execute this pipeline, specify the parameters in the following format:
  * {@code
- * --apikey=your-api-key \
+ * --authToken=your-private-app-access-token \
  * --referenceName=your-reference-name \
  * --objectType=Contacts \
  * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix

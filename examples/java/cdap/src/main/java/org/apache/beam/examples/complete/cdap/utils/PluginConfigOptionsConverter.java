@@ -60,7 +60,7 @@ public class PluginConfigOptionsConverter {
             .put(
                 BaseHubspotConfig.API_SERVER_URL,
                 apiServerUrl != null ? apiServerUrl : BaseHubspotConfig.DEFAULT_API_SERVER_URL)
-            .put(BaseHubspotConfig.API_KEY, options.getApiKey())
+            .put(BaseHubspotConfig.AUTHORIZATION_TOKEN, options.getAuthToken())
             .put(BaseHubspotConfig.OBJECT_TYPE, options.getObjectType())
             .put(Constants.Reference.REFERENCE_NAME, options.getReferenceName());
     if (options instanceof CdapHubspotStreamingSourceOptions) {

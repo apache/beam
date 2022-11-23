@@ -56,7 +56,7 @@ dependencies {
     implementation library.java.cdap_hydrator_common
     //TODO: modify to 'implementation library.java.cdap_plugin_hubspot',
     // when new release with HasOffset interface will be published
-    implementation "com.akvelon:cdap-hubspot-plugins:1.0.3"
+    implementation "com.akvelon:cdap-hubspot-plugins:1.1.0"
     implementation library.java.cdap_plugin_service_now
     implementation library.java.cdap_plugin_zendesk
     //TODO: modify to 'implementation library.java.cdap_plugin_salesforce',
@@ -66,6 +66,7 @@ dependencies {
     implementation library.java.hadoop_common
     implementation library.java.slf4j_api
     implementation library.java.vendored_guava_26_0_jre
+    implementation project(path: ":runners:google-cloud-dataflow-java")
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation library.java.hamcrest
@@ -87,7 +88,7 @@ dependencies {
  */
 def preCommitRunnerClass = [
         directRunner: "org.apache.beam.runners.direct.DirectRunner",
-        flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
+        flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner"
 ]
 
 for (String runner : preCommitRunners) {

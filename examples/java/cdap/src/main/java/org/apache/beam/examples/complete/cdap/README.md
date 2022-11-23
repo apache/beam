@@ -49,7 +49,7 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
 ```
 
 `CdapHubspotToTxt` pipeline parameters:
-- `apikey` - Hubspot OAuth2 API Key
+- `authToken` - Hubspot Private Application Access token
 - `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Batch Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsource.md)
 - `outputTxtFilePathPrefix` - path to output folder with filename prefix. It will write a set of .txt files with names like {prefix}-###.
 
@@ -58,7 +58,7 @@ Please see CDAP [Hubspot Batch Source](https://github.com/data-integrations/hubs
 To execute this pipeline, specify the parameters in the following format:
 
 ```bash
- --apikey=your-api-key \
+ --authToken=your-private-app-access-token \
  --referenceName=your-reference-name \
  --objectType=Contacts \
  --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
@@ -74,7 +74,7 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.Cdap
 ```
 
 `CdapHubspotStreamingToTxt` pipeline parameters:
-- `apikey` - Hubspot OAuth2 API Key
+- `authToken` - Hubspot Private Application Access token
 - `objectType` - Hubspot objects to pull supported by CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md)
 - `outputTxtFilePathPrefix` - path to output folder with filename prefix. It will write a set of .txt files with names like {prefix}-###.
 - `pullFrequencySec` - delay in seconds between polling for new records updates. (Optional)
@@ -85,7 +85,7 @@ Please see CDAP [Hubspot Streaming Source](https://github.com/data-integrations/
 To execute this pipeline, specify the parameters in the following format:
 
 ```bash
- --apikey=your-api-key \
+ --authToken=your-private-app-access-token \
  --referenceName=your-reference-name \
  --objectType=Contacts \
  --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix \
@@ -103,17 +103,17 @@ gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.TxtT
 ```
 
 `TxtToCdapHubspot` pipeline parameters:
-- `apikey` - Hubspot OAuth2 API Key
-- `objectType` - Hubspot objects to pull supported by [Hubspot Streaming Sink](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsink.md)
+- `authToken` - Hubspot Private Application Access token
+- `objectType` - Hubspot objects to pull supported by [Hubspot Batch Sink](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsink.md)
 - `inputTxtFilePath` - input .txt file path
 - `locksDirPath` - locks directory path where locks will be stored. This parameter is needed for Hadoop External Synchronization (mechanism for acquiring locks related to the write job).
 
-Please see CDAP [Hubspot Streaming Source](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-streamingsource.md) for more information.
+Please see CDAP [Hubspot Batch Sink](https://github.com/data-integrations/hubspot/blob/develop/docs/Hubspot-batchsink.md) for more information.
 
 To execute this pipeline, specify the parameters in the following format:
 
 ```bash
- --apikey=your-api-key \
+ --authToken=your-private-app-access-token \
  --referenceName=your-reference-name \
  --objectType=your-object-type \
  --inputTxtFilePath=your-path-to-input-txt-file \

@@ -32,10 +32,10 @@ public interface CdapHubspotOptions extends BaseCdapOptions {
   void setApiServerUrl(String apiServerUrl);
 
   @Validation.Required
-  @Description("Hubspot OAuth2 API Key.")
-  String getApiKey();
+  @Description("Hubspot Private Application Access Token.")
+  String getAuthToken();
 
-  void setApiKey(String apiKey);
+  void setAuthToken(String authToken);
 
   @Validation.Required
   @Description("Name of object to pull from Hubspot (e.g. Contacts).")
