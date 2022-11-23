@@ -117,9 +117,9 @@ func (m *MapWindows) StartBundle(ctx context.Context, id string, data DataContex
 }
 
 func (m *MapWindows) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
-	w, ok := elm.Elm.(window.IntervalWindow)
+	w, ok := elm.Elm2.(window.IntervalWindow)
 	if !ok {
-		return errors.Errorf("not an IntervalWindow, got %T", elm.Elm)
+		return errors.Errorf("not an IntervalWindow, got %T", elm.Elm2)
 	}
 	newW, err := m.Fn.MapWindow(w)
 	if err != nil {

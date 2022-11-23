@@ -177,7 +177,11 @@ const (
 	Iterable           Kind = "I"
 	KV                 Kind = "KV"
 	LP                 Kind = "LP" // Explicitly length prefixed, likely at the runner's direction.
-	IWCValue           Kind = "IWCvalue"
+
+	// IW stands for IntervalWindow and uses the short name to avoid a collision with the
+	// WindowCoder kind. This Kind is used when the window is provided as a value instead
+	// of a window for the value.
+	IW Kind = "IW"
 
 	Window Kind = "window" // A debug wrapper around a window coder.
 
@@ -297,7 +301,7 @@ func NewString() *Coder {
 
 // NewIntervalWindowCoder returns a new IntervalWindow coder using the built-in scheme.
 func NewIntervalWindowCoder() *Coder {
-	return &Coder{Kind: IWCValue, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem())}
+	return &Coder{Kind: IW, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem())}
 }
 
 // IsW returns true iff the coder is for a WindowedValue.

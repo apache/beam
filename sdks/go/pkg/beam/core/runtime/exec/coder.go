@@ -116,7 +116,7 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 			snd: MakeElementEncoder(c.Components[1]),
 		}
 
-	case coder.IWCValue:
+	case coder.IW:
 		return &intervalWindowValueEncoder{}
 
 	case coder.Window:
@@ -231,7 +231,7 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 			snd: MakeElementDecoder(c.Components[1]),
 		}
 
-	case coder.IWCValue:
+	case coder.IW:
 		return &intervalWindowValueDecoder{}
 
 	// The following cases are not expected to be executed in the normal
@@ -594,7 +594,8 @@ func (c *kvDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 // Elm will be the decoded type.
 //
 // Example:
-//   KV<int, KV<...>> decodes to *FullValue{Elm: int, Elm2: *FullValue{...}}
+//
+//	KV<int, KV<...>> decodes to *FullValue{Elm: int, Elm2: *FullValue{...}}
 func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 	fv := &FullValue{}
 	if err := c.DecodeTo(r, fv); err != nil {
