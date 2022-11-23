@@ -355,7 +355,7 @@ project.tasks.register("xlangSpannerIOIT") {
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
         "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
-        "flink_conf_dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources",
+        "--flink_conf_dir=/home/jenkins/jenkins-slave/workspace/beam_SeedJob/runners/flink/src/test/resources",
         '--sdk_harness_log_level_overrides=' +
             // suppress info level flink.runtime log flood
             '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
