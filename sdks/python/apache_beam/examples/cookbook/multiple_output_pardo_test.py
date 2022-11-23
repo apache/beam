@@ -49,6 +49,7 @@ class MultipleOutputParDo(unittest.TestCase):
     return results
 
   @pytest.mark.examples_postcommit
+  @pytest.mark.sickbay_flink
   def test_multiple_output_pardo(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 
