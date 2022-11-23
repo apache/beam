@@ -18,12 +18,20 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import com.google.protobuf.Value;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSetMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecordMetadata;
@@ -38,6 +46,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ModType;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ValueCaptureType;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /**
@@ -83,8 +92,11 @@ public class ChangeStreamRecordMapper {
   private static final String CHILD_PARTITIONS_COLUMN = "child_partitions";
   private static final String PARENT_PARTITION_TOKENS_COLUMN = "parent_partition_tokens";
   private static final String TOKEN_COLUMN = "token";
+  private final boolean isPostgres;
 
-  ChangeStreamRecordMapper() {}
+  ChangeStreamRecordMapper(boolean isPostgres) {
+    this.isPostgres = isPostgres;
+  }
 
   /**
    * Transforms a {@link Struct} representing a change stream result into a {@link List} of {@link
@@ -197,13 +209,17 @@ public class ChangeStreamRecordMapper {
    * @return a {@link List} of {@link ChangeStreamRecord} subclasses
    */
   public List<ChangeStreamRecord> toChangeStreamRecords(
-      PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
-    return row.getStructList(0).stream()
-        .flatMap(struct -> toChangeStreamRecord(partition, struct, resultSetMetadata))
-        .collect(Collectors.toList());
+      PartitionMetadata partition, ChangeStreamResultSet row, ChangeStreamResultSetMetadata resultSetMetadata) {
+    if (this.isPostgres) {
+      return Collections.singletonList(toChangeStreamRecordJson(partition, row.getPgJsonb(0), resultSetMetadata));
+    }
+    return row.getCurrentRowAsStruct().getStructList(0).stream()
+          .flatMap(struct -> toChangeStreamRecord(partition, struct, resultSetMetadata))
+          .collect(Collectors.toList());
   }
 
-  private Stream<ChangeStreamRecord> toChangeStreamRecord(
+  @VisibleForTesting
+  Stream<ChangeStreamRecord> toChangeStreamRecord(
       PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
 
     final Stream<DataChangeRecord> dataChangeRecords =
@@ -225,17 +241,54 @@ public class ChangeStreamRecordMapper {
         Stream.concat(dataChangeRecords, heartbeatRecords), childPartitionsRecords);
   }
 
+  @VisibleForTesting
+  ChangeStreamRecord toChangeStreamRecordJson(
+      PartitionMetadata partition, String row, ChangeStreamResultSetMetadata resultSetMetadata) {
+
+    System.err.println("Jsonrow: " + row);
+    Value.Builder valueBuilder = Value.newBuilder();
+    try {
+      JsonFormat.parser().ignoringUnknownFields().merge(row, valueBuilder);
+    } catch (InvalidProtocolBufferException exc) {
+      throw new IllegalArgumentException("Failed to parse record into proto: " + row);
+    }
+    Value value = valueBuilder.build();
+    System.err.println("Value proto: " + value.toString());
+    if (isNonNullDataChangeRecordJson(value)) {
+      return toDataChangeRecordJson(partition, value, resultSetMetadata);
+    } else if (isNonNullHeartbeatRecordJson(value)) {
+      return toHeartbeatRecordJson(partition, value, resultSetMetadata);
+    } else if (isNonNullChildPartitionsRecordJson(value)) {
+      return toChildPartitionsRecordJson(partition, value, resultSetMetadata);
+    } else {
+      throw new IllegalArgumentException("Unknown change stream record type " + row);
+    }
+  }
+
   private boolean isNonNullDataChangeRecord(Struct row) {
     return !row.isNull(COMMIT_TIMESTAMP_COLUMN);
+  }
+
+  private boolean isNonNullDataChangeRecordJson(Value row) {
+    return row.getStructValue().getFieldsMap().containsKey(DATA_CHANGE_RECORD_COLUMN);
   }
 
   private boolean isNonNullHeartbeatRecord(Struct row) {
     return !row.isNull(TIMESTAMP_COLUMN);
   }
 
+  private boolean isNonNullHeartbeatRecordJson(Value row) {
+    return row.getStructValue().getFieldsMap().containsKey(HEARTBEAT_RECORD_COLUMN);
+  }
+
   private boolean isNonNullChildPartitionsRecord(Struct row) {
     return !row.isNull(START_TIMESTAMP_COLUMN);
   }
+
+  private boolean isNonNullChildPartitionsRecordJson(Value row) {
+    return row.getStructValue().getFieldsMap().containsKey(CHILD_PARTITIONS_RECORD_COLUMN);
+  }
+
 
   private DataChangeRecord toDataChangeRecord(
       PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
@@ -260,12 +313,48 @@ public class ChangeStreamRecordMapper {
         changeStreamRecordMetadataFrom(partition, commitTimestamp, resultSetMetadata));
   }
 
+  private DataChangeRecord toDataChangeRecordJson(
+      PartitionMetadata partition, Value row, ChangeStreamResultSetMetadata resultSetMetadata) {
+    Value dataChangeRecordValue = Optional.ofNullable(row.getStructValue().getFieldsMap().get(DATA_CHANGE_RECORD_COLUMN)).orElseThrow(IllegalArgumentException::new);
+    Map<String, Value> valueMap = dataChangeRecordValue.getStructValue().getFieldsMap();
+    final String commitTimestamp = Optional.ofNullable(valueMap.get(COMMIT_TIMESTAMP_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue();
+    return new DataChangeRecord(
+        partition.getPartitionToken(),
+        Timestamp.parseTimestamp(commitTimestamp),
+        Optional.ofNullable(valueMap.get(SERVER_TRANSACTION_ID_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue(),
+        Optional.ofNullable(valueMap.get(IS_LAST_RECORD_IN_TRANSACTION_IN_PARTITION_COLUMN)).orElseThrow(IllegalArgumentException::new).getBoolValue(),
+        Optional.ofNullable(valueMap.get(RECORD_SEQUENCE_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue(),
+        Optional.ofNullable(valueMap.get(TABLE_NAME_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue(),
+        Optional.ofNullable(valueMap.get(COLUMN_TYPES_COLUMN)).orElseThrow(IllegalArgumentException::new).getListValue().getValuesList().stream()
+            .map(this::columnTypeJsonFrom)
+            .collect(Collectors.toList()),
+        Optional.ofNullable(valueMap.get(MODS_COLUMN)).orElseThrow(IllegalArgumentException::new).getListValue().getValuesList().stream().map(this::modJsonFrom).collect(Collectors.toList()),
+        modTypeFrom(Optional.ofNullable(valueMap.get(MOD_TYPE_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue()),
+        valueCaptureTypeFrom(Optional.ofNullable(valueMap.get(VALUE_CAPTURE_TYPE_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue()),
+        (long) Optional.ofNullable(valueMap.get(NUMBER_OF_RECORDS_IN_TRANSACTION_COLUMN)).orElseThrow(IllegalArgumentException::new).getNumberValue(),
+        (long) Optional.ofNullable(valueMap.get(NUMBER_OF_PARTITIONS_IN_TRANSACTION_COLUMN)).orElseThrow(IllegalArgumentException::new).getNumberValue(),
+        Optional.ofNullable(valueMap.get(TRANSACTION_TAG)).orElseThrow(IllegalArgumentException::new).getStringValue(),
+        Optional.ofNullable(valueMap.get(IS_SYSTEM_TRANSACTION)).orElseThrow(IllegalArgumentException::new).getBoolValue(),
+        changeStreamRecordMetadataFrom(partition, Timestamp.parseTimestamp(commitTimestamp), resultSetMetadata));
+
+  }
+
   private HeartbeatRecord toHeartbeatRecord(
       PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
     final Timestamp timestamp = row.getTimestamp(TIMESTAMP_COLUMN);
 
     return new HeartbeatRecord(
         timestamp, changeStreamRecordMetadataFrom(partition, timestamp, resultSetMetadata));
+  }
+
+  private HeartbeatRecord toHeartbeatRecordJson(
+      PartitionMetadata partition, Value row, ChangeStreamResultSetMetadata resultSetMetadata) {
+    Value heartBeatRecordValue = Optional.ofNullable(row.getStructValue().getFieldsMap().get(HEARTBEAT_RECORD_COLUMN)).orElseThrow(IllegalArgumentException::new);
+    Map<String, Value> valueMap = heartBeatRecordValue.getStructValue().getFieldsMap();
+    String heartbeatTimestamp = Optional.ofNullable(valueMap.get(TIMESTAMP_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue();
+
+    return new HeartbeatRecord(
+        Timestamp.parseTimestamp(heartbeatTimestamp), changeStreamRecordMetadataFrom(partition, Timestamp.parseTimestamp(heartbeatTimestamp), resultSetMetadata));
   }
 
   private ChildPartitionsRecord toChildPartitionsRecord(
@@ -281,9 +370,24 @@ public class ChangeStreamRecordMapper {
         changeStreamRecordMetadataFrom(partition, startTimestamp, resultSetMetadata));
   }
 
+  private ChildPartitionsRecord toChildPartitionsRecordJson(
+      PartitionMetadata partition, Value row, ChangeStreamResultSetMetadata resultSetMetadata) {
+    Value childPartitionsRecordValue = Optional.ofNullable(row.getStructValue().getFieldsMap().get(CHILD_PARTITIONS_RECORD_COLUMN)).orElseThrow(IllegalArgumentException::new);
+    Map<String, Value> valueMap = childPartitionsRecordValue.getStructValue().getFieldsMap();
+    String startTimestamp =
+        Optional.ofNullable(valueMap.get(START_TIMESTAMP_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue();
+
+    return new ChildPartitionsRecord(
+        Timestamp.parseTimestamp(startTimestamp),
+        Optional.ofNullable(valueMap.get(RECORD_SEQUENCE_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue(),
+        Optional.ofNullable(valueMap.get(CHILD_PARTITIONS_COLUMN)).orElseThrow(IllegalArgumentException::new).getListValue().getValuesList().stream()
+            .map(value -> childPartitionJsonFrom(partition.getPartitionToken(), value))
+            .collect(Collectors.toList()),
+        changeStreamRecordMetadataFrom(partition, Timestamp.parseTimestamp(startTimestamp), resultSetMetadata));
+  }
+
   private ColumnType columnTypeFrom(Struct struct) {
-    // TODO: Move to type struct.getJson when backend is fully migrated
-    final String type = getJsonString(struct, TYPE_COLUMN);
+    final String type = struct.getJson(TYPE_COLUMN);
     return new ColumnType(
         struct.getString(NAME_COLUMN),
         new TypeCode(type),
@@ -291,15 +395,33 @@ public class ChangeStreamRecordMapper {
         struct.getLong(ORDINAL_POSITION_COLUMN));
   }
 
+  private ColumnType columnTypeJsonFrom(Value row) {
+    Map<String, Value> valueMap = row.getStructValue().getFieldsMap();
+    final String type = Optional.ofNullable(valueMap.get(TYPE_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue();
+    return new ColumnType(
+        Optional.ofNullable(valueMap.get(NAME_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue(),
+        new TypeCode(type),
+        Optional.ofNullable(valueMap.get(IS_PRIMARY_KEY_COLUMN)).orElseThrow(IllegalArgumentException::new).getBoolValue(),
+        (long) Optional.ofNullable(valueMap.get(ORDINAL_POSITION_COLUMN)).orElseThrow(IllegalArgumentException::new).getNumberValue());
+  }
+
   private Mod modFrom(Struct struct) {
-    // TODO: Move to keys struct.getJson when backend is fully migrated
-    final String keys = getJsonString(struct, KEYS_COLUMN);
-    // TODO: Move to oldValues struct.getJson when backend is fully migrated
+    final String keys = struct.getJson(KEYS_COLUMN);
     final String oldValues =
-        struct.isNull(OLD_VALUES_COLUMN) ? null : getJsonString(struct, OLD_VALUES_COLUMN);
-    // TODO: Move to newValues struct.getJson when backend is fully migrated
+        struct.isNull(OLD_VALUES_COLUMN) ? null : struct.getJson(OLD_VALUES_COLUMN);
     final String newValues =
-        struct.isNull(NEW_VALUES_COLUMN) ? null : getJsonString(struct, NEW_VALUES_COLUMN);
+        struct.isNull(NEW_VALUES_COLUMN) ? null :  struct.getJson(NEW_VALUES_COLUMN);
+    return new Mod(keys, oldValues, newValues);
+  }
+
+  private Mod modJsonFrom(Value row) {
+    Map<String, Value> valueMap = row.getStructValue().getFieldsMap();
+    final String keys = Optional.ofNullable(valueMap.get(KEYS_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue();
+    System.err.println("Keys: " + keys);
+    final String oldValues =
+        !valueMap.containsKey("old_values") ? null : Optional.ofNullable(valueMap.get(OLD_VALUES_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue();
+    final String newValues =
+        !valueMap.containsKey("new_values") ? null : Optional.ofNullable(valueMap.get(NEW_VALUES_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue();
     return new Mod(keys, oldValues, newValues);
   }
 
@@ -330,6 +452,18 @@ public class ChangeStreamRecordMapper {
     return new ChildPartition(struct.getString(TOKEN_COLUMN), parentTokens);
   }
 
+  private ChildPartition childPartitionJsonFrom(String partitionToken, Value row) {
+    Map<String, Value> valueMap = row.getStructValue().getFieldsMap();
+    final HashSet<String> parentTokens = Sets.newHashSet();
+    for (Value parentToken : Optional.ofNullable(valueMap.get(PARENT_PARTITION_TOKENS_COLUMN)).orElseThrow(IllegalArgumentException::new).getListValue().getValuesList()) {
+      parentTokens.add(parentToken.getStringValue());
+    }
+    if (InitialPartition.isInitialPartition(partitionToken)) {
+      parentTokens.add(partitionToken);
+    }
+    return new ChildPartition(Optional.ofNullable(valueMap.get(TOKEN_COLUMN)).orElseThrow(IllegalArgumentException::new).getStringValue(), parentTokens);
+  }
+
   private ChangeStreamRecordMetadata changeStreamRecordMetadataFrom(
       PartitionMetadata partition,
       Timestamp recordTimestamp,
@@ -349,16 +483,5 @@ public class ChangeStreamRecordMapper {
         .withTotalStreamTimeMillis(resultSetMetadata.getTotalStreamDuration().getMillis())
         .withNumberOfRecordsRead(resultSetMetadata.getNumberOfRecordsRead())
         .build();
-  }
-
-  // TODO: Remove when backend is fully migrated to JSON
-  private String getJsonString(Struct struct, String columnName) {
-    if (struct.getColumnType(columnName).equals(Type.json())) {
-      return struct.getJson(columnName);
-    } else if (struct.getColumnType(columnName).equals(Type.string())) {
-      return struct.getString(columnName);
-    } else {
-      throw new IllegalArgumentException("Can not extract string from value " + columnName);
-    }
   }
 }

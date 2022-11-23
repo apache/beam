@@ -17,17 +17,21 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestJsonMapper.recordToJson;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithJson;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithStrings;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsWithUnknownModTypeAndValueCaptureType;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import java.util.Arrays;
 import java.util.Collections;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSetMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
@@ -49,12 +53,14 @@ import org.junit.Test;
 public class ChangeStreamRecordMapperTest {
 
   private ChangeStreamRecordMapper mapper;
+  private ChangeStreamRecordMapper mapperPostgres;
   private PartitionMetadata partition;
   private ChangeStreamResultSetMetadata resultSetMetadata;
 
   @Before
   public void setUp() {
-    mapper = new ChangeStreamRecordMapper();
+    mapper = new ChangeStreamRecordMapper(/*isPostgres=*/false);
+    mapperPostgres = new ChangeStreamRecordMapper(/*isPostgres=*/true);
     partition =
         PartitionMetadata.newBuilder()
             .setPartitionToken("partitionToken")
@@ -102,15 +108,53 @@ public class ChangeStreamRecordMapperTest {
             "transactionTag",
             true,
             null);
-    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingUpdateJsonRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "serverTransactionId",
+            true,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod(
+                    "{\"column1\": \"value1\"}",
+                    "{\"column2\": \"oldValue2\"}",
+                    "{\"column2\": \"newValue2\"}")),
+            ModType.UPDATE,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+
+    final String jsonString = recordToJson(dataChangeRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   /*
@@ -139,15 +183,13 @@ public class ChangeStreamRecordMapperTest {
             "transactionTag",
             true,
             null);
-    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
-    assertEquals(
-        Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   /*
@@ -176,15 +218,13 @@ public class ChangeStreamRecordMapperTest {
             "transactionTag",
             true,
             null);
-    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
-    assertEquals(
-        Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   @Test
@@ -209,15 +249,13 @@ public class ChangeStreamRecordMapperTest {
             "transactionTag",
             true,
             null);
-    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
-    assertEquals(
-        Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   @Test
@@ -242,15 +280,13 @@ public class ChangeStreamRecordMapperTest {
             "transactionTag",
             true,
             null);
-    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
-    assertEquals(
-        Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   @Test
@@ -275,15 +311,14 @@ public class ChangeStreamRecordMapperTest {
             "transactionTag",
             true,
             null);
-    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
+
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
-    assertEquals(
-        Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   @Test
@@ -308,15 +343,13 @@ public class ChangeStreamRecordMapperTest {
             "transactionTag",
             true,
             null);
-    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
-    assertEquals(
-        Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   @Test
@@ -340,15 +373,14 @@ public class ChangeStreamRecordMapperTest {
             "transactionTag",
             true,
             null);
-    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
+
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
-    assertEquals(
-        Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   @Test
@@ -372,15 +404,14 @@ public class ChangeStreamRecordMapperTest {
             "transactionTag",
             true,
             null);
-    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
+
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
-    assertEquals(
-        Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   @Test
@@ -406,10 +437,13 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final Struct struct = recordsWithUnknownModTypeAndValueCaptureType(dataChangeRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(struct);
+
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   @Test
@@ -417,10 +451,13 @@ public class ChangeStreamRecordMapperTest {
     final HeartbeatRecord heartbeatRecord =
         new HeartbeatRecord(Timestamp.ofTimeSecondsAndNanos(10L, 20), null);
     final Struct struct = recordsToStructWithStrings(heartbeatRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(struct);
+
 
     assertEquals(
         Collections.singletonList(heartbeatRecord),
-        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   @Test
@@ -434,10 +471,13 @@ public class ChangeStreamRecordMapperTest {
                 new ChildPartition("childToken2", Sets.newHashSet("parentToken1", "parentToken2"))),
             null);
     final Struct struct = recordsToStructWithStrings(childPartitionsRecord);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(struct);
+
 
     assertEquals(
         Collections.singletonList(childPartitionsRecord),
-        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 
   /** Adds the default parent partition token as a parent of each child partition. */
@@ -462,12 +502,381 @@ public class ChangeStreamRecordMapperTest {
                 new ChildPartition(
                     "childToken2", Sets.newHashSet(InitialPartition.PARTITION_TOKEN))),
             null);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(struct);
+
 
     final PartitionMetadata initialPartition =
         partition.toBuilder().setPartitionToken(InitialPartition.PARTITION_TOKEN).build();
 
     assertEquals(
         Collections.singletonList(expected),
-        mapper.toChangeStreamRecords(initialPartition, struct, resultSetMetadata));
+        mapper.toChangeStreamRecords(initialPartition, resultSet, resultSetMetadata));
+  }
+
+  /*
+   * Change streams with NEW_ROW value capture type do not track old values, so null value
+   * is used for OLD_VALUES_COLUMN in Mod.
+   */
+  @Test
+  public void testMappingUpdateJsonRowNewRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "serverTransactionId",
+            true,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+            ModType.UPDATE,
+            ValueCaptureType.NEW_ROW,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final String jsonString = recordToJson(dataChangeRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  /*
+   * Change streams with NEW_VALUES value capture type do not track old values, so null value
+   * is used for OLD_VALUES_COLUMN in Mod.
+   */
+  @Test
+  public void testMappingUpdateStructJsonNewValuesToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "serverTransactionId",
+            true,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+            ModType.UPDATE,
+            ValueCaptureType.NEW_VALUES,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final String jsonString = recordToJson(dataChangeRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingInsertJsonRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+            ModType.INSERT,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final String jsonString = recordToJson(dataChangeRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingInsertJsonRowNewRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+            ModType.INSERT,
+            ValueCaptureType.NEW_ROW,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final String jsonString = recordToJson(dataChangeRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingInsertJsonRowNewValuesToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+            ModType.INSERT,
+            ValueCaptureType.NEW_VALUES,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final String jsonString = recordToJson(dataChangeRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingDeleteJsonRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\": \"value1\"}", "{\"column2\": \"oldValue2\"}", null)),
+            ModType.DELETE,
+            ValueCaptureType.OLD_AND_NEW_VALUES,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final String jsonString = recordToJson(dataChangeRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingDeleteJsonRowNewRowToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(new Mod("{\"column1\": \"value1\"}", null, null)),
+            ModType.DELETE,
+            ValueCaptureType.NEW_ROW,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final String jsonString = recordToJson(dataChangeRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingDeleteJsonRowNewValuesToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(new Mod("{\"column1\": \"value1\"}", null, null)),
+            ModType.DELETE,
+            ValueCaptureType.NEW_VALUES,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final String jsonString = recordToJson(dataChangeRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingJsonRowWithUnknownModTypeAndValueCaptureTypeToDataChangeRecord() {
+    final DataChangeRecord dataChangeRecord =
+        new DataChangeRecord(
+            "partitionToken",
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "transactionId",
+            false,
+            "1",
+            "tableName",
+            Arrays.asList(
+                new ColumnType("column1", new TypeCode("type1"), true, 1L),
+                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+            Collections.singletonList(
+                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+            ModType.UNKNOWN,
+            ValueCaptureType.UNKNOWN,
+            10L,
+            2L,
+            "transactionTag",
+            true,
+            null);
+    final String jsonString = recordToJson(dataChangeRecord, true, true);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    System.err.println(dataChangeRecord.toString());
+    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
+    System.err.println("Expected: " + dataChangeRecord.toString());
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingJsonRowToHeartbeatRecord() {
+    final HeartbeatRecord heartbeatRecord =
+        new HeartbeatRecord(Timestamp.ofTimeSecondsAndNanos(10L, 20), null);
+    final String jsonString = recordToJson(heartbeatRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    assertEquals(
+        Collections.singletonList(heartbeatRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingJsonRowToChildPartitionRecord() {
+    final ChildPartitionsRecord childPartitionsRecord =
+        new ChildPartitionsRecord(
+            Timestamp.ofTimeSecondsAndNanos(10L, 20),
+            "1",
+            Arrays.asList(
+                new ChildPartition("childToken1", Sets.newHashSet("parentToken1", "parentToken2")),
+                new ChildPartition("childToken2", Sets.newHashSet("parentToken1", "parentToken2"))),
+            null);
+    final String jsonString = recordToJson(childPartitionsRecord, false, false);
+    System.err.println("Json string: " + jsonString);
+
+    assertNotNull(jsonString);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
+    assertEquals(
+        Collections.singletonList(childPartitionsRecord),
+        mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 }

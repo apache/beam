@@ -35,6 +35,7 @@ public class ChangeStreamDao {
   private final DatabaseClient databaseClient;
   private final RpcPriority rpcPriority;
   private final String jobName;
+  private final boolean isPostgres;
 
   /**
    * Constructs a change stream dao. All the queries performed by this class will be for the given
@@ -50,11 +51,13 @@ public class ChangeStreamDao {
       String changeStreamName,
       DatabaseClient databaseClient,
       RpcPriority rpcPriority,
-      String jobName) {
+      String jobName,
+      boolean isPostgres) {
     this.changeStreamName = changeStreamName;
     this.databaseClient = databaseClient;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
+    this.isPostgres = isPostgres;
   }
 
   /**
@@ -84,21 +87,35 @@ public class ChangeStreamDao {
     final String partitionTokenOrNull =
         InitialPartition.isInitialPartition(partitionToken) ? null : partitionToken;
 
-    final String query =
-        "SELECT * FROM READ_"
-            + changeStreamName
-            + "("
-            + "   start_timestamp => @startTimestamp,"
-            + "   end_timestamp => @endTimestamp,"
-            + "   partition_token => @partitionToken,"
-            + "   read_options => null,"
-            + "   heartbeat_milliseconds => @heartbeatMillis"
-            + ")";
-    final ResultSet resultSet =
-        databaseClient
-            .singleUse()
-            .executeQuery(
-                Statement.newBuilder(query)
+    String query = "";
+    Statement statement;
+    if (this.isPostgres) {
+      query =
+          "SELECT * FROM spanner.read_json_"
+              + changeStreamName
+              + "($1, $2, $3, $4, null)";
+      statement = Statement.newBuilder(query)
+                    .bind("p1")
+                    .to(startTimestamp)
+                    .bind("p2")
+                    .to(endTimestamp)
+                    .bind("p3")
+                    .to(partitionTokenOrNull)
+                    .bind("p4")
+                    .to(heartbeatMillis)
+                    .build();
+    } else {
+      query =
+          "SELECT * FROM READ_"
+              + changeStreamName
+              + "("
+              + "   start_timestamp => @startTimestamp,"
+              + "   end_timestamp => @endTimestamp,"
+              + "   partition_token => @partitionToken,"
+              + "   read_options => null,"
+              + "   heartbeat_milliseconds => @heartbeatMillis"
+              + ")";
+      statement = Statement.newBuilder(query)
                     .bind("startTimestamp")
                     .to(startTimestamp)
                     .bind("endTimestamp")
@@ -107,9 +124,12 @@ public class ChangeStreamDao {
                     .to(partitionTokenOrNull)
                     .bind("heartbeatMillis")
                     .to(heartbeatMillis)
-                    .build(),
-                Options.priority(rpcPriority),
-                Options.tag("job=" + jobName));
+                    .build();
+    }
+    final ResultSet resultSet =
+        databaseClient
+            .singleUse()
+            .executeQuery(statement, Options.priority(rpcPriority), Options.tag("job=" + jobName));
 
     return new ChangeStreamResultSet(resultSet);
   }

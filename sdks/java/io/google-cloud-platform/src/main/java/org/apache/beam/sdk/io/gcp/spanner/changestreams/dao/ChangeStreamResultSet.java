@@ -107,6 +107,21 @@ public class ChangeStreamResultSet implements AutoCloseable {
   }
 
   /**
+   * Returns the record at the current pointer as {@link JsonB}. It also updates the timestamp at
+   * which the record was read.
+   *
+   * <p>If {@link ChangeStreamResultSet#next()} was not called or if it was called but there are no
+   * more records in the stream, null will be returned.
+   *
+   * @return a change stream record as a {@link Struct} or null
+   */
+  public String getPgJsonb(int index) {
+    recordReadAt = Timestamp.now();
+    return resultSet.getPgJsonb(index);
+  }
+
+
+  /**
    * Returns the gathered metadata for the change stream query so far.
    *
    * @return a {@link ChangeStreamResultSetMetadata} contained telemetry information for the query

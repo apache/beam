@@ -82,11 +82,11 @@ public class PartitionMetadataDaoTest {
   @Before
   public void setUp() {
     databaseClient = mock(DatabaseClient.class);
-    partitionMetadataDao = new PartitionMetadataDao(METADATA_TABLE_NAME, databaseClient);
+    partitionMetadataDao = new PartitionMetadataDao(METADATA_TABLE_NAME, databaseClient, /*isPostgres=*/false);
     readWriteTransactionRunner = mock(TransactionRunner.class);
     transaction = mock(TransactionContext.class);
     inTransactionContext =
-        new PartitionMetadataDao.InTransactionContext(METADATA_TABLE_NAME, transaction);
+        new PartitionMetadataDao.InTransactionContext(METADATA_TABLE_NAME, transaction, /*isPostgres=*/false);
   }
 
   @Test

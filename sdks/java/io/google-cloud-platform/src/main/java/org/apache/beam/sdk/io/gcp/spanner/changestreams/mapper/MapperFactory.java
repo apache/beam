@@ -32,6 +32,11 @@ public class MapperFactory implements Serializable {
 
   private transient ChangeStreamRecordMapper changeStreamRecordMapperInstance;
   private transient PartitionMetadataMapper partitionMetadataMapperInstance;
+  private final boolean isPostgres;
+
+  public MapperFactory(boolean isPostgres) {
+    this.isPostgres = isPostgres;
+  }
 
   /**
    * Creates and returns a singleton instance of a mapper class capable of transforming a {@link
@@ -44,7 +49,7 @@ public class MapperFactory implements Serializable {
    */
   public synchronized ChangeStreamRecordMapper changeStreamRecordMapper() {
     if (changeStreamRecordMapperInstance == null) {
-      changeStreamRecordMapperInstance = new ChangeStreamRecordMapper();
+      changeStreamRecordMapperInstance = new ChangeStreamRecordMapper(this.isPostgres);
     }
     return changeStreamRecordMapperInstance;
   }

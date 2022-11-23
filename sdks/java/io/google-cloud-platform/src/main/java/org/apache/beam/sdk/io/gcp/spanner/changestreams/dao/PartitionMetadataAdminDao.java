@@ -19,8 +19,10 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
+import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
@@ -84,6 +86,7 @@ public class PartitionMetadataAdminDao {
   private final String instanceId;
   private final String databaseId;
   private final String tableName;
+  private final boolean isPostgres;
 
   /**
    * Constructs the partition metadata admin dao.
@@ -98,11 +101,13 @@ public class PartitionMetadataAdminDao {
       DatabaseAdminClient databaseAdminClient,
       String instanceId,
       String databaseId,
-      String tableName) {
+      String tableName,
+      boolean isPostgres) {
     this.databaseAdminClient = databaseAdminClient;
     this.instanceId = instanceId;
     this.databaseId = databaseId;
     this.tableName = tableName;
+    this.isPostgres = isPostgres;
   }
 
   /**
@@ -113,7 +118,7 @@ public class PartitionMetadataAdminDao {
    * PartitionMetadataAdminDao#TTL_AFTER_PARTITION_FINISHED_DAYS} days.
    */
   public void createPartitionMetadataTable() {
-    final String metadataCreateStmt =
+    String metadataCreateStmt =
         "CREATE TABLE "
             + tableName
             + " ("
@@ -145,6 +150,42 @@ public class PartitionMetadataAdminDao {
             + ", INTERVAL "
             + TTL_AFTER_PARTITION_FINISHED_DAYS
             + " DAY))";
+    if (this.isPostgres) {
+      metadataCreateStmt =
+        "CREATE TABLE \""
+            + tableName
+            + "\"(\""
+            + COLUMN_PARTITION_TOKEN
+            + "\" text NOT NULL,\""
+            + COLUMN_PARENT_TOKENS
+            + "\" text[] NOT NULL,\""
+            + COLUMN_START_TIMESTAMP
+            + "\" timestamptz NOT NULL,\""
+            + COLUMN_END_TIMESTAMP
+            + "\" timestamptz NOT NULL,\""
+            + COLUMN_HEARTBEAT_MILLIS
+            + "\" BIGINT NOT NULL,\""
+            + COLUMN_STATE
+            + "\" text NOT NULL,\""
+            + COLUMN_WATERMARK
+            + "\" timestamptz NOT NULL,\""
+            + COLUMN_CREATED_AT
+            + "\" SPANNER.COMMIT_TIMESTAMP NOT NULL,\""
+            + COLUMN_SCHEDULED_AT
+            + "\" SPANNER.COMMIT_TIMESTAMP,\""
+            + COLUMN_RUNNING_AT
+            + "\" SPANNER.COMMIT_TIMESTAMP,\""
+            + COLUMN_FINISHED_AT
+            + "\" SPANNER.COMMIT_TIMESTAMP,"
+            + " PRIMARY KEY (\"PartitionToken\")"
+            + ")"
+            + " TTL INTERVAL '"
+            + TTL_AFTER_PARTITION_FINISHED_DAYS
+            + " days' ON \""
+            + COLUMN_FINISHED_AT
+            + "\"";
+      System.err.println("metadata table statemnt: " + metadataCreateStmt);
+    }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(
             instanceId, databaseId, Collections.singletonList(metadataCreateStmt), null);
@@ -170,7 +211,12 @@ public class PartitionMetadataAdminDao {
    * PartitionMetadataAdminDao#TIMEOUT_MINUTES} minutes.
    */
   public void deletePartitionMetadataTable() {
-    final String metadataDropStmt = "DROP TABLE " + tableName;
+    String metadataDropStmt;
+    if (this.isPostgres) {
+      metadataDropStmt = "DROP TABLE \"" + tableName + "\"";
+    } else {
+      metadataDropStmt = "DROP TABLE " + tableName;
+    }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(
             instanceId, databaseId, Collections.singletonList(metadataDropStmt), null);
