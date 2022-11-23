@@ -242,14 +242,6 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 				t := typex.New(typex.CoGBKType, append([]typex.FullType{key.T}, coder.Types(values)...)...)
 				return &coder.Coder{Kind: coder.CoGBK, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
 			}
-			// It's valid to have a KV<k,Iter<v>> without being a CoGBK, and validating if we need to change to
-			// a CoGBK is done at the DataSource, since that's when we can check against the downstream nodes.
-		case urnIntervalWindow:
-			// If interval window in a KV, this may be a mapping function.
-			// Special case since windows are not normally used directly as FullValues.
-			value := coder.NewIntervalWindowCoder()
-			t := typex.New(root, key.T, value.T)
-			return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
 		}
 
 		value, err := b.Coder(id)
@@ -384,18 +376,14 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 		return coder.NewN(elm), nil
-
-		// Special handling for window coders so they can be treated as
-		// a general coder. Generally window coders are not used outside of
-		// specific contexts, but this enables improved testing.
-		// Window types are not permitted to be fulltypes, so
-		// we use assignably equivalent anonymous struct types.
 	case urnIntervalWindow:
-		w, err := b.WindowCoder(id)
-		if err != nil {
-			return nil, err
-		}
-		return &coder.Coder{Kind: coder.Window, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem()), Window: w}, nil
+		return coder.NewIntervalWindowCoder(), nil
+
+	// Special handling for the global window coder so it can be treated as
+	// a general coder. Generally window coders are not used outside of
+	// specific contexts, but this enables improved testing.
+	// Window types are not permitted to be fulltypes, so
+	// we use assignably equivalent anonymous struct types.
 	case urnGlobalWindow:
 		w, err := b.WindowCoder(id)
 		if err != nil {
