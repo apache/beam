@@ -23,13 +23,14 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 final class SingleStoreDefaultUserDataMapper implements SingleStoreIO.UserDataMapper<Row> {
 
-  private DateTimeFormatter formatter = null;
+  private @Nullable DateTimeFormatter formatter = null;
 
   private DateTimeFormatter getFormatter() {
     if (formatter == null) {
@@ -41,7 +42,9 @@ final class SingleStoreDefaultUserDataMapper implements SingleStoreIO.UserDataMa
 
   private String convertLogicalTypeFieldToString(Schema.FieldType type, Object value) {
     Schema.LogicalType<Object, Object> logicalType = type.getLogicalType();
-    assert logicalType != null;
+    if (logicalType == null) {
+      throw new UnsupportedOperationException("Failed to extract logical type");
+    }
 
     Schema.FieldType baseType = logicalType.getBaseType();
     Object baseValue = logicalType.toBaseType(value);

@@ -327,8 +327,7 @@ public class SingleStoreIO {
       String database = SingleStoreUtil.getArgumentWithDefault(getDatabase(), "");
       String connectionProperties =
           SingleStoreUtil.getArgumentWithDefault(getConnectionProperties(), "");
-      connectionProperties +=
-          (connectionProperties.isEmpty() ? "" : ";") + "allowLocalInfile=TRUE";
+      connectionProperties += (connectionProperties.isEmpty() ? "" : ";") + "allowLocalInfile=TRUE";
       String username = getUsername();
       String password = getPassword();
 
@@ -573,6 +572,10 @@ public class SingleStoreIO {
             conn.prepareStatement(String.format("SELECT * FROM (%s) LIMIT 0", query));
         try {
           ResultSetMetaData md = stmt.getMetaData();
+          if (md == null) {
+            throw new SingleStoreDefaultRowMapper.SingleStoreDefaultRowMapperCreationException(
+                "Failed to retrieve statement metadata");
+          }
           return new SingleStoreDefaultRowMapper(md);
         } finally {
           stmt.close();
@@ -650,6 +653,8 @@ public class SingleStoreIO {
       Preconditions.checkArgumentNotNull(
           dataSourceConfiguration, "withDataSourceConfiguration() is required");
       String actualQuery = SingleStoreUtil.getSelectQuery(getTable(), getQuery());
+      Boolean outputParallelization = getOutputParallelization();
+      StatementPreparator statementPreparator = getStatementPreparator();
 
       SingleStoreDefaultRowMapper rowMapper = getRowMapper(dataSourceConfiguration, actualQuery);
 
@@ -660,12 +665,12 @@ public class SingleStoreIO {
               .withRowMapper(rowMapper)
               .withCoder(RowCoder.of(rowMapper.getSchema()));
 
-      if (getOutputParallelization() != null) {
-        read = read.withOutputParallelization(getOutputParallelization());
+      if (outputParallelization != null) {
+        read = read.withOutputParallelization(outputParallelization);
       }
 
-      if (getStatementPreparator() != null) {
-        read = read.withStatementPreparator(getStatementPreparator());
+      if (statementPreparator != null) {
+        read = read.withStatementPreparator(statementPreparator);
       }
 
       PCollection<Row> output = input.apply(read);
@@ -937,6 +942,7 @@ public class SingleStoreIO {
       Preconditions.checkArgumentNotNull(
           dataSourceConfiguration, "withDataSourceConfiguration() is required");
       String actualQuery = SingleStoreUtil.getSelectQuery(getTable(), getQuery());
+      Integer initialNumReaders = getInitialNumReaders();
 
       SingleStoreDefaultRowMapper rowMapper = getRowMapper(dataSourceConfiguration, actualQuery);
 
@@ -947,8 +953,8 @@ public class SingleStoreIO {
               .withRowMapper(rowMapper)
               .withCoder(RowCoder.of(rowMapper.getSchema()));
 
-      if (getInitialNumReaders() != null) {
-        readWithPartitions = readWithPartitions.withInitialNumReaders(getInitialNumReaders());
+      if (initialNumReaders != null) {
+        readWithPartitions = readWithPartitions.withInitialNumReaders(initialNumReaders);
       }
 
       PCollection<Row> output = input.apply(readWithPartitions);

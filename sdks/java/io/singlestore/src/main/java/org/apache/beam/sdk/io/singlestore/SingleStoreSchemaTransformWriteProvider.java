@@ -116,19 +116,23 @@ public class SingleStoreSchemaTransformWriteProvider
                 "%s %s is missing expected tag: %s",
                 getClass().getSimpleName(), input.getClass().getSimpleName(), INPUT_TAG));
       }
+      SingleStoreIO.DataSourceConfiguration dataSourceConfiguration =
+          configuration.getDataSourceConfiguration();
+      String table = configuration.getTable();
+      Integer batchSize = configuration.getBatchSize();
 
       SingleStoreIO.Write<Row> write = SingleStoreIO.writeRows();
 
-      if (configuration.getDataSourceConfiguration() != null) {
-        write = write.withDataSourceConfiguration(configuration.getDataSourceConfiguration());
+      if (dataSourceConfiguration != null) {
+        write = write.withDataSourceConfiguration(dataSourceConfiguration);
       }
 
-      if (configuration.getTable() != null) {
-        write = write.withTable(configuration.getTable());
+      if (table != null) {
+        write = write.withTable(table);
       }
 
-      if (configuration.getBatchSize() != null) {
-        write = write.withBatchSize(configuration.getBatchSize());
+      if (batchSize != null) {
+        write = write.withBatchSize(batchSize);
       }
 
       PCollection<Integer> res = input.get(INPUT_TAG).apply(write);

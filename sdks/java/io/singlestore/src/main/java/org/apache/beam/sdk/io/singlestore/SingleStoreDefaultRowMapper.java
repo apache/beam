@@ -59,6 +59,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
@@ -92,7 +93,7 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
     for (int i = 0; i < schema.getFieldCount(); i++) {
       Object value = converters.get(i).getValue(resultSet, i + 1);
 
-      if (resultSet.wasNull()) {
+      if (resultSet.wasNull() || value == null) {
         rowBuilder.addValue(null);
       } else {
         rowBuilder.addValue(value);
@@ -103,7 +104,7 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
   }
 
   abstract static class ResultSetFieldConverter implements Serializable {
-    abstract Object getValue(ResultSet rs, Integer index) throws SQLException;
+    abstract @Nullable Object getValue(ResultSet rs, Integer index) throws SQLException;
 
     Schema.Field getSchemaField(ResultSetMetaData md, Integer index) throws SQLException {
       String label = md.getColumnLabel(index);
@@ -120,6 +121,7 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
      */
     @FunctionalInterface
     interface ResultSetFieldExtractor extends Serializable {
+      @Nullable
       Object extract(ResultSet rs, Integer index) throws SQLException;
     }
 
@@ -176,6 +178,7 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
     }
 
     @Override
+    @Nullable
     Object getValue(ResultSet rs, Integer index) throws SQLException {
       return extractor.extract(rs, index);
     }
@@ -188,6 +191,7 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
 
   static class CharResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
+    @Nullable
     Object getValue(ResultSet rs, Integer index) throws SQLException {
       return rs.getString(index);
     }
@@ -201,6 +205,7 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
 
   static class BinaryResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
+    @Nullable
     Object getValue(ResultSet rs, Integer index) throws SQLException {
       return rs.getBytes(index);
     }
@@ -214,6 +219,7 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
 
   static class TimestampResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
+    @Nullable
     Object getValue(ResultSet rs, Integer index) throws SQLException {
       Timestamp ts =
           rs.getTimestamp(index, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
@@ -231,6 +237,7 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
 
   static class TimeResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
+    @Nullable
     Object getValue(ResultSet rs, Integer index) throws SQLException {
       Time time = rs.getTime(index, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
       if (time == null) {
@@ -248,6 +255,7 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
 
   static class DateResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
+    @Nullable
     Object getValue(ResultSet rs, Integer index) throws SQLException {
       // TODO(https://github.com/apache/beam/issues/19215) import when joda LocalDate is removed.
       java.time.LocalDate date = rs.getObject(index, java.time.LocalDate.class);
@@ -267,6 +275,10 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
   public static class SingleStoreDefaultRowMapperCreationException extends RuntimeException {
     SingleStoreDefaultRowMapperCreationException(String message, Throwable cause) {
       super(message, cause);
+    }
+
+    SingleStoreDefaultRowMapperCreationException(String message) {
+      super(message);
     }
   }
 }

@@ -112,23 +112,28 @@ public class SingleStoreSchemaTransformReadProvider
                 "%s %s input is expected to be empty",
                 input.getClass().getSimpleName(), getClass().getSimpleName()));
       }
+      SingleStoreIO.DataSourceConfiguration dataSourceConfiguration =
+          configuration.getDataSourceConfiguration();
+      String table = configuration.getTable();
+      String query = configuration.getQuery();
+      Boolean outputParallelization = configuration.getOutputParallelization();
 
       SingleStoreIO.ReadRows read = SingleStoreIO.readRows();
 
-      if (configuration.getDataSourceConfiguration() != null) {
-        read = read.withDataSourceConfiguration(configuration.getDataSourceConfiguration());
+      if (dataSourceConfiguration != null) {
+        read = read.withDataSourceConfiguration(dataSourceConfiguration);
       }
 
-      if (configuration.getTable() != null) {
-        read = read.withTable(configuration.getTable());
+      if (table != null) {
+        read = read.withTable(table);
       }
 
-      if (configuration.getQuery() != null) {
-        read = read.withQuery(configuration.getQuery());
+      if (query != null) {
+        read = read.withQuery(query);
       }
 
-      if (configuration.getOutputParallelization() != null) {
-        read = read.withOutputParallelization(configuration.getOutputParallelization());
+      if (outputParallelization != null) {
+        read = read.withOutputParallelization(outputParallelization);
       }
 
       PCollection<Row> rows = input.getPipeline().apply(read);
