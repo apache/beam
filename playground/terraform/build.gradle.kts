@@ -488,7 +488,7 @@ task ("echo") {
 task ("gkebackend") {
   group = "deploy"
   val init = tasks.getByName("terraformInit")
-  // val apply = tasks.getByName("terraformApplyInf")
+  val apply = tasks.getByName("terraformApplyInf")
   val takeConfig = tasks.getByName("takeConfig")
   val echo = tasks.getByName("echo")
   val back = tasks.getByName("pushBack")
@@ -496,20 +496,18 @@ task ("gkebackend") {
   val indexcreate = tasks.getByName("indexcreate")
   val helm = tasks.getByName("helmInstallPlayground")
   dependsOn(init)
-  // dependsOn(apply)
+  dependsOn(apply)
   dependsOn(takeConfig)
   dependsOn(echo)
   dependsOn(back)
   dependsOn(front)
   dependsOn(indexcreate)
-
-  
   dependsOn(helm)
-  // apply.mustRunAfter(init)
-  takeConfig.mustRunAfter(init)
+  apply.mustRunAfter(init)
+  takeConfig.mustRunAfter(apply)
   echo.mustRunAfter(takeConfig)
   back.mustRunAfter(echo)
-  front.mustRunAfter(echo)
+  front.mustRunAfter(back)
   indexcreate.mustRunAfter(front)
   helm.mustRunAfter(indexcreate)
 }
