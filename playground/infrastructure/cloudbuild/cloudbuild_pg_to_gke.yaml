@@ -39,7 +39,7 @@ steps:
         > playground/terraform/environment/$_ENVIRONMENT_NAME/state.tfbackend 
         ./gradlew playground:terraform:prepareConfig -Pdns-name="$_DNS_NAME"
         ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="$_DOCKER_REPOSITORY_ROOT" \
-        -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Psdk_tag="$_SDK_TAG" ""-Pdns-name="$_DNS_NAME"
+        -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Psdk_tag="$_SDK_TAG" -Pdns-name="$_DNS_NAME"
 
 # This option enables writing logs to Cloud Logging
 options:
