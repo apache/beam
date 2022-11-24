@@ -30,12 +30,11 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
             'examples/kotlin/**', 'release/**', 'buildSrc/**']
-permissions: read-all
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
@@ -50,8 +49,6 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -76,7 +73,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install Java
         uses: actions/setup-java@v3
         with:
@@ -136,7 +132,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install Java
         uses: actions/setup-java@v2
         with:
@@ -184,7 +179,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install go
         uses: actions/setup-go@v3
         with:
