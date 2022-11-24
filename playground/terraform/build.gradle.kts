@@ -480,7 +480,7 @@ task ("echo") {
     doLast{
         exec {
             executable("cat")
-            args("playground/infrastructure/helm-playground/values.yaml")
+            args("../infrastructure/helm-playground/values.yaml")
         }
     }
 }
