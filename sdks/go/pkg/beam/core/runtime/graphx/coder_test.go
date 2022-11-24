@@ -94,8 +94,16 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			c:    coder.NewN(coder.NewBytes()),
 		},
 		{
+			name: "I<foo>",
+			c:    coder.NewI(foo),
+		},
+		{
 			name: "KV<foo,bar>",
 			c:    coder.NewKV([]*coder.Coder{foo, bar}),
+		},
+		{
+			name: "KV<foo, I<bar>>",
+			c:    coder.NewKV([]*coder.Coder{foo, coder.NewI(bar)}),
 		},
 		{
 			name:       "CoGBK<foo,bar>",
@@ -174,8 +182,11 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("DecodeCoderRef(EncodeCoderRef(%v)) failed: %v", test.c, err)
 			}
-			if !test.c.Equals(got) {
-				t.Errorf("DecodeCoderRef(EncodeCoderRef(%v)) = %v, want identity", test.c, got)
+			if test.equivalent != nil && !test.equivalent.Equals(got) {
+				t.Errorf("DecodeCoderRef(EncodeCoderRef(%v)) = %v want equivalent", test.equivalent, got)
+			}
+			if test.equivalent == nil && !test.c.Equals(got) {
+				t.Errorf("DecodeCoderRef(EncodeCoderRef(%v)) = %v want identity", test.c, got)
 			}
 		})
 	}

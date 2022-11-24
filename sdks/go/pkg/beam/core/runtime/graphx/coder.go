@@ -552,6 +552,13 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 
 		return b.internBuiltInCoder(urnTimerCoder, comp...), nil
 
+	case coder.Iterable:
+		comp, err := b.AddMulti(c.Components)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to marshal iterable coder %v", c)
+		}
+		return b.internBuiltInCoder(urnIterableCoder, comp...), nil
+
 	default:
 		err := errors.Errorf("unexpected coder kind: %v", c.Kind)
 		return "", errors.WithContextf(err, "failed to marshal coder %v", c)
