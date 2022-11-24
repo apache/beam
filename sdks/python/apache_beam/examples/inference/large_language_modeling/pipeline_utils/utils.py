@@ -15,12 +15,12 @@
 # KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations
 # under the License
+import apache_beam as beam
 import torch
+from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from transformers import AutoTokenizer
 from transformers import T5ForConditionalGeneration
-import apache_beam as beam
-from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
-from apache_beam.io.filesystems import FileSystems
 
 
 # ModelHandlerwrapper can be removed once:

@@ -29,12 +29,12 @@ import sys
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.options.pipeline_options import PipelineOptions
-from transformers import AutoConfig
-from transformers import AutoTokenizer
 from pipeline_utils.utils import ModelHandlerWrapper
 from pipeline_utils.utils import ModelWrapper
 from pipeline_utils.utils import Preprocess
 from pipeline_utils.utils import Postprocess
+from transformers import AutoConfig
+from transformers import AutoTokenizer
 
 
 def parse_args(argv):
