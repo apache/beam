@@ -56,6 +56,7 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
    - `NETWORK_NAME`: GCP VPC Network Name for Playground deployment
    - `GKE_NAME`: Playground GKE Cluster name
    - `TAG`: Tag for Playground images
+   - `SDK_TAG`: Tag for SDK images of Apache Beam Go and Python (typically last stable 2.42.0, 2.43.0)
    - `DOCKER_REPOSITORY_ROOT`: GCP Artifact Registry repository name to store Playground container images
 
 ```console
