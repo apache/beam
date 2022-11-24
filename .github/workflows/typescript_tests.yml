@@ -26,11 +26,11 @@ on:
   push:
     branches: ['master', 'release-*', 'javascript']
     tags: ['v*']
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*', 'javascript']
     tags: ['v*']
     paths: ['sdks/typescript/**']
-permissions: read-all
+
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
@@ -49,7 +49,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install node
         uses: actions/setup-node@v3
         with:
@@ -78,7 +77,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install Node
         uses: actions/setup-node@v3
         with:
