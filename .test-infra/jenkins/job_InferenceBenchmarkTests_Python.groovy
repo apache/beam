@@ -50,6 +50,7 @@ def loadTestConfigurations = {
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
         pretrained_model_name : 'resnet101',
+        device                : 'CPU',
         input_file            : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet101.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_101' + now + '.txt'
@@ -78,6 +79,7 @@ def loadTestConfigurations = {
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
         pretrained_model_name : 'resnet152',
+        device                : 'CPU',
         input_file            : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet152.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_resnet152' + now + '.txt'
@@ -106,6 +108,7 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_language_modeling_bert_base_uncased',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+        device                : 'CPU',
         input_file            : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
         bert_tokenizer        : 'bert-base-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth',
@@ -134,10 +137,44 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_language_modeling_bert_large_uncased',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+        device                : 'CPU',
         input_file            : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
         bert_tokenizer        : 'bert-large-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-large-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_bert_large_uncased' + now + '.txt'
+      ]
+    ],
+    [
+      title             : 'Pytorch Imagenet Classification with Resnet 152 with Tesla T4 GPU',
+      test              : 'apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks',
+      runner            : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        job_name              : 'benchmark-tests-pytorch-imagenet-python-gpu' + now,
+        project               : 'apache-beam-testing',
+        region                : 'us-central1',
+        machine_type          : 'n1-standard-2',
+        num_workers           : 75,
+        disk_size_gb          : 50,
+        autoscaling_algorithm : 'NONE',
+        staging_location      : 'gs://temp-storage-for-perf-tests/loadtests',
+        temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
+        requirements_file     : 'apache_beam/ml/inference/torch_tests_requirements.txt',
+        publish_to_big_query  : true,
+        metrics_dataset       : 'beam_run_inference',
+        metrics_table         : 'torch_inference_imagenet_results_resnet152_tesla_t4',
+        input_options         : '{}', // this option is not required for RunInference tests.
+        influx_measurement    : 'torch_inference_imagenet_resnet152_tesla_t4',
+        influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+        pretrained_model_name : 'resnet152',
+        device                : 'GPU',
+        experiments           : 'worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver',
+        // TODO: experiment on Docker image. Nvidia image seems to be giving better performance than
+        // torch images.
+        sdk_container_image   : 'us.gcr.io/apache-beam-testing/python-postcommit-it/pytorch/beam2.42_py37',
+        input_file            : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
+        model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet152.pth',
+        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_resnet152_gpu' + now + '.txt'
       ]
     ],
   ]
