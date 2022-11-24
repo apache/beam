@@ -21,7 +21,6 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../auth/notifier.dart';
 import '../../../cache/user_progress.dart';
 import '../../../constants/sizes.dart';
 import '../state.dart';
