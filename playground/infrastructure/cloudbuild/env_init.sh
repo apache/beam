@@ -17,11 +17,10 @@
 
 GO_VERSION=1.18
 
-apt update > /dev/null
+apt-get update > /dev/null
 
 # Install JRE
-apt install -y default-jre > /dev/null \
-&& apt install -y apt-transport-https ca-certificates curl software-properties-common gnupg2 wget > /dev/null
+apt-get install -y build-essential unzip apt-transport-https ca-certificates curl software-properties-common gnupg2 wget > /dev/null
 
 # Install Docker
 curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
@@ -30,7 +29,7 @@ apt update > /dev/null && apt install -y docker-ce > /dev/null
 
 #Install Helm
 curl -fsSLo get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 > /dev/null
-chmod 700 get_helm.sh && chmod +x get_helm.sh && ./get_helm.sh > /dev/null
+chmod +x get_helm.sh && ./get_helm.sh > /dev/null
 
 # Install Terraform
 wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
@@ -39,11 +38,11 @@ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://
 apt update -y > /dev/null && apt install -y terraform > /dev/null
 
 # Install kubectl
-curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
-echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" \
-| tee /etc/apt/sources.list.d/kubernetes.list
-apt update > /dev/null && apt install -y kubectl > /dev/null
+curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl" \
+&& chmod +x ./kubectl \
+&& mv ./kubectl /usr/local/bin/kubectl
 
-# Install golang
+# Install golang & jdk
 curl -O https://dl.google.com/go/go"$GO_VERSION".linux-amd64.tar.gz
 tar -C /usr/local -xvf go"$GO_VERSION".linux-amd64.tar.gz > /dev/null
+apt-get install openjdk-11-jdk -y > /dev/null
