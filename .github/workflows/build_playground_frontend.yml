@@ -19,11 +19,11 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-  pull_request_target:
+  pull_request:
     paths: ['playground/backend/**']
     branches: ['playground-staging']
   workflow_dispatch:
-permissions: read-all
+
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
@@ -43,8 +43,6 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
