@@ -17,7 +17,7 @@
 ###############################################################################
 ARG GO_BASE_IMAGE=golang:1.18-bullseye
 ARG SDK_TAG
-ARG BASE_IMAGE=apache/beam_python3.7_sdk:$SDK_TAG
+ARG BASE_IMAGE=apache/beam_python3.7_sdk:2.43.0
 FROM $GO_BASE_IMAGE AS build
 
 # Setup Go Environment

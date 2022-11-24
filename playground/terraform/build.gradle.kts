@@ -475,6 +475,15 @@ helm {
         }
     }
 }
+
+task ("echo") {
+    doLast{
+        exec {
+            executable("cat")
+            args("playground/infrastructure/helm-playground/values.yaml")
+        }
+    }
+}
 task ("gkebackend") {
   group = "deploy"
   val init = tasks.getByName("terraformInit")
