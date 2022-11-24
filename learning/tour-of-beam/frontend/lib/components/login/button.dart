@@ -19,7 +19,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
-import '../functions.dart';
+import '../login_overlay.dart';
 
 class LoginButton extends StatelessWidget {
   const LoginButton();
@@ -28,7 +28,7 @@ class LoginButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: () {
-        openLoginOverlay(context);
+        kOpenLoginOverlay(context);
       },
       child: const Text('ui.signIn').tr(),
     );
