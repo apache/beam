@@ -1,5 +1,4 @@
-# @title ###### Licensed to the Apache Software Foundation (ASF), Version 2.0 (the "License")
-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements. See the NOTICE file
 # distributed with this work for additional information
@@ -17,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License
 
-""""A pipeline that uses RunInference to perform Translation with T5 language model.
+""""A pipeline that uses RunInference to perform Translation
+with T5 language model.
 
 This pipeline takes a list of english sentences and then uses
 the T5ForConditionalGeneration from Hugging Face to translate the
@@ -42,14 +42,12 @@ def parse_args(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       "--model_state_dict_path",
-      # required=True,
+      required=True,
       help="Path to the model's state_dict.",
-      default=
-      "gs://apache-beam-testing-ml-examples/t5-models/model_state_dict_t5_small.pth"
   )
   parser.add_argument(
       "--model_name",
-      # required=True,
+      required=True,
       help="Path to the model's state_dict.",
       default="t5-small",
   )

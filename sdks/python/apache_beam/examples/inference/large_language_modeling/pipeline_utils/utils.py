@@ -1,5 +1,4 @@
-# @title ###### Licensed to the Apache Software Foundation (ASF), Version 2.0 (the "License")
-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements. See the NOTICE file
 # distributed with this work for additional information
@@ -24,14 +23,12 @@ from transformers import AutoTokenizer
 import apache_beam as beam
 
 
-
-# ModelHandlerwrapper can be removed once: https://github.com/apache/beam/issues/22572 is fixed
+# ModelHandlerwrapper can be removed once:
+# https://github.com/apache/beam/issues/22572 is fixed
 # [START PytorchModelHandlerTensorWrapper]
 class ModelHandlerWrapper(PytorchModelHandlerTensor):
-
   """Wrapper to PyTorchModelHandlerTensor to load the
     weights in model.model instead of model."""
-
   def load_model(self):
     model = self._model_class(**self._model_params)
     model.to(self._device)
@@ -39,16 +36,17 @@ class ModelHandlerWrapper(PytorchModelHandlerTensor):
     model.model.load_state_dict(torch.load(file))
     model.eval()
     return model
+
+
 # [END PytorchModelHandlerTensorWrapper]
 
 
-
-# Modelwrapper can be removed once: https://github.com/apache/beam/issues/22572 is fixed
+# Modelwrapper can be removed once:
+# https://github.com/apache/beam/issues/22572 is fixed
 # [START T5ForConditionalGenerationModelWrapper]
 class ModelWrapper(torch.nn.Module):
   """Wrapper to T5forCOnditionalGeneration to use generate() for
     getting output when calling forward function."""
-
   def __init__(self, **kwargs):
     super().__init__()
     self.model = T5ForConditionalGeneration(**kwargs)
@@ -56,11 +54,12 @@ class ModelWrapper(torch.nn.Module):
   def forward(self, input_ids):
     output = self.model.generate(input_ids)
     return output
+
+
 # [END T5ForConditionalGenerationModelWrapper]
 
 
 class Preprocess(beam.DoFn):
-
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 
@@ -82,7 +81,6 @@ class Preprocess(beam.DoFn):
 
 
 class Postprocess(beam.DoFn):
-
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 
@@ -98,4 +96,3 @@ class Postprocess(beam.DoFn):
     decoded_outputs = self._tokenizer.decode(
         element.inference, skip_special_tokens=True)
     print(f"{decoded_inputs} \t Output: {decoded_outputs}")
-
