@@ -25,11 +25,10 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     tags: ['v*']
     paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum']
-permissions: read-all
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
@@ -43,7 +42,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 2
-          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-go@v3
         with:
           go-version: '1.18'
