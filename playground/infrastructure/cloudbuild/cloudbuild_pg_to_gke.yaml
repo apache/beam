@@ -38,6 +38,7 @@ steps:
         'bucket = "$_STATE_BUCKET"'\
         > playground/terraform/environment/$_ENVIRONMENT_NAME/state.tfbackend
         terraform version
+        helm version
         ./gradlew playground:terraform:prepareConfig -Pdns-name="$_DNS_NAME"
         ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="$_DOCKER_REPOSITORY_ROOT" \
         -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Psdk-tag="$_SDK_TAG" -Pdns-name="$_DNS_NAME"
