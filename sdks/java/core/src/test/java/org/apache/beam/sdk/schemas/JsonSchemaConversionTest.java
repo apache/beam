@@ -47,10 +47,10 @@ public class JsonSchemaConversionTest {
       assertThat(
           parsedSchema.getFields().stream().map(Schema.Field::getType).collect(Collectors.toList()),
           containsInAnyOrder(
-              Schema.FieldType.BOOLEAN,
-              Schema.FieldType.INT64,
-              Schema.FieldType.DOUBLE,
-              Schema.FieldType.STRING));
+              Schema.FieldType.BOOLEAN.withNullable(true),
+              Schema.FieldType.INT64.withNullable(true),
+              Schema.FieldType.DOUBLE.withNullable(true),
+              Schema.FieldType.STRING.withNullable(true)));
     }
   }
 
@@ -65,12 +65,13 @@ public class JsonSchemaConversionTest {
       assertThat(
           parsedSchema.getFields().stream().map(Schema.Field::getType).collect(Collectors.toList()),
           containsInAnyOrder(
-              Schema.FieldType.array(Schema.FieldType.STRING),
+              Schema.FieldType.array(Schema.FieldType.STRING).withNullable(true),
               Schema.FieldType.array(
-                  Schema.FieldType.row(
-                      Schema.of(
-                          Schema.Field.of("veggieName", Schema.FieldType.STRING),
-                          Schema.Field.of("veggieLike", Schema.FieldType.BOOLEAN))))));
+                      Schema.FieldType.row(
+                          Schema.of(
+                              Schema.Field.of("veggieName", Schema.FieldType.STRING),
+                              Schema.Field.of("veggieLike", Schema.FieldType.BOOLEAN))))
+                  .withNullable(true)));
     }
   }
 
@@ -86,11 +87,12 @@ public class JsonSchemaConversionTest {
           parsedSchema.getFields().stream().map(Schema.Field::getType).collect(Collectors.toList()),
           containsInAnyOrder(
               Schema.FieldType.array(
-                  Schema.FieldType.array(
-                      Schema.FieldType.row(
-                          Schema.of(
-                              Schema.Field.of("imaginary", Schema.FieldType.DOUBLE),
-                              Schema.Field.of("real", Schema.FieldType.DOUBLE)))))));
+                      Schema.FieldType.array(
+                          Schema.FieldType.row(
+                              Schema.of(
+                                  Schema.Field.nullable("imaginary", Schema.FieldType.DOUBLE),
+                                  Schema.Field.nullable("real", Schema.FieldType.DOUBLE)))))
+                  .withNullable(true)));
     }
   }
 
@@ -107,21 +109,25 @@ public class JsonSchemaConversionTest {
           parsedSchema.getFields().stream().map(Schema.Field::getType).collect(Collectors.toList()),
           containsInAnyOrder(
               Schema.FieldType.row(
-                  Schema.of(
-                      Schema.Field.of("teacher", Schema.FieldType.STRING),
-                      Schema.Field.of(
-                          "classroom",
-                          Schema.FieldType.row(
-                              Schema.of(
-                                  Schema.Field.of(
-                                      "students",
-                                      Schema.FieldType.array(
-                                          Schema.FieldType.row(
-                                              Schema.of(
-                                                  Schema.Field.of("name", Schema.FieldType.STRING),
-                                                  Schema.Field.of(
-                                                      "age", Schema.FieldType.INT64))))),
-                                  Schema.Field.of("building", Schema.FieldType.STRING))))))));
+                      Schema.of(
+                          Schema.Field.nullable("teacher", Schema.FieldType.STRING),
+                          Schema.Field.nullable(
+                              "classroom",
+                              Schema.FieldType.row(
+                                  Schema.of(
+                                      Schema.Field.nullable(
+                                          "students",
+                                          Schema.FieldType.array(
+                                                  Schema.FieldType.row(
+                                                      Schema.of(
+                                                          Schema.Field.nullable(
+                                                              "name", Schema.FieldType.STRING),
+                                                          Schema.Field.nullable(
+                                                              "age", Schema.FieldType.INT64))))
+                                              .withNullable(true)),
+                                      Schema.Field.nullable(
+                                          "building", Schema.FieldType.STRING))))))
+                  .withNullable(true)));
     }
   }
 
@@ -137,17 +143,19 @@ public class JsonSchemaConversionTest {
           parsedSchema.getFields().stream().map(Schema.Field::getType).collect(Collectors.toList()),
           containsInAnyOrder(
               Schema.FieldType.array(
-                  Schema.FieldType.row(
-                      Schema.of(
-                          Schema.Field.of("veggieName", Schema.FieldType.STRING),
-                          Schema.Field.of("veggieLike", Schema.FieldType.BOOLEAN),
-                          Schema.Field.of(
-                              "origin",
-                              Schema.FieldType.row(
-                                  Schema.of(
-                                      Schema.Field.of("country", Schema.FieldType.STRING),
-                                      Schema.Field.of("town", Schema.FieldType.STRING),
-                                      Schema.Field.of("region", Schema.FieldType.STRING)))))))));
+                      Schema.FieldType.row(
+                          Schema.of(
+                              Schema.Field.of("veggieName", Schema.FieldType.STRING),
+                              Schema.Field.of("veggieLike", Schema.FieldType.BOOLEAN),
+                              Schema.Field.nullable(
+                                  "origin",
+                                  Schema.FieldType.row(
+                                      Schema.of(
+                                          Schema.Field.nullable("country", Schema.FieldType.STRING),
+                                          Schema.Field.nullable("town", Schema.FieldType.STRING),
+                                          Schema.Field.nullable(
+                                              "region", Schema.FieldType.STRING)))))))
+                  .withNullable(true)));
     }
   }
 

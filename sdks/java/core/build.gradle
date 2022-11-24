@@ -99,7 +99,7 @@ dependencies {
   // it by default.
   // It is only used for optional functionality in JsonUtils schema parsing and conversion.
   provided library.java.everit_json_schema
-  testImplementation library.java.everit_json_schema
+  shadowTest library.java.everit_json_schema
   provided library.java.junit
   provided library.java.hamcrest
   provided 'io.airlift:aircompressor:0.18'
