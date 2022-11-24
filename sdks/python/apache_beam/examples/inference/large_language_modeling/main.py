@@ -23,8 +23,6 @@ This pipeline takes a list of english sentences and then uses
 the T5ForConditionalGeneration from Hugging Face to translate the
 english sentence into german.
 """
-
-
 import argparse
 import sys
 
@@ -39,95 +37,95 @@ from pipeline_utils.utils import Preprocess
 from pipeline_utils.utils import Postprocess
 
 
-
 def parse_args(argv):
-    """Parses args for the workflow."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model_state_dict_path",
-        # required=True,
-        help="Path to the model's state_dict.",
-        default="gs://apache-beam-testing-ml-examples/t5-models/model_state_dict_t5_small.pth"
-    )
-    parser.add_argument(
-        "--model_name",
-        # required=True,
-        help="Path to the model's state_dict.",
-        default="t5-small",
-    )
-    parser.add_argument(
-        "-m",
-        "--mode",
-        help="Mode to run pipeline in.",
-        choices=["local", "cloud"],
-        default="local",
-    )
-    parser.add_argument(
-        "-p",
-        "--project",
-        help="GCP project ID to run pipeline on.",
-        default="apache-beam-testing",
-    )
-    parser.add_argument(
-        "-r",
-        "--region",
-        help="Default region for Dataflow Runner",
-        default="us-central1",
-    )
+  """Parses args for the workflow."""
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      "--model_state_dict_path",
+      # required=True,
+      help="Path to the model's state_dict.",
+      default=
+      "gs://apache-beam-testing-ml-examples/t5-models/model_state_dict_t5_small.pth"
+  )
+  parser.add_argument(
+      "--model_name",
+      # required=True,
+      help="Path to the model's state_dict.",
+      default="t5-small",
+  )
+  parser.add_argument(
+      "-m",
+      "--mode",
+      help="Mode to run pipeline in.",
+      choices=["local", "cloud"],
+      default="local",
+  )
+  parser.add_argument(
+      "-p",
+      "--project",
+      help="GCP project ID to run pipeline on.",
+      default="apache-beam-testing",
+  )
+  parser.add_argument(
+      "-r",
+      "--region",
+      help="Default region for Dataflow Runner",
+      default="us-central1",
+  )
 
-    parser.add_argument(
-        "--machine_type",
-        help="Dataflow Worker machine type",
-        default="n1-standard-4",
-    )
-    parser.add_argument(
-        "--setup_file",
-        help="Pipeline requirements",
-        default="./setup.py"
-    )
-    parser.add_argument(
-        "--job_name",
-        help="Dataflow Job Name",
-        default="large-language-modeling"
-    )
+  parser.add_argument(
+      "--machine_type",
+      help="Dataflow Worker machine type",
+      default="n1-standard-4",
+  )
+  parser.add_argument(
+      "--setup_file", help="Pipeline requirements", default="./setup.py")
+  parser.add_argument(
+      "--job_name", help="Dataflow Job Name", default="large-language-modeling")
 
-    args, _ = parser.parse_known_args(args=argv)
-    return args
+  args, _ = parser.parse_known_args(args=argv)
+  return args
 
 
 def run():
-    """
+  """
     Runs the interjector pipeline which translates english sentences
     into german using the RunInference API. """
 
-    args = parse_args(sys.argv)
-    runner = "DirectRunner" if args.mode == "local" else "DataflowRunner"
-    pipeline_options_dict = vars(args)
-    pipeline_options_dict.update({"runner": runner})
-    pipeline_options = PipelineOptions(flags=[], **pipeline_options_dict)
+  args = parse_args(sys.argv)
+  runner = "DirectRunner" if args.mode == "local" else "DataflowRunner"
+  pipeline_options_dict = vars(args)
+  pipeline_options_dict.update({"runner": runner})
+  pipeline_options = PipelineOptions(flags=[], **pipeline_options_dict)
 
-    model_handler = ModelHandlerWrapper(
-        state_dict_path=args.model_state_dict_path,
-        model_class=ModelWrapper,
-        model_params={"config": AutoConfig.from_pretrained(args.model_name)},
-        device="cpu",
-    )
+  model_handler = ModelHandlerWrapper(
+      state_dict_path=args.model_state_dict_path,
+      model_class=ModelWrapper,
+      model_params={"config": AutoConfig.from_pretrained(args.model_name)},
+      device="cpu",
+  )
 
-    eng_sentences = ["The house is wonderful.", "I like to work in NYC.", "My name is Shubham.", "I want to work for Google.", "I am from India."]
-    task_prefix = "translate English to German: "
-    task_sentences = [task_prefix + sentence for sentence in eng_sentences]
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+  eng_sentences = [
+      "The house is wonderful.",
+      "I like to work in NYC.",
+      "My name is Shubham.",
+      "I want to work for Google.",
+      "I am from India."
+  ]
+  task_prefix = "translate English to German: "
+  task_sentences = [task_prefix + sentence for sentence in eng_sentences]
+  tokenizer = AutoTokenizer.from_pretrained(args.model_name)
 
-    # [START Pipeline]
-    with beam.Pipeline(options=pipeline_options) as pipeline:
-        _ = (
-            pipeline
-            | "Create Inputs" >> beam.Create(task_sentences)
-            | "Preprocess" >> beam.ParDo(Preprocess(tokenizer=tokenizer))
-            | "RunInference" >> RunInference(model_handler=model_handler)
-            | "PostProcess" >> beam.ParDo(Postprocess(tokenizer=tokenizer))
-        )
-    # [END Pipeline]
+  # [START Pipeline]
+  with beam.Pipeline(options=pipeline_options) as pipeline:
+    _ = (
+        pipeline
+        | "Create Inputs" >> beam.Create(task_sentences)
+        | "Preprocess" >> beam.ParDo(Preprocess(tokenizer=tokenizer))
+        | "RunInference" >> RunInference(model_handler=model_handler)
+        | "PostProcess" >> beam.ParDo(Postprocess(tokenizer=tokenizer)))
+  # [END Pipeline]
+
 
 if __name__ == "__main__":
-    run()
+  run()
