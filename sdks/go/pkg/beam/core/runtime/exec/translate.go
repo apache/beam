@@ -110,13 +110,6 @@ func mayFixDataSourceCoder(u *DataSource) {
 	if !coder.IsKV(coder.SkipW(u.Coder)) {
 		return // If it's not a KV, there's nothing to do here.
 	}
-	// Expand, MergeAccumulators, ReshuffleOutput nodes always have CoGBK behavior.
-	switch u.Out.(type) {
-	case *Expand, *MergeAccumulators, *ReshuffleOutput:
-		u.Coder = convertToCoGBK(u.Coder)
-		return
-	}
-
 	if coder.SkipW(u.Coder).Components[1].Kind != coder.Iterable {
 		return // If the V is not an iterable, we don't care.
 	}
@@ -127,10 +120,15 @@ func mayFixDataSourceCoder(u *DataSource) {
 		out = mp.Out[0]
 	}
 
-	// So we now know we have a KV<k, Iter<V>>. So we need to validate whether the DoFn has an
-	// iter function in the value slot. If it does, we need to use a CoGBK coder.
-	if pd, ok := out.(*ParDo); ok {
-		sig := pd.Fn.ProcessElementFn()
+	// Expand, MergeAccumulators, ReshuffleOutput nodes always have CoGBK behavior.
+	switch n := out.(type) {
+	case *Expand, *MergeAccumulators, *ReshuffleOutput:
+		u.Coder = convertToCoGBK(u.Coder)
+		return
+	case *ParDo:
+		// So we now know we have a KV<k, Iter<V>>. So we need to validate whether the DoFn has an
+		// iter function in the value slot. If it does, we need to use a CoGBK coder.
+		sig := n.Fn.ProcessElementFn()
 		// Get all valid inputs and side inputs.
 		in := sig.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter)
 
