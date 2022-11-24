@@ -105,22 +105,18 @@ class _CompleteUnitButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
     final userProgress = GetIt.instance.get<UserProgressCache>();
-    final auth = GetIt.instance.get<AuthNotifier>();
 
     return AnimatedBuilder(
       animation: userProgress,
       builder: (context, child) {
-        final isDisabled =
-            !auth.isAuthenticated || tour.isCurrentUnitCompleted();
-
         return Flexible(
           child: OutlinedButton(
             style: OutlinedButton.styleFrom(
               foregroundColor: themeData.primaryColor,
               side: BorderSide(
-                color: isDisabled
-                    ? themeData.disabledColor
-                    : themeData.primaryColor,
+                color: tour.canCompleteCurrentUnit()
+                    ? themeData.primaryColor
+                    : themeData.disabledColor,
               ),
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(
@@ -128,9 +124,9 @@ class _CompleteUnitButton extends StatelessWidget {
                 ),
               ),
             ),
-            // TODO(nausharipov): add loading
-            onPressed:
-                isDisabled ? null : tour.currentUnitController.completeUnit,
+            onPressed: tour.canCompleteCurrentUnit()
+                ? tour.currentUnitController.completeUnit
+                : null,
             child: const Text(
               'pages.tour.completeUnit',
               overflow: TextOverflow.ellipsis,

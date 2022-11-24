@@ -35,6 +35,7 @@ import 'path.dart';
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
+  // TODO(nausharipov): avoid late?
   late UnitController currentUnitController;
   final _app = GetIt.instance.get<AppNotifier>();
   final _auth = GetIt.instance.get<AuthNotifier>();
@@ -66,10 +67,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         treeIds: contentTreeController.treeIds,
       );
 
-  bool isCurrentUnitCompleted() {
-    return _userProgress.isUnitCompleted(
-      contentTreeController.currentNode?.id,
-    );
+  bool canCompleteCurrentUnit() {
+    return _auth.isAuthenticated &&
+        !currentUnitController.isCompleting &&
+        !_userProgress.isUnitCompleted(contentTreeController.currentNode?.id);
   }
 
   UnitContentModel? get currentUnitContent => _currentUnitContent;
