@@ -78,6 +78,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     _STATE_BUCKET : var.state_bucket
     _TAG : var.image_tag
     _DOCKER_REPOSITORY_ROOT : var.docker_repository_root
+    _SDK_TAG : var.sdk_tag
   }
 
   service_account = data.google_service_account.cloudbuild_sa.id

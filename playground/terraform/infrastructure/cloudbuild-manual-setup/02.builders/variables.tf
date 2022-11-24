@@ -78,3 +78,7 @@ variable "playground_region" {
 variable "playground_location" {
   description = "Location (us-central1-b) where playground infrastructure will be deployed"
 }
+
+variable "sdk_tag" {
+  description = "Apache Beam go python image sdk tag"
+}
