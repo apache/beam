@@ -427,6 +427,5 @@ func checkTypesNotNil(list []FullType) {
 
 // NoFiringPane return PaneInfo assigned as NoFiringPane(0x0f)
 func NoFiringPane() PaneInfo {
-	pn := PaneInfo{IsFirst: true, IsLast: true, Timing: PaneUnknown}
-	return pn
+	return PaneInfo{IsFirst: true, IsLast: true, Timing: PaneUnknown}
 }
