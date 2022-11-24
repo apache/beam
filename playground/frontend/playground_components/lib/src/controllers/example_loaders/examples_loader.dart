@@ -18,6 +18,7 @@
 
 import 'package:collection/collection.dart';
 
+import '../../exceptions/example_loading_exception.dart';
 import '../../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../../models/example_loading_descriptors/examples_loading_descriptor.dart';
 import '../../models/sdk.dart';
@@ -27,7 +28,6 @@ import 'content_example_loader.dart';
 import 'empty_example_loader.dart';
 import 'example_loader.dart';
 import 'example_loader_factory.dart';
-import 'exceptions/example_loading_exceptions.dart';
 import 'http_example_loader.dart';
 import 'standard_example_loader.dart';
 import 'user_shared_example_loader.dart';
@@ -82,7 +82,7 @@ class ExamplesLoader {
     );
 
     if (loader == null) {
-      // TODO: Log.
+      // TODO(alexeyinkin): Log, https://github.com/apache/beam/issues/23398.
       print('Cannot create example loader for $descriptor');
       return null;
     }

@@ -21,7 +21,9 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 
-import '../controllers/example_loaders/exceptions/example_loading_exceptions.dart';
+import '../exceptions/catalog_loading_exception.dart';
+import '../exceptions/example_loading_exception.dart';
+import '../exceptions/saving_exception.dart';
 import '../models/category_with_examples.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
@@ -34,14 +36,13 @@ import '../repositories/models/get_precompiled_objects_request.dart';
 import '../repositories/models/get_snippet_request.dart';
 import '../repositories/models/save_snippet_request.dart';
 import '../repositories/models/shared_file.dart';
-import 'catalog_loading_exception.dart';
-import 'saving_exception.dart';
 
 /// A runtime cache for examples fetched from a repository.
 class ExampleCache extends ChangeNotifier {
   final ExampleRepository _exampleRepository;
   final categoryListsBySdk = <Sdk, List<CategoryWithExamples>>{};
 
+  @visibleForTesting
   final Map<Sdk, Example> defaultExamplesBySdk = {};
 
   // TODO(alexeyinkin): Extract, https://github.com/apache/beam/issues/23249
@@ -207,6 +208,15 @@ class ExampleCache extends ChangeNotifier {
   void changeSelectorVisibility() {
     isSelectorOpened = !isSelectorOpened;
     notifyListeners();
+  }
+
+  Future<Example?> getDefaultExampleBySdk(Sdk sdk) async {
+    await Future.wait([
+      loadAllPrecompiledObjectsIfNot(),
+      loadDefaultPrecompiledObjectsIfNot(),
+    ]);
+
+    return defaultExamplesBySdk[sdk];
   }
 
   Future<void> loadDefaultPrecompiledObjects() async {

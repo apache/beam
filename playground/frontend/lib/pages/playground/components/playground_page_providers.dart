@@ -20,6 +20,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:playground/config.g.dart';
+import 'package:playground/constants/params.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/analytics/google_analytics_service.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
@@ -78,7 +79,7 @@ class PlaygroundPageProviders extends StatelessWidget {
               params: Uri.base.queryParameters,
             );
 
-            unawaited(_load(controller, descriptor));
+            unawaited(_loadExamples(controller, descriptor));
 
             final handler = MessagesDebouncer(
               handler: MessagesHandler(playgroundController: controller),
@@ -99,7 +100,7 @@ class PlaygroundPageProviders extends StatelessWidget {
     );
   }
 
-  Future<void> _load(
+  Future<void> _loadExamples(
     PlaygroundController controller,
     ExamplesLoadingDescriptor descriptor,
   ) async {
@@ -109,7 +110,7 @@ class PlaygroundPageProviders extends StatelessWidget {
       PlaygroundComponents.toastNotifier.addException(ex);
 
       controller.setEmptyIfNoSdk(
-        descriptor.initialSdk ?? ExamplesLoadingDescriptorFactory.defaultSdk,
+        descriptor.initialSdk ?? defaultSdk,
       );
     }
   }

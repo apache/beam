@@ -24,8 +24,6 @@ import 'package:playground/modules/examples/models/example_token_type.dart';
 import 'package:playground_components/playground_components.dart';
 
 class ExamplesLoadingDescriptorFactory {
-  static const defaultSdk = Sdk.java;
-
   static ExamplesLoadingDescriptor fromUriParts({
     required String path,
     required Map<String, dynamic> params,

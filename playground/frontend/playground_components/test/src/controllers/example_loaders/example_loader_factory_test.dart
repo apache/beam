@@ -17,7 +17,6 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components/src/controllers/example_loaders/example_loader_factory.dart';
 

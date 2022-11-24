@@ -37,6 +37,7 @@ class UserSharedExampleLoader extends ExampleLoader {
 
   @override
   Future<Example> get future async {
-    return _example = await exampleCache.loadSharedExample(descriptor.snippetId);
+    return _example ??
+        (_example = await exampleCache.loadSharedExample(descriptor.snippetId));
   }
 }

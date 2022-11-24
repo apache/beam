@@ -49,7 +49,7 @@ class StandardExampleLoader extends ExampleLoader {
   }
 
   Future<void> _load() async {
-    final example = await _loadExampleWithoutInfo();
+    final example = await _loadExampleBase();
 
     if (example == null) {
       _completer.completeError('Example not found: $descriptor');
@@ -61,7 +61,7 @@ class StandardExampleLoader extends ExampleLoader {
     );
   }
 
-  Future<ExampleBase?> _loadExampleWithoutInfo() async {
+  Future<ExampleBase?> _loadExampleBase() async {
     _sdk = Sdk.tryParseExamplePath(descriptor.path);
 
     if (_sdk == null) {

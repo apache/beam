@@ -18,7 +18,6 @@
 
 import '../../cache/example_cache.dart';
 import '../../models/example.dart';
-import '../../models/example_base.dart';
 import '../../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../../models/sdk.dart';
 import 'example_loader.dart';
@@ -31,21 +30,11 @@ class EmptyExampleLoader extends ExampleLoader {
     required this.descriptor,
     // TODO(alexeyinkin): Remove when this lands: https://github.com/dart-lang/language/issues/1813
     required ExampleCache exampleCache,
-  }) : _example = createExample(descriptor.sdk);
+  }) : _example = Example.empty(descriptor.sdk);
 
   @override
   Sdk get sdk => _example.sdk;
 
   @override
   Future<Example> get future async => _example;
-
-  static Example createExample(Sdk sdk) {
-    return Example(
-      name: 'Untitled Example',
-      path: '',
-      sdk: sdk,
-      source: '',
-      type: ExampleType.example,
-    );
-  }
 }

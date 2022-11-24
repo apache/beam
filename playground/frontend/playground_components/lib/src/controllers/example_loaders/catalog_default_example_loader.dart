@@ -36,12 +36,7 @@ class CatalogDefaultExampleLoader extends ExampleLoader {
 
   @override
   Future<Example> get future async {
-    await Future.wait([
-      exampleCache.loadAllPrecompiledObjectsIfNot(),
-      exampleCache.loadDefaultPrecompiledObjectsIfNot(),
-    ]);
-
-    final result = exampleCache.defaultExamplesBySdk[descriptor.sdk];
+    final result = await exampleCache.getDefaultExampleBySdk(descriptor.sdk);
 
     if (result == null) {
       throw Exception('Default example not found for $descriptor');

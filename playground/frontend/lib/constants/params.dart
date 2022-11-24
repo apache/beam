@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/playground_components.dart';
+
 const kExampleParam = 'example';
 const kExamplesParam = 'examples';
 const kIsEditableParam = 'editable';
@@ -29,3 +31,5 @@ const _kIsEmbedded = 'embedded';
 bool isEmbedded() {
   return Uri.base.toString().contains(_kIsEmbedded);
 }
+
+const defaultSdk = Sdk.java;

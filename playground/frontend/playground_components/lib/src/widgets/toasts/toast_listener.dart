@@ -19,11 +19,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:fluttertoast/fluttertoast.dart' hide Toast;
 import 'package:get_it/get_it.dart';
 
 import '../../constants/durations.dart';
-import '../../models/toast.dart' as beamtoast;
+import '../../models/toast.dart';
 import '../../services/toast_notifier.dart';
 import 'toast.dart';
 
@@ -51,7 +51,7 @@ class _ToastListenerWidgetState extends State<ToastListenerWidget> {
     _toastSubscription = _notifier.toasts.listen(_onToast);
   }
 
-  void _onToast(beamtoast.Toast toast) {
+  void _onToast(Toast toast) {
     _flutterToast.showToast(
       gravity: ToastGravity.TOP,
       toastDuration: BeamDurations.toast,

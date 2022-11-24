@@ -18,7 +18,7 @@
 
 import 'dart:async';
 
-import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
+import 'package:playground/constants/params.dart';
 import 'package:playground/modules/messages/handlers/abstract_message_handler.dart';
 import 'package:playground/modules/messages/models/abstract_message.dart';
 import 'package:playground/modules/messages/models/set_content_message.dart';
@@ -50,7 +50,7 @@ class SetContentMessageHandler extends AbstractMessageHandler {
       PlaygroundComponents.toastNotifier.addException(ex);
 
       playgroundController.setEmptyIfNoSdk(
-        descriptor.initialSdk ?? ExamplesLoadingDescriptorFactory.defaultSdk,
+        descriptor.initialSdk ?? defaultSdk,
       );
     }
   }

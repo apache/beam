@@ -20,6 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:playground_components/src/exceptions/example_loading_exception.dart';
 
 import 'common.dart';
 import 'examples_loader_test.mocks.dart';
@@ -132,7 +133,7 @@ void main() async {
         });
       });
 
-      // TODO(alexeyinkin): Test lazy loading.
+      // TODO(alexeyinkin): Test lazy loading, https://github.com/apache/beam/issues/24351
     });
   });
 }

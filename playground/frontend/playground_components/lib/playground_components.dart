@@ -23,7 +23,6 @@ export 'src/constants/links.dart';
 export 'src/constants/sizes.dart';
 
 export 'src/controllers/example_loaders/examples_loader.dart';
-export 'src/controllers/example_loaders/exceptions/example_loading_exceptions.dart';
 export 'src/controllers/playground_controller.dart';
 
 export 'src/enums/complexity.dart';
