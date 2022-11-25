@@ -1,5 +1,5 @@
 ---
-title: "RunInference with a Large Language Model"
+title: "Large Language Model Inference in Beam"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
