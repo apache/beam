@@ -471,6 +471,11 @@ helm {
         chartName.set("playground")
         sourceDir.set(file("../infrastructure/helm-playground"))
     }
+
+    extraArgs {
+        addAll("-v", "1")
+    }
+
     releases {
         create("playground") {
             from(playground)
@@ -493,22 +498,22 @@ task ("gkebackend") {
   val takeConfig = tasks.getByName("takeConfig")
   val echo = tasks.getByName("echo")
   //val back = tasks.getByName("pushBack")
-  val front = tasks.getByName("pushFront")
+  //val front = tasks.getByName("pushFront")
   //val indexcreate = tasks.getByName("indexcreate")
-  //val helm = tasks.getByName("helmInstallPlayground")
+  val helm = tasks.getByName("helmInstallPlayground")
   dependsOn(init)
 //  dependsOn(apply)
   dependsOn(takeConfig)
   dependsOn(echo)
   //dependsOn(back)
-  dependsOn(front)
+  //dependsOn(front)
   //dependsOn(indexcreate)
-  //dependsOn(helm)
+  dependsOn(helm)
 //  apply.mustRunAfter(init)
   takeConfig.mustRunAfter(init)
   echo.mustRunAfter(takeConfig)
   //back.mustRunAfter(echo)
-  front.mustRunAfter(takeConfig)
+  //front.mustRunAfter(takeConfig)
   //indexcreate.mustRunAfter(front)
-  //helm.mustRunAfter(indexcreate)
+  helm.mustRunAfter(echo)
 }
