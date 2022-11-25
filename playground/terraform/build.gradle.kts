@@ -466,49 +466,50 @@ dns_name: ${dns_name}
     """)
  }
 }
-helm {
-    val playground by charts.creating {
-        chartName.set("playground")
-        sourceDir.set(file("../infrastructure/helm-playground"))
-    }
-    releases {
-        create("playground") {
-            from(playground)
-        }
-    }
-}
 
-task ("echo") {
+//helm {
+//    val playground by charts.creating {
+//        chartName.set("playground")
+//        sourceDir.set(file("../infrastructure/helm-playground"))
+//    }
+//    releases {
+//        create("playground") {
+//            from(playground)
+//        }
+//    }
+//}
+
+task ("helm") {
     doLast{
         exec {
-            executable("cat")
-            args("../infrastructure/helm-playground/values.yaml")
+            executable("helm")
+            args("install", "../infrastructure/helm-playground/values.yaml")
         }
     }
 }
 task ("gkebackend") {
   group = "deploy"
   val init = tasks.getByName("terraformInit")
-//  val apply = tasks.getByName("terraformApplyInf")
+  //val apply = tasks.getByName("terraformApplyInf")
   val takeConfig = tasks.getByName("takeConfig")
-  val echo = tasks.getByName("echo")
+  //val echo = tasks.getByName("echo")
   //val back = tasks.getByName("pushBack")
-  val front = tasks.getByName("pushFront")
-  //val indexcreate = tasks.getByName("indexcreate")
-  //val helm = tasks.getByName("helmInstallPlayground")
+  //val front = tasks.getByName("pushFront")
+  val indexcreate = tasks.getByName("indexcreate")
+  val helm = tasks.getByName("helm")
   dependsOn(init)
-//  dependsOn(apply)
+  //dependsOn(apply)
   dependsOn(takeConfig)
-  dependsOn(echo)
+  //dependsOn(echo)
   //dependsOn(back)
-  dependsOn(front)
-  //dependsOn(indexcreate)
-  //dependsOn(helm)
-//  apply.mustRunAfter(init)
+  //dependsOn(front)
+  dependsOn(indexcreate)
+  dependsOn(helm)
+  //apply.mustRunAfter(init)
   takeConfig.mustRunAfter(init)
-  echo.mustRunAfter(takeConfig)
+  //echo.mustRunAfter(takeConfig)
   //back.mustRunAfter(echo)
-  front.mustRunAfter(takeConfig)
-  //indexcreate.mustRunAfter(front)
-  //helm.mustRunAfter(indexcreate)
+  //front.mustRunAfter(takeConfig)
+  indexcreate.mustRunAfter(takeConfig)
+  helm.mustRunAfter(indexcreate)
 }
