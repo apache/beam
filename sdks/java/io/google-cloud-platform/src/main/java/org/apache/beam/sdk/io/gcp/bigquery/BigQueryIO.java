@@ -2532,15 +2532,19 @@ public class BigQueryIO {
     /**
      * Choose the frequency at which file writes are triggered.
      *
-     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS}, and
-     * only when writing an unbounded {@link PCollection}.
+     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS} or
+     * {@link Method#STORAGE_WRITE_API}, and only when writing an unbounded {@link PCollection}.
      *
-     * <p>Every triggeringFrequency duration, a BigQuery load job will be generated for all the data
-     * written since the last load job. BigQuery has limits on how many load jobs can be triggered
-     * per day, so be careful not to set this duration too low, or you may exceed daily quota. Often
-     * this is set to 5 or 10 minutes to ensure that the project stays well under the BigQuery
-     * quota. See <a href="https://cloud.google.com/bigquery/quota-policy">Quota Policy</a> for more
-     * information about BigQuery quotas.
+     * <p>For {@link Method#FILE_LOADS}, every triggeringFrequency duration, a BigQuery load job
+     * will be generated for all the data written since the last load job.BigQuery has limits on how
+     * many load jobs can be triggered per day, so be careful not to set this duration too low, or
+     * you may exceed daily quota. Often this is set to 5 or 10 minutes to ensure that the project
+     * stays well under the BigQuery quota. See <a
+     * href="https://cloud.google.com/bigquery/quota-policy">Quota Policy</a> for more information
+     * about BigQuery quotas.
+     *
+     * <p>For {@link Method#STORAGE_WRITE_API}, you must also set {@link
+     * #withNumStorageWriteApiStreams}.
      */
     public Write<T> withTriggeringFrequency(Duration triggeringFrequency) {
       checkArgument(triggeringFrequency != null, "triggeringFrequency can not be null");
