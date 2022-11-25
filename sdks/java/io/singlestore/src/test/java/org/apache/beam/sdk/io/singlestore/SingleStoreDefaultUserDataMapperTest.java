@@ -66,10 +66,10 @@ public class SingleStoreDefaultUserDataMapperTest {
     assertEquals(7, res.size());
     assertEquals("-128", res.get(0));
     assertEquals("-32768", res.get(1));
-    assertEquals("10", res.get(2));
-    assertEquals("10", res.get(3));
-    assertEquals("10.1", res.get(4));
-    assertEquals("10.1", res.get(5));
+    assertEquals("-2147483648", res.get(2));
+    assertEquals("-9223372036854775808", res.get(3));
+    assertEquals("-3.4028235E38", res.get(4));
+    assertEquals("-1.7976931348623157E308", res.get(5));
     assertEquals("-10000000000000.1000000000000000000000", res.get(6));
   }
 
