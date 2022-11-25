@@ -483,7 +483,7 @@ task ("helm") {
     doLast{
         exec {
             executable("helm")
-            args("install", "--debug", "../infrastructure/helm-playground/Chart.yaml")
+            args("install", "playground", "../infrastructure/helm-playground ")
         }
     }
 }
