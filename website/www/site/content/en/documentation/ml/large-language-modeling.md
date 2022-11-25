@@ -40,8 +40,7 @@ The pipeline can be broken down into few simple steps:
 
 The code snippet for all the 4 steps can be found below:
 
-{{< /highlight >}}
-
+{{< highlight >}}
     with beam.Pipeline(options=pipeline_options) as pipeline:
         _ = (
             pipeline
@@ -50,14 +49,12 @@ The code snippet for all the 4 steps can be found below:
             | "RunInference" >> RunInference(model_handler=model_handler)
             | "PostProcess" >> beam.ParDo(Postprocess(tokenizer=tokenizer))
         )
-
 {{< /highlight >}}
 
 We now closely look at the 3rd step of pipeline where we use `RunInference`.
 In order to use it, one has to first define a `ModelHandler`. RunInference provides model handlers for `PyTorch`, `TensorFlow` and `Scikit-Learn`. As, we are using a `PyTorch` model, so we used a `PyTorchModelHandlerTensor`.
 
-{{< /highlight >}}
-
+{{< highlight >}}
   gen_fn = make_tensor_model_fn('generate')
 
   model_handler = PytorchModelHandlerTensor(
@@ -66,7 +63,6 @@ In order to use it, one has to first define a `ModelHandler`. RunInference provi
       model_params={"config": AutoConfig.from_pretrained(args.model_name)},
       device="cpu",
       inference_fn=gen_fn)
-
 {{< /highlight >}}
 
 `ModelHandler` requires parameters like:
