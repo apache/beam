@@ -18,6 +18,11 @@
 
 description = "Apache Beam :: Playground"
 
+subprojects {
+    // Use verbose logging on all Helm commands
+    helm.extraArgs.addAll("-v", "1")
+}
+
 // generate protobuf client and server stubs
 task("generateProto") {
   group = "build"
