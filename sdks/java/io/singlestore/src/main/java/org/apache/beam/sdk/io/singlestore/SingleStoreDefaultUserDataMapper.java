@@ -23,22 +23,13 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 final class SingleStoreDefaultUserDataMapper implements SingleStoreIO.UserDataMapper<Row> {
 
-  private @Nullable DateTimeFormatter formatter = null;
-
-  private DateTimeFormatter getFormatter() {
-    if (formatter == null) {
-      formatter = DateTimeFormat.forPattern("yyyy-MM-DD' 'HH:mm:ss.SSS");
-    }
-
-    return formatter;
-  }
+  private final transient DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyy-MM-DD' 'HH:mm:ss.SSS");
 
   private String convertLogicalTypeFieldToString(Schema.FieldType type, Object value) {
     Schema.LogicalType<Object, Object> logicalType = type.getLogicalType();
@@ -70,7 +61,7 @@ final class SingleStoreDefaultUserDataMapper implements SingleStoreIO.UserDataMa
       case STRING:
         return (String) value;
       case DATETIME:
-        return getFormatter().print((Instant) value);
+        return formatter.print((Instant) value);
       case BOOLEAN:
         return ((Boolean) value) ? "1" : "0";
       case BYTES:
