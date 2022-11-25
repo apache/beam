@@ -29,12 +29,52 @@ import sys
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.options.pipeline_options import PipelineOptions
-from pipeline_utils.utils import ModelHandlerWrapper
-from pipeline_utils.utils import ModelWrapper
-from pipeline_utils.utils import Postprocess
-from pipeline_utils.utils import Preprocess
+from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
+from apache_beam.ml.inference.pytorch_inference import make_tensor_model_fn
 from transformers import AutoConfig
 from transformers import AutoTokenizer
+from transformers import T5ForConditionalGeneration
+
+
+class Preprocess(beam.DoFn):
+
+  def __init__(self, tokenizer: AutoTokenizer):
+    self._tokenizer = tokenizer
+
+  def process(self, element):
+    """
+        Process the raw text input to a format suitable for
+        T5ForConditionalGeneration Model Inference
+
+        Args:
+          element: A Pcollection
+
+        Returns:
+          The input_ids are being returned.
+        """
+    input_ids = self._tokenizer(
+        element, return_tensors="pt", padding="max_length",
+        max_length=512).input_ids
+    return input_ids
+
+
+class Postprocess(beam.DoFn):
+
+  def __init__(self, tokenizer: AutoTokenizer):
+    self._tokenizer = tokenizer
+
+  def process(self, element):
+    """
+        Process the PredictionResult to print the translated texts
+
+        Args:
+          element: The RunInference output to be processed.
+        """
+    decoded_inputs = self._tokenizer.decode(
+        element.example, skip_special_tokens=True)
+    decoded_outputs = self._tokenizer.decode(
+        element.inference, skip_special_tokens=True)
+    print(f"{decoded_inputs} \t Output: {decoded_outputs}")
 
 
 def parse_args(argv):
@@ -52,11 +92,10 @@ def parse_args(argv):
       default="t5-small",
   )
   parser.add_argument(
-      "-m",
-      "--mode",
-      help="Mode to run pipeline in.",
-      choices=["local", "cloud"],
-      default="local",
+      "--runner",
+      help="Runner for Pipeline",
+      choices=["DirectRunner", "DataflowRunner"],
+      default="DirectRunner",
   )
   parser.add_argument(
       "-p",
@@ -77,7 +116,9 @@ def parse_args(argv):
       default="n1-standard-4",
   )
   parser.add_argument(
-      "--setup_file", help="Pipeline requirements", default="./setup.py")
+      "--requirements_file",
+      help="Pipeline requirements",
+      default="./requirements.txt")
   parser.add_argument(
       "--job_name", help="Dataflow Job Name", default="large-language-modeling")
 
@@ -91,17 +132,15 @@ def run():
     into german using the RunInference API. """
 
   args = parse_args(sys.argv)
-  runner = "DirectRunner" if args.mode == "local" else "DataflowRunner"
-  pipeline_options_dict = vars(args)
-  pipeline_options_dict.update({"runner": runner})
-  pipeline_options = PipelineOptions(flags=[], **pipeline_options_dict)
+  pipeline_options = PipelineOptions(flags=[], **vars(args))
 
-  model_handler = ModelHandlerWrapper(
+  gen_fn = make_tensor_model_fn('generate')
+  model_handler = PytorchModelHandlerTensor(
       state_dict_path=args.model_state_dict_path,
-      model_class=ModelWrapper,
+      model_class=T5ForConditionalGeneration,
       model_params={"config": AutoConfig.from_pretrained(args.model_name)},
       device="cpu",
-  )
+      inference_fn=gen_fn)
 
   eng_sentences = [
       "The house is wonderful.",
@@ -118,7 +157,7 @@ def run():
   with beam.Pipeline(options=pipeline_options) as pipeline:
     _ = (
         pipeline
-        | "Create Inputs" >> beam.Create(task_sentences)
+        | "CreateInputs" >> beam.Create(task_sentences)
         | "Preprocess" >> beam.ParDo(Preprocess(tokenizer=tokenizer))
         | "RunInference" >> RunInference(model_handler=model_handler)
         | "PostProcess" >> beam.ParDo(Postprocess(tokenizer=tokenizer)))
