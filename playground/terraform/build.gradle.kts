@@ -472,10 +472,6 @@ helm {
         sourceDir.set(file("../infrastructure/helm-playground"))
     }
 
-    extraArgs {
-        addAll("-v", "1")
-    }
-
     releases {
         create("playground") {
             from(playground)
