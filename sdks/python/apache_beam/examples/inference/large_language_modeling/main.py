@@ -28,16 +28,15 @@ import sys
 
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.ml.inference.pytorch_inference import make_tensor_model_fn
+from apache_beam.options.pipeline_options import PipelineOptions
 from transformers import AutoConfig
 from transformers import AutoTokenizer
 from transformers import T5ForConditionalGeneration
 
 
 class Preprocess(beam.DoFn):
-
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 
@@ -59,7 +58,6 @@ class Preprocess(beam.DoFn):
 
 
 class Postprocess(beam.DoFn):
-
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 
