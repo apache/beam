@@ -467,26 +467,18 @@ dns_name: ${dns_name}
  }
 }
 
-//helm {
-//    val playground by charts.creating {
-//        chartName.set("playground")
-//        sourceDir.set(file("../infrastructure/helm-playground"))
-//    }
-//    releases {
-//        create("playground") {
-//            from(playground)
-//        }
-//    }
-//}
-
-task ("helm") {
-    doLast{
-        exec {
-            executable("helm")
-            args("install", "playground", "../infrastructure/helm-playground")
+helm {
+    val playground by charts.creating {
+        chartName.set("playground")
+        sourceDir.set(file("../infrastructure/helm-playground"))
+    }
+    releases {
+        create("playground") {
+            from(playground)
         }
     }
 }
+
 task ("gkebackend") {
   group = "deploy"
   val init = tasks.getByName("terraformInit")
@@ -496,7 +488,7 @@ task ("gkebackend") {
   //val back = tasks.getByName("pushBack")
   //val front = tasks.getByName("pushFront")
   val indexcreate = tasks.getByName("indexcreate")
-  val helm = tasks.getByName("helm")
+  val helm = tasks.getByName("helmInstallPlayground")
   dependsOn(init)
   //dependsOn(apply)
   dependsOn(takeConfig)
