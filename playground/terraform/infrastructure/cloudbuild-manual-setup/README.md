@@ -64,7 +64,7 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
     GOOGLE_PROJECT="project_id" \
     GOOGLE_REGION="us-central1" \
     PLAYGROUND_REGION="us-central1" \
-    PLAYGROUND_LOCATION="us-central1-b" \
+    PLAYGROUND_LOCATION="us-central1-a" \
     ENVIRONMENT_NAME="env_name" \
     DNS_NAME="dns_name" \
     NETWORK_NAME="network_name" \
