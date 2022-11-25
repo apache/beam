@@ -669,7 +669,7 @@ public class SingleStoreIO {
           @Element ParameterT element,
           @Restriction OffsetRange range,
           OutputReceiver<OffsetRange> receiver) {
-        for (long i = range.getTo(); i < range.getFrom(); i++) {
+        for (long i = range.getFrom(); i < range.getTo(); i++) {
           receiver.output(new OffsetRange(i, i + 1));
         }
       }
