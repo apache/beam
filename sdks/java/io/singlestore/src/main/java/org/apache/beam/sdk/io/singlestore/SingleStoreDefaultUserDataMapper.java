@@ -29,7 +29,8 @@ import org.joda.time.format.DateTimeFormatter;
 
 final class SingleStoreDefaultUserDataMapper implements SingleStoreIO.UserDataMapper<Row> {
 
-  private final transient DateTimeFormatter formatter = DateTimeFormat.forPattern("yyyy-MM-DD' 'HH:mm:ss.SSS");
+  private final transient DateTimeFormatter formatter =
+      DateTimeFormat.forPattern("yyyy-MM-DD' 'HH:mm:ss.SSS");
 
   private String convertLogicalTypeFieldToString(Schema.FieldType type, Object value) {
     Schema.LogicalType<Object, Object> logicalType = type.getLogicalType();
