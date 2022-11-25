@@ -607,10 +607,7 @@ public class SingleStoreIO {
           .apply(
               ParDo.of(
                   new ReadWithPartitions.ReadWithPartitionsFn<>(
-                      dataSourceConfiguration,
-                      actualQuery,
-                      database,
-                      rowMapper)))
+                      dataSourceConfiguration, actualQuery, database, rowMapper)))
           .setCoder(coder);
     }
 
@@ -673,8 +670,7 @@ public class SingleStoreIO {
           @Restriction OffsetRange range,
           OutputReceiver<OffsetRange> receiver) {
         for (long i = range.getTo(); i < range.getFrom(); i++) {
-          receiver.output(
-              new OffsetRange(i, i+1));
+          receiver.output(new OffsetRange(i, i + 1));
         }
       }
 

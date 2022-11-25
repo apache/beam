@@ -154,10 +154,10 @@ public class ReadWithPartitionsTest {
         "One of withTable() or withQuery() is required",
         IllegalArgumentException.class,
         () ->
-          pipelineForErrorChecks.apply(
-              SingleStoreIO.<TestRow>readWithPartitions()
-                  .withDataSourceConfiguration(dataSourceConfiguration)
-                  .withRowMapper(new TestHelper.TestRowMapper())));
+            pipelineForErrorChecks.apply(
+                SingleStoreIO.<TestRow>readWithPartitions()
+                    .withDataSourceConfiguration(dataSourceConfiguration)
+                    .withRowMapper(new TestHelper.TestRowMapper())));
   }
 
   @Test
@@ -166,11 +166,11 @@ public class ReadWithPartitionsTest {
         "withTable() can not be used together with withQuery()",
         IllegalArgumentException.class,
         () ->
-          pipelineForErrorChecks.apply(
-              SingleStoreIO.<TestRow>readWithPartitions()
-                  .withDataSourceConfiguration(dataSourceConfiguration)
-                  .withTable("t")
-                  .withQuery("SELECT * FROM `t`")
-                  .withRowMapper(new TestHelper.TestRowMapper())));
+            pipelineForErrorChecks.apply(
+                SingleStoreIO.<TestRow>readWithPartitions()
+                    .withDataSourceConfiguration(dataSourceConfiguration)
+                    .withTable("t")
+                    .withQuery("SELECT * FROM `t`")
+                    .withRowMapper(new TestHelper.TestRowMapper())));
   }
 }
