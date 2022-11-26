@@ -140,10 +140,9 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
 
     public StorageApiWritePayload toMessage(TableRow tableRow, boolean respectRequired)
         throws Exception {
-      boolean ignore = ignoreUnknownValues || autoSchemaUpdates;
       Message msg =
           TableRowToStorageApiProto.messageFromTableRow(
-              schemaInformation, descriptor, tableRow, ignore);
+              schemaInformation, descriptor, tableRow, ignoreUnknownValues);
       return StorageApiWritePayload.of(msg.toByteArray());
     }
   };
