@@ -846,7 +846,7 @@ public class TableRowToStorageApiProtoTest {
         );
     SchemaInformation fieldSchema = schemaInformation.getSchemaForField(intFieldName);
     Descriptor schemaDescriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true);
     FieldDescriptor fieldDescriptor = schemaDescriptor.findFieldByName(intFieldName);
 
     Object[][] validIntValues = new Object[][]{
@@ -874,16 +874,16 @@ public class TableRowToStorageApiProtoTest {
         // Value and expected error message
         {"12.123", "Column: "
             + intFieldName
-            + " (INTEGER). Value: 12.123 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"12.123\""},
+            + " (INT64). Value: 12.123 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"12.123\""},
         {Long.toString(Long.MAX_VALUE) + '0', "Column: "
             + intFieldName
-            + " (INTEGER). Value: 92233720368547758070 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"92233720368547758070\""},
+            + " (INT64). Value: 92233720368547758070 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"92233720368547758070\""},
         {new BigDecimal("12.123"), "Column: "
             + intFieldName
-            + " (INTEGER). Value: 12.123 (java.math.BigDecimal). Reason: java.lang.ArithmeticException: Rounding necessary"},
+            + " (INT64). Value: 12.123 (java.math.BigDecimal). Reason: java.lang.ArithmeticException: Rounding necessary"},
         {new BigInteger(String.valueOf(Long.MAX_VALUE)).add(new BigInteger("10")), "Column: "
             + intFieldName
-            + " (INTEGER). Value: 9223372036854775817 (java.math.BigInteger). Reason: java.lang.ArithmeticException: BigInteger out of long range"}
+            + " (INT64). Value: 9223372036854775817 (java.math.BigInteger). Reason: java.lang.ArithmeticException: BigInteger out of long range"}
 
     };
     for (Object[] invalidValue : invalidIntValues) {

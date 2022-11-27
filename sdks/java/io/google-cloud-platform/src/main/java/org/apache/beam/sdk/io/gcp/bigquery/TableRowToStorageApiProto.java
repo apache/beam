@@ -118,7 +118,7 @@ public class TableRowToStorageApiProto {
 
     private static String getPrettyFieldName(SchemaInformation schema) {
       String fullName = schema.getFullName();
-      String rootPrefix = "__root__.";
+      String rootPrefix = "root.";
       return fullName.startsWith(rootPrefix) ? fullName.substring(rootPrefix.length()) : fullName;
     }
   }
