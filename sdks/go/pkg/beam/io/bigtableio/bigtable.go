@@ -223,12 +223,12 @@ func (f *writeBatchFn) ProcessElement(ctx context.Context, mutation Mutation) er
 }
 
 type MutationBatcher struct {
-	OpsInBatch int // opsInBatch is used to make sure that one batch does not include more than 100000 operations/mutations
-	RowKeysInBatch []string
+	OpsInBatch       int // opsInBatch is used to make sure that one batch does not include more than 100000 operations/mutations
+	RowKeysInBatch   []string
 	MutationsInBatch []Mutation
 }
 
-func(b *MutationBatcher) mutate(ctx context.Context, mutation Mutation, table bigtable.Table) error {
+func (b *MutationBatcher) mutate(ctx context.Context, mutation Mutation, table bigtable.Table) error {
 
 	err := validateMutation(mutation)
 	if err != nil {
@@ -244,14 +244,14 @@ func(b *MutationBatcher) mutate(ctx context.Context, mutation Mutation, table bi
 		}
 	}
 
-	b.OpsInBatch += len(mutation.Ops)	
+	b.OpsInBatch += len(mutation.Ops)
 	b.RowKeysInBatch = append(b.RowKeysInBatch, mutation.RowKey)
 	b.MutationsInBatch = append(b.MutationsInBatch, mutation)
 
 	return nil
 }
 
-func(b *MutationBatcher) flush(ctx context.Context, table bigtable.Table) error {
+func (b *MutationBatcher) flush(ctx context.Context, table bigtable.Table) error {
 
 	var bigtableMutations []*bigtable.Mutation
 	for _, mutation := range b.MutationsInBatch {
