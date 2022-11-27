@@ -826,15 +826,21 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
         namer(GlobalWindow(), None, None, None, None, None),
         '/path/to/file.txt')
     self.assertEqual(
-        namer(GlobalWindow(), None, 1, 5, None, None),
+        namer(GlobalWindow(), None, 0, 5, None, None),
         '/path/to/file-00001-of-00005.txt')
     self.assertEqual(
+        namer(GlobalWindow(), None, 1, 5, None, None),
+        '/path/to/file-00002-of-00005.txt')
+    self.assertEqual(
+        namer(GlobalWindow(), None, 4, 5, None, None),
+        '/path/to/file-00005-of-00005.txt')
+    self.assertEqual(
         namer(GlobalWindow(), None, 1, 5, 'gz', None),
-        '/path/to/file-00001-of-00005.txt.gz')
+        '/path/to/file-00002-of-00005.txt.gz')
     self.assertEqual(
         namer(IntervalWindow(0, 100), None, 1, 5, None, None),
         '/path/to/file'
-        '-1970-01-01T00:00:00-1970-01-01T00:01:40-00001-of-00005.txt')
+        '-1970-01-01T00:00:00-1970-01-01T00:01:40-00002-of-00005.txt')
 
 
 if __name__ == '__main__':
