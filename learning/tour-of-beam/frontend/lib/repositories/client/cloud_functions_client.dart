@@ -32,7 +32,7 @@ import '../models/get_sdks_response.dart';
 import '../models/get_user_progress_response.dart';
 import 'client.dart';
 
-// TODO(nausharipov): add abstraction layers for calling API methods
+// TODO(nausharipov): add repository and handle exceptions
 class CloudFunctionsTobClient extends TobClient {
   @override
   Future<GetSdksResponse> getSdks() async {

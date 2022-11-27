@@ -21,7 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../generated/assets.gen.dart';
-import '../login_overlay.dart';
+import '../open_overlay.dart';
+import 'user_menu.dart';
 
 class Avatar extends StatelessWidget {
   final User user;
@@ -32,7 +33,15 @@ class Avatar extends StatelessWidget {
     final photoUrl = user.photoURL;
     return GestureDetector(
       onTap: () {
-        kOpenLoginOverlay(context, user);
+        final closeNotifier = PublicNotifier();
+        kOpenOverlay(
+          context,
+          closeNotifier,
+          UserMenu(
+            closeOverlayCallback: closeNotifier.notifyPublic,
+            user: user,
+          ),
+        );
       },
       child: CircleAvatar(
         backgroundColor: BeamColors.white,

@@ -18,8 +18,10 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 
-import '../login_overlay.dart';
+import '../open_overlay.dart';
+import 'content.dart';
 
 class LoginButton extends StatelessWidget {
   const LoginButton();
@@ -28,7 +30,12 @@ class LoginButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: () {
-        kOpenLoginOverlay(context);
+        final closeNotifier = PublicNotifier();
+        kOpenOverlay(
+          context,
+          closeNotifier,
+          LoginContent(onLoggedIn: closeNotifier.notifyPublic),
+        );
       },
       child: const Text('ui.signIn').tr(),
     );

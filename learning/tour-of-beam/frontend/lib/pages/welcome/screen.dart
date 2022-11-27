@@ -37,26 +37,26 @@ import '../tour/page.dart';
 import 'state.dart';
 
 class WelcomeScreen extends StatelessWidget {
-  final WelcomeNotifier notifier;
+  final WelcomeNotifier welcomeNotifier;
 
-  const WelcomeScreen(this.notifier);
+  const WelcomeScreen(this.welcomeNotifier);
 
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-            ? _WideWelcome(notifier)
-            : _NarrowWelcome(notifier),
+            ? _WideWelcome(welcomeNotifier)
+            : _NarrowWelcome(welcomeNotifier),
       ),
     );
   }
 }
 
 class _WideWelcome extends StatelessWidget {
-  final WelcomeNotifier notifier;
+  final WelcomeNotifier welcomeNotifier;
 
-  const _WideWelcome(this.notifier);
+  const _WideWelcome(this.welcomeNotifier);
 
   @override
   Widget build(BuildContext context) {
@@ -77,9 +77,9 @@ class _WideWelcome extends StatelessWidget {
 }
 
 class _NarrowWelcome extends StatelessWidget {
-  final WelcomeNotifier notifier;
+  final WelcomeNotifier welcomeNotifier;
 
-  const _NarrowWelcome(this.notifier);
+  const _NarrowWelcome(this.welcomeNotifier);
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +99,7 @@ class _SdkSelection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app = GetIt.instance.get<AppNotifier>();
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return Container(
       constraints: BoxConstraints(
         minHeight: MediaQuery.of(context).size.height -
@@ -132,13 +132,13 @@ class _SdkSelection extends StatelessWidget {
                     }
 
                     return AnimatedBuilder(
-                      animation: app,
+                      animation: appNotifier,
                       builder: (context, child) => _SdkButtons(
                         sdks: sdks,
-                        sdkId: app.sdkId,
-                        setSdkId: (v) => app.sdkId = v,
+                        sdkId: appNotifier.sdkId,
+                        setSdkId: (v) => appNotifier.sdkId = v,
                         onStartPressed: () {
-                          _startTour(app.sdkId);
+                          _startTour(appNotifier.sdkId);
                         },
                       ),
                     );
@@ -165,11 +165,11 @@ class _TourSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app = GetIt.instance.get<AppNotifier>();
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return AnimatedBuilder(
-      animation: app,
+      animation: appNotifier,
       builder: (context, child) {
-        final sdkId = app.sdkId;
+        final sdkId = appNotifier.sdkId;
         if (sdkId == null) {
           return Container();
         }
@@ -235,9 +235,9 @@ class _IntroTextBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = GetIt.instance.get<AuthNotifier>();
+    final authNotifier = GetIt.instance.get<AuthNotifier>();
     return AnimatedBuilder(
-      animation: auth,
+      animation: authNotifier,
       builder: (context, child) => RichText(
         text: TextSpan(
           style: Theme.of(context).textTheme.bodyLarge,
@@ -245,7 +245,7 @@ class _IntroTextBody extends StatelessWidget {
             TextSpan(
               text: 'pages.welcome.ifSaveProgress'.tr(),
             ),
-            if (auth.isAuthenticated)
+            if (authNotifier.isAuthenticated)
               TextSpan(
                 text: 'pages.welcome.signIn'.tr(),
               )

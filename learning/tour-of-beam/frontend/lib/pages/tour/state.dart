@@ -36,11 +36,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
   // TODO(nausharipov): avoid late?
-  late UnitController currentUnitController;
-  final _app = GetIt.instance.get<AppNotifier>();
-  final _auth = GetIt.instance.get<AuthNotifier>();
-  final _unitContent = GetIt.instance.get<UnitContentCache>();
-  final _userProgress = GetIt.instance.get<UserProgressCache>();
+  UnitController? currentUnitController;
+  final _appNotifier = GetIt.instance.get<AppNotifier>();
+  final _authNotifier = GetIt.instance.get<AuthNotifier>();
+  final _unitContentCache = GetIt.instance.get<UnitContentCache>();
+  final _userProgressCache = GetIt.instance.get<UserProgressCache>();
   UnitContentModel? _currentUnitContent;
 
   TourNotifier({
@@ -52,10 +52,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         ),
         playgroundController = _createPlaygroundController(initialSdkId) {
     contentTreeController.addListener(_onUnitChanged);
-    _unitContent.addListener(_onUnitChanged);
-    _app.addListener(_onAppNotifierChanged);
-    _app.addListener(_onUserProgressChanged);
-    _auth.addListener(_onUserProgressChanged);
+    _unitContentCache.addListener(_onUnitChanged);
+    _appNotifier.addListener(_onAppNotifierChanged);
+    _authNotifier.addListener(_onUserProgressChanged);
     _onUnitChanged();
   }
 
@@ -68,14 +67,16 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       );
 
   bool canCompleteCurrentUnit() {
-    return _auth.isAuthenticated &&
-        !currentUnitController.isCompleting &&
-        !_userProgress.isUnitCompleted(contentTreeController.currentNode?.id);
+    return _authNotifier.isAuthenticated &&
+        // TODO(nausharipov): is completing
+        // !currentUnitController.isCompleting &&
+        !_userProgressCache
+            .isUnitCompleted(contentTreeController.currentNode?.id);
   }
 
   UnitContentModel? get currentUnitContent => _currentUnitContent;
 
-  void _setCurrentUnitController(String sdkId, String unitId) {
+  void _createCurrentUnitController(String sdkId, String unitId) {
     currentUnitController = UnitController(
       unitId: unitId,
       sdkId: sdkId,
@@ -83,14 +84,15 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   void _onUserProgressChanged() {
-    _userProgress.updateCompletedUnits();
+    _userProgressCache.updateCompletedUnits();
   }
 
   void _onAppNotifierChanged() {
-    final sdkId = _app.sdkId;
+    final sdkId = _appNotifier.sdkId;
     if (sdkId != null) {
       playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
       contentTreeController.sdkId = sdkId;
+      _onUserProgressChanged();
     }
   }
 
@@ -98,11 +100,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
-      final content = _unitContent.getUnitContent(
+      final content = _unitContentCache.getUnitContent(
         contentTreeController.sdkId,
         currentNode.id,
       );
-      _setCurrentUnitController(contentTreeController.sdkId, currentNode.id);
+      _createCurrentUnitController(contentTreeController.sdkId, currentNode.id);
       _setCurrentUnitContent(content);
     } else {
       _emptyPlayground();
@@ -189,12 +191,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   @override
   void dispose() {
-    _unitContent.removeListener(_onUnitChanged);
+    _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
-    currentUnitController.removeListener(_onUserProgressChanged);
-    _app.removeListener(_onUserProgressChanged);
-    _app.removeListener(_onAppNotifierChanged);
-    _auth.removeListener(_onUserProgressChanged);
+    currentUnitController?.removeListener(_onUserProgressChanged);
+    _appNotifier.removeListener(_onUserProgressChanged);
+    _appNotifier.removeListener(_onAppNotifierChanged);
+    _authNotifier.removeListener(_onUserProgressChanged);
     super.dispose();
   }
 }

@@ -36,7 +36,7 @@ class UnitWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userProgress = GetIt.instance.get<UserProgressCache>();
+    final userProgressCache = GetIt.instance.get<UserProgressCache>();
 
     return AnimatedBuilder(
       animation: contentTreeController,
@@ -54,9 +54,9 @@ class UnitWidget extends StatelessWidget {
             child: Row(
               children: [
                 AnimatedBuilder(
-                  animation: userProgress,
+                  animation: userProgressCache,
                   builder: (context, child) => CompletenessIndicator(
-                    isCompleted: userProgress.isUnitCompleted(unit.id),
+                    isCompleted: userProgressCache.isUnitCompleted(unit.id),
                     isSelected: isSelected,
                   ),
                 ),

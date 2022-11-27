@@ -101,7 +101,7 @@ class _BrandedLoginButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = GetIt.instance.get<AuthNotifier>();
+    final authNotifier = GetIt.instance.get<AuthNotifier>();
 
     final isLightTheme = Theme.of(context).brightness == Brightness.light;
     final textStyle =
@@ -147,7 +147,7 @@ class _BrandedLoginButtons extends StatelessWidget {
         const SizedBox(height: BeamSizes.size16),
         ElevatedButton.icon(
           onPressed: () async {
-            await auth.logIn(AuthMethod.google);
+            await authNotifier.logIn(AuthMethod.google);
             onLoggedIn();
           },
           style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,

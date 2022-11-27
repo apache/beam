@@ -28,11 +28,11 @@ import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
 
 class UserMenu extends StatelessWidget {
-  final VoidCallback onLoggedOut;
+  final VoidCallback closeOverlayCallback;
   final User user;
 
   const UserMenu({
-    required this.onLoggedOut,
+    required this.closeOverlayCallback,
     required this.user,
   });
 
@@ -45,7 +45,7 @@ class UserMenu extends StatelessWidget {
           _Info(user: user),
           const BeamDivider(),
           _Buttons(
-            closeOverlay: onLoggedOut,
+            closeOverlayCallback: closeOverlayCallback,
           ),
         ],
       ),
@@ -105,15 +105,15 @@ class _Info extends StatelessWidget {
 }
 
 class _Buttons extends StatelessWidget {
-  final VoidCallback closeOverlay;
+  final VoidCallback closeOverlayCallback;
 
   const _Buttons({
-    required this.closeOverlay,
+    required this.closeOverlayCallback,
   });
 
   @override
   Widget build(BuildContext context) {
-    final auth = GetIt.instance.get<AuthNotifier>();
+    final authNotifier = GetIt.instance.get<AuthNotifier>();
 
     return Column(
       children: [
@@ -132,8 +132,8 @@ class _Buttons extends StatelessWidget {
         const BeamDivider(),
         _IconLabel(
           onTap: () async {
-            await auth.logOut();
-            closeOverlay();
+            await authNotifier.logOut();
+            closeOverlayCallback();
           },
           iconPath: Assets.svg.profileLogout,
           label: 'ui.signOut'.tr(),

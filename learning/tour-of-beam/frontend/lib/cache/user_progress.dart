@@ -27,7 +27,7 @@ import 'cache.dart';
 class UserProgressCache extends Cache {
   UserProgressCache({required super.client});
 
-  final _completedUnits = <String>{};
+  final _completedUnitIds = <String>{};
   Future<List<UserProgressModel>?>? _future;
 
   bool isUnitCompleted(String? unitId) {
@@ -35,28 +35,29 @@ class UserProgressCache extends Cache {
   }
 
   void updateCompletedUnits() {
-    _future = null;
-    getCompletedUnits();
+    final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
+    if (sdkId != null) {
+      unawaited(_loadCompletedUnits(sdkId));
+    }
   }
 
   Set<String> getCompletedUnits() {
-    final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
-    if (sdkId != null && _future == null) {
-      unawaited(_loadCompletedUnits(sdkId));
+    if (_future == null) {
+      updateCompletedUnits();
     }
 
-    return _completedUnits;
+    return _completedUnitIds;
   }
 
   Future<void> _loadCompletedUnits(String sdkId) async {
     _future = client.getUserProgress(sdkId);
     final result = await _future;
 
-    _completedUnits.clear();
+    _completedUnitIds.clear();
     if (result != null) {
       for (final unitProgress in result) {
         if (unitProgress.isCompleted) {
-          _completedUnits.add(unitProgress.id);
+          _completedUnitIds.add(unitProgress.unitId);
         }
       }
     }

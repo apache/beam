@@ -68,8 +68,10 @@ class _Profile extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder(
       stream: FirebaseAuth.instance.userChanges(),
-      builder: (context, user) =>
-          user.hasData ? Avatar(user: user.data!) : const LoginButton(),
+      builder: (context, snapshot) {
+        final user = snapshot.data;
+        return user == null ? const LoginButton() : Avatar(user: user);
+      },
     );
   }
 }
@@ -93,17 +95,20 @@ class _SdkSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app = GetIt.instance.get<AppNotifier>();
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return AnimatedBuilder(
-      animation: app,
-      builder: (context, child) => app.sdkId == null
-          ? Container()
-          : SdkDropdown(
-              sdkId: app.sdkId!,
-              onChanged: (sdkId) {
-                app.sdkId = sdkId;
-              },
-            ),
+      animation: appNotifier,
+      builder: (context, child) {
+        final sdkId = appNotifier.sdkId;
+        return sdkId == null
+            ? Container()
+            : SdkDropdown(
+                sdkId: sdkId,
+                onChanged: (value) {
+                  appNotifier.sdkId = value;
+                },
+              );
+      },
     );
   }
 }

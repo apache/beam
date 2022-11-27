@@ -57,14 +57,14 @@ class _GroupProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userProgress = GetIt.instance.get<UserProgressCache>();
+    final userProgressCache = GetIt.instance.get<UserProgressCache>();
 
     return AnimatedBuilder(
-      animation: userProgress,
+      animation: userProgressCache,
       builder: (context, child) {
         final progress = _getGroupProgress(
           group.nodes,
-          userProgress.getCompletedUnits(),
+          userProgressCache.getCompletedUnits(),
         );
 
         if (progress == 1) {
@@ -95,8 +95,8 @@ class _GroupProgressIndicator extends StatelessWidget {
     List<NodeModel> groupNodes,
     Set<String> completedUnits,
   ) {
-    var completed = 0;
-    var total = 0;
+    int completed = 0;
+    int total = 0;
 
     void countNodes(List<NodeModel> nodes) {
       for (final node in nodes) {

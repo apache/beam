@@ -23,27 +23,27 @@ import 'package:flutter/material.dart';
 import 'method.dart';
 
 class AuthNotifier extends ChangeNotifier {
-  final _firebase = FirebaseAuth.instance;
   final _authProviders = UnmodifiableAuthMethodMap(
     google: GoogleAuthProvider(),
     github: GithubAuthProvider(),
   );
 
   AuthNotifier() {
-    _firebase.authStateChanges().listen((user) async {
+    FirebaseAuth.instance.authStateChanges().listen((user) async {
       notifyListeners();
     });
   }
 
-  bool get isAuthenticated => _firebase.currentUser != null;
+  bool get isAuthenticated => FirebaseAuth.instance.currentUser != null;
 
-  Future<String?> get token async => await _firebase.currentUser?.getIdToken();
+  Future<String?> get token async =>
+      await FirebaseAuth.instance.currentUser?.getIdToken();
 
   Future<void> logIn(AuthMethod authMethod) async {
-    await _firebase.signInWithPopup(_authProviders.get(authMethod));
+    await FirebaseAuth.instance.signInWithPopup(_authProviders.get(authMethod));
   }
 
   Future<void> logOut() async {
-    await _firebase.signOut();
+    await FirebaseAuth.instance.signOut();
   }
 }
