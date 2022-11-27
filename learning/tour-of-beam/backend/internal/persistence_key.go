@@ -13,31 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package internal
 
 import (
-	"crypto/sha256"
+	"crypto/rand"
 	"encoding/base64"
-	"os"
-	"strings"
-
-	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
 
-func makePersistenceKey(sdk tob.Sdk, unitId, uid string) string {
-	h := sha256.New()
-	// never share!
-	plainKey := strings.Join(
-		[]string{os.Getenv("PERSISTENCE_KEY_SALT"), sdk.String(), unitId, uid},
-		"|")
-	_, err := h.Write([]byte(plainKey))
+// size in bytes
+const PERSISTENCE_KEY_SIZE = 16
+
+// Generate random persistence_key, return it as base64 URL-encoded string
+// NOT to be exposed on a front-channel!
+func GeneratePersistentKey() string {
+	raw := make([]byte, PERSISTENCE_KEY_SIZE)
+	_, err := rand.Read(raw)
 	if err != nil {
 		panic(err)
 	}
-	raw := h.Sum(nil)
 
 	// base64 encode to pass as protobuf string
-	encoded := base64.URLEncoding.EncodeToString(raw)
-
-	return encoded
+	return base64.URLEncoding.EncodeToString(raw)
 }

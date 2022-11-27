@@ -227,7 +227,7 @@ func postUserCode(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid strin
 		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
 		return
 	}
-	if err != nil {
+	if err := errors.Unwrap(err); err != nil {
 		log.Println("Save user code error:", err)
 		message := "storage error"
 		if st, ok := grpc_status.FromError(err); ok {

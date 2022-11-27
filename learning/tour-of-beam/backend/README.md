@@ -91,7 +91,6 @@ Prerequisites:
    * PROJECT_ID: GCP id
    * REGION: the region, "us-central1" fe
  - existing setup of Playground backend in a project
- - create a secret `PERSISTENCE_KEY_SALT` in Secret Manager, random string >100symbols long
 
 1. Deploy Datastore indexes (but don't delete existing Playground indexes!)
 ```
@@ -104,8 +103,7 @@ for endpoint in getSdkList getContentTree getUnitContent getUserProgress postUni
 gcloud functions deploy $endpoint --entry-point $endpoint \
   --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http \
-  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID" \
-  --set-secrets "PERSISTENCE_KEY_SALT=PERSISTENCE_KEY_SALT:latest"
+  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID"
 done
 
 ```
