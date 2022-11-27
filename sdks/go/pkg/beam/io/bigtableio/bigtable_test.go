@@ -156,11 +156,11 @@ func TestValidateMutationFailsWhenGreaterThanHundredKOps(t *testing.T) {
 
 // Examples:
 
-func ExampleWriteBatch() {
+func ExampleWrite() {
 	pipeline := beam.NewPipeline()
 	s := pipeline.Root()
 
-	//sample PBCollection<bigtableio.Mutation>
+	// sample PBCollection<bigtableio.Mutation>
 	bigtableioMutationCol := beam.CreateList(s, func() []Mutation {
 		columnFamilyName := "stats_summary"
 		timestamp := bigtable.Now()
@@ -172,7 +172,7 @@ func ExampleWriteBatch() {
 		rowKeyA := deviceA + "#a0b81f74#20190501"
 
 		// bigtableio.NewMutation(rowKeyA).WithGroupKey(deviceA)
-		mutA := NewMutation(rowKeyA).WithGroupKey(deviceA) // this groups bundles by device identifiers
+		mutA := NewMutation(rowKeyA).WithGroupKey(deviceA)
 		mutA.Set(columnFamilyName, "connected_wifi", timestamp, []byte("1"))
 		mutA.Set(columnFamilyName, "os_build", timestamp, []byte("12155.0.0-rc1"))
 
@@ -182,6 +182,42 @@ func ExampleWriteBatch() {
 		rowKeyB := deviceB + "#a0b81f74#20190502"
 
 		mutB := NewMutation(rowKeyB).WithGroupKey(deviceB)
+		mutB.Set(columnFamilyName, "connected_wifi", timestamp, []byte("1"))
+		mutB.Set(columnFamilyName, "os_build", timestamp, []byte("12145.0.0-rc6"))
+
+		muts = append(muts, *mutB)
+
+		return muts
+	}())
+
+	// bigtableio.Write(...)
+	Write(s, "project", "instanceId", "tableName", bigtableioMutationCol)
+}
+
+func ExampleWriteBatch() {
+	pipeline := beam.NewPipeline()
+	s := pipeline.Root()
+
+	// sample PBCollection<bigtableio.Mutation>
+	bigtableioMutationCol := beam.CreateList(s, func() []Mutation {
+		columnFamilyName := "stats_summary"
+		timestamp := bigtable.Now()
+
+		// var muts []bigtableio.Mutation
+		var muts []Mutation
+
+		rowKeyA := "tablet#a0b81f74#20190501"
+
+		// bigtableio.NewMutation(rowKeyA)
+		mutA := NewMutation(rowKeyA)
+		mutA.Set(columnFamilyName, "connected_wifi", timestamp, []byte("1"))
+		mutA.Set(columnFamilyName, "os_build", timestamp, []byte("12155.0.0-rc1"))
+
+		muts = append(muts, *mutA)
+
+		rowKeyB := "phone#a0b81f74#20190502"
+
+		mutB := NewMutation(rowKeyB)
 		mutB.Set(columnFamilyName, "connected_wifi", timestamp, []byte("1"))
 		mutB.Set(columnFamilyName, "os_build", timestamp, []byte("12145.0.0-rc6"))
 
