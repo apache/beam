@@ -36,6 +36,7 @@ import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -408,9 +409,25 @@ public class TableRowToStorageApiProto {
       case "INT64":
       case "INTEGER":
         if (value instanceof String) {
-          return Long.valueOf((String) value);
+          try {
+            return Long.valueOf((String) value);
+          } catch (NumberFormatException e) {
+            // Expected. Element will be added to the failed element PCollection
+          }
         } else if (value instanceof Integer || value instanceof Long) {
           return ((Number) value).longValue();
+        } else if (value instanceof BigDecimal) {
+          try {
+            return ((BigDecimal) value).longValueExact();
+          } catch (ArithmeticException e) {
+            // Expected
+          }
+        } else if( value instanceof BigInteger) {
+          try {
+            return ((BigInteger) value).longValueExact();
+          } catch (ArithmeticException e) {
+            // Expected
+          }
         }
         break;
       case "FLOAT64":

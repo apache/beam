@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -31,14 +32,18 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaConversionException;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaInformation;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -50,10 +55,11 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 /** Unit tests for {@link org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto}. */
 public class TableRowToStorageApiProtoTest {
+
   // Schemas we test.
   // The TableRow class has special semantics for fields named "f". To ensure we handel them
   // properly, we test schemas
@@ -817,5 +823,57 @@ public class TableRowToStorageApiProtoTest {
     List<DynamicMessage> repeatednof2 =
         (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeatednof2"));
     assertTrue(repeatednof2.isEmpty());
+  }
+
+  @Test
+  public void testIntegerTypeConversion() throws DescriptorValidationException {
+    String intFieldName = "int_field";
+    TableSchema tableSchema = new TableSchema()
+        .setFields(
+            ImmutableList.<TableFieldSchema>builder()
+                .add(
+                    new TableFieldSchema()
+                        .setType("INTEGER")
+                        .setName(intFieldName)
+                        .setMode("REQUIRED")
+                )
+                .build());
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema
+        );
+    SchemaInformation fieldSchema = schemaInformation.getSchemaForField(intFieldName);
+    Descriptor schemaDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
+    FieldDescriptor fieldDescriptor = schemaDescriptor.findFieldByName(intFieldName);
+
+    Object[] validIntValues = new Object[] {
+        "123",
+        123L,
+        123,
+        new BigDecimal("123"),
+        new BigInteger("123")
+    };
+    for( Object validValue : validIntValues) {
+      try {
+        TableRowToStorageApiProto.singularFieldToProtoValue(fieldSchema, fieldDescriptor, validValue , false);
+      } catch (SchemaConversionException e) {
+        fail("Failed to convert value " + validValue + " of type " + validValue.getClass() + " to INTEGER: " + e);
+      }
+    }
+
+    Object[] invalidIntValues = new Object[] {
+        "12.123", // Fractional part
+        Long.toString(Long.MAX_VALUE) + '0', // String numeric exceeding max value of INT64
+        new BigDecimal("12.123"), // Fractional part
+        new BigInteger(String.valueOf(Long.MAX_VALUE)).add(new BigInteger("10")) // Exceeds max value
+    };
+    for( Object invalidValue : invalidIntValues) {
+      try {
+        TableRowToStorageApiProto.singularFieldToProtoValue(fieldSchema, fieldDescriptor, invalidValue , false);
+        fail("Expected to throw an exception converting " + invalidValue + " of type " + invalidValue.getClass() + " to INTEGER: ");
+      } catch (SchemaConversionException e) {
+        // expected exception
+      }
+    }
   }
 }
