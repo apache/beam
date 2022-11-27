@@ -264,6 +264,18 @@ public class Schema implements Serializable {
     return Schema.builder().addFields(fields).build();
   }
 
+  /** Returns an identical Schema with sorted fields. */
+  public Schema sorted() {
+    Schema sortedSchema = this.fields.stream()
+        .sorted(Comparator.comparing(Field::getName))
+        .collect(Schema.toSchema())
+        .withOptions(getOptions());
+    sortedSchema.setUUID(getUUID());
+    sortedSchema.setEncodingPositions(getEncodingPositions());
+
+    return sortedSchema;
+  }
+
   /** Returns a copy of the Schema with the options set. */
   public Schema withOptions(Options options) {
     return new Schema(fields, getOptions().toBuilder().addOptions(options).build());
