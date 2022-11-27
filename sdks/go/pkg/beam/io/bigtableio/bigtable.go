@@ -189,7 +189,7 @@ type writeBatchFn struct {
 	TableName string `json:"tableName"`
 	// Table is a bigtable.Table instance with an eventual open connection
 	table *bigtable.Table `json:"-"`
-	// MutationBatcher is responsible of collecting and writing mutations as batches to bigtable
+	// MutationBatcher is responsible for collecting and writing mutations as batches to bigtable
 	MutationBatcher MutationBatcher `json:"mutationBatcher"`
 	// Type is the encoded schema type.
 	Type beam.EncodedType `json:"type"`
