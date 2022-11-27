@@ -422,7 +422,7 @@ def _format_shard(
   }
 
   if total_shards is not None and shard_index is not None:
-    kwargs['shard'] = int(shard_index)
+    kwargs['shard'] = int(shard_index) + 1
     kwargs['total_shards'] = int(total_shards)
 
   if window != GlobalWindow():
