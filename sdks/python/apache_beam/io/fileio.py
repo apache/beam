@@ -530,7 +530,8 @@ class WriteToFiles(beam.PTransform):
     Args:
       path (str, ValueProvider): The directory to write files into.
       file_naming (callable): A callable that takes in a window, pane,
-        shard_index, total_shards and compression; and returns a file name.
+        shard_index, total_shards, compression and destination; and returns a
+        file name.
       destination (callable): If this argument is provided, the sink parameter
         must also be a callable.
       temp_directory (str, ValueProvider): To ensure atomicity in the transform,
