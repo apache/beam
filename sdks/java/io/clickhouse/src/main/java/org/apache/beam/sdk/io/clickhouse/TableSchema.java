@@ -289,40 +289,42 @@ public abstract class TableSchema implements Serializable {
      * @return value of ClickHouse expression
      */
     public static Object parseDefaultExpression(ColumnType columnType, String str) {
-      try {
-        String value =
-            new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
-                    new StringReader(str))
-                .parseDefaultExpression();
-
-        switch (columnType.typeName()) {
-          case INT8:
-            return Byte.valueOf(value);
-          case INT16:
-            return Short.valueOf(value);
-          case INT32:
-            return Integer.valueOf(value);
-          case INT64:
-            return Long.valueOf(value);
-          case ENUM16:
-          case ENUM8:
-          case FIXEDSTRING:
-          case STRING:
-            return value;
-          case UINT8:
-            return Short.valueOf(value);
-          case UINT16:
-            return Integer.valueOf(value);
-          case UINT32:
-            return Long.valueOf(value);
-          case UINT64:
-            return Long.valueOf(value);
-          default:
-            throw new UnsupportedOperationException("Unsupported type: " + columnType);
-        }
-      } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
-        throw new IllegalArgumentException("failed to parse", e);
+      //      try {
+      String value = str;
+      /*
+      String value =
+          new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
+                  new StringReader(str))
+              .parseDefaultExpression();
+      */
+      switch (columnType.typeName()) {
+        case INT8:
+          return Byte.valueOf(value);
+        case INT16:
+          return Short.valueOf(value);
+        case INT32:
+          return Integer.valueOf(value);
+        case INT64:
+          return Long.valueOf(value);
+        case ENUM16:
+        case ENUM8:
+        case FIXEDSTRING:
+        case STRING:
+          return value;
+        case UINT8:
+          return Short.valueOf(value);
+        case UINT16:
+          return Integer.valueOf(value);
+        case UINT32:
+          return Long.valueOf(value);
+        case UINT64:
+          return Long.valueOf(value);
+        default:
+          throw new UnsupportedOperationException("Unsupported type: " + columnType);
       }
+      //      } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
+      //        throw new IllegalArgumentException("failed to parse", e);
+      //      }
     }
 
     abstract Builder toBuilder();
