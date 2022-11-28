@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -26,7 +25,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.values.Row;
 
@@ -43,7 +41,7 @@ import org.apache.beam.sdk.values.Row;
 @Internal
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20506)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20506)
 })
 public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTransformProvider {
 

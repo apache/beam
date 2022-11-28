@@ -24,7 +24,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Objects;
-import java.util.UUID;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -193,25 +192,40 @@ public class SchemaTest {
 
   @Test
   public void testSorted() {
-    Options testOptions = Options.builder().setOption("test_str_option", FieldType.STRING, "test_str")
-        .setOption("test_bool_option", FieldType.BOOLEAN, true).build();
+    Options testOptions =
+        Options.builder()
+            .setOption("test_str_option", FieldType.STRING, "test_str")
+            .setOption("test_bool_option", FieldType.BOOLEAN, true)
+            .build();
 
     Schema schema1 =
-        Schema.builder().addStringField("d").addInt32Field("c").addStringField("b").addByteField("a").build()
+        Schema.builder()
+            .addStringField("d")
+            .addInt32Field("c")
+            .addStringField("b")
+            .addByteField("a")
+            .build()
             .withOptions(testOptions);
 
     Schema sortedSchema1 = schema1.sorted();
 
     Schema schema2 =
-        Schema.builder().addByteField("a").addStringField("b").addInt32Field("c").addStringField("d").build()
+        Schema.builder()
+            .addByteField("a")
+            .addStringField("b")
+            .addInt32Field("c")
+            .addStringField("d")
+            .build()
             .withOptions(testOptions);
     schema2.setEncodingPositions(schema1.getEncodingPositions());
 
     assertEquals(true, schema1.equivalent(sortedSchema1));
-    assertEquals(true,
+    assertEquals(
+        true,
         Objects.equals(sortedSchema1.getFields(), schema2.getFields())
             && Objects.equals(sortedSchema1.getOptions(), schema2.getOptions())
-            && Objects.equals(sortedSchema1.getEncodingPositions(), schema2.getEncodingPositions()));
+            && Objects.equals(
+                sortedSchema1.getEncodingPositions(), schema2.getEncodingPositions()));
   }
 
   @Test

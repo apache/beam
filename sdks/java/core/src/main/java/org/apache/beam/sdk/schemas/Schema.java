@@ -266,10 +266,11 @@ public class Schema implements Serializable {
 
   /** Returns an identical Schema with sorted fields. */
   public Schema sorted() {
-    Schema sortedSchema = this.fields.stream()
-        .sorted(Comparator.comparing(Field::getName))
-        .collect(Schema.toSchema())
-        .withOptions(getOptions());
+    Schema sortedSchema =
+        this.fields.stream()
+            .sorted(Comparator.comparing(Field::getName))
+            .collect(Schema.toSchema())
+            .withOptions(getOptions());
     sortedSchema.setUUID(getUUID());
     sortedSchema.setEncodingPositions(getEncodingPositions());
 
