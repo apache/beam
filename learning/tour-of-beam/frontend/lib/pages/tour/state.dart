@@ -80,9 +80,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       return UnitCompletion.updating;
     } else if (_userProgressCache.isUnitCompleted(unitId)) {
       return UnitCompletion.completed;
-    } else {
-      return UnitCompletion.uncompleted;
     }
+    return UnitCompletion.uncompleted;
   }
 
   UnitContentModel? get currentUnitContent => _currentUnitContent;
