@@ -349,8 +349,9 @@ if __name__ == '__main__':
         # with python 3.10 leading to incorrect stacktrace.
         # This can be removed once dill is updated to version > 0.3.5.1
         # Issue: https://github.com/apache/beam/issues/23566
-          'dataframe': ['pandas>=1.0,<1.6;python_version<"3.10"',
-                        'pandas>=1.4.3,<1.6;python_version>="3.10"'],
+        # Exclude 1.5.0 and 1.5.1 because of https://github.com/pandas-dev/pandas/issues/45725
+          'dataframe': ['pandas>=1.0,<1.6,!=1.5.0,!=1.5.1;python_version<"3.10"',
+                        'pandas>=1.4.3,<1.6,!=1.5.0,!=1.5.1;python_version>="3.10"'],
           'dask': [
             'dask >= 2022.6',
             'distributed >= 2022.6',
