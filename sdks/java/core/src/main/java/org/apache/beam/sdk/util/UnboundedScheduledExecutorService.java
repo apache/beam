@@ -418,7 +418,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
   }
 
   @Override
-  public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+  public ScheduledFuture<@Nullable ?> schedule(Runnable command, long delay, TimeUnit unit) {
     if (command == null || unit == null) {
       throw new NullPointerException();
     }
@@ -442,7 +442,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
   }
 
   @Override
-  public ScheduledFuture<?> scheduleAtFixedRate(
+  public ScheduledFuture<@Nullable ?> scheduleAtFixedRate(
       Runnable command, long initialDelay, long period, TimeUnit unit) {
     if (command == null || unit == null) {
       throw new NullPointerException();
@@ -458,7 +458,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
   }
 
   @Override
-  public ScheduledFuture<?> scheduleWithFixedDelay(
+  public ScheduledFuture<@Nullable ?> scheduleWithFixedDelay(
       Runnable command, long initialDelay, long delay, TimeUnit unit) {
     if (command == null || unit == null) {
       throw new NullPointerException();
