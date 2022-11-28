@@ -337,7 +337,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		}
 		return c, nil
 
-	case urnIterableCoder:
+	case urnIterableCoder, urnStateBackedIterableCoder:
 		if len(components) != 1 {
 			return nil, errors.Errorf("could not unmarshal iterable coder from %v, expected one component but got %d", c, len(components))
 		}
