@@ -203,9 +203,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     @Nullable
     public abstract Integer getTriggeringFrequencySeconds();
 
-    @Nullable
-    public abstract BigQueryServices getBigQueryServices();
-
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
@@ -224,8 +221,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public abstract Builder setNumFileShards(Integer numFileShards);
 
       public abstract Builder setTriggeringFrequencySeconds(Integer seconds);
-
-      public abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
       public abstract BigQueryStorageWriteApiSchemaTransformProvider
@@ -345,10 +340,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         write =
             write.withTriggeringFrequency(
                 Duration.standardSeconds(configuration.getTriggeringFrequencySeconds()));
-      }
-
-      if (configuration.getBigQueryServices() != null) {
-        write = write.withTestServices(configuration.getBigQueryServices());
       }
 
       return write;
