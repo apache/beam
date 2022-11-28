@@ -522,6 +522,9 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 	case coder.String:
 		return b.internBuiltInCoder(urnStringCoder), nil
 
+	case coder.IW:
+		return b.internBuiltInCoder(urnIntervalWindow), nil
+
 	case coder.Row:
 		rt := c.T.Type()
 		s, err := schema.FromType(rt)
