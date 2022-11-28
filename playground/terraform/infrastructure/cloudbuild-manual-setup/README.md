@@ -31,7 +31,7 @@ This directory organizes Infrastructure-as-Code to provision dependent resources
     - Security Admin
     - Service Account User
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install-sdk)
-- An existing GCP Bucket to save Terraform state - `state_bucket`
+- An existing GCP Bucket to save Terraform state - `state-bucket`
 - DNS name for your Playground deployment instance
 - [Terraform](https://www.terraform.io/)
 - [Apache Beam GitHub](https://github.com/apache/beam) repository cloned locally
@@ -60,16 +60,16 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
    - `DOCKER_REPOSITORY_ROOT`: GCP Artifact Registry repository name to store Playground container images
 
 ```console
-    export STATE_BUCKET="state_bucket" \
-    GOOGLE_PROJECT="project_id" \
+    export STATE_BUCKET="state-bucket" \
+    GOOGLE_PROJECT="project-id" \
     GOOGLE_REGION="us-central1" \
     PLAYGROUND_REGION="us-central1" \
     PLAYGROUND_LOCATION="us-central1-a" \
-    ENVIRONMENT_NAME="env_name" \
-    DNS_NAME="dns_name" \
-    NETWORK_NAME="network_name" \
-    GKE_NAME="gke_name" \
-    TAG="tag_name" \
+    ENVIRONMENT_NAME="env-name" \
+    DNS_NAME="dns-name" \
+    NETWORK_NAME="network-name" \
+    GKE_NAME="gke-cluster-name" \
+    TAG="tag-name" \
     SDK_TAG="2.43.0" \
     DOCKER_REPOSITORY_ROOT="$PLAYGROUND_REGION-docker.pkg.dev/$GOOGLE_PROJECT/playground-repository"
 ```
@@ -147,7 +147,7 @@ terraform apply \
 2. Open Trigger: `Playground-to-gke-trigger`.
 3.  Scroll down to `Source` - `Repository` to ensure that Apache Beam GitHub repository is connected.
     - Click on drop-down menu and press `CONNECT NEW REPOSITORY` in case it was not automatically connected.
-5. Click `Save` and Run the trigger `Playground-to-gke-trigger`.
+4. Click `Save` and Run the trigger `Playground-to-gke-trigger`.
 
 ## 6. Validate Playground deployment
 
