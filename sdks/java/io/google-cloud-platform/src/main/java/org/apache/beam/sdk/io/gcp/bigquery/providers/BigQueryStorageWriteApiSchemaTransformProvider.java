@@ -31,6 +31,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
@@ -52,6 +54,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
@@ -203,6 +206,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     @Nullable
     public abstract Integer getTriggeringFrequencySeconds();
 
+    @Nullable
+    public abstract Boolean getUseAtLeastOnceSemantics();
+
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
@@ -221,6 +227,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public abstract Builder setNumFileShards(Integer numFileShards);
 
       public abstract Builder setTriggeringFrequencySeconds(Integer seconds);
+
+      public abstract Builder setUseAtLeastOnceSemantics(Boolean use);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
       public abstract BigQueryStorageWriteApiSchemaTransformProvider
@@ -252,14 +260,23 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   static class BigQueryStorageWriteApiPCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
+    private BigQueryServices testBigQueryServices = null;
 
     BigQueryStorageWriteApiPCollectionRowTupleTransform(
         BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
+    @VisibleForTesting
+    public void setBigQueryServices(BigQueryServices testBigQueryServices) {
+      this.testBigQueryServices = testBigQueryServices;
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      // Check that the input exists
+      checkArgument(input.has(INPUT_ROWS_TAG), "Missing expected input tag: %s", INPUT_ROWS_TAG);
+
       PCollection<Row> inputRows = input.get(INPUT_ROWS_TAG);
 
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform();
@@ -306,10 +323,16 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform() {
+      Method writeMethod =
+          configuration.getUseAtLeastOnceSemantics() != null && configuration.getUseAtLeastOnceSemantics()
+          ? Method.STORAGE_API_AT_LEAST_ONCE
+          : Method.STORAGE_WRITE_API;
       BigQueryIO.Write<Row> write =
           BigQueryIO.<Row>write()
               .to(configuration.getOutputTable())
+              .withMethod(writeMethod)
               .withFormatFunction(BigQueryUtils.toTableRow());
+
       if (!Strings.isNullOrEmpty(configuration.getJsonSchema())) {
         write =
             write.withSchema(
@@ -340,6 +363,10 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         write =
             write.withTriggeringFrequency(
                 Duration.standardSeconds(configuration.getTriggeringFrequencySeconds()));
+      }
+
+      if (this.testBigQueryServices != null) {
+        write = write.withTestServices(testBigQueryServices);
       }
 
       return write;
