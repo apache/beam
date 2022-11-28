@@ -45,16 +45,23 @@ class _ExamplesDropdownContentState extends State<ExamplesDropdownContent> {
 
   @override
   Widget build(BuildContext context) {
-    switch (widget.playgroundController.exampleCache.catalogStatus) {
-      case LoadingStatus.error:
-        return const LoadingErrorWidget();
+    final exampleCache = widget.playgroundController.exampleCache;
 
-      case LoadingStatus.loading:
-        return const LoadingIndicator();
+    return AnimatedBuilder(
+      animation: exampleCache,
+      builder: (context, child) {
+        switch (exampleCache.catalogStatus) {
+          case LoadingStatus.error:
+            return const LoadingErrorWidget();
 
-      case LoadingStatus.done:
-        return _buildLoaded();
-    }
+          case LoadingStatus.loading:
+            return const LoadingIndicator();
+
+          case LoadingStatus.done:
+            return _buildLoaded();
+        }
+      },
+    );
   }
 
   Widget _buildLoaded() {
