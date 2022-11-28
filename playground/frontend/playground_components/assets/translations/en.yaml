@@ -19,7 +19,7 @@ errors:
   loading: 'Error while loading.'
   loadingCatalog: 'Error loading the example catalog.'
   loadingExample: 'Error loading the example.'
-  saving: 'Error while saving.'
+  savingSnippet: 'Error creating a shareable link.'
 
 ui:
   darkMode: 'Dark Mode'
@@ -55,4 +55,3 @@ widgets:
     notificationTitles:
       run: 'Run Code'
       cancelExecution: 'Cancel Execution'
-

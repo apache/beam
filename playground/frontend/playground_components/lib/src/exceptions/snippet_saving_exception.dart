@@ -18,11 +18,11 @@
 
 import 'package:easy_localization/easy_localization.dart';
 
-class SavingException implements Exception {
+class SnippetSavingException implements Exception {
   final Exception ex;
 
-  SavingException(this.ex);
+  SnippetSavingException(this.ex);
 
   @override
-  String toString() => 'errors.saving'.tr();
+  String toString() => 'errors.savingSnippet'.tr();
 }

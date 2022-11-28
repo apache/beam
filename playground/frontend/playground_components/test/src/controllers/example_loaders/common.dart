@@ -23,15 +23,15 @@ import 'package:playground_components/src/controllers/example_loaders/example_lo
 
 class TestExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   final Sdk? sdk;
-  final bool ok;
+  final bool succeed;
 
   const TestExampleLoadingDescriptor(
     this.sdk, {
-    this.ok = true,
+    this.succeed = true,
   });
 
   @override
-  List<Object?> get props => [sdk, ok];
+  List<Object?> get props => [sdk, succeed];
 }
 
 class TestExampleLoader extends ExampleLoader {
@@ -52,7 +52,7 @@ class TestExampleLoader extends ExampleLoader {
 
   @override
   Future<Example> get future async {
-    if (descriptor.ok && example != null) {
+    if (descriptor.succeed && example != null) {
       return example!;
     }
 

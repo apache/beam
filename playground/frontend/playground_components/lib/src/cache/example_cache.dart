@@ -23,7 +23,7 @@ import 'package:flutter/foundation.dart';
 
 import '../exceptions/catalog_loading_exception.dart';
 import '../exceptions/example_loading_exception.dart';
-import '../exceptions/saving_exception.dart';
+import '../exceptions/snippet_saving_exception.dart';
 import '../models/category_with_examples.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
@@ -149,7 +149,7 @@ class ExampleCache extends ChangeNotifier {
       );
       return id;
     } on Exception catch (ex) {
-      throw SavingException(ex);
+      throw SnippetSavingException(ex);
     }
   }
 

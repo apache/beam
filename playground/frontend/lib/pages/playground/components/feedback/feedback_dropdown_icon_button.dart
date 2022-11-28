@@ -28,6 +28,10 @@ const double kFeedbackDyBottomAlignment = 50.0;
 const double kFeedbackDxLeftAlignment = 10.0;
 const double kFeedbackDropdownWidth = 400.0;
 
+const int kAnimationDurationInMilliseconds = 80;
+const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
+const Offset kAnimationEndOffset = Offset(0.0, 0.0);
+
 class FeedbackDropdownIconButton extends StatefulWidget {
   final String label;
   final String iconAsset;

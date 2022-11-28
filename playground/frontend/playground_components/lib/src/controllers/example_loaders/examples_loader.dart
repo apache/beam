@@ -108,10 +108,9 @@ class ExamplesLoader {
   }
 
   Future<void> loadDefaultIfAny(Sdk sdk) async {
-    final group = _descriptor;
-    final one = group?.lazyLoadDescriptors[sdk]?.firstOrNull;
+    final one = _descriptor?.lazyLoadDescriptors[sdk]?.firstOrNull;
 
-    if (group == null || one == null) {
+    if (_descriptor == null || one == null) {
       return;
     }
 

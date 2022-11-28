@@ -115,8 +115,8 @@ void main() async {
           Exception? thrown;
           const descriptor = ExamplesLoadingDescriptor(
             descriptors: [
-              TestExampleLoadingDescriptor(Sdk.go, ok: false),
-              TestExampleLoadingDescriptor(Sdk.python, ok: false),
+              TestExampleLoadingDescriptor(Sdk.go, succeed: false),
+              TestExampleLoadingDescriptor(Sdk.python, succeed: false),
             ],
             initialSdk: Sdk.python,
           );

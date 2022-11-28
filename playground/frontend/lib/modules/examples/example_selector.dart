@@ -28,9 +28,6 @@ import 'package:playground/utils/dropdown_utils.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-const int kAnimationDurationInMilliseconds = 80;
-const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
-const Offset kAnimationEndOffset = Offset(0.0, 0.0);
 const double kLgContainerHeight = 490.0;
 const double kLgContainerWidth = 400.0;
 
