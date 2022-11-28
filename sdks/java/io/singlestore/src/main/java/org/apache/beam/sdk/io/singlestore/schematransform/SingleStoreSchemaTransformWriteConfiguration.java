@@ -19,9 +19,7 @@ package org.apache.beam.sdk.io.singlestore.schematransform;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.io.singlestore.SingleStoreIO;
-import org.apache.beam.sdk.io.singlestore.schematransform.AutoValue_SingleStoreSchemaTransformWriteConfiguration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
