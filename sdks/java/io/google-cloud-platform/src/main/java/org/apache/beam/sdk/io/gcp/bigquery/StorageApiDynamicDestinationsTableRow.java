@@ -37,7 +37,6 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
   private final SerializableFunction<T, TableRow> formatFunction;
   private final CreateDisposition createDisposition;
   private final boolean ignoreUnknownValues;
-  private final boolean autoSchemaUpdates;
   private static final TableSchemaCache SCHEMA_CACHE =
       new TableSchemaCache(Duration.standardSeconds(1));
 
@@ -49,13 +48,11 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       DynamicDestinations<T, DestinationT> inner,
       SerializableFunction<T, TableRow> formatFunction,
       CreateDisposition createDisposition,
-      boolean ignoreUnknownValues,
-      boolean autoSchemaUpdates) {
+      boolean ignoreUnknownValues) {
     super(inner);
     this.formatFunction = formatFunction;
     this.createDisposition = createDisposition;
     this.ignoreUnknownValues = ignoreUnknownValues;
-    this.autoSchemaUpdates = autoSchemaUpdates;
   }
 
   static void clearSchemaCache() throws ExecutionException, InterruptedException {

@@ -3172,8 +3172,7 @@ public class BigQueryIO {
                   dynamicDestinations,
                   tableRowWriterFactory.getToRowFn(),
                   getCreateDisposition(),
-                  getIgnoreUnknownValues(),
-                  getAutoSchemaUpdate());
+                  getIgnoreUnknownValues());
         }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =
