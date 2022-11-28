@@ -153,7 +153,7 @@ def loadTestConfigurations = {
         project               : 'apache-beam-testing',
         region                : 'us-central1',
         machine_type          : 'n1-standard-2',
-        num_workers           : 75,
+        num_workers           : 75, // this could be lower as the quota for the apache-beam-testing project is 32 T4 GPUs as of November 28th, 2022.
         disk_size_gb          : 50,
         autoscaling_algorithm : 'NONE',
         staging_location      : 'gs://temp-storage-for-perf-tests/loadtests',
@@ -169,9 +169,7 @@ def loadTestConfigurations = {
         pretrained_model_name : 'resnet152',
         device                : 'GPU',
         experiments           : 'worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver',
-        // TODO: experiment on Docker image. Nvidia image seems to be giving better performance than
-        // torch images.
-        sdk_container_image   : 'us.gcr.io/apache-beam-testing/python-postcommit-it/pytorch/beam2.42_py37',
+        sdk_container_image   : 'us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest',
         input_file            : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet152.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_resnet152_gpu' + now + '.txt'
@@ -184,14 +182,15 @@ def loadTestJob = { scope ->
   List<Map> testScenarios = loadTestConfigurations()
   for (Map testConfig: testScenarios){
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 180)
-    loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, null, testConfig.pipelineOptions.requirements_file)
+    loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, null,
+    testConfig.pipelineOptions.requirements_file, '3.8')
   }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_Inference_Python_Benchmarks_Dataflow',
     'Run Inference Benchmarks',
-    'Inference benchmarks on Dataflow(\"Run Inference Benchmarks"\"")',
+    'Beam Inference benchmarks on Dataflow(\"Run Inference Benchmarks"\"")',
     this
     ) {
       loadTestJob(delegate)
