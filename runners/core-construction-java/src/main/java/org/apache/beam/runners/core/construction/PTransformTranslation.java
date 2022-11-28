@@ -147,6 +147,9 @@ public class PTransformTranslation {
   // GroupIntoBatchesComponents
   public static final String GROUP_INTO_BATCHES_URN = "beam:transform:group_into_batches:v1";
 
+  // IO
+  public static final String KAFKA_IO_URN = "beam:transform:flink:li-kafka-read:v1";
+
   static {
     // Primitives
     checkState(PAR_DO_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.PAR_DO)));
@@ -384,7 +387,7 @@ public class PTransformTranslation {
    * Translates a set of registered transforms whose content only differs based by differences in
    * their {@link FunctionSpec}s and URNs.
    */
-  private static class KnownTransformPayloadTranslator<T extends PTransform<?, ?>>
+  public static class KnownTransformPayloadTranslator<T extends PTransform<?, ?>>
       implements TransformTranslator<T> {
     private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
         KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
@@ -411,6 +414,7 @@ public class PTransformTranslation {
 
         translators.putAll(newTranslators);
       }
+
       return ImmutableMap.copyOf(translators);
     }
 
