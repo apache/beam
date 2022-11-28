@@ -37,7 +37,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 import com.google.re2j.Pattern;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
@@ -62,14 +64,14 @@ public final class GcsArtifactClientTest {
   private GcsArtifactClient artifactClient;
 
   private static final String ARTIFACT_NAME = "test-artifact.txt";
-  private static final String LOCAL_PATH;
+  private static final Path LOCAL_PATH;
   private static final byte[] TEST_ARTIFACT_CONTENTS;
 
   static {
-    LOCAL_PATH = Resources.getResource(ARTIFACT_NAME).getPath();
     try {
-      TEST_ARTIFACT_CONTENTS = Files.readAllBytes(Paths.get(LOCAL_PATH));
-    } catch (IOException e) {
+      LOCAL_PATH = Paths.get(Resources.getResource(ARTIFACT_NAME).toURI());
+      TEST_ARTIFACT_CONTENTS = Files.readAllBytes(LOCAL_PATH);
+    } catch (IOException | URISyntaxException e) {
       throw new RuntimeException(e);
     }
   }

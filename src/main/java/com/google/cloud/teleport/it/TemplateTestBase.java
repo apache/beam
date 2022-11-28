@@ -15,11 +15,23 @@
  */
 package com.google.cloud.teleport.it;
 
+import static com.google.cloud.teleport.it.artifacts.ArtifactUtils.createGcsClient;
+import static com.google.cloud.teleport.it.artifacts.ArtifactUtils.getFullGcsPath;
+
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.teleport.it.artifacts.GcsArtifactClient;
+import com.google.cloud.teleport.it.common.IORedirectUtil;
+import com.google.cloud.teleport.it.dataflow.ClassicTemplateClient;
+import com.google.cloud.teleport.it.dataflow.DataflowOperator;
+import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient;
+import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobInfo;
+import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.LaunchConfig;
+import com.google.cloud.teleport.it.dataflow.FlexTemplateClient;
 import com.google.cloud.teleport.metadata.Template;
 import com.google.cloud.teleport.metadata.TemplateIntegrationTest;
 import java.io.File;
@@ -27,13 +39,14 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
+import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,10 +57,14 @@ import org.slf4j.LoggerFactory;
  * <p>It is required to use @TemplateIntegrationTest to specify which template is under test.
  */
 public abstract class TemplateTestBase {
+
   private static final Logger LOG = LoggerFactory.getLogger(TemplateTestBase.class);
+
+  @Rule public final TestName testName = new TestName();
 
   protected static final String PROJECT = TestProperties.project();
   protected static final String REGION = TestProperties.region();
+  protected static final String ARTIFACT_BUCKET = TestProperties.artifactBucket();
 
   protected String specPath;
   protected Credentials credentials;
@@ -55,6 +72,9 @@ public abstract class TemplateTestBase {
 
   /** Cache to avoid staging the same template multiple times on the same execution. */
   private static final Map<String, String> stagedTemplates = new HashMap<>();
+
+  protected Template template;
+  protected GcsArtifactClient artifactClient;
 
   @Before
   public void setUpBase() throws IOException {
@@ -67,13 +87,17 @@ public abstract class TemplateTestBase {
     }
 
     Class<?> templateClass = annotation.value();
-    Template template = templateClass.getAnnotation(Template.class);
+    template = templateClass.getAnnotation(Template.class);
 
     if (TestProperties.hasAccessToken()) {
       credentials = TestProperties.googleCredentials();
     } else {
       credentials = buildCredentialsFromEnv();
     }
+
+    Storage gcsClient = createGcsClient(credentials);
+    artifactClient =
+        GcsArtifactClient.builder(gcsClient, ARTIFACT_BUCKET, getClass().getSimpleName()).build();
 
     credentialsProvider = FixedCredentialsProvider.create(credentials);
 
@@ -87,10 +111,7 @@ public abstract class TemplateTestBase {
 
       String prefix = new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date()) + "_IT";
 
-      File pom = new File("unified-templates.xml");
-      if (!pom.exists()) {
-        pom = new File("pom.xml");
-      }
+      File pom = new File("pom.xml").getAbsoluteFile();
       if (!pom.exists()) {
         throw new IllegalArgumentException(
             "To use tests staging templates, please run in the Maven module directory containing"
@@ -101,47 +122,26 @@ public abstract class TemplateTestBase {
         bucketName = TestProperties.artifactBucket();
       }
 
-      String[] mavenCmd =
-          new String[] {
-            "mvn",
-            "package",
-            "-q",
-            "-f",
-            pom.getAbsolutePath(),
-            "-PtemplatesStage",
-            "-DskipTests",
-            "-Dcheckstyle.skip",
-            "-Dmdep.analyze.skip",
-            "-Dspotless.check.skip",
-            "-DprojectId=" + TestProperties.project(),
-            "-DbucketName=" + bucketName,
-            "-DstagePrefix=" + prefix,
-            "-DtemplateName=" + template.name()
-          };
-
+      String[] mavenCmd = buildMavenStageCommand(prefix, pom, bucketName);
       LOG.info("Running command to stage templates: {}", String.join(" ", mavenCmd));
+
       try {
         Process exec = Runtime.getRuntime().exec(mavenCmd);
-        int ret = exec.waitFor();
+        IORedirectUtil.redirectLinesLog(exec.getInputStream(), LOG);
+        IORedirectUtil.redirectLinesLog(exec.getErrorStream(), LOG);
 
-        if (ret == 0) {
-
-          boolean flex =
-              template.flexContainerName() != null && !template.flexContainerName().isEmpty();
-          specPath =
-              String.format(
-                  "gs://%s/%s/%s%s", bucketName, prefix, flex ? "flex/" : "", template.name());
-          LOG.info("Template staged successfully! Path: {}", specPath);
-
-          stagedTemplates.put(template.name(), specPath);
-        } else {
-
-          throw new RuntimeException(
-              "Error staging template: "
-                  + new String(exec.getInputStream().readAllBytes(), StandardCharsets.UTF_8)
-                  + "\n"
-                  + new String(exec.getErrorStream().readAllBytes(), StandardCharsets.UTF_8));
+        if (exec.waitFor() != 0) {
+          throw new RuntimeException("Error staging template, check Maven logs.");
         }
+
+        boolean flex =
+            template.flexContainerName() != null && !template.flexContainerName().isEmpty();
+        specPath =
+            String.format(
+                "gs://%s/%s/%s%s", bucketName, prefix, flex ? "flex/" : "", template.name());
+        LOG.info("Template staged successfully! Path: {}", specPath);
+
+        stagedTemplates.put(template.name(), specPath);
 
       } catch (Exception e) {
         throw new IllegalArgumentException("Error staging template", e);
@@ -149,8 +149,82 @@ public abstract class TemplateTestBase {
     }
   }
 
+  private String[] buildMavenStageCommand(String prefix, File pom, String bucketName) {
+    String pomPath = pom.getAbsolutePath();
+    String moduleBuild;
+
+    // Classic templates run on parent pom and -pl v1
+    if (pomPath.endsWith("/v1/pom.xml")) {
+      pomPath = new File(pom.getParentFile().getParentFile(), "pom.xml").getAbsolutePath();
+      moduleBuild = "v1";
+    } else {
+      // Flex templates run on parent pom and -pl {path-to-folder}
+      moduleBuild = pomPath.substring(pomPath.indexOf("v2/")).replace("/pom.xml", "");
+      pomPath = pomPath.replaceAll("/v2/.*", "/pom.xml");
+    }
+
+    return new String[] {
+      "mvn",
+      "package",
+      "-q",
+      "-f",
+      pomPath,
+      "-pl",
+      moduleBuild,
+      "-am",
+      "-PtemplatesStage",
+      "-DskipShade",
+      "-Dmaven.test.skip",
+      "-Dcheckstyle.skip",
+      "-Dmdep.analyze.skip",
+      "-Dspotless.check.skip",
+      "-Denforcer.skip",
+      "-DprojectId=" + TestProperties.project(),
+      "-DbucketName=" + bucketName,
+      "-DstagePrefix=" + prefix,
+      "-DtemplateName=" + template.name()
+    };
+  }
+
   @After
-  public void tearDownBase() {}
+  public void tearDownBase() {
+    artifactClient.cleanupRun();
+  }
+
+  protected DataflowTemplateClient getDataflowClient() {
+    if (template.flexContainerName() != null && !template.flexContainerName().isEmpty()) {
+      return FlexTemplateClient.builder().setCredentials(credentials).build();
+    } else {
+      return ClassicTemplateClient.builder().setCredentials(credentials).build();
+    }
+  }
+
+  protected JobInfo launchTemplate(LaunchConfig.Builder options) throws IOException {
+
+    // Property allows testing with Runner v2 / Unified Worker
+    if (System.getProperty("unifiedWorker") != null) {
+      options.addEnvironment("experiments", "use_runner_v2");
+    }
+
+    return getDataflowClient().launchTemplate(PROJECT, REGION, options.build());
+  }
+
+  protected String getGcsBasePath() {
+    return getFullGcsPath(ARTIFACT_BUCKET, getClass().getSimpleName(), artifactClient.runId());
+  }
+
+  protected String getGcsPath(String testMethod) {
+    return getFullGcsPath(
+        ARTIFACT_BUCKET, getClass().getSimpleName(), artifactClient.runId(), testMethod);
+  }
+
+  protected DataflowOperator.Config createConfig(JobInfo info) {
+    return DataflowOperator.Config.builder()
+        .setJobId(info.jobId())
+        .setProject(PROJECT)
+        .setRegion(REGION)
+        .build();
+  }
 
   public static Credentials buildCredentialsFromEnv() throws IOException {
 

@@ -120,7 +120,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
     TODO(https://issues.apache.org/jira/browse/BEAM-4670): re-enable after fixing after spotless
 
     A lot of our Javadoc has moderately broken HTML. It lacks paragraph tags where it ought
-    to have them. Spotless reformats so that checkstyle noticies this. This can be fixed
+    to have them. Spotless reformats so that checkstyle notices this. This can be fixed
     a bit at a time.
 
     <module name="JavadocParagraph"/>

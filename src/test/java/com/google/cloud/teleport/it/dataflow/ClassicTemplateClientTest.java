@@ -24,14 +24,12 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations;
-import com.google.api.services.dataflow.Dataflow.Projects.Locations.FlexTemplates;
-import com.google.api.services.dataflow.Dataflow.Projects.Locations.FlexTemplates.Launch;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.Get;
-import com.google.api.services.dataflow.model.FlexTemplateRuntimeEnvironment;
+import com.google.api.services.dataflow.Dataflow.Projects.Locations.Templates;
+import com.google.api.services.dataflow.Dataflow.Projects.Locations.Templates.Create;
+import com.google.api.services.dataflow.model.CreateJobFromTemplateRequest;
 import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.LaunchFlexTemplateParameter;
-import com.google.api.services.dataflow.model.LaunchFlexTemplateRequest;
-import com.google.api.services.dataflow.model.LaunchFlexTemplateResponse;
+import com.google.api.services.dataflow.model.RuntimeEnvironment;
 import com.google.auth.Credentials;
 import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobInfo;
 import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobState;
@@ -49,9 +47,9 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-/** Unit test for {@link FlexTemplateClient}. */
+/** Unit test for {@link ClassicTemplateClient}. */
 @RunWith(JUnit4.class)
-public final class FlexTemplateClientTest {
+public final class ClassicTemplateClientTest {
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
 
   @Mock(answer = Answers.RETURNS_DEEP_STUBS)
@@ -69,47 +67,45 @@ public final class FlexTemplateClientTest {
   @Captor private ArgumentCaptor<String> projectCaptor;
   @Captor private ArgumentCaptor<String> regionCaptor;
   @Captor private ArgumentCaptor<String> jobIdCaptor;
-  @Captor private ArgumentCaptor<LaunchFlexTemplateRequest> requestCaptor;
+  @Captor private ArgumentCaptor<CreateJobFromTemplateRequest> requestCaptor;
 
   @Test
   public void testCreateWithCredentials() {
     Credentials credentials = mock(Credentials.class);
-    FlexTemplateClient.builder().setCredentials(credentials).build();
+    ClassicTemplateClient.builder().setCredentials(credentials).build();
     // Lack of exception is all we really can test
   }
 
   @Test
   public void testLaunchNewJob() throws IOException {
     // Arrange
-    Launch launch = mock(Launch.class);
+    Templates.Create launch = mock(Create.class);
     Get get = mock(Get.class);
     Job launchJob = new Job().setId(JOB_ID);
     Job getJob = new Job().setId(JOB_ID).setCurrentState(JobState.QUEUED.toString());
-    LaunchFlexTemplateResponse response = new LaunchFlexTemplateResponse().setJob(launchJob);
 
     LaunchConfig options =
         LaunchConfig.builder(JOB_NAME, SPEC_PATH).addParameter(PARAM_KEY, PARAM_VALUE).build();
 
-    when(getFlexTemplates(client).launch(any(), any(), any())).thenReturn(launch);
+    when(getTemplates(client).create(any(), any(), any())).thenReturn(launch);
     when(getLocationJobs(client).get(any(), any(), any())).thenReturn(get);
-    when(launch.execute()).thenReturn(response);
+    when(launch.execute()).thenReturn(launchJob);
     when(get.execute()).thenReturn(getJob);
 
     // Act
     JobInfo actual =
-        FlexTemplateClient.withDataflowClient(client).launchTemplate(PROJECT, REGION, options);
+        ClassicTemplateClient.withDataflowClient(client).launchTemplate(PROJECT, REGION, options);
 
     // Assert
-    LaunchFlexTemplateRequest expectedRequest =
-        new LaunchFlexTemplateRequest()
-            .setLaunchParameter(
-                new LaunchFlexTemplateParameter()
-                    .setJobName(JOB_NAME)
-                    .setContainerSpecGcsPath(SPEC_PATH)
-                    .setParameters(ImmutableMap.of(PARAM_KEY, PARAM_VALUE))
-                    .setEnvironment(new FlexTemplateRuntimeEnvironment()));
-    verify(getFlexTemplates(client))
-        .launch(projectCaptor.capture(), regionCaptor.capture(), requestCaptor.capture());
+    CreateJobFromTemplateRequest expectedRequest =
+        new CreateJobFromTemplateRequest()
+            .setJobName(JOB_NAME)
+            .setGcsPath(SPEC_PATH)
+            .setParameters(ImmutableMap.of(PARAM_KEY, PARAM_VALUE))
+            .setLocation(REGION)
+            .setEnvironment(new RuntimeEnvironment());
+    verify(getTemplates(client))
+        .create(projectCaptor.capture(), regionCaptor.capture(), requestCaptor.capture());
     assertThat(projectCaptor.getValue()).isEqualTo(PROJECT);
     assertThat(regionCaptor.getValue()).isEqualTo(REGION);
     assertThat(requestCaptor.getValue()).isEqualTo(expectedRequest);
@@ -126,11 +122,11 @@ public final class FlexTemplateClientTest {
 
   @Test
   public void testLaunchNewJobThrowsException() throws IOException {
-    when(getFlexTemplates(client).launch(any(), any(), any())).thenThrow(new IOException());
+    when(getTemplates(client).create(any(), any(), any())).thenThrow(new IOException());
     assertThrows(
         IOException.class,
         () ->
-            FlexTemplateClient.withDataflowClient(client)
+            ClassicTemplateClient.withDataflowClient(client)
                 .launchTemplate(
                     PROJECT, REGION, LaunchConfig.builder(JOB_NAME, SPEC_PATH).build()));
   }
@@ -139,7 +135,7 @@ public final class FlexTemplateClientTest {
     return client.projects().locations().jobs();
   }
 
-  private static FlexTemplates getFlexTemplates(Dataflow client) {
-    return client.projects().locations().flexTemplates();
+  private static Templates getTemplates(Dataflow client) {
+    return client.projects().locations().templates();
   }
 }

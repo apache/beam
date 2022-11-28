@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /** Utilities for managing Dataflow jobs. */
 public final class DataflowOperator {
+
   private static final Logger LOG = LoggerFactory.getLogger(DataflowOperator.class);
 
   /** The result of running an operation. */
@@ -161,6 +162,7 @@ public final class DataflowOperator {
   /** Configuration for running an operation. */
   @AutoValue
   public abstract static class Config {
+
     public abstract String project();
 
     public abstract String jobId();
@@ -174,13 +176,14 @@ public final class DataflowOperator {
 
     public static Builder builder() {
       return new AutoValue_DataflowOperator_Config.Builder()
-          .setCheckAfter(Duration.ofSeconds(30))
+          .setCheckAfter(Duration.ofSeconds(15))
           .setTimeoutAfter(Duration.ofMinutes(15));
     }
 
     /** Builder for a {@link Config}. */
     @AutoValue.Builder
     public abstract static class Builder {
+
       public abstract Builder setProject(String value);
 
       public abstract Builder setRegion(String value);

@@ -19,22 +19,20 @@ import static com.google.cloud.teleport.it.logging.LogStrings.formatForLogging;
 
 import com.google.api.client.googleapis.util.Utils;
 import com.google.api.services.dataflow.Dataflow;
-import com.google.api.services.dataflow.model.FlexTemplateRuntimeEnvironment;
+import com.google.api.services.dataflow.model.CreateJobFromTemplateRequest;
 import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.LaunchFlexTemplateParameter;
-import com.google.api.services.dataflow.model.LaunchFlexTemplateRequest;
-import com.google.api.services.dataflow.model.LaunchFlexTemplateResponse;
+import com.google.api.services.dataflow.model.RuntimeEnvironment;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Client for interacting with Dataflow Flex Templates using the Dataflow SDK. */
-public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
-  private static final Logger LOG = LoggerFactory.getLogger(FlexTemplateClient.class);
+/** Client for interacting with Dataflow Classic Templates using the Dataflow SDK. */
+public final class ClassicTemplateClient extends AbstractDataflowTemplateClient {
+  private static final Logger LOG = LoggerFactory.getLogger(ClassicTemplateClient.class);
 
-  private FlexTemplateClient(Builder builder) {
+  private ClassicTemplateClient(Builder builder) {
     super(
         new Dataflow(
             Utils.getDefaultTransport(),
@@ -42,12 +40,12 @@ public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
             new HttpCredentialsAdapter(builder.getCredentials())));
   }
 
-  private FlexTemplateClient(Dataflow dataflow) {
+  private ClassicTemplateClient(Dataflow dataflow) {
     super(dataflow);
   }
 
-  public static FlexTemplateClient withDataflowClient(Dataflow dataflow) {
-    return new FlexTemplateClient(dataflow);
+  public static ClassicTemplateClient withDataflowClient(Dataflow dataflow) {
+    return new ClassicTemplateClient(dataflow);
   }
 
   public static Builder builder() {
@@ -61,19 +59,17 @@ public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
     LOG.info("Using the spec at {}", options.specPath());
     LOG.info("Using parameters:\n{}", formatForLogging(options.parameters()));
 
-    LaunchFlexTemplateParameter parameter =
-        new LaunchFlexTemplateParameter()
+    CreateJobFromTemplateRequest parameter =
+        new CreateJobFromTemplateRequest()
             .setJobName(options.jobName())
             .setParameters(options.parameters())
-            .setContainerSpecGcsPath(options.specPath())
+            .setLocation(region)
+            .setGcsPath(options.specPath())
             .setEnvironment(buildEnvironment(options));
-    LaunchFlexTemplateRequest request =
-        new LaunchFlexTemplateRequest().setLaunchParameter(parameter);
-    LOG.info("Sending request:\n{}", formatForLogging(request));
+    LOG.info("Sending request:\n{}", formatForLogging(parameter));
 
-    LaunchFlexTemplateResponse response =
-        client.projects().locations().flexTemplates().launch(project, region, request).execute();
-    Job job = response.getJob();
+    Job job =
+        client.projects().locations().templates().create(project, region, parameter).execute();
     printJobResponse(job);
 
     // The initial response will not return the state, so need to explicitly get it
@@ -81,13 +77,13 @@ public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
     return JobInfo.builder().setJobId(job.getId()).setState(state).build();
   }
 
-  private FlexTemplateRuntimeEnvironment buildEnvironment(LaunchConfig options) {
-    FlexTemplateRuntimeEnvironment environment = new FlexTemplateRuntimeEnvironment();
+  private RuntimeEnvironment buildEnvironment(LaunchConfig options) {
+    RuntimeEnvironment environment = new RuntimeEnvironment();
     environment.putAll(options.environment());
     return environment;
   }
 
-  /** Builder for {@link FlexTemplateClient}. */
+  /** Builder for {@link ClassicTemplateClient}. */
   public static final class Builder {
     private Credentials credentials;
 
@@ -102,8 +98,8 @@ public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
       return this;
     }
 
-    public FlexTemplateClient build() {
-      return new FlexTemplateClient(this);
+    public ClassicTemplateClient build() {
+      return new ClassicTemplateClient(this);
     }
   }
 }

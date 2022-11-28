@@ -15,6 +15,8 @@
  */
 package com.google.cloud.teleport.it.dataflow;
 
+import static com.google.cloud.teleport.it.logging.LogStrings.formatForLogging;
+
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.cloud.teleport.it.logging.LogStrings;
@@ -55,8 +57,18 @@ abstract class AbstractDataflowTemplateClient implements DataflowTemplateClient 
     client.projects().locations().jobs().update(project, region, jobId, job).execute();
   }
 
+  protected void printJobResponse(Job job) {
+    LOG.info("Received job response: {}", formatForLogging(job));
+
+    LOG.info(
+        "Dataflow Console: https://console.cloud.google.com/dataflow/jobs/{}/{}?project={}",
+        job.getLocation(),
+        job.getId(),
+        job.getProjectId());
+  }
+
   /** Parses the job state if available or returns {@link JobState#UNKNOWN} if not given. */
-  protected static JobState handleJobState(Job job) {
+  protected JobState handleJobState(Job job) {
     String currentState = job.getCurrentState();
     return Strings.isNullOrEmpty(currentState) ? JobState.UNKNOWN : JobState.parse(currentState);
   }

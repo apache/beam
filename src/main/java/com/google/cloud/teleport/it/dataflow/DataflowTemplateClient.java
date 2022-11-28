@@ -80,11 +80,13 @@ public interface DataflowTemplateClient {
   class LaunchConfig {
     private final String jobName;
     private final ImmutableMap<String, String> parameters;
+    private final ImmutableMap<String, String> environment;
     private final String specPath;
 
     private LaunchConfig(Builder builder) {
       this.jobName = builder.jobName;
       this.parameters = ImmutableMap.copyOf(builder.parameters);
+      this.environment = ImmutableMap.copyOf(builder.environment);
       this.specPath = builder.specPath;
     }
 
@@ -94,6 +96,10 @@ public interface DataflowTemplateClient {
 
     public ImmutableMap<String, String> parameters() {
       return parameters;
+    }
+
+    public ImmutableMap<String, String> environment() {
+      return environment;
     }
 
     public String specPath() {
@@ -108,11 +114,13 @@ public interface DataflowTemplateClient {
     public static final class Builder {
       private final String jobName;
       private final Map<String, String> parameters;
+      private final Map<String, String> environment;
       private final String specPath;
 
       private Builder(String jobName, String specPath) {
         this.jobName = jobName;
         this.parameters = new HashMap<>();
+        this.environment = new HashMap<>();
         this.specPath = specPath;
       }
 
@@ -126,6 +134,16 @@ public interface DataflowTemplateClient {
       }
 
       public Builder addParameter(String key, String value) {
+        parameters.put(key, value);
+        return this;
+      }
+
+      @Nullable
+      public String getEnvironment(String key) {
+        return parameters.get(key);
+      }
+
+      public Builder addEnvironment(String key, String value) {
         parameters.put(key, value);
         return this;
       }

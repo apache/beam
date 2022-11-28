@@ -17,6 +17,7 @@ package com.google.cloud.teleport.it.artifacts;
 
 import com.google.re2j.Pattern;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -63,11 +64,22 @@ public interface ArtifactClient {
    *
    * @param artifactName the name of the artifact. If this is supposed to go under an input/output
    *     directory, then it should include that (example: input/artifact.txt)
-   * @param localPath the local path to the file to upload
+   * @param localPath the absolute local path to the file to upload
    * @return a representation of the uploaded artifact
    * @throws IOException if there is an issue reading the local file
    */
   Artifact uploadArtifact(String artifactName, String localPath) throws IOException;
+
+  /**
+   * Uploads a local file to the service being used for storing artifacts.
+   *
+   * @param artifactName the name of the artifact. If this is supposed to go under an input/output
+   *     directory, then it should include that (example: input/artifact.txt)
+   * @param localPath the local path to the file to upload
+   * @return a representation of the uploaded artifact
+   * @throws IOException if there is an issue reading the local file
+   */
+  Artifact uploadArtifact(String artifactName, Path localPath) throws IOException;
 
   // TODO(zhoufek): Add equivalents for the above for uploading artifacts of a test method
 
