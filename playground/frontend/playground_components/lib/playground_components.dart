@@ -66,6 +66,7 @@ export 'src/widgets/divider.dart';
 export 'src/widgets/header_icon_button.dart';
 export 'src/widgets/loading_indicator.dart';
 export 'src/widgets/logo.dart';
+export 'src/widgets/open_overlay.dart';
 export 'src/widgets/output/output.dart';
 export 'src/widgets/reset_button.dart';
 export 'src/widgets/run_or_cancel_button.dart';

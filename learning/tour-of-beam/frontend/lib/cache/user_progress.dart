@@ -34,16 +34,16 @@ class UserProgressCache extends Cache {
     return getCompletedUnits().contains(unitId);
   }
 
-  void updateCompletedUnits() {
+  Future<void> updateCompletedUnits() async {
     final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
     if (sdkId != null) {
-      unawaited(_loadCompletedUnits(sdkId));
+      await _loadCompletedUnits(sdkId);
     }
   }
 
   Set<String> getCompletedUnits() {
     if (_future == null) {
-      updateCompletedUnits();
+      unawaited(updateCompletedUnits());
     }
 
     return _completedUnitIds;

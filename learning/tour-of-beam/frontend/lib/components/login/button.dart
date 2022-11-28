@@ -20,7 +20,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../open_overlay.dart';
 import 'content.dart';
 
 class LoginButton extends StatelessWidget {
@@ -31,7 +30,7 @@ class LoginButton extends StatelessWidget {
     return TextButton(
       onPressed: () {
         final closeNotifier = PublicNotifier();
-        kOpenOverlay(
+        openOverlay(
           context,
           closeNotifier,
           LoginContent(onLoggedIn: closeNotifier.notifyPublic),

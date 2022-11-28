@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-void kOpenOverlay(
+void openOverlay(
   BuildContext context,
   PublicNotifier closeNotifier,
   Widget child,

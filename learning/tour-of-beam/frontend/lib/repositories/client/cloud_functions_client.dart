@@ -73,7 +73,7 @@ class CloudFunctionsTobClient extends TobClient {
 
   @override
   Future<List<UserProgressModel>?> getUserProgress(String sdkId) async {
-    final token = await GetIt.instance.get<AuthNotifier>().token;
+    final token = await GetIt.instance.get<AuthNotifier>().getToken();
     if (token == null) {
       return null;
     }
@@ -92,7 +92,7 @@ class CloudFunctionsTobClient extends TobClient {
 
   @override
   Future<void> postUnitComplete(String sdkId, String id) async {
-    final token = await GetIt.instance.get<AuthNotifier>().token;
+    final token = await GetIt.instance.get<AuthNotifier>().getToken();
     final json = await http.post(
       Uri.parse(
         '$cloudFunctionsBaseUrl/postUnitComplete?sdk=$sdkId&id=$id',

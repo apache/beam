@@ -29,15 +29,16 @@ class AuthNotifier extends ChangeNotifier {
   );
 
   AuthNotifier() {
-    FirebaseAuth.instance.authStateChanges().listen((user) async {
+    FirebaseAuth.instance.authStateChanges().listen((user) {
       notifyListeners();
     });
   }
 
   bool get isAuthenticated => FirebaseAuth.instance.currentUser != null;
 
-  Future<String?> get token async =>
-      await FirebaseAuth.instance.currentUser?.getIdToken();
+  Future<String?> getToken() async {
+    return FirebaseAuth.instance.currentUser?.getIdToken();
+  }
 
   Future<void> logIn(AuthMethod authMethod) async {
     await FirebaseAuth.instance.signInWithPopup(_authProviders.get(authMethod));

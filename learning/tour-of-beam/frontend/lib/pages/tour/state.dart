@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
@@ -35,7 +37,6 @@ import 'path.dart';
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
-  // TODO(nausharipov): avoid late?
   UnitController? currentUnitController;
   final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _authNotifier = GetIt.instance.get<AuthNotifier>();
@@ -84,7 +85,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   void _onUserProgressChanged() {
-    _userProgressCache.updateCompletedUnits();
+    unawaited(_userProgressCache.updateCompletedUnits());
   }
 
   void _onAppNotifierChanged() {
@@ -130,22 +131,26 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       return;
     }
 
-    playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
-        descriptors: [
-          UserSharedExampleLoadingDescriptor(snippetId: taskSnippetId),
-        ],
+    unawaited(
+      playgroundController.examplesLoader.load(
+        ExamplesLoadingDescriptor(
+          descriptors: [
+            UserSharedExampleLoadingDescriptor(snippetId: taskSnippetId),
+          ],
+        ),
       ),
     );
   }
 
   // TODO(alexeyinkin): Hide the entire right pane instead.
   void _emptyPlayground() {
-    playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
-        descriptors: [
-          EmptyExampleLoadingDescriptor(sdk: contentTreeController.sdk),
-        ],
+    unawaited(
+      playgroundController.examplesLoader.load(
+        ExamplesLoadingDescriptor(
+          descriptors: [
+            EmptyExampleLoadingDescriptor(sdk: contentTreeController.sdk),
+          ],
+        ),
       ),
     );
   }
@@ -178,11 +183,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       examplesLoader: ExamplesLoader(),
     );
 
-    playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
-        descriptors: [
-          EmptyExampleLoadingDescriptor(sdk: Sdk.parseOrCreate(initialSdkId)),
-        ],
+    unawaited(
+      playgroundController.examplesLoader.load(
+        ExamplesLoadingDescriptor(
+          descriptors: [
+            EmptyExampleLoadingDescriptor(sdk: Sdk.parseOrCreate(initialSdkId)),
+          ],
+        ),
       ),
     );
 
@@ -194,7 +201,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
     currentUnitController?.removeListener(_onUserProgressChanged);
-    _appNotifier.removeListener(_onUserProgressChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onUserProgressChanged);
     super.dispose();
