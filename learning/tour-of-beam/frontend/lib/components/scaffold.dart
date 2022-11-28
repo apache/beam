@@ -42,6 +42,7 @@ class TobScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Logo(),
         actions: [
           if (showSdkSelector)
