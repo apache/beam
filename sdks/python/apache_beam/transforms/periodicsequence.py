@@ -21,6 +21,7 @@ import time
 import apache_beam as beam
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.runners import sdf_utils
 from apache_beam.transforms import core
 from apache_beam.transforms import window
@@ -50,6 +51,10 @@ class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
   def restriction_size(self, unused_element, restriction):
     return restriction.size()
 
+  # On drain, immediately stop emitting new elements
+  def truncate(self, unused_element, unused_restriction):
+    return None
+
 
 class ImpulseSeqGenDoFn(beam.DoFn):
   '''
@@ -75,7 +80,9 @@ class ImpulseSeqGenDoFn(beam.DoFn):
       self,
       element,
       restriction_tracker=beam.DoFn.RestrictionParam(
-          ImpulseSeqGenRestrictionProvider())):
+          ImpulseSeqGenRestrictionProvider()),
+      watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
+          ManualWatermarkEstimator.default_provider())):
     '''
     :param element: (start_timestamp, end_timestamp, interval)
     :param restriction_tracker:
@@ -92,6 +99,8 @@ class ImpulseSeqGenDoFn(beam.DoFn):
     current_output_index = restriction_tracker.current_restriction().start
     current_output_timestamp = start + interval * current_output_index
     current_time = time.time()
+    watermark_estimator.set_watermark(
+        timestamp.Timestamp(current_output_timestamp))
 
     while current_output_timestamp <= current_time:
       if restriction_tracker.try_claim(current_output_index):
@@ -99,6 +108,8 @@ class ImpulseSeqGenDoFn(beam.DoFn):
         current_output_index += 1
         current_output_timestamp = start + interval * current_output_index
         current_time = time.time()
+        watermark_estimator.set_watermark(
+            timestamp.Timestamp(current_output_timestamp))
       else:
         return
 

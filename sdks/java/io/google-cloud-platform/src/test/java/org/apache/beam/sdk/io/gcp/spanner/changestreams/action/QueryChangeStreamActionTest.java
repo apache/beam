@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State.SCHEDULED;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,7 +40,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -66,7 +64,6 @@ public class QueryChangeStreamActionTest {
   private PartitionMetadataDao partitionMetadataDao;
   private PartitionMetadata partition;
   private ChangeStreamMetrics metrics;
-  private ThroughputEstimator throughputEstimator;
   private TimestampRange restriction;
   private RestrictionTracker<TimestampRange, Timestamp> restrictionTracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
@@ -89,7 +86,6 @@ public class QueryChangeStreamActionTest {
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
     metrics = mock(ChangeStreamMetrics.class);
-    throughputEstimator = mock(ThroughputEstimator.class);
 
     action =
         new QueryChangeStreamAction(
@@ -100,8 +96,7 @@ public class QueryChangeStreamActionTest {
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
-            metrics,
-            throughputEstimator);
+            metrics);
     final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()
@@ -149,20 +144,10 @@ public class QueryChangeStreamActionTest {
     when(changeStreamRecordMapper.toChangeStreamRecords(partition, rowAsStruct, resultSetMetadata))
         .thenReturn(Arrays.asList(record1, record2));
     when(dataChangeRecordAction.run(
-            partition,
-            record1,
-            restrictionTracker,
-            outputReceiver,
-            watermarkEstimator,
-            throughputEstimator))
+            partition, record1, restrictionTracker, outputReceiver, watermarkEstimator))
         .thenReturn(Optional.empty());
     when(dataChangeRecordAction.run(
-            partition,
-            record2,
-            restrictionTracker,
-            outputReceiver,
-            watermarkEstimator,
-            throughputEstimator))
+            partition, record2, restrictionTracker, outputReceiver, watermarkEstimator))
         .thenReturn(Optional.of(ProcessContinuation.stop()));
     when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
 
@@ -172,28 +157,14 @@ public class QueryChangeStreamActionTest {
 
     assertEquals(ProcessContinuation.stop(), result);
     verify(dataChangeRecordAction)
-        .run(
-            partition,
-            record1,
-            restrictionTracker,
-            outputReceiver,
-            watermarkEstimator,
-            throughputEstimator);
+        .run(partition, record1, restrictionTracker, outputReceiver, watermarkEstimator);
     verify(dataChangeRecordAction)
-        .run(
-            partition,
-            record2,
-            restrictionTracker,
-            outputReceiver,
-            watermarkEstimator,
-            throughputEstimator);
+        .run(partition, record2, restrictionTracker, outputReceiver, watermarkEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
-    // This is done in the DataChangeRecordAction, but not here
-    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   @Test
@@ -232,10 +203,9 @@ public class QueryChangeStreamActionTest {
     verify(heartbeatRecordAction).run(partition, record2, restrictionTracker, watermarkEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
-    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   @Test
@@ -278,10 +248,9 @@ public class QueryChangeStreamActionTest {
         .run(partition, record2, restrictionTracker, watermarkEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
-    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   @Test
@@ -325,10 +294,9 @@ public class QueryChangeStreamActionTest {
         .run(partition, record2, restrictionTracker, watermarkEstimator);
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
-    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   @Test
@@ -352,10 +320,9 @@ public class QueryChangeStreamActionTest {
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
     verify(partitionMetadataDao).updateToFinished(PARTITION_TOKEN);
 
-    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any());
-    verify(throughputEstimator, never()).update(any(), anyLong());
   }
 
   private static class BundleFinalizerStub implements BundleFinalizer {

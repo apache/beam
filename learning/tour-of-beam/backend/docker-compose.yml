@@ -33,3 +33,16 @@ services:
       - PROJECT_ID=${GOOGLE_CLOUD_PROJECT}
     ports:
       - "9099:9099"
+
+  playground-router:
+    image: apache/beam_playground-backend-router
+    environment:
+      - GOOGLE_CLOUD_PROJECT
+      - DATASTORE_EMULATOR_HOST=datastore:8081
+      - CACHE_TYPE=local
+      - SDK_CONFIG=/opt/playground/backend/sdks-emulator.yaml
+      - PROTOCOL_TYPE=TCP
+    ports:
+      - "8000:8080"
+    depends_on:
+      - datastore

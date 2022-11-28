@@ -29,8 +29,6 @@
 
 import apache_beam as beam
 
-from log_elements import LogElements
-
 
 class BreakIntoWordsDoFn(beam.DoFn):
 
@@ -43,5 +41,5 @@ with beam.Pipeline() as p:
 
   (p | beam.Create(['Hello Beam', 'It is awesome'])
      | beam.ParDo(BreakIntoWordsDoFn())
-     | LogElements())
+     | beam.LogElements())
 

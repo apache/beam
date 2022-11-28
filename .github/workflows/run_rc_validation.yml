@@ -88,8 +88,7 @@ jobs:
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
       - name: Verify working branch name
-        run:
-          - sh ./ci_check_git_branch.sh $WORKING_BRANCH
+        run: ./scripts/ci/ci_check_git_branch.sh $WORKING_BRANCH
       - name: Create Pull Request
         run: |
           git checkout -b ${{env.WORKING_BRANCH}} ${{ env.RC_TAG }} --quiet
@@ -121,7 +120,7 @@ jobs:
         
 
     - name: Setup Java JDK
-      uses: actions/setup-java@v3.5.1
+      uses: actions/setup-java@v3.6.0
       with:
         distribution: 'temurin'
         java-version: 11
@@ -188,7 +187,7 @@ jobs:
       uses: azure/setup-kubectl@v3
 
     - name: Setup Java JDK
-      uses: actions/setup-java@v3.5.1
+      uses: actions/setup-java@v3.6.0
       with:
         distribution: 'temurin'
         java-version: 11

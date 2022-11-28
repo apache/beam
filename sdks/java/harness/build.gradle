@@ -23,7 +23,6 @@ plugins { id 'org.apache.beam.module' }
 // and also the set of project level dependencies.
 def dependOnShadedProjects = [":model:pipeline", ":model:fn-execution", ":sdks:java:core"]
 def dependOnProjects = [":sdks:java:fn-execution",
-                        ":sdks:java:extensions:google-cloud-platform-core",
                         ":runners:core-java", ":runners:core-construction-java"]
 
 applyJavaNature(

@@ -16,11 +16,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"flag"
-	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -29,113 +26,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
-
-const (
-	TIMEOUT_HTTP    = 10 * time.Second
-	TIMEOUT_STARTUP = 30 * time.Second
-)
-
-type EmulatorClient struct {
-	host   string
-	client *http.Client
-}
-
-func makeEmulatorCiient() *EmulatorClient {
-	return &EmulatorClient{
-		os.Getenv("FIREBASE_AUTH_EMULATOR_HOST"),
-		&http.Client{Timeout: TIMEOUT_HTTP},
-	}
-}
-
-func (e *EmulatorClient) waitApi() {
-	terminate := time.NewTimer(TIMEOUT_STARTUP)
-	tick := time.NewTicker(5 * time.Second)
-	for {
-		select {
-		case <-terminate.C:
-			log.Fatalf("timeout waiting for emulator")
-		case <-tick.C:
-			resp, err := e.do(http.MethodGet, "", nil)
-			if err != nil {
-				log.Println("emulator API:", err)
-				continue
-			}
-			parsed := struct {
-				AuthEmulator struct {
-					Ready bool `json:"ready"`
-				} `json:"authEmulator"`
-			}{}
-			err = json.Unmarshal(resp, &parsed)
-			if err != nil {
-				log.Println("emulator API bad response:", err)
-				continue
-			}
-			if parsed.AuthEmulator.Ready {
-				return
-			}
-		}
-	}
-}
-
-func (e *EmulatorClient) do(method, endpoint string, jsonBody map[string]string) ([]byte, error) {
-	url := "http://" + e.host
-	if endpoint > "" {
-		url += "/" + endpoint
-	}
-	var buf []byte
-	// handle nil jsonBody as no body
-	if jsonBody != nil {
-		buf, _ = json.Marshal(jsonBody)
-	}
-
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(buf))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("content-type", "application/json")
-
-	response, err := e.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Close the connection to reuse it
-	defer response.Body.Close()
-	// show the response in stdout
-	tee := io.TeeReader(response.Body, os.Stdout)
-
-	var out []byte
-	out, err = io.ReadAll(tee)
-	if err != nil {
-		return nil, err
-	}
-
-	return out, nil
-}
-
-// Get valid Firebase ID token
-// Simulate Frontend client authorization logic
-// Here, we use the simplest possible authorization: email/password
-// Firebase Admin SDK lacks methods to create a user and get ID token
-func (e *EmulatorClient) getIDToken() string {
-	// create a user (sign-up with dummy email/password)
-	endpoint := "identitytoolkit.googleapis.com/v1/accounts:signUp?key=anything_goes"
-	body := map[string]string{"email": "a@b.c", "password": "1q2w3e"}
-	resp, err := e.do(http.MethodPost, endpoint, body)
-	if err != nil {
-		log.Fatalf("emulator request error: %+v", err)
-	}
-
-	var parsed struct {
-		IdToken string `json:"idToken"`
-	}
-	err = json.Unmarshal(resp, &parsed)
-	if err != nil {
-		log.Fatalf("failed to parse output: %+v", err)
-	}
-
-	return parsed.IdToken
-}
 
 var emulator *EmulatorClient
 
@@ -149,27 +39,92 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestSaveGetProgress(t *testing.T) {
-	idToken := emulator.getIDToken()
+func makeUserCodeRequest() UserCodeRequest {
+	return UserCodeRequest{
+		Files: []UserCodeFile{
+			{Name: "main.py", Content: "import sys; sys.exit(0)", IsMain: true},
+		},
+		PipelineOptions: "some opts",
+	}
+}
 
-	t.Run("save", func(t *testing.T) {
-		port := os.Getenv(PORT_POST_UNIT_COMPLETE)
-		if port == "" {
-			t.Fatal(PORT_POST_UNIT_COMPLETE, "env not set")
+func checkBadHttpCode(t *testing.T, err error, code int) {
+	if err == nil {
+		t.Fatal("error expected")
+	}
+	if err, ok := err.(*ErrBadResponse); ok {
+		if err.Code == code {
+			return
 		}
-		url := "http://localhost:" + port
+	}
+	t.Fatalf("Expected ErrBadResponse with code %v, got %v", code, err)
+}
 
-		err := PostUnitComplete(url, "python", "unit_id_1", idToken)
+func TestSaveGetProgress(t *testing.T) {
+	idToken := emulator.getIDToken("a@b.c")
+
+	// postUnitCompleteURL
+	port := os.Getenv(PORT_POST_UNIT_COMPLETE)
+	if port == "" {
+		t.Fatal(PORT_POST_UNIT_COMPLETE, "env not set")
+	}
+	postUnitCompleteURL := "http://localhost:" + port
+
+	// postUserCodeURL
+	port = os.Getenv(PORT_POST_USER_CODE)
+	if port == "" {
+		t.Fatal(PORT_POST_USER_CODE, "env not set")
+	}
+	postUserCodeURL := "http://localhost:" + port
+
+	// getUserProgressURL
+	port = os.Getenv(PORT_GET_USER_PROGRESS)
+	if port == "" {
+		t.Fatal(PORT_GET_USER_PROGRESS, "env not set")
+	}
+	getUserProgressURL := "http://localhost:" + port
+
+	t.Run("save_complete_no_unit", func(t *testing.T) {
+		resp, err := PostUnitComplete(postUnitCompleteURL, "python", "unknown_unit_id_1", idToken)
+		checkBadHttpCode(t, err, http.StatusNotFound)
+		assert.Equal(t, "NOT_FOUND", resp.Code)
+		assert.Equal(t, "unit not found", resp.Message)
+	})
+	t.Run("save_complete", func(t *testing.T) {
+		_, err := PostUnitComplete(postUnitCompleteURL, "python", "challenge1", idToken)
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
-	t.Run("get", func(t *testing.T) {
-		port := os.Getenv(PORT_GET_USER_PROGRESS)
-		if port == "" {
-			t.Fatal(PORT_GET_USER_PROGRESS, "env not set")
+	t.Run("save_code", func(t *testing.T) {
+		req := makeUserCodeRequest()
+		_, err := PostUserCode(postUserCodeURL, "python", "example1", idToken, req)
+		if err != nil {
+			t.Fatal(err)
 		}
-		url := "http://localhost:" + port
+	})
+	t.Run("save_code_playground_fail", func(t *testing.T) {
+		req := makeUserCodeRequest()
+
+		// empty content doesn't pass validation
+		req.Files[0].Content = ""
+
+		resp, err := PostUserCode(postUserCodeURL, "python", "example1", idToken, req)
+		checkBadHttpCode(t, err, http.StatusInternalServerError)
+		assert.Equal(t, "INTERNAL_ERROR", resp.Code)
+		msg := "playground api error"
+		assert.Equal(t, msg, resp.Message[:len(msg)])
+
+	})
+	t.Run("save_code_no_unit", func(t *testing.T) {
+		req := makeUserCodeRequest()
+		resp, err := PostUserCode(postUserCodeURL, "python", "unknown_unit_id_1", idToken, req)
+		checkBadHttpCode(t, err, http.StatusNotFound)
+		assert.Equal(t, "NOT_FOUND", resp.Code)
+		assert.Equal(t, "unit not found", resp.Message)
+
+	})
+	t.Run("get", func(t *testing.T) {
 
 		mock_path := filepath.Join("..", "samples", "api", "get_user_progress.json")
 		var exp SdkProgress
@@ -177,10 +132,105 @@ func TestSaveGetProgress(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		resp, err := GetUserProgress(url, "python", idToken)
+		resp, err := GetUserProgress(getUserProgressURL, "python", idToken)
 		if err != nil {
 			t.Fatal(err)
 		}
+		assert.Equal(t, len(exp.Units), len(resp.Units))
+		assert.Equal(t, exp.Units[1].Id, resp.Units[1].Id)
+		// snippet_id is derived from random uid
+		exp.Units[1].UserSnippetId = resp.Units[1].UserSnippetId
 		assert.Equal(t, exp, resp)
+	})
+}
+
+func TestUserCode(t *testing.T) {
+	var snippetId1, snippetId2, snippetId3 string
+	idToken1 := emulator.getIDToken("a1@b.c")
+	idToken2 := emulator.getIDToken("a2@b.c")
+	req := makeUserCodeRequest()
+	originalCode := req.Files[0].Content
+
+	// postUserCodeURL
+	port := os.Getenv(PORT_POST_USER_CODE)
+	if port == "" {
+		t.Fatal(PORT_POST_USER_CODE, "env not set")
+	}
+	postUserCodeURL := "http://localhost:" + port
+
+	// getUserProgressURL
+	port = os.Getenv(PORT_GET_USER_PROGRESS)
+	if port == "" {
+		t.Fatal(PORT_GET_USER_PROGRESS, "env not set")
+	}
+	getUserProgressURL := "http://localhost:" + port
+
+	t.Run("save_code_user1_example1", func(t *testing.T) {
+		_, err := PostUserCode(postUserCodeURL, "python", "example1", idToken1, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("save_code_user2_example1", func(t *testing.T) {
+		_, err := PostUserCode(postUserCodeURL, "python", "example1", idToken2, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("check1", func(t *testing.T) {
+		resp, err := GetUserProgress(getUserProgressURL, "python", idToken1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "example1", resp.Units[0].Id)
+		snippetId1 = resp.Units[0].UserSnippetId
+	})
+	t.Run("check2", func(t *testing.T) {
+		resp, err := GetUserProgress(getUserProgressURL, "python", idToken2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "example1", resp.Units[0].Id)
+		snippetId2 = resp.Units[0].UserSnippetId
+		assert.NotEqual(t, snippetId1, snippetId2, "different users, same snippet ids")
+	})
+	t.Run("save_code_user1_updated", func(t *testing.T) {
+		// modify snippet code
+		req.Files[0].Content += "; sys.exit(1)"
+
+		_, err := PostUserCode(postUserCodeURL, "python", "example1", idToken1, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("check3", func(t *testing.T) {
+		resp, err := GetUserProgress(getUserProgressURL, "python", idToken1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "example1", resp.Units[0].Id)
+		snippetId3 = resp.Units[0].UserSnippetId
+		assert.NotEqual(t, snippetId1, snippetId3, "updated code, same snippet ids")
+	})
+	t.Run("check_snippet1", func(t *testing.T) {
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		_, err := GetSnippet(ctx, snippetId1)
+		assert.NotNil(t, err, "previous snippet available")
+
+		resp, err := GetSnippet(ctx, snippetId3)
+		assert.Nil(t, err)
+		assert.Equal(t, req.Files[0].Content, resp.Files[0].Content)
+		assert.Equal(t, req.Files[0].IsMain, resp.Files[0].IsMain)
+		assert.Equal(t, req.Files[0].Name, resp.Files[0].Name)
+		assert.Equal(t, req.PipelineOptions, resp.PipelineOptions)
+	})
+	t.Run("check_snippet2", func(t *testing.T) {
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		resp, err := GetSnippet(ctx, snippetId2)
+		assert.Nil(t, err)
+		assert.Equal(t, originalCode, resp.Files[0].Content)
+		assert.Equal(t, req.Files[0].IsMain, resp.Files[0].IsMain)
+		assert.Equal(t, req.Files[0].Name, resp.Files[0].Name)
+		assert.Equal(t, req.PipelineOptions, resp.PipelineOptions)
 	})
 }

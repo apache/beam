@@ -28,10 +28,12 @@ import re
 import tempfile
 import time
 
+from apache_beam.internal.azure import auth
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
+from apache_beam.options.pipeline_options import AzureOptions
 from apache_beam.utils import retry
 
 _LOGGER = logging.getLogger(__name__)
@@ -105,10 +107,19 @@ class BlobStorageError(Exception):
 
 class BlobStorageIO(object):
   """Azure Blob Storage I/O client."""
-  def __init__(self, client=None):
-    connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+  def __init__(self, client=None, pipeline_options=None):
     if client is None:
-      self.client = BlobServiceClient.from_connection_string(connect_str)
+      azure_options = pipeline_options.view_as(AzureOptions)
+      connect_str = azure_options.azure_connection_string or \
+                    os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+      if connect_str:
+        self.client = BlobServiceClient.from_connection_string(
+            conn_str=connect_str)
+      else:
+        credential = auth.get_service_credentials(pipeline_options)
+        self.client = BlobServiceClient(
+            account_url=azure_options.blob_service_endpoint,
+            credential=credential)
     else:
       self.client = client
     if not AZURE_DEPS_INSTALLED:

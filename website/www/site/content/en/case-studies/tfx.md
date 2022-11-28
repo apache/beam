@@ -2,6 +2,7 @@
 title:  "TensorFlow Extended (TFX)"
 icon: /images/logos/powered-by/tfx.png
 hasNav: true
+hasLink: "https://www.youtube.com/watch?v=TURQ1O8fn0k"
 cardDescription: "TensorFlow Extended (TFX) is an end-to-end platform
     for deploying production ML pipelines based on Apache Beam."
 ---

@@ -247,7 +247,7 @@ public class DatastoreV1 {
   /**
    * When choosing the number of updates in a single RPC, do not go below this value. The actual
    * number of entities per request may be lower when we flush for the end of a bundle or if we hit
-   * {@link DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
+   * {@link #DATASTORE_BATCH_UPDATE_BYTES_LIMIT}.
    */
   @VisibleForTesting static final int DATASTORE_BATCH_UPDATE_ENTITIES_MIN = 5;
 
@@ -398,7 +398,7 @@ public class DatastoreV1 {
         throw new NoSuchElementException("Datastore total statistics unavailable");
       }
       Entity entity = batch.getEntityResults(0).getEntity();
-      return entity.getProperties().get("timestamp").getTimestampValue().getSeconds() * 1000000;
+      return entity.getPropertiesOrThrow("timestamp").getTimestampValue().getSeconds() * 1000000;
     }
 
     /**
@@ -451,7 +451,7 @@ public class DatastoreV1 {
         throws DatastoreException {
       String ourKind = query.getKind(0).getName();
       Entity entity = getLatestTableStats(ourKind, namespace, datastore, readTime);
-      return entity.getProperties().get("entity_bytes").getIntegerValue();
+      return entity.getPropertiesOrThrow("entity_bytes").getIntegerValue();
     }
 
     private static PartitionId.Builder forNamespace(@Nullable String namespace) {
@@ -684,7 +684,7 @@ public class DatastoreV1 {
                 options, v1Options.getProjectId(), v1Options.getLocalhost());
 
         Entity entity = getLatestTableStats(ourKind, namespace, datastore, getReadTime());
-        return entity.getProperties().get("count").getIntegerValue();
+        return entity.getPropertiesOrThrow("count").getIntegerValue();
       } catch (Exception e) {
         return -1;
       }

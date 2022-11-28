@@ -19,6 +19,7 @@
 
 import logging
 import unittest
+from typing import Any
 from typing import Optional
 
 import pyarrow as pa
@@ -79,6 +80,23 @@ class ArrowTypeCompatibilityTest(unittest.TestCase):
             ]),
         }),
     },
+    {
+        'batch_typehint': pa.Array,
+        'element_typehint': int,
+        'batch': pa.array(range(100), type=pa.int64()),
+    },
+    {
+        'batch_typehint': pa.Array,
+        'element_typehint': row_type.RowTypeConstraint.from_fields([
+                    ("bar", Optional[float]),  # noqa: F821
+                    ("baz", Optional[str]),  # noqa: F821
+        ]),
+        'batch': pa.array([
+            {
+                'bar': i / 100, 'baz': str(i)
+            } if i % 7 else None for i in range(100)
+        ]),
+    }
 ])
 @pytest.mark.uses_pyarrow
 class ArrowBatchConverterTest(unittest.TestCase):
@@ -93,7 +111,10 @@ class ArrowBatchConverterTest(unittest.TestCase):
         self.element_typehint)
 
   def equality_check(self, left, right):
-    self.assertEqual(left, right)
+    if isinstance(left, pa.Array):
+      self.assertTrue(left.equals(right))
+    else:
+      self.assertEqual(left, right)
 
   def test_typehint_validates(self):
     typehints.validate_composite_type_param(self.batch_typehint, '')
@@ -170,6 +191,29 @@ class ArrowBatchConverterTest(unittest.TestCase):
 
   def test_hash(self):
     self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
+
+
+class ArrowBatchConverterErrorsTest(unittest.TestCase):
+  @parameterized.expand([
+    (
+      pa.RecordBatch,
+      row_type.RowTypeConstraint.from_fields([
+                    ("bar", Optional[float]),  # noqa: F821
+                    ("baz", Optional[str]),  # noqa: F821
+                    ]),
+      r'batch type must be pa\.Table or pa\.Array',
+    ),
+    (
+      pa.Table,
+      Any,
+      r'Element type must be compatible with Beam Schemas',
+    ),
+  ])
+  def test_construction_errors(
+      self, batch_typehint, element_typehint, error_regex):
+    with self.assertRaisesRegex(TypeError, error_regex):
+      BatchConverter.from_typehints(
+          element_type=element_typehint, batch_type=batch_typehint)
 
 
 if __name__ == '__main__':
