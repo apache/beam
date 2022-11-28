@@ -85,22 +85,26 @@ class _PredictionHistogramFn(beam.DoFn):
 
 
 def setup_pipeline(p, args):
+
+  preprocessing_fn = None
   if args.classifier == 'criteo':
-    if args.benchmark_type in ('lantern', 'tfma'):
+    if args.benchmark_type == 'tfma':
       # These benchmarks use golden models that expect input conforming to the
       # legacy input schema.
+      # legacy input schema.
       input_feature_spec = criteo.make_legacy_input_feature_spec()
+      # input_feature_spec = criteo.make_input_feature_spec()
     else:
       assert args.benchmark_type in ('tfdv', 'tft')
       input_feature_spec = criteo.make_input_feature_spec()
-      input_schema = schema_utils.schema_from_feature_spec(input_feature_spec)
-      input_tfxio = tfxio.BeamRecordCsvTFXIO(
-          physical_format='text',
-          column_names=criteo.make_ordered_column_names(),
-          schema=input_schema,
-          delimiter=criteo.DEFAULT_DELIMITER,
-          telemetry_descriptors=['CriteoCloudMLBenchmark'])
-      preprocessing_fn = criteo.make_preprocessing_fn(args.frequency_threshold)
+    input_schema = schema_utils.schema_from_feature_spec(input_feature_spec)
+    input_tfxio = tfxio.BeamRecordCsvTFXIO(
+        physical_format='text',
+        column_names=criteo.make_ordered_column_names(),
+        schema=input_schema,
+        delimiter=criteo.DEFAULT_DELIMITER,
+        telemetry_descriptors=['CriteoCloudMLBenchmark'])
+    preprocessing_fn = criteo.make_preprocessing_fn(args.frequency_threshold)
   else:
     assert False, 'Unknown args classifier <{}>'.format(args.classifier)
 
@@ -211,7 +215,7 @@ def setup_pipeline(p, args):
       example_coder = coders.ExampleProtoCoder(metadata.schema)
       encode_ptransform = beam.Map(example_coder.encode)
 
-    # TODO(katsiapis): Use WriteDataset instead when it becomes available.
+    # TODO: Use WriteDataset instead when it becomes available.
     (
         dataset
         | 'Encode' >> encode_ptransform
@@ -221,7 +225,7 @@ def setup_pipeline(p, args):
 
     transform_fn | 'WriteTransformFn' >> tft_beam.WriteTransformFn(args.output)
 
-    # TODO(b/35300113) Remember to eventually also save the statistics.
+    # TODO: Remember to eventually also save the statistics.
   else:
     logging.fatal('Unknown benchmark type: %s', args.benchmark_type)
 
@@ -256,7 +260,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--frequency_threshold',
       dest='frequency_threshold',
-      default=5,  # TODO(katsiapis): Align default with TFT (ie 0).
+      default=5,  # TODO: Align default with TFT (ie 0).
       help='Threshold for minimum number of unique values for a category.')
   parser.add_argument(
       '--no_shuffle',
