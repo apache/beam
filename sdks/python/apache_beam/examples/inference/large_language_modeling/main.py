@@ -80,48 +80,19 @@ def parse_args(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       "--model_state_dict_path",
+      dest="model_state_dict_path",
       required=True,
       help="Path to the model's state_dict.",
   )
   parser.add_argument(
       "--model_name",
+      dest="model_name",
       required=True,
       help="Path to the model's state_dict.",
       default="t5-small",
   )
-  parser.add_argument(
-      "--runner",
-      help="Runner for Pipeline",
-      choices=["DirectRunner", "DataflowRunner"],
-      default="DirectRunner",
-  )
-  parser.add_argument(
-      "-p",
-      "--project",
-      help="GCP project ID to run pipeline on.",
-      default="apache-beam-testing",
-  )
-  parser.add_argument(
-      "-r",
-      "--region",
-      help="Default region for Dataflow Runner",
-      default="us-central1",
-  )
 
-  parser.add_argument(
-      "--machine_type",
-      help="Dataflow Worker machine type",
-      default="n1-standard-4",
-  )
-  parser.add_argument(
-      "--requirements_file",
-      help="Pipeline requirements",
-      default="./requirements.txt")
-  parser.add_argument(
-      "--job_name", help="Dataflow Job Name", default="large-language-modeling")
-
-  args, _ = parser.parse_known_args(args=argv)
-  return args
+  return parser.parse_known_args(args=argv)
 
 
 def run():
@@ -129,14 +100,16 @@ def run():
     Runs the interjector pipeline which translates english sentences
     into german using the RunInference API. """
 
-  args = parse_args(sys.argv)
-  pipeline_options = PipelineOptions(flags=[], **vars(args))
+  known_args, pipeline_args = parse_args(sys.argv)
+  pipeline_options = PipelineOptions(pipeline_args)
 
   gen_fn = make_tensor_model_fn('generate')
   model_handler = PytorchModelHandlerTensor(
-      state_dict_path=args.model_state_dict_path,
+      state_dict_path=known_args.model_state_dict_path,
       model_class=T5ForConditionalGeneration,
-      model_params={"config": AutoConfig.from_pretrained(args.model_name)},
+      model_params={
+          "config": AutoConfig.from_pretrained(known_args.model_name)
+      },
       device="cpu",
       inference_fn=gen_fn)
 
@@ -149,7 +122,7 @@ def run():
   ]
   task_prefix = "translate English to German: "
   task_sentences = [task_prefix + sentence for sentence in eng_sentences]
-  tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+  tokenizer = AutoTokenizer.from_pretrained(known_args.model_name)
 
   # [START Pipeline]
   with beam.Pipeline(options=pipeline_options) as pipeline:
