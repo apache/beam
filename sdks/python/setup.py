@@ -352,8 +352,8 @@ if __name__ == '__main__':
           'dataframe': ['pandas>=1.0,<1.5;python_version<"3.10"',
                         'pandas>=1.4.3,<1.5;python_version>="3.10"'],
           'dask': [
-            'dask >= 2022.6',
-            'distributed >= 2022.6',
+            'dask >= 2022.6.0',
+            'distributed >= 2022.6.0',
           ],
       },
       zip_safe=False,
