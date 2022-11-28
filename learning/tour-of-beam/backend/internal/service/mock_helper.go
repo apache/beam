@@ -16,30 +16,27 @@
 package service
 
 import (
-	"log"
+	context "context"
 
-	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
+	grpc "google.golang.org/grpc"
 )
 
-func MakePgSaveRequest(userRequest tob.UserCodeRequest, sdk tob.Sdk, persistence_key string) pb.SaveSnippetRequest {
-	filesProto := make([]*pb.SnippetFile, 0)
-	for _, file := range userRequest.Files {
-		filesProto = append(filesProto,
-			&pb.SnippetFile{
-				Name:    file.Name,
-				Content: file.Content,
-				IsMain:  file.IsMain,
-			})
-	}
-	sdkIdx, ok := pb.Sdk_value[sdk.StorageID()]
-	if !ok {
-		log.Panicf("Playground SDK undefined for: %v", sdk)
-	}
-	return pb.SaveSnippetRequest{
-		Sdk:             pb.Sdk(sdkIdx),
-		Files:           filesProto,
-		PipelineOptions: userRequest.PipelineOptions,
-		PersistenceKey:  persistence_key,
+// Mock GRPC client which is enabled by TOB_MOCK env flag
+func GetMockClient() pb.PlaygroundServiceClient {
+
+	return &pb.PlaygroundServiceClientMock{
+		SaveSnippetFunc: func(ctx context.Context, in *pb.SaveSnippetRequest, opts ...grpc.CallOption) (*pb.SaveSnippetResponse, error) {
+			return &pb.SaveSnippetResponse{Id: "snippet_id_1"}, nil
+		},
+		GetSnippetFunc: func(ctx context.Context, in *pb.GetSnippetRequest, opts ...grpc.CallOption) (*pb.GetSnippetResponse, error) {
+			return &pb.GetSnippetResponse{
+				Files: []*pb.SnippetFile{
+					{Name: "main.py", Content: "import sys; sys.exit(0)", IsMain: true},
+				},
+				Sdk:             pb.Sdk_SDK_PYTHON,
+				PipelineOptions: "some opts",
+			}, nil
+		},
 	}
 }

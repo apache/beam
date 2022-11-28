@@ -82,11 +82,23 @@ func (s *Svc) SaveUserCode(ctx context.Context, sdk tob.Sdk, unitId, uid string,
 		return err
 	}
 
-	req := MakePgSaveRequest(userRequest, sdk)
-	resp, err := s.PgClient.SaveSnippet(ctx, &req)
-	if err != nil {
-		return err
+	// two-phased commit for 2 resources: datastore tb_user_progress entity and Playground::SaveSnippet call
+	// In a datastore transaction:
+	// 1. Get tb_user_progress for (sdk, unit, user), if any.
+	//    Otherwise, fill in the default parameters and generate a new persistence_key
+	// 2. Call Playground::SaveSnippet GRPC call, return a SnippetId
+	// 3. Upsert into tb_user_progress with the obtained SnippetId and persistence_key
+
+	// callback: Playground::SaveSnippet GRPC call, return snippetID
+	savePgSnippet := func(persistenceKey string) (string, error) {
+		req := MakePgSaveRequest(userRequest, sdk, persistenceKey)
+		resp, err := s.PgClient.SaveSnippet(ctx, &req)
+		if err != nil {
+			return "", err
+		}
+		fmt.Println("SaveSnippet response:", resp)
+		return resp.GetId(), nil
 	}
-	fmt.Println("SaveSnippet response:", resp)
-	return s.Repo.SaveUserSnippetId(ctx, sdk, unitId, uid, resp.GetId())
+
+	return s.Repo.SaveUserSnippetId(ctx, sdk, unitId, uid, savePgSnippet)
 }
