@@ -208,7 +208,7 @@ Where parameters can be:
     - Required parameter.
 
 ### UserDataMapper
-The `UserDataMapper` is required to map data from a `PCollection` to an array of `String` values before the `write()` operation saves the data. 
+The `UserDataMapper` is required to map data from a `PCollection` to an array of `String` values before the `write()` operation saves the data.
 For example:
 {{< highlight >}}
 public static class MyRowDataMapper implements SingleStoreIO.UserDataMapper<MyRow> {
