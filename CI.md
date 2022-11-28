@@ -133,6 +133,12 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 |------------------------------|-----------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
 | Verify Release Build         | Verifies full life cycle of Gradle Build and all PostCommit/PreCommit tests against Release Branch on CI.                   | No               | No                    | No            | No                       |
 
+#### Deploy Pypi - [deploy_pypi.yml](.github/workflows/deploy_pypi.yml)
+
+| Job         | Description                                                | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-------------|------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Deploy Pypi | Uploads Python artifacts staged at dist.apache.org to PyPI | No               | No                    | No            | No                       |
+
 #### Run RC Validation - [run_rc_validation.yml](.github/workflows/run_rc_validation.yml)
 
 | Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |

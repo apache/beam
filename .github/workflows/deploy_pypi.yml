@@ -1,0 +1,68 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This workflow will upload Python artifacts staged at dist.apache.org to PyPI.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Deploy Pypi
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE:
+        description: Enter the release version, e.g. 2.21.0
+        required: true
+      # Set value to no for a dry-run
+      DEPLOY:
+        description: Deploy to pypi (yes/no)
+        required: false
+        default: no
+jobs:
+  deploy_pypi:
+    runs-on: [self-hosted, ubuntu-20.04]
+    env:
+      LOCAL_CLONE_DIR: beam_release_${{ github.event.inputs.RELEASE }}
+      #      TODO: Set TWINE_USERNAME and TWINE_PASSWORD as GHA Secrets or Runner ENVs and remove these
+      TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+      TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+    steps:
+      - name: Install python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install python dependencies
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install twine
+      - name: Download python artifacts
+        run: |
+          mkdir ${LOCAL_CLONE_DIR}
+          cd ${LOCAL_CLONE_DIR}
+          wget -r --no-parent -A zip,whl \
+          "https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE }}/python"
+      - name: Upload rc to pypi
+        working-directory: ${{env.LOCAL_CLONE_DIR}}
+        run: |
+          cd "dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE }}/python/"
+          echo "Will upload the following files to PyPI:"
+          ls
+          echo "====================Upload to pypi========================"
+          if [[ "${{ github.event.inputs.DEPLOY }}" == yes ]] ; then
+             twine upload *
+          else
+            echo "Skipping deployment to PyPI. Run the workflow with DEPLOY:yes to stage the artifacts."
+          fi
