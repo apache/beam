@@ -16,27 +16,13 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
+enum UnitCompletion {
+  completed,
+  uncompleted,
 
-import '../../../cache/user_progress.dart';
-import '../../../repositories/client/client.dart';
+  /// Sent the request to complete or to undo completion.
+  updating,
 
-class UnitController extends ChangeNotifier {
-  final String unitId;
-  final String sdkId;
-
-  UnitController({
-    required this.unitId,
-    required this.sdkId,
-  });
-
-  Future<void> completeUnit() async {
-    final client = GetIt.instance.get<TobClient>();
-    final userProgressCache = GetIt.instance.get<UserProgressCache>();
-    userProgressCache.addUpdatingUnitId(unitId);
-    await client.postUnitComplete(sdkId, unitId);
-    userProgressCache.removeUpdatingUnitId(unitId);
-    notifyListeners();
-  }
+  /// User is not authenticated
+  blocked,
 }

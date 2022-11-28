@@ -22,6 +22,7 @@ part 'user_progress.g.dart';
 
 @JsonSerializable(createToJson: false)
 class UserProgressModel {
+  @JsonKey(name: 'id')
   final String unitId;
   final bool isCompleted;
 

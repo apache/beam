@@ -27,6 +27,7 @@ import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
 import '../../cache/user_progress.dart';
 import '../../config.dart';
+import '../../enums/unit_completion.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
 import '../../state.dart';
@@ -68,11 +69,20 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       );
 
   bool canCompleteCurrentUnit() {
-    return _authNotifier.isAuthenticated &&
-        // TODO(nausharipov): is completing
-        // !currentUnitController.isCompleting &&
-        !_userProgressCache
-            .isUnitCompleted(contentTreeController.currentNode?.id);
+    return getCurrentUnitCompletion() == UnitCompletion.uncompleted;
+  }
+
+  UnitCompletion getCurrentUnitCompletion() {
+    final unitId = currentUnitController?.unitId;
+    if (!_authNotifier.isAuthenticated) {
+      return UnitCompletion.blocked;
+    } else if (_userProgressCache.getUpdatingUnitIds().contains(unitId)) {
+      return UnitCompletion.updating;
+    } else if (_userProgressCache.isUnitCompleted(unitId)) {
+      return UnitCompletion.completed;
+    } else {
+      return UnitCompletion.uncompleted;
+    }
   }
 
   UnitContentModel? get currentUnitContent => _currentUnitContent;

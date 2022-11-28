@@ -28,7 +28,21 @@ class UserProgressCache extends Cache {
   UserProgressCache({required super.client});
 
   final _completedUnitIds = <String>{};
+  final _updatingUnitIds = <String>{};
   Future<List<UserProgressModel>?>? _future;
+
+  Set<String> getUpdatingUnitIds() => _updatingUnitIds;
+
+  void addUpdatingUnitId(String unitId) {
+    _updatingUnitIds.add(unitId);
+    notifyListeners();
+  }
+
+  void removeUpdatingUnitId(String unitId) {
+    _updatingUnitIds.remove(unitId);
+
+    /// No need to nofity, because UnitController does.
+  }
 
   bool isUnitCompleted(String? unitId) {
     return getCompletedUnits().contains(unitId);
