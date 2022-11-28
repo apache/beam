@@ -258,9 +258,10 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
     // Read all the rows from the table given by tableId
     TableResult results;
     try {
-      String query = "SELECT TO_JSON_STRING(t) FROM `";
-      query += String.join(".", projectId, datasetId, tableName);
-      query += "` AS t;";
+      String query =
+          "SELECT TO_JSON_STRING(t) FROM `"
+              + String.join(".", projectId, datasetId, tableName)
+              + "` AS t;";
       QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).build();
       results = bigQuery.query(queryConfig);
     } catch (Exception e) {

@@ -51,8 +51,14 @@ public class DefaultMongoDBResourceManager extends TestContainerResourceManager<
     implements MongoDBResourceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(DefaultBigtableResourceManager.class);
+
   private static final String DEFAULT_MONGODB_CONTAINER_NAME = "mongo";
-  private static final String DEFAULT_MONGODB_CONTAINER_TAG = "4.0.10";
+
+  // A list of available MongoDB Docker image tags can be found at
+  // https://hub.docker.com/_/mongo/tags
+  private static final String DEFAULT_MONGODB_CONTAINER_TAG = "4.0.18";
+
+  // 27017 is the default port that MongoDB is configured to listen on
   private static final int MONGODB_INTERNAL_PORT = 27017;
 
   private final MongoClient mongoClient;
@@ -62,7 +68,7 @@ public class DefaultMongoDBResourceManager extends TestContainerResourceManager<
 
   private DefaultMongoDBResourceManager(DefaultMongoDBResourceManager.Builder builder) {
     this(
-        null,
+        /*mongoClient=*/ null,
         new MongoDBContainer(
             DockerImageName.parse(builder.containerImageName).withTag(builder.containerImageTag)),
         builder);
@@ -181,9 +187,9 @@ public class DefaultMongoDBResourceManager extends TestContainerResourceManager<
         collectionName);
 
     try {
-      getMongoDBCollection(collectionName, true).insertMany(documents);
+      getMongoDBCollection(collectionName, /*createCollection=*/ true).insertMany(documents);
     } catch (Exception e) {
-      throw new MongoDBResourceManagerException("Error inserting document.", e);
+      throw new MongoDBResourceManagerException("Error inserting documents.", e);
     }
 
     LOG.info(
@@ -198,7 +204,7 @@ public class DefaultMongoDBResourceManager extends TestContainerResourceManager<
 
     FindIterable<Document> documents;
     try {
-      documents = getMongoDBCollection(collectionName, false).find();
+      documents = getMongoDBCollection(collectionName, /*createCollection=*/ false).find();
     } catch (Exception e) {
       throw new MongoDBResourceManagerException("Error reading collection.", e);
     }
@@ -220,7 +226,7 @@ public class DefaultMongoDBResourceManager extends TestContainerResourceManager<
         mongoClient.getDatabase(databaseName).drop();
       }
     } catch (Exception e) {
-      LOG.error("Failed to delete MongoDB database {}. {}", databaseName, e.getMessage());
+      LOG.error("Failed to delete MongoDB database {}.", databaseName, e);
       producedError = true;
     }
 
@@ -228,12 +234,9 @@ public class DefaultMongoDBResourceManager extends TestContainerResourceManager<
     try {
       mongoClient.close();
     } catch (Exception e) {
-      LOG.error("Failed to delete MongoDB client. {}", e.getMessage());
+      LOG.error("Failed to delete MongoDB client.", e);
       producedError = true;
     }
-
-    // Finally, clean up any containers started by TestContainers
-    producedError |= !super.cleanupAll();
 
     // Throw Exception at the end if there were any errors
     if (producedError || !super.cleanupAll()) {

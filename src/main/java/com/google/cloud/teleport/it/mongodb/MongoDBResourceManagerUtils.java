@@ -26,6 +26,8 @@ import java.time.format.DateTimeFormatter;
  */
 final class MongoDBResourceManagerUtils {
 
+  // MongoDB Database and Collection naming restrictions can be found at
+  // https://www.mongodb.com/docs/manual/reference/limits/#naming-restrictions
   private static final int MAX_DATABASE_NAME_LENGTH = 63;
   private static final Pattern ILLEGAL_DATABASE_NAME_CHARS =
       Pattern.compile("[\\/\\\\. \"\0$]"); // i.e. [/\. "$]

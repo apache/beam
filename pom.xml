@@ -33,13 +33,8 @@
     <mockito.version>3.7.7</mockito.version>
     <mockito-inline.version>4.5.1</mockito-inline.version>
     <mongodb.version>3.12.10</mongodb.version>
-    <puppycrawl.version>8.7</puppycrawl.version>
     <dataflow-api.version>v1b3-rev20220920-2.0.0</dataflow-api.version>
-    <re2j.version>1.5</re2j.version>
-    <slf4j.version>1.7.25</slf4j.version>
-    <surefire.version>2.21.0</surefire.version>
     <testcontainers.version>1.17.5</testcontainers.version>
-    <truth.version>1.0.1</truth.version>
   </properties>
 
   <dependencies>

@@ -32,49 +32,49 @@ public class MongoDBResourceManagerUtilsTest {
   public void testGenerateDatabaseNameShouldReplaceForwardSlash() {
     String testBaseString = "Test/DB/Name";
     String actual = generateDatabaseName(testBaseString);
-    assertThat(actual).matches("Test-DB-Name-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-db-name-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseNameShouldReplaceBackwardSlash() {
     String testBaseString = "Test\\DB\\Name";
     String actual = generateDatabaseName(testBaseString);
-    assertThat(actual).matches("Test-DB-Name-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-db-name-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseNameShouldReplacePeriod() {
     String testBaseString = "Test.DB.Name";
     String actual = generateDatabaseName(testBaseString);
-    assertThat(actual).matches("Test-DB-Name-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-db-name-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseNameShouldReplaceSpace() {
     String testBaseString = "Test DB Name";
     String actual = generateDatabaseName(testBaseString);
-    assertThat(actual).matches("Test-DB-Name-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-db-name-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseNameShouldReplaceDoubleQuotes() {
     String testBaseString = "Test\"DB\"Name";
     String actual = generateDatabaseName(testBaseString);
-    assertThat(actual).matches("Test-DB-Name-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-db-name-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseNameShouldReplaceDollarSign() {
     String testBaseString = "Test$DB$Name";
     String actual = generateDatabaseName(testBaseString);
-    assertThat(actual).matches("Test-DB-Name-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-db-name-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test
   public void testGenerateDatabaseNameShouldReplaceNullCharacter() {
     String testBaseString = "Test\0DB\0Name";
     String actual = generateDatabaseName(testBaseString);
-    assertThat(actual).matches("Test-DB-Name-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-db-name-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test
