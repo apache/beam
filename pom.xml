@@ -33,7 +33,7 @@
     <mockito.version>3.7.7</mockito.version>
     <mockito-inline.version>4.5.1</mockito-inline.version>
     <puppycrawl.version>8.7</puppycrawl.version>
-    <dataflow-api.version>v1b3-rev20210818-1.32.1</dataflow-api.version>
+    <dataflow-api.version>v1b3-rev20220920-2.0.0</dataflow-api.version>
   </properties>
 
   <dependencies>
