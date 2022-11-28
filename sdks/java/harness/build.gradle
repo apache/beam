@@ -24,6 +24,7 @@ configurations {
 
 dependencies {
   // provided dependencies are declared early so they can be resolved in shadowClosure
+  provided enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
 
   // :sdks:java:core and transitive dependencies
   provided project(path: ":model:pipeline", configuration: "shadow")
@@ -72,6 +73,7 @@ description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 dependencies {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
