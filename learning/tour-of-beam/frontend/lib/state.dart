@@ -19,12 +19,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'constants/storage_keys.dart';
 
 class AppNotifier extends ChangeNotifier {
-  static const _storage = FlutterSecureStorage();
   String? _sdkId;
 
   AppNotifier() {
@@ -35,19 +34,22 @@ class AppNotifier extends ChangeNotifier {
 
   set sdkId(String? newValue) {
     _sdkId = newValue;
-    unawaited(_writeSdkId());
+    unawaited(_writeSdkId(newValue));
     notifyListeners();
   }
 
-  Future<void> _writeSdkId() async {
-    await _storage.write(
-      key: StorageKeys.sdkId,
-      value: _sdkId,
-    );
+  Future<void> _writeSdkId(String? value) async {
+    final preferences = await SharedPreferences.getInstance();
+    if (value != null) {
+      await preferences.setString(StorageKeys.sdkId, value);
+    } else {
+      await preferences.remove(StorageKeys.sdkId);
+    }
   }
 
   Future<void> _readSdkId() async {
-    _sdkId = await _storage.read(key: StorageKeys.sdkId);
+    final preferences = await SharedPreferences.getInstance();
+    _sdkId = preferences.getString(StorageKeys.sdkId);
     notifyListeners();
   }
 }

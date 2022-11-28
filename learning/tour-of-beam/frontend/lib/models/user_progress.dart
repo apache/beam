@@ -22,11 +22,11 @@ part 'user_progress.g.dart';
 
 @JsonSerializable(createToJson: false)
 class UserProgressModel {
-  final String id;
+  final String unitId;
   final bool isCompleted;
 
   const UserProgressModel({
-    required this.id,
+    required this.unitId,
     required this.isCompleted,
   });
 

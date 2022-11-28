@@ -32,7 +32,7 @@ import '../models/get_sdks_response.dart';
 import '../models/get_user_progress_response.dart';
 import 'client.dart';
 
-// TODO(nausharipov): add an abstraction layer for calling API methods
+// TODO(nausharipov): add repository and handle exceptions
 class CloudFunctionsTobClient extends TobClient {
   @override
   Future<GetSdksResponse> getSdks() async {
@@ -48,7 +48,6 @@ class CloudFunctionsTobClient extends TobClient {
 
   @override
   Future<ContentTreeModel> getContentTree(String sdkId) async {
-    // TODO(nausharipov): finish
     final json = await http.get(
       Uri.parse(
         '$cloudFunctionsBaseUrl/getContentTree?sdk=$sdkId',
@@ -74,7 +73,6 @@ class CloudFunctionsTobClient extends TobClient {
 
   @override
   Future<List<UserProgressModel>?> getUserProgress(String sdkId) async {
-    // TODO(nausharipov): check auth
     final token = await GetIt.instance.get<AuthNotifier>().token;
     if (token == null) {
       return null;
@@ -87,7 +85,6 @@ class CloudFunctionsTobClient extends TobClient {
         HttpHeaders.authorizationHeader: 'Bearer $token',
       },
     );
-    print(['gup', json]);
     final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
     final response = GetUserProgressResponse.fromJson(map);
     return response.units;

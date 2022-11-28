@@ -25,7 +25,11 @@ import '../../assets/assets.gen.dart';
 import '../../constants/sizes.dart';
 
 class LoginContent extends StatelessWidget {
-  const LoginContent();
+  final VoidCallback onLoggedIn;
+
+  const LoginContent({
+    required this.onLoggedIn,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +55,7 @@ class LoginContent extends StatelessWidget {
 
 class _Body extends StatelessWidget {
   final Widget child;
+
   const _Body({required this.child});
 
   @override
@@ -82,10 +87,16 @@ class _Divider extends StatelessWidget {
 }
 
 class _BrandedLoginButtons extends StatelessWidget {
-  const _BrandedLoginButtons();
+  final VoidCallback onLoggedIn;
+
+  const _BrandedLoginButtons({
+    required this.onLoggedIn,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final authNotifier = GetIt.instance.get<AuthNotifier>();
+
     final isLightTheme = Theme.of(context).brightness == Brightness.light;
     final textStyle =
         MaterialStatePropertyAll(Theme.of(context).textTheme.bodyMedium);
@@ -129,7 +140,10 @@ class _BrandedLoginButtons extends StatelessWidget {
         ),
         const SizedBox(height: BeamSizes.size16),
         ElevatedButton.icon(
-          onPressed: () {},
+          onPressed: () async {
+            await authNotifier.logIn(AuthMethod.google);
+            onLoggedIn();
+          },
           style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,
           icon: SvgPicture.asset(Assets.svg.googleLogo),
           label: const Text('ui.continueGoogle').tr(),

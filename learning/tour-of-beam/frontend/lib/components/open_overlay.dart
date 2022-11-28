@@ -16,17 +16,26 @@
  * limitations under the License.
  */
 
-// TODO(alexeyinkin): Generate this file on deployment.
+import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 
-const _cloudFunctionsProjectRegion = 'us-east1';
-const _cloudFunctionsProjectId = 'astest-369409';
-const cloudFunctionsBaseUrl = 'https://'
-    '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
-    '.cloudfunctions.net';
-// Copied from Playground's config.g.dart
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL = 'https://router.dev-playground.online/';
-const String kApiJavaClientURL = 'https://java.dev-playground.online/';
-const String kApiGoClientURL = 'https://go.dev-playground.online/';
-const String kApiPythonClientURL = 'https://python.dev-playground.online/';
-const String kApiScioClientURL = 'https://scio.dev-playground.online/';
+void kOpenOverlay(
+  BuildContext context,
+  PublicNotifier closeNotifier,
+  Widget child,
+) {
+  final overlay = OverlayEntry(
+    builder: (context) {
+      return DismissibleOverlay(
+        close: closeNotifier.notifyPublic,
+        child: Positioned(
+          right: BeamSizes.size10,
+          top: BeamSizes.appBarHeight,
+          child: child,
+        ),
+      );
+    },
+  );
+  closeNotifier.addListener(overlay.remove);
+  Overlay.of(context)?.insert(overlay);
+}

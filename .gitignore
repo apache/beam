@@ -125,7 +125,10 @@ website/www/yarn-error.log
 **/.flutter-plugins-dependencies
 **/.packages
 **/generated_plugin_registrant.dart
-playground/frontend/playground_components/pubspec.lock
+**/*.g.dart
+**/*.mocks.dart
+**/.packages
+**/pubspec.lock
 
 # Ignore Beam Playground Terraform
 **/.terraform

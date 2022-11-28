@@ -30,12 +30,10 @@ import 'sdk_dropdown.dart';
 
 class TobScaffold extends StatelessWidget {
   final Widget child;
-  final bool showSdkSelector;
 
   const TobScaffold({
     super.key,
     required this.child,
-    required this.showSdkSelector,
   });
 
   @override
@@ -44,14 +42,13 @@ class TobScaffold extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Logo(),
-        actions: [
-          if (showSdkSelector)
-            const _ActionVerticalPadding(child: _SdkSelector()),
-          const SizedBox(width: BeamSizes.size12),
-          const _ActionVerticalPadding(child: ToggleThemeButton()),
-          const SizedBox(width: BeamSizes.size6),
-          const _Profile(),
-          const SizedBox(width: BeamSizes.size16),
+        actions: const [
+          _ActionVerticalPadding(child: _SdkSelector()),
+          SizedBox(width: BeamSizes.size12),
+          _ActionVerticalPadding(child: ToggleThemeButton()),
+          SizedBox(width: BeamSizes.size6),
+          _ActionVerticalPadding(child: _Profile()),
+          SizedBox(width: BeamSizes.size16),
         ],
       ),
       body: Column(
@@ -69,12 +66,12 @@ class _Profile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ActionVerticalPadding(
-      child: StreamBuilder(
-        stream: FirebaseAuth.instance.userChanges(),
-        builder: (context, user) =>
-            user.hasData ? Avatar(user: user.data!) : const LoginButton(),
-      ),
+    return StreamBuilder(
+      stream: FirebaseAuth.instance.userChanges(),
+      builder: (context, snapshot) {
+        final user = snapshot.data;
+        return user == null ? const LoginButton() : Avatar(user: user);
+      },
     );
   }
 }
@@ -98,17 +95,20 @@ class _SdkSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notifier = GetIt.instance.get<AppNotifier>();
+    final appNotifier = GetIt.instance.get<AppNotifier>();
     return AnimatedBuilder(
-      animation: notifier,
-      builder: (context, child) => notifier.sdkId == null
-          ? Container()
-          : SdkDropdown(
-              sdkId: notifier.sdkId!,
-              onChanged: (sdkId) {
-                notifier.sdkId = sdkId;
-              },
-            ),
+      animation: appNotifier,
+      builder: (context, child) {
+        final sdkId = appNotifier.sdkId;
+        return sdkId == null
+            ? Container()
+            : SdkDropdown(
+                sdkId: sdkId,
+                onChanged: (value) {
+                  appNotifier.sdkId = value;
+                },
+              );
+      },
     );
   }
 }

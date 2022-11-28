@@ -16,22 +16,18 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../cache/user_progress.dart';
 import '../../../constants/sizes.dart';
-import '../../../state.dart';
 import '../state.dart';
+import 'complete_unit_button.dart';
 import 'unit_content.dart';
 
 class ContentWidget extends StatelessWidget {
-  final TourNotifier notifier;
+  final TourNotifier tourNotifier;
 
-  const ContentWidget(this.notifier);
+  const ContentWidget(this.tourNotifier);
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +44,9 @@ class ContentWidget extends StatelessWidget {
         ),
       ),
       child: AnimatedBuilder(
-        animation: notifier,
+        animation: tourNotifier,
         builder: (context, child) {
-          final currentUnitContent = notifier.currentUnitContent;
+          final currentUnitContent = tourNotifier.currentUnitContent;
 
           return Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -60,7 +56,7 @@ class ContentWidget extends StatelessWidget {
                     ? Container()
                     : UnitContentWidget(unitContent: currentUnitContent),
               ),
-              _ContentFooter(notifier),
+              _ContentFooter(tourNotifier),
             ],
           );
         },
@@ -70,8 +66,8 @@ class ContentWidget extends StatelessWidget {
 }
 
 class _ContentFooter extends StatelessWidget {
-  final TourNotifier notifier;
-  const _ContentFooter(this.notifier);
+  final TourNotifier tourNotifier;
+  const _ContentFooter(this.tourNotifier);
 
   @override
   Widget build(BuildContext context) {
@@ -90,65 +86,9 @@ class _ContentFooter extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          _CompleteUnitButton(notifier),
+          CompleteUnitButton(tourNotifier),
         ],
       ),
-    );
-  }
-}
-
-class _CompleteUnitButton extends StatelessWidget {
-  final TourNotifier notifier;
-  const _CompleteUnitButton(this.notifier);
-
-  @override
-  Widget build(BuildContext context) {
-    final themeData = Theme.of(context);
-    final cache = GetIt.instance.get<UserProgressCache>();
-    final app = GetIt.instance.get<AppNotifier>();
-
-    return AnimatedBuilder(
-      animation: cache,
-      builder: (context, child) {
-        // TODO(nausharipov): finish
-        final isDisabled = cache.getCompletedUnits(app.sdkId!).contains(
-                  notifier.contentTreeController.currentNode?.id,
-                ) ||
-            FirebaseAuth.instance.currentUser == null;
-
-        return Flexible(
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: themeData.primaryColor,
-              side: BorderSide(
-                color: isDisabled
-                    ? themeData.disabledColor
-                    : themeData.primaryColor,
-              ),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(
-                  Radius.circular(BeamSizes.size4),
-                ),
-              ),
-            ),
-            onPressed: isDisabled ? null : _completeUnit,
-            child: const Text(
-              'pages.tour.completeUnit',
-              overflow: TextOverflow.ellipsis,
-            ).tr(),
-          ),
-        );
-      },
-    );
-  }
-
-  void _completeUnit() {
-    // TODO(nausharipov): finish
-    final app = GetIt.instance.get<AppNotifier>();
-
-    notifier.unitController.completeUnit(
-      app.sdkId!,
-      notifier.contentTreeController.currentNode!.id,
     );
   }
 }
