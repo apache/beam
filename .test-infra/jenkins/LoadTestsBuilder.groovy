@@ -44,7 +44,7 @@ class LoadTestsBuilder {
 
   static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options,
       String mainClass, List<String> jobSpecificSwitches = null, String requirementsTxtFile = null,
-      String pythonVersion == null) {
+      String pythonVersion = null) {
     options.put('runner', runner.option)
     InfluxDBCredentialsHelper.useCredentials(context)
 
