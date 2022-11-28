@@ -133,6 +133,11 @@ func TestMayFixDataSourceCoder(t *testing.T) {
 			start: knownStart,
 			want:  knownWant,
 		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Combine",
+			out:   &Combine{},
+			start: knownStart,
+			want:  knownWant,
+		}, {
 			name:  "W<KV<bytes,Iterable<string>>_ReshuffleOutput",
 			out:   &ReshuffleOutput{},
 			start: knownStart,
