@@ -43,23 +43,6 @@ variable "service_account" {
   default     = "service-account-playground"
 }
 
-#GCS
-
-variable "bucket_examples_name" {
-  description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-examples"
-}
-
-variable "bucket_examples_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
-variable "bucket_examples_storage_class" {
-  description = "Examples Bucket Storage Class"
-  default     = "STANDARD"
-}
-
 variable "bucket_terraform_state_name" {
   description = "Name of Bucket to Store Terraform States"
   default     = "beam_playground_terraform"

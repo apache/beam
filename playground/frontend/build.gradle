@@ -40,9 +40,27 @@ dependencies {
   dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
 }
 
-task analyze  {
+task generate {
   dependsOn("playground_components:generate")
-  dependsOn("generate")
+
+  dependsOn("generateCode")
+
+  group = "build"
+  description = "Generates all generated files."
+}
+
+task printPath {
+  doLast {
+    exec {
+      executable("printenv")
+      args("PATH")
+    }
+  }
+}
+
+task analyze  {
+  dependsOn("playground_components:generateCode")
+  dependsOn("generateCode")
 
   group = "verification"
   description = "Analyze dart code"
@@ -91,8 +109,8 @@ task run {
 }
 
 task test {
-  dependsOn("playground_components:generate")
-  dependsOn("generate")
+  dependsOn("playground_components:generateCode")
+  dependsOn("generateCode")
 
   group = "verification"
   description = "flutter test"
@@ -112,7 +130,9 @@ task precommit {
   dependsOn("test")
 }
 
-task generate {
+task generateCode {
+  dependsOn("playground_components:generateCode")
+
   dependsOn("cleanFlutter")
   dependsOn("pubGet")
 
@@ -136,6 +156,35 @@ task cleanFlutter {
       executable("flutter")
       args("clean")
     }
+  }
+}
+
+task cleanGenerated {
+  dependsOn("playground_components:cleanGenerated")
+
+  group = "build"
+  description = "Remove build artifacts"
+
+  doLast {
+    println("Deleting:")
+
+    deleteFilesByRegExp(".*\\.g\\.dart\$")
+    deleteFilesByRegExp(".*\\.gen\\.dart\$")
+    deleteFilesByRegExp(".*\\.mocks\\.dart\$")
+  }
+}
+
+ext.deleteFilesByRegExp = { re ->
+  // Prints file names.
+  exec {
+    executable("find")
+    args("assets", "lib", "test", "-regex", re)
+  }
+
+  // Actually deletes them.
+  exec {
+    executable("find")
+    args("assets", "lib", "test", "-regex", re, "-delete")
   }
 }
 

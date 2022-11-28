@@ -18,16 +18,19 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
+import 'package:get_it/get_it.dart';
 
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_view_options.dart';
 import '../models/sdk.dart';
+import '../services/symbols/symbols_notifier.dart';
 
 class SnippetEditingController extends ChangeNotifier {
   final Sdk sdk;
   final CodeController codeController;
+  final _symbolsNotifier = GetIt.instance.get<SymbolsNotifier>();
   Example? _selectedExample;
   String _pipelineOptions = '';
 
@@ -37,7 +40,10 @@ class SnippetEditingController extends ChangeNotifier {
           language: sdk.highlightMode,
           namedSectionParser: const BracketsStartEndNamedSectionParser(),
           webSpaceFix: false,
-        );
+        ) {
+    _symbolsNotifier.addListener(_onSymbolsNotifierChanged);
+    _onSymbolsNotifierChanged();
+  }
 
   set selectedExample(Example? value) {
     _selectedExample = value;
@@ -116,5 +122,27 @@ class SnippetEditingController extends ChangeNotifier {
 
     codeController.fullText = source;
     codeController.historyController.deleteHistory();
+  }
+
+  void _onSymbolsNotifierChanged() {
+    final mode = sdk.highlightMode;
+    if (mode == null) {
+      return;
+    }
+
+    final dictionary = _symbolsNotifier.getDictionary(mode);
+    if (dictionary == null) {
+      return;
+    }
+
+    codeController.autocompleter.setCustomWords(dictionary.symbols);
+  }
+
+  @override
+  void dispose() {
+    _symbolsNotifier.removeListener(
+      _onSymbolsNotifierChanged,
+    );
+    super.dispose();
   }
 }

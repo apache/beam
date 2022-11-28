@@ -16,24 +16,18 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../auth/notifier.dart';
+import '../../assets/assets.gen.dart';
 import '../../components/builders/content_tree.dart';
 import '../../components/builders/sdks.dart';
-import '../../components/login/content.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
 import '../../models/module.dart';
-import '../../state.dart';
-import '../tour/page.dart';
 import 'state.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -44,7 +38,6 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
-      showSdkSelector: false,
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
             ? _WideWelcome(notifier)
@@ -64,12 +57,12 @@ class _WideWelcome extends StatelessWidget {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Expanded(
-            child: _SdkSelection(),
+            child: _SdkSelection(notifier),
           ),
           Expanded(
-            child: _TourSummary(),
+            child: _TourSummary(notifier),
           ),
         ],
       ),
@@ -85,22 +78,23 @@ class _NarrowWelcome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: const [
-        _SdkSelection(),
-        _TourSummary(),
+      children: [
+        _SdkSelection(notifier),
+        _TourSummary(notifier),
       ],
     );
   }
 }
 
 class _SdkSelection extends StatelessWidget {
-  const _SdkSelection();
+  final WelcomeNotifier notifier;
+
+  const _SdkSelection(this.notifier);
 
   static const double _minimalHeight = 900;
 
   @override
   Widget build(BuildContext context) {
-    final appNotifier = GetIt.instance.get<AppNotifier>();
     return Container(
       constraints: BoxConstraints(
         minHeight: MediaQuery.of(context).size.height -
@@ -133,14 +127,12 @@ class _SdkSelection extends StatelessWidget {
                     }
 
                     return AnimatedBuilder(
-                      animation: appNotifier,
+                      animation: notifier,
                       builder: (context, child) => _Buttons(
                         sdks: sdks,
-                        sdkId: appNotifier.sdkId,
-                        setSdkId: (v) => appNotifier.sdkId = v,
-                        onStartPressed: () {
-                          startTour(appNotifier.sdkId);
-                        },
+                        sdkId: notifier.sdkId,
+                        setSdkId: (v) => notifier.sdkId = v,
+                        onStartPressed: notifier.startTour,
                       ),
                     );
                   },
@@ -152,25 +144,19 @@ class _SdkSelection extends StatelessWidget {
       ),
     );
   }
-
-  void startTour(String? sdkId) {
-    if (sdkId == null) {
-      return;
-    }
-    GetIt.instance.get<PageStack>().push(TourPage(sdkId: sdkId));
-  }
 }
 
 class _TourSummary extends StatelessWidget {
-  const _TourSummary();
+  final WelcomeNotifier notifier;
+
+  const _TourSummary(this.notifier);
 
   @override
   Widget build(BuildContext context) {
-    final appNotifier = GetIt.instance.get<AppNotifier>();
     return AnimatedBuilder(
-      animation: appNotifier,
+      animation: notifier,
       builder: (context, child) {
-        final sdkId = appNotifier.sdkId;
+        final sdkId = notifier.sdkId;
         if (sdkId == null) {
           return Container();
         }
@@ -225,32 +211,13 @@ class _IntroText extends StatelessWidget {
           color: BeamColors.grey2,
           constraints: const BoxConstraints(maxWidth: _dividerMaxWidth),
         ),
-        const _IntroTextBody(),
-      ],
-    );
-  }
-}
-
-class _IntroTextBody extends StatelessWidget {
-  const _IntroTextBody();
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = GetIt.instance.get<AuthNotifier>();
-    return AnimatedBuilder(
-      animation: auth,
-      builder: (context, child) => RichText(
-        text: TextSpan(
-          style: Theme.of(context).textTheme.bodyLarge,
-          children: [
-            TextSpan(
-              text: 'pages.welcome.ifSaveProgress'.tr(),
-            ),
-            if (auth.isAuthenticated)
+        RichText(
+          text: TextSpan(
+            style: Theme.of(context).textTheme.bodyLarge,
+            children: [
               TextSpan(
-                text: 'pages.welcome.signIn'.tr(),
-              )
-            else
+                text: 'pages.welcome.ifSaveProgress'.tr(),
+              ),
               TextSpan(
                 text: 'pages.welcome.signIn'.tr(),
                 style: Theme.of(context)
@@ -259,26 +226,14 @@ class _IntroTextBody extends StatelessWidget {
                     .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
                   ..onTap = () {
-                    _openLoginDialog(context);
+                    // TODO(nausharipov): sign in
                   },
               ),
-            TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
-          ],
+              TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  void _openLoginDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: LoginContent(
-          onLoggedIn: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
+      ],
     );
   }
 }

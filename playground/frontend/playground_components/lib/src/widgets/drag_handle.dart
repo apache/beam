@@ -19,8 +19,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 
-import '../constants/playground_components.dart';
-import '../generated/assets.gen.dart';
+import '../assets/assets.gen.dart';
+import '../playground_components.dart';
 
 class DragHandle extends StatelessWidget {
   final Axis direction;

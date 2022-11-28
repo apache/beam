@@ -17,14 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../cache/user_progress.dart';
+import '../../../assets/assets.gen.dart';
 import '../../../models/unit.dart';
-import '../../../state.dart';
 import '../controllers/content_tree.dart';
-import 'unit_progress_indicator.dart';
+import 'tour_progress_indicator.dart';
 
 class UnitWidget extends StatelessWidget {
   final UnitModel unit;
@@ -37,9 +35,6 @@ class UnitWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cache = GetIt.instance.get<UserProgressCache>();
-    final app = GetIt.instance.get<AppNotifier>();
-
     return AnimatedBuilder(
       animation: contentTreeController,
       builder: (context, child) {
@@ -55,17 +50,9 @@ class UnitWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
             child: Row(
               children: [
-                // TODO(nausharipov): finish
-                AnimatedBuilder(
-                  animation: app,
-                  builder: (context, child) => AnimatedBuilder(
-                    animation: cache,
-                    builder: (context, child) => UnitProgressIndicator(
-                      isCompleted:
-                          cache.getCompletedUnits(app.sdkId!).contains(unit.id),
-                      isSelected: isSelected,
-                    ),
-                  ),
+                TourProgressIndicator(
+                  assetPath: Assets.svg.unitProgress0,
+                  isSelected: isSelected,
                 ),
                 Expanded(
                   child: Text(unit.title),
