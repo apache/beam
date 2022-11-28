@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.singlestore;
+package org.apache.beam.sdk.io.singlestore.schematransform;
 
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.io.singlestore.SingleStoreIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -39,7 +40,7 @@ public class SingleStoreSchemaTransformWriteProvider
 
   private static final String API = "singlestore";
   private static final String OUTPUT_TAG = "OUTPUT";
-  static final String INPUT_TAG = "INPUT";
+  public static final String INPUT_TAG = "INPUT";
 
   /** Returns the expected class of the configuration. */
   @Override

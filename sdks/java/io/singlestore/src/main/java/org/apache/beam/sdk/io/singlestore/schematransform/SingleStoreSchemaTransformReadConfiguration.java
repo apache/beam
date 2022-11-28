@@ -15,10 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.singlestore;
+package org.apache.beam.sdk.io.singlestore.schematransform;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+
+import org.apache.beam.sdk.io.singlestore.SingleStoreIO;
+import org.apache.beam.sdk.io.singlestore.schematransform.AutoValue_SingleStoreSchemaTransformReadConfiguration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -46,7 +49,7 @@ public abstract class SingleStoreSchemaTransformReadConfiguration {
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   /** Serializes configuration to a {@link Row}. */
-  Row toBeamRow() {
+  public Row toBeamRow() {
     return ROW_SERIALIZABLE_FUNCTION.apply(this);
   }
 

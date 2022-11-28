@@ -15,10 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.singlestore;
+package org.apache.beam.sdk.io.singlestore.schematransform;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+
+import org.apache.beam.sdk.io.singlestore.SingleStoreIO;
+import org.apache.beam.sdk.io.singlestore.schematransform.AutoValue_SingleStoreSchemaTransformReadWithPartitionsConfiguration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -26,27 +29,30 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * Configuration for writing to SignleStoreDB.
+ * Configuration for parallel reading from SignleStoreDB.
  *
- * <p>This class is meant to be used with {@link SingleStoreSchemaTransformWriteProvider}.
+ * <p>This class is meant to be used with {@link
+ * SingleStoreSchemaTransformReadWithPartitionsProvider}.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class SingleStoreSchemaTransformWriteConfiguration {
+public abstract class SingleStoreSchemaTransformReadWithPartitionsConfiguration {
 
-  /** Instantiates a {@link SingleStoreSchemaTransformWriteConfiguration.Builder}. */
+  /** Instantiates a {@link SingleStoreSchemaTransformReadWithPartitionsConfiguration.Builder}. */
   public static Builder builder() {
-    return new AutoValue_SingleStoreSchemaTransformWriteConfiguration.Builder();
+    return new AutoValue_SingleStoreSchemaTransformReadWithPartitionsConfiguration.Builder();
   }
 
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<SingleStoreSchemaTransformWriteConfiguration>
-      TYPE_DESCRIPTOR = TypeDescriptor.of(SingleStoreSchemaTransformWriteConfiguration.class);
-  private static final SerializableFunction<SingleStoreSchemaTransformWriteConfiguration, Row>
+  private static final TypeDescriptor<SingleStoreSchemaTransformReadWithPartitionsConfiguration>
+      TYPE_DESCRIPTOR =
+          TypeDescriptor.of(SingleStoreSchemaTransformReadWithPartitionsConfiguration.class);
+  private static final SerializableFunction<
+          SingleStoreSchemaTransformReadWithPartitionsConfiguration, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   /** Serializes configuration to a {@link Row}. */
-  Row toBeamRow() {
+  public Row toBeamRow() {
     return ROW_SERIALIZABLE_FUNCTION.apply(this);
   }
 
@@ -54,10 +60,13 @@ public abstract class SingleStoreSchemaTransformWriteConfiguration {
   public abstract SingleStoreIO.DataSourceConfiguration getDataSourceConfiguration();
 
   @Nullable
+  public abstract String getQuery();
+
+  @Nullable
   public abstract String getTable();
 
   @Nullable
-  public abstract Integer getBatchSize();
+  public abstract Integer getInitialNumReaders();
 
   @AutoValue.Builder
   public abstract static class Builder {
@@ -66,9 +75,13 @@ public abstract class SingleStoreSchemaTransformWriteConfiguration {
 
     public abstract Builder setTable(String value);
 
-    public abstract Builder setBatchSize(Integer value);
+    public abstract Builder setQuery(String value);
 
-    /** Builds the {@link SingleStoreSchemaTransformWriteConfiguration} configuration. */
-    public abstract SingleStoreSchemaTransformWriteConfiguration build();
+    public abstract Builder setInitialNumReaders(Integer value);
+
+    /**
+     * Builds the {@link SingleStoreSchemaTransformReadWithPartitionsConfiguration} configuration.
+     */
+    public abstract SingleStoreSchemaTransformReadWithPartitionsConfiguration build();
   }
 }
