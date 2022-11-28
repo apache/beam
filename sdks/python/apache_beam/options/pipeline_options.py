@@ -42,6 +42,7 @@ __all__ = [
     'TypeOptions',
     'DirectOptions',
     'GoogleCloudOptions',
+    'AzureOptions',
     'HadoopFileSystemOptions',
     'WorkerOptions',
     'DebugOptions',
@@ -857,6 +858,34 @@ class GoogleCloudOptions(PipelineOptions):
       errors.extend(
           validator.validate_repeatable_argument_passed_as_list(
               self, 'dataflow_service_options'))
+
+    return errors
+
+
+class AzureOptions(PipelineOptions):
+  """Azure Blob Storage options."""
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--azure_connection_string',
+        default=None,
+        help='Connection string of the Azure Blob Storage Account.')
+    parser.add_argument(
+        '--blob_service_endpoint',
+        default=None,
+        help='URL of the Azure Blob Storage Account.')
+    parser.add_argument(
+        '--azure_managed_identity_client_id',
+        default=None,
+        help='Client ID of a user-assigned managed identity.')
+
+  def validate(self, validator):
+    errors = []
+    if self.azure_connection_string:
+      if self.blob_service_endpoint:
+        errors.append(
+            '--azure_connection_string and '
+            '--blob_service_endpoint are mutually exclusive.')
 
     return errors
 

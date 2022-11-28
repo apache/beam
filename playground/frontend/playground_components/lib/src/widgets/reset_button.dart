@@ -20,9 +20,9 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../constants/playground_components.dart';
+import '../assets/assets.gen.dart';
 import '../controllers/playground_controller.dart';
-import '../generated/assets.gen.dart';
+import '../playground_components.dart';
 import '../theme/theme.dart';
 import 'header_icon_button.dart';
 import 'shortcut_tooltip.dart';

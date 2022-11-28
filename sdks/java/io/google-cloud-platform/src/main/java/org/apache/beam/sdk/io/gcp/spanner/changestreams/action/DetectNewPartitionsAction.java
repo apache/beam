@@ -129,8 +129,7 @@ public class DetectNewPartitionsAction {
         partitions.add(partition);
       }
     }
-    LOG.info(
-        "Found " + partitions.size() + " to be scheduled (readTimestamp = " + readTimestamp + ")");
+    LOG.info("Found {} to be scheduled (readTimestamp = {})", partitions.size(), readTimestamp);
     return partitions;
   }
 
@@ -180,14 +179,11 @@ public class DetectNewPartitionsAction {
           partition.toBuilder().setScheduledAt(scheduledAt).build();
 
       LOG.info(
-          "["
-              + updatedPartition.getPartitionToken()
-              + "] Scheduled partition at "
-              + updatedPartition.getScheduledAt()
-              + " with start time "
-              + updatedPartition.getStartTimestamp()
-              + " and end time "
-              + updatedPartition.getEndTimestamp());
+          "[{}] Scheduled partition at {} with start time {} and end time {}",
+          updatedPartition.getPartitionToken(),
+          updatedPartition.getScheduledAt(),
+          updatedPartition.getStartTimestamp(),
+          updatedPartition.getEndTimestamp());
 
       receiver.outputWithTimestamp(partition, new Instant(minWatermark.toSqlTimestamp()));
 

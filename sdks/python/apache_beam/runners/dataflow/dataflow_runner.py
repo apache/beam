@@ -1501,6 +1501,10 @@ class DataflowPipelineResult(PipelineResult):
   def metrics(self):
     return self.metric_results
 
+  def monitoring_infos(self):
+    logging.warning('Monitoring infos not yet supported for Dataflow runner.')
+    return []
+
   @property
   def has_job(self):
     return self._job is not None
