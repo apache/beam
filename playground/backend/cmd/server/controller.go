@@ -412,7 +412,7 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 
 // SaveSnippet returns the generated ID
 func (controller *playgroundController) SaveSnippet(ctx context.Context, req *pb.SaveSnippetRequest) (*pb.SaveSnippetResponse, error) {
-	if info.Sdk == pb.Sdk_SDK_UNSPECIFIED {
+	if req.Sdk == pb.Sdk_SDK_UNSPECIFIED {
 		logger.Errorf("SaveSnippet(): unimplemented sdk: %s\n", req.Sdk)
 		return nil, cerrors.InvalidArgumentError(errorTitleSaveSnippet, "Sdk is not implemented yet: %s", req.Sdk.String())
 	}
