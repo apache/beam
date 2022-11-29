@@ -19,10 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.DatabaseAdminClient;
-import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
-import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
@@ -118,73 +116,75 @@ public class PartitionMetadataAdminDao {
    * PartitionMetadataAdminDao#TTL_AFTER_PARTITION_FINISHED_DAYS} days.
    */
   public void createPartitionMetadataTable() {
-    String metadataCreateStmt =
-        "CREATE TABLE "
-            + tableName
-            + " ("
-            + COLUMN_PARTITION_TOKEN
-            + " STRING(MAX) NOT NULL,"
-            + COLUMN_PARENT_TOKENS
-            + " ARRAY<STRING(MAX)> NOT NULL,"
-            + COLUMN_START_TIMESTAMP
-            + " TIMESTAMP NOT NULL,"
-            + COLUMN_END_TIMESTAMP
-            + " TIMESTAMP NOT NULL,"
-            + COLUMN_HEARTBEAT_MILLIS
-            + " INT64 NOT NULL,"
-            + COLUMN_STATE
-            + " STRING(MAX) NOT NULL,"
-            + COLUMN_WATERMARK
-            + " TIMESTAMP NOT NULL,"
-            + COLUMN_CREATED_AT
-            + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),"
-            + COLUMN_SCHEDULED_AT
-            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
-            + COLUMN_RUNNING_AT
-            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
-            + COLUMN_FINISHED_AT
-            + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
-            + ") PRIMARY KEY (PartitionToken),"
-            + " ROW DELETION POLICY (OLDER_THAN("
-            + COLUMN_FINISHED_AT
-            + ", INTERVAL "
-            + TTL_AFTER_PARTITION_FINISHED_DAYS
-            + " DAY))";
+    String metadataCreateStmt = "";
     if (this.isPostgres) {
+      // Literals need be added around literals to preserve casing.
       metadataCreateStmt =
-        "CREATE TABLE \""
-            + tableName
-            + "\"(\""
-            + COLUMN_PARTITION_TOKEN
-            + "\" text NOT NULL,\""
-            + COLUMN_PARENT_TOKENS
-            + "\" text[] NOT NULL,\""
-            + COLUMN_START_TIMESTAMP
-            + "\" timestamptz NOT NULL,\""
-            + COLUMN_END_TIMESTAMP
-            + "\" timestamptz NOT NULL,\""
-            + COLUMN_HEARTBEAT_MILLIS
-            + "\" BIGINT NOT NULL,\""
-            + COLUMN_STATE
-            + "\" text NOT NULL,\""
-            + COLUMN_WATERMARK
-            + "\" timestamptz NOT NULL,\""
-            + COLUMN_CREATED_AT
-            + "\" SPANNER.COMMIT_TIMESTAMP NOT NULL,\""
-            + COLUMN_SCHEDULED_AT
-            + "\" SPANNER.COMMIT_TIMESTAMP,\""
-            + COLUMN_RUNNING_AT
-            + "\" SPANNER.COMMIT_TIMESTAMP,\""
-            + COLUMN_FINISHED_AT
-            + "\" SPANNER.COMMIT_TIMESTAMP,"
-            + " PRIMARY KEY (\"PartitionToken\")"
-            + ")"
-            + " TTL INTERVAL '"
-            + TTL_AFTER_PARTITION_FINISHED_DAYS
-            + " days' ON \""
-            + COLUMN_FINISHED_AT
-            + "\"";
-      System.err.println("metadata table statemnt: " + metadataCreateStmt);
+          "CREATE TABLE \""
+              + tableName
+              + "\"(\""
+              + COLUMN_PARTITION_TOKEN
+              + "\" text NOT NULL,\""
+              + COLUMN_PARENT_TOKENS
+              + "\" text[] NOT NULL,\""
+              + COLUMN_START_TIMESTAMP
+              + "\" timestamptz NOT NULL,\""
+              + COLUMN_END_TIMESTAMP
+              + "\" timestamptz NOT NULL,\""
+              + COLUMN_HEARTBEAT_MILLIS
+              + "\" BIGINT NOT NULL,\""
+              + COLUMN_STATE
+              + "\" text NOT NULL,\""
+              + COLUMN_WATERMARK
+              + "\" timestamptz NOT NULL,\""
+              + COLUMN_CREATED_AT
+              + "\" SPANNER.COMMIT_TIMESTAMP NOT NULL,\""
+              + COLUMN_SCHEDULED_AT
+              + "\" SPANNER.COMMIT_TIMESTAMP,\""
+              + COLUMN_RUNNING_AT
+              + "\" SPANNER.COMMIT_TIMESTAMP,\""
+              + COLUMN_FINISHED_AT
+              + "\" SPANNER.COMMIT_TIMESTAMP,"
+              + " PRIMARY KEY (\"PartitionToken\")"
+              + ")"
+              + " TTL INTERVAL '"
+              + TTL_AFTER_PARTITION_FINISHED_DAYS
+              + " days' ON \""
+              + COLUMN_FINISHED_AT
+              + "\"";
+    } else {
+      metadataCreateStmt =
+          "CREATE TABLE "
+              + tableName
+              + " ("
+              + COLUMN_PARTITION_TOKEN
+              + " STRING(MAX) NOT NULL,"
+              + COLUMN_PARENT_TOKENS
+              + " ARRAY<STRING(MAX)> NOT NULL,"
+              + COLUMN_START_TIMESTAMP
+              + " TIMESTAMP NOT NULL,"
+              + COLUMN_END_TIMESTAMP
+              + " TIMESTAMP NOT NULL,"
+              + COLUMN_HEARTBEAT_MILLIS
+              + " INT64 NOT NULL,"
+              + COLUMN_STATE
+              + " STRING(MAX) NOT NULL,"
+              + COLUMN_WATERMARK
+              + " TIMESTAMP NOT NULL,"
+              + COLUMN_CREATED_AT
+              + " TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),"
+              + COLUMN_SCHEDULED_AT
+              + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
+              + COLUMN_RUNNING_AT
+              + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
+              + COLUMN_FINISHED_AT
+              + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
+              + ") PRIMARY KEY (PartitionToken),"
+              + " ROW DELETION POLICY (OLDER_THAN("
+              + COLUMN_FINISHED_AT
+              + ", INTERVAL "
+              + TTL_AFTER_PARTITION_FINISHED_DAYS
+              + " DAY))";
     }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(

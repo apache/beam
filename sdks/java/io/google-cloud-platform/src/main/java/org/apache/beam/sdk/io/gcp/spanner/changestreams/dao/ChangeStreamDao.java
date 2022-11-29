@@ -90,20 +90,18 @@ public class ChangeStreamDao {
     String query = "";
     Statement statement;
     if (this.isPostgres) {
-      query =
-          "SELECT * FROM spanner.read_json_"
-              + changeStreamName
-              + "($1, $2, $3, $4, null)";
-      statement = Statement.newBuilder(query)
-                    .bind("p1")
-                    .to(startTimestamp)
-                    .bind("p2")
-                    .to(endTimestamp)
-                    .bind("p3")
-                    .to(partitionTokenOrNull)
-                    .bind("p4")
-                    .to(heartbeatMillis)
-                    .build();
+      query = "SELECT * FROM spanner.read_json_" + changeStreamName + "($1, $2, $3, $4, null)";
+      statement =
+          Statement.newBuilder(query)
+              .bind("p1")
+              .to(startTimestamp)
+              .bind("p2")
+              .to(endTimestamp)
+              .bind("p3")
+              .to(partitionTokenOrNull)
+              .bind("p4")
+              .to(heartbeatMillis)
+              .build();
     } else {
       query =
           "SELECT * FROM READ_"
@@ -115,16 +113,17 @@ public class ChangeStreamDao {
               + "   read_options => null,"
               + "   heartbeat_milliseconds => @heartbeatMillis"
               + ")";
-      statement = Statement.newBuilder(query)
-                    .bind("startTimestamp")
-                    .to(startTimestamp)
-                    .bind("endTimestamp")
-                    .to(endTimestamp)
-                    .bind("partitionToken")
-                    .to(partitionTokenOrNull)
-                    .bind("heartbeatMillis")
-                    .to(heartbeatMillis)
-                    .build();
+      statement =
+          Statement.newBuilder(query)
+              .bind("startTimestamp")
+              .to(startTimestamp)
+              .bind("endTimestamp")
+              .to(endTimestamp)
+              .bind("partitionToken")
+              .to(partitionTokenOrNull)
+              .bind("heartbeatMillis")
+              .to(heartbeatMillis)
+              .build();
     }
     final ResultSet resultSet =
         databaseClient

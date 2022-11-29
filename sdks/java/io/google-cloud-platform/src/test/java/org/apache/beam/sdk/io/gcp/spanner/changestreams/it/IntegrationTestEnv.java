@@ -73,9 +73,9 @@ public class IntegrationTestEnv extends ExternalResource {
             .orElseGet(() -> options.as(GcpOptions.class).getProject());
     instanceId = options.getInstanceId();
     databaseId = generateDatabaseName(options.getDatabaseId());
-    spanner = SpannerOptions.newBuilder().setProjectId(projectId).setHost(host).build().getService();
+    spanner =
+        SpannerOptions.newBuilder().setProjectId(projectId).setHost(host).build().getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
-    isPostgres = options.getPostgres();
     metadataTableName = generateTableName(METADATA_TABLE_NAME_PREFIX);
 
     recreateDatabase(databaseAdminClient, instanceId, databaseId, isPostgres);
@@ -86,17 +86,35 @@ public class IntegrationTestEnv extends ExternalResource {
     tables = new ArrayList<>();
   }
 
+  IntegrationTestEnv() {
+    this.isPostgres = false;
+  }
+
+  IntegrationTestEnv(boolean isPostgres) {
+    this.isPostgres = true;
+  }
+
   @Override
   protected void after() {
     for (String changeStream : changeStreams) {
       try {
-        databaseAdminClient
-            .updateDatabaseDdl(
-                instanceId,
-                databaseId,
-                Collections.singletonList("DROP CHANGE STREAM " + changeStream),
-                null)
-            .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+        if (this.isPostgres) {
+          databaseAdminClient
+              .updateDatabaseDdl(
+                  instanceId,
+                  databaseId,
+                  Collections.singletonList("DROP CHANGE STREAM \"" + changeStream + "\""),
+                  null)
+              .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+        } else {
+          databaseAdminClient
+              .updateDatabaseDdl(
+                  instanceId,
+                  databaseId,
+                  Collections.singletonList("DROP CHANGE STREAM " + changeStream),
+                  null)
+              .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+        }
       } catch (Exception e) {
         LOG.error("Failed to drop change stream " + changeStream + ". Skipping...", e);
       }
@@ -104,10 +122,20 @@ public class IntegrationTestEnv extends ExternalResource {
 
     for (String table : tables) {
       try {
-        databaseAdminClient
-            .updateDatabaseDdl(
-                instanceId, databaseId, Collections.singletonList("DROP TABLE " + table), null)
-            .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+        if (this.isPostgres) {
+          databaseAdminClient
+              .updateDatabaseDdl(
+                  instanceId,
+                  databaseId,
+                  Collections.singletonList("DROP TABLE \"" + table + "\""),
+                  null)
+              .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+        } else {
+          databaseAdminClient
+              .updateDatabaseDdl(
+                  instanceId, databaseId, Collections.singletonList("DROP TABLE " + table), null)
+              .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+        }
       } catch (Exception e) {
         LOG.error("Failed to drop table " + table + ". Skipping...", e);
       }
@@ -168,24 +196,24 @@ public class IntegrationTestEnv extends ExternalResource {
       throws InterruptedException, ExecutionException, TimeoutException {
     final String changeStreamName = generateChangeStreamName();
     if (this.isPostgres) {
-      LOG.info("CREATE CHANGE STREAM " + changeStreamName + " FOR \"" + tableName + "\"");
+      LOG.info("CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\"");
       databaseAdminClient
           .updateDatabaseDdl(
               instanceId,
               databaseId,
               Collections.singletonList(
-                  "CREATE CHANGE STREAM " + changeStreamName + " FOR \"" + tableName + "\""),
+                  "CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\""),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     } else {
       databaseAdminClient
-        .updateDatabaseDdl(
-            instanceId,
-            databaseId,
-            Collections.singletonList(
-                "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName),
-            null)
-        .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+          .updateDatabaseDdl(
+              instanceId,
+              databaseId,
+              Collections.singletonList(
+                  "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName),
+              null)
+          .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     }
     changeStreams.add(changeStreamName);
 
@@ -213,29 +241,37 @@ public class IntegrationTestEnv extends ExternalResource {
   }
 
   private void recreateDatabase(
-      DatabaseAdminClient databaseAdminClient, String instanceId, String databaseId, boolean isPostgres)
+      DatabaseAdminClient databaseAdminClient,
+      String instanceId,
+      String databaseId,
+      boolean isPostgres)
       throws ExecutionException, InterruptedException, TimeoutException {
     // Drops the database if it already exists
     databaseAdminClient.dropDatabase(instanceId, databaseId);
     LOG.info("Creating database " + databaseId + ", isPostgres=" + isPostgres);
     if (isPostgres) {
       databaseAdminClient
-        .createDatabase(
-            databaseAdminClient
-                .newDatabaseBuilder(DatabaseId.of(this.projectId, instanceId, databaseId))
-                .setDialect(Dialect.POSTGRESQL).build(), Collections.emptyList())
-        .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+          .createDatabase(
+              databaseAdminClient
+                  .newDatabaseBuilder(DatabaseId.of(this.projectId, instanceId, databaseId))
+                  .setDialect(Dialect.POSTGRESQL)
+                  .build(),
+              Collections.emptyList())
+          .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     } else {
       databaseAdminClient
-        .createDatabase(
-            databaseAdminClient
-                .newDatabaseBuilder(DatabaseId.of(this.projectId, instanceId, databaseId)).build(), Collections.emptyList())
-        .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+          .createDatabase(
+              databaseAdminClient
+                  .newDatabaseBuilder(DatabaseId.of(this.projectId, instanceId, databaseId))
+                  .build(),
+              Collections.emptyList())
+          .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     }
   }
 
   private String generateTableName(String prefix) {
-    int maxTableNameLength = this.isPostgres ? MAX_POSTGRES_TABLE_NAME_LENGTH : MAX_TABLE_NAME_LENGTH;
+    int maxTableNameLength =
+        this.isPostgres ? MAX_POSTGRES_TABLE_NAME_LENGTH : MAX_TABLE_NAME_LENGTH;
     LOG.info("Max table length: " + maxTableNameLength);
     return prefix
         + "_"

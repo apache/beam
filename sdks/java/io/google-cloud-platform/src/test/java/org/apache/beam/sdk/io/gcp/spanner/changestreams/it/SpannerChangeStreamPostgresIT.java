@@ -34,10 +34,6 @@ import com.google.gson.Gson;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
@@ -46,12 +42,10 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.Instant;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -60,11 +54,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** End-to-end test of Cloud Spanner Source. */
+/** End-to-end test of Cloud Spanner CDC Source. */
 @RunWith(JUnit4.class)
 public class SpannerChangeStreamPostgresIT {
 
-  @ClassRule public static final IntegrationTestEnv ENV = new IntegrationTestEnv();
+  @ClassRule
+  public static final IntegrationTestEnv ENV = new IntegrationTestEnv(/*isPostgres=*/ true);
+
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   private static String instanceId;
@@ -82,18 +78,17 @@ public class SpannerChangeStreamPostgresIT {
     projectId = ENV.getProjectId();
     instanceId = ENV.getInstanceId();
     databaseId = ENV.getDatabaseId();
+
     metadataTableName = ENV.getMetadataTableName();
     changeStreamTableName = ENV.createSingersTable();
     changeStreamName = ENV.createChangeStreamFor(changeStreamTableName);
     databaseClient = ENV.getDatabaseClient();
-    System.err.println("Database client: " + databaseClient.toString());
   }
 
   @Before
   public void before() {
     pipeline.getOptions().as(ChangeStreamTestPipelineOptions.class).setStreaming(true);
     pipeline.getOptions().as(ChangeStreamTestPipelineOptions.class).setBlockOnRun(false);
-    pipeline.getOptions().as(ChangeStreamTestPipelineOptions.class).setPostgres(true);
   }
 
   @Test
@@ -168,8 +163,7 @@ public class SpannerChangeStreamPostgresIT {
       assertEquals(ErrorCode.INVALID_ARGUMENT, e.getErrorCode());
       assertTrue(
           "Error message must contain \"Table not found\"",
-          e.getMessage().contains(
-          "relation \"" + metadataTableName + "\" does not exist"));
+          e.getMessage().contains("relation \"" + metadataTableName + "\" does not exist"));
     }
   }
 
@@ -263,7 +257,6 @@ public class SpannerChangeStreamPostgresIT {
               .map(nonNullValues -> gson.fromJson(nonNullValues, Map.class))
               .orElseGet(Collections::emptyMap);
 
-      System.err.println("Data change record: " + record.toString());
       final String modsAsString =
           String.join(
               ",",

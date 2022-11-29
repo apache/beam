@@ -25,8 +25,7 @@ import java.util.UUID;
  */
 public class NameGenerator {
 
-  private static final String PARTITION_METADATA_TABLE_NAME_FORMAT =
-      "Metadata_%s_%s";
+  private static final String PARTITION_METADATA_TABLE_NAME_FORMAT = "Metadata_%s_%s";
   private static final int MAX_POSTGRES_TABLE_NAME_LENGTH = 63;
   private static final int MAX_TABLE_NAME_LENGTH = 128;
 
@@ -45,10 +44,10 @@ public class NameGenerator {
     // For GoogleSQL, 128 - (11 + 30 + 36) = 51 characters short of the limit
     // For Postgres, since the limit is 64, we may need to truncate the table name depending
     // on the database length.
-    int maxTableNameLength =  isPostgres ? MAX_POSTGRES_TABLE_NAME_LENGTH : MAX_TABLE_NAME_LENGTH;
-    String fullString = String.format(PARTITION_METADATA_TABLE_NAME_FORMAT, databaseId,
-        UUID.randomUUID())
-        .replaceAll("-", "_");
+    int maxTableNameLength = isPostgres ? MAX_POSTGRES_TABLE_NAME_LENGTH : MAX_TABLE_NAME_LENGTH;
+    String fullString =
+        String.format(PARTITION_METADATA_TABLE_NAME_FORMAT, databaseId, UUID.randomUUID())
+            .replaceAll("-", "_");
     if (fullString.length() < maxTableNameLength) {
       return fullString;
     }

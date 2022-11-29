@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
-import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.Options.RpcPriority;
 import java.io.Serializable;
@@ -120,7 +119,8 @@ public class DaoFactory implements Serializable {
     if (partitionMetadataDaoInstance == null) {
       partitionMetadataDaoInstance =
           new PartitionMetadataDao(
-              this.partitionMetadataTableName, spannerAccessor.getDatabaseClient(),
+              this.partitionMetadataTableName,
+              spannerAccessor.getDatabaseClient(),
               this.isMetadataSpannerConfigPostgres);
     }
     return partitionMetadataDaoInstance;
@@ -138,7 +138,10 @@ public class DaoFactory implements Serializable {
     if (changeStreamDaoInstance == null) {
       changeStreamDaoInstance =
           new ChangeStreamDao(
-              this.changeStreamName, spannerAccessor.getDatabaseClient(), rpcPriority, jobName,
+              this.changeStreamName,
+              spannerAccessor.getDatabaseClient(),
+              rpcPriority,
+              jobName,
               this.isSpannerConfigPostgres);
     }
     return changeStreamDaoInstance;

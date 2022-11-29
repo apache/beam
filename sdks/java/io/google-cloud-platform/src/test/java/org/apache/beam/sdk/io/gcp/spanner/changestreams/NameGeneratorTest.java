@@ -30,28 +30,32 @@ public class NameGeneratorTest {
   @Test
   public void testGenerateMetadataTableNameRemovesHyphens() {
     final String tableName =
-        NameGenerator.generatePartitionMetadataTableName("my-database-id-12345", /*isPostgres=*/false);
+        NameGenerator.generatePartitionMetadataTableName(
+            "my-database-id-12345", /*isPostgres=*/ false);
     assertFalse(tableName.contains("-"));
   }
 
   @Test
   public void testGenerateMetadataTableNameIsShorterThan128Characters() {
     final String tableName =
-        NameGenerator.generatePartitionMetadataTableName("my-database-id1-maximum-length", /*isPostgres=*/false);
+        NameGenerator.generatePartitionMetadataTableName(
+            "my-database-id1-maximum-length", /*isPostgres=*/ false);
     assertTrue(tableName.length() < MAXIMUM_TABLE_NAME_LENGTH);
   }
 
   @Test
   public void testGenerateMetadataTableNameIsShorterThan64Characters() {
     final String tableName =
-        NameGenerator.generatePartitionMetadataTableName("my-database-id1-maximum-length", /*isPostgres=*/true);
+        NameGenerator.generatePartitionMetadataTableName(
+            "my-database-id1-maximum-length", /*isPostgres=*/ true);
     assertTrue(tableName.length() < MAXIMUM_POSTGRES_TABLE_NAME_LENGTH);
   }
 
   @Test
   public void testGenerateMetadataTableNameRemovesHyphensPostgres() {
     final String tableName =
-        NameGenerator.generatePartitionMetadataTableName("my-database-id-12345", /*isPostgres=*/true);
+        NameGenerator.generatePartitionMetadataTableName(
+            "my-database-id-12345", /*isPostgres=*/ true);
     assertFalse(tableName.contains("-"));
   }
 }

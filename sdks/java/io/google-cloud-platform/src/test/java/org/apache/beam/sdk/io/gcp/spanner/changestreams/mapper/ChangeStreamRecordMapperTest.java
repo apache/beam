@@ -26,7 +26,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import java.util.Arrays;
@@ -59,8 +58,8 @@ public class ChangeStreamRecordMapperTest {
 
   @Before
   public void setUp() {
-    mapper = new ChangeStreamRecordMapper(/*isPostgres=*/false);
-    mapperPostgres = new ChangeStreamRecordMapper(/*isPostgres=*/true);
+    mapper = new ChangeStreamRecordMapper(/*isPostgres=*/ false);
+    mapperPostgres = new ChangeStreamRecordMapper(/*isPostgres=*/ true);
     partition =
         PartitionMetadata.newBuilder()
             .setPartitionToken("partitionToken")
@@ -94,13 +93,13 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
                 new Mod(
-                    "{\"column1\": \"value1\"}",
-                    "{\"column2\": \"oldValue2\"}",
-                    "{\"column2\": \"newValue2\"}")),
+                    "{\"column1\":\"value1\"}",
+                    "{\"column2\":\"oldValue2\"}",
+                    "{\"column2\":\"newValue2\"}")),
             ModType.UPDATE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
@@ -128,13 +127,13 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
                 new Mod(
-                    "{\"column1\": \"value1\"}",
-                    "{\"column2\": \"oldValue2\"}",
-                    "{\"column2\": \"newValue2\"}")),
+                    "{\"column1\":\"value1\"}",
+                    "{\"column2\":\"oldValue2\"}",
+                    "{\"column2\":\"newValue2\"}")),
             ModType.UPDATE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
@@ -144,14 +143,10 @@ public class ChangeStreamRecordMapperTest {
             null);
 
     final String jsonString = recordToJson(dataChangeRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -172,10 +167,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.UPDATE,
             ValueCaptureType.NEW_ROW,
             10L,
@@ -207,10 +202,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT664\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.UPDATE,
             ValueCaptureType.NEW_VALUES,
             10L,
@@ -238,10 +233,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.INSERT,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
@@ -269,10 +264,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.INSERT,
             ValueCaptureType.NEW_ROW,
             10L,
@@ -300,10 +295,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.INSERT,
             ValueCaptureType.NEW_VALUES,
             10L,
@@ -314,7 +309,6 @@ public class ChangeStreamRecordMapperTest {
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
-
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
@@ -332,10 +326,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", "{\"column2\": \"oldValue2\"}", null)),
+                new Mod("{\"column1\":\"value1\"}", "{\"column2\":\"oldValue2\"}", null)),
             ModType.DELETE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
@@ -363,9 +357,9 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
-            Collections.singletonList(new Mod("{\"column1\": \"value1\"}", null, null)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
+            Collections.singletonList(new Mod("{\"column1\":\"value1\"}", null, null)),
             ModType.DELETE,
             ValueCaptureType.NEW_ROW,
             10L,
@@ -376,7 +370,6 @@ public class ChangeStreamRecordMapperTest {
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
-
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
@@ -394,9 +387,9 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
-            Collections.singletonList(new Mod("{\"column1\": \"value1\"}", null, null)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
+            Collections.singletonList(new Mod("{\"column1\":\"value1\"}", null, null)),
             ModType.DELETE,
             ValueCaptureType.NEW_VALUES,
             10L,
@@ -407,7 +400,6 @@ public class ChangeStreamRecordMapperTest {
     final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(jsonFieldsStruct);
-
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
@@ -425,10 +417,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.UNKNOWN,
             ValueCaptureType.UNKNOWN,
             10L,
@@ -439,7 +431,6 @@ public class ChangeStreamRecordMapperTest {
     final Struct struct = recordsWithUnknownModTypeAndValueCaptureType(dataChangeRecord);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(struct);
-
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
@@ -453,7 +444,6 @@ public class ChangeStreamRecordMapperTest {
     final Struct struct = recordsToStructWithStrings(heartbeatRecord);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(struct);
-
 
     assertEquals(
         Collections.singletonList(heartbeatRecord),
@@ -473,7 +463,6 @@ public class ChangeStreamRecordMapperTest {
     final Struct struct = recordsToStructWithStrings(childPartitionsRecord);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(struct);
-
 
     assertEquals(
         Collections.singletonList(childPartitionsRecord),
@@ -505,7 +494,6 @@ public class ChangeStreamRecordMapperTest {
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(struct);
 
-
     final PartitionMetadata initialPartition =
         partition.toBuilder().setPartitionToken(InitialPartition.PARTITION_TOKEN).build();
 
@@ -529,10 +517,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.UPDATE,
             ValueCaptureType.NEW_ROW,
             10L,
@@ -541,14 +529,10 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final String jsonString = recordToJson(dataChangeRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -569,10 +553,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.UPDATE,
             ValueCaptureType.NEW_VALUES,
             10L,
@@ -581,14 +565,10 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final String jsonString = recordToJson(dataChangeRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -605,10 +585,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.INSERT,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
@@ -617,14 +597,10 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final String jsonString = recordToJson(dataChangeRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -641,10 +617,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.INSERT,
             ValueCaptureType.NEW_ROW,
             10L,
@@ -653,14 +629,10 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final String jsonString = recordToJson(dataChangeRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -677,10 +649,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.INSERT,
             ValueCaptureType.NEW_VALUES,
             10L,
@@ -689,14 +661,10 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final String jsonString = recordToJson(dataChangeRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -713,10 +681,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", "{\"column2\": \"oldValue2\"}", null)),
+                new Mod("{\"column1\":\"value1\"}", "{\"column2\":\"oldValue2\"}", null)),
             ModType.DELETE,
             ValueCaptureType.OLD_AND_NEW_VALUES,
             10L,
@@ -725,14 +693,10 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final String jsonString = recordToJson(dataChangeRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -749,9 +713,9 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
-            Collections.singletonList(new Mod("{\"column1\": \"value1\"}", null, null)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
+            Collections.singletonList(new Mod("{\"column1\":\"value1\"}", null, null)),
             ModType.DELETE,
             ValueCaptureType.NEW_ROW,
             10L,
@@ -760,14 +724,10 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final String jsonString = recordToJson(dataChangeRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -784,9 +744,9 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
-            Collections.singletonList(new Mod("{\"column1\": \"value1\"}", null, null)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
+            Collections.singletonList(new Mod("{\"column1\":\"value1\"}", null, null)),
             ModType.DELETE,
             ValueCaptureType.NEW_VALUES,
             10L,
@@ -795,14 +755,10 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final String jsonString = recordToJson(dataChangeRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -819,10 +775,10 @@ public class ChangeStreamRecordMapperTest {
             "1",
             "tableName",
             Arrays.asList(
-                new ColumnType("column1", new TypeCode("type1"), true, 1L),
-                new ColumnType("column2", new TypeCode("type2"), false, 2L)),
+                new ColumnType("column1", new TypeCode("{\"code\":\"INT64\"}"), true, 1L),
+                new ColumnType("column2", new TypeCode("{\"code\":\"BYTES\"}"), false, 2L)),
             Collections.singletonList(
-                new Mod("{\"column1\": \"value1\"}", null, "{\"column2\": \"newValue2\"}")),
+                new Mod("{\"column1\":\"value1\"}", null, "{\"column2\":\"newValue2\"}")),
             ModType.UNKNOWN,
             ValueCaptureType.UNKNOWN,
             10L,
@@ -831,14 +787,10 @@ public class ChangeStreamRecordMapperTest {
             true,
             null);
     final String jsonString = recordToJson(dataChangeRecord, true, true);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     when(resultSet.getPgJsonb(0)).thenReturn(jsonString);
-    System.err.println(dataChangeRecord.toString());
-    System.err.println("actual: " + mapperPostgres.toChangeStreamRecordJson(partition, jsonString, resultSetMetadata).toString());
-    System.err.println("Expected: " + dataChangeRecord.toString());
     assertEquals(
         Collections.singletonList(dataChangeRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
@@ -849,7 +801,6 @@ public class ChangeStreamRecordMapperTest {
     final HeartbeatRecord heartbeatRecord =
         new HeartbeatRecord(Timestamp.ofTimeSecondsAndNanos(10L, 20), null);
     final String jsonString = recordToJson(heartbeatRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
@@ -870,7 +821,6 @@ public class ChangeStreamRecordMapperTest {
                 new ChildPartition("childToken2", Sets.newHashSet("parentToken1", "parentToken2"))),
             null);
     final String jsonString = recordToJson(childPartitionsRecord, false, false);
-    System.err.println("Json string: " + jsonString);
 
     assertNotNull(jsonString);
     ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);

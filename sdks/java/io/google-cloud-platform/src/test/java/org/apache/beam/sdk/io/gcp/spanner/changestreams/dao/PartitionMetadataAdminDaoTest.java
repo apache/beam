@@ -67,9 +67,11 @@ public class PartitionMetadataAdminDaoTest {
   public void setUp() {
     databaseAdminClient = mock(DatabaseAdminClient.class);
     partitionMetadataAdminDao =
-        new PartitionMetadataAdminDao(databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, /*isPostgres=*/false);
+        new PartitionMetadataAdminDao(
+            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, /*isPostgres=*/ false);
     partitionMetadataAdminDaoPostgres =
-        new PartitionMetadataAdminDao(databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, /*isPostgres=*/true);
+        new PartitionMetadataAdminDao(
+            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, /*isPostgres=*/ true);
     op = (OperationFuture<Void, UpdateDatabaseDdlMetadata>) mock(OperationFuture.class);
     statements = ArgumentCaptor.forClass(Iterable.class);
     when(databaseAdminClient.updateDatabaseDdl(

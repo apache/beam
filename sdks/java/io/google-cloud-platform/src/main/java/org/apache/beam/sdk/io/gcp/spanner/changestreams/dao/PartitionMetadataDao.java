@@ -61,7 +61,8 @@ public class PartitionMetadataDao {
    * @param metadataTableName the name of the partition metadata table
    * @param databaseClient the {@link DatabaseClient} to perform queries
    */
-  PartitionMetadataDao(String metadataTableName, DatabaseClient databaseClient, boolean isPostgres) {
+  PartitionMetadataDao(
+      String metadataTableName, DatabaseClient databaseClient, boolean isPostgres) {
     this.metadataTableName = metadataTableName;
     this.databaseClient = databaseClient;
     this.isPostgres = isPostgres;
@@ -98,31 +99,29 @@ public class PartitionMetadataDao {
   public @Nullable Struct getPartition(String partitionToken) {
     Statement statement;
     if (this.isPostgres) {
-      statement =  Statement.newBuilder(
-                        "SELECT * FROM \""
-                            + metadataTableName
-                            + "\" WHERE \""
-                            + COLUMN_PARTITION_TOKEN
-                            + "\" = $1")
-                    .bind("p1")
-                    .to(partitionToken)
-                    .build();
+      statement =
+          Statement.newBuilder(
+                  "SELECT * FROM \""
+                      + metadataTableName
+                      + "\" WHERE \""
+                      + COLUMN_PARTITION_TOKEN
+                      + "\" = $1")
+              .bind("p1")
+              .to(partitionToken)
+              .build();
     } else {
-       statement = Statement.newBuilder(
-                        "SELECT * FROM "
-                            + metadataTableName
-                            + " WHERE "
-                            + COLUMN_PARTITION_TOKEN
-                            + " = @partition")
-                    .bind("partition")
-                    .to(partitionToken)
-                    .build();
+      statement =
+          Statement.newBuilder(
+                  "SELECT * FROM "
+                      + metadataTableName
+                      + " WHERE "
+                      + COLUMN_PARTITION_TOKEN
+                      + " = @partition")
+              .bind("partition")
+              .to(partitionToken)
+              .build();
     }
-    try (ResultSet resultSet =
-        databaseClient
-            .singleUse()
-            .executeQuery(
-                statement)) {
+    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
       if (resultSet.next()) {
         return resultSet.getCurrentRowAsStruct();
       }
@@ -140,36 +139,36 @@ public class PartitionMetadataDao {
     Statement statement;
     if (this.isPostgres) {
       statement =
-        Statement.newBuilder(
-                "SELECT \""
-                    + COLUMN_WATERMARK
-                    + "\" FROM \""
-                    + metadataTableName
-                    + "\" WHERE \""
-                    + COLUMN_STATE
-                    + "\" != $1"
-                    + " ORDER BY \""
-                    + COLUMN_WATERMARK
-                    + "\" ASC LIMIT 1")
-            .bind("p1")
-            .to(State.FINISHED.name())
-            .build();
+          Statement.newBuilder(
+                  "SELECT \""
+                      + COLUMN_WATERMARK
+                      + "\" FROM \""
+                      + metadataTableName
+                      + "\" WHERE \""
+                      + COLUMN_STATE
+                      + "\" != $1"
+                      + " ORDER BY \""
+                      + COLUMN_WATERMARK
+                      + "\" ASC LIMIT 1")
+              .bind("p1")
+              .to(State.FINISHED.name())
+              .build();
     } else {
       statement =
-        Statement.newBuilder(
-                "SELECT "
-                    + COLUMN_WATERMARK
-                    + " FROM "
-                    + metadataTableName
-                    + " WHERE "
-                    + COLUMN_STATE
-                    + " != @state"
-                    + " ORDER BY "
-                    + COLUMN_WATERMARK
-                    + " ASC LIMIT 1")
-            .bind("state")
-            .to(State.FINISHED.name())
-            .build();
+          Statement.newBuilder(
+                  "SELECT "
+                      + COLUMN_WATERMARK
+                      + " FROM "
+                      + metadataTableName
+                      + " WHERE "
+                      + COLUMN_STATE
+                      + " != @state"
+                      + " ORDER BY "
+                      + COLUMN_WATERMARK
+                      + " ASC LIMIT 1")
+              .bind("state")
+              .to(State.FINISHED.name())
+              .build();
     }
     try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
       if (resultSet.next()) {
@@ -189,38 +188,38 @@ public class PartitionMetadataDao {
     Statement statement;
     if (this.isPostgres) {
       statement =
-        Statement.newBuilder(
-                "SELECT * FROM \""
-                    + metadataTableName
-                    + "\" WHERE \""
-                    + COLUMN_CREATED_AT
-                    + "\" > $1"
-                    + " ORDER BY \""
-                    + COLUMN_CREATED_AT
-                    + "\" ASC"
-                    + ", \""
-                    + COLUMN_START_TIMESTAMP
-                    + "\" ASC")
-            .bind("p1")
-            .to(timestamp)
-            .build();
+          Statement.newBuilder(
+                  "SELECT * FROM \""
+                      + metadataTableName
+                      + "\" WHERE \""
+                      + COLUMN_CREATED_AT
+                      + "\" > $1"
+                      + " ORDER BY \""
+                      + COLUMN_CREATED_AT
+                      + "\" ASC"
+                      + ", \""
+                      + COLUMN_START_TIMESTAMP
+                      + "\" ASC")
+              .bind("p1")
+              .to(timestamp)
+              .build();
     } else {
       statement =
-        Statement.newBuilder(
-                "SELECT * FROM "
-                    + metadataTableName
-                    + " WHERE "
-                    + COLUMN_CREATED_AT
-                    + " > @timestamp"
-                    + " ORDER BY "
-                    + COLUMN_CREATED_AT
-                    + " ASC"
-                    + ", "
-                    + COLUMN_START_TIMESTAMP
-                    + " ASC")
-            .bind("timestamp")
-            .to(timestamp)
-            .build();
+          Statement.newBuilder(
+                  "SELECT * FROM "
+                      + metadataTableName
+                      + " WHERE "
+                      + COLUMN_CREATED_AT
+                      + " > @timestamp"
+                      + " ORDER BY "
+                      + COLUMN_CREATED_AT
+                      + " ASC"
+                      + ", "
+                      + COLUMN_START_TIMESTAMP
+                      + " ASC")
+              .bind("timestamp")
+              .to(timestamp)
+              .build();
     }
     return databaseClient.singleUse().executeQuery(statement);
   }
@@ -230,16 +229,30 @@ public class PartitionMetadataDao {
    * given timestamp.
    */
   public long countPartitionsCreatedAfter(Timestamp timestamp) {
-    final Statement statement =
-        Statement.newBuilder(
-                "SELECT COUNT(*) as count FROM "
-                    + metadataTableName
-                    + " WHERE "
-                    + COLUMN_CREATED_AT
-                    + " > @timestamp")
-            .bind("timestamp")
-            .to(timestamp)
-            .build();
+    Statement statement;
+    if (this.isPostgres) {
+      statement =
+          Statement.newBuilder(
+                  "SELECT COUNT(*) as count FROM \""
+                      + metadataTableName
+                      + "\" WHERE \""
+                      + COLUMN_CREATED_AT
+                      + "\" > $1")
+              .bind("p1")
+              .to(timestamp)
+              .build();
+    } else {
+      statement =
+          Statement.newBuilder(
+                  "SELECT COUNT(*) as count FROM "
+                      + metadataTableName
+                      + " WHERE "
+                      + COLUMN_CREATED_AT
+                      + " > @timestamp")
+              .bind("timestamp")
+              .to(timestamp)
+              .build();
+    }
 
     try (ResultSet resultSet = databaseClient.singleUse().executeQuery(statement)) {
       if (resultSet.next()) {
@@ -344,7 +357,8 @@ public class PartitionMetadataDao {
      * @param metadataTableName the name of the partition metadata table
      * @param transaction the underlying client library transaction to be executed
      */
-    public InTransactionContext(String metadataTableName, TransactionContext transaction, boolean isPostgres) {
+    public InTransactionContext(
+        String metadataTableName, TransactionContext transaction, boolean isPostgres) {
       this.metadataTableName = metadataTableName;
       this.transaction = transaction;
       this.stateToTimestampColumn = new HashMap<>();
@@ -423,30 +437,30 @@ public class PartitionMetadataDao {
     public @Nullable Struct getPartition(String partitionToken) {
       Statement statement;
       if (this.isPostgres) {
-        statement = Statement.newBuilder(
-                        "SELECT * FROM \""
-                            + metadataTableName
-                            + "\" WHERE \""
-                            + COLUMN_PARTITION_TOKEN
-                            + "\" = $1")
-                    .bind("p1")
-                    .to(partitionToken)
-                    .build();
+        statement =
+            Statement.newBuilder(
+                    "SELECT * FROM \""
+                        + metadataTableName
+                        + "\" WHERE \""
+                        + COLUMN_PARTITION_TOKEN
+                        + "\" = $1")
+                .bind("p1")
+                .to(partitionToken)
+                .build();
 
       } else {
-        statement = Statement.newBuilder(
-                        "SELECT * FROM "
-                            + metadataTableName
-                            + " WHERE "
-                            + COLUMN_PARTITION_TOKEN
-                            + " = @partition")
-                    .bind("partition")
-                    .to(partitionToken)
-                    .build();
+        statement =
+            Statement.newBuilder(
+                    "SELECT * FROM "
+                        + metadataTableName
+                        + " WHERE "
+                        + COLUMN_PARTITION_TOKEN
+                        + " = @partition")
+                .bind("partition")
+                .to(partitionToken)
+                .build();
       }
-      try (ResultSet resultSet =
-            transaction.executeQuery(
-              statement)) {
+      try (ResultSet resultSet = transaction.executeQuery(statement)) {
         if (resultSet.next()) {
           return resultSet.getCurrentRowAsStruct();
         }

@@ -99,6 +99,8 @@ public class ChangeStreamResultSet implements AutoCloseable {
    * <p>If {@link ChangeStreamResultSet#next()} was not called or if it was called but there are no
    * more records in the stream, null will be returned.
    *
+   * <p>Should only be used for GoogleSQL databases.
+   *
    * @return a change stream record as a {@link Struct} or null
    */
   public Struct getCurrentRowAsStruct() {
@@ -113,13 +115,14 @@ public class ChangeStreamResultSet implements AutoCloseable {
    * <p>If {@link ChangeStreamResultSet#next()} was not called or if it was called but there are no
    * more records in the stream, null will be returned.
    *
+   * <p>Should only be used for PostgreSQL databases.
+   *
    * @return a change stream record as a {@link Struct} or null
    */
   public String getPgJsonb(int index) {
     recordReadAt = Timestamp.now();
     return resultSet.getPgJsonb(index);
   }
-
 
   /**
    * Returns the gathered metadata for the change stream query so far.

@@ -170,10 +170,7 @@ public class QueryChangeStreamAction {
 
       metrics.incQueryCounter();
       while (resultSet.next()) {
-        System.err.println("result set jsonb: " + resultSet.getPgJsonb(0));
-        final List<ChangeStreamRecord> records;
-
-        records =
+        final List<ChangeStreamRecord> records =
             changeStreamRecordMapper.toChangeStreamRecords(
                 updatedPartition, resultSet, resultSet.getMetadata());
 

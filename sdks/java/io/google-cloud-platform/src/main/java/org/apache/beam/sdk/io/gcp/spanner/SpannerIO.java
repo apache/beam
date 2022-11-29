@@ -1633,7 +1633,8 @@ public class SpannerIO {
       LOG.info("The Spanner metadata database is postgres: " + isSpannerMetadataDatabasePostgres);
       final String partitionMetadataTableName =
           MoreObjects.firstNonNull(
-              getMetadataTable(), generatePartitionMetadataTableName(
+              getMetadataTable(),
+              generatePartitionMetadataTableName(
                   partitionMetadataDatabaseId, isSpannerMetadataDatabasePostgres));
       final String changeStreamName = getChangeStreamName();
       final Timestamp startTimestamp = getInclusiveStartAt();
@@ -1706,8 +1707,7 @@ public class SpannerIO {
   }
 
   private static boolean isPostgres(SpannerConfig spannerConfig) {
-    DatabaseClient databaseClient =
-        SpannerAccessor.getOrCreate(spannerConfig).getDatabaseClient();
+    DatabaseClient databaseClient = SpannerAccessor.getOrCreate(spannerConfig).getDatabaseClient();
     final String getDatabaseDialectStmt =
         "SELECT option_value FROM information_schema.database_options WHERE option_name = "
             + "'database_dialect'";
