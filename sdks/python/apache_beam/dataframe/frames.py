@@ -4566,7 +4566,8 @@ def _liftable_agg(meth, postagg_meth=None):
         'pre_combine_' + agg_name,
         lambda df: getattr(
             project(
-                df.groupby(level=list(range(df.index.nlevels, group_keys=self._group_keys)),
+                df.groupby(level=list(range(df.index.nlevels)),
+                           group_keys=self._group_keys,
                            **preagg_groupby_kwargs)
             ),
             agg_name)(**kwargs),
