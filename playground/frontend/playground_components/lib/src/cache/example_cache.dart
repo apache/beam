@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import '../models/category_with_examples.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
+import '../models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 import '../models/sdk.dart';
 import '../repositories/example_repository.dart';
 import '../repositories/models/get_default_precompiled_object_request.dart';
@@ -104,16 +105,19 @@ class ExampleCache extends ChangeNotifier {
     );
   }
 
-  Future<Example> loadSharedExample(String id) async {
+  Future<Example> loadSharedExample(
+    UserSharedExampleLoadingDescriptor descriptor,
+  ) async {
     final result = await _exampleRepository.getSnippet(
-      GetSnippetRequest(id: id),
+      GetSnippetRequest(id: descriptor.snippetId),
     );
 
     return Example(
       sdk: result.sdk,
       name: result.files.first.name,
-      path: id,
+      path: descriptor.snippetId,
       description: '',
+      descriptor: descriptor,
       tags: [],
       type: ExampleType.example,
       source: result.files.first.code,

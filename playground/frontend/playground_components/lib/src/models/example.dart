@@ -17,6 +17,8 @@
  */
 
 import 'example_base.dart';
+import 'example_loading_descriptors/example_loading_descriptor.dart';
+import 'example_loading_descriptors/standard_example_loading_descriptor.dart';
 
 /// A [ExampleBase] that also has all large fields fetched.
 class Example extends ExampleBase {
@@ -24,6 +26,7 @@ class Example extends ExampleBase {
   final String? logs;
   final String? outputs;
   final String source;
+  final ExampleLoadingDescriptor descriptor;
 
   const Example({
     required this.source,
@@ -31,6 +34,7 @@ class Example extends ExampleBase {
     required super.sdk,
     required super.type,
     required super.path,
+    required this.descriptor,
     this.graph,
     this.logs,
     this.outputs,
@@ -49,8 +53,11 @@ class Example extends ExampleBase {
     required this.logs,
     required this.outputs,
     required this.source,
+    ExampleLoadingDescriptor? descriptor,
     this.graph,
-  }) : super(
+  })  : descriptor =
+            descriptor ?? StandardExampleLoadingDescriptor(path: example.path),
+        super(
           complexity: example.complexity,
           contextLine: example.contextLine,
           description: example.description,

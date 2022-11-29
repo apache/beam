@@ -78,9 +78,9 @@ class ExamplesLoadingDescriptor {
     };
   }
 
-  ExamplesLoadingDescriptor whereType<T extends ExampleLoadingDescriptor>() {
+  ExamplesLoadingDescriptor where(bool Function(ExampleLoadingDescriptor d) f) {
     return ExamplesLoadingDescriptor(
-      descriptors: descriptors.whereType<T>().toList(growable: false),
+      descriptors: descriptors.where((d) => f(d)).toList(growable: false),
     );
   }
 }
