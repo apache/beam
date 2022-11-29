@@ -24,9 +24,6 @@ resource "google_container_cluster" "playground-gke" {
   initial_node_count = var.node_count
   network            = var.network
   subnetwork         = var.subnetwork
-
-  enable_autopilot   = true
-
   node_config {
     machine_type    = var.machine_type
     service_account = var.service_account_email
