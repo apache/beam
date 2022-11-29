@@ -4556,6 +4556,7 @@ def _liftable_agg(meth, postagg_meth=None):
     is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
                                   for i in self._grouping_indexes)
     groupby_kwargs = self._kwargs
+    group_keys = self._group_keys
 
     # Don't include un-observed categorical values in the preagg
     preagg_groupby_kwargs = groupby_kwargs.copy()
@@ -4567,7 +4568,7 @@ def _liftable_agg(meth, postagg_meth=None):
         lambda df: getattr(
             project(
                 df.groupby(level=list(range(df.index.nlevels)),
-                           group_keys=self._group_keys,
+                           group_keys=group_keys,
                            **preagg_groupby_kwargs)
             ),
             agg_name)(**kwargs),
@@ -4580,7 +4581,7 @@ def _liftable_agg(meth, postagg_meth=None):
         'post_combine_' + post_agg_name,
         lambda df: getattr(
             df.groupby(level=list(range(df.index.nlevels)),
-                       group_keys=self._group_keys,
+                       group_keys=group_keys,
                        **groupby_kwargs),
             post_agg_name)(**kwargs),
         [pre_agg],
@@ -4604,6 +4605,7 @@ def _unliftable_agg(meth):
     assert isinstance(self, DeferredGroupBy)
 
     to_group = self._ungrouped.proxy().index
+    group_keys = self._group_keys
     is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
                                   for i in self._grouping_indexes)
 
@@ -4613,7 +4615,7 @@ def _unliftable_agg(meth):
         agg_name,
         lambda df: getattr(project(
             df.groupby(level=list(range(df.index.nlevels)),
-                       group_keys=self._group_keys,
+                       group_keys=group_keys,
                        **groupby_kwargs),
         ), agg_name)(**kwargs),
         [self._ungrouped],
