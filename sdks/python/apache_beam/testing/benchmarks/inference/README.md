@@ -55,7 +55,7 @@ These metrics are published to InfluxDB and BigQuery.
   * disk_size_gb: 50
 
 * Pytorch Imagenet Classification with Resnet 152 with Tesla T4 GPU.
-  * machine_type: 
+  * machine_type:
     * CPU: n1-standard-2
     * GPU: NVIDIA Tesla T4
   * num_workers: 75
