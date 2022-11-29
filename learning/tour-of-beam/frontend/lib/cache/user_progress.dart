@@ -20,6 +20,8 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import '../auth/notifier.dart';
+import '../enums/unit_completion.dart';
 import '../models/user_progress.dart';
 import '../state.dart';
 import 'cache.dart';
@@ -42,6 +44,27 @@ class UserProgressCache extends Cache {
     _updatingUnitIds.remove(unitId);
 
     /// No need to nofity, because UnitController does.
+  }
+
+  bool canCompleteUnit(String? unitId) {
+    if (unitId == null) {
+      return false;
+    }
+    return _getUnitCompletion(unitId) == UnitCompletion.uncompleted;
+  }
+
+  UnitCompletion _getUnitCompletion(String unitId) {
+    final authNotifier = GetIt.instance.get<AuthNotifier>();
+    if (!authNotifier.isAuthenticated) {
+      return UnitCompletion.unauthenticated;
+    }
+    if (_updatingUnitIds.contains(unitId)) {
+      return UnitCompletion.updating;
+    }
+    if (isUnitCompleted(unitId)) {
+      return UnitCompletion.completed;
+    }
+    return UnitCompletion.uncompleted;
   }
 
   bool isUnitCompleted(String? unitId) {

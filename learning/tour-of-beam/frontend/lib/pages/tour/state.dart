@@ -27,7 +27,6 @@ import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
 import '../../cache/user_progress.dart';
 import '../../config.dart';
-import '../../enums/unit_completion.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
 import '../../state.dart';
@@ -60,30 +59,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _onUnitChanged();
   }
 
-  // TODO(nausharipov): currentUnitId getter?
-
   @override
   PagePath get path => TourPath(
         sdkId: contentTreeController.sdkId,
         treeIds: contentTreeController.treeIds,
       );
 
-  bool canCompleteCurrentUnit() {
-    return getCurrentUnitCompletion() == UnitCompletion.uncompleted;
-  }
-
-  UnitCompletion getCurrentUnitCompletion() {
-    final unitId = currentUnitController?.unitId;
-    if (!_authNotifier.isAuthenticated) {
-      return UnitCompletion.blocked;
-    } else if (_userProgressCache.getUpdatingUnitIds().contains(unitId)) {
-      return UnitCompletion.updating;
-    } else if (_userProgressCache.isUnitCompleted(unitId)) {
-      return UnitCompletion.completed;
-    }
-    return UnitCompletion.uncompleted;
-  }
-
+  String? get currentUnitId => currentUnitController?.unitId;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
 
   void _createCurrentUnitController(String sdkId, String unitId) {

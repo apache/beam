@@ -34,9 +34,12 @@ class UnitController extends ChangeNotifier {
   Future<void> completeUnit() async {
     final client = GetIt.instance.get<TobClient>();
     final userProgressCache = GetIt.instance.get<UserProgressCache>();
-    userProgressCache.addUpdatingUnitId(unitId);
-    await client.postUnitComplete(sdkId, unitId);
-    userProgressCache.removeUpdatingUnitId(unitId);
+    try {
+      userProgressCache.addUpdatingUnitId(unitId);
+      await client.postUnitComplete(sdkId, unitId);
+    } finally {
+      userProgressCache.removeUpdatingUnitId(unitId);
+    }
     notifyListeners();
   }
 }

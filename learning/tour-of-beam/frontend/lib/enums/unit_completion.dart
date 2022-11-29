@@ -22,7 +22,5 @@ enum UnitCompletion {
 
   /// Sent the request to complete or to undo completion.
   updating,
-
-  /// User is not authenticated
-  blocked,
+  unauthenticated,
 }

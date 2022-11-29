@@ -36,7 +36,8 @@ class CompleteUnitButton extends StatelessWidget {
     return AnimatedBuilder(
       animation: userProgressCache,
       builder: (context, child) {
-        final canComplete = tourNotifier.canCompleteCurrentUnit();
+        final canComplete =
+            userProgressCache.canCompleteUnit(tourNotifier.currentUnitId);
         final borderColor =
             canComplete ? themeData.primaryColor : themeData.disabledColor;
         final onPressed = canComplete
