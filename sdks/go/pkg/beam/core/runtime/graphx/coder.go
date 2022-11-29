@@ -242,6 +242,8 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 				t := typex.New(typex.CoGBKType, append([]typex.FullType{key.T}, coder.Types(values)...)...)
 				return &coder.Coder{Kind: coder.CoGBK, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
 			}
+			// It's valid to have a KV<k,Iter<v>> without being a CoGBK, and validating if we need to change to
+			// a CoGBK is done at the DataSource, since that's when we can check against the downstream nodes.
 		}
 
 		value, err := b.Coder(id)
