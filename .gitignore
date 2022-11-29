@@ -127,7 +127,7 @@ website/www/yarn-error.log
 **/*.g.dart
 **/*.mocks.dart
 **/.packages
-**/pubspec.lock
+**/playground_components/pubspec.lock
 
 # Ignore Beam Playground Terraform
 **/.terraform
