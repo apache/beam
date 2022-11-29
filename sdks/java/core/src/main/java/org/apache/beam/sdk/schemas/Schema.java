@@ -266,6 +266,8 @@ public class Schema implements Serializable {
 
   /** Returns an identical Schema with sorted fields. */
   public Schema sorted() {
+    // Create a new schema and copy over the appropriate Schema object attributes:
+    // {fields, uuid, encodingPositions, options}
     Schema sortedSchema =
         this.fields.stream()
             .sorted(Comparator.comparing(Field::getName))
