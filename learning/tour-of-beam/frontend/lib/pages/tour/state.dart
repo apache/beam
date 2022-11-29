@@ -72,7 +72,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     currentUnitController = UnitController(
       unitId: unitId,
       sdkId: sdkId,
-    )..addListener(_onUserProgressChanged);
+    );
   }
 
   void _onUserProgressChanged() {
@@ -191,7 +191,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   void dispose() {
     _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
-    currentUnitController?.removeListener(_onUserProgressChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onUserProgressChanged);
     super.dispose();

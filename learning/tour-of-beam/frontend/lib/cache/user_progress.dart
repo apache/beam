@@ -42,8 +42,7 @@ class UserProgressCache extends Cache {
 
   void removeUpdatingUnitId(String unitId) {
     _updatingUnitIds.remove(unitId);
-
-    /// No need to nofity, because UnitController does.
+    notifyListeners();
   }
 
   bool canCompleteUnit(String? unitId) {

@@ -38,8 +38,8 @@ class UnitController extends ChangeNotifier {
       userProgressCache.addUpdatingUnitId(unitId);
       await client.postUnitComplete(sdkId, unitId);
     } finally {
+      await userProgressCache.updateCompletedUnits();
       userProgressCache.removeUpdatingUnitId(unitId);
     }
-    notifyListeners();
   }
 }
