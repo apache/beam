@@ -551,6 +551,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       else:
         to_group_with_index = self._expr
 
+      raise Exception(group_keys)
+
     else:
       raise NotImplementedError(by)
 
