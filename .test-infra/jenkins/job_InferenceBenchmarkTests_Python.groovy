@@ -20,6 +20,8 @@ import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
+import static PythonTestProperties.RUN_INFERENCE_TEST_PYTHON_VERSION
+
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -183,14 +185,14 @@ def loadTestJob = { scope ->
   for (Map testConfig: testScenarios){
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 180)
     loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, null,
-        testConfig.pipelineOptions.requirements_file, '3.8')
+        testConfig.pipelineOptions.requirements_file, RUN_INFERENCE_TEST_PYTHON_VERSION)
   }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_Inference_Python_Benchmarks_Dataflow',
     'Run Inference Benchmarks',
-    'Beam Inference benchmarks on Dataflow(\"Run Inference Benchmarks"\"")',
+    'RunInference benchmarks on Dataflow(\"Run Inference Benchmarks"\"")',
     this
     ) {
       loadTestJob(delegate)
