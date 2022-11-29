@@ -92,9 +92,9 @@ def main():
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
   with beam.Pipeline(options=pipeline_options) as p:
-    if isinstance(p.runner, portable_runner.PortableRunner):
+    #if isinstance(p.runner, portable_runner.PortableRunner):
       # Preemptively start due to BEAM-6666.
-      p.runner.create_job_service(pipeline_options)
+      # p.runner.create_job_service(pipeline_options)
 
     run(p, known_args.input, known_args.output)
 

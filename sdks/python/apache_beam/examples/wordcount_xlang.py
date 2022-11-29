@@ -33,7 +33,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
 # avoid possible conflict with job-server embedded expansion service at 8097
-EXPANSION_SERVICE_PORT = '8096'
+EXPANSION_SERVICE_PORT = '60333'
 EXPANSION_SERVICE_ADDR = 'localhost:%s' % EXPANSION_SERVICE_PORT
 
 
@@ -88,13 +88,13 @@ def main():
   parser.add_argument(
       '--output',
       dest='output',
-      required=True,
+      default='output666',
       help='Output file to write results to.')
-  parser.add_argument(
-      '--expansion_service_jar',
-      dest='expansion_service_jar',
-      required=True,
-      help='Jar file for expansion service')
+  # parser.add_argument(
+  #     '--expansion_service_jar',
+  #     dest='expansion_service_jar',
+  #     required=True,
+  #     help='Jar file for expansion service')
 
   known_args, pipeline_args = parser.parse_known_args()
 
@@ -105,24 +105,27 @@ def main():
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
   try:
-    server = subprocess.Popen([
-        'java',
-        '-jar',
-        known_args.expansion_service_jar,
-        EXPANSION_SERVICE_PORT
-    ])
+    logging.info('!!!!!!!!!!!!')
+    # server = subprocess.Popen([
+    #     'java',
+    #     '-jar',
+    #     known_args.expansion_service_jar,
+    #     EXPANSION_SERVICE_PORT
+    # ])
 
     with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
       grpc.channel_ready_future(channel).result()
 
     with beam.Pipeline(options=pipeline_options) as p:
       # Preemptively start due to BEAM-6666.
-      p.runner.create_job_service(pipeline_options)
+      logging.info('ddd')
+      #p.runner.create_job_service(pipeline_options)
 
       build_pipeline(p, known_args.input, known_args.output)
 
   finally:
-    server.kill()
+    logging.info('!!!!!!!!!!!!')
+    #server.kill()
 
 
 if __name__ == '__main__':
