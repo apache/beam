@@ -25,10 +25,10 @@ on:
   workflow_dispatch:
     inputs:
       VERSION_TAG:
-        description: Beam final version to add to tag
+        description: Beam Final Version Tag
         required: true
       RC_TAG:
-        description: Beam Release Candidate tag
+        description: Beam RC Tag
         required: true
 
 jobs:
@@ -37,6 +37,8 @@ jobs:
     env:
       VERSION_PATH: ${{ github.event.inputs.VERSION_TAG }}
     steps:
+      - name: Check out code
+        uses: actions/checkout@v3
       - name: Tag for Go SDK
         run: |
           git tag -s sdks/${{ github.event.inputs.VERSION_TAG }} ${{ github.event.inputs.RC_TAG }}
