@@ -183,7 +183,7 @@ def loadTestJob = { scope ->
   for (Map testConfig: testScenarios){
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 180)
     loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, null,
-    testConfig.pipelineOptions.requirements_file, '3.8')
+        testConfig.pipelineOptions.requirements_file, '3.8')
   }
 }
 
