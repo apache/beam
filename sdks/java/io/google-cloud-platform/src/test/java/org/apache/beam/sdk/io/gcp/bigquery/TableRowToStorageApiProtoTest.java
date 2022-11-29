@@ -846,33 +846,53 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema);
     FieldDescriptor fieldDescriptor = schemaDescriptor.findFieldByName(intFieldName);
 
-    Object[] validIntValues = new Object[] {
-        "123",
-        123L,
-        123,
-        new BigDecimal("123"),
-        new BigInteger("123")
+    Object[][] validIntValues = new Object[][]{
+        // Source and expected converted values.
+        {"123", 123L},
+        {123L, 123L},
+        {123, 123L},
+        {new BigDecimal("123"), 123L},
+        {new BigInteger("123"), 123L}
     };
-    for( Object validValue : validIntValues) {
+    for (Object[] validValue : validIntValues) {
+      Object sourceValue = validValue[0];
+      Long expectedConvertedValue = (Long) validValue[1];
       try {
-        TableRowToStorageApiProto.singularFieldToProtoValue(fieldSchema, fieldDescriptor, validValue , false);
+        Object converted = TableRowToStorageApiProto.singularFieldToProtoValue(fieldSchema,
+            fieldDescriptor, sourceValue, false);
+        assertEquals(expectedConvertedValue, converted);
       } catch (SchemaConversionException e) {
-        fail("Failed to convert value " + validValue + " of type " + validValue.getClass() + " to INTEGER: " + e);
+        fail("Failed to convert value " + sourceValue + " of type " + validValue.getClass()
+            + " to INTEGER: " + e);
       }
     }
 
-    Object[] invalidIntValues = new Object[] {
-        "12.123", // Fractional part
-        Long.toString(Long.MAX_VALUE) + '0', // String numeric exceeding max value of INT64
-        new BigDecimal("12.123"), // Fractional part
-        new BigInteger(String.valueOf(Long.MAX_VALUE)).add(new BigInteger("10")) // Exceeds max value
+    Object[][] invalidIntValues = new Object[][] {
+        // Value and expected error message
+        {"12.123", "Column: "
+            + intFieldName
+            + " (INTEGER). Value: 12.123 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"12.123\""},
+        {Long.toString(Long.MAX_VALUE) + '0', "Column: "
+            + intFieldName
+            + " (INTEGER). Value: 92233720368547758070 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"92233720368547758070\""},
+        {new BigDecimal("12.123"), "Column: "
+            + intFieldName
+            + " (INTEGER). Value: 12.123 (java.math.BigDecimal). Reason: java.lang.ArithmeticException: Rounding necessary"},
+        {new BigInteger(String.valueOf(Long.MAX_VALUE)).add(new BigInteger("10")), "Column: "
+            + intFieldName
+            + " (INTEGER). Value: 9223372036854775817 (java.math.BigInteger). Reason: java.lang.ArithmeticException: BigInteger out of long range"}
+
     };
-    for( Object invalidValue : invalidIntValues) {
+    for (Object[] invalidValue : invalidIntValues) {
+      Object sourceValue = invalidValue[0];
+      String expectedError = (String) invalidValue[1];
       try {
-        TableRowToStorageApiProto.singularFieldToProtoValue(fieldSchema, fieldDescriptor, invalidValue , false);
-        fail("Expected to throw an exception converting " + invalidValue + " of type " + invalidValue.getClass() + " to INTEGER: ");
+        TableRowToStorageApiProto.singularFieldToProtoValue(fieldSchema, fieldDescriptor,
+            sourceValue, false);
+        fail("Expected to throw an exception converting " + sourceValue + " of type "
+            + invalidValue.getClass() + " to INTEGER: ");
       } catch (SchemaConversionException e) {
-        // expected exception
+        assertEquals("Exception message", expectedError, e.getMessage());
       }
     }
   }
