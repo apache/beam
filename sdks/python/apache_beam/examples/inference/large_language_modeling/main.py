@@ -99,7 +99,7 @@ def parse_args(argv):
 def run():
   """
     Runs the interjector pipeline which translates English sentences
-    into german using the RunInference API. """
+    into German using the RunInference API. """
 
   known_args, pipeline_args = parse_args(sys.argv)
   pipeline_options = PipelineOptions(pipeline_args)
