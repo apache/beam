@@ -40,7 +40,7 @@ class UserProgressCache extends Cache {
     notifyListeners();
   }
 
-  void removeUpdatingUnitId(String unitId) {
+  void clearUpdatingUnitId(String unitId) {
     _updatingUnitIds.remove(unitId);
     notifyListeners();
   }

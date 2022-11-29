@@ -39,7 +39,7 @@ class UnitController extends ChangeNotifier {
       await client.postUnitComplete(sdkId, unitId);
     } finally {
       await userProgressCache.updateCompletedUnits();
-      userProgressCache.removeUpdatingUnitId(unitId);
+      userProgressCache.clearUpdatingUnitId(unitId);
     }
   }
 }
