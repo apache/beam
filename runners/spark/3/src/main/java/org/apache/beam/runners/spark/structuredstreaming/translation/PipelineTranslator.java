@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -169,7 +170,7 @@ public abstract class PipelineTranslator {
    */
   private class TranslatingVisitor extends PTransformVisitor implements TranslationState {
     private final Map<PCollection<?>, TranslationResult<?>> translationResults;
-    private final Map<Coder<?>, ExpressionEncoder<?>> encoders;
+    private final Map<Coder<?>, Encoder<?>> encoders;
     private final SparkSession sparkSession;
     private final SerializablePipelineOptions serializableOptions;
     private final StorageLevel storageLevel;
@@ -209,7 +210,13 @@ public abstract class PipelineTranslator {
 
     @Override
     public <T> Encoder<T> encoderOf(Coder<T> coder, Factory<T> factory) {
-      return (Encoder<T>) encoders.computeIfAbsent(coder, (Factory) factory);
+      // computeIfAbsent fails with Java 11 on recursive factory
+      Encoder<T> enc = (Encoder<T>) encoders.get(coder);
+      if(enc == null){
+        enc = factory.apply(coder);
+        encoders.put(coder, enc);
+      }
+      return enc;
     }
 
     private <T> TranslationResult<T> getResult(PCollection<T> pCollection) {
