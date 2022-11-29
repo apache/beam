@@ -866,7 +866,10 @@ class DoctestTest(unittest.TestCase):
         },
         skip={
             # error formatting
-            'concat': ['pd.concat([df5, df6], verify_integrity=True)', 'pd.concat([df7, new_row.to_frame().T], ignore_index=True)'],
+            'concat': [
+                'pd.concat([df5, df6], verify_integrity=True)',
+                'pd.concat([df7, new_row.to_frame().T], ignore_index=True)'
+            ],
             # doctest DeprecationWarning
             'melt': ['df'],
             # Order-sensitive re-indexing.

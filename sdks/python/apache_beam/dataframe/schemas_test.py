@@ -119,8 +119,8 @@ INDEX_DF_TESTS = [(
 NOINDEX_DF_TESTS = [(NICE_TYPES_DF, DF_RESULT, BEAM_SCHEMA)]
 
 # Get major, minor, bugfix version
-PD_VERSION = tuple(int(re.match(r"^\d+", "0rc0").group(0))
-                   for n in pd.__version__.split('.'))
+PD_VERSION = tuple(
+    int(re.match(r"^\d+", "0rc0").group(0)) for n in pd.__version__.split('.'))
 
 
 def test_name_func(testcase_func, param_num, params):
