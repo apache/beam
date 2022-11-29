@@ -372,7 +372,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def groupby(self, by, level, axis, as_index, group_keys, **kwargs):
-    """``as_index`` and ``group_keys`` must both be ``True``.
+    """``as_index`` must be ``True``.
 
     Aggregations grouping by a categorical column with ``observed=False`` set
     are not currently parallelizable
@@ -387,7 +387,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
               'groupbycols',
               lambda df: df.groupby(by, axis=axis, group_keys=group_keys, **kwargs), [self._expr],
               requires_partition_by=partitionings.Arbitrary(),
-              preserves_partition_by=partitionings.Arbitrary()))
+              preserves_partition_by=partitionings.Arbitrary()),
+          group_keys=group_keys)
 
     if level is None and by is None:
       raise TypeError("You have to supply one of 'by' and 'level'")
@@ -564,7 +565,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         to_group,
         to_group_with_index,
         grouping_columns=grouping_columns,
-        grouping_indexes=grouping_indexes)
+        grouping_indexes=grouping_indexes,
+        group_keys=group_keys)
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
@@ -4121,6 +4123,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                ungrouped_with_index: expressions.Expression[pd.core.generic.NDFrame], # pylint: disable=line-too-long
                grouping_columns,
                grouping_indexes,
+               group_keys,
                projection=None):
     """This object represents the result of::
 
@@ -4147,6 +4150,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     self._projection = projection
     self._grouping_columns = grouping_columns
     self._grouping_indexes = grouping_indexes
+    self._group_keys = group_keys
     self._kwargs = kwargs
 
     if (self._kwargs.get('dropna', True) is False and
@@ -4168,6 +4172,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._ungrouped_with_index,
         self._grouping_columns,
         self._grouping_indexes,
+        self._group_keys,
         projection=name)
 
   def __getitem__(self, name):
@@ -4182,6 +4187,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._ungrouped_with_index,
         self._grouping_columns,
         self._grouping_indexes,
+        self._group_keys,
         projection=name)
 
   @frame_base.with_docs_from(DataFrameGroupBy)
@@ -4319,7 +4325,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       df = df.reset_index(grouping_columns, drop=True)
 
       gb = df.groupby(level=grouping_indexes or None,
-                      by=grouping_columns or None)
+                      by=grouping_columns or None,
+                      group_keys=self._group_keys)
 
       gb = project(gb)
 
@@ -4385,7 +4392,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     return DeferredDataFrame(
         expressions.ComputedExpression(
             'transform',
-            lambda df: project(df.groupby(level=levels)).transform(
+            lambda df: project(df.groupby(level=levels, group_keys=self._group_keys)).transform(
                 fn_wrapper,
                 *args,
                 **kwargs).droplevel(self._grouping_columns),
@@ -4559,7 +4566,7 @@ def _liftable_agg(meth, postagg_meth=None):
         'pre_combine_' + agg_name,
         lambda df: getattr(
             project(
-                df.groupby(level=list(range(df.index.nlevels)),
+                df.groupby(level=list(range(df.index.nlevels, group_keys=self._group_keys)),
                            **preagg_groupby_kwargs)
             ),
             agg_name)(**kwargs),
@@ -4572,6 +4579,7 @@ def _liftable_agg(meth, postagg_meth=None):
         'post_combine_' + post_agg_name,
         lambda df: getattr(
             df.groupby(level=list(range(df.index.nlevels)),
+                       group_keys=self._group_keys,
                        **groupby_kwargs),
             post_agg_name)(**kwargs),
         [pre_agg],
@@ -4604,6 +4612,7 @@ def _unliftable_agg(meth):
         agg_name,
         lambda df: getattr(project(
             df.groupby(level=list(range(df.index.nlevels)),
+                       group_keys=self._group_keys,
                        **groupby_kwargs),
         ), agg_name)(**kwargs),
         [self._ungrouped],
