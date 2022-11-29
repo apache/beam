@@ -75,8 +75,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     );
   }
 
-  void _onUserProgressChanged() {
-    unawaited(_userProgressCache.updateCompletedUnits());
+  Future<void> _onUserProgressChanged() async {
+    await _userProgressCache.updateCompletedUnits();
   }
 
   void _onAppNotifierChanged() {
@@ -105,7 +105,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  void _setCurrentUnitContent(UnitContentModel? content) {
+  Future<void> _setCurrentUnitContent(UnitContentModel? content) async {
     if (content == _currentUnitContent) {
       return;
     }
@@ -118,30 +118,26 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
     final taskSnippetId = content.taskSnippetId;
     if (taskSnippetId == null) {
-      _emptyPlayground();
+      await _emptyPlayground();
       return;
     }
 
-    unawaited(
-      playgroundController.examplesLoader.load(
-        ExamplesLoadingDescriptor(
-          descriptors: [
-            UserSharedExampleLoadingDescriptor(snippetId: taskSnippetId),
-          ],
-        ),
+    await playgroundController.examplesLoader.load(
+      ExamplesLoadingDescriptor(
+        descriptors: [
+          UserSharedExampleLoadingDescriptor(snippetId: taskSnippetId),
+        ],
       ),
     );
   }
 
   // TODO(alexeyinkin): Hide the entire right pane instead.
-  void _emptyPlayground() {
-    unawaited(
-      playgroundController.examplesLoader.load(
-        ExamplesLoadingDescriptor(
-          descriptors: [
-            EmptyExampleLoadingDescriptor(sdk: contentTreeController.sdk),
-          ],
-        ),
+  Future<void> _emptyPlayground() async {
+    await playgroundController.examplesLoader.load(
+      ExamplesLoadingDescriptor(
+        descriptors: [
+          EmptyExampleLoadingDescriptor(sdk: contentTreeController.sdk),
+        ],
       ),
     );
   }
