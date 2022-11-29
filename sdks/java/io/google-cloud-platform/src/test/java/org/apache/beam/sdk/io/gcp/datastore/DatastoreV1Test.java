@@ -77,6 +77,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
@@ -649,6 +650,45 @@ public class DatastoreV1Test {
         verify(mockDatastore).commit(commitRequest.build());
         start = end;
       }
+    }
+
+    /** Tests {@link DatastoreWriterFn} correctly flushes batch upon receive same entity keys. */
+    @Test
+    public void testDatatoreWriterFnWithDuplicateEntities() throws Exception {
+      List<Mutation> mutations = new ArrayList<>();
+      for (int i : Arrays.asList(0, 1, 0, 2)) {
+        // this will generate entities having key 0, 1, 0, 2 and random values
+        mutations.add(
+            makeUpsert(
+                    Entity.newBuilder()
+                        .setKey(makeKey("key" + i))
+                        .putProperties("value", makeValue(UUID.randomUUID().toString()).build())
+                        .build())
+                .build());
+      }
+
+      DatastoreWriterFn datastoreWriter =
+          new DatastoreWriterFn(
+              StaticValueProvider.of(PROJECT_ID),
+              null,
+              mockDatastoreFactory,
+              new FakeWriteBatcher());
+      DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+      doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+      doFnTester.processBundle(mutations);
+
+      // first invocation has key [0, 1]
+      CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
+      commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+      commitRequest.addAllMutations(mutations.subList(0, 2));
+      verify(mockDatastore, times(1)).commit(commitRequest.build());
+
+      // second invocation has key [0, 2] because the second 0 triggered a flush batch
+      commitRequest = CommitRequest.newBuilder();
+      commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+      commitRequest.addAllMutations(mutations.subList(2, 4));
+      verify(mockDatastore, times(1)).commit(commitRequest.build());
+      verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
     }
 
     /** Tests {@link DatastoreWriterFn} with a failed request which is retried. */
