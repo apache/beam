@@ -712,6 +712,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
         },
         not_implemented_ok={
+            'pandas.core.groupby.groupby.GroupBy.first': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.last': ['*'],
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.rank': ['*'],
