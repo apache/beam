@@ -90,7 +90,8 @@ public class ChangeStreamDao {
     String query = "";
     Statement statement;
     if (this.isPostgres) {
-      query = "SELECT * FROM spanner.read_json_" + changeStreamName + "($1, $2, $3, $4, null)";
+      query =
+          "SELECT * FROM \"spanner\".\"read_json_" + changeStreamName + "\"($1, $2, $3, $4, null)";
       statement =
           Statement.newBuilder(query)
               .bind("p1")
