@@ -65,6 +65,7 @@
 * Local packages can now be used as dependencies in the requirements.txt file, rather
   than requiring them to be passed separately via the `--extra_package` option.
   ([#23684](https://github.com/apache/beam/pull/23684))
+* DataFrame API now supports pandas 1.5 ([#22847](https://github.com/apache/beam/issues/22847)).
 
 ## Breaking Changes
 
