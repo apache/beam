@@ -72,6 +72,7 @@
   (Python) ([#23684](https://github.com/apache/beam/pull/23684)).
 * Pipeline Resource Hints now supported via `--resource_hints` flag (Go) ([#23990](https://github.com/apache/beam/pull/23990)).
 * Make Python SDK containers reusable on portable runners by installing dependencies to temporary venvs ([BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792)).
+* RunInference model handlers now support the specification of a custom inference function in Python ([#22572](https://github.com/apache/beam/issues/22572))
 
 ## Breaking Changes
 
@@ -81,6 +82,8 @@
   dependency of the Java SDK Harness. Some users of a portable runner (such as Dataflow Runner v2)
   may have an undeclared dependency on this package (for example using GCS with
   TextIO) and will now need to declare the dependency.
+* `beam-sdks-java-core` is no longer a dependency of the Java SDK Harness. Users of a portable
+  runner (such as Dataflow Runner v2) will need to provide this package and its dependencies.
 
 ## Deprecations
 
