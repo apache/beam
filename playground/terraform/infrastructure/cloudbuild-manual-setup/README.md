@@ -71,7 +71,7 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
     GKE_NAME="gke-cluster-name" \
     TAG="tag-name" \
     SDK_TAG="2.43.0"
-    
+
     export DOCKER_REPOSITORY_ROOT=\
     "$PLAYGROUND_REGION-docker.pkg.dev/$GOOGLE_PROJECT/playground-repository"
 ```
