@@ -4237,6 +4237,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     project = _maybe_project_func(self._projection)
     grouping_indexes = self._grouping_indexes
     grouping_columns = self._grouping_columns
+    group_keys = self._group_keys
 
     # Unfortunately pandas does not execute func to determine the right proxy.
     # We run user func on a proxy here to detect the return type and generate
@@ -4326,7 +4327,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
       gb = df.groupby(level=grouping_indexes or None,
                       by=grouping_columns or None,
-                      group_keys=self._group_keys)
+                      group_keys=group_keys)
 
       gb = project(gb)
 
@@ -4366,6 +4367,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       fn_wrapper = fn
 
     project = _maybe_project_func(self._projection)
+    group_keys = self._group_keys
 
     # pandas cannot execute fn to determine the right proxy.
     # We run user fn on a proxy here to detect the return type and generate the
@@ -4392,7 +4394,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     return DeferredDataFrame(
         expressions.ComputedExpression(
             'transform',
-            lambda df: project(df.groupby(level=levels, group_keys=self._group_keys)).transform(
+            lambda df: project(df.groupby(level=levels, group_keys=group_keys)).transform(
                 fn_wrapper,
                 *args,
                 **kwargs).droplevel(self._grouping_columns),
