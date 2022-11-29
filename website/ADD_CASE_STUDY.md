@@ -22,6 +22,7 @@ limitations under the License.
 6. Add case study quote card for the [Apache Beam](https://beam.apache.org/) website homepage `Case Studies Powered by Apache Beam` section. See [Add case study card to the Apache Beam website homepage](#Add-case-study-card-to-the-Apache-Beam-website-homepage)
 7. Create pull request to the apache beam repository with your changes
 
+If you have any questions about adding a case study, please send an email to dev@beam.apache.org with subject: [Beam Website] Add New Case Study.
 
 ## Case study md file recommendations
 

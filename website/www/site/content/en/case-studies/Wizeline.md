@@ -1,6 +1,7 @@
 ---
 title: "Wizeline"
 icon: /images/logos/powered-by/Wizeline.png
+hasLink: "https://www.youtube.com/watch?v=xoQRDzqdODk&list=PL4dEBWmGSIU9OkXQU2OAXmITPLhiMSPRp&index=40"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

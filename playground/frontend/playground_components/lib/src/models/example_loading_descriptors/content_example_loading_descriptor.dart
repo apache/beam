@@ -27,15 +27,16 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   /// The name of the example, if any, to show in the dropdown.
   final String? name;
 
-  final Complexity complexity;
+  final Complexity? complexity;
 
   final Sdk sdk;
 
   const ContentExampleLoadingDescriptor({
     required this.content,
-    required this.name,
     required this.sdk,
-    required this.complexity,
+    this.complexity,
+    this.name,
+    super.viewOptions,
   });
 
   static ContentExampleLoadingDescriptor? tryParse(Map eventData) {
@@ -69,7 +70,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     return Sdk.tryParse(map['sdk']);
   }
 
-  static Complexity _parseComplexity(Map map) {
+  static Complexity? _parseComplexity(Map map) {
     final complexityString = map['complexity'];
     return Complexity.fromString(complexityString);
   }
@@ -79,9 +80,9 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   @override
   Map<String, dynamic> toJson() => {
+        'complexity': complexity?.name,
         'content': content,
         'name': name,
         'sdk': sdk.id,
-        'complexity': complexity.name,
       };
 }

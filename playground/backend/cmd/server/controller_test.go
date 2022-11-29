@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -45,6 +46,7 @@ import (
 	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
 	"beam.apache.org/playground/backend/internal/tests/test_data"
 	"beam.apache.org/playground/backend/internal/tests/test_utils"
@@ -94,6 +96,8 @@ func setup() *grpc.Server {
 	if err != nil {
 		panic(err)
 	}
+
+	logger.SetupLogger(ctx, "local", "some_google_project_id")
 
 	// setup cache
 	cacheService = local.New(ctx)
@@ -963,6 +967,70 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 			tt.cleanData()
 		})
 	}
+}
+
+func makeSaveSnippetRequest() *pb.SaveSnippetRequest {
+	return &pb.SaveSnippetRequest{
+		Files: []*pb.SnippetFile{
+			{Name: "main.py", Content: "import sys; sys.exit(0)", IsMain: true},
+		},
+		Sdk:             pb.Sdk_SDK_PYTHON,
+		PipelineOptions: "some pipe opts",
+		PersistenceKey:  "persistent_key_1",
+	}
+}
+
+func TestPlaygroundController_SaveSnippetPersistent(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+	snip := makeSaveSnippetRequest()
+
+	t.Log("SaveSnippet, insert 1st version")
+	resp1, err := client.SaveSnippet(ctx, snip)
+	if err != nil {
+		t.Fatalf("1st SaveSnippet failed: %v", err)
+	}
+
+	t.Log("GetSnippet by 1st snippet_id")
+	content, err := client.GetSnippet(ctx, &pb.GetSnippetRequest{Id: resp1.Id})
+	if err != nil {
+		t.Fatalf("1st GetSnippet() error = %v", err)
+	}
+	assert.Equal(t, content.Files[0].Content, snip.Files[0].Content)
+	assert.Equal(t, content.PipelineOptions, snip.PipelineOptions)
+	assert.Equal(t, content.Sdk, snip.Sdk)
+
+	t.Log("PutSnippet: insert 2nd version")
+	snip.Files[0].Content = "some new content"
+	snip.PipelineOptions = "new pipeline opts"
+	resp2, err := client.SaveSnippet(ctx, snip)
+	if err != nil {
+		t.Fatalf("2nd SaveSnippet failed: %v", err)
+	}
+
+	if resp2.Id == resp1.Id {
+		t.Error("snippet_id is the same")
+	}
+
+	t.Log("GetSnippet 1st version: not found")
+	_, err = client.GetSnippet(ctx, &pb.GetSnippetRequest{Id: resp1.Id})
+	if err == nil {
+		t.Fatal("1st snippet not deleted")
+	}
+
+	t.Log("GetSnippet 2nd version")
+	content, err = client.GetSnippet(ctx, &pb.GetSnippetRequest{Id: resp2.Id})
+	if err != nil {
+		t.Fatalf("get 2nd snippet: %v", err)
+	}
+	assert.Equal(t, content.Files[0].Content, snip.Files[0].Content)
+	assert.Equal(t, content.PipelineOptions, snip.PipelineOptions)
+	assert.Equal(t, content.Sdk, snip.Sdk)
+
+	t.Log("cleanup 2nd version only")
+	test_cleaner.CleanFiles(ctx, t, resp2.Id, 1)
+	test_cleaner.CleanSnippet(ctx, t, resp2.Id)
 }
 
 func TestPlaygroundController_GetPrecompiledObjects(t *testing.T) {

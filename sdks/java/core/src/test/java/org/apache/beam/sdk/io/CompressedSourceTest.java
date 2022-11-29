@@ -806,7 +806,7 @@ public class CompressedSourceTest {
     byte[] input = generateInput(1000);
     File tmpFile = tmpFolder.newFile("test.zst");
     Files.write(input, tmpFile);
-    thrown.expectMessage("Decompression error: Unknown frame descriptor");
+    thrown.expectMessage("Unknown frame descriptor");
     verifyReadContents(input, tmpFile, Compression.ZSTD);
   }
 

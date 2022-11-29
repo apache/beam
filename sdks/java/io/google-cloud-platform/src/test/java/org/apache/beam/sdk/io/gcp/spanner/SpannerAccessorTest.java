@@ -109,7 +109,7 @@ public class SpannerAccessorTest {
             .setProjectId(StaticValueProvider.of("project"))
             .setInstanceId(StaticValueProvider.of("test1"))
             .setDatabaseId(StaticValueProvider.of("test1"))
-            .setDatabaseRole("test-role")
+            .setDatabaseRole(StaticValueProvider.of("test-role"))
             .build();
 
     SpannerAccessor acc1 = SpannerAccessor.getOrCreate(config1);
@@ -130,7 +130,7 @@ public class SpannerAccessorTest {
             .setProjectId(StaticValueProvider.of("project"))
             .setInstanceId(StaticValueProvider.of("test1"))
             .setDatabaseId(StaticValueProvider.of("test1"))
-            .setDatabaseRole("")
+            .setDatabaseRole(StaticValueProvider.of(""))
             .build();
 
     SpannerAccessor acc1 = SpannerAccessor.getOrCreate(config1);

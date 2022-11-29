@@ -15,7 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BASE_IMAGE=apache/beam_java8_sdk:latest
+ARG BEAM_VERSION=2.42.0
+ARG BASE_IMAGE=apache/beam_java8_sdk:${BEAM_VERSION}
 FROM golang:1.18-bullseye AS build
 
 # Setup Go Environment
@@ -37,9 +38,11 @@ RUN go mod download &&\
     go build -o /go/bin/server_java_backend
 
 FROM $BASE_IMAGE
-ARG BEAM_VERSION=2.40.0
+# docker linter we use doesn't allow to have ARG declaration without value although it's a valid syntax
+ARG BEAM_VERSION=2.42.0
 ARG HAMCREST_VERSION=1.3
 ARG JUNIT_VERSION=4.13.2
+ARG GRPC_VERSION=1_48_1
 ARG BEAM_VENDOR_GRPC_VERSION=0.1
 #ENV BEAM_VERSION=${BEAM_VERSION_ARG}
 ENV SERVER_IP=0.0.0.0
@@ -72,8 +75,8 @@ RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERS
 RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_VERSION.jar &&\
     mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
 # Install Beam Vendor gRPC
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-1_26_0/$BEAM_VENDOR_GRPC_VERSION/beam-vendor-grpc-1_26_0-$BEAM_VENDOR_GRPC_VERSION.jar &&\
-    mv beam-vendor-grpc-1_26_0-$BEAM_VENDOR_GRPC_VERSION.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-$GRPC_VERSION/$BEAM_VENDOR_GRPC_VERSION/beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar &&\
+    mv beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\

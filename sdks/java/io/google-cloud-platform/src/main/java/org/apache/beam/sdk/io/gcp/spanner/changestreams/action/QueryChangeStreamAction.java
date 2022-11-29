@@ -33,7 +33,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -73,7 +72,6 @@ public class QueryChangeStreamAction {
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
   private final ChangeStreamMetrics metrics;
-  private final ThroughputEstimator throughputEstimator;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -88,7 +86,6 @@ public class QueryChangeStreamAction {
    * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
    * @param metrics metrics gathering class
-   * @param throughputEstimator an estimator to calculate local throughput.
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -98,8 +95,7 @@ public class QueryChangeStreamAction {
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction,
-      ChangeStreamMetrics metrics,
-      ThroughputEstimator throughputEstimator) {
+      ChangeStreamMetrics metrics) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -108,7 +104,6 @@ public class QueryChangeStreamAction {
     this.heartbeatRecordAction = heartbeatRecordAction;
     this.childPartitionsRecordAction = childPartitionsRecordAction;
     this.metrics = metrics;
-    this.throughputEstimator = throughputEstimator;
   }
 
   /**
@@ -188,8 +183,7 @@ public class QueryChangeStreamAction {
                     (DataChangeRecord) record,
                     tracker,
                     receiver,
-                    watermarkEstimator,
-                    throughputEstimator);
+                    watermarkEstimator);
           } else if (record instanceof HeartbeatRecord) {
             maybeContinuation =
                 heartbeatRecordAction.run(
@@ -199,12 +193,12 @@ public class QueryChangeStreamAction {
                 childPartitionsRecordAction.run(
                     updatedPartition, (ChildPartitionsRecord) record, tracker, watermarkEstimator);
           } else {
-            LOG.error("[" + token + "] Unknown record type " + record.getClass());
+            LOG.error("[{}] Unknown record type {}", token, record.getClass());
             throw new IllegalArgumentException("Unknown record type " + record.getClass());
           }
 
           if (maybeContinuation.isPresent()) {
-            LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
+            LOG.debug("[{}] Continuation present, returning {}", token, maybeContinuation);
             bundleFinalizer.afterBundleCommit(
                 Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
                 updateWatermarkCallback(token, watermarkEstimator));
@@ -225,24 +219,21 @@ public class QueryChangeStreamAction {
       */
       if (isTimestampOutOfRange(e)) {
         LOG.debug(
-            "["
-                + token
-                + "] query change stream is out of range for "
-                + startTimestamp
-                + " to "
-                + endTimestamp
-                + ", finishing stream");
+            "[{}] query change stream is out of range for {} to {}, finishing stream",
+            token,
+            startTimestamp,
+            endTimestamp);
       } else {
         throw e;
       }
     }
 
-    LOG.debug("[" + token + "] change stream completed successfully");
+    LOG.debug("[{}] change stream completed successfully", token);
     if (tracker.tryClaim(endTimestamp)) {
-      LOG.debug("[" + token + "] Finishing partition");
+      LOG.debug("[{}] Finishing partition", token);
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
-      LOG.info("[" + token + "] Partition finished");
+      LOG.info("[{}] Partition finished", token);
     }
     return ProcessContinuation.stop();
   }
@@ -251,15 +242,15 @@ public class QueryChangeStreamAction {
       String token, WatermarkEstimator<Instant> watermarkEstimator) {
     return () -> {
       final Instant watermark = watermarkEstimator.currentWatermark();
-      LOG.debug("[" + token + "] Updating current watermark to " + watermark);
+      LOG.debug("[{}] Updating current watermark to {}", token, watermark);
       try {
         partitionMetadataDao.updateWatermark(
             token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
-          LOG.debug("[" + token + "] Unable to update the current watermark, partition NOT FOUND");
+          LOG.debug("[{}] Unable to update the current watermark, partition NOT FOUND", token);
         } else {
-          LOG.error("[" + token + "] Error updating the current watermark: " + e.getMessage(), e);
+          LOG.error("[{}] Error updating the current watermark: {}", token, e.getMessage(), e);
         }
       }
     };

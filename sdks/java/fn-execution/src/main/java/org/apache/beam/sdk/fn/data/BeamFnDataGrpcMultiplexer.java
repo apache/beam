@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.fn.data;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -130,7 +132,8 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private final class InboundObserver implements StreamObserver<BeamFnApi.Elements> {
     @Override
     public void onNext(BeamFnApi.Elements value) {
-      for (BeamFnApi.Elements.Data data : value.getDataList()) {
+      for (BeamFnApi.Elements.Data maybeData : value.getDataList()) {
+        BeamFnApi.Elements.Data data = checkArgumentNotNull(maybeData);
         try {
           LogicalEndpoint key =
               LogicalEndpoint.data(data.getInstructionId(), data.getTransformId());
