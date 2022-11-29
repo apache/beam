@@ -18,19 +18,18 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-part 'user_progress.g.dart';
+part 'unit_progress.g.dart';
 
 @JsonSerializable(createToJson: false)
-class UserProgressModel {
-  @JsonKey(name: 'id')
-  final String unitId;
+class UnitProgressModel {
+  final String id;
   final bool isCompleted;
 
-  const UserProgressModel({
-    required this.unitId,
+  const UnitProgressModel({
+    required this.id,
     required this.isCompleted,
   });
 
-  factory UserProgressModel.fromJson(Map<String, dynamic> json) =>
-      _$UserProgressModelFromJson(json);
+  factory UnitProgressModel.fromJson(Map<String, dynamic> json) =>
+      _$UnitProgressModelFromJson(json);
 }

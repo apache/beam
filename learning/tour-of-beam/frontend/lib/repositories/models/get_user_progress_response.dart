@@ -18,13 +18,13 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-import '../../models/user_progress.dart';
+import '../../models/unit_progress.dart';
 
 part 'get_user_progress_response.g.dart';
 
 @JsonSerializable(createToJson: false)
 class GetUserProgressResponse {
-  final List<UserProgressModel> units;
+  final List<UnitProgressModel> units;
 
   const GetUserProgressResponse({required this.units});
 

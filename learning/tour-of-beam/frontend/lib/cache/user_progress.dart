@@ -22,7 +22,7 @@ import 'package:get_it/get_it.dart';
 
 import '../auth/notifier.dart';
 import '../enums/unit_completion.dart';
-import '../models/user_progress.dart';
+import '../repositories/models/get_user_progress_response.dart';
 import '../state.dart';
 import 'cache.dart';
 
@@ -31,7 +31,7 @@ class UserProgressCache extends Cache {
 
   final _completedUnitIds = <String>{};
   final _updatingUnitIds = <String>{};
-  Future<List<UserProgressModel>?>? _future;
+  Future<GetUserProgressResponse?>? _future;
 
   Set<String> getUpdatingUnitIds() => _updatingUnitIds;
 
@@ -91,9 +91,9 @@ class UserProgressCache extends Cache {
 
     _completedUnitIds.clear();
     if (result != null) {
-      for (final unitProgress in result) {
+      for (final unitProgress in result.units) {
         if (unitProgress.isCompleted) {
-          _completedUnitIds.add(unitProgress.unitId);
+          _completedUnitIds.add(unitProgress.id);
         }
       }
     }
