@@ -41,11 +41,11 @@ jobs:
         uses: actions/checkout@v3
       - name: Tag for Go SDK
         run: |
-          git tag -s sdks/${{ github.event.inputs.VERSION_TAG }} ${{ github.event.inputs.RC_TAG }}
+          git tag -a sdks/${{ github.event.inputs.VERSION_TAG }} -m ${{ github.event.inputs.RC_TAG }}
           git push https://github.com/apache/beam sdks/${{ github.event.inputs.VERSION_TAG }}
       - name: Tag for repo root
         run: |
-          git tag -s ${{ github.event.inputs.VERSION_TAG }} ${{ github.event.inputs.RC_TAG }}
+          git tag -a ${{ github.event.inputs.VERSION_TAG }} -m ${{ github.event.inputs.RC_TAG }}
           git push https://github.com/apache/beam ${{ github.event.inputs.VERSION_TAG }}
 
 
