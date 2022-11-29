@@ -4606,7 +4606,6 @@ def _unliftable_agg(meth):
 
     to_group = self._ungrouped.proxy().index
     group_keys = self._group_keys
-    raise Exception(str(self))
     is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
                                   for i in self._grouping_indexes)
 
