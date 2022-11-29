@@ -41,17 +41,20 @@ startup, so the cost is amortized across the pipeline.
 These metrics are published to InfluxDB and BigQuery.
 
 <h3>Pytorch Image Classification Tests</h3>
-* [Pytorch Image Classification with Resnet 101.](https://github.com/apache/beam/blob/c3bb33aafbcda0c13ec1ee5af12a563bc3830184/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L31)
+
+* Pytorch Image Classification with Resnet 101.
   * machine_type: n1-standard-2
   * num_workers: 75
   * autoscaling_algorithm: NONE
   * disk_size_gb: 50
-* [Pytorch Image Classification with Resnet 152.](https://github.com/apache/beam/blob/c3bb33aafbcda0c13ec1ee5af12a563bc3830184/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#LL59C27-L59C74)
+
+* Pytorch Image Classification with Resnet 152.
   * machine_type: n1-standard-2
   * num_workers: 75
   * autoscaling_algorithm: NONE
   * disk_size_gb: 50
-* [Pytorch Imagenet Classification with Resnet 152 with Tesla T4 GPU.](https://github.com/apache/beam/blob/7764c769472644ec2239da7df1fa4c0beaa67dfa/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L148)
+
+* Pytorch Imagenet Classification with Resnet 152 with Tesla T4 GPU.
   * machine_type: 
     * CPU: n1-standard-2
     * GPU: NVIDIA Tesla T4
@@ -80,12 +83,14 @@ startup, so the cost is amortized across the pipeline.
 These metrics are published to InfluxDB and BigQuery.
 
 <h3>Pytorch Language Modeling Tests</h3>
-* [Pytorch Langauge Modeling using Hugging Face bert-base-uncased model.](https://github.com/apache/beam/blob/c3bb33aafbcda0c13ec1ee5af12a563bc3830184/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L88)
+
+* Pytorch Langauge Modeling using Hugging Face bert-base-uncased model.
   * machine_type: n1-standard-2
   * num_workers: 250
   * autoscaling_algorithm: NONE
   * disk_size_gb: 50
-* [Pytorch Langauge Modeling using Hugging Face bert-large-uncased model.](https://github.com/apache/beam/blob/c3bb33aafbcda0c13ec1ee5af12a563bc3830184/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L116)
+
+* Pytorch Langauge Modeling using Hugging Face bert-large-uncased model.
   * machine_type: n1-standard-2
   * num_workers: 250
   * autoscaling_algorithm: NONE
@@ -94,3 +99,5 @@ These metrics are published to InfluxDB and BigQuery.
 Approximate size of the models used in the tests
 * bert-base-uncased: 417.7 MB
 * bert-large-uncased: 1.2 GB
+
+All the performance tests are defined at [job_InferenceBenchmarkTests_Python.groovy .](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy)
