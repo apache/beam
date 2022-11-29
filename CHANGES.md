@@ -84,6 +84,8 @@
   TextIO) and will now need to declare the dependency.
 * `beam-sdks-java-core` is no longer a dependency of the Java SDK Harness. Users of a portable
   runner (such as Dataflow Runner v2) will need to provide this package and its dependencies.
+* Slices now use the Beam Iterable Coder. This enables cross lang use, but breaks pipleine updates
+  if a Slice type is used as a PCollection element or State API element. (Go)[#24339](https://github.com/apache/beam/issues/24339)
 
 ## Deprecations
 
