@@ -85,6 +85,10 @@ public final class TestProperties {
     return getProperty(SPEC_PATH_KEY, Type.PROPERTY, false);
   }
 
+  public static boolean hasStageBucket() {
+    return getProperty(STAGE_BUCKET, null, Type.PROPERTY) != null;
+  }
+
   public static String stageBucket() {
     return getProperty(STAGE_BUCKET, Type.PROPERTY, false);
   }

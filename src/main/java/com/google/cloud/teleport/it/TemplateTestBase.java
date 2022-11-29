@@ -95,23 +95,21 @@ public abstract class TemplateTestBase {
       credentials = buildCredentialsFromEnv();
     }
 
-    // Use bucketName unless only artifactBucket is provided
-    String bucketName = TestProperties.stageBucket();
-    if (bucketName == null || bucketName.isEmpty()) {
-      bucketName = TestProperties.artifactBucket();
-    }
-
     // Prefer artifactBucket, but use the staging one if none given
     if (TestProperties.hasArtifactBucket()) {
       artifactBucketName = TestProperties.artifactBucket();
-    } else {
-      artifactBucketName = bucketName;
+    } else if (TestProperties.hasStageBucket()) {
+      artifactBucketName = TestProperties.stageBucket();
     }
-
-    Storage gcsClient = createGcsClient(credentials);
-    artifactClient =
-        GcsArtifactClient.builder(gcsClient, artifactBucketName, getClass().getSimpleName())
-            .build();
+    if (artifactBucketName != null) {
+      Storage gcsClient = createGcsClient(credentials);
+      artifactClient =
+          GcsArtifactClient.builder(gcsClient, artifactBucketName, getClass().getSimpleName())
+              .build();
+    } else {
+      LOG.warn(
+          "Both -DartifactBucket and -DstageBucket were not given. ArtifactClient will not be created automatically.");
+    }
 
     credentialsProvider = FixedCredentialsProvider.create(credentials);
 
@@ -130,6 +128,20 @@ public abstract class TemplateTestBase {
         throw new IllegalArgumentException(
             "To use tests staging templates, please run in the Maven module directory containing"
                 + " the template.");
+      }
+
+      // Use bucketName unless only artifactBucket is provided
+      String bucketName;
+      if (TestProperties.hasStageBucket()) {
+        bucketName = TestProperties.stageBucket();
+      } else if (TestProperties.hasArtifactBucket()) {
+        bucketName = TestProperties.artifactBucket();
+        LOG.warn(
+            "-DstageBucket was not specified, using -DartifactBucket ({}) for stage step",
+            bucketName);
+      } else {
+        throw new IllegalArgumentException(
+            "-DstageBucket was not specified, so Template can not be staged. Either give a -DspecPath or provide a proper -DstageBucket for automatic staging.");
       }
 
       String[] mavenCmd = buildMavenStageCommand(prefix, pom, bucketName);
@@ -164,13 +176,17 @@ public abstract class TemplateTestBase {
     String moduleBuild;
 
     // Classic templates run on parent pom and -pl v1
-    if (pomPath.endsWith("/v1/pom.xml")) {
+    if (pomPath.endsWith("v1/pom.xml")) {
       pomPath = new File(pom.getParentFile().getParentFile(), "pom.xml").getAbsolutePath();
       moduleBuild = "v1";
-    } else {
+    } else if (pomPath.contains("v2/")) {
       // Flex templates run on parent pom and -pl {path-to-folder}
       moduleBuild = pomPath.substring(pomPath.indexOf("v2/")).replace("/pom.xml", "");
       pomPath = pomPath.replaceAll("/v2/.*", "/pom.xml");
+    } else {
+      LOG.warn(
+          "Specific module POM was not found, so scanning all modules... Stage step may take a little longer.");
+      moduleBuild = ".";
     }
 
     return new String[] {
