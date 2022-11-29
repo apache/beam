@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License
 
-""""A pipeline that uses RunInference to perform Translation
-with T5 language model.
+""""A pipeline that uses RunInference to perform translation
+with a T5 language model.
 
 This pipeline takes a list of english sentences and then uses
 the T5ForConditionalGeneration from Hugging Face to translate the
@@ -43,13 +43,14 @@ class Preprocess(beam.DoFn):
   def process(self, element):
     """
         Process the raw text input to a format suitable for
-        T5ForConditionalGeneration Model Inference
+        T5ForConditionalGeneration model inference
 
         Args:
-          element: A Pcollection
+          element: A string of text
 
         Returns:
-          The input_ids are being returned.
+          A tokenized example that can be read by the
+          T5ForConditionalGeneration
         """
     input_ids = self._tokenizer(
         element, return_tensors="pt", padding="max_length",
@@ -97,7 +98,7 @@ def parse_args(argv):
 
 def run():
   """
-    Runs the interjector pipeline which translates english sentences
+    Runs the interjector pipeline which translates English sentences
     into german using the RunInference API. """
 
   known_args, pipeline_args = parse_args(sys.argv)
