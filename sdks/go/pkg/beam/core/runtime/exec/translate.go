@@ -120,8 +120,8 @@ func mayFixDataSourceCoder(u *DataSource) {
 		out = mp.Out[0]
 	}
 
-	// Expand, *Combine, MergeAccumulators, ReshuffleOutput nodes always have CoGBK behavior.
 	switch n := out.(type) {
+	// These nodes always expect CoGBK behavior.
 	case *Expand, *MergeAccumulators, *ReshuffleOutput, *Combine:
 		u.Coder = convertToCoGBK(u.Coder)
 		return
