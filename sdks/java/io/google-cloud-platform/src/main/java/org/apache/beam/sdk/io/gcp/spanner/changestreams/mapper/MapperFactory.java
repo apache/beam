@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
+import com.google.cloud.spanner.Dialect;
 import java.io.Serializable;
 
 /**
@@ -32,10 +33,10 @@ public class MapperFactory implements Serializable {
 
   private transient ChangeStreamRecordMapper changeStreamRecordMapperInstance;
   private transient PartitionMetadataMapper partitionMetadataMapperInstance;
-  private final boolean isPostgres;
+  private final Dialect spannerChangeStreamDatabaseDialect;
 
-  public MapperFactory(boolean isPostgres) {
-    this.isPostgres = isPostgres;
+  public MapperFactory(Dialect spannerChangeStreamDatabaseDialect) {
+    this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
   }
 
   /**
@@ -49,7 +50,7 @@ public class MapperFactory implements Serializable {
    */
   public synchronized ChangeStreamRecordMapper changeStreamRecordMapper() {
     if (changeStreamRecordMapperInstance == null) {
-      changeStreamRecordMapperInstance = new ChangeStreamRecordMapper(this.isPostgres);
+      changeStreamRecordMapperInstance = new ChangeStreamRecordMapper(this.spannerChangeStreamDatabaseDialect);
     }
     return changeStreamRecordMapperInstance;
   }

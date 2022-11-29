@@ -27,7 +27,6 @@ public class NameGenerator {
 
   private static final String PARTITION_METADATA_TABLE_NAME_FORMAT = "Metadata_%s_%s";
   private static final int MAX_POSTGRES_TABLE_NAME_LENGTH = 63;
-  private static final int MAX_TABLE_NAME_LENGTH = 128;
 
   /**
    * Generates an unique name for the partition metadata table in the form of {@code
@@ -36,7 +35,7 @@ public class NameGenerator {
    * @param databaseId The database id where the table will be created
    * @return the unique generated name of the partition metadata table
    */
-  public static String generatePartitionMetadataTableName(String databaseId, boolean isPostgres) {
+  public static String generatePartitionMetadataTableName(String databaseId) {
     // Maximum Spanner table name length is 128 characters.
     // There are 11 characters in the name format.
     // Maximum Spanner database ID length is 30 characters.
@@ -44,13 +43,12 @@ public class NameGenerator {
     // For GoogleSQL, 128 - (11 + 30 + 36) = 51 characters short of the limit
     // For Postgres, since the limit is 64, we may need to truncate the table name depending
     // on the database length.
-    int maxTableNameLength = isPostgres ? MAX_POSTGRES_TABLE_NAME_LENGTH : MAX_TABLE_NAME_LENGTH;
     String fullString =
         String.format(PARTITION_METADATA_TABLE_NAME_FORMAT, databaseId, UUID.randomUUID())
             .replaceAll("-", "_");
-    if (fullString.length() < maxTableNameLength) {
+    if (fullString.length() < MAX_POSTGRES_TABLE_NAME_LENGTH) {
       return fullString;
     }
-    return fullString.substring(0, maxTableNameLength);
+    return fullString.substring(0, MAX_POSTGRES_TABLE_NAME_LENGTH);
   }
 }

@@ -27,6 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Struct;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,8 +59,8 @@ public class ChangeStreamRecordMapperTest {
 
   @Before
   public void setUp() {
-    mapper = new ChangeStreamRecordMapper(/*isPostgres=*/ false);
-    mapperPostgres = new ChangeStreamRecordMapper(/*isPostgres=*/ true);
+    mapper = new ChangeStreamRecordMapper(Dialect.GOOGLE_STANDARD_SQL);
+    mapperPostgres = new ChangeStreamRecordMapper(Dialect.POSTGRESQL);
     partition =
         PartitionMetadata.newBuilder()
             .setPartitionToken("partitionToken")

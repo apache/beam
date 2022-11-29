@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
@@ -68,10 +69,10 @@ public class PartitionMetadataAdminDaoTest {
     databaseAdminClient = mock(DatabaseAdminClient.class);
     partitionMetadataAdminDao =
         new PartitionMetadataAdminDao(
-            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, /*isPostgres=*/ false);
+            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, Dialect.GOOGLE_STANDARD_SQL);
     partitionMetadataAdminDaoPostgres =
         new PartitionMetadataAdminDao(
-            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, /*isPostgres=*/ true);
+            databaseAdminClient, INSTANCE_ID, DATABASE_ID, TABLE_NAME, Dialect.POSTGRESQL);
     op = (OperationFuture<Void, UpdateDatabaseDdlMetadata>) mock(OperationFuture.class);
     statements = ArgumentCaptor.forClass(Iterable.class);
     when(databaseAdminClient.updateDatabaseDdl(

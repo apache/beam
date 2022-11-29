@@ -23,39 +23,21 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 public class NameGeneratorTest {
-
-  private static final int MAXIMUM_TABLE_NAME_LENGTH = 128;
   private static final int MAXIMUM_POSTGRES_TABLE_NAME_LENGTH = 63;
 
   @Test
   public void testGenerateMetadataTableNameRemovesHyphens() {
     final String tableName =
         NameGenerator.generatePartitionMetadataTableName(
-            "my-database-id-12345", /*isPostgres=*/ false);
+            "my-database-id-12345");
     assertFalse(tableName.contains("-"));
-  }
-
-  @Test
-  public void testGenerateMetadataTableNameIsShorterThan128Characters() {
-    final String tableName =
-        NameGenerator.generatePartitionMetadataTableName(
-            "my-database-id1-maximum-length", /*isPostgres=*/ false);
-    assertTrue(tableName.length() < MAXIMUM_TABLE_NAME_LENGTH);
   }
 
   @Test
   public void testGenerateMetadataTableNameIsShorterThan64Characters() {
     final String tableName =
         NameGenerator.generatePartitionMetadataTableName(
-            "my-database-id1-maximum-length", /*isPostgres=*/ true);
+            "my-database-id1-maximum-length");
     assertTrue(tableName.length() < MAXIMUM_POSTGRES_TABLE_NAME_LENGTH);
-  }
-
-  @Test
-  public void testGenerateMetadataTableNameRemovesHyphensPostgres() {
-    final String tableName =
-        NameGenerator.generatePartitionMetadataTableName(
-            "my-database-id-12345", /*isPostgres=*/ true);
-    assertFalse(tableName.contains("-"));
   }
 }

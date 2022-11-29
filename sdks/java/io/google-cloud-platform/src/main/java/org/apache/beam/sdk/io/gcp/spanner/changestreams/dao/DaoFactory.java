@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
 import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Options.RpcPriority;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerAccessor;
@@ -46,8 +47,8 @@ public class DaoFactory implements Serializable {
   private final String partitionMetadataTableName;
   private final RpcPriority rpcPriority;
   private final String jobName;
-  private final boolean isSpannerConfigPostgres;
-  private final boolean isMetadataSpannerConfigPostgres;
+  private final Dialect spannerChangeStreamDatabaseDialect;
+  private final Dialect metadataDatabaseDialect;
 
   /**
    * Constructs a {@link DaoFactory} with the configuration to be used for the underlying instances.
@@ -66,8 +67,8 @@ public class DaoFactory implements Serializable {
       String partitionMetadataTableName,
       RpcPriority rpcPriority,
       String jobName,
-      boolean isSpannerConfigPostgres,
-      boolean isMetadataSpannerConfigPostgres) {
+      Dialect spannerChangeStreamDatabaseDialect,
+      Dialect metadataDatabaseDialect) {
     if (metadataSpannerConfig.getInstanceId() == null) {
       throw new IllegalArgumentException("Metadata instance can not be null");
     }
@@ -80,8 +81,8 @@ public class DaoFactory implements Serializable {
     this.partitionMetadataTableName = partitionMetadataTableName;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
-    this.isSpannerConfigPostgres = isSpannerConfigPostgres;
-    this.isMetadataSpannerConfigPostgres = isMetadataSpannerConfigPostgres;
+    this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
+    this.metadataDatabaseDialect = metadataDatabaseDialect;
   }
 
   /**
@@ -102,7 +103,7 @@ public class DaoFactory implements Serializable {
               metadataSpannerConfig.getInstanceId().get(),
               metadataSpannerConfig.getDatabaseId().get(),
               partitionMetadataTableName,
-              this.isMetadataSpannerConfigPostgres);
+              this.metadataDatabaseDialect);
     }
     return partitionMetadataAdminDao;
   }
@@ -121,7 +122,7 @@ public class DaoFactory implements Serializable {
           new PartitionMetadataDao(
               this.partitionMetadataTableName,
               spannerAccessor.getDatabaseClient(),
-              this.isMetadataSpannerConfigPostgres);
+              this.metadataDatabaseDialect);
     }
     return partitionMetadataDaoInstance;
   }
@@ -142,7 +143,7 @@ public class DaoFactory implements Serializable {
               spannerAccessor.getDatabaseClient(),
               rpcPriority,
               jobName,
-              this.isSpannerConfigPostgres);
+              this.spannerChangeStreamDatabaseDialect);
     }
     return changeStreamDaoInstance;
   }

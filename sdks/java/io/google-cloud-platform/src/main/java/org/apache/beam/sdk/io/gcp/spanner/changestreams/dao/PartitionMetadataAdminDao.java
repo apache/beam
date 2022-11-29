@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
@@ -84,7 +85,7 @@ public class PartitionMetadataAdminDao {
   private final String instanceId;
   private final String databaseId;
   private final String tableName;
-  private final boolean isPostgres;
+  private final Dialect metadataDatabaseDialect;
 
   /**
    * Constructs the partition metadata admin dao.
@@ -100,12 +101,12 @@ public class PartitionMetadataAdminDao {
       String instanceId,
       String databaseId,
       String tableName,
-      boolean isPostgres) {
+      Dialect metadataDatabaseDialect) {
     this.databaseAdminClient = databaseAdminClient;
     this.instanceId = instanceId;
     this.databaseId = databaseId;
     this.tableName = tableName;
-    this.isPostgres = isPostgres;
+    this.metadataDatabaseDialect = metadataDatabaseDialect;
   }
 
   /**
@@ -117,7 +118,7 @@ public class PartitionMetadataAdminDao {
    */
   public void createPartitionMetadataTable() {
     String metadataCreateStmt = "";
-    if (this.isPostgres) {
+    if (this.isPostgres()) {
       // Literals need be added around literals to preserve casing.
       metadataCreateStmt =
           "CREATE TABLE \""
@@ -212,7 +213,7 @@ public class PartitionMetadataAdminDao {
    */
   public void deletePartitionMetadataTable() {
     String metadataDropStmt;
-    if (this.isPostgres) {
+    if (this.isPostgres()) {
       metadataDropStmt = "DROP TABLE \"" + tableName + "\"";
     } else {
       metadataDropStmt = "DROP TABLE " + tableName;
@@ -235,5 +236,9 @@ public class PartitionMetadataAdminDao {
       // and the thread is interrupted, either before or during the activity.
       throw SpannerExceptionFactory.propagateInterrupt(e);
     }
+  }
+
+  private boolean isPostgres() {
+    return this.metadataDatabaseDialect == Dialect.POSTGRESQL;
   }
 }

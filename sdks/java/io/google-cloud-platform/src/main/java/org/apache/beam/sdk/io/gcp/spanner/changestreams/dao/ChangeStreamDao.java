@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ResultSet;
@@ -35,7 +36,7 @@ public class ChangeStreamDao {
   private final DatabaseClient databaseClient;
   private final RpcPriority rpcPriority;
   private final String jobName;
-  private final boolean isPostgres;
+  private final Dialect spannerChangeStreamDatabaseDialect;
 
   /**
    * Constructs a change stream dao. All the queries performed by this class will be for the given
@@ -52,12 +53,12 @@ public class ChangeStreamDao {
       DatabaseClient databaseClient,
       RpcPriority rpcPriority,
       String jobName,
-      boolean isPostgres) {
+      Dialect spannerChangeStreamDatabaseDialect) {
     this.changeStreamName = changeStreamName;
     this.databaseClient = databaseClient;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
-    this.isPostgres = isPostgres;
+    this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
   }
 
   /**
@@ -89,7 +90,7 @@ public class ChangeStreamDao {
 
     String query = "";
     Statement statement;
-    if (this.isPostgres) {
+    if (this.spannerChangeStreamDatabaseDialect == Dialect.POSTGRESQL) {
       query =
           "SELECT * FROM \"spanner\".\"read_json_" + changeStreamName + "\"($1, $2, $3, $4, null)";
       statement =

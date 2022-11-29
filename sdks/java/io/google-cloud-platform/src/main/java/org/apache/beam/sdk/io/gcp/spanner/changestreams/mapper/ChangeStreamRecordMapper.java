@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Struct;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Value;
@@ -89,10 +90,10 @@ public class ChangeStreamRecordMapper {
   private static final String CHILD_PARTITIONS_COLUMN = "child_partitions";
   private static final String PARENT_PARTITION_TOKENS_COLUMN = "parent_partition_tokens";
   private static final String TOKEN_COLUMN = "token";
-  private final boolean isPostgres;
+  private final Dialect spannerChangeStreamDatabaseDialect;
 
-  ChangeStreamRecordMapper(boolean isPostgres) {
-    this.isPostgres = isPostgres;
+  ChangeStreamRecordMapper(Dialect spannerChangeStreamDatabaseDialect) {
+    this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
   }
 
   /**
@@ -210,15 +211,15 @@ public class ChangeStreamRecordMapper {
    */
   public List<ChangeStreamRecord> toChangeStreamRecords(
       PartitionMetadata partition,
-      ChangeStreamResultSet row,
+      ChangeStreamResultSet resultSet,
       ChangeStreamResultSetMetadata resultSetMetadata) {
-    if (this.isPostgres) {
+    if (this.spannerChangeStreamDatabaseDialect == Dialect.POSTGRESQL) {
       // In PostgresQL, change stream records are returned as JsonB.
       return Collections.singletonList(
-          toChangeStreamRecordJson(partition, row.getPgJsonb(0), resultSetMetadata));
+          toChangeStreamRecordJson(partition, resultSet.getPgJsonb(0), resultSetMetadata));
     }
     // In GoogleSQL, change stream records are returned as an array of structs.
-    return row.getCurrentRowAsStruct().getStructList(0).stream()
+    return resultSet.getCurrentRowAsStruct().getStructList(0).stream()
         .flatMap(struct -> toChangeStreamRecord(partition, struct, resultSetMetadata))
         .collect(Collectors.toList());
   }

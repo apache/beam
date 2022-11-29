@@ -31,6 +31,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
@@ -53,7 +54,7 @@ public class PartitionMetadataDao {
 
   private final String metadataTableName;
   private final DatabaseClient databaseClient;
-  private final boolean isPostgres;
+  private final Dialect metadataDatabaseDialect;
 
   /**
    * Constructs a partition metadata dao object given the generated name of the tables.
@@ -62,10 +63,10 @@ public class PartitionMetadataDao {
    * @param databaseClient the {@link DatabaseClient} to perform queries
    */
   PartitionMetadataDao(
-      String metadataTableName, DatabaseClient databaseClient, boolean isPostgres) {
+      String metadataTableName, DatabaseClient databaseClient, Dialect metadataDatabaseDialect) {
     this.metadataTableName = metadataTableName;
     this.databaseClient = databaseClient;
-    this.isPostgres = isPostgres;
+    this.metadataDatabaseDialect = metadataDatabaseDialect;
   }
 
   /**
@@ -98,7 +99,7 @@ public class PartitionMetadataDao {
    */
   public @Nullable Struct getPartition(String partitionToken) {
     Statement statement;
-    if (this.isPostgres) {
+    if (this.isPostgres()) {
       statement =
           Statement.newBuilder(
                   "SELECT * FROM \""
@@ -137,7 +138,7 @@ public class PartitionMetadataDao {
    */
   public @Nullable Timestamp getUnfinishedMinWatermark() {
     Statement statement;
-    if (this.isPostgres) {
+    if (this.isPostgres()) {
       statement =
           Statement.newBuilder(
                   "SELECT \""
@@ -186,7 +187,7 @@ public class PartitionMetadataDao {
    */
   public ResultSet getAllPartitionsCreatedAfter(Timestamp timestamp) {
     Statement statement;
-    if (this.isPostgres) {
+    if (this.isPostgres()) {
       statement =
           Statement.newBuilder(
                   "SELECT * FROM \""
@@ -230,7 +231,7 @@ public class PartitionMetadataDao {
    */
   public long countPartitionsCreatedAfter(Timestamp timestamp) {
     Statement statement;
-    if (this.isPostgres) {
+    if (this.isPostgres()) {
       statement =
           Statement.newBuilder(
                   "SELECT COUNT(*) as count FROM \""
@@ -261,6 +262,10 @@ public class PartitionMetadataDao {
         return 0;
       }
     }
+  }
+
+  private boolean isPostgres() {
+    return this.metadataDatabaseDialect == Dialect.POSTGRESQL;
   }
 
   /**
@@ -337,7 +342,7 @@ public class PartitionMetadataDao {
         readWriteTransaction.run(
             transaction -> {
               final InTransactionContext transactionContext =
-                  new InTransactionContext(metadataTableName, transaction, this.isPostgres);
+                  new InTransactionContext(metadataTableName, transaction, this.metadataDatabaseDialect);
               return callable.apply(transactionContext);
             });
     return new TransactionResult<>(result, readWriteTransaction.getCommitTimestamp());
@@ -349,20 +354,21 @@ public class PartitionMetadataDao {
     private final String metadataTableName;
     private final TransactionContext transaction;
     private final Map<State, String> stateToTimestampColumn;
-    private final boolean isPostgres;
+    private final Dialect metadataDatabaseDialect;
 
     /**
      * Constructs a context to execute a user defined function transactionally.
      *
      * @param metadataTableName the name of the partition metadata table
      * @param transaction the underlying client library transaction to be executed
+     * @param metadataDatabaseDialect the dialect of the database.
      */
     public InTransactionContext(
-        String metadataTableName, TransactionContext transaction, boolean isPostgres) {
+        String metadataTableName, TransactionContext transaction, Dialect metadataDatabaseDialect) {
       this.metadataTableName = metadataTableName;
       this.transaction = transaction;
       this.stateToTimestampColumn = new HashMap<>();
-      this.isPostgres = isPostgres;
+      this.metadataDatabaseDialect = metadataDatabaseDialect;
       stateToTimestampColumn.put(State.CREATED, COLUMN_CREATED_AT);
       stateToTimestampColumn.put(State.SCHEDULED, COLUMN_SCHEDULED_AT);
       stateToTimestampColumn.put(State.RUNNING, COLUMN_RUNNING_AT);
@@ -436,7 +442,7 @@ public class PartitionMetadataDao {
      */
     public @Nullable Struct getPartition(String partitionToken) {
       Statement statement;
-      if (this.isPostgres) {
+      if (this.metadataDatabaseDialect == Dialect.POSTGRESQL) {
         statement =
             Statement.newBuilder(
                     "SELECT * FROM \""

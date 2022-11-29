@@ -42,7 +42,6 @@ public class IntegrationTestEnv extends ExternalResource {
 
   private static final Logger LOG = LoggerFactory.getLogger(IntegrationTestEnv.class);
   private static final int TIMEOUT_MINUTES = 10;
-  private static final int MAX_TABLE_NAME_LENGTH = 128;
   private static final int MAX_POSTGRES_TABLE_NAME_LENGTH = 63;
   private static final int MAX_CHANGE_STREAM_NAME_LENGTH = 30;
   private static final int MAX_DATABASE_NAME_LENGTH = 30;
@@ -269,8 +268,7 @@ public class IntegrationTestEnv extends ExternalResource {
   }
 
   private String generateTableName(String prefix) {
-    int maxTableNameLength =
-        this.isPostgres ? MAX_POSTGRES_TABLE_NAME_LENGTH : MAX_TABLE_NAME_LENGTH;
+    int maxTableNameLength = MAX_POSTGRES_TABLE_NAME_LENGTH;
     LOG.info("Max table length: " + maxTableNameLength);
     return prefix
         + "_"

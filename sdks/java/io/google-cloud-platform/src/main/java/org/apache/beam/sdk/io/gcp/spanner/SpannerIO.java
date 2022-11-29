@@ -1600,7 +1600,11 @@ public class SpannerIO {
               getMetadataInstance(), changeStreamDatabaseId.getInstanceId().getInstance());
       final String partitionMetadataDatabaseId =
           MoreObjects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
-
+      final DatabaseId fullPartitionMetadataDatabaseId =
+          DatabaseId.of(
+              getSpannerConfig().getProjectId().get(),
+              partitionMetadataInstanceId,
+              partitionMetadataDatabaseId);
       SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
       // Set default retryable errors for ReadChangeStream
       if (changeStreamSpannerConfig.getRetryableCodes() == null) {
@@ -1627,15 +1631,14 @@ public class SpannerIO {
               .setInstanceId(StaticValueProvider.of(partitionMetadataInstanceId))
               .setDatabaseId(StaticValueProvider.of(partitionMetadataDatabaseId))
               .build();
-      final boolean isSpannerChangeStreamDatabasePostgres = isPostgres(changeStreamSpannerConfig);
-      final boolean isSpannerMetadataDatabasePostgres = isPostgres(partitionMetadataSpannerConfig);
-      LOG.info("The Spanner database is postgres: " + isSpannerChangeStreamDatabasePostgres);
-      LOG.info("The Spanner metadata database is postgres: " + isSpannerMetadataDatabasePostgres);
+      Dialect changeStreamDatabaseDialect = getDialect(changeStreamSpannerConfig);
+      Dialect metadataDatabaseDialect = getDialect(partitionMetadataSpannerConfig);
+      LOG.info("The Spanner database " + changeStreamDatabaseId + " has dialect " + changeStreamDatabaseDialect);
+      LOG.info("The Spanner database " + fullPartitionMetadataDatabaseId + " has dialect " + metadataDatabaseDialect);
       final String partitionMetadataTableName =
           MoreObjects.firstNonNull(
               getMetadataTable(),
-              generatePartitionMetadataTableName(
-                  partitionMetadataDatabaseId, isSpannerMetadataDatabasePostgres));
+              generatePartitionMetadataTableName(partitionMetadataDatabaseId));
       final String changeStreamName = getChangeStreamName();
       final Timestamp startTimestamp = getInclusiveStartAt();
       // Uses (Timestamp.MAX - 1ns) at max for end timestamp, because we add 1ns to transform the
@@ -1644,7 +1647,7 @@ public class SpannerIO {
           getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) > 0
               ? MAX_INCLUSIVE_END_AT
               : getInclusiveEndAt();
-      final MapperFactory mapperFactory = new MapperFactory(isSpannerChangeStreamDatabasePostgres);
+      final MapperFactory mapperFactory = new MapperFactory(changeStreamDatabaseDialect);
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
       final DaoFactory daoFactory =
@@ -1655,8 +1658,8 @@ public class SpannerIO {
               partitionMetadataTableName,
               rpcPriority,
               input.getPipeline().getOptions().getJobName(),
-              isSpannerChangeStreamDatabasePostgres,
-              isSpannerMetadataDatabasePostgres);
+              changeStreamDatabaseDialect,
+              metadataDatabaseDialect);
       final ActionFactory actionFactory = new ActionFactory();
 
       final InitializeDoFn initializeDoFn =
@@ -1706,25 +1709,9 @@ public class SpannerIO {
     }
   }
 
-  private static boolean isPostgres(SpannerConfig spannerConfig) {
+  private static Dialect getDialect(SpannerConfig spannerConfig) {
     DatabaseClient databaseClient = SpannerAccessor.getOrCreate(spannerConfig).getDatabaseClient();
-    final String getDatabaseDialectStmt =
-        "SELECT option_value FROM information_schema.database_options WHERE option_name = "
-            + "'database_dialect'";
-    try (ResultSet resultSet =
-        databaseClient
-            .singleUseReadOnlyTransaction()
-            .executeQuery(Statement.of(getDatabaseDialectStmt))) {
-      if (resultSet.next()) {
-        String dialect = resultSet.getString("option_value");
-        if (dialect.equals("POSTGRESQL")) {
-          return true;
-        } else if (dialect.equals("GOOGLE_STANDARD_SQL")) {
-          return false;
-        }
-      }
-      throw new IllegalArgumentException("Could not retrieve database dialect");
-    }
+    return databaseClient.getDialect();
   }
 
   /**
