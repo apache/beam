@@ -32,23 +32,32 @@ spec:
      - name: playground-backend-scio
        image: "{{ .Values.registry}}/{{ .Values.image.scio_image }}:{{ .Values.tag }}"
        imagePullPolicy: {{ .Values.image.pullPolicy }}
-       ports:
-        - containerPort: 8080
-       readinessProbe:
-         tcpSocket:
-           port: 8080
-         initialDelaySeconds: 5
-         periodSeconds: 10
-       livenessProbe:
-         tcpSocket:
-           port: 8080
-         initialDelaySeconds: 15
-         periodSeconds: 20
        env:
        - name: CACHE_TYPE
          value: "remote"
        - name: CACHE_ADDRESS
          value: {{ .Values.redis_ip }}
+       - name: NUM_PARALLEL_JOBS
+         value: "5"
+       livenessProbe:
+         httpGet:
+           path: /liveness
+           port: 8080
+         initialDelaySeconds: 3
+         periodSeconds: 3
+       readinessProbe:
+         httpGet:
+           path: /readiness
+           port: 8080
+         initialDelaySeconds: 3
+         periodSeconds: 3
+       resources:
+         requests:
+           memory: "500Mi"
+           cpu: "250m"
+         limits:
+           cpu: "500"
+           memory: "500Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:
