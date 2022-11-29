@@ -31,11 +31,6 @@ import 'firebase_options.dart';
 import 'locator.dart';
 import 'router/route_information_parser.dart';
 
-// TODO(nausharipov): fix "ScrollController not attached to any scroll views."
-// Steps to reproduce:
-// 1. Open a unit with horizontally scrollable code blocks.
-// 2. Scroll a block.
-// 3. See the error.
 void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
