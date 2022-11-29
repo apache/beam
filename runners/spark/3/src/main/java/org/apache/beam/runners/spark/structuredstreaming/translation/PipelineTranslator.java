@@ -27,7 +27,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -51,7 +50,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -212,7 +210,7 @@ public abstract class PipelineTranslator {
     public <T> Encoder<T> encoderOf(Coder<T> coder, Factory<T> factory) {
       // computeIfAbsent fails with Java 11 on recursive factory
       Encoder<T> enc = (Encoder<T>) encoders.get(coder);
-      if(enc == null){
+      if (enc == null) {
         enc = factory.apply(coder);
         encoders.put(coder, enc);
       }
