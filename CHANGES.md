@@ -81,6 +81,11 @@
   dependency of the Java SDK Harness. Some users of a portable runner (such as Dataflow Runner v2)
   may have an undeclared dependency on this package (for example using GCS with
   TextIO) and will now need to declare the dependency.
+* The default naming policy for Python's `fileio.WriteToFiles` now generates
+  shard names starting at one (e.g. `my-file-0001-of-0023.txt`) and not
+  zero (e.g. `my-file-0000-of-0023`). The last shard now has the same index as
+  the number of shards (e.g. `my-file-0023-of-0023.txt` instead of
+  `my-file-0022-of-0023.txt`) (#24362).
 
 ## Deprecations
 
