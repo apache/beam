@@ -57,5 +57,6 @@ jobs:
           ghprbSourceBranch: ${{github.ref_name}}
           ghBranch: ${{github.head_ref}}
           repositoryUrl: ${{github.repository}}
+          ghEmail: ${{actions@"$RUNNER_NAME".local}}
         with:
           gradle-command: :website:publishWebsite

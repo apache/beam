@@ -277,14 +277,16 @@ task preCommit {
 
 task commitWebsiteDocker {
     doLast {
+        def actor = System.getenv('ghprbPullAuthorLogin')
+        def email = System.getenv('ghEmail')
         def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
         String message = "Publishing website ${currentDate} at commit \$LATEST_COMMIT"
-        String author = System.getEnv('ghprbPullAuthorLogin')
 
         exec {
             commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
             """
                 export LATEST_COMMIT=\$(git log --format="%h" -n 1) && \
+                git remote add website-publish git@github.com:roger-mike/beam.git
                 git fetch --force origin +asf-site:asf-site && \
                 git stash && \
                 git checkout asf-site && \
@@ -304,18 +306,19 @@ task commitWebsiteDocker {
             commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
             """
                 git add 'website/generated-content'
+                git config user.name ${actor}
+                git config user.email ${email}
             """
         }
 
-        //Set user name and email to commit
         exec {
             commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
             """
-                if [ \$(git status --porcelain | wc -l) > 0 ];
+                if [[ \$(git status --porcelain | wc -l) > 0 ]];
                 then
                     echo "Creating commit for changes"
+                    export ISCOMMITED=1
                     git commit -am "${message}"
-
                 else
                     echo "No changes to commit"
                 fi
@@ -391,18 +394,38 @@ task publishWebsite {
 
     def git = grgit.open(currentDir: project.rootDir)
     git.checkout(branch: 'asf-site')
+
     if (!commitedChanges) {
       println 'No changes to push'
       return
     }
+
 
     // Because git.push() fails to authenticate, run git push directly.
     //shell "git push ${gitboxUrl} asf-site"
   }
 }
 
+task publishWebsiteDocker {
+  doLast {
+     exec {
+        commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+        """
+            echo ${gitboxUrl}
+            if [[ \$ISCOMMITED -eq 1 ]];
+            then
+                echo "Pushing changes"
+                git push website-publish asf-site
+            else
+                echo "No changes to push"
+            fi
+        """
+     }
+  }
+}
+
 commitWebsiteDocker.dependsOn buildApacheWebsite
-publishWebsite.dependsOn commitWebsiteDocker
+publishWebsiteDocker.dependsOn commitWebsiteDocker
 
 /*
  * Stages a pull request on GCS
