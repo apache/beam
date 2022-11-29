@@ -18,7 +18,7 @@
 # This script is used to run Change Point Analysis using a config file.
 # config file holds the parameters required to fetch data, and to run the
 # change point analysis. Change Point Analysis is used to find Performance
-# regressions for Benchmark/load/performance test.
+# regressions for benchmark/load/performance test.
 
 import argparse
 from dataclasses import asdict
@@ -30,18 +30,15 @@ from datetime import datetime
 from datetime import timezone
 from typing import Any
 from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
-import numpy as np
 import pandas as pd
 import yaml
 from google.api_core import exceptions
 
-from apache_beam.testing.analyzers.github_issues_utils import create_or_comment_issue
 from apache_beam.testing.analyzers.github_issues_utils import get_issue_description
+from apache_beam.testing.analyzers.github_issues_utils import report_change_point_on_issues
 from apache_beam.testing.load_tests import load_test_metrics_utils
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
@@ -50,55 +47,64 @@ from signal_processing_algorithms.energy_statistics.energy_statistics import e_d
 _BQ_PROJECT_NAME = 'apache-beam-testing'
 _BQ_DATASET = 'beam_perf_storage'
 
-UNIQUE_ID = 'test_id'
-ISSUE_CREATION_TIMESTAMP_LABEL = 'issue_timestamp'
-CHANGE_POINT_TIMESTAMP_LABEL = 'change_point_timestamp'
-CHANGE_POINT_LABEL = 'change_point'
-TEST_NAME = 'test_name'
-METRIC_NAME = 'metric_name'
-ISSUE_NUMBER = 'issue_number'
-ISSUE_URL = 'issue_url'
+_UNIQUE_ID = 'test_id'
+_ISSUE_CREATION_TIMESTAMP_LABEL = 'issue_timestamp'
+_CHANGE_POINT_TIMESTAMP_LABEL = 'change_point_timestamp'
+_CHANGE_POINT_LABEL = 'change_point'
+_TEST_NAME = 'test_name'
+_METRIC_NAME = 'metric_name'
+_ISSUE_NUMBER = 'issue_number'
+_ISSUE_URL = 'issue_url'
 # number of results to display on the issue description
 # from change point index in both directions.
 _NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION = 10
 _NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS = 100
+# Variables used for finding duplicate change points.
+_DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS = 5
+_DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW = 7
+
+_PERF_ALERT_LABEL = 'perf-alert'
+
+_PERF_TEST_KEYS = {
+    'test_name', 'metrics_dataset', 'metrics_table', 'project', 'metric_name'
+}
 
 SCHEMA = [{
-    'name': UNIQUE_ID, 'field_type': 'STRING', 'mode': 'REQUIRED'
+    'name': _UNIQUE_ID, 'field_type': 'STRING', 'mode': 'REQUIRED'
 },
           {
-              'name': ISSUE_CREATION_TIMESTAMP_LABEL,
+              'name': _ISSUE_CREATION_TIMESTAMP_LABEL,
               'field_type': 'TIMESTAMP',
               'mode': 'REQUIRED'
           },
           {
-              'name': CHANGE_POINT_TIMESTAMP_LABEL,
+              'name': _CHANGE_POINT_TIMESTAMP_LABEL,
               'field_type': 'TIMESTAMP',
               'mode': 'REQUIRED'
           },
           {
-              'name': CHANGE_POINT_LABEL,
+              'name': _CHANGE_POINT_LABEL,
               'field_type': 'FLOAT64',
               'mode': 'REQUIRED'
           }, {
-              'name': METRIC_NAME, 'field_type': 'STRING', 'mode': 'REQUIRED'
+              'name': _METRIC_NAME, 'field_type': 'STRING', 'mode': 'REQUIRED'
           }, {
-              'name': TEST_NAME, 'field_type': 'STRING', 'mode': 'REQUIRED'
+              'name': _TEST_NAME, 'field_type': 'STRING', 'mode': 'REQUIRED'
           }, {
-              'name': ISSUE_NUMBER, 'field_type': 'INT64', 'mode': 'REQUIRED'
+              'name': _ISSUE_NUMBER, 'field_type': 'INT64', 'mode': 'REQUIRED'
           }, {
-              'name': ISSUE_URL, 'field_type': 'STRING', 'mode': 'REQUIRED'
+              'name': _ISSUE_URL, 'field_type': 'STRING', 'mode': 'REQUIRED'
           }]
 
 TITLE_TEMPLATE = """
   Performance Regression or Improvement: {}:{}
 """
-# TODO: Add mean value before and mean value after.
+# TODO: Add Median value before and Median value after.
 _METRIC_DESCRIPTION = """
   Affected metric: `{}`
 """
 _METRIC_INFO = "timestamp: {}, metric_value: `{}`"
-ISSUE_LABELS = ['perf-alerts']
+ISSUE_LABELS = ['perf-alert']
 
 
 @dataclass
@@ -118,34 +124,6 @@ class GitHubIssueMetaData:
   change_point: float
 
 
-class ChangePointAnalysis:
-  def __init__(
-      self,
-      data: Union[List[float], List[List[float]], np.ndarray],
-      metric_name: str,
-  ):
-    self.data = data
-    self.metric_name = metric_name
-
-  def edivisive_means(self,
-                      pvalue: float = 0.05,
-                      permutations: int = 100) -> List[int]:
-    """
-    Args:
-     pvalue: p value for the permutation test.
-     permutations: Number of permutations for the permutation test.
-     For more information, please look at
-     https://pypi.org/project/signal-processing-algorithms/
-
-    Performs edivisive means on the data and returns the indices of the
-    Change points.
-
-    Returns:
-     The indices of change points.
-    """
-    return e_divisive(self.data, pvalue, permutations)
-
-
 def is_change_point_in_valid_window(
     num_runs_in_change_point_window: int, change_point_index: int) -> bool:
   # If the change point is more than N runs behind the most recent run,
@@ -154,7 +132,6 @@ def is_change_point_in_valid_window(
 
 
 def find_existing_issue(
-    metric_name: str,
     test_name: str,
     change_point_timestamp: pd.Timestamp,
     sibling_change_point_min_timestamp: pd.Timestamp,
@@ -167,20 +144,18 @@ def find_existing_issue(
   """
   query_template = f"""
   SELECT * FROM {_BQ_PROJECT_NAME}.{_BQ_DATASET}.{test_name}
-  WHERE {METRIC_NAME} = '{metric_name}'
-  ORDER BY {ISSUE_CREATION_TIMESTAMP_LABEL} DESC
+  ORDER BY {_ISSUE_CREATION_TIMESTAMP_LABEL} DESC
   LIMIT 1
   """
   try:
-    df = BigQueryMetricsFetcher().get_metrics(
-        query_template=query_template,
-        limit=_NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
+    df = BigQueryMetricsFetcher().get_metrics(query_template=query_template)
   except exceptions.NotFound:
     # If no table found, that means this is first performance regression
     # on the current test+metric.
     return True, None
-  issue_number = df[ISSUE_NUMBER].tolist()[0]
-  previous_change_point_timestamp = df[CHANGE_POINT_TIMESTAMP_LABEL].tolist()[0]
+  issue_number = df[_ISSUE_NUMBER].tolist()[0]
+  previous_change_point_timestamp = df[_CHANGE_POINT_TIMESTAMP_LABEL].tolist(
+  )[0]
 
   if (previous_change_point_timestamp == change_point_timestamp) or (
       sibling_change_point_min_timestamp <= previous_change_point_timestamp <=
@@ -200,6 +175,14 @@ def read_test_config(config_file_path: str) -> Dict:
   return config
 
 
+def report_change_point_to_issue_tracker():
+  pass
+
+
+def validate_config(keys):
+  return _PERF_TEST_KEYS.issubset(keys)
+
+
 def run(config_file_path: str = None) -> None:
   """
   run is the entry point to run change point analysis on test metric
@@ -209,147 +192,131 @@ def run(config_file_path: str = None) -> None:
   If config_file_path is None, then the run method will use default
   config file to read the required perf test parameters.
 
+  Please take a look at the README for more information on the parameters
+  defined in the config file.
+
   """
   if config_file_path is None:
     config_file_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), 'tests_config.yaml')
 
-  tests_config: Dict[Dict[str, Any]] = read_test_config(config_file_path)
+  tests_config: Dict[str, Dict[str, Any]] = read_test_config(config_file_path)
 
-  # min_runs_between_change_points, num_runs_in_change_point_window can be
-  # defined in the config file for each test which are used
-  # to avoid filing GitHub issues for duplicate change points. Please take
-  # a look at the README for more information on the parameters defined in the
-  # config file.
   for test_id, params in tests_config.items():
+    if not validate_config(params.keys()):
+      raise Exception(
+          f"Please make sure all these keys {_PERF_TEST_KEYS} "
+          f"are specified for the {test_id}")
+    metric_name = params['metric_name']
+    # replace . with _ in test_name. This test name would be used later
+    # as a BQ table name and the BQ table doesn't accept . in the name.
+    test_name = params['test_name'].replace('.', '_') + f'_{metric_name}'
     try:
-      metric_name = params['metric_name']
-      # replace . with _ in test_name. This test name would be used later
-      # as a BQ table name and the BQ table doesn't accept . in the name.
-      test_name = params['test_name'].replace('.', '_') + f'_{metric_name}'
-      if params['source'] == 'big_query':
-        metric_data: pd.DataFrame = BigQueryMetricsFetcher().get_metrics(
-            project_name=params['project'],
-            dataset=params['metrics_dataset'],
-            table=params['metrics_table'],
-            metric_name=metric_name)
-      else:
-        # (TODO): Implement fetching metric_data from InfluxDB.
-        raise ValueError(
-            'For change point analysis, only big_query is'
-            'accepted as source.')
+      metric_data: pd.DataFrame = BigQueryMetricsFetcher().get_metrics(
+          project_name=params['project'],
+          dataset=params['metrics_dataset'],
+          table=params['metrics_table'],
+          metric_name=metric_name,
+          limit=_NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
+    except BaseException as e:
+      raise e
 
-      labels = params['labels']
+    labels = [_PERF_ALERT_LABEL]
+    if 'labels' in params:
+      labels += params['labels']
+
+    if 'min_runs_between_change_points' in params:
       min_runs_between_change_points = params['min_runs_between_change_points']
+    else:
+      min_runs_between_change_points = _DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS
+
+    if 'num_runs_in_change_point_window' in params:
       num_runs_in_change_point_window = params[
           'num_runs_in_change_point_window']
+    else:
+      num_runs_in_change_point_window = _DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW
 
-      metric_values = metric_data[load_test_metrics_utils.VALUE_LABEL]
-      timestamps = metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL]
+    metric_values = metric_data[load_test_metrics_utils.VALUE_LABEL]
+    timestamps = metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL]
 
-      cp_analyzer = ChangePointAnalysis(
-          metric_name=metric_name, data=metric_values)
+    change_points_idx = e_divisive(metric_values)
+    if not change_points_idx:
+      continue
 
-      change_points_idx = cp_analyzer.edivisive_means()
-      if not change_points_idx:
-        continue
+    # Consider the latest change points to observe the latest perf alerts.
+    change_points_idx.sort(reverse=True)
+    change_point_index = change_points_idx[0]
+    change_point_timestamp = timestamps[change_point_index]
 
-      # Consider the latest change points to observe the latest perf alerts.
-      change_points_idx.sort(reverse=True)
-      change_point_index = change_points_idx[0]
-      change_point_timestamp = timestamps[change_point_index]
+    if not is_change_point_in_valid_window(num_runs_in_change_point_window,
+                                           change_point_index):
+      logging.info(
+          'Performance regression found for the test: %s. '
+          'but not creating an alert since the Change Point '
+          'lies outside the '
+          'num_runs_in_change_point_window distance.' % test_name)
+      continue
 
-      # check if the change point lies in the valid window.
-      # window - Number of runs between the
-      # num_runs_in_change_point_window run and the most recent run.
-      if not is_change_point_in_valid_window(num_runs_in_change_point_window,
-                                             change_point_index):
-        logging.info(
-            'Performance regression found for the test: %s. '
-            'but not creating an alert since the Change Point '
-            'lies outside the '
-            'num_runs_in_change_point_window distance.' % test_name)
-        continue
+    sibling_change_point_min_timestamp = timestamps[min(
+        change_point_index + min_runs_between_change_points,
+        len(timestamps) - 1)]
+    sibling_change_point_max_timestamp = timestamps[max(
+        0, change_point_index - min_runs_between_change_points)]
 
-      # Look for an existing GitHub issue related to the current change point.
-      # It can be interpreted sibling change point.
-      # Sibling change point is a change point that lies in the distance of
-      # min_runs_between_change_points in both directions from the current
-      # change point index.
-      # Here, distance can be interpreted as number of runs between two change
-      # points. The idea here is that sibling change point will also point to
-      # the same performance regression.
-      min_timestamp_index = min(
-          change_point_index + min_runs_between_change_points,
-          len(timestamps) - 1)
-      max_timestamp_index = max(
-          0, change_point_index - min_runs_between_change_points)
-      sibling_change_point_min_timestamp = timestamps[min_timestamp_index]
-      sibling_change_point_max_timestamp = timestamps[max_timestamp_index]
-
-      create_alert, last_created_issue_number = (
-        find_existing_issue(
+    create_alert, last_created_issue_number = (
+      find_existing_issue(
+        test_name=test_name,
+        change_point_timestamp=change_point_timestamp,
+        sibling_change_point_max_timestamp=sibling_change_point_max_timestamp,
+        sibling_change_point_min_timestamp=sibling_change_point_min_timestamp
+      )
+    )
+    # TODO: Remove this before merging.
+    logging.info(
+        "Create performance alert for the "
+        "test %s: %s" % (test_name, create_alert))
+    if create_alert:
+      description = get_issue_description(
           metric_name=metric_name,
-          test_name=test_name,
-          change_point_timestamp=change_point_timestamp,
-          sibling_change_point_max_timestamp=sibling_change_point_max_timestamp,
-          sibling_change_point_min_timestamp=sibling_change_point_min_timestamp
-        )
+          timestamps=timestamps,
+          metric_values=metric_values,
+          change_point_index=change_point_index,
+          max_results_to_display=_NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION)
+
+
+      issue_number, issue_url = report_change_point_on_issues(
+        title=TITLE_TEMPLATE.format(test_name, metric_name),
+        description=description,
+        labels=labels,
+        issue_number=last_created_issue_number
       )
 
       logging.info(
-          "Create performance alert for the "
-          "test %s: %s" % (test_name, create_alert))
-      if create_alert:
-        issue_description = get_issue_description(
-            metric_name=metric_name,
-            timestamps=timestamps,
-            metric_values=metric_values,
-            change_point_index=change_point_index,
-            max_results_to_display=_NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION)
-        issue_number, issue_url = create_or_comment_issue(
-          title=TITLE_TEMPLATE.format(test_name, metric_name),
-          description=issue_description,
-          labels=labels,
-          issue_number=last_created_issue_number
-        )
+          'Performance regression is alerted on issue #%s. Link to '
+          'the issue: %s' % (issue_number, issue_url))
 
-        logging.info(
-            'Performance regression is alerted on issue #%s. Link to '
-            'the issue: %s' % (issue_number, issue_url))
-        issue_creation_timestamp = pd.Timestamp(
-            datetime.now().replace(tzinfo=timezone.utc))
-        issue_metadata = GitHubIssueMetaData(
-            issue_timestamp=issue_creation_timestamp,
-            test_name=test_name,
-            metric_name=metric_name,
-            test_id=uuid.uuid4().hex,
-            change_point=metric_values[change_point_index],
-            issue_number=issue_number,
-            issue_url=issue_url,
-            change_point_timestamp=timestamps[change_point_index])
+      issue_metadata = GitHubIssueMetaData(
+          issue_timestamp=pd.Timestamp(
+              datetime.now().replace(tzinfo=timezone.utc)),
+          test_name=test_name,
+          metric_name=metric_name,
+          test_id=uuid.uuid4().hex,
+          change_point=metric_values[change_point_index],
+          issue_number=issue_number,
+          issue_url=issue_url,
+          change_point_timestamp=timestamps[change_point_index])
 
-        # publish GH issue metadata to GH issue. This metadata would be
-        # used for finding the sibling change point.
-        bq_metrics_publisher = BigQueryMetricsPublisher(
-            project_name=_BQ_PROJECT_NAME,
-            dataset=_BQ_DATASET,
-            table=test_name,
-            bq_schema=SCHEMA)
+      bq_metrics_publisher = BigQueryMetricsPublisher(
+          project_name=_BQ_PROJECT_NAME,
+          dataset=_BQ_DATASET,
+          table=test_name,
+          bq_schema=SCHEMA,
+      )
 
-        bq_metrics_publisher.publish([asdict(issue_metadata)])
-        logging.info(
-            'GitHub metadata is published to Big Query Dataset %s'
-            ', table %s' % (_BQ_DATASET, test_name))
-    except:  # pylint: disable=bare-except
-      logging.warning(
-          "Failed to run change point analysis on "
-          "%s. Please check if the config value for the"
-          "%s are matching with the values defined on the "
-          "performance/load test. "
-          "If there is a bug in the implementation "
-          "of change point analysis, please open a GitHub issue "
-          "at https://github.com/apache/beam/issues. " % (test_id, test_id))
+      bq_metrics_publisher.publish([asdict(issue_metadata)])
+      logging.info(
+          'GitHub metadata is published to Big Query Dataset %s'
+          ', table %s' % (_BQ_DATASET, test_name))
 
 
 if __name__ == '__main__':

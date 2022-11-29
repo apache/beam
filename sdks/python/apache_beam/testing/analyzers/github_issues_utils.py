@@ -34,9 +34,13 @@ except KeyError as e:
 
 _BEAM_GITHUB_REPO_OWNER = 'AnandInguva'
 _BEAM_GITHUB_REPO_NAME = 'beam'
+# Adding GitHub Rest API version to the header to maintain version stability.
+# For more information, please look at
+# https://github.blog/2022-11-28-to-infinity-and-beyond-enabling-the-future-of-githubs-rest-api-with-api-versioning/ # pylint: disable=line-too-long
 _HEADERS = {
     "Authorization": 'token {}'.format(_GITHUB_TOKEN),
-    "Accept": "application/vnd.github+json"
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28"
 }
 
 # Fill the GitHub issue description with the below variables.
@@ -47,34 +51,19 @@ _METRIC_INFO = "timestamp: {}, metric_value: `{}`"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'
 
 
-def create_or_comment_issue(
+def create_issue(
     title: str,
     description: str,
     labels: Optional[List] = None,
-    issue_number: Optional[int] = None) -> Tuple[int, str]:
+) -> Tuple[int, str]:
   """
   Create an issue with title, description with a label.
-  If an issue is already created and is open,
-  then comment on the issue instead of creating a duplicate issue.
 
   Args:
     title:  GitHub issue title.
     description: GitHub issue description.
     labels: Labels used to tag the GitHub issue.
-    issue_number: GitHub issue number used to find the already created issue.
   """
-  if issue_number:
-    commented_on_issue, comment_url = comment_on_issue(
-      issue_number=issue_number,
-      comment_description=description)
-    if commented_on_issue:
-      # Add awaiting triage will help the beam developers to triage issue
-      # sooner than later.
-      add_label_to_issue(issue_number, labels=[_AWAITING_TRIAGE_LABEL])
-      return issue_number, comment_url
-
-  # Issue number was not provided or issue with provided number
-  # is closed. In that case, create a new issue.
   url = "https://api.github.com/repos/{}/{}/issues".format(
       _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME)
   data = {
@@ -111,10 +100,8 @@ def comment_on_issue(issue_number: int,
           'repo': _BEAM_GITHUB_REPO_NAME,
           'issue_number': issue_number
       }),
-      headers=_HEADERS)
-  status_code = open_issue_response.status_code
-  open_issue_response = open_issue_response.json()
-  if status_code == 200 and open_issue_response['state'] == 'open':
+      headers=_HEADERS).json()
+  if open_issue_response['state'] == 'open':
     data = {
         'owner': _BEAM_GITHUB_REPO_OWNER,
         'repo': _BEAM_GITHUB_REPO_NAME,
@@ -124,17 +111,14 @@ def comment_on_issue(issue_number: int,
     response = requests.post(
         open_issue_response['comments_url'], json.dumps(data), headers=_HEADERS)
     return True, response.json()['html_url']
-
   return False, None
 
 
 def add_label_to_issue(issue_number: int, labels: List[str] = None):
   url = 'https://api.github.com/repos/{}/{}/issues/{}/labels'.format(
       _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
-  data = {}
   if labels:
-    data['labels'] = labels
-    requests.post(url, json.dumps(data), headers=_HEADERS)
+    requests.post(url, json.dumps({'labels': labels}), headers=_HEADERS)
 
 
 def get_issue_description(
@@ -168,9 +152,29 @@ def get_issue_description(
 
   indices_to_display.sort()
   description = _ISSUE_DESCRIPTION_HEADER.format(metric_name) + 2 * '\n'
-  for i in indices_to_display:
-    description += _METRIC_INFO.format(timestamps[i].ctime(), metric_values[i])
-    if i == change_point_index:
+  for index_to_display in indices_to_display:
+    description += _METRIC_INFO.format(
+        timestamps[index_to_display].ctime(), metric_values[index_to_display])
+    if index_to_display == change_point_index:
       description += ' <---- Anomaly'
     description += '\n'
   return description
+
+
+def report_change_point_on_issues(
+    title, issue_number, description, labels=None) -> Tuple[int, str]:
+  """
+  Looks for a GitHub issue with the issue number. First, we try to
+  find the issue that's open and comment on it with the provided description.
+  If that issue is closed, we create a new issue.
+  """
+  if issue_number:
+    commented_on_issue, issue_url = comment_on_issue(
+          issue_number=issue_number,
+          comment_description=description
+          )
+    if commented_on_issue:
+      add_label_to_issue(
+          issue_number=issue_number, labels=[_AWAITING_TRIAGE_LABEL])
+      return issue_number, issue_url
+  return create_issue(title=title, description=description, labels=labels)

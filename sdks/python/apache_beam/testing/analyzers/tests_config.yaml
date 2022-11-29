@@ -24,8 +24,7 @@
 # change_point_to_recent_run_window: same units as min_runs_between_change_points.
 
 test_1:
-  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
-  source: big_query
+  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks_10
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
   project: apache-beam-testing
@@ -34,14 +33,10 @@ test_1:
     - perf-alert
     - run-inference
   min_runs_between_change_points: 5
-  # the test runs once per day. So alert only if a perf regression lies
-  # in the last 7 runs/days from the recent run.
   num_runs_in_change_point_window: 7
-
 
 test_2:
   test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
-  source: big_query
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet101
   project: apache-beam-testing
@@ -50,6 +45,4 @@ test_2:
     - perf-alert
     - run-inference
   min_runs_between_change_points: 5
-    # the test runs once per day. So alert only if a perf regression lies
-    # in the last 7 runs/days from the recent run.
   num_runs_in_change_point_window: 7

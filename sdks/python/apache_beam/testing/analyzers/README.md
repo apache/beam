@@ -66,13 +66,12 @@ to fill up the values required to fetch the data from source.
 change point in a slightly different place. These change points refer to the same regression and are just noise.
 When we find a new change point, we will search up to the `min_runs_between_change_points` in both directions from the 
 current change point. If an existing change point is found within the distance, then the current change point will be
-suppressed. The units for the `min_runs_between_change_points` are number of runs. 
+suppressed. 
 
 **num_runs_in_change_point_window**: This defines how many runs to consider from the most recent run to be in change point window.
 Sometimes, the change point found might be way back in time and could be irrelevant. For a test, if a change point needs to be 
 reported only when it was observed in the last 7 runs from the current run,
-setting `num_runs_in_change_point_window=7` will achieve it. The units for `num_runs_in_change_point_window` is number of runs. 
-
+setting `num_runs_in_change_point_window=7` will achieve it.
 
 <h2> Register a test for performance alerts. </h2>
 
