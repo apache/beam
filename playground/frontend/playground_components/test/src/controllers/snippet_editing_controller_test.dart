@@ -6,7 +6,7 @@ import '../common/examples.dart';
 
 void main() {
   group(
-    'Snippet editing controllers',
+    'Snippet editing controller',
     () {
       test(
         'Returns standard descriptor if code has not been changed',
@@ -33,7 +33,7 @@ void main() {
             'sdk': 'python',
             'content': 'ex4',
             'name': 'Example X1',
-            'complexity': 'basic'
+            'complexity': 'basic',
           });
         },
       );
@@ -43,7 +43,7 @@ void main() {
         () {
           final controller = SnippetEditingController(sdk: Sdk.python);
           controller.selectedExample = exampleMock1;
-          
+
           controller.selectedExample = exampleMock2;
           final descriptor = controller.getLoadingDescriptor();
 

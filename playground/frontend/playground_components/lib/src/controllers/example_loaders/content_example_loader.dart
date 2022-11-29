@@ -35,6 +35,7 @@ class ContentExampleLoader extends ExampleLoader {
   Future<Example> get future async => Example(
         complexity: descriptor.complexity,
         description: '',
+        descriptor: descriptor,
         name: descriptor.name ?? 'Embedded_Example',
         path: '',
         pipelineOptions: '',

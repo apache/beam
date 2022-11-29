@@ -24,7 +24,6 @@ import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
-import '../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import '../models/example_view_options.dart';
 import '../models/sdk.dart';
 import '../services/symbols/symbols_notifier.dart';
@@ -107,16 +106,19 @@ class SnippetEditingController extends ChangeNotifier {
   /// Creates an [ExampleLoadingDescriptor] that can recover the
   /// current content.
   ExampleLoadingDescriptor getLoadingDescriptor() {
-    if (codeController.fullText.isEmpty) {
+    final example = selectedExample;
+    if (example == null) {
       return EmptyExampleLoadingDescriptor(sdk: sdk);
     }
-    if (selectedExample != null && !isChanged) {
-      return StandardExampleLoadingDescriptor(path: _selectedExample!.path);
+
+    if (!isChanged) {
+      return example.descriptor;
     }
+    
     return ContentExampleLoadingDescriptor(
-      complexity: _selectedExample?.complexity,
+      complexity: example.complexity,
       content: codeController.fullText,
-      name: _selectedExample?.name,
+      name: example.name,
       sdk: sdk,
     );
   }

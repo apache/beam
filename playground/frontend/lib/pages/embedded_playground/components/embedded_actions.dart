@@ -60,23 +60,21 @@ class EmbeddedActions extends StatelessWidget {
     // The empty list forces the parsing of EmptyExampleLoadingDescriptor
     // and prevents the glimpse of the default catalog example.
 
-    final loadingDescriptor = controller.getLoadingDescriptor();
-    final contentDescriptor =
-        loadingDescriptor.whereType<ContentExampleLoadingDescriptor>();
-    final standardDescriptor =
-        loadingDescriptor.whereType<StandardExampleLoadingDescriptor>();
+    final descriptor = controller.getLoadingDescriptor();
+    final urlDescriptor = descriptor.where((d) => d.canBePassedByUrl);
+    final jsDescriptor = descriptor.where((d) => !d.canBePassedByUrl);
 
-    final json = jsonEncode(standardDescriptor.toJson()['descriptors']);
+    final json = jsonEncode(urlDescriptor.toJson()['descriptors']);
     final window = html.window.open(
       '/?$kExamplesParam=$json&$kSdkParam=${controller.sdk?.id}',
       '',
     );
 
-    if (contentDescriptor.descriptors.isNotEmpty) {
+    if (jsDescriptor.descriptors.isNotEmpty) {
       javaScriptPostMessageRepeated(
         window,
         SetContentMessage(
-          descriptor: contentDescriptor,
+          descriptor: jsDescriptor,
         ),
       );
     }
