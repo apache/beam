@@ -15,8 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This workflow will choose a commit to be the basis of a release candidate
-## and push a new tagged commit for that RC.
+# This workflow will generate the released version tag and push it to the repository
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
@@ -39,6 +38,10 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
+      - name: Set git config
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
       - name: Tag for Go SDK
         run: |
           git tag -a sdks/${{ github.event.inputs.VERSION_TAG }} -m ${{ github.event.inputs.RC_TAG }}
