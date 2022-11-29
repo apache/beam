@@ -40,9 +40,6 @@ import org.apache.beam.sdk.values.Row;
  */
 @Internal
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20506)
-})
 public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTransformProvider {
 
   protected abstract Class<ConfigT> configurationClass();

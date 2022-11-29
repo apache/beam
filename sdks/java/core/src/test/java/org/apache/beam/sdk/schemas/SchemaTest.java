@@ -198,7 +198,7 @@ public class SchemaTest {
             .setOption("test_bool_option", FieldType.BOOLEAN, true)
             .build();
 
-    Schema schema1 =
+    Schema unorderedSchema =
         Schema.builder()
             .addStringField("d")
             .addInt32Field("c")
@@ -207,9 +207,9 @@ public class SchemaTest {
             .build()
             .withOptions(testOptions);
 
-    Schema sortedSchema1 = schema1.sorted();
+    Schema unorderedSchemaAfterSorting = unorderedSchema.sorted();
 
-    Schema schema2 =
+    Schema sortedSchema =
         Schema.builder()
             .addByteField("a")
             .addStringField("b")
@@ -217,15 +217,15 @@ public class SchemaTest {
             .addStringField("d")
             .build()
             .withOptions(testOptions);
-    schema2.setEncodingPositions(schema1.getEncodingPositions());
+    sortedSchema.setEncodingPositions(unorderedSchema.getEncodingPositions());
 
-    assertEquals(true, schema1.equivalent(sortedSchema1));
+    assertEquals(true, unorderedSchema.equivalent(unorderedSchemaAfterSorting));
     assertEquals(
         true,
-        Objects.equals(sortedSchema1.getFields(), schema2.getFields())
-            && Objects.equals(sortedSchema1.getOptions(), schema2.getOptions())
+        Objects.equals(unorderedSchemaAfterSorting.getFields(), sortedSchema.getFields())
+            && Objects.equals(unorderedSchemaAfterSorting.getOptions(), sortedSchema.getOptions())
             && Objects.equals(
-                sortedSchema1.getEncodingPositions(), schema2.getEncodingPositions()));
+            unorderedSchemaAfterSorting.getEncodingPositions(), sortedSchema.getEncodingPositions()));
   }
 
   @Test
