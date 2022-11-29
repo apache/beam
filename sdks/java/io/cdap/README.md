@@ -49,13 +49,17 @@ CdapIO currently supports the following CDAP Batch plugins by referencing `CDAP 
 It means that all these plugins can be used like this:
 ``CdapIO.withCdapPluginClass(HubspotBatchSource.class)``
 
-### Adding support for new CDAP Batch plugin
+### Requirements for Cdap Batch plugins
+
+CDAP Batch plugin should be based on `HadoopFormat` implementation.
+
+### How to add support for a new CDAP Batch plugin
 
 To add CdapIO support for a new CDAP Batch [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java) perform the following steps:
-1. Add CDAP plugin to the Maven Central repository. *Example:* [Hubspot plugin Maven repository](https://mvnrepository.com/artifact/io.cdap/hubspot-plugins/1.0.0)
-2. Add CDAP plugin Maven dependency to the `build.gradle` file. *Example:* ``implementation "io.cdap:hubspot-plugins:1.0.0"``.
+1. Find CDAP plugin artifacts in the Maven Central repository. *Example:* [Hubspot plugin Maven repository](https://mvnrepository.com/artifact/io.cdap/hubspot-plugins/1.0.0). *Note:* To add a custom CDAP plugin, please follow [Sonatype publishing guidelines](https://central.sonatype.org/publish/).
+2. Add the CDAP plugin Maven dependency to the `build.gradle` file. *Example:* ``implementation "io.cdap:hubspot-plugins:1.0.0"``.
 3. Here are two ways of using CDAP batch plugin with CdapIO:
-   1. Using `Plugin.createBatch()` method. You will need to pass Cdap Plugin class and correct `InputFormat` (or `OutputFormat`) and `InputFormatProvider` (or `OutputFormatProvider`) classes manually. *Example:*
+   1. Using `Plugin.createBatch()` method. Pass Cdap Plugin class and correct `InputFormat` (or `OutputFormat`) and `InputFormatProvider` (or `OutputFormatProvider`) classes to CdapIO. *Example:*
    ```
    CdapIO.withCdapPlugin(
       Plugin.createBatch(
@@ -64,7 +68,7 @@ To add CdapIO support for a new CDAP Batch [Plugin](src/main/java/org/apache/bea
       EmployeeInputFormatProvider.class));
    ```
    2. Using `MappingUtils`.
-      1. Go to [MappingUtils](src/main/java/org/apache/beam/sdk/io/cdap/MappingUtils.java) class.
+      1. Navigate to [MappingUtils](src/main/java/org/apache/beam/sdk/io/cdap/MappingUtils.java) class.
       2. Modify `getPluginClassByName()` method:
       3. Add the code for mapping Cdap Plugin class name and `Input/Output Format` and `FormatProvider` classes.
       *Example:*
@@ -77,7 +81,7 @@ To add CdapIO support for a new CDAP Batch [Plugin](src/main/java/org/apache/bea
       ```
       4. After these steps you will be able to use Cdap Plugin by class name like this: ``CdapIO.withCdapPluginClass(EmployeeBatchSource.class)``
 
-To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap).
+To learn more, please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap).
 
 ## CDAP Streaming plugins support in CDAP IO
 
@@ -92,16 +96,15 @@ CDAP streaming plugins support is implemented using [SparkReceiverIO](https://gi
    2. Records should have the numeric field that represents record offset. *Example:* `RecordId` field for Salesforce and `vid` field for Hubspot plugins.
    For more details please see [GetOffsetUtils](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap/utils/GetOffsetUtils.java) class from examples.
 
-### Adding support for new CDAP Streaming plugin
+### How to add support for a new CDAP Streaming plugin
 
 To add CdapIO support for a new CDAP Streaming SparkReceiver [Plugin](src/main/java/org/apache/beam/sdk/io/cdap/Plugin.java), perform the following steps:
-1. Add CDAP plugin to the Maven Central repository. *Example:* [Hubspot plugin Maven repository](https://mvnrepository.com/artifact/io.cdap/hubspot-plugins/1.0.0)
+1. Find CDAP plugin artifacts in the Maven Central repository. *Example:* [Hubspot plugin Maven repository](https://mvnrepository.com/artifact/io.cdap/hubspot-plugins/1.0.0). *Note:* To add a custom CDAP plugin, please follow [Sonatype publishing guidelines](https://central.sonatype.org/publish/).
 2. Add CDAP plugin Maven dependency to the `build.gradle` file. *Example:* ``implementation "io.cdap:hubspot-plugins:1.0.0"``.
 3. Implement function that will define how to get `Long offset` from the record of the Cdap Plugin.
 *Example:* see [GetOffsetUtils](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap/utils/GetOffsetUtils.java) class from examples.
 4. Here are two ways of using Cdap streaming Plugin with CdapIO:
-    1. Using `Plugin.createStreaming()` method. You will need to pass Cdap Plugin class, correct `getOffsetFn` (from step 3)
-       and Spark `Receiver` class manually. *Example:*
+    1. Using `Plugin.createStreaming()` method. Pass Cdap Plugin class, correct `getOffsetFn` (from step 3) and Spark `Receiver` class to CdapIO. *Example:*
    ```
    CdapIO.withCdapPlugin(
       Plugin.createStreaming(
@@ -110,7 +113,7 @@ To add CdapIO support for a new CDAP Streaming SparkReceiver [Plugin](src/main/j
       HubspotReceiver.class)));
    ```
     2. Using `MappingUtils`.
-        1. Go to [MappingUtils](src/main/java/org/apache/beam/sdk/io/cdap/MappingUtils.java) class.
+        1. Navigate to [MappingUtils](src/main/java/org/apache/beam/sdk/io/cdap/MappingUtils.java) class.
         2. Modify `getPluginClassByName()` method:
         3. Add the code for mapping Cdap Plugin class name, `getOffsetFn` function and Spark `Receiver` class.
            *Example:*
@@ -123,7 +126,7 @@ To add CdapIO support for a new CDAP Streaming SparkReceiver [Plugin](src/main/j
        ```
         4. After these steps you will be able to use Cdap Plugin by class name like this: ``CdapIO.withCdapPluginClass(HubspotStreamingSource.class)``
 
-To learn more please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap).
+To learn more, please check out [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap).
 
 ## Dependencies
 

@@ -27,10 +27,10 @@ SparkReceiverIO supports [Spark Receivers](https://spark.apache.org/docs/2.4.0/s
 2. Records should have the numeric field that represents record offset. *Example:* `RecordId` field for Salesforce and `vid` field for Hubspot Receivers.
    For more details please see [GetOffsetUtils](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap/utils/GetOffsetUtils.java) class from CDAP plugins examples.
 
-## Adding support for new Spark Receiver
+## Adding support for a new Spark Receiver
 
 To add SparkReceiverIO support for a new Spark `Receiver`, perform the following steps:
-1. Add Spark Receiver to the Maven Central repository. *Example:* [Hubspot CDAP plugin Maven repository](https://mvnrepository.com/artifact/io.cdap/hubspot-plugins/1.0.0)
+1. Add Spark Receiver to the Maven Central repository (see [Sonatype publishing guidelines](https://central.sonatype.org/publish/)). *Example:* [Hubspot CDAP plugin Maven repository](https://mvnrepository.com/artifact/io.cdap/hubspot-plugins/1.0.0).
 2. Add Spark Receiver Maven dependency to the `build.gradle` file. *Example:* ``implementation "io.cdap:hubspot-plugins:1.0.0"``.
 3. Implement function that will define how to get `Long offset` from the record of the Spark Receiver.
    *Example:* see [GetOffsetUtils](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap/utils/GetOffsetUtils.java) class from CDAP plugins examples.
@@ -40,8 +40,7 @@ To add SparkReceiverIO support for a new Spark `Receiver`, perform the following
       new ReceiverBuilder<>(HubspotReceiver.class).withConstructorArgs();
    ```
 5. Use your Spark `Receiver` with SparkReceiverIO:
-    1. You will need to pass correct `getOffsetFn` (from step 3)
-       and correct `ReceiverBuilder` (from step 4) manually. *Example:*
+    1. Pass correct `getOffsetFn` (from step 3) and correct `ReceiverBuilder` (from step 4). *Example:*
    ```
    SparkReceiverIO.Read<V> reader =
             SparkReceiverIO.<V>read()
@@ -50,7 +49,7 @@ To add SparkReceiverIO support for a new Spark `Receiver`, perform the following
    ```
 
 
-To learn more please check out CDAP Streaming plugins [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap) where Spark Receivers are used.
+To learn more, please check out CDAP Streaming plugins [complete examples](https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap) where Spark Receivers are used.
 
 ## Dependencies
 
