@@ -24,7 +24,6 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobListOption;
-import com.google.common.base.Joiner;
 import com.google.re2j.Pattern;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -174,7 +173,7 @@ public final class GcsArtifactClient implements ArtifactClient {
   }
 
   private static String joinPathParts(String... parts) {
-    return Joiner.on('/').join(parts);
+    return String.join("/", parts);
   }
 
   /** Builder for {@link GcsArtifactClient}. */

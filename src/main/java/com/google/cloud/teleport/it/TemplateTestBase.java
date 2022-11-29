@@ -181,10 +181,11 @@ public abstract class TemplateTestBase {
       pomPath,
       "-pl",
       moduleBuild,
-      "-am",
+      // Do not make all dependencies every time. Faster but requires prior `mvn install`.
+      // "-am",
       "-PtemplatesStage",
       "-DskipShade",
-      "-Dmaven.test.skip",
+      "-DskipTests",
       "-Dcheckstyle.skip",
       "-Dmdep.analyze.skip",
       "-Dspotless.check.skip",
