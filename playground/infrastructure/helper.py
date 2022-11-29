@@ -37,6 +37,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
 from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields, Dataset, Emulator
 from grpc_client import GRPCClient
 
+# TODO replace with dataclass
 Tag = namedtuple(
     "Tag",
     [
@@ -50,9 +51,10 @@ Tag = namedtuple(
         TagFields.pipeline_options,
         TagFields.default_example,
         TagFields.context_line,
-        TagFields.tags
+        TagFields.tags,
+        TagFields.url_notebook,
     ],
-    defaults=(None, None, None, None, None, False, None, None, False, None, None))
+    defaults=(None, None, None, None, None, False, None, None, False, None, None, None))
 
 
 @dataclass
@@ -67,7 +69,8 @@ class Example:
     code: str
     status: STATUS_UNSPECIFIED
     tag: Tag
-    link: str
+    url_vcs: str
+    url_notebook: Optional[str] = None
     logs: str = ""
     type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
     pipeline_id: str = ""
@@ -273,33 +276,38 @@ def get_supported_categories(categories_path: str) -> List[str]:
         yaml_object = yaml.load(supported_categories.read(), Loader=yaml.SafeLoader)
         return yaml_object[TagFields.categories]
 
+def _get_url_vcs(filepath: str):
+    """
+    Construct VCS URL from example's filepath
+    """
+    root_dir = os.getenv("BEAM_ROOT_DIR", "")
+    file_path_without_root = filepath.replace(root_dir, "", 1)
+    if file_path_without_root.startswith("/"):
+        return "{}{}".format(Config.URL_VCS_PREFIX, file_path_without_root)
+    else:
+        return "{}/{}".format(Config.URL_VCS_PREFIX, file_path_without_root)
 
 def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
     """
     Return an Example by filepath and filename.
 
     Args:
-         tag: tag of the example.
          filepath: path of the example's file.
          filename: name of the example's file.
+         tag: tag of the example.
 
     Returns:
         Parsed Example object.
     """
     name = tag.tag_as_dict[TagFields.name]
     complexity = tag.tag_as_dict[TagFields.complexity]
+    url_notebook = tag.tag_as_dict.get(TagFields.url_notebook)
     sdk = Config.EXTENSION_TO_SDK[filename.split(os.extsep)[-1]]
     object_type = _get_object_type(filename, filepath)
     with open(filepath, encoding="utf-8") as parsed_file:
         content = parsed_file.read()
     content = content.replace(tag.tag_as_string, "")
     tag.tag_as_dict[TagFields.context_line] -= tag.tag_as_string.count("\n")
-    root_dir = os.getenv("BEAM_ROOT_DIR", "")
-    file_path_without_root = filepath.replace(root_dir, "", 1)
-    if file_path_without_root.startswith("/"):
-        link = "{}{}".format(Config.LINK_PREFIX, file_path_without_root)
-    else:
-        link = "{}/{}".format(Config.LINK_PREFIX, file_path_without_root)
 
     example = Example(
         name=name,
@@ -310,7 +318,9 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         status=STATUS_UNSPECIFIED,
         tag=Tag(**tag.tag_as_dict),
         type=object_type,
-        link=link)
+        url_vcs=_get_url_vcs(filepath),
+        url_notebook=url_notebook,
+        )
 
     if tag.tag_as_dict.get(TagFields.datasets):
         datasets_as_dict = tag.tag_as_dict[TagFields.datasets]
@@ -529,8 +539,8 @@ def validate_example_fields(example: Example):
         _log_and_raise_validation_err(f"Example doesn't have a sdk field. Path: {example.filepath}")
     if example.code == "":
         _log_and_raise_validation_err(f"Example doesn't have a code field. Path: {example.filepath}")
-    if example.link == "":
-        _log_and_raise_validation_err(f"Example doesn't have a link field. Path: {example.filepath}")
+    if example.url_vcs == "":
+        _log_and_raise_validation_err(f"Example doesn't have a url_vcs field. Path: {example.filepath}")
     if example.complexity == "":
         _log_and_raise_validation_err(f"Example doesn't have a complexity field. Path: {example.filepath}")
     datasets = example.datasets

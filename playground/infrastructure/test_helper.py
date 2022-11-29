@@ -128,7 +128,7 @@ async def test_get_statuses(mock_update_example_status):
         output="output",
         status=STATUS_UNSPECIFIED,
         tag={"name": "Name"},
-        link="link",
+        url_vcs="link"
     )
     client = mock.sentinel
     await get_statuses(client, [example])
@@ -167,7 +167,7 @@ def test__check_file_with_correct_tag(mock_get_tag, mock_validate, mock_get_exam
         code="data",
         status=STATUS_UNSPECIFIED,
         tag=Tag("Name", "Description", False, [], "--option option"),
-        link="link",
+        url_vcs="link",
     )
     examples = []
 
@@ -225,6 +225,7 @@ def test__get_example():
             "pipeline_options": "--option option",
             "context_line": 1,
             "complexity": "MEDIUM",
+            "url_notebook": "https://some_url/py-name.ipynb",
             "emulators": {"kafka": {"topic": {"id": "dataset", "dataset": "dataset"}}},
             "datasets": {"dataset": {"location": "local", "format": "json"}},
         },
@@ -250,8 +251,11 @@ def test__get_example():
             "--option option",
             False,
             1,
+            None,
+            "https://some_url/py-name.ipynb",
         ),
-        link="https://github.com/apache/beam/blob/master/root/filepath.java",
+        url_vcs="https://github.com/apache/beam/blob/master/root/filepath.java",
+        url_notebook="https://some_url/py-name.ipynb",
         complexity="MEDIUM",
         emulators=[
             Emulator(topic=Topic(id="dataset", dataset="dataset"), name="kafka")
@@ -340,8 +344,14 @@ async def test__update_example_status(mock_grpc_client_run_code, mock_grpc_clien
         code="code",
         output="output",
         status=STATUS_UNSPECIFIED,
-        tag=Tag(**{"pipeline_options": "--key value"}),
-        link="link",
+        tag=Tag(
+            name="MOCK_NAME",
+            description="MOCK_DESCR",
+            context_line=333,
+            pipeline_options="--key value",
+            complexity="MEDIUM",
+            ),
+        url_vcs="link",
     )
 
     mock_grpc_client_run_code.return_value = "pipeline_id"
@@ -432,11 +442,8 @@ def test_validate_example_fields_when_code_is_invalid():
 
 def test_validate_example_fields_when_link_is_invalid():
     example = _create_example("MOCK_NAME")
-    example.link = ""
-    with pytest.raises(
-          ValidationException,
-          match="Example doesn't have a link field. Path: MOCK_FILEPATH",
-    ):
+    example.url_vcs = ""
+    with pytest.raises(ValidationException, match="Example doesn't have a url_vcs field. Path: MOCK_FILEPATH"):
         validate_example_fields(example)
 
 
@@ -558,7 +565,7 @@ def _create_example_with_meta(name: str, object_meta: Dict[str, Union[str, bool,
         output="MOCK_OUTPUT",
         status=STATUS_UNSPECIFIED,
         tag=Tag(**object_meta),
-        link="MOCK_LINK",
+        url_vcs="MOCK_LINK",
         complexity="MOCK_COMPLEXITY",
     )
     return example
