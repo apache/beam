@@ -85,7 +85,7 @@
   shard names starting at one (e.g. `my-file-0001-of-0023.txt`) and not
   zero (e.g. `my-file-0000-of-0023`). The last shard now has the same index as
   the number of shards (e.g. `my-file-0023-of-0023.txt` instead of
-  `my-file-0022-of-0023.txt`) (#24362).
+  `my-file-0022-of-0023.txt`) ([#24362](https://github.com/apache/beam/issues/24362)).
 
 ## Deprecations
 
