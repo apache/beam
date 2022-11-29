@@ -82,7 +82,7 @@ public class TableRowToStorageApiProto {
           .toFormatter()
           .withZone(ZoneOffset.UTC);
 
-  public static class SchemaConversionException extends Exception {
+  abstract public static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
       super(msg);
     }
@@ -105,6 +105,20 @@ public class TableRowToStorageApiProto {
 
     SchemaDoesntMatchException(String msg, Exception e) {
       super(msg + ". Exception: " + e, e);
+    }
+  }
+
+  public static class SingleValueConversionException extends SchemaConversionException {
+    SingleValueConversionException(Object sourceValue, SchemaInformation schema, Exception e) {
+      super("Column: " + getPrettyFieldName(schema) + " (" + schema.getType() + "). "
+          + "Value: " + sourceValue + " (" + sourceValue.getClass().getName()
+          + "). Reason: " + e);
+    }
+
+    private static String getPrettyFieldName(SchemaInformation schema) {
+      String fullName = schema.getFullName();
+      String rootPrefix = "__root__.";
+      return fullName.startsWith(rootPrefix) ? fullName.substring(rootPrefix.length()) : fullName;
     }
   }
 
@@ -412,7 +426,7 @@ public class TableRowToStorageApiProto {
           try {
             return Long.valueOf((String) value);
           } catch (NumberFormatException e) {
-            // Expected. Element will be added to the failed element PCollection
+            throw new SingleValueConversionException(value, schemaInformation, e);
           }
         } else if (value instanceof Integer || value instanceof Long) {
           return ((Number) value).longValue();
@@ -420,13 +434,13 @@ public class TableRowToStorageApiProto {
           try {
             return ((BigDecimal) value).longValueExact();
           } catch (ArithmeticException e) {
-            // Expected
+            throw new SingleValueConversionException(value, schemaInformation, e);
           }
         } else if( value instanceof BigInteger) {
           try {
             return ((BigInteger) value).longValueExact();
           } catch (ArithmeticException e) {
-            // Expected
+            throw new SingleValueConversionException(value, schemaInformation, e);
           }
         }
         break;
@@ -573,7 +587,7 @@ public class TableRowToStorageApiProto {
     }
 
     throw new SchemaDoesntMatchException(
-        "Unexpected value :"
+        "Unexpected value: "
             + value
             + ", type: "
             + (value == null ? "null" : value.getClass())
