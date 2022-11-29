@@ -144,7 +144,10 @@ public class DataProtectors {
   }
 
   /** Class implements stateful doFn for data tokenization using remote RPC. */
-  @SuppressWarnings("initialization.static.fields.uninitialized")
+  @SuppressWarnings({
+    "initialization.static.fields.uninitialized",
+    "initialization.static.field.uninitialized"
+  })
   public static class TokenizationFn extends DoFn<KV<Integer, Iterable<Row>>, Row> {
 
     private static Schema schemaToRpc;
