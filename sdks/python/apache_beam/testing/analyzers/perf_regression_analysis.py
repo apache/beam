@@ -180,10 +180,13 @@ def find_existing_issue(
     # on the current test+metric.
     return True, None
   issue_number = df[ISSUE_NUMBER].tolist()[0]
+  previous_change_point_timestamp = df[CHANGE_POINT_TIMESTAMP_LABEL].tolist()[0]
 
-  if (sibling_change_point_min_timestamp <= change_point_timestamp <=
+  if (previous_change_point_timestamp == change_point_timestamp) or (
+      sibling_change_point_min_timestamp <= previous_change_point_timestamp <=
       sibling_change_point_max_timestamp):
     return False, None
+
   return True, issue_number
 
 
