@@ -64,11 +64,11 @@ public abstract class TemplateTestBase {
 
   protected static final String PROJECT = TestProperties.project();
   protected static final String REGION = TestProperties.region();
-  protected static final String ARTIFACT_BUCKET = TestProperties.artifactBucket();
 
   protected String specPath;
   protected Credentials credentials;
   protected CredentialsProvider credentialsProvider;
+  protected String artifactBucketName;
 
   /** Cache to avoid staging the same template multiple times on the same execution. */
   private static final Map<String, String> stagedTemplates = new HashMap<>();
@@ -95,9 +95,23 @@ public abstract class TemplateTestBase {
       credentials = buildCredentialsFromEnv();
     }
 
+    // Use bucketName unless only artifactBucket is provided
+    String bucketName = TestProperties.stageBucket();
+    if (bucketName == null || bucketName.isEmpty()) {
+      bucketName = TestProperties.artifactBucket();
+    }
+
+    // Prefer artifactBucket, but use the staging one if none given
+    if (TestProperties.hasArtifactBucket()) {
+      artifactBucketName = TestProperties.artifactBucket();
+    } else {
+      artifactBucketName = bucketName;
+    }
+
     Storage gcsClient = createGcsClient(credentials);
     artifactClient =
-        GcsArtifactClient.builder(gcsClient, ARTIFACT_BUCKET, getClass().getSimpleName()).build();
+        GcsArtifactClient.builder(gcsClient, artifactBucketName, getClass().getSimpleName())
+            .build();
 
     credentialsProvider = FixedCredentialsProvider.create(credentials);
 
@@ -116,10 +130,6 @@ public abstract class TemplateTestBase {
         throw new IllegalArgumentException(
             "To use tests staging templates, please run in the Maven module directory containing"
                 + " the template.");
-      }
-      String bucketName = TestProperties.stageBucket();
-      if (bucketName == null || bucketName.isEmpty()) {
-        bucketName = TestProperties.artifactBucket();
       }
 
       String[] mavenCmd = buildMavenStageCommand(prefix, pom, bucketName);
@@ -210,12 +220,12 @@ public abstract class TemplateTestBase {
   }
 
   protected String getGcsBasePath() {
-    return getFullGcsPath(ARTIFACT_BUCKET, getClass().getSimpleName(), artifactClient.runId());
+    return getFullGcsPath(artifactBucketName, getClass().getSimpleName(), artifactClient.runId());
   }
 
   protected String getGcsPath(String testMethod) {
     return getFullGcsPath(
-        ARTIFACT_BUCKET, getClass().getSimpleName(), artifactClient.runId(), testMethod);
+        artifactBucketName, getClass().getSimpleName(), artifactClient.runId(), testMethod);
   }
 
   protected DataflowOperator.Config createConfig(JobInfo info) {

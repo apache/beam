@@ -65,6 +65,10 @@ public final class TestProperties {
     return new GoogleCredentials(new AccessToken(accessToken(), /* expirationTime= */ null));
   }
 
+  public static boolean hasArtifactBucket() {
+    return getProperty(ARTIFACT_BUCKET_KEY, null, Type.PROPERTY) != null;
+  }
+
   public static String artifactBucket() {
     return getProperty(ARTIFACT_BUCKET_KEY, Type.PROPERTY, true);
   }
