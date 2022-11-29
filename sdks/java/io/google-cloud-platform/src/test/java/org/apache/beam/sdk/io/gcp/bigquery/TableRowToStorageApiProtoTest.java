@@ -890,7 +890,7 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.singularFieldToProtoValue(fieldSchema, fieldDescriptor,
             sourceValue, false);
         fail("Expected to throw an exception converting " + sourceValue + " of type "
-            + invalidValue.getClass() + " to INTEGER: ");
+            + invalidValue.getClass() + " to INTEGER");
       } catch (SchemaConversionException e) {
         assertEquals("Exception message", expectedError, e.getMessage());
       }
