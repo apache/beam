@@ -375,7 +375,7 @@ class BlobStorageIO(object):
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
     """
-    return self._blob_properties(path).properties.etag
+    return self._blob_properties(path).etag
 
   def _status(self, path):
     """For internal use only; no backwards-compatibility guarantees.
