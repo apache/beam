@@ -298,7 +298,7 @@ limitations under the License.
 -->
 &lt;h1 id="apache-beam-presentation-materials">Apache Beam Presentation Materials&lt;/h1>
 &lt;p>Are you interested in learning more about Apache Beam or giving a talk about Apache Beam? Excellent! The Apache Beam community has created this collection of materials to help you get started. The community periodically reviews these materials to ensure they are accurate and up-to-date.&lt;/p>
-&lt;div class="panel panel-default">
+&lt;div class="panel panel-default table-container-wrapper">
 &lt;div class="panel-body">
 &lt;iframe src="https://drive.google.com/embeddedfolderview?id=0B-IhJZh9Ab52a3JLVXFWMDltcHM&amp;resourcekey=0-VP9gZcuYGybKzNARikCEnQ#list" width="700" height="300" frameborder="0">&lt;/iframe>
 &lt;/div>
@@ -423,6 +423,7 @@ limitations under the License.
 &lt;p>The Apache Beam community is friendly and welcoming. We are glad to help with any
 questions, suggestions, or ideas you have. Contact us in the following channels:&lt;/p>
 &lt;h2 id="available-contact-channels">Available contact channels&lt;/h2>
+&lt;div class="table-container-wrapper">
 &lt;div class="table-wrapper">
 &lt;table>
 &lt;tr>
@@ -689,6 +690,7 @@ under the License.
 &lt;/td>
 &lt;/tr>
 &lt;/table>
+&lt;/div>
 &lt;/div>
 &lt;h2 id="mailing-list-what-are-they-and-how-they-work">Mailing list, what are they and how they work&lt;/h2>
 &lt;p>The official communication channels for Apache projects are their &lt;a href="https://community.apache.org/lists.html">mailing lists&lt;/a>, and Apache Beam has two main lists: &lt;a href="mailto:user@beam.apache.org">user@beam.apache.org&lt;/a> and &lt;a href="mailto:dev@beam.apache.org">dev@beam.apache.org&lt;/a>. The topics for each of them can be seen in the section above.&lt;/p>

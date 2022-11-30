@@ -135,6 +135,9 @@ Engineering Manager, Stream Processing Platform @ Intuit
 &lt;p>Since Intuit Stream Processing Platform’s launch, the number of Apache Beam-powered streaming pipelines has been growing 2x per year and as of July’22 reached over 160 active production pipelines running on 710 nodes across 6 different Kubernetes clusters. The Apache Beam pipelines handle ~17.3 billion events and 82 TB of data, processing 800,000 transactions per second at peak seasons.&lt;/p>
 &lt;p>Apache Beam and its abstraction of the execution engines allowed Intuit to seamlessly switch their primary runner without rewriting the code to a new execution environment runner. It also provided confidence by future-proofing the Intuit Stream Processing Platform for flexibility as new execution runtimes keep evolving. Apache Beam helped lower the entry barrier, democratize stream processing across Intuit’s development teams, and ensure fast onboarding for engineers without prior experience with Apache Flink or other streaming data processing tools. Apache Beam facilitated the migration from batch jobs to streaming applications, enabling new real-time and ML-powered experiences for Intuit customers.&lt;/p>
 &lt;p>With Apache Beam, Intuit accelerated the development and launch of production-grade streaming data pipelines 3x, from 3 months to just 1 month. The time to design pipelines for preproduction shrank to just 10 days. Migration from batch jobs to Apache Beam streaming pipelines resulted in a 5x memory and compute cost optimization. Intuit continues developing Apache Beam streaming pipelines for new use cases, 150 more pipelines are in preproduction and coming to production soon.&lt;/p>
+&lt;h2 id="learn-more">Learn More&lt;/h2>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/H4s7rAlk68w" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>&lt;br>
 &lt;div class="case-study-feedback" id="case-study-feedback">
 &lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
 &lt;div>
@@ -1077,6 +1080,9 @@ Senior Data Engineer @ Ricardo
 &lt;/blockquote>
 &lt;p>Apache Beam has been a technology that multiplied possibilities, allowing Ricardo to maximize technology benefits at all
 stages of their modernization and cloud journey.&lt;/p>
+&lt;h2 id="learn-more">Learn More&lt;/h2>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/v-MclVrGJcQ" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>&lt;br>
 &lt;div class="case-study-feedback" id="case-study-feedback">
 &lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
 &lt;div>
