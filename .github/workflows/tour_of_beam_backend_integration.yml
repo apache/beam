@@ -80,7 +80,7 @@ jobs:
             cache-read-only: false
 
       - name: Build Playground router image
-        run: ./gradlew playground:backend:containers:router:docker
+        run: ./gradlew -i playground:backend:containers:router:docker
         working-directory: ${{ env.GITHUB_WORKSPACE }}
 
       # 1. Start emulators
