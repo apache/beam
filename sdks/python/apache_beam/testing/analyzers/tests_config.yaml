@@ -24,7 +24,7 @@
 # change_point_to_recent_run_window: same units as min_runs_between_change_points.
 
 test_1:
-  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks_10
+  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
   project: apache-beam-testing
