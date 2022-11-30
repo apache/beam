@@ -3,6 +3,8 @@ title:  "Apache Beam Playground: An interactive environment to try transforms an
 date:   2022-11-30 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2022/11/30/apache-beam-playground.html
 authors:
   - AKosolapov
 ---
