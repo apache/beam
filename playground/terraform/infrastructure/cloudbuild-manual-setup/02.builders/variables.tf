@@ -28,13 +28,13 @@ variable "region" {
 variable "infra_trigger_name" {
   type        = string
   description = "The name of the trigger that will deploy Playground infrastructure"
-  default     = "Playground-infrastructure-trigger"
+  default     = "playground-infrastructure-trigger"
 }
 
 variable "gke_trigger_name" {
   type        = string
   description = "The name of the trigger that will deploy Playground to GKE"
-  default     = "Playground-to-gke-trigger"
+  default     = "playground-to-gke-trigger"
 }
 
 variable "cloudbuild_service_account_id" {
@@ -72,11 +72,11 @@ variable "docker_repository_root" {
 }
 
 variable "playground_region" {
-  description = "Region (us-central1) where playground infrastructure will be deployed"
+  description = "Region (For example: us-central1) where playground infrastructure will be deployed"
 }
 
-variable "playground_location" {
-  description = "Location (us-central1-b) where playground infrastructure will be deployed"
+variable "playground_zone" {
+  description = "Zone (For example: us-central1-b) where playground infrastructure will be deployed"
 }
 
 variable "sdk_tag" {

@@ -39,7 +39,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
 
   substitutions = {
     _PLAYGROUND_REGION : var.playground_region
-    _PLAYGROUND_LOCATION : var.playground_location
+    _PLAYGROUND_LOCATION : var.playground_zone
     _ENVIRONMENT_NAME : var.playground_environment_name
     _DNS_NAME : var.playground_dns_name
     _NETWORK_NAME : var.playground_network_name
@@ -70,7 +70,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
 
   substitutions = {
     _PLAYGROUND_REGION : var.playground_region
-    _PLAYGROUND_LOCATION : var.playground_location
+    _PLAYGROUND_LOCATION : var.playground_zone
     _ENVIRONMENT_NAME : var.playground_environment_name
     _DNS_NAME : var.playground_dns_name
     _NETWORK_NAME : var.playground_network_name

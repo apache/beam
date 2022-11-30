@@ -19,11 +19,15 @@
 
 This directory organizes Infrastructure-as-Code to provision dependent resources and set up Cloud Build for Beam Playground.
 
+Playground deployment main data and scripts can be found by next locations:
+- [Playground deployment main directory](https://github.com/apache/beam/blob/master/playground/)
+- [Playground deployment main README file](https://github.com/apache/beam/blob/master/playground/terraform/README.md)
+
 ## Requirements:
 
 - [GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 - [GCP User account](https://cloud.google.com/appengine/docs/standard/access-control?tab=python) _(Note: You will find the instruction "How to create User account" for your new project)_<br>
-  Ensure that the account has at least the following privileges:
+  Ensure that the account has at least the following [IAM roles](https://cloud.google.com/iam/docs/understanding-roles):
     - Service Account Admin
     - Storage Admin
     - Service Usage Admin
@@ -92,7 +96,7 @@ cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
 
 # Run terraform scripts
 terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply -var "project_id=$GOOGLE_PROJECT"
+terraform apply -var="project_id=$(gcloud config get-value project)"
 ```
 
 ## 2. Connect Apache Beam GitHub repository and GCP Cloud Build
@@ -117,7 +121,7 @@ cd ../02.builders
 terraform init -backend-config="bucket=$STATE_BUCKET"
 
 terraform apply \
--var "project_id=$GOOGLE_PROJECT" \
+-var "project_id=$(gcloud config get-value project)" \
 -var "region=$GOOGLE_REGION" \
 -var "playground_region=$PLAYGROUND_REGION" \
 -var "playground_location=$PLAYGROUND_LOCATION" \

@@ -15,11 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GO_VERSION=1.18
-
 apt-get update > /dev/null
 
-# Install JRE
+# Install dependencies
 apt-get install -y build-essential unzip apt-transport-https ca-certificates curl software-properties-common gnupg2 wget > /dev/null
 
 # Install Docker
@@ -42,7 +40,5 @@ curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s ht
 && chmod +x ./kubectl \
 && mv ./kubectl /usr/local/bin/kubectl
 
-# Install golang & jdk
-curl -O https://dl.google.com/go/go"$GO_VERSION".linux-amd64.tar.gz
-tar -C /usr/local -xvf go"$GO_VERSION".linux-amd64.tar.gz > /dev/null
+# Install jdk
 apt-get install openjdk-11-jdk -y > /dev/null
