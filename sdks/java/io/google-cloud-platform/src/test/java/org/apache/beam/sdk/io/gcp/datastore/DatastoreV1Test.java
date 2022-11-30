@@ -553,7 +553,7 @@ public class DatastoreV1Test {
 
     /** Tests {@link DatastoreWriterFn} with entities less than one batch. */
     @Test
-    public void testDatatoreWriterFnWithOneBatch() throws Exception {
+    public void testDatastoreWriterFnWithOneBatch() throws Exception {
       datastoreWriterFnTest(100);
       verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
     }
@@ -562,7 +562,7 @@ public class DatastoreV1Test {
      * Tests {@link DatastoreWriterFn} with entities of more than one batches, but not a multiple.
      */
     @Test
-    public void testDatatoreWriterFnWithMultipleBatches() throws Exception {
+    public void testDatastoreWriterFnWithMultipleBatches() throws Exception {
       datastoreWriterFnTest(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START * 3 + 100);
       verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 5);
     }
@@ -572,7 +572,7 @@ public class DatastoreV1Test {
      * write batch size.
      */
     @Test
-    public void testDatatoreWriterFnWithBatchesExactMultiple() throws Exception {
+    public void testDatastoreWriterFnWithBatchesExactMultiple() throws Exception {
       datastoreWriterFnTest(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START * 2);
       verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
     }
@@ -612,7 +612,7 @@ public class DatastoreV1Test {
      * Tests {@link DatastoreWriterFn} with large entities that need to be split into more batches.
      */
     @Test
-    public void testDatatoreWriterFnWithLargeEntities() throws Exception {
+    public void testDatastoreWriterFnWithLargeEntities() throws Exception {
       List<Mutation> mutations = new ArrayList<>();
       int entitySize = 0;
       for (int i = 0; i < 12; ++i) {
@@ -654,7 +654,7 @@ public class DatastoreV1Test {
 
     /** Tests {@link DatastoreWriterFn} correctly flushes batch upon receive same entity keys. */
     @Test
-    public void testDatatoreWriterFnWithDuplicateEntities() throws Exception {
+    public void testDatastoreWriterFnWithDuplicateEntities() throws Exception {
       List<Mutation> mutations = new ArrayList<>();
       for (int i : Arrays.asList(0, 1, 0, 2)) {
         // this will generate entities having key 0, 1, 0, 2 and random values
@@ -693,7 +693,7 @@ public class DatastoreV1Test {
 
     /** Tests {@link DatastoreWriterFn} with a failed request which is retried. */
     @Test
-    public void testDatatoreWriterFnRetriesErrors() throws Exception {
+    public void testDatastoreWriterFnRetriesErrors() throws Exception {
       List<Mutation> mutations = new ArrayList<>();
       int numRpcs = 2;
       for (int i = 0; i < DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START * numRpcs; ++i) {
