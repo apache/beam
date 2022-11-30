@@ -60,15 +60,15 @@ variable "github_repository_branch" {
 
 variable "playground_environment_name" {
   description = <<EOF
-      Environment name where to deploy Playground. Located in playground/terraform/environment/{environment_name}. E.g. test, dev, prod.
-      More details: https://github.com/akvelon/beam/blob/cloudbuild%2Bmanualsetup%2Bplayground/playground/terraform/README.md#prepare-deployment-configuration"
+Environment name where to deploy Playground. Located in playground/terraform/environment/{environment_name}. E.g. test, dev, prod.
+More details: https://github.com/akvelon/beam/blob/cloudbuild%2Bmanualsetup%2Bplayground/playground/terraform/README.md#prepare-deployment-configuration"
   EOF
 }
 
 variable "playground_dns_name" {
   description = <<EOF
-      The DNS record name for Playground website.
-      More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#deploy-playground-infrastructure"
+  The DNS record name for Playground website.
+  More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#deploy-playground-infrastructure"
   EOF
 }
 
@@ -102,7 +102,7 @@ variable "playground_zone" {
 
 variable "sdk_tag" {
   description = <<EOF
-      Apache Beam Golang and Python images SDK tag. (For example: 2.43.0)
-      See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hub.docker.com/r/apache/beam_go_sdk"
+Apache Beam Golang and Python images SDK tag. (For example: 2.43.0)
+See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hub.docker.com/r/apache/beam_go_sdk"
   EOF
 }
