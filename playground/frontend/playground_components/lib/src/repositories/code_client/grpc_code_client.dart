@@ -22,7 +22,6 @@ import '../../api/iis_workaround_channel.dart';
 import '../../api/v1/api.pbgrpc.dart' as grpc;
 import '../../models/sdk.dart';
 import '../../util/pipeline_options.dart';
-import '../../util/replace_incorrect_symbols.dart';
 import '../models/check_status_response.dart';
 import '../models/output_response.dart';
 import '../models/run_code_error.dart';
@@ -101,7 +100,7 @@ class GrpcCodeClient implements CodeClient {
       ),
     );
 
-    return _toOutputResponse(response.output);
+    return OutputResponse(output: response.output);
   }
 
   @override
@@ -115,10 +114,10 @@ class GrpcCodeClient implements CodeClient {
         ),
       );
 
-      return _toOutputResponse(response.output);
+      return OutputResponse(output: response.output);
     } catch (ex) {
       print(ex);
-      return _toOutputResponse('');
+      return OutputResponse(output: '');
     }
   }
 
@@ -131,10 +130,10 @@ class GrpcCodeClient implements CodeClient {
         grpc.GetLogsRequest(pipelineUuid: pipelineUuid),
       );
 
-      return _toOutputResponse(response.output);
+      return OutputResponse(output: response.output);
     } catch (ex) {
       print(ex);
-      return _toOutputResponse('');
+      return OutputResponse(output: '');
     }
   }
 
@@ -146,7 +145,7 @@ class GrpcCodeClient implements CodeClient {
       grpc.GetRunErrorRequest(pipelineUuid: pipelineUuid),
     );
 
-    return _toOutputResponse(response.output);
+    return OutputResponse(output: response.output);
   }
 
   @override
@@ -157,7 +156,7 @@ class GrpcCodeClient implements CodeClient {
       grpc.GetValidationOutputRequest(pipelineUuid: pipelineUuid),
     );
 
-    return _toOutputResponse(response.output);
+    return OutputResponse(output: response.output);
   }
 
   @override
@@ -168,7 +167,7 @@ class GrpcCodeClient implements CodeClient {
       grpc.GetPreparationOutputRequest(pipelineUuid: pipelineUuid),
     );
 
-    return _toOutputResponse(response.output);
+    return OutputResponse(output: response.output);
   }
 
   @override
@@ -183,7 +182,7 @@ class GrpcCodeClient implements CodeClient {
       return OutputResponse(output: response.graph);
     } catch (ex) {
       print(ex);
-      return _toOutputResponse('');
+      return OutputResponse(output: '');
     }
   }
 
@@ -248,9 +247,5 @@ class GrpcCodeClient implements CodeClient {
         return RunCodeStatus.unknownError;
     }
     return RunCodeStatus.unspecified;
-  }
-
-  OutputResponse _toOutputResponse(String response) {
-    return OutputResponse(output: replaceIncorrectSymbols(response));
   }
 }

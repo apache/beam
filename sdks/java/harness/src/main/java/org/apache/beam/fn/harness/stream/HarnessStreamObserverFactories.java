@@ -18,8 +18,8 @@
 package org.apache.beam.fn.harness.stream;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
@@ -40,10 +40,10 @@ public abstract class HarnessStreamObserverFactories {
       int bufferSize = getBufferSize(experiments);
       if (bufferSize > 0) {
         return OutboundObserverFactory.clientBuffered(
-            options.as(GcsOptions.class).getExecutorService(), bufferSize);
+            options.as(ExecutorOptions.class).getScheduledExecutorService(), bufferSize);
       }
       return OutboundObserverFactory.clientBuffered(
-          options.as(GcsOptions.class).getExecutorService());
+          options.as(ExecutorOptions.class).getScheduledExecutorService());
     }
     return OutboundObserverFactory.clientDirect();
   }

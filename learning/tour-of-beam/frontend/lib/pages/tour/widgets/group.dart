@@ -17,13 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
 
-import '../../../components/expansion_tile_wrapper.dart';
 import '../../../models/group.dart';
 import '../controllers/content_tree.dart';
 import 'group_nodes.dart';
 import 'group_title.dart';
+import 'stateless_expansion_tile.dart';
 
 class GroupWidget extends StatelessWidget {
   final GroupModel group;
@@ -36,23 +35,32 @@ class GroupWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ExpansionTileWrapper(
-      ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        title: GroupTitleWidget(
-          group: group,
-          onTap: () => contentTreeController.onNodeTap(group),
-        ),
-        childrenPadding: const EdgeInsets.only(
-          left: BeamSizes.size24,
-        ),
-        children: [
-          GroupNodesWidget(
+    return AnimatedBuilder(
+      animation: contentTreeController,
+      builder: (context, child) {
+        final isExpanded = contentTreeController.expandedIds.contains(group.id);
+
+        return StatelessExpansionTile(
+          isExpanded: isExpanded,
+          onExpansionChanged: (isExpanding) {
+            if (isExpanding) {
+              contentTreeController.expandGroup(group);
+            } else {
+              contentTreeController.collapseGroup(group);
+            }
+          },
+          title: GroupTitleWidget(
+            group: group,
+            onTap: () {
+              contentTreeController.openNode(group);
+            },
+          ),
+          child: GroupNodesWidget(
             nodes: group.nodes,
             contentTreeController: contentTreeController,
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -17,16 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
+import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.DescriptorProtos.DescriptorProto;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
-import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
-import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -34,7 +29,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -52,8 +46,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
 import org.joda.time.ReadableInstant;
 
@@ -71,38 +63,38 @@ public class BeamRowToStorageApiProto {
       new BigDecimal("-99999999999999999999999999999.999999999");
 
   // TODO(reuvenlax): Support BIGNUMERIC and GEOGRAPHY types.
-  static final Map<TypeName, Type> PRIMITIVE_TYPES =
-      ImmutableMap.<TypeName, Type>builder()
-          .put(TypeName.INT16, Type.TYPE_INT32)
-          .put(TypeName.BYTE, Type.TYPE_INT32)
-          .put(TypeName.INT32, Type.TYPE_INT32)
-          .put(TypeName.INT64, Type.TYPE_INT64)
-          .put(TypeName.FLOAT, Type.TYPE_FLOAT)
-          .put(TypeName.DOUBLE, Type.TYPE_DOUBLE)
-          .put(TypeName.STRING, Type.TYPE_STRING)
-          .put(TypeName.BOOLEAN, Type.TYPE_BOOL)
-          .put(TypeName.DATETIME, Type.TYPE_INT64)
-          .put(TypeName.BYTES, Type.TYPE_BYTES)
-          .put(TypeName.DECIMAL, Type.TYPE_BYTES)
+  static final Map<TypeName, TableFieldSchema.Type> PRIMITIVE_TYPES =
+      ImmutableMap.<TypeName, TableFieldSchema.Type>builder()
+          .put(TypeName.INT16, TableFieldSchema.Type.INT64)
+          .put(TypeName.BYTE, TableFieldSchema.Type.INT64)
+          .put(TypeName.INT32, TableFieldSchema.Type.INT64)
+          .put(TypeName.INT64, TableFieldSchema.Type.INT64)
+          .put(TypeName.FLOAT, TableFieldSchema.Type.DOUBLE)
+          .put(TypeName.DOUBLE, TableFieldSchema.Type.DOUBLE)
+          .put(TypeName.STRING, TableFieldSchema.Type.STRING)
+          .put(TypeName.BOOLEAN, TableFieldSchema.Type.BOOL)
+          .put(TypeName.DATETIME, TableFieldSchema.Type.DATETIME)
+          .put(TypeName.BYTES, TableFieldSchema.Type.BYTES)
+          .put(TypeName.DECIMAL, TableFieldSchema.Type.BIGNUMERIC)
           .build();
 
   // A map of supported logical types to the protobuf field type.
-  static final Map<String, Type> LOGICAL_TYPES =
-      ImmutableMap.<String, Type>builder()
-          .put(SqlTypes.DATE.getIdentifier(), Type.TYPE_INT32)
-          .put(SqlTypes.TIME.getIdentifier(), Type.TYPE_INT64)
-          .put(SqlTypes.DATETIME.getIdentifier(), Type.TYPE_INT64)
-          .put(SqlTypes.TIMESTAMP.getIdentifier(), Type.TYPE_INT64)
-          .put(EnumerationType.IDENTIFIER, Type.TYPE_STRING)
+  static final Map<String, TableFieldSchema.Type> LOGICAL_TYPES =
+      ImmutableMap.<String, TableFieldSchema.Type>builder()
+          .put(SqlTypes.DATE.getIdentifier(), TableFieldSchema.Type.DATE)
+          .put(SqlTypes.TIME.getIdentifier(), TableFieldSchema.Type.TIME)
+          .put(SqlTypes.DATETIME.getIdentifier(), TableFieldSchema.Type.DATETIME)
+          .put(SqlTypes.TIMESTAMP.getIdentifier(), TableFieldSchema.Type.TIMESTAMP)
+          .put(EnumerationType.IDENTIFIER, TableFieldSchema.Type.STRING)
           .build();
 
   static final Map<TypeName, Function<Object, Object>> PRIMITIVE_ENCODERS =
       ImmutableMap.<TypeName, Function<Object, Object>>builder()
-          .put(TypeName.INT16, o -> Integer.valueOf((Short) o))
-          .put(TypeName.BYTE, o -> Integer.valueOf((Byte) o))
-          .put(TypeName.INT32, Functions.identity())
+          .put(TypeName.INT16, o -> ((Short) o).longValue())
+          .put(TypeName.BYTE, o -> ((Byte) o).longValue())
+          .put(TypeName.INT32, o -> ((Integer) o).longValue())
           .put(TypeName.INT64, Functions.identity())
-          .put(TypeName.FLOAT, Function.identity())
+          .put(TypeName.FLOAT, o -> Double.valueOf(o.toString()))
           .put(TypeName.DOUBLE, Function.identity())
           .put(TypeName.STRING, Function.identity())
           .put(TypeName.BOOLEAN, Function.identity())
@@ -135,21 +127,6 @@ public class BeamRowToStorageApiProto {
           .build();
 
   /**
-   * Given a Beam Schema, returns a protocol-buffer Descriptor that can be used to write data using
-   * the BigQuery Storage API.
-   */
-  public static Descriptor getDescriptorFromSchema(Schema schema)
-      throws DescriptorValidationException {
-    DescriptorProto descriptorProto = descriptorSchemaFromBeamSchema(schema);
-    FileDescriptorProto fileDescriptorProto =
-        FileDescriptorProto.newBuilder().addMessageType(descriptorProto).build();
-    FileDescriptor fileDescriptor =
-        FileDescriptor.buildFrom(fileDescriptorProto, new FileDescriptor[0]);
-
-    return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
-  }
-
-  /**
    * Given a Beam {@link Row} object, returns a protocol-buffer message that can be used to write
    * data using the BigQuery Storage streaming API.
    */
@@ -159,7 +136,9 @@ public class BeamRowToStorageApiProto {
     for (int i = 0; i < row.getFieldCount(); ++i) {
       Field beamField = beamSchema.getField(i);
       FieldDescriptor fieldDescriptor =
-          Preconditions.checkNotNull(descriptor.findFieldByName(beamField.getName().toLowerCase()));
+          Preconditions.checkNotNull(
+              descriptor.findFieldByName(beamField.getName().toLowerCase()),
+              beamField.getName().toLowerCase());
       @Nullable Object value = messageValueFromRowValue(fieldDescriptor, beamField, i, row);
       if (value != null) {
         builder.setField(fieldDescriptor, value);
@@ -169,27 +148,19 @@ public class BeamRowToStorageApiProto {
   }
 
   @VisibleForTesting
-  static DescriptorProto descriptorSchemaFromBeamSchema(Schema schema) {
+  static TableSchema protoTableSchemaFromBeamSchema(Schema schema) {
     Preconditions.checkState(schema.getFieldCount() > 0);
-    DescriptorProto.Builder descriptorBuilder = DescriptorProto.newBuilder();
-    // Create a unique name for the descriptor ('-' characters cannot be used).
-    descriptorBuilder.setName("D" + UUID.randomUUID().toString().replace("-", "_"));
-    int i = 1;
-    List<DescriptorProto> nestedTypes = Lists.newArrayList();
+
+    TableSchema.Builder builder = TableSchema.newBuilder();
     for (Field field : schema.getFields()) {
-      FieldDescriptorProto.Builder fieldDescriptorProtoBuilder =
-          fieldDescriptorFromBeamField(field, i++, nestedTypes);
-      descriptorBuilder.addField(fieldDescriptorProtoBuilder);
+      builder.addFields(fieldDescriptorFromBeamField(field));
     }
-    nestedTypes.forEach(descriptorBuilder::addNestedType);
-    return descriptorBuilder.build();
+    return builder.build();
   }
 
-  private static FieldDescriptorProto.Builder fieldDescriptorFromBeamField(
-      Field field, int fieldNumber, List<DescriptorProto> nestedTypes) {
-    FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
-    fieldDescriptorBuilder = fieldDescriptorBuilder.setName(field.getName().toLowerCase());
-    fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(fieldNumber);
+  private static TableFieldSchema fieldDescriptorFromBeamField(Field field) {
+    TableFieldSchema.Builder builder = TableFieldSchema.newBuilder();
+    builder = builder.setName(field.getName().toLowerCase());
 
     switch (field.getType().getTypeName()) {
       case ROW:
@@ -197,10 +168,10 @@ public class BeamRowToStorageApiProto {
         if (rowSchema == null) {
           throw new RuntimeException("Unexpected null schema!");
         }
-        DescriptorProto nested = descriptorSchemaFromBeamSchema(rowSchema);
-        nestedTypes.add(nested);
-        fieldDescriptorBuilder =
-            fieldDescriptorBuilder.setType(Type.TYPE_MESSAGE).setTypeName(nested.getName());
+        builder = builder.setType(TableFieldSchema.Type.STRUCT);
+        for (Schema.Field nestedField : rowSchema.getFields()) {
+          builder = builder.addFields(fieldDescriptorFromBeamField(nestedField));
+        }
         break;
       case ARRAY:
       case ITERABLE:
@@ -211,35 +182,44 @@ public class BeamRowToStorageApiProto {
         Preconditions.checkState(
             !Preconditions.checkNotNull(elementType.getTypeName()).isCollectionType(),
             "Nested arrays not supported by BigQuery.");
-        return fieldDescriptorFromBeamField(
-                Field.of(field.getName(), elementType), fieldNumber, nestedTypes)
-            .setLabel(Label.LABEL_REPEATED);
+        TableFieldSchema elementFieldSchema =
+            fieldDescriptorFromBeamField(Field.of(field.getName(), elementType));
+        builder = builder.setType(elementFieldSchema.getType());
+        builder.addAllFields(elementFieldSchema.getFieldsList());
+        builder = builder.setMode(TableFieldSchema.Mode.REPEATED);
+        break;
       case LOGICAL_TYPE:
         @Nullable LogicalType<?, ?> logicalType = field.getType().getLogicalType();
         if (logicalType == null) {
           throw new RuntimeException("Unexpected null logical type " + field.getType());
         }
-        @Nullable Type type = LOGICAL_TYPES.get(logicalType.getIdentifier());
+        @Nullable TableFieldSchema.Type type = LOGICAL_TYPES.get(logicalType.getIdentifier());
         if (type == null) {
           throw new RuntimeException("Unsupported logical type " + field.getType());
         }
-        fieldDescriptorBuilder = fieldDescriptorBuilder.setType(type);
+        builder = builder.setType(type);
         break;
       case MAP:
         throw new RuntimeException("Map types not supported by BigQuery.");
       default:
-        @Nullable Type primitiveType = PRIMITIVE_TYPES.get(field.getType().getTypeName());
+        @Nullable
+        TableFieldSchema.Type primitiveType = PRIMITIVE_TYPES.get(field.getType().getTypeName());
         if (primitiveType == null) {
           throw new RuntimeException("Unsupported type " + field.getType());
         }
-        fieldDescriptorBuilder = fieldDescriptorBuilder.setType(primitiveType);
+        builder = builder.setType(primitiveType);
     }
-    if (field.getType().getNullable()) {
-      fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
-    } else {
-      fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_REQUIRED);
+    if (builder.getMode() != TableFieldSchema.Mode.REPEATED) {
+      if (field.getType().getNullable()) {
+        builder = builder.setMode(TableFieldSchema.Mode.NULLABLE);
+      } else {
+        builder = builder.setMode(TableFieldSchema.Mode.REQUIRED);
+      }
     }
-    return fieldDescriptorBuilder;
+    if (field.getDescription() != null) {
+      builder = builder.setDescription(field.getDescription());
+    }
+    return builder.build();
   }
 
   @Nullable

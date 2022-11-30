@@ -35,20 +35,15 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
     watermark.
     """
     self._watermark = timestamp
+    self._last_observed_timestamp = timestamp
 
   def observe_timestamp(self, timestamp):
-    if self._watermark is None:
-      self._watermark = timestamp
-    else:
-      # TODO(https://github.com/apache/beam/issues/20041): Consider making it
-      # configurable to deal with late timestamp.
-      if timestamp < self._watermark:
-        raise ValueError(
-            'A MonotonicWatermarkEstimator expects output '
-            'timestamp to be increasing monotonically.')
-      self._watermark = timestamp
+    self._last_observed_timestamp = timestamp
 
   def current_watermark(self):
+    if self._last_observed_timestamp is not None \
+        and self._last_observed_timestamp >= self._watermark:
+      self._watermark = self._last_observed_timestamp
     return self._watermark
 
   def get_estimator_state(self):

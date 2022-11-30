@@ -17,23 +17,23 @@ limitations under the License.
 
 # Data processing
 
-There are several types of data processing in Beam that are applicable in any AI/ML project:
-- Data exploration: getting to know your data (properties, distributions, statistics) at the start of the development of your project, or when there are significant changes to your data.
-- Data preprocessing: transforming your data so that it is ready to be used for training your model.
-- Data post-processing: after running inference, you might need to transform the output of your model so that it is meaningful
-- Data validation: check the quality of your data such as detecting outliers and reporting on standard deviations and class distributions.
+Several types of Apache Beam data processing are applicable to AI/ML projects:
+- Data exploration: Learn about your data (properties, distributions, statistics) when you start to deploy your project or when the data changes.
+- Data preprocessing: Transform your data so that it is ready to be used to train your model.
+- Data postprocessing: After running inference, you might need to transform the output of your model so that it is meaningful.
+- Data validation: Check the quality of your data to detect outliers and calculate standard deviations and class distributions.
 
-This can be grouped into two main topics. We will look at data exploration first and secondly at data pipelines in ML which consists of both data preprocessing and validation. Data post-processing is not discussed explicitly here as this is in essence the same as preprocessing, but differs in only the order and type of pipeline.
+Data processing can be grouped into two main topics. This example first examimes data exploration and then data pipelines in ML that use both data preprocessing and validation. Data postprocessing is not covered because it is similar to prepressing. Postprocessing differs only in the order and type of pipeline.
 
 ## Initial data exploration
 
-A popular tool to perform data exploration is [Pandas](https://pandas.pydata.org/). Pandas is a data analysis and manipulation tool for Python. It uses DataFrames, which is a data structure that contains two-dimensional tabular data and provides labeled rows and columns for the data. The Apache Beam Python SDK provides a [DataFrame API](https://beam.apache.org/documentation/dsls/dataframes/overview/) for working with Pandas-like DataFrame objects.
+[Pandas](https://pandas.pydata.org/) is a popular tool for performing data exploration. Pandas is a data analysis and manipulation tool for Python. It uses DataFrames, which is a data structure that contains two-dimensional tabular data and that provides labeled rows and columns for the data. The Apache Beam Python SDK provides a [DataFrame API](https://beam.apache.org/documentation/dsls/dataframes/overview/) for working with Pandas-like DataFrame objects.
 
-The Beam DataFrame API is intended to provide access to a familiar programming interface within a Beam pipeline. This allows you to easily perform data exploration, and later on re-use the same code for your data preprocessing pipeline. This way you can build complex data processing pipelines by only invoking standard Pandas commands.
+The Beam DataFrame API is intended to provide access to a familiar programming interface within an Apache Beam pipeline. This API allows you to perform data exploration. You can reuse the code for your data preprocessing pipeline. Using the DataFrame API, you can build complex data processing pipelines by invoking standard Pandas commands.
 
-You can use the DataFrame API in combination with the [Beam interactive runner](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/interactive/README.md) in a [JupyterLab notebook](https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development). This lets you iteratively develop pipelines and display the results of your individual pipeline steps.
+You can use the DataFrame API in combination with the [Beam interactive runner](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/interactive/README.md) in a [JupyterLab notebook](https://cloud.google.com/dataflow/docs/guides/interactive-pipeline-development). Use the notebook to iteratively develop pipelines and display the results of your individual pipeline steps.
 
-An example of data exploration in Beam in a notebook:
+The following is an example of data exploration in Apache Beam in a notebook:
 
 ```
 import apache_beam as beam
@@ -53,17 +53,17 @@ ib.collect(beam_df.describe())
 ib.collect(beam_df.isnull())
 ```
 
-For a full end-to-end example on how to implement data exploration and data preprocessing with Beam and the DataFrame API for your AI/ML project, you can follow the [Beam Dataframe API tutorial for AI/ML](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb).
+For a full end-to-end example that implements data exploration and data preprocessing with Apache Beam and the DataFrame API for your AI/ML project, see the [Beam Dataframe API tutorial for AI/ML](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb).
 
 ## Data pipeline for ML
 A typical data preprocessing pipeline consists of the following steps:
-1. Reading and writing data: read/write the data from your filesystem, database or messaging queue. Beam has a rich set of [IO connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data.
-2. Data cleaning: you typically want to filter and clean your data before using it for your ML model. Examples of this are to remove duplicate or irrelevant data, correct mistakes in your dataset, filter out unwanted outliers and handle missing data.
-3. Data transformations: your data needs to fit the expected input your model needs to train. Examples of this are normalization, one-hot encoding, scaling and vectorizing.
-4. Data enrichment: often you will want to enrich your data with external data sources to make your data more meaningful or more easy to interpret by an ML model. An example of this is to transform a city name or address into a coordinate.
-5. Data validation & metrics: you also want to make sure your data adheres to a specific set of requirements that can be validated in your pipeline. And you might want to report some metrics from your data such as the class distributions.
+1. Read and write data: Read and write the data from your file system, database, or messaging queue. Apache Beam has a rich set of [IO connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data.
+2. Data cleaning: Filter and clean your data before using it in your ML model. You might remove duplicate or irrelevant data, correct mistakes in your dataset, filter out unwanted outliers, or handle missing data.
+3. Data transformations: Your data needs to fit the expected input your model needs to train. You might need to normalize, one-hot encode, scale, or vectorize your data.
+4. Data enrichment: You might want to enrich your data with external data sources to make your data more meaningful or easier for an ML model to interpret. For example, you might want to transform a city name or address into a set of coordinates.
+5. Data validation and metrics: Make sure your data adheres to a specific set of requirements that can be validated in your pipeline. Report metrics from your data, such as the class distributions.
 
-All these steps can successfully be implemented in a Beam pipeline. This is a minimalistic example of such a pipeline that demonstrates all above mentioned steps:
+You can use an Apache Beam pipeline to implement all of these steps. This example shows a pipeline that demonstrates all of the steps previously mentioned:
 
 ```
 import apache_beam as beam
