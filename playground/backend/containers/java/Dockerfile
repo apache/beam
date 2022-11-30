@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BEAM_VERSION=2.42.0
+ARG BEAM_VERSION=2.43.0
 ARG BASE_IMAGE=apache/beam_java8_sdk:${BEAM_VERSION}
 FROM golang:1.18-bullseye AS build
 
