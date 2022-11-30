@@ -39,7 +39,6 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.Contexts;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCost;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.CalciteCatalogReader;
