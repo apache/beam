@@ -25,7 +25,9 @@ limitations under the License.
 
 
 ### **Apache Beam Playground Features**
-![Apache_Playground_Feature](”img src=https://github.com/sysede/beam/blob/ApachePlayground/website/www/site/static/images/blog/BeamPlayground.gif”)
+<img class="center-block"
+    src="/images/blog/BeamPlayground.gif"
+    alt="Apache Beam Playground">
 
 * Discover transform examples that you can try right away by browsing or searching Catalog that is sourced from Apache Beam GitHub
 * Supports Java, Python, Go SDKs, and Scio to execute the example in Beam Direct Runner
