@@ -61,7 +61,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require cloud.google.com/go/spanner v1.36.0
+require cloud.google.com/go/spanner v1.40.0
 
 require (
 	cloud.google.com/go/bigtable v1.18.0
