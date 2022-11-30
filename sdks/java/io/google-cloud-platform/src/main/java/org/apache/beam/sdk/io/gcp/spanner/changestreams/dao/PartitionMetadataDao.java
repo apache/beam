@@ -62,8 +62,7 @@ public class PartitionMetadataDao {
    * @param metadataTableName the name of the partition metadata table
    * @param databaseClient the {@link DatabaseClient} to perform queries
    */
-  PartitionMetadataDao(
-      String metadataTableName, DatabaseClient databaseClient, Dialect dialect) {
+  PartitionMetadataDao(String metadataTableName, DatabaseClient databaseClient, Dialect dialect) {
     this.metadataTableName = metadataTableName;
     this.databaseClient = databaseClient;
     this.dialect = dialect;

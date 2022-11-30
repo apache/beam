@@ -50,7 +50,8 @@ public class MapperFactory implements Serializable {
    */
   public synchronized ChangeStreamRecordMapper changeStreamRecordMapper() {
     if (changeStreamRecordMapperInstance == null) {
-      changeStreamRecordMapperInstance = new ChangeStreamRecordMapper(this.spannerChangeStreamDatabaseDialect);
+      changeStreamRecordMapperInstance =
+          new ChangeStreamRecordMapper(this.spannerChangeStreamDatabaseDialect);
     }
     return changeStreamRecordMapperInstance;
   }

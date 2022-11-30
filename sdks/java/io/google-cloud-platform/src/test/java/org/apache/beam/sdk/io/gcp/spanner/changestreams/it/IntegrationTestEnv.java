@@ -56,7 +56,8 @@ public class IntegrationTestEnv extends ExternalResource {
   private String databaseId;
   private String metadataTableName;
   private Spanner spanner;
-  private final String host = "https://spanner.googleapis.com";
+  // private final String host = "https://spanner.googleapis.com";
+  private final String host = "https://staging-wrenchworks.sandbox.googleapis.com";
   private DatabaseAdminClient databaseAdminClient;
   private DatabaseClient databaseClient;
   private boolean isPostgres;

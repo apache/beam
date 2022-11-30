@@ -28,16 +28,14 @@ public class NameGeneratorTest {
   @Test
   public void testGenerateMetadataTableNameRemovesHyphens() {
     final String tableName =
-        NameGenerator.generatePartitionMetadataTableName(
-            "my-database-id-12345");
+        NameGenerator.generatePartitionMetadataTableName("my-database-id-12345");
     assertFalse(tableName.contains("-"));
   }
 
   @Test
   public void testGenerateMetadataTableNameIsShorterThan64Characters() {
     final String tableName =
-        NameGenerator.generatePartitionMetadataTableName(
-            "my-database-id1-maximum-length");
+        NameGenerator.generatePartitionMetadataTableName("my-database-id1-maximum-length");
     assertTrue(tableName.length() < MAXIMUM_POSTGRES_TABLE_NAME_LENGTH);
   }
 }

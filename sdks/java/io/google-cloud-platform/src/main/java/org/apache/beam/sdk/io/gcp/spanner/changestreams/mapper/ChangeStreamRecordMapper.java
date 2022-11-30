@@ -97,7 +97,8 @@ public class ChangeStreamRecordMapper {
   ChangeStreamRecordMapper(Dialect dialect) {
     this.dialect = dialect;
 
-    this.printer = JsonFormat.printer().preservingProtoFieldNames().omittingInsignificantWhitespace();
+    this.printer =
+        JsonFormat.printer().preservingProtoFieldNames().omittingInsignificantWhitespace();
     this.parser = JsonFormat.parser().ignoringUnknownFields();
   }
 
@@ -452,10 +453,9 @@ public class ChangeStreamRecordMapper {
     Map<String, Value> valueMap = row.getStructValue().getFieldsMap();
     try {
       final String type =
-          this.printer
-              .print(
-                  Optional.ofNullable(valueMap.get(TYPE_COLUMN))
-                      .orElseThrow(IllegalArgumentException::new));
+          this.printer.print(
+              Optional.ofNullable(valueMap.get(TYPE_COLUMN))
+                  .orElseThrow(IllegalArgumentException::new));
       return new ColumnType(
           Optional.ofNullable(valueMap.get(NAME_COLUMN))
               .orElseThrow(IllegalArgumentException::new)
@@ -486,25 +486,22 @@ public class ChangeStreamRecordMapper {
     try {
       Map<String, Value> valueMap = row.getStructValue().getFieldsMap();
       final String keys =
-          this.printer
-              .print(
-                  Optional.ofNullable(valueMap.get(KEYS_COLUMN))
-                      .orElseThrow(IllegalArgumentException::new));
+          this.printer.print(
+              Optional.ofNullable(valueMap.get(KEYS_COLUMN))
+                  .orElseThrow(IllegalArgumentException::new));
 
       final String oldValues =
           !valueMap.containsKey("old_values")
               ? null
-              : this.printer
-                  .print(
-                      Optional.ofNullable(valueMap.get(OLD_VALUES_COLUMN))
-                          .orElseThrow(IllegalArgumentException::new));
+              : this.printer.print(
+                  Optional.ofNullable(valueMap.get(OLD_VALUES_COLUMN))
+                      .orElseThrow(IllegalArgumentException::new));
       final String newValues =
           !valueMap.containsKey("new_values")
               ? null
-              : this.printer
-                  .print(
-                      Optional.ofNullable(valueMap.get(NEW_VALUES_COLUMN))
-                          .orElseThrow(IllegalArgumentException::new));
+              : this.printer.print(
+                  Optional.ofNullable(valueMap.get(NEW_VALUES_COLUMN))
+                      .orElseThrow(IllegalArgumentException::new));
       return new Mod(keys, oldValues, newValues);
     } catch (InvalidProtocolBufferException exc) {
       throw new IllegalArgumentException("Failed to print mod: " + row);

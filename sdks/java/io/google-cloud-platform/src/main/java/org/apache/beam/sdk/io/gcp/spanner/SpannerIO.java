@@ -45,7 +45,6 @@ import com.google.cloud.spanner.Mutation.Op;
 import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.PartitionOptions;
-import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerOptions;
@@ -1633,12 +1632,19 @@ public class SpannerIO {
               .build();
       Dialect changeStreamDatabaseDialect = getDialect(changeStreamSpannerConfig);
       Dialect metadataDatabaseDialect = getDialect(partitionMetadataSpannerConfig);
-      LOG.info("The Spanner database " + changeStreamDatabaseId + " has dialect " + changeStreamDatabaseDialect);
-      LOG.info("The Spanner database " + fullPartitionMetadataDatabaseId + " has dialect " + metadataDatabaseDialect);
+      LOG.info(
+          "The Spanner database "
+              + changeStreamDatabaseId
+              + " has dialect "
+              + changeStreamDatabaseDialect);
+      LOG.info(
+          "The Spanner database "
+              + fullPartitionMetadataDatabaseId
+              + " has dialect "
+              + metadataDatabaseDialect);
       final String partitionMetadataTableName =
           MoreObjects.firstNonNull(
-              getMetadataTable(),
-              generatePartitionMetadataTableName(partitionMetadataDatabaseId));
+              getMetadataTable(), generatePartitionMetadataTableName(partitionMetadataDatabaseId));
       final String changeStreamName = getChangeStreamName();
       final Timestamp startTimestamp = getInclusiveStartAt();
       // Uses (Timestamp.MAX - 1ns) at max for end timestamp, because we add 1ns to transform the
