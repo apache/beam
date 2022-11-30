@@ -65,7 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         params: [
           {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
@@ -85,15 +85,11 @@ jobs:
         run: pip install tox
       - name: Install SDK with dask
         working-directory: ./sdks/python
-        run: pip install setuptools --upgrade && pip install -e .[gcp,dask,test]
+        run: pip install setuptools --upgrade && pip install -e .[dask,test]
       - name: Run tests basic unix
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-dask
-      - name: Run tests basic windows
-        if: startsWith(matrix.os, 'windows')
-        working-directory: ./sdks/python
-        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win-dask
       - name: Upload test logs
         uses: actions/upload-artifact@v3
         if: always()
