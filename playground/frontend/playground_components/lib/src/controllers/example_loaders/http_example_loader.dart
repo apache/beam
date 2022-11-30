@@ -39,7 +39,6 @@ class HttpExampleLoader extends ExampleLoader {
     final response = await http.get(descriptor.uri);
 
     return Example(
-      descriptor: descriptor,
       name: descriptor.uri.path.split('/').lastOrNull ?? 'HTTP Example',
       path: descriptor.uri.toString(),
       sdk: descriptor.sdk,

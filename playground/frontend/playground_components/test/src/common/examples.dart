@@ -19,7 +19,6 @@
 import 'package:playground_components/src/enums/complexity.dart';
 import 'package:playground_components/src/models/example.dart';
 import 'package:playground_components/src/models/example_base.dart';
-import 'package:playground_components/src/models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import 'package:playground_components/src/models/sdk.dart';
 
 const exampleMock1 = Example(
@@ -28,7 +27,6 @@ const exampleMock1 = Example(
   name: 'Example X1',
   tags: ['tag1'],
   type: ExampleType.example,
-  descriptor: StandardExampleLoadingDescriptor(path: 'SDK_PYTHON/Category/Name1'),
   description: 'description',
   path: 'SDK_PYTHON/Category/Name1',
   pipelineOptions: '',
@@ -41,7 +39,6 @@ const exampleMock2 = Example(
   name: 'Kata',
   tags: ['tag2'],
   type: ExampleType.kata,
-  descriptor: StandardExampleLoadingDescriptor(path: 'SDK_PYTHON/Category/Name2'),
   description: 'description',
   path: 'SDK_PYTHON/Category/Name2',
   pipelineOptions: '',
@@ -64,7 +61,6 @@ const exampleWithAllAdditionsMock = Example(
   name: 'Test example',
   tags: [],
   type: ExampleType.example,
-  descriptor: StandardExampleLoadingDescriptor(path: 'SDK_PYTHON/Category/Name'),
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
   source: 'test outputs',
@@ -81,7 +77,6 @@ const exampleMockGo = Example(
   name: 'Example',
   tags: [],
   type: ExampleType.example,
-  descriptor: StandardExampleLoadingDescriptor(path: 'SDK_GO/Category/Name'),
   description: 'description',
   path: 'SDK_GO/Category/Name',
   pipelineOptions: '',

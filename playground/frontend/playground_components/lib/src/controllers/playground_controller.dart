@@ -25,6 +25,7 @@ import 'package:flutter/services.dart';
 import '../cache/example_cache.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
+import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/examples_loading_descriptor.dart';
 import '../models/intents.dart';
 import '../models/outputs.dart';
@@ -135,7 +136,8 @@ class PlaygroundController with ChangeNotifier {
       [Sdk.java, Sdk.python].contains(sdk);
 
   void setExample(
-    Example example, {
+    Example example,
+    ExampleLoadingDescriptor descriptor, {
     required bool setCurrentSdk,
   }) {
     if (setCurrentSdk) {
@@ -145,13 +147,19 @@ class PlaygroundController with ChangeNotifier {
         loadDefaultIfNot: false,
       );
 
-      controller.selectedExample = example;
+      controller.configure(
+        example: example,
+        descriptor: descriptor,
+      );
     } else {
       final controller = _getOrCreateSnippetEditingController(
         example.sdk,
         loadDefaultIfNot: false,
       );
-      controller.selectedExample = example;
+      controller.configure(
+        example: example,
+        descriptor: descriptor,
+      );
     }
 
     _result = null;

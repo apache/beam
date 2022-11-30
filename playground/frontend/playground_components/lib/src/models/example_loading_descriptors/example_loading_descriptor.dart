@@ -30,5 +30,5 @@ abstract class ExampleLoadingDescriptor with EquatableMixin {
 
   Map<String, dynamic> toJson() => throw UnimplementedError();
 
-  bool get canBePassedByUrl => this is! ContentExampleLoadingDescriptor;
+  bool get canBePassedInUrl => this is! ContentExampleLoadingDescriptor;
 }

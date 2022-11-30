@@ -24,6 +24,7 @@ import 'package:playground_components/src/controllers/example_loaders/examples_l
 import 'package:playground_components/src/controllers/playground_controller.dart';
 import 'package:playground_components/src/models/sdk.dart';
 
+import '../common/descriptors.dart';
 import '../common/examples.dart';
 import 'playground_controller_test.mocks.dart';
 
@@ -71,7 +72,7 @@ void main() {
     test(
       'If example source is changed, value of isExampleChanged should be true',
       () {
-        state.setExample(exampleMock1, setCurrentSdk: true);
+        state.setExample(exampleMock1, emptyDescriptor, setCurrentSdk: true);
         expect(state.isExampleChanged, false);
         // 'test' in this line hits a bug fixed here:
         // https://github.com/akvelon/flutter-code-editor/commit/c74ce566bf873dc76a5269ce6fe7b02df9c148e0
@@ -84,7 +85,7 @@ void main() {
     test(
       'If pipelineOptions is changed, value of isExampleChanged should be true',
       () {
-        state.setExample(exampleMock1, setCurrentSdk: true);
+        state.setExample(exampleMock1, emptyDescriptor, setCurrentSdk: true);
         expect(state.isExampleChanged, false);
         state.setPipelineOptions('test options');
         expect(state.isExampleChanged, true);
@@ -95,7 +96,7 @@ void main() {
   test(
     'If selected example type is not test and SDK is java or python, graph should be available',
     () {
-      state.setExample(exampleMock1, setCurrentSdk: true);
+      state.setExample(exampleMock1, emptyDescriptor, setCurrentSdk: true);
       expect(state.graphAvailable, true);
     },
   );
@@ -108,7 +109,7 @@ void main() {
         expect(state.source, exampleMockGo.source);
         expect(state.selectedExample, exampleMockGo);
       });
-      state.setExample(exampleMockGo, setCurrentSdk: true);
+      state.setExample(exampleMockGo, emptyDescriptor, setCurrentSdk: true);
     },
   );
 
@@ -122,7 +123,7 @@ void main() {
   test(
       'Playground state reset should reset source to example notify all listeners',
       () {
-    state.setExample(exampleMock1, setCurrentSdk: true);
+    state.setExample(exampleMock1, emptyDescriptor, setCurrentSdk: true);
     state.setSource('source');
     state.addListener(() {
       expect(state.source, exampleMock1.source);
@@ -150,8 +151,8 @@ void main() {
   );
 
   test('getLoadingDescriptor()', () {
-    state.setExample(exampleMock2, setCurrentSdk: true);
-    state.setExample(exampleMockGo, setCurrentSdk: false);
+    state.setExample(exampleMock2, standardDescriptor2, setCurrentSdk: true);
+    state.setExample(exampleMockGo, standardGoDescriptor, setCurrentSdk: false);
 
     final descriptor = state.getLoadingDescriptor();
 

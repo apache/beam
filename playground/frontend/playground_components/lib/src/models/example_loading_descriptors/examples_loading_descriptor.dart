@@ -78,9 +78,15 @@ class ExamplesLoadingDescriptor {
     };
   }
 
-  ExamplesLoadingDescriptor where(bool Function(ExampleLoadingDescriptor d) f) {
+  ExamplesLoadingDescriptor copyWith({
+    List<ExampleLoadingDescriptor>? descriptors,
+    Map<Sdk, List<ExampleLoadingDescriptor>>? lazyLoadDescriptors,
+    Sdk? initialSdk,
+  }) {
     return ExamplesLoadingDescriptor(
-      descriptors: descriptors.where((d) => f(d)).toList(growable: false),
+      descriptors: descriptors ?? this.descriptors,
+      lazyLoadDescriptors: lazyLoadDescriptors ?? this.lazyLoadDescriptors,
+      initialSdk: initialSdk ?? this.initialSdk,
     );
   }
 }

@@ -117,7 +117,6 @@ class ExampleCache extends ChangeNotifier {
       name: result.files.first.name,
       path: descriptor.snippetId,
       description: '',
-      descriptor: descriptor,
       tags: [],
       type: ExampleType.example,
       source: result.files.first.code,

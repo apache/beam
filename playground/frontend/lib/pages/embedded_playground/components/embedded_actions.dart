@@ -61,20 +61,25 @@ class EmbeddedActions extends StatelessWidget {
     // and prevents the glimpse of the default catalog example.
 
     final descriptor = controller.getLoadingDescriptor();
-    final urlDescriptor = descriptor.where((d) => d.canBePassedByUrl);
-    final jsDescriptor = descriptor.where((d) => !d.canBePassedByUrl);
+    final descriptors = descriptor.descriptors;
+    final urlDescriptors = descriptors.where((d) => d.canBePassedInUrl);
+    final jsDescriptors = descriptors.where((d) => !d.canBePassedInUrl);
 
-    final json = jsonEncode(urlDescriptor.toJson()['descriptors']);
+    final json = jsonEncode(
+      urlDescriptors.map((d) => d.toJson()).toList(growable: false),
+    );
     final window = html.window.open(
       '/?$kExamplesParam=$json&$kSdkParam=${controller.sdk?.id}',
       '',
     );
 
-    if (jsDescriptor.descriptors.isNotEmpty) {
+    if (jsDescriptors.isNotEmpty) {
       javaScriptPostMessageRepeated(
         window,
         SetContentMessage(
-          descriptor: jsDescriptor,
+          descriptor: descriptor.copyWith(
+            descriptors: jsDescriptors.toList(growable: false),
+          ),
         ),
       );
     }

@@ -53,7 +53,8 @@ class ExpansionPanelItem extends StatelessWidget {
               //  per-SDK output and run status.
               //  Now using true to reset the output and run status.
               //  https://github.com/apache/beam/issues/23248
-              controller.setExample(exampleWithInfo, setCurrentSdk: true);
+              final descriptor = StandardExampleLoadingDescriptor(path: exampleWithInfo.path);
+              controller.setExample(exampleWithInfo, descriptor, setCurrentSdk: true);
             }
           },
           child: Container(
