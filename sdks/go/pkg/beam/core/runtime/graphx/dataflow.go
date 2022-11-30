@@ -176,6 +176,9 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		}
 		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, w}, IsWrapper: true}, nil
 
+	case coder.IW:
+		return &CoderRef{Type: intervalWindowType}, nil
+
 	case coder.Bytes:
 		return &CoderRef{Type: bytesType}, nil
 
@@ -304,6 +307,9 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		default:
 			return decodeDataflowCustomCoder(subC.Type)
 		}
+
+	case intervalWindowType:
+		return coder.NewIntervalWindowCoder(), nil
 
 	case windowedValueType:
 		if len(c.Components) != 2 {

@@ -86,6 +86,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			c:    baz,
 		},
 		{
+			name: "IW",
+			c:    coder.NewIntervalWindowCoder(),
+		},
+		{
 			name: "W<bytes>",
 			c:    coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
 		},

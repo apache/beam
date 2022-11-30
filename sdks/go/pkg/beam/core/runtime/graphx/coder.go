@@ -378,18 +378,14 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 		return coder.NewN(elm), nil
-
-		// Special handling for window coders so they can be treated as
-		// a general coder. Generally window coders are not used outside of
-		// specific contexts, but this enables improved testing.
-		// Window types are not permitted to be fulltypes, so
-		// we use assignably equivalent anonymous struct types.
 	case urnIntervalWindow:
-		w, err := b.WindowCoder(id)
-		if err != nil {
-			return nil, err
-		}
-		return &coder.Coder{Kind: coder.Window, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem()), Window: w}, nil
+		return coder.NewIntervalWindowCoder(), nil
+
+	// Special handling for the global window coder so it can be treated as
+	// a general coder. Generally window coders are not used outside of
+	// specific contexts, but this enables improved testing.
+	// Window types are not permitted to be fulltypes, so
+	// we use assignably equivalent anonymous struct types.
 	case urnGlobalWindow:
 		w, err := b.WindowCoder(id)
 		if err != nil {
@@ -527,6 +523,9 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 
 	case coder.String:
 		return b.internBuiltInCoder(urnStringCoder), nil
+
+	case coder.IW:
+		return b.internBuiltInCoder(urnIntervalWindow), nil
 
 	case coder.Row:
 		rt := c.T.Type()
