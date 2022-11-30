@@ -4397,10 +4397,12 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     return DeferredDataFrame(
         expressions.ComputedExpression(
             'transform',
-            lambda df: project(df.groupby(level=levels, group_keys=group_keys)).transform(
-                fn_wrapper,
-                *args,
-                **kwargs).droplevel(self._grouping_columns),
+            lambda df: project(
+              df.groupby(level=levels, group_keys=group_keys)
+            ).transform(
+              fn_wrapper,
+              *args,
+              **kwargs).droplevel(self._grouping_columns),
             [self._ungrouped_with_index],
             proxy=proxy,
             requires_partition_by=partitionings.Index(levels),
