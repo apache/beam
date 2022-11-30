@@ -183,8 +183,7 @@ public class GroupIntoBatchesTest implements Serializable {
 
     // to ensure ordered processing
     TestStream.Builder<KV<String, String>> streamBuilder =
-        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-            .advanceWatermarkTo(Instant.EPOCH);
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
     long offset = 0L;
     for (KV<String, String> kv : data) {

@@ -117,7 +117,7 @@ public class GroupIntoBatches<K, InputT>
    */
   @AutoValue
   public abstract static class BatchingParams<InputT> implements Serializable {
-    public static <InputT> BatchingParams<InputT> createDefault() {
+    private static <InputT> BatchingParams<InputT> createDefault() {
       return new AutoValue_GroupIntoBatches_BatchingParams(
           Long.MAX_VALUE, Long.MAX_VALUE, null, Duration.ZERO);
     }
