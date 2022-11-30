@@ -6,7 +6,7 @@ categories:
 aliases:
   - /blog/2022/11/30/apache-beam-playground.html
 authors:
-  - AKosolapov
+  - alexkosolapov
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
