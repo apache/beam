@@ -210,8 +210,7 @@ public class ChangeStreamRecordMapper {
    * </ul>
    *
    * @param partition the partition metadata from which the row was generated
-   * @param row the struct row, representing a single change stream result (it may contain multiple
-   *     change stream records within)
+   * @param resultSet the change stream result set
    * @param resultSetMetadata the metadata generated when reading the change stream row
    * @return a {@link List} of {@link ChangeStreamRecord} subclasses
    */
