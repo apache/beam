@@ -153,9 +153,20 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | PreCommit   | Yes              | Yes                   | Yes           | Yes               |
 
 ### PreCommit Workflows
-| Workflow                                                               | Description                                       | Requires GCP Credentials |
-|------------------------------------------------------------------------|---------------------------------------------------|--------------------------|
-| [job-precommit-python.yml](.github/workflows/job-precommit-python.yml) | Runs multiple Python test for each of its modules | No                       |
+| Workflow                                                                                       | Description                        | Requires GCP Credentials |
+|------------------------------------------------------------------------------------------------|------------------------------------|--------------------------|
+| [job-precommit-python-apache-beam.yml](.github/workflows/job-precommit-python-apache-beam.yml) | Runs Python Apache Beam Unit Tests | No                       |
+| [job-precommit-python-coders.yml](.github/workflows/job-precommit-python-coders.yml)           | Runs Python Coders Unit Tests      | No                       |
+| [job-precommit-python-internal.yml](.github/workflows/job-precommit-python-internal.yml)       | Runs Python Internal Unit Tests    | No                       |
+| [job-precommit-python-io.yml](.github/workflows/job-precommit-python-io.yml)                   | Runs Python IO Unit Tests          | No                       |
+| [job-precommit-python-metrics.yml](.github/workflows/job-precommit-python-metrics.yml)         | Runs Python Metrics Unit Tests     | No                       |
+| [job-precommit-python-options.yml](.github/workflows/job-precommit-python-options.yml)         | Runs Python Options Unit Tests     | No                       |
+| [job-precommit-python-runners.yml](.github/workflows/job-precommit-python-runners.yml)         | Runs Python Runners Unit Tests     | No                       |
+| [job-precommit-python-testing.yml](.github/workflows/job-precommit-python-testing.yml)         | Runs Python Testing Unit Tests     | No                       |
+| [job-precommit-python-tools.yml](.github/workflows/job-precommit-python-tools.yml)             | Runs Python Tools Unit Tests       | No                       |
+| [job-precommit-python-transforms.yml](.github/workflows/job-precommit-python-transforms.yml)   | Runs Python Transforms Unit Tests  | No                       |
+| [job-precommit-python-typehints.yml](.github/workflows/job-precommit-python-typehints.yml)     | Runs Python Typehints Unit Tests   | No                       |
+| [job-precommit-python-utils.yml](.github/workflows/job-precommit-python-utils.yml)             | Runs Python Utils Unit Tests       | No                       |
 
 
 ### PostCommit Workflows

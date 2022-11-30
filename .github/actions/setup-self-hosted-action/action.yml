@@ -30,6 +30,10 @@ inputs:
     required: false
     description: 'Set as false if does not require py39 setup'
     default: 'true'
+  requires-py-310:
+    required: false
+    description: 'Set as false if does not require py39 setup'
+    default: 'true'
   requires-java-8:
     required: false
     description: 'Set as false if does not require java-8 setup'
@@ -57,6 +61,11 @@ runs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.9"
+    - name: Install python 3.10
+      if: ${{ inputs.requires-py-310 == 'true'  }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
     - name: Set Java Version
       if: ${{ inputs.requires-java-8 == 'true'  }}
       uses: actions/setup-java@v3
