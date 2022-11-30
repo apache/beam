@@ -24,13 +24,13 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../assets/assets.gen.dart';
 import '../../auth/notifier.dart';
 import '../../components/builders/content_tree.dart';
 import '../../components/builders/sdks.dart';
 import '../../components/login/content.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
 import '../../models/module.dart';
 import '../../state.dart';
 import '../tour/page.dart';

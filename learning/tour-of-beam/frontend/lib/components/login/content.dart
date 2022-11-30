@@ -22,10 +22,10 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../assets/assets.gen.dart';
 import '../../auth/method.dart';
 import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
 
 class LoginContent extends StatelessWidget {
   final VoidCallback onLoggedIn;

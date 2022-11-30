@@ -347,3 +347,9 @@ rules:
 - valueFor: 'Component'
   contains: 'website'
   addLabels: ['website']
+- valueFor: 'Failure'
+  contains: 'Test is flaky'
+  addLabels: ['flaky', 'tests']
+- valueFor: 'Failure'
+  contains: 'Test is continually failing'
+  addLabels: ['permared', 'failing test', 'tests']

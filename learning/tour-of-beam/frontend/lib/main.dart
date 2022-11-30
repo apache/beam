@@ -37,6 +37,7 @@ void main() async {
   );
   setPathUrlStrategy();
   await EasyLocalization.ensureInitialized();
+  await PlaygroundComponents.ensureInitialized();
   await initializeServiceLocator();
   const englishLocale = Locale('en');
 

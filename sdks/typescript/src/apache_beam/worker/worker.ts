@@ -235,7 +235,10 @@ export class Worker {
                 },
               });
             } else {
-              this.processBundleDescriptors.set(descriptorId, value);
+              this.processBundleDescriptors.set(
+                descriptorId,
+                maybeStripDataflowWindowedWrappings(value)
+              );
               this.process(request);
             }
           }
@@ -504,4 +507,24 @@ function isPrimitive(transform: PTransform): boolean {
       Object.values(transform.outputs).some((pcoll) => !inputs.includes(pcoll))
     );
   }
+}
+
+function maybeStripDataflowWindowedWrappings(
+  descriptor: ProcessBundleDescriptor
+): ProcessBundleDescriptor {
+  for (const pcoll of Object.values(descriptor.pcollections)) {
+    const coder = descriptor.coders[pcoll.coderId];
+    if (
+      coder.spec?.urn == "beam:coder:windowed_value:v1" ||
+      coder.spec?.urn == "beam:coder:param_windowed_value:v1"
+    ) {
+      // Dataflow sets PCollection coder_id to a coder of WindowedValues rather
+      // than the coder of the element type alone.
+      // Until Dataflow is fixed, we must assume that the element type is not
+      // actually a windowed value, but that this wrapping was extraneously
+      // added.
+      pcoll.coderId = coder.componentCoderIds[0];
+    }
+  }
+  return descriptor;
 }

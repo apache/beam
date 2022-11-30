@@ -17,65 +17,76 @@ limitations under the License.
 
 # AI/ML pipelines
 
-Beam <3 Machine Learning. Being productive and successful as a machine learning practitioner is often dependent on your ability to efficiently leverage large volumes of data in a way that is uniquely tailored to your resources, requirements and budget. When starting your next AI/ML project or upscaling an existing one, a vital tool you should consider adding to your project is Beam.
+Beam <3 machine learning. Being productive and successful as a machine learning practitioner is often dependent on your ability to efficiently leverage large volumes of data in a way that is uniquely tailored to your resources, requirements, and budget. Whether starting your next AI/ML project or upscaling an existing project, consider adding Apache Beam to your project.
 
-Beam enables you to process large volumes of data, both for preprocessing and for inference. It allows you to experiment with your data during the exploration phase of your project, while providing a seamless transition to upscaling your data pipelines as part of your MLOps ecosystem in a production environment. It allows you to run your model in production on a varying data load, both in batch and streaming.
+* Apache Beam enables you to process large volumes of data, both for preprocessing and for inference.
+* It allows you to experiment with your data during the exploration phase of your project and provides a seamless transition when
+  upscaling your data pipelines as part of your MLOps ecosystem in a production environment.
+* It enables you to run your model in production on a varying data load, both in batch and streaming.
 
 ## AI/ML workloads
 
-Let’s take a look at the different building blocks that we need to build an end-to-end AI/ML use case, and where Beam will come in handy in building those blocks.
+Let’s take a look at the different building blocks that we need to create an end-to-end AI/ML use case and where Apache Beam can help.
 
-![Overview of  AI/ML building blocks & where Beam can be used](/images/ml-workflows.svg)
+![Overview of AI/ML building blocks and where Apache Beam can be used](/images/ml-workflows.svg)
 
-1. Data ingestion: incoming new data will be stored in your filesystem, database or published on a messaging queue.
-2. **Data validation**: once you have received your data you need to check the quality of your data such as detecting outliers and reporting on standard deviations and class distributions.
-3. **Data preprocessing**: after validating your data, you need to transform it so that it is ready to be used for training your model.
-4. Model training: once your data is ready, you can start training your AI/ML model. This step will typically be repeated multiple times depending on the quality of your trained model.
-5. Model validation: before deploying your new model you need to validate its performance and accuracy.
-6. **Model deployment**: finally you can deploy your model, meaning it can run inference on any new or existing data.
+1. Data ingestion: Incoming new data is stored in your file system or database, or it's published to a messaging queue.
+2. **Data validation**: After you receieve your data, check the quality of your data. For example, you might want to detect outliers and calculate standard deviations and class distributions.
+3. **Data preprocessing**: After you validate your data, transform the data so that it is ready to use to train your model.
+4. Model training: When your data is ready, you can start training your AI/ML model. This step is typically repeated multiple times, depending on the quality of your trained model.
+5. Model validation: Before you deploy your new model, validate its performance and accuracy.
+6. **Model deployment**: Deploy your model, using it to run inference on new or existing data.
 
-All of these steps can be executed multiple times, as your data might grow and evolve over time and you want your model to stay up to date and guarantee its best performance. This is why it is very important to apply MLOps to your project, meaning that you aim to automate the AI/ML workflows throughout the model and data lifecycle. This can be achieved by using orchestrators that automate this flow and handle the transition between the different building blocks in your project.
+To keep your model up to date and performing well as your data grows and evolves, run these steps multiple times. In addition, you can apply MLOps to your project to automate the AI/ML workflows throughout the model and data lifecycle. Use orchestrators to automate this flow and to handle the transition between the different building blocks in your project.
 
-Beam can be used for data validation, data preprocessing and model deployment/inference. We will now take a look at these different building blocks in more detail and at how they can be orchestrated. Finally, you can also find full examples of AI/ML pipelines in Beam.
+You can use Apache Beam for data validation, data preprocessing, and model deployment/inference. The next section examines these building blocks in more detail and explores how they can be orchestrated.
 
 ## Data processing
 
-Data validation and preprocessing can be done in Beam by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of [IO connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data, which means you can easily integrate it with your existing filesystem, database or messaging queue. When developing your ML model, you can also first explore your data with the [Beam DataFrame API](https://beam.apache.org/documentation/dsls/dataframes/overview/) so that you can identify and implement the required preprocessing steps allowing you to iterate faster towards production. Another common pattern is that the steps executed during preprocessing need to also be applied before running inference, in which case you can use the same Beam implementation twice. Lastly, if you need to do post-processing after running inference, this can also be done as part of your model inference pipeline.
+You can use Apache Beam for data validation and preprocessing by setting up data pipelines that transform your data and output metrics computed from your data. Beam has a rich set of [I/O connectors](https://beam.apache.org/documentation/io/built-in/) for ingesting and writing data, which allows you to integrate it with your existing file system, database, or messaging queue.
+
+When developing your ML model, you can also first explore your data with the [Beam DataFrame API](https://beam.apache.org/documentation/dsls/dataframes/overview/). The DataFrom API lets you identify and implement the required preprocessing steps, making it easier for you to move your pipeline to production.
+
+Steps executed during preprocessing often also need to be applied before running inference, in which case you can use the same Beam implementation twice. Lastly, when you need to do postprocessing after running inference, Apache Beam allows you to incoporate the postprocessing into your model inference pipeline.
 
 Further reading:
 * [AI/ML pipelines in Beam: data processing](/documentation/ml/data-processing)
 
 ## Inference
 
-Beam provides different ways of implementing inference as part of your pipeline. This way you can run your ML model directly in your pipeline and apply it on big scale datasets, both in batch and streaming pipelines.
+Beam provides different ways to implement inference as part of your pipeline. You can run your ML model directly in your pipeline and apply it on big scale datasets, both in batch and streaming pipelines.
 
 ### RunInference
+
 The recommended way to implement inference is by using the [RunInference API](https://beam.apache.org/documentation/sdks/python-machine-learning/). RunInference takes advantage of existing Apache Beam concepts, such as the `BatchElements` transform and the `Shared` class, to enable you to use models in your pipelines to create transforms optimized for machine learning inferences. The ability to create arbitrarily complex workflow graphs also allows you to build multi-model pipelines.
 
-You can easily integrate your model in your pipeline by using the corresponding model handlers. A `ModelHandler` is an object that wraps the underlying model and allows you to configure its parameters. Model handlers are available for PyTorch, Scikit-learn and TensorFlow. Examples of how to use RunInference for PyTorch, Scikit-learn and TensorFlow are shown in this [notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb).
+You can integrate your model in your pipeline by using the corresponding model handlers. A `ModelHandler` is an object that wraps the underlying model and allows you to configure its parameters. Model handlers are available for PyTorch, scikit-learn, and TensorFlow. Examples of how to use RunInference for PyTorch, scikit-learn, and TensorFlow are shown in this [notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb).
 
-GPUs are optimized for training artificial intelligence and deep learning models as they can process multiple computations simultaneously. RunInference also allows you to use GPUs for significant inference speedup. An example of how to use RunInference with GPUs is demonstrated [here](/documentation/ml/runinference-metrics).
+Because they can process multiple computations simultaneously, GPUs are optimized for training artificial intelligence and deep learning models. RunInference also allows you to use GPUs for significant inference speedup. An example of how to use RunInference with GPUs is demonstrated on the [RunInference metrics](/documentation/ml/runinference-metrics) page.
 
 ### Custom Inference
-As of now, RunInference API doesn't support making remote inference calls (e.g. Natural Language API, Cloud Vision API and others). Therefore, in order to use these remote APIs with Beam, one needs to write custom inference call. The [notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb) shows how you can implement such a custom remote inference call using `beam.DoFn`. While implementing such a remote inference for real life projects, you need to think about following:
 
-* API quotas and the heavy load you might incur on your external API. For optimizing the calls to external API, you can confgure `PipelineOptions` to limit the parallel calls to the external remote API.
+The RunInference API doesn't currently support making remote inference calls using, for example, the Natural Language API or the Cloud Vision API. Therefore, in order to use these remote APIs with Apache Beam, you need to write custom inference calls. The [Remote inference in Apache Beam notebook](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb) shows how to implement a custom remote inference call using `beam.DoFn`. When you implement a remote inference for real life projects, consider the following factors:
 
-* You must be prepared to encounter, identify, and handle failure as gracefully as possible. We recommend using techniques like `Exponential backoff` and `Dead letter queues`.
+* API quotas and the heavy load you might incur on your external API. To optimize the calls to an external API, you can confgure `PipelineOptions` to limit the parallel calls to the external remote API.
 
-* When running inference with an external API, you should batch your input together to allow for more efficient execution.
+* Be prepared to encounter, identify, and handle failure as gracefully as possible. Use techniques like exponential backoff and dead-letter queues (unprocessed messages queues).
 
-* You should consider monitoring and measuring performance of a pipeline when deploying since monitoring can provide insight into the status and health of the application.
+* When running inference with an external API, batch your input together to allow for more efficient execution.
+
+* Consider monitoring and measuring the performance of a pipeline when deploying, because monitoring can provide insight into the status and health of the application.
 
 
 ## Orchestrators
 
-In order to automate and track the AI/ML workflows throughout your project, you can use orchestrators such as [Kubeflow pipelines](https://www.kubeflow.org/docs/components/pipelines/introduction/) (KFP) or [TensorFlow Extended](https://www.tensorflow.org/tfx) (TFX) that automate your different building blocks and handle the transitions between them. When you use Beam as one of the building blocks in your project, these orchestrators will then be able to launch your Beam job and keep track of the input and output of your pipeline. This is essential when moving your AI/ML solution into production as it allows you to handle your model and data over time and to guarantee good results and reproducibility.
+In order to automate and track the AI/ML workflows throughout your project, you can use orchestrators such as [Kubeflow pipelines](https://www.kubeflow.org/docs/components/pipelines/introduction/) (KFP) or [TensorFlow Extended](https://www.tensorflow.org/tfx) (TFX). These orchestrators automate your different building blocks and handle the transitions between them.
+
+When you use Apache Beam as one of the building blocks in your project, these orchestrators are able to launch your Apache Beam job and to keep track of the input and output of your pipeline. These tasks are essential when moving your AI/ML solution into production, because they allow you to handle your model and data over time and improve the quality and reproducibility of results.
 
 ## Examples
 
 You can find examples of end-to-end AI/ML pipelines for several use cases:
-* [ML Workflow Orchestration](/documentation/ml/orchestration): illustrates how ML workflows consisting of multiple steps can be orchestrated by using Kubeflow Pipelines and Tensorflow Extended.
-* [Multi model pipelines in Beam](/documentation/ml/multi-model-pipelines): explains how multi-model pipelines work and gives an overview of what you need to know to build one using the RunInference API.
-* [Online Clustering in Beam](/documentation/ml/online-clustering): demonstrates how to setup a realtime clustering pipeline that can read text from PubSub, convert the text into an embedding using a transformer based language model with the RunInference API, and cluster them using BIRCH with Stateful Processing.
-* [Anomaly Detection in Beam](/documentation/ml/anomaly-detection): demonstrates how to setup an anomaly detection pipeline that reads text from PubSub in real-time, and then detects anomaly using a trained HDBSCAN clustering model with the RunInference API.
+* [ML Workflow Orchestration](/documentation/ml/orchestration): Illustrates how to orchestrate ML workflows consisting of multiple steps by using Kubeflow Pipelines and Tensorflow Extended.
+* [Multi model pipelines in Beam](/documentation/ml/multi-model-pipelines): Explains how multi-model pipelines work and gives an overview of what you need to know to build one using the RunInference API.
+* [Online Clustering in Beam](/documentation/ml/online-clustering): Demonstrates how to set up a real-time clustering pipeline that can read text from Pub/Sub, convert the text into an embedding using a transformer-based language model with the RunInference API, and cluster the text using BIRCH with stateful processing.
+* [Anomaly Detection in Beam](/documentation/ml/anomaly-detection): Demonstrates how to set up an anomaly detection pipeline that reads text from Pub/Sub in real time and then detects anomalies using a trained HDBSCAN clustering model with the RunInference API.

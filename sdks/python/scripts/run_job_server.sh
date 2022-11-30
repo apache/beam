@@ -51,6 +51,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --additional_args)
+      ADDITIONAL_ARGS="$2"
+      shift
+      shift
+      ;;
     start)
       STARTSTOP="$1"
       shift
@@ -97,7 +102,7 @@ case $STARTSTOP in
     fi
 
     echo "Launching job server @ $JOB_PORT ..."
-    java -jar $JOB_SERVER_JAR --job-port=$JOB_PORT --artifact-port=$ARTIFACT_PORT --expansion-port=0 >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
+    java -jar $JOB_SERVER_JAR --job-port=$JOB_PORT --artifact-port=$ARTIFACT_PORT --expansion-port=0 $ADDITIONAL_ARGS >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
     mypid=$!
     if kill -0 $mypid >/dev/null 2>&1; then
       echo $mypid >> $pid
