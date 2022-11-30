@@ -36,7 +36,7 @@ public class ChangeStreamDao {
   private final DatabaseClient databaseClient;
   private final RpcPriority rpcPriority;
   private final String jobName;
-  private final Dialect spannerChangeStreamDatabaseDialect;
+  private final Dialect dialect;
 
   /**
    * Constructs a change stream dao. All the queries performed by this class will be for the given
@@ -53,12 +53,12 @@ public class ChangeStreamDao {
       DatabaseClient databaseClient,
       RpcPriority rpcPriority,
       String jobName,
-      Dialect spannerChangeStreamDatabaseDialect) {
+      Dialect dialect) {
     this.changeStreamName = changeStreamName;
     this.databaseClient = databaseClient;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
-    this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
+    this.dialect = dialect;
   }
 
   /**
@@ -90,7 +90,7 @@ public class ChangeStreamDao {
 
     String query = "";
     Statement statement;
-    if (this.spannerChangeStreamDatabaseDialect == Dialect.POSTGRESQL) {
+    if (this.isPostgres()) {
       query =
           "SELECT * FROM \"spanner\".\"read_json_" + changeStreamName + "\"($1, $2, $3, $4, null)";
       statement =
@@ -133,5 +133,9 @@ public class ChangeStreamDao {
             .executeQuery(statement, Options.priority(rpcPriority), Options.tag("job=" + jobName));
 
     return new ChangeStreamResultSet(resultSet);
+  }
+
+  private boolean isPostgres() {
+    return this.dialect == Dialect.POSTGRESQL;
   }
 }

@@ -54,7 +54,7 @@ public class PartitionMetadataDao {
 
   private final String metadataTableName;
   private final DatabaseClient databaseClient;
-  private final Dialect metadataDatabaseDialect;
+  private final Dialect dialect;
 
   /**
    * Constructs a partition metadata dao object given the generated name of the tables.
@@ -63,10 +63,10 @@ public class PartitionMetadataDao {
    * @param databaseClient the {@link DatabaseClient} to perform queries
    */
   PartitionMetadataDao(
-      String metadataTableName, DatabaseClient databaseClient, Dialect metadataDatabaseDialect) {
+      String metadataTableName, DatabaseClient databaseClient, Dialect dialect) {
     this.metadataTableName = metadataTableName;
     this.databaseClient = databaseClient;
-    this.metadataDatabaseDialect = metadataDatabaseDialect;
+    this.dialect = dialect;
   }
 
   /**
@@ -265,7 +265,7 @@ public class PartitionMetadataDao {
   }
 
   private boolean isPostgres() {
-    return this.metadataDatabaseDialect == Dialect.POSTGRESQL;
+    return this.dialect == Dialect.POSTGRESQL;
   }
 
   /**
@@ -342,7 +342,7 @@ public class PartitionMetadataDao {
         readWriteTransaction.run(
             transaction -> {
               final InTransactionContext transactionContext =
-                  new InTransactionContext(metadataTableName, transaction, this.metadataDatabaseDialect);
+                  new InTransactionContext(metadataTableName, transaction, this.dialect);
               return callable.apply(transactionContext);
             });
     return new TransactionResult<>(result, readWriteTransaction.getCommitTimestamp());
@@ -354,21 +354,21 @@ public class PartitionMetadataDao {
     private final String metadataTableName;
     private final TransactionContext transaction;
     private final Map<State, String> stateToTimestampColumn;
-    private final Dialect metadataDatabaseDialect;
+    private final Dialect dialect;
 
     /**
      * Constructs a context to execute a user defined function transactionally.
      *
      * @param metadataTableName the name of the partition metadata table
      * @param transaction the underlying client library transaction to be executed
-     * @param metadataDatabaseDialect the dialect of the database.
+     * @param dialect the dialect of the database.
      */
     public InTransactionContext(
-        String metadataTableName, TransactionContext transaction, Dialect metadataDatabaseDialect) {
+        String metadataTableName, TransactionContext transaction, Dialect dialect) {
       this.metadataTableName = metadataTableName;
       this.transaction = transaction;
       this.stateToTimestampColumn = new HashMap<>();
-      this.metadataDatabaseDialect = metadataDatabaseDialect;
+      this.dialect = dialect;
       stateToTimestampColumn.put(State.CREATED, COLUMN_CREATED_AT);
       stateToTimestampColumn.put(State.SCHEDULED, COLUMN_SCHEDULED_AT);
       stateToTimestampColumn.put(State.RUNNING, COLUMN_RUNNING_AT);
@@ -442,7 +442,7 @@ public class PartitionMetadataDao {
      */
     public @Nullable Struct getPartition(String partitionToken) {
       Statement statement;
-      if (this.metadataDatabaseDialect == Dialect.POSTGRESQL) {
+      if (this.dialect == Dialect.POSTGRESQL) {
         statement =
             Statement.newBuilder(
                     "SELECT * FROM \""

@@ -90,10 +90,15 @@ public class ChangeStreamRecordMapper {
   private static final String CHILD_PARTITIONS_COLUMN = "child_partitions";
   private static final String PARENT_PARTITION_TOKENS_COLUMN = "parent_partition_tokens";
   private static final String TOKEN_COLUMN = "token";
-  private final Dialect spannerChangeStreamDatabaseDialect;
+  private final Dialect dialect;
+  private final JsonFormat.Printer printer;
+  private final JsonFormat.Parser parser;
 
-  ChangeStreamRecordMapper(Dialect spannerChangeStreamDatabaseDialect) {
-    this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
+  ChangeStreamRecordMapper(Dialect dialect) {
+    this.dialect = dialect;
+
+    this.printer = JsonFormat.printer().preservingProtoFieldNames().omittingInsignificantWhitespace();
+    this.parser = JsonFormat.parser().ignoringUnknownFields();
   }
 
   /**
@@ -213,7 +218,7 @@ public class ChangeStreamRecordMapper {
       PartitionMetadata partition,
       ChangeStreamResultSet resultSet,
       ChangeStreamResultSetMetadata resultSetMetadata) {
-    if (this.spannerChangeStreamDatabaseDialect == Dialect.POSTGRESQL) {
+    if (this.isPostgres()) {
       // In PostgresQL, change stream records are returned as JsonB.
       return Collections.singletonList(
           toChangeStreamRecordJson(partition, resultSet.getPgJsonb(0), resultSetMetadata));
@@ -250,7 +255,7 @@ public class ChangeStreamRecordMapper {
       PartitionMetadata partition, String row, ChangeStreamResultSetMetadata resultSetMetadata) {
     Value.Builder valueBuilder = Value.newBuilder();
     try {
-      JsonFormat.parser().ignoringUnknownFields().merge(row, valueBuilder);
+      this.parser.merge(row, valueBuilder);
     } catch (InvalidProtocolBufferException exc) {
       throw new IllegalArgumentException("Failed to parse record into proto: " + row);
     }
@@ -447,9 +452,7 @@ public class ChangeStreamRecordMapper {
     Map<String, Value> valueMap = row.getStructValue().getFieldsMap();
     try {
       final String type =
-          JsonFormat.printer()
-              .preservingProtoFieldNames()
-              .omittingInsignificantWhitespace()
+          this.printer
               .print(
                   Optional.ofNullable(valueMap.get(TYPE_COLUMN))
                       .orElseThrow(IllegalArgumentException::new));
@@ -483,9 +486,7 @@ public class ChangeStreamRecordMapper {
     try {
       Map<String, Value> valueMap = row.getStructValue().getFieldsMap();
       final String keys =
-          JsonFormat.printer()
-              .preservingProtoFieldNames()
-              .omittingInsignificantWhitespace()
+          this.printer
               .print(
                   Optional.ofNullable(valueMap.get(KEYS_COLUMN))
                       .orElseThrow(IllegalArgumentException::new));
@@ -493,18 +494,14 @@ public class ChangeStreamRecordMapper {
       final String oldValues =
           !valueMap.containsKey("old_values")
               ? null
-              : JsonFormat.printer()
-                  .preservingProtoFieldNames()
-                  .omittingInsignificantWhitespace()
+              : this.printer
                   .print(
                       Optional.ofNullable(valueMap.get(OLD_VALUES_COLUMN))
                           .orElseThrow(IllegalArgumentException::new));
       final String newValues =
           !valueMap.containsKey("new_values")
               ? null
-              : JsonFormat.printer()
-                  .preservingProtoFieldNames()
-                  .omittingInsignificantWhitespace()
+              : this.printer
                   .print(
                       Optional.ofNullable(valueMap.get(NEW_VALUES_COLUMN))
                           .orElseThrow(IllegalArgumentException::new));
@@ -580,5 +577,9 @@ public class ChangeStreamRecordMapper {
         .withTotalStreamTimeMillis(resultSetMetadata.getTotalStreamDuration().getMillis())
         .withNumberOfRecordsRead(resultSetMetadata.getNumberOfRecordsRead())
         .build();
+  }
+
+  private boolean isPostgres() {
+    return this.dialect == Dialect.POSTGRESQL;
   }
 }

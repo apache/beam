@@ -85,7 +85,7 @@ public class PartitionMetadataAdminDao {
   private final String instanceId;
   private final String databaseId;
   private final String tableName;
-  private final Dialect metadataDatabaseDialect;
+  private final Dialect dialect;
 
   /**
    * Constructs the partition metadata admin dao.
@@ -101,12 +101,12 @@ public class PartitionMetadataAdminDao {
       String instanceId,
       String databaseId,
       String tableName,
-      Dialect metadataDatabaseDialect) {
+      Dialect dialect) {
     this.databaseAdminClient = databaseAdminClient;
     this.instanceId = instanceId;
     this.databaseId = databaseId;
     this.tableName = tableName;
-    this.metadataDatabaseDialect = metadataDatabaseDialect;
+    this.dialect = dialect;
   }
 
   /**
@@ -239,6 +239,6 @@ public class PartitionMetadataAdminDao {
   }
 
   private boolean isPostgres() {
-    return this.metadataDatabaseDialect == Dialect.POSTGRESQL;
+    return this.dialect == Dialect.POSTGRESQL;
   }
 }
