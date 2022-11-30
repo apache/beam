@@ -762,6 +762,17 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		}
 		u = &WindowInto{UID: b.idgen.New(), Fn: wfn, Out: out[0]}
 
+	case graphx.URNMapWindows:
+		var fn pipepb.FunctionSpec
+		if err := proto.Unmarshal(payload, &fn); err != nil {
+			return nil, errors.Wrapf(err, "invalid SideInput payload for %v", transform)
+		}
+		mapper, err := unmarshalAndMakeWindowMapping(&fn)
+		if err != nil {
+			return nil, err
+		}
+		u = &MapWindows{UID: b.idgen.New(), Fn: mapper, Out: out[0]}
+
 	case graphx.URNFlatten:
 		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}
 
