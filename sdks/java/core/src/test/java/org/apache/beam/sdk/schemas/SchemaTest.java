@@ -254,6 +254,7 @@ public class SchemaTest {
     // Current attributes in Schema object.
     List<String> currentAttributes =
         Arrays.stream(Schema.class.getDeclaredFields())
+            .filter(field -> !field.isSynthetic())
             .map(java.lang.reflect.Field::getName)
             .collect(Collectors.toList());
 
