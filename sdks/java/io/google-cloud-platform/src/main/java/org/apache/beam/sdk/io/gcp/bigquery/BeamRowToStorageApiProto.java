@@ -208,10 +208,12 @@ public class BeamRowToStorageApiProto {
           throw new RuntimeException("Unexpected null element type!");
         }
 
-        builder = builder.setType(TableFieldSchema.Type.STRUCT)
-          .addFields(fieldDescriptorFromBeamField(Field.of("key", keyType)))
-          .addFields(fieldDescriptorFromBeamField(Field.of("value", valueType)))
-          .setMode(TableFieldSchema.Mode.REPEATED);
+        builder =
+            builder
+                .setType(TableFieldSchema.Type.STRUCT)
+                .addFields(fieldDescriptorFromBeamField(Field.of("key", keyType)))
+                .addFields(fieldDescriptorFromBeamField(Field.of("value", valueType)))
+                .setMode(TableFieldSchema.Mode.REPEATED);
         break;
       default:
         @Nullable
