@@ -3,7 +3,7 @@
 
 
 ### **Apache Beam Playground Features**
-![alt_text](images/image1.gif "image_tooltip")
+![Apache_Playground_Feature](images/blog/BeamPlayground.gif)
 
 * Discover transform examples that you can try right away by browsing or searching Catalog that is sourced from Apache Beam GitHub
 * Supports Java, Python, Go SDKs, and Scio to execute the example in Beam Direct Runner
