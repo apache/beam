@@ -178,6 +178,11 @@ const (
 	KV                 Kind = "KV"
 	LP                 Kind = "LP" // Explicitly length prefixed, likely at the runner's direction.
 
+	// IW stands for IntervalWindow and uses the short name to avoid a collision with the
+	// WindowCoder kind. This Kind is used when the window is provided as a value instead
+	// of a window for the value.
+	IW Kind = "IW"
+
 	Window Kind = "window" // A debug wrapper around a window coder.
 
 	// CoGBK is currently equivalent to either
@@ -292,6 +297,11 @@ func NewDouble() *Coder {
 // NewString returns a new string coder using the built-in scheme.
 func NewString() *Coder {
 	return &Coder{Kind: String, T: typex.New(reflectx.String)}
+}
+
+// NewIntervalWindowCoder returns a new IntervalWindow coder using the built-in scheme.
+func NewIntervalWindowCoder() *Coder {
+	return &Coder{Kind: IW, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem())}
 }
 
 // IsW returns true iff the coder is for a WindowedValue.

@@ -23,16 +23,16 @@ module github.com/apache/beam/sdks/v2
 go 1.18
 
 require (
-	cloud.google.com/go/bigquery v1.42.0
+	cloud.google.com/go/bigquery v1.43.0
 	cloud.google.com/go/datastore v1.9.0
 	cloud.google.com/go/profiler v0.3.0
 	cloud.google.com/go/pubsub v1.26.0
 	cloud.google.com/go/storage v1.28.0
 	github.com/aws/aws-sdk-go-v2 v1.17.1
-	github.com/aws/aws-sdk-go-v2/config v1.18.2
+	github.com/aws/aws-sdk-go-v2/config v1.18.3
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.3
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.41
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.3
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.42
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.4
 	github.com/aws/smithy-go v1.13.4
 	github.com/docker/go-connections v0.4.0
 	github.com/dustin/go-humanize v1.0.0
@@ -55,13 +55,13 @@ require (
 	golang.org/x/text v0.4.0
 	google.golang.org/api v0.103.0
 	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c
-	google.golang.org/grpc v1.50.1
+	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/retry.v1 v1.0.3
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require cloud.google.com/go/spanner v1.36.0
+require cloud.google.com/go/spanner v1.40.0
 
 require (
 	cloud.google.com/go/bigtable v1.18.0

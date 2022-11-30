@@ -163,10 +163,18 @@ async def get_statuses(client: GRPCClient, examples: List[Example], concurrency:
     except (KeyError, ValueError):
         pass
 
-    async with asyncio.Semaphore(concurrency):
-        for example in examples:
-            tasks.append(_update_example_status(example, client))
-        await tqdm.gather(*tasks)
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def _semaphored_task(example):
+        await semaphore.acquire()
+        try:
+            await _update_example_status(example, client)
+        finally:
+            semaphore.release()
+
+    for example in examples:
+        tasks.append(_semaphored_task(example))
+    await tqdm.gather(*tasks)
 
 
 def get_tag(filepath) -> Optional[ExampleTag]:

@@ -28,7 +28,10 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncodin
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Holds internal execution metrics / metadata for the processed {@link ChangeStreamRecord}. */
-@SuppressWarnings("initialization.fields.uninitialized") // Avro requires the default constructor
+@SuppressWarnings({
+  "initialization.field.uninitialized", // Avro requires the default constructor
+  "initialization.fields.uninitialized"
+})
 @DefaultCoder(AvroCoder.class)
 public class ChangeStreamRecordMetadata implements Serializable {
 

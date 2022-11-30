@@ -11,6 +11,10 @@ indexes:
   properties:
   - name: "id"
   - name: "type"
+- kind: "pg_snippets"
+  properties:
+  - name: "persistenceKey"
+  - name: "numberOfFiles"
 - kind: "tb_learning_module"
   ancestor: yes
   properties:
