@@ -70,8 +70,7 @@ public class SpannerChangeStreamPostgresIT {
   private static String changeStreamTableName;
   private static String changeStreamName;
   private static DatabaseClient databaseClient;
-  // private static String host = "https://spanner.googleapis.com";
-  private final String host = "https://staging-wrenchworks.sandbox.googleapis.com";
+  private static String host = "https://spanner.googleapis.com";
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -91,7 +90,7 @@ public class SpannerChangeStreamPostgresIT {
     pipeline.getOptions().as(ChangeStreamTestPipelineOptions.class).setBlockOnRun(false);
   }
 
-  // @Ignore("BEAM-14277 Until Postgres is supported")
+  @Ignore("BEAM-14277 Until Postgres is supported")
   @Test
   public void testReadSpannerChangeStream() {
     // Defines how many rows are going to be inserted / updated / deleted in the test
