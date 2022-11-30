@@ -33,6 +33,7 @@ class SnippetEditingController extends ChangeNotifier {
   final CodeController codeController;
   final _symbolsNotifier = GetIt.instance.get<SymbolsNotifier>();
   Example? _selectedExample;
+  ExampleLoadingDescriptor? _descriptor;
   String _pipelineOptions = '';
 
   SnippetEditingController({
@@ -46,16 +47,26 @@ class SnippetEditingController extends ChangeNotifier {
     _onSymbolsNotifierChanged();
   }
 
-  set selectedExample(Example? value) {
-    _selectedExample = value;
+  void configure({
+    required Example? example,
+    ExampleLoadingDescriptor? descriptor,
+    String? pipelineOptions,
+  }) {
+    _descriptor = descriptor ?? _descriptor;
+    _selectedExample = example ?? _selectedExample;
+    
+    if (example != null && descriptor == null) {
+      _descriptor = null;
+    }
     setSource(_selectedExample?.source ?? '');
 
-    final viewOptions = value?.viewOptions;
+    final viewOptions = example?.viewOptions;
     if (viewOptions != null) {
       _applyViewOptions(viewOptions);
     }
 
-    _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
+    _pipelineOptions =
+        _selectedExample?.pipelineOptions ?? pipelineOptions ?? '';
     notifyListeners();
   }
 
@@ -111,10 +122,10 @@ class SnippetEditingController extends ChangeNotifier {
       return EmptyExampleLoadingDescriptor(sdk: sdk);
     }
 
-    if (!isChanged) {
-      return example.descriptor;
+    if (!isChanged && _descriptor != null) {
+      return _descriptor!;
     }
-    
+
     return ContentExampleLoadingDescriptor(
       complexity: example.complexity,
       content: codeController.fullText,
