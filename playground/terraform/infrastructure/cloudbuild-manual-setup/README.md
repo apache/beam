@@ -91,7 +91,7 @@ cd ../02.builders
 
 # Run terraform commands
 terraform init -backend-config="bucket=$STATE_BUCKET"
-terraform apply -var="project_id=$(gcloud config get-value project)"
+terraform apply -var="project_id=$(gcloud config get-value project)" -var="state_bucket=$STATE_BUCKET"
 ```
 
 ## 4. Run Cloud Build `Playground-infrastructure-trigger` to deploy Playground infrastructure

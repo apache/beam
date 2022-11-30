@@ -22,7 +22,7 @@ variable "project_id" {
 
 variable "region" {
   type        = string
-  description = "The Google Cloud Platform (GCP) region in which to provision resources"
+  description = "The Google Cloud Platform (GCP) region (For example: us-central1) where Cloud Build triggers will be created at"
 }
 
 variable "infra_trigger_name" {
@@ -50,7 +50,7 @@ variable "github_repository_name" {
 
 variable "github_repository_owner" {
   type        = string
-  description = "Owner of the GitHub repository. For example the owner for https://github.com/example/foo is 'example'."
+  description = "The owner of the GitHub repository. For example the owner for https://github.com/example/foo is 'example'."
 }
 
 variable "github_repository_branch" {
@@ -59,11 +59,17 @@ variable "github_repository_branch" {
 }
 
 variable "playground_environment_name" {
-  description = "Environment where to deploy Playground. Located in playground/terraform/environment/{environment_name}. E.g. test, dev, prod"
+  description = <<EOF
+      Environment name where to deploy Playground. Located in playground/terraform/environment/{environment_name}. E.g. test, dev, prod.
+      More details: https://github.com/akvelon/beam/blob/cloudbuild%2Bmanualsetup%2Bplayground/playground/terraform/README.md#prepare-deployment-configuration"
+  EOF
 }
 
 variable "playground_dns_name" {
-  description = "DNS record name for Playground website. More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#deploy-playground-infrastructure"
+  description = <<EOF
+      The DNS record name for Playground website.
+      More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#deploy-playground-infrastructure"
+  EOF
 }
 
 variable "playground_network_name" {
@@ -71,7 +77,7 @@ variable "playground_network_name" {
 }
 
 variable "playground_gke_name" {
-  description = "Playground GKE Cluster name in Google Cloud Platform (GCP)"
+  description = "The Playground GKE Cluster name in Google Cloud Platform (GCP)"
 }
 
 variable "state_bucket" {
@@ -79,7 +85,7 @@ variable "state_bucket" {
 }
 
 variable "image_tag" {
-  description = "The tag name for docker images of Playground containers"
+  description = "The docker images tag for Playground containers"
 }
 
 variable "docker_repository_root" {
@@ -95,5 +101,8 @@ variable "playground_zone" {
 }
 
 variable "sdk_tag" {
-  description = "Apache Beam Golang and Python images SDK tag. See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hub.docker.com/r/apache/beam_go_sdk"
+  description = <<EOF
+      Apache Beam Golang and Python images SDK tag. (For example: 2.43.0)
+      See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hub.docker.com/r/apache/beam_go_sdk"
+  EOF
 }
