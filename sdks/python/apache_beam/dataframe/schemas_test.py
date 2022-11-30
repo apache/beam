@@ -19,7 +19,6 @@
 
 # pytype: skip-file
 
-import re
 import typing
 import unittest
 
@@ -119,7 +118,6 @@ INDEX_DF_TESTS = [(
 NOINDEX_DF_TESTS = [(NICE_TYPES_DF, DF_RESULT, BEAM_SCHEMA)]
 
 # Get major, minor, bugfix version
-# pylint: disable-next=union-attr
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:3]))
 
 
