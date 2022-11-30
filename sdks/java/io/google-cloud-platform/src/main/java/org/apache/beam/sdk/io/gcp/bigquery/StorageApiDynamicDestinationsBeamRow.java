@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -29,7 +30,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 /** Storage API DynamicDestinations used when the input is a Beam Row. */
 class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
-  private final Schema schema;
+  private final TableSchema tableSchema;
   private final SerializableFunction<T, Row> toRow;
 
   StorageApiDynamicDestinationsBeamRow(
@@ -37,40 +38,37 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
       Schema schema,
       SerializableFunction<T, Row> toRow) {
     super(inner);
-    this.schema = schema;
+    this.tableSchema = BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(schema);
     this.toRow = toRow;
   }
 
   @Override
   public MessageConverter<T> getMessageConverter(
       DestinationT destination, DatasetService datasetService) throws Exception {
-    return new MessageConverter<T>() {
-      final Descriptor descriptor;
-      final long descriptorHash;
-
-      {
-        descriptor = BeamRowToStorageApiProto.getDescriptorFromSchema(schema);
-        descriptorHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
-      }
-
-      @Override
-      public DescriptorWrapper getSchemaDescriptor() {
-        return new DescriptorWrapper(descriptor, descriptorHash);
-      }
-
-      @Override
-      public void refreshSchema(long expectedHash) {}
-
-      @Override
-      public StorageApiWritePayload toMessage(T element) {
-        Message msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, toRow.apply(element));
-        return new AutoValue_StorageApiWritePayload(msg.toByteArray(), descriptorHash);
-      }
-
-      @Override
-      public TableRow toTableRow(T element) {
-        return BigQueryUtils.toTableRow(toRow.apply(element));
-      }
-    };
+    return new BeamRowConverter();
   }
+
+  class BeamRowConverter implements MessageConverter<T> {
+    final Descriptor descriptor;
+
+    BeamRowConverter() throws Exception {
+      this.descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true);
+    }
+
+    @Override
+    public TableSchema getTableSchema() {
+      return tableSchema;
+    }
+
+    @Override
+    public StorageApiWritePayload toMessage(T element) {
+      Message msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, toRow.apply(element));
+      return new AutoValue_StorageApiWritePayload(msg.toByteArray());
+    }
+
+    @Override
+    public TableRow toTableRow(T element) {
+      return BigQueryUtils.toTableRow(toRow.apply(element));
+    }
+  };
 }

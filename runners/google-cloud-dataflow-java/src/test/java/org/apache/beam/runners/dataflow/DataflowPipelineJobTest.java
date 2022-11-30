@@ -48,9 +48,9 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
-import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
@@ -149,7 +149,8 @@ public class DataflowPipelineJobTest {
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
     State state =
-        job.waitUntilFinish(Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
+        job.waitUntilFinish(
+            Duration.standardMinutes(5), jobHandler, fastClock::sleep, fastClock::nanoTime);
     assertEquals(null, state);
   }
 
@@ -169,7 +170,8 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job =
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
-    return job.waitUntilFinish(Duration.standardMinutes(1), null, fastClock, fastClock);
+    return job.waitUntilFinish(
+        Duration.standardMinutes(1), null, fastClock::sleep, fastClock::nanoTime);
   }
 
   /**
@@ -251,7 +253,9 @@ public class DataflowPipelineJobTest {
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
     long startTime = fastClock.nanoTime();
-    State state = job.waitUntilFinish(Duration.standardMinutes(5), null, fastClock, fastClock);
+    State state =
+        job.waitUntilFinish(
+            Duration.standardMinutes(5), null, fastClock::sleep, fastClock::nanoTime);
     assertEquals(null, state);
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     checkValidInterval(
@@ -271,7 +275,8 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job =
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
     long startTime = fastClock.nanoTime();
-    State state = job.waitUntilFinish(Duration.millis(4), null, fastClock, fastClock);
+    State state =
+        job.waitUntilFinish(Duration.millis(4), null, fastClock::sleep, fastClock::nanoTime);
     assertEquals(null, state);
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     // Should only have slept for the 4 ms allowed.
@@ -318,7 +323,7 @@ public class DataflowPipelineJobTest {
         State.RUNNING,
         job.getStateWithRetriesOrUnknownOnException(
             BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
-            fastClock));
+            fastClock::sleep));
   }
 
   @Test
@@ -335,7 +340,7 @@ public class DataflowPipelineJobTest {
     thrown.expect(IOException.class);
     job.getStateWithRetries(
         BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
-        fastClock);
+        fastClock::sleep);
   }
 
   @Test
@@ -354,7 +359,7 @@ public class DataflowPipelineJobTest {
         State.UNKNOWN,
         job.getStateWithRetriesOrUnknownOnException(
             BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
-            fastClock));
+            fastClock::sleep));
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     checkValidInterval(
         DataflowPipelineJob.STATUS_POLLING_INTERVAL,

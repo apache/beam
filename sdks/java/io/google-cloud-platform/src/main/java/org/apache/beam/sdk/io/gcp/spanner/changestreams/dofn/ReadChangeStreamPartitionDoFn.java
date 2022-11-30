@@ -28,13 +28,15 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStream
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.BytesThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.NullThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -62,13 +64,17 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   private static final long serialVersionUID = -7574596218085711975L;
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
-  private static final double AUTOSCALING_SIZE_MULTIPLIER = 2.0D;
+  private static final BigDecimal MAX_DOUBLE = BigDecimal.valueOf(Double.MAX_VALUE);
 
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
-  private final ThroughputEstimator throughputEstimator;
+  /**
+   * Needs to be set through the {@link
+   * ReadChangeStreamPartitionDoFn#setThroughputEstimator(BytesThroughputEstimator)} call.
+   */
+  private ThroughputEstimator<DataChangeRecord> throughputEstimator;
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
@@ -85,19 +91,17 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * @param mapperFactory the {@link MapperFactory} to construct {@link ChangeStreamRecordMapper}s
    * @param actionFactory the {@link ActionFactory} to construct actions
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
-   * @param throughputEstimator an estimator to calculate local throughput.
    */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       ActionFactory actionFactory,
-      ChangeStreamMetrics metrics,
-      ThroughputEstimator throughputEstimator) {
+      ChangeStreamMetrics metrics) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
-    this.throughputEstimator = throughputEstimator;
+    this.throughputEstimator = new NullThroughputEstimator<>();
   }
 
   @GetInitialWatermarkEstimatorState
@@ -152,17 +156,15 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final BigDecimal timeGapInSeconds =
         BigDecimal.valueOf(newTracker(partition, range).getProgress().getWorkRemaining());
     final BigDecimal throughput = BigDecimal.valueOf(this.throughputEstimator.get());
+    final double size =
+        timeGapInSeconds
+            .multiply(throughput)
+            // Cap it at Double.MAX_VALUE to avoid an overflow.
+            .min(MAX_DOUBLE)
+            .doubleValue();
     LOG.debug(
-        "Reported getSize() - remaining work: " + timeGapInSeconds + " throughput:" + throughput);
-    // Cap it at Double.MAX_VALUE to avoid an overflow.
-    return timeGapInSeconds
-        .multiply(throughput)
-        // The multiplier is required because the job tries to reach the minimum number of workers
-        // and this leads to a very high cpu utilization. The multiplier would increase the reported
-        // size and help to reduce the cpu usage. In the future, this can become a custom parameter.
-        .multiply(BigDecimal.valueOf(AUTOSCALING_SIZE_MULTIPLIER))
-        .min(BigDecimal.valueOf(Double.MAX_VALUE))
-        .doubleValue();
+        "getSize() = {} ({} timeGapInSeconds * {} throughput)", size, timeGapInSeconds, throughput);
+    return size;
   }
 
   @NewTracker
@@ -184,7 +186,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final ChangeStreamRecordMapper changeStreamRecordMapper =
         mapperFactory.changeStreamRecordMapper();
     final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
-    final DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction();
+    final DataChangeRecordAction dataChangeRecordAction =
+        actionFactory.dataChangeRecordAction(throughputEstimator);
     final HeartbeatRecordAction heartbeatRecordAction =
         actionFactory.heartbeatRecordAction(metrics);
     final ChildPartitionsRecordAction childPartitionsRecordAction =
@@ -199,8 +202,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
-            metrics,
-            throughputEstimator);
+            metrics);
   }
 
   /**
@@ -228,10 +230,20 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
     final String token = partition.getPartitionToken();
 
-    LOG.debug(
-        "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
+    LOG.debug("[{}] Processing element with restriction {}", token, tracker.currentRestriction());
 
     return queryChangeStreamAction.run(
         partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
+  }
+
+  /**
+   * Sets the estimator to calculate the backlog of this function. Must be called after the
+   * initialization of this DoFn.
+   *
+   * @param throughputEstimator an estimator to calculate local throughput.
+   */
+  public void setThroughputEstimator(
+      BytesThroughputEstimator<DataChangeRecord> throughputEstimator) {
+    this.throughputEstimator = throughputEstimator;
   }
 }

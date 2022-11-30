@@ -20,94 +20,123 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:playground_components/playground_components.dart';
 
-import '../../components/complexity.dart';
-import '../../components/page_container.dart';
-import '../../config/theme/colors_provider.dart';
-import '../../constants/assets.dart';
-import '../../constants/colors.dart';
+import '../../assets/assets.gen.dart';
+import '../../components/builders/content_tree.dart';
+import '../../components/builders/sdks.dart';
+import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
+import '../../models/module.dart';
+import 'state.dart';
 
 class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen();
+  final WelcomeNotifier notifier;
+
+  const WelcomeScreen(this.notifier);
 
   @override
   Widget build(BuildContext context) {
-    return PageContainer(
+    return TobScaffold(
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-            ? const _WideWelcome()
-            : const _NarrowWelcome(),
+            ? _WideWelcome(notifier)
+            : _NarrowWelcome(notifier),
       ),
     );
   }
 }
 
 class _WideWelcome extends StatelessWidget {
-  const _WideWelcome();
+  final WelcomeNotifier notifier;
+
+  const _WideWelcome(this.notifier);
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        Expanded(
-          child: _SdkSelection(),
-        ),
-        Expanded(
-          child: _TourSummary(),
-        ),
-      ],
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _SdkSelection(notifier),
+          ),
+          Expanded(
+            child: _TourSummary(notifier),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _NarrowWelcome extends StatelessWidget {
-  const _NarrowWelcome();
+  final WelcomeNotifier notifier;
+
+  const _NarrowWelcome(this.notifier);
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: const [
-        _SdkSelection(),
-        _TourSummary(),
+      children: [
+        _SdkSelection(notifier),
+        _TourSummary(notifier),
       ],
     );
   }
 }
 
 class _SdkSelection extends StatelessWidget {
-  const _SdkSelection();
+  final WelcomeNotifier notifier;
+
+  const _SdkSelection(this.notifier);
+
+  static const double _minimalHeight = 900;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       constraints: BoxConstraints(
         minHeight: MediaQuery.of(context).size.height -
-            TobSizes.appBarHeight -
+            BeamSizes.appBarHeight -
             TobSizes.footerHeight,
       ),
-      color: ThemeColors.of(context).background,
+      color: Theme.of(context).backgroundColor,
       child: Stack(
         children: [
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            // TODO(nausharipov): use flutter_gen after merging
             child: Theme.of(context).brightness == Brightness.dark
-                ? Image.asset(TobAssets.laptopDark)
-                : Image.asset(TobAssets.laptopLight),
+                ? Image.asset(Assets.png.laptopDark.path)
+                : Image.asset(Assets.png.laptopLight.path),
           ),
-          const SizedBox(height: 900),
+          const SizedBox(height: _minimalHeight),
           Padding(
             padding: const EdgeInsets.fromLTRB(50, 60, 50, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                _IntroText(),
-                SizedBox(height: TobSizes.size32),
-                _Buttons(),
+              children: [
+                const _IntroText(),
+                const SizedBox(height: BeamSizes.size32),
+                SdksBuilder(
+                  builder: (context, sdks, child) {
+                    if (sdks.isEmpty) {
+                      return Container();
+                    }
+
+                    return AnimatedBuilder(
+                      animation: notifier,
+                      builder: (context, child) => _Buttons(
+                        sdks: sdks,
+                        sdkId: notifier.sdkId,
+                        setSdkId: (v) => notifier.sdkId = v,
+                        onStartPressed: notifier.startTour,
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -118,39 +147,54 @@ class _SdkSelection extends StatelessWidget {
 }
 
 class _TourSummary extends StatelessWidget {
-  const _TourSummary();
+  final WelcomeNotifier notifier;
+
+  const _TourSummary(this.notifier);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: TobSizes.size20,
-        horizontal: 27,
-      ),
-      child: Column(
-        children: _modules
-            .map(
-              (module) => _Module(
-                title: module,
-                isLast: module == _modules.last,
-              ),
-            )
-            .toList(),
-      ),
+    return AnimatedBuilder(
+      animation: notifier,
+      builder: (context, child) {
+        final sdkId = notifier.sdkId;
+        if (sdkId == null) {
+          return Container();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: BeamSizes.size20,
+            horizontal: 27,
+          ),
+          child: ContentTreeBuilder(
+            sdkId: sdkId,
+            builder: (context, contentTree, child) {
+              if (contentTree == null) {
+                return Container();
+              }
+
+              return Column(
+                children: contentTree.modules
+                    .map(
+                      (module) => _Module(
+                        module: module,
+                        isLast: module == contentTree.modules.last,
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            },
+          ),
+        );
+      },
     );
   }
-
-  static const List<String> _modules = [
-    'Core Transforms',
-    'Common Transforms',
-    'IO',
-    'Windowing',
-    'Triggers',
-  ];
 }
 
 class _IntroText extends StatelessWidget {
   const _IntroText();
+
+  static const double _dividerMaxWidth = 150;
 
   @override
   Widget build(BuildContext context) {
@@ -163,9 +207,9 @@ class _IntroText extends StatelessWidget {
         ).tr(),
         Container(
           margin: const EdgeInsets.symmetric(vertical: 32),
-          height: 2,
-          color: TobColors.grey2,
-          constraints: const BoxConstraints(maxWidth: 150),
+          height: BeamSizes.size2,
+          color: BeamColors.grey2,
+          constraints: const BoxConstraints(maxWidth: _dividerMaxWidth),
         ),
         RichText(
           text: TextSpan(
@@ -179,7 +223,7 @@ class _IntroText extends StatelessWidget {
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge!
-                    .copyWith(color: ThemeColors.of(context).primary),
+                    .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
                   ..onTap = () {
                     // TODO(nausharipov): sign in
@@ -195,46 +239,51 @@ class _IntroText extends StatelessWidget {
 }
 
 class _Buttons extends StatelessWidget {
-  const _Buttons();
+  final List<Sdk> sdks;
+  final String? sdkId;
+  final ValueChanged<String> setSdkId;
+  final VoidCallback onStartPressed;
 
-  void _onSdkChanged(String value) {
-    // TODO(nausharipov): select the language
-  }
+  const _Buttons({
+    required this.sdks,
+    required this.sdkId,
+    required this.setSdkId,
+    required this.onStartPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Wrap(
       children: [
         Wrap(
-          children: ['Java', 'Python', 'Go']
+          children: sdks
               .map(
-                (e) => _SdkButton(
-                  value: e,
-                  groupValue: _sdk,
-                  onChanged: _onSdkChanged,
+                (sdk) => _SdkButton(
+                  title: sdk.title,
+                  value: sdk.id,
+                  groupValue: sdkId,
+                  onChanged: setSdkId,
                 ),
               )
-              .toList(),
+              .toList(growable: false),
         ),
         ElevatedButton(
-          onPressed: () {
-            // TODO(nausharipov): redirect
-          },
-          child: const Text('pages.welcome.startLearning').tr(),
+          onPressed: sdkId == null ? null : onStartPressed,
+          child: const Text('pages.welcome.startTour').tr(),
         ),
       ],
     );
   }
-
-  static const String _sdk = 'Java';
 }
 
 class _SdkButton extends StatelessWidget {
+  final String title;
   final String value;
-  final String groupValue;
+  final String? groupValue;
   final ValueChanged<String> onChanged;
 
   const _SdkButton({
+    required this.title,
     required this.value,
     required this.groupValue,
     required this.onChanged,
@@ -246,26 +295,26 @@ class _SdkButton extends StatelessWidget {
       padding: const EdgeInsets.only(right: 15, bottom: 10),
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
-          backgroundColor: ThemeColors.of(context).background,
+          backgroundColor: Theme.of(context).backgroundColor,
           side: groupValue == value
               ? null
-              : const BorderSide(color: TobColors.grey1),
+              : const BorderSide(color: BeamColors.grey1),
         ),
         onPressed: () {
           onChanged(value);
         },
-        child: Text(value),
+        child: Text(title),
       ),
     );
   }
 }
 
 class _Module extends StatelessWidget {
-  final String title;
+  final ModuleModel module;
   final bool isLast;
 
   const _Module({
-    required this.title,
+    required this.module,
     required this.isLast,
   });
 
@@ -273,7 +322,7 @@ class _Module extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModuleHeader(title: title),
+        _ModuleHeader(title: module.title),
         if (isLast) const _LastModuleBody() else const _ModuleBody(),
       ],
     );
@@ -282,6 +331,7 @@ class _Module extends StatelessWidget {
 
 class _ModuleHeader extends StatelessWidget {
   final String title;
+
   const _ModuleHeader({required this.title});
 
   @override
@@ -293,13 +343,13 @@ class _ModuleHeader extends StatelessWidget {
           child: Row(
             children: [
               Padding(
-                padding: const EdgeInsets.all(TobSizes.size4),
+                padding: const EdgeInsets.all(BeamSizes.size4),
                 child: SvgPicture.asset(
-                  TobAssets.welcomeProgress0,
-                  color: ThemeColors.of(context).progressBackgroundColor,
+                  Assets.svg.welcomeProgress0,
+                  color: BeamColors.grey4,
                 ),
               ),
-              const SizedBox(width: TobSizes.size16),
+              const SizedBox(width: BeamSizes.size16),
               Expanded(
                 child: Text(
                   title,
@@ -315,7 +365,7 @@ class _ModuleHeader extends StatelessWidget {
               'complexity.medium',
               style: Theme.of(context).textTheme.headlineSmall,
             ).tr(),
-            const SizedBox(width: TobSizes.size6),
+            const SizedBox(width: BeamSizes.size6),
             const ComplexityWidget(complexity: Complexity.medium),
           ],
         ),
@@ -332,24 +382,23 @@ class _ModuleBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+
     return Container(
       margin: _moduleLeftMargin,
       decoration: BoxDecoration(
         border: Border(
           left: BorderSide(
-            color: ThemeColors.of(context).divider,
+            color: themeData.dividerColor,
           ),
         ),
       ),
       padding: _modulePadding,
       child: Column(
         children: [
-          const Text(
-            'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam velit purus, tincidunt id velit vitae, mattis dictum velit. Nunc sit amet nunc at turpis eleifend commodo ac ut libero. Aenean rutrum rutrum nulla ut efficitur. Vestibulum pulvinar eros dictum lectus volutpat dignissim vitae quis nisi. Maecenas sem erat, elementum in euismod ut, interdum ac massa.',
-          ),
-          const SizedBox(height: TobSizes.size16),
+          const SizedBox(height: BeamSizes.size16),
           Divider(
-            color: ThemeColors.of(context).divider,
+            color: themeData.dividerColor,
           ),
         ],
       ),
@@ -365,9 +414,6 @@ class _LastModuleBody extends StatelessWidget {
     return Container(
       margin: _moduleLeftMargin,
       padding: _modulePadding,
-      child: const Text(
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam velit purus, tincidunt id velit vitae, mattis dictum velit. Nunc sit amet nunc at turpis eleifend commodo ac ut libero. Aenean rutrum rutrum nulla ut efficitur. Vestibulum pulvinar eros dictum lectus volutpat dignissim vitae quis nisi. Maecenas sem erat, elementum in euismod ut, interdum ac massa.',
-      ),
     );
   }
 }

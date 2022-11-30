@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -45,6 +47,7 @@ import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -123,11 +126,13 @@ import org.slf4j.LoggerFactory;
 public class JmsIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
+  private static final Duration DEFAULT_CLOSE_TIMEOUT = Duration.millis(60000L);
 
   public static Read<JmsRecord> read() {
     return new AutoValue_JmsIO_Read.Builder<JmsRecord>()
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCoder(SerializableCoder.of(JmsRecord.class))
+        .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
         .setMessageMapper(
             (MessageMapper<JmsRecord>)
                 new MessageMapper<JmsRecord>() {
@@ -162,7 +167,10 @@ public class JmsIO {
   }
 
   public static <T> Read<T> readMessage() {
-    return new AutoValue_JmsIO_Read.Builder<T>().setMaxNumRecords(Long.MAX_VALUE).build();
+    return new AutoValue_JmsIO_Read.Builder<T>()
+        .setMaxNumRecords(Long.MAX_VALUE)
+        .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
+        .build();
   }
 
   public static <EventT> Write<EventT> write() {
@@ -206,6 +214,8 @@ public class JmsIO {
 
     abstract @Nullable AutoScaler getAutoScaler();
 
+    abstract Duration getCloseTimeout();
+
     abstract Builder<T> builder();
 
     @AutoValue.Builder
@@ -229,6 +239,8 @@ public class JmsIO {
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setAutoScaler(AutoScaler autoScaler);
+
+      abstract Builder<T> setCloseTimeout(Duration closeTimeout);
 
       abstract Read<T> build();
     }
@@ -364,6 +376,18 @@ public class JmsIO {
       return builder().setAutoScaler(autoScaler).build();
     }
 
+    /**
+     * Sets the amount of time to wait for callbacks from the runner stating that the output has
+     * been durably persisted before closing the connection to the JMS broker. Any callbacks that do
+     * not occur will cause unacknowledged messages to be returned to the JMS broker and redelivered
+     * to other clients.
+     */
+    public Read<T> withCloseTimeout(Duration closeTimeout) {
+      checkArgument(closeTimeout != null, "closeTimeout can not be null");
+      checkArgument(closeTimeout.getMillis() >= 0, "Close timeout must be non-negative.");
+      return builder().setCloseTimeout(closeTimeout).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
@@ -446,7 +470,7 @@ public class JmsIO {
     @Override
     public UnboundedJmsReader<T> createReader(
         PipelineOptions options, JmsCheckpointMark checkpointMark) {
-      return new UnboundedJmsReader<T>(this, checkpointMark);
+      return new UnboundedJmsReader<T>(this, options);
     }
 
     @Override
@@ -471,15 +495,13 @@ public class JmsIO {
 
     private T currentMessage;
     private Instant currentTimestamp;
+    private PipelineOptions options;
 
-    public UnboundedJmsReader(UnboundedJmsSource<T> source, JmsCheckpointMark checkpointMark) {
+    public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
       this.source = source;
-      if (checkpointMark != null) {
-        this.checkpointMark = checkpointMark;
-      } else {
-        this.checkpointMark = new JmsCheckpointMark();
-      }
+      this.checkpointMark = new JmsCheckpointMark();
       this.currentMessage = null;
+      this.options = options;
     }
 
     @Override
@@ -582,28 +604,83 @@ public class JmsIO {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
+      doClose();
+    }
+
+    @SuppressWarnings("FutureReturnValueIgnored")
+    private void doClose() {
+
       try {
-        if (consumer != null) {
-          consumer.close();
-          consumer = null;
-        }
-        if (session != null) {
-          session.close();
-          session = null;
-        }
+        closeAutoscaler();
+        closeConsumer();
+        ScheduledExecutorService executorService =
+            options.as(ExecutorOptions.class).getScheduledExecutorService();
+        executorService.schedule(
+            () -> {
+              LOG.debug(
+                  "Closing session and connection after delay {}", source.spec.getCloseTimeout());
+              // Discard the checkpoints and set the reader as inactive
+              checkpointMark.discard();
+              closeSession();
+              closeConnection();
+            },
+            source.spec.getCloseTimeout().getMillis(),
+            TimeUnit.MILLISECONDS);
+
+      } catch (Exception e) {
+        LOG.error("Error closing reader", e);
+      }
+    }
+
+    private void closeConnection() {
+      try {
         if (connection != null) {
           connection.stop();
           connection.close();
           connection = null;
         }
+      } catch (Exception e) {
+        LOG.error("Error closing connection", e);
+      }
+    }
+
+    private void closeSession() {
+      try {
+        if (session != null) {
+          session.close();
+          session = null;
+        }
+      } catch (Exception e) {
+        LOG.error("Error closing session" + e.getMessage(), e);
+      }
+    }
+
+    private void closeConsumer() {
+      try {
+        if (consumer != null) {
+          consumer.close();
+          consumer = null;
+        }
+      } catch (Exception e) {
+        LOG.error("Error closing consumer", e);
+      }
+    }
+
+    private void closeAutoscaler() {
+      try {
         if (autoScaler != null) {
           autoScaler.stop();
           autoScaler = null;
         }
       } catch (Exception e) {
-        throw new IOException(e);
+        LOG.error("Error closing autoscaler", e);
       }
+    }
+
+    @Override
+    protected void finalize() {
+      doClose();
     }
   }
 

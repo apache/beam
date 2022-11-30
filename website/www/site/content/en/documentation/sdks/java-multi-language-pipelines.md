@@ -50,6 +50,9 @@ already have these environments set up, first complete the
 For running with portable DirectRunner, you need to have Docker installed
 locally and the Docker daemon should be running. This is not needed for Dataflow.
 
+For running on Dataflow, you need a Google Cloud project with billing enabled and a
+[Google Cloud Storage bucket](https://cloud.google.com/storage/docs/creating-buckets).
+
 This example relies on Python pandas package 1.4.0 or later which is unavailable
 for Python versions earlier than 3.8. Hence please make sure that the default Python
 version installed in your system is 3.8 or later.
@@ -70,7 +73,7 @@ transforms are identified by their fully qualified name. For example,
 package, so its fully qualified name is
 `apache_beam.dataframe.transforms.DataframeTransform`.
 The example pipeline,
-[PythonDataframeWordCount](https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java),
+[PythonDataframeWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/multilanguage/PythonDataframeWordCount.java),
 passes this fully qualified name to
 [PythonExternalTransform](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/python/PythonExternalTransform.html).
 
@@ -138,26 +141,57 @@ default Beam SDK, you might need to run your own expansion service. In such
 cases, [start the expansion service](#advanced-start-an-expansion-service)
 before running your pipeline.
 
-Here we've provided commands for running the example pipeline using
-Gradle on a [Beam HEAD Git clone](https://github.com/apache/beam).
-If you need a more stable environment, please
-[setup a Java project](/get-started/quickstart-java/) that uses the latest
-releaesed Beam version and include the necessary dependencies.
+Before running the pipeline, make sure to perform the
+[runner specific setup](https://beam.apache.org/get-started/quickstart-java/#run-a-pipeline) for your selected Beam runner.
 
-### Run with Dataflow runner
+### Run with Dataflow runner using a Maven Archetype (Beam 2.43.0 and later)
+
+* Check out the Beam examples Maven archetype for the relevant Beam version.
+
+```
+export BEAM_VERSION=<Beam version>
+
+mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.beam \
+    -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+    -DarchetypeVersion=$BEAM_VERSION \
+    -DgroupId=org.example \
+    -DartifactId=multi-language-beam \
+    -Dversion="0.1" \
+    -Dpackage=org.apache.beam.examples \
+    -DinteractiveMode=false
+```
+
+* Run the pipeline.
+
+```
+export GCP_PROJECT=<GCP project>
+export GCP_BUCKET=<GCP bucket>
+export GCP_REGION=<GCP region>
+
+mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.multilanguage.PythonDataframeWordCount \
+    -Dexec.args="--runner=DataflowRunner --project=$GCP_PROJECT \
+                 --region=$GCP_REGION \
+                 --gcpTempLocation=gs://$GCP_BUCKET/multi-language-beam/tmp \
+                 --output=gs://$GCP_BUCKET/multi-language-beam/output" \
+    -Pdataflow-runner
+```
+
+### Run with Dataflow runner at HEAD
 
 The following script runs the example multi-language pipeline on Dataflow, using
 example text from a Cloud Storage bucket. You’ll need to adapt the script to
 your environment.
 
 ```
+export GCP_PROJECT=<project>
 export OUTPUT_BUCKET=<bucket>
 export GCP_REGION=<region>
 export TEMP_LOCATION=gs://$OUTPUT_BUCKET/tmp
-export PYTHON_VERSION=<version>
 
 ./gradlew :examples:multi-language:pythonDataframeWordCount --args=" \
 --runner=DataflowRunner \
+--project=$GCP_PROJECT \
 --output=gs://${OUTPUT_BUCKET}/count \
 --region=${GCP_REGION}"
 ```
@@ -187,7 +221,7 @@ python -m apache_beam.runners.portability.local_job_service_main -p $JOB_SERVER_
    (this guide requires that your JAVA_HOME is set to Java 11).
 
 ```
-./gradlew :sdks:java:container:java11:docker
+./gradlew :sdks:java:container:java11:docker -Pjava11Home=$JAVA_HOME
 ```
 
 5. Run the pipeline.
@@ -195,7 +229,6 @@ python -m apache_beam.runners.portability.local_job_service_main -p $JOB_SERVER_
 ```
 export JOB_SERVER_PORT=<port>  # Same port as before
 export OUTPUT_FILE=<local relative path>
-export PYTHON_VERSION=<version>
 
 ./gradlew :examples:multi-language:pythonDataframeWordCount --args=" \
 --runner=PortableRunner \
@@ -205,7 +238,7 @@ export PYTHON_VERSION=<version>
 
 > **Note** This output gets written to the local file system of a Python Docker
 > container. To verify the output by writing to GCS, you need to specify a
-> publicly acessible
+> publicly accessible
 > GCS path for the `output` option since portable DirectRunner is currently
 > unable to correctly forward local credentials for accessing GCS.
 
@@ -226,19 +259,25 @@ For example, to start the standard expansion service for a Python transform,
 [ExpansionServiceServicer](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service.py),
 follow these steps:
 
-1. Activate a Python virtual environment and install Apache Beam, as described
-   in the [Python quick start](/get-started/quickstart-py/).
-2. In the **beam/sdks/python** directory of the Beam source code, run the
-   following command:
+1. Activate a new virtual environment following
+[these instructions](https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment).
 
-   ```
-   python apache_beam/runners/portability/expansion_service_main.py -p 18089 --fully_qualified_name_glob "*"
-   ```
+2. Install Apache Beam with `gcp` and `dataframe` packages.
+
+```
+pip install 'apache-beam[gcp,dataframe]'
+```
+
+4. Run the following command
+
+```
+python -m apache_beam.runners.portability.expansion_service_main -p <PORT> --fully_qualified_name_glob "*"
+```
 
 The command runs
 [expansion_service_main.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service_main.py), which starts the standard expansion service. When you use
 Gradle to run your Java pipeline, you can specify the expansion service with the
-`expansionService` option. For example: `--expansionService=localhost:18089`.
+`expansionService` option. For example: `--expansionService=localhost:<PORT>`.
 
 ## Next steps
 

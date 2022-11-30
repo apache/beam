@@ -218,8 +218,6 @@ class PipelineOptionsTest(unittest.TestCase):
       parser.add_argument(
           '--fake_multi_option', action='append', help='fake multi option')
 
-  @unittest.skip(
-      "TODO(https://github.com/apache/beam/issues/21116): Flaky test.")
   def test_display_data(self):
     for case in PipelineOptionsTest.TEST_CASES:
       options = PipelineOptions(flags=case['flags'])

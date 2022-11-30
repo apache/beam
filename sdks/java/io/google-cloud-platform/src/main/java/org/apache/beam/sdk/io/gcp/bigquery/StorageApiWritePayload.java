@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
@@ -28,5 +29,7 @@ public abstract class StorageApiWritePayload {
   @SuppressWarnings("mutable")
   public abstract byte[] getPayload();
 
-  public abstract long getSchemaHash();
+  static StorageApiWritePayload of(byte[] payload) throws IOException {
+    return new AutoValue_StorageApiWritePayload(payload);
+  }
 }

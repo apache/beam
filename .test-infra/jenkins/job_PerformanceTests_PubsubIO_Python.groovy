@@ -50,7 +50,7 @@ def psio_test = [
     num_workers               : 5,
     autoscaling_algorithm     : 'NONE',  // Disable autoscale the worker pool.
     pubsub_namespace_prefix   : 'pubsub_io_performance_',
-    wait_until_finish_duration: 1000 * 60 * 10, // in milliseconds
+    wait_until_finish_duration: 1000 * 60 * 12, // in milliseconds
   ]
 ]
 
@@ -70,6 +70,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, psio_test)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H H * * *', this) {
   executeJob(delegate, psio_test)
 }

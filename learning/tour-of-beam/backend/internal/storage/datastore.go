@@ -17,8 +17,10 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"cloud.google.com/go/datastore"
@@ -47,7 +49,7 @@ func (d *DatastoreDb) collectModules(ctx context.Context, tx *datastore.Transact
 	}
 
 	for _, tbMod := range tbMods {
-		mod := tob.Module{Id: tbMod.Id, Name: tbMod.Name, Complexity: tbMod.Complexity}
+		mod := tob.Module{Id: tbMod.Id, Title: tbMod.Title, Complexity: tbMod.Complexity}
 		mod.Nodes, err = d.collectNodes(ctx, tx, tbMod.Key, 0)
 		if err != nil {
 			return modules, err
@@ -72,7 +74,7 @@ func (d *DatastoreDb) collectNodes(ctx context.Context, tx *datastore.Transactio
 		Namespace(PgNamespace).
 		Ancestor(parentKey).
 		FilterField("level", "=", level).
-		Project("type", "id", "name").
+		Project("type", "id", "title").
 		Order("order").
 		Transaction(tx)
 	if _, err = d.Client.GetAll(ctx, queryNodes, &tbNodes); err != nil {
@@ -101,7 +103,7 @@ func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob
 	tree.Sdk = sdk
 
 	_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
-		rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
+		rootKey := pgNameKey(TbLearningPathKind, sdk.StorageID(), nil)
 		if err := d.Client.Get(ctx, rootKey, &tbLP); err != nil {
 			return fmt.Errorf("error querying learning_path: %w", err)
 		}
@@ -118,7 +120,7 @@ func (d *DatastoreDb) GetContentTree(ctx context.Context, sdk tob.Sdk) (tree tob
 // Helper to clear all ToB Datastore entities related to a particular SDK
 // They have one common ancestor key in tb_learning_path.
 func (d *DatastoreDb) clearContentTree(ctx context.Context, tx *datastore.Transaction, sdk tob.Sdk) error {
-	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
+	rootKey := pgNameKey(TbLearningPathKind, sdk.StorageID(), nil)
 	q := datastore.NewQuery("").
 		Namespace(PgNamespace).
 		Ancestor(rootKey).
@@ -188,8 +190,8 @@ func (d *DatastoreDb) saveContentTree(tx *datastore.Transaction, tree *tob.Conte
 		return fmt.Errorf("unknown datastore node type: %v", node.Type)
 	}
 
-	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(tree.Sdk), nil)
-	tbLP := TbLearningPath{Name: tree.Sdk.String()}
+	rootKey := pgNameKey(TbLearningPathKind, tree.Sdk.StorageID(), nil)
+	tbLP := TbLearningPath{Title: tree.Sdk.String()}
 	if _, err := tx.Put(rootKey, &tbLP); err != nil {
 		return fmt.Errorf("failed to put learning_path: %w", err)
 	}
@@ -227,15 +229,17 @@ func (d *DatastoreDb) SaveContentTrees(ctx context.Context, trees []tob.ContentT
 	return nil
 }
 
-// Get learning unit content by unitId
-func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (unit *tob.Unit, err error) {
+// get a custom projection of a learning unit
+func (d *DatastoreDb) getUnit(ctx context.Context, sdk tob.Sdk, unitId string,
+	projectionFunc func(*datastore.Query) *datastore.Query) (unit *tob.Unit, err error) {
 	var tbNodes []TbLearningNode
-	rootKey := pgNameKey(TbLearningPathKind, sdkToKey(sdk), nil)
+	rootKey := pgNameKey(TbLearningPathKind, sdk.StorageID(), nil)
 
 	query := datastore.NewQuery(TbLearningNodeKind).
 		Namespace(PgNamespace).
 		Ancestor(rootKey).
 		FilterField("id", "=", unitId)
+	query = projectionFunc(query)
 
 	_, err = d.Client.GetAll(ctx, query, &tbNodes)
 	if err != nil {
@@ -254,6 +258,119 @@ func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId st
 		return nil, fmt.Errorf("wrong node type: %v, unit expected", node.Type)
 	}
 	return node.Unit, nil
+}
+
+// Get learning unit content by unitId
+func (d *DatastoreDb) GetUnitContent(ctx context.Context, sdk tob.Sdk, unitId string) (unit *tob.Unit, err error) {
+	return d.getUnit(ctx, sdk, unitId, func(q *datastore.Query) *datastore.Query {
+		return q
+	})
+}
+
+// Check if the unit exists, returns ErrNoUnit if not
+func (d *DatastoreDb) CheckUnitExists(ctx context.Context, sdk tob.Sdk, unitId string) (err error) {
+	unit, err := d.getUnit(ctx, sdk, unitId, func(q *datastore.Query) *datastore.Query {
+		return q.Project("__key__", "type")
+	})
+	if err != nil {
+		return err
+	}
+	if unit == nil {
+		return tob.ErrNoUnit
+	}
+	return nil
+}
+
+func (d *DatastoreDb) SaveUser(ctx context.Context, uid string) error {
+	userKey := pgNameKey(TbUserKind, uid, nil)
+
+	_, err := d.Client.Put(ctx, userKey, &TbUser{UID: uid, LastVisitAt: time.Now()})
+	if err != nil {
+		return fmt.Errorf("failed to create tb_user: %w", err)
+	}
+
+	return nil
+}
+
+func (d *DatastoreDb) GetUserProgress(ctx context.Context, sdk tob.Sdk, uid string) (*tob.SdkProgress, error) {
+	userKey := pgNameKey(TbUserKind, uid, nil)
+	err := d.Client.Get(ctx, userKey, &TbUser{})
+	if errors.Is(err, datastore.ErrNoSuchEntity) {
+		return nil, tob.ErrNoUser
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	var tbUnits []TbUnitProgress
+	query := datastore.NewQuery(TbUserProgressKind).
+		Namespace(PgNamespace).
+		Ancestor(userKey).
+		FilterField("sdk", "=", rootSdkKey(sdk))
+
+	_, err = d.Client.GetAll(ctx, query, &tbUnits)
+	if err != nil {
+		return nil, fmt.Errorf("query progress failed: %w", err)
+	}
+
+	sdkProgress := &tob.SdkProgress{Units: make([]tob.UnitProgress, 0)}
+	for _, up := range tbUnits {
+		sdkProgress.Units = append(sdkProgress.Units, FromDatastoreUserProgress(up))
+	}
+
+	return sdkProgress, nil
+}
+
+func (d *DatastoreDb) upsertUnitProgress(ctx context.Context, sdk tob.Sdk, unitId, uid string,
+	applyChanges func(*TbUnitProgress) error) error {
+	userKey := pgNameKey(TbUserKind, uid, nil)
+	progressKey := datastoreKey(TbUserProgressKind, sdk, unitId, userKey)
+
+	_, err := d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		// default entity values
+		progress := TbUnitProgress{
+			Sdk:            rootSdkKey(sdk),
+			UnitID:         unitId,
+			PersistenceKey: tob.GeneratePersistentKey(),
+		}
+
+		if err := tx.Get(progressKey, &progress); err != nil && err != datastore.ErrNoSuchEntity {
+			return err
+		}
+		if err := applyChanges(&progress); err != nil {
+			return err
+		}
+		if _, err := tx.Put(progressKey, &progress); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upsert tb_user_progress: %w", err)
+	}
+	return nil
+}
+
+func (d *DatastoreDb) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
+	return d.upsertUnitProgress(ctx, sdk, unitId, uid, func(p *TbUnitProgress) error {
+		p.IsCompleted = true
+		return nil
+	})
+}
+
+func (d *DatastoreDb) SaveUserSnippetId(
+	ctx context.Context, sdk tob.Sdk, unitId, uid string, externalSave func(string) (string, error),
+) error {
+	applyChanges := func(p *TbUnitProgress) error {
+		snippetId, err := externalSave(p.PersistenceKey)
+		if err != nil {
+			return err
+		}
+
+		p.SnippetId = snippetId
+		return nil
+	}
+	return d.upsertUnitProgress(ctx, sdk, unitId, uid, applyChanges)
 }
 
 // check if the interface is implemented.
