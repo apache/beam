@@ -43,24 +43,39 @@ variable "cloudbuild_service_account_id" {
   default     = "playground-cloudbuild-sa"
 }
 
+variable "github_repository_name" {
+  type        = string
+  description = "The name of the GitHub repository. For example the repository name for https://github.com/example/foo is 'foo'."
+}
+
+variable "github_repository_owner" {
+  type        = string
+  description = "Owner of the GitHub repository. For example the owner for https://github.com/example/foo is 'example'."
+}
+
+variable "github_repository_branch" {
+  type        = string
+  description = "The GitHub repository branch regex to match cloud build trigger"
+}
+
 variable "playground_environment_name" {
-  description = "Environment where to deploy Playground. Located in playground/terraform/environment/{environment_name}"
+  description = "Environment where to deploy Playground. Located in playground/terraform/environment/{environment_name}. E.g. test, dev, prod"
 }
 
 variable "playground_dns_name" {
-  description = "DNS record name for Playground website"
+  description = "DNS record name for Playground website. More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#deploy-playground-infrastructure"
 }
 
 variable "playground_network_name" {
-  description = "GCP VPC Network Name for Playground deployment"
+  description = "The Google Cloud Platform (GCP) VPC Network Name for Playground deployment"
 }
 
 variable "playground_gke_name" {
-  description = "Playground GKE Cluster name"
+  description = "Playground GKE Cluster name in Google Cloud Platform (GCP)"
 }
 
 variable "state_bucket" {
-  description = "GCS bucket name for Beam Playground temp files and Terraform state"
+  description = "The Google Cloud Platform (GCP) GCS bucket name for Beam Playground temp files and Terraform state"
 }
 
 variable "image_tag" {
@@ -68,17 +83,17 @@ variable "image_tag" {
 }
 
 variable "docker_repository_root" {
-  description = "The name of GCP Artifact Registry Repository where Playground images will be saved to"
+  description = "The name of Google Cloud Platform (GCP) Artifact Registry Repository where Playground images will be saved to"
 }
 
 variable "playground_region" {
-  description = "Region (For example: us-central1) where playground infrastructure will be deployed"
+  description = "The Google Cloud Platform (GCP) region (For example: us-central1) where playground infrastructure will be deployed to"
 }
 
 variable "playground_zone" {
-  description = "Zone (For example: us-central1-b) where playground infrastructure will be deployed"
+  description = "The Google Cloud Platform (GCP) zone (For example: us-central1-b) where playground infrastructure will be deployed to"
 }
 
 variable "sdk_tag" {
-  description = "Apache Beam go python image sdk tag"
+  description = "Apache Beam Golang and Python images SDK tag. See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hub.docker.com/r/apache/beam_go_sdk"
 }

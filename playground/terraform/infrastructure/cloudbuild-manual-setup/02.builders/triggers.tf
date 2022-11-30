@@ -26,15 +26,12 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
 
   description = "Builds the base image and then runs cloud build config file to deploy Playground infrastructure"
 
-  source_to_build {
-    uri       = "https://github.com/apache/beam"
-    ref       = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
-
-  git_file_source {
-    path      = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
-    repo_type = "GITHUB"
+  github {
+    owner = var.github_repository_owner
+    name  = var.github_repository_name
+    push {
+      branch = var.github_repository_branch
+    }
   }
 
   substitutions = {
@@ -47,6 +44,8 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     _STATE_BUCKET : var.state_bucket
   }
 
+  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
+
   service_account = data.google_service_account.cloudbuild_sa.id
 }
 
@@ -57,15 +56,12 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
 
   description = "Builds the base image and then runs cloud build config file to deploy Playground to GKE"
 
-  source_to_build {
-    uri       = "https://github.com/apache/beam"
-    ref       = "refs/heads/master"
-    repo_type = "GITHUB"
-  }
-
-  git_file_source {
-    path      = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
-    repo_type = "GITHUB"
+  github {
+    owner = var.github_repository_owner
+    name  = var.github_repository_name
+    push {
+      branch = var.github_repository_branch
+    }
   }
 
   substitutions = {
@@ -80,6 +76,8 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     _DOCKER_REPOSITORY_ROOT : var.docker_repository_root
     _SDK_TAG : var.sdk_tag
   }
+
+  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
 
   service_account = data.google_service_account.cloudbuild_sa.id
 }

@@ -49,52 +49,25 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provi
 
 #### To execute the module:
 
-1. Set following environment variables:
-   - `STATE_BUCKET`: GCP Storage bucket name to save Terraform state
-   - `GOOGLE_PROJECT`: GCP Project ID
-   - `GOOGLE_REGION`: GCP region to save triggers to
-   - `PLAYGROUND_REGION`: GCP Region (us-central1) where playground infrastructure will be deployed
-   - `PLAYGROUND_LOCATION`: GCP Location (us-central1-b) where playground infrastructure will be deployed
-   - `ENVIRONMENT_NAME`: Environment where Playground will be deployed (located at playground/terraform/environment/environment_name)
-   - `DNS_NAME`: DNS for deployed Playground webpage
-   - `NETWORK_NAME`: GCP VPC Network Name for Playground deployment
-   - `GKE_NAME`: Playground GKE Cluster name
-   - `TAG`: Tag for Playground images
-   - `SDK_TAG`: Tag for SDK images of Apache Beam Go and Python (typically last stable 2.42.0, 2.43.0)
-   - `DOCKER_REPOSITORY_ROOT`: GCP Artifact Registry repository name to store Playground container images
-
-```console
-    export STATE_BUCKET="state-bucket" \
-    GOOGLE_PROJECT="project-id" \
-    GOOGLE_REGION="us-central1" \
-    PLAYGROUND_REGION="us-central1" \
-    PLAYGROUND_LOCATION="us-central1-a" \
-    ENVIRONMENT_NAME="env-name" \
-    DNS_NAME="dns-name" \
-    NETWORK_NAME="network-name" \
-    GKE_NAME="gke-cluster-name" \
-    TAG="tag-name" \
-    SDK_TAG="2.43.0"
-
-    export DOCKER_REPOSITORY_ROOT=\
-    "$PLAYGROUND_REGION-docker.pkg.dev/$GOOGLE_PROJECT/playground-repository"
-```
 **Note:**  Please see [Cloud Build locations](https://cloud.google.com/build/docs/locations) for the list of all supported locations.
 
-2. Run commands:
+1. Run commands:
 
 
 ```console
+# Set environment variable for state bucket
+export STATE_BUCKET="state-bucket"
+
 # Create a new authentication configuration for GCP Project with the created user account
 gcloud init
 
 # Command imports new user account credentials into Application Default Credentials
 gcloud auth application-default login
 
-# Navigate to 01.setup folder
+# Navigate to 01.setup directory
 cd playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup/
 
-# Run terraform scripts
+# Run terraform commands
 terraform init -backend-config="bucket=$STATE_BUCKET"
 terraform apply -var="project_id=$(gcloud config get-value project)"
 ```
@@ -112,27 +85,13 @@ The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` pr
 
 #### To execute the module
 
-
 ```
-# Navigate to playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders folder
+# Navigate to playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders directory
 cd ../02.builders
 
-# Run terraform scripts
+# Run terraform commands
 terraform init -backend-config="bucket=$STATE_BUCKET"
-
-terraform apply \
--var "project_id=$(gcloud config get-value project)" \
--var "region=$GOOGLE_REGION" \
--var "playground_region=$PLAYGROUND_REGION" \
--var "playground_location=$PLAYGROUND_LOCATION" \
--var "playground_environment_name=$ENVIRONMENT_NAME" \
--var "playground_dns_name=$DNS_NAME" \
--var "playground_network_name=$NETWORK_NAME" \
--var "playground_gke_name=$GKE_NAME" \
--var "state_bucket=$STATE_BUCKET" \
--var "image_tag=$TAG" \
--var "sdk_tag=$SDK_TAG" \
--var "docker_repository_root=$DOCKER_REPOSITORY_ROOT"
+terraform apply -var="project_id=$(gcloud config get-value project)"
 ```
 
 ## 4. Run Cloud Build `Playground-infrastructure-trigger` to deploy Playground infrastructure
