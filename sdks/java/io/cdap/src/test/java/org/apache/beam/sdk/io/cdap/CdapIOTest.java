@@ -43,7 +43,6 @@ import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
 import org.apache.beam.sdk.io.cdap.streaming.EmployeeReceiver;
 import org.apache.beam.sdk.io.cdap.streaming.EmployeeStreamingSource;
-import org.apache.beam.sdk.io.sparkreceiver.ReceiverBuilder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -98,7 +97,7 @@ public class CdapIOTest {
             .withKeyClass(String.class)
             .withValueClass(String.class);
 
-    Plugin cdapPlugin = read.getCdapPlugin();
+    Plugin<String, String> cdapPlugin = read.getCdapPlugin();
     assertNotNull(cdapPlugin);
     assertEquals(EmployeeBatchSource.class, cdapPlugin.getPluginClass());
     assertEquals(EmployeeInputFormat.class, cdapPlugin.getFormatClass());
@@ -135,6 +134,19 @@ public class CdapIOTest {
   public void testReadObjectCreationFailsIfValueClassIsNull() {
     assertThrows(
         IllegalArgumentException.class, () -> CdapIO.<String, String>read().withValueClass(null));
+  }
+
+  @Test
+  public void testReadObjectCreationFailsIfPullFrequencySecIsNull() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> CdapIO.<String, String>read().withPullFrequencySec(null));
+  }
+
+  @Test
+  public void testReadObjectCreationFailsIfStartOffsetIsNull() {
+    assertThrows(
+        IllegalArgumentException.class, () -> CdapIO.<String, String>read().withStartOffset(null));
   }
 
   @Test
@@ -184,17 +196,20 @@ public class CdapIOTest {
 
     EmployeeConfig pluginConfig =
         new ConfigWrapper<>(EmployeeConfig.class).withParams(TEST_EMPLOYEE_PARAMS_MAP).build();
-    MappingUtils.registerStreamingPlugin(
-        EmployeeStreamingSource.class,
-        Long::valueOf,
-        new ReceiverBuilder<>(EmployeeReceiver.class).withConstructorArgs(pluginConfig));
 
     CdapIO.Read<String, String> read =
         CdapIO.<String, String>read()
-            .withCdapPlugin(Plugin.createStreaming(EmployeeStreamingSource.class))
+            .withCdapPlugin(
+                Plugin.createStreaming(
+                    EmployeeStreamingSource.class,
+                    Long::valueOf,
+                    EmployeeReceiver.class,
+                    config -> new Object[] {config}))
             .withPluginConfig(pluginConfig)
             .withKeyClass(String.class)
-            .withValueClass(String.class);
+            .withValueClass(String.class)
+            .withPullFrequencySec(1L)
+            .withStartOffset(0L);
 
     List<String> storedRecords = EmployeeReceiver.getStoredRecords();
 
@@ -224,7 +239,7 @@ public class CdapIOTest {
             .withValueClass(String.class)
             .withLocksDirPath(tmpFolder.getRoot().getAbsolutePath());
 
-    Plugin cdapPlugin = write.getCdapPlugin();
+    Plugin<String, String> cdapPlugin = write.getCdapPlugin();
     assertNotNull(cdapPlugin);
     assertNotNull(write.getLocksDirPath());
     assertEquals(EmployeeBatchSink.class, cdapPlugin.getPluginClass());

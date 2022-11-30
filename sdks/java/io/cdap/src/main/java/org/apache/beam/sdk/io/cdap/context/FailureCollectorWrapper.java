@@ -18,9 +18,12 @@
 package org.apache.beam.sdk.io.cdap.context;
 
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import javax.annotation.Nullable;
 
 /** Class FailureCollectorWrapper is a class for collecting ValidationFailure. */
@@ -41,6 +44,21 @@ public class FailureCollectorWrapper implements FailureCollector {
 
   @Override
   public ValidationException getOrThrowException() throws ValidationException {
+
+    // We skip schema field validation errors because they are CDAP oriented and don't affect
+    // anything in our case
+    for (Iterator<ValidationFailure> failureIterator = failuresCollection.iterator();
+        failureIterator.hasNext(); ) {
+      List<ValidationFailure.Cause> causes = failureIterator.next().getCauses();
+      if (causes != null) {
+        for (ValidationFailure.Cause cause : causes) {
+          String inputField = cause.getAttribute(CauseAttributes.INPUT_SCHEMA_FIELD);
+          if (BatchContextImpl.DEFAULT_SCHEMA_FIELD_NAME.equals(inputField)) {
+            failureIterator.remove();
+          }
+        }
+      }
+    }
     if (failuresCollection.isEmpty()) {
       return new ValidationException(this.failuresCollection);
     }

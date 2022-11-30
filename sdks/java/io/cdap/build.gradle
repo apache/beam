@@ -52,7 +52,6 @@ dependencies {
     implementation library.java.cdap_plugin_zendesk
     implementation library.java.commons_lang3
     implementation library.java.guava
-    implementation library.java.google_code_gson
     implementation library.java.hadoop_common
     implementation library.java.hadoop_mapreduce_client_core
     implementation library.java.jackson_core
