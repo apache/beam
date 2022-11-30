@@ -67,8 +67,8 @@ More details: https://github.com/akvelon/beam/blob/cloudbuild%2Bmanualsetup%2Bpl
 
 variable "playground_dns_name" {
   description = <<EOF
-  The DNS record name for Playground website.
-  More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#deploy-playground-infrastructure"
+The DNS record name for Playground website.
+More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#deploy-playground-infrastructure"
   EOF
 }
 
