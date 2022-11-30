@@ -25,6 +25,7 @@ limitations under the License.
 
 
 ### **Apache Beam Playground Features**
+
 <img class="center-block"
     src="/images/blog/BeamPlayground.gif"
     alt="Apache Beam Playground">
