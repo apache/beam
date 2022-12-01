@@ -17,6 +17,7 @@
  */
 
 import { JobState_Enum } from "../proto/beam_job_api";
+import * as runnerApi from "../proto/beam_runner_api";
 import { MonitoringInfo } from "../proto/metrics";
 import { Pipeline } from "../internal/pipeline";
 import { Root, PValue } from "../pvalue";
@@ -88,9 +89,7 @@ export abstract class Runner {
     pipeline: (root: Root) => PValue<any> | Promise<PValue<any>>,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
-    const p = new Pipeline();
-    await pipeline(new Root(p));
-    const pipelineResult = await this.runPipeline(p, options);
+    const pipelineResult = await this.runAsync(pipeline, options);
     const finalState = await pipelineResult.waitUntilFinish();
     if (finalState != JobState_Enum.DONE) {
       // TODO: Grab the last/most severe error message?
@@ -110,11 +109,11 @@ export abstract class Runner {
   ): Promise<PipelineResult> {
     const p = new Pipeline();
     await pipeline(new Root(p));
-    return this.runPipeline(p);
+    return this.runPipeline(p.getProto());
   }
 
   abstract runPipeline(
-    pipeline: Pipeline,
+    pipeline: runnerApi.Pipeline,
     options?: PipelineOptions
   ): Promise<PipelineResult>;
 }
@@ -122,7 +121,7 @@ export abstract class Runner {
 export function defaultRunner(defaultOptions: Object): Runner {
   return new (class extends Runner {
     async runPipeline(
-      pipeline: Pipeline,
+      pipeline: runnerApi.Pipeline,
       options: Object = {}
     ): Promise<PipelineResult> {
       const directRunner =

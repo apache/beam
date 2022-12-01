@@ -63,4 +63,4 @@ flutter:
     - assets/svg/
 
 flutter_gen:
-  output: lib/generated/
+  output: lib/assets/

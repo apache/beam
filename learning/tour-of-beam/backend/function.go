@@ -86,7 +86,7 @@ func MakePlaygroundClient(ctx context.Context) pb.PlaygroundServiceClient {
 	// * PLAYGROUND_ROUTER_HOST: playground API host/port
 	if os.Getenv("TOB_MOCK") > "" {
 		fmt.Println("Using mock playground client")
-		return pb.GetMockClient()
+		return service.GetMockClient()
 	} else {
 		host := os.Getenv("PLAYGROUND_ROUTER_HOST")
 		cc, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -227,7 +227,7 @@ func postUserCode(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid strin
 		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
 		return
 	}
-	if err != nil {
+	if err := errors.Unwrap(err); err != nil {
 		log.Println("Save user code error:", err)
 		message := "storage error"
 		if st, ok := grpc_status.FromError(err); ok {

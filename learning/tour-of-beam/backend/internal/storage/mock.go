@@ -83,6 +83,9 @@ func (d *Mock) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid str
 	return nil
 }
 
-func (d *Mock) SaveUserSnippetId(ctx context.Context, sdk tob.Sdk, unitId, uid, snippetId string) error {
+func (d *Mock) SaveUserSnippetId(
+	ctx context.Context, sdk tob.Sdk, unitId, uid string,
+	externalSave func(string) (string, error),
+) error {
 	return nil
 }

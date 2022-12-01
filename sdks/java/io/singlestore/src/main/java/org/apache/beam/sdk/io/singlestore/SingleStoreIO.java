@@ -545,8 +545,6 @@ public class SingleStoreIO {
 
     abstract @Nullable RowMapper<T> getRowMapper();
 
-    abstract @Nullable Integer getInitialNumReaders();
-
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -559,8 +557,6 @@ public class SingleStoreIO {
       abstract Builder<T> setTable(String table);
 
       abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
-
-      abstract Builder<T> setInitialNumReaders(Integer initialNumReaders);
 
       abstract ReadWithPartitions<T> build();
     }
@@ -585,12 +581,6 @@ public class SingleStoreIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
-    /** Pre-split initial restriction and start initialNumReaders reading at the very beginning. */
-    public ReadWithPartitions<T> withInitialNumReaders(Integer initialNumReaders) {
-      checkNotNull(initialNumReaders, "initialNumReaders can not be null");
-      return toBuilder().setInitialNumReaders(initialNumReaders).build();
-    }
-
     @Override
     public PCollection<T> expand(PBegin input) {
       DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
@@ -602,10 +592,6 @@ public class SingleStoreIO {
           "withDatabase() is required for DataSourceConfiguration in order to perform readWithPartitions");
       RowMapper<T> rowMapper = getRowMapper();
       Preconditions.checkArgumentNotNull(rowMapper, "withRowMapper() is required");
-
-      int initialNumReaders = SingleStoreUtil.getArgumentWithDefault(getInitialNumReaders(), 1);
-      checkArgument(
-          initialNumReaders >= 1, "withInitialNumReaders() should be greater or equal to 1");
 
       String actualQuery = SingleStoreUtil.getSelectQuery(getTable(), getQuery());
 
@@ -621,11 +607,7 @@ public class SingleStoreIO {
           .apply(
               ParDo.of(
                   new ReadWithPartitions.ReadWithPartitionsFn<>(
-                      dataSourceConfiguration,
-                      actualQuery,
-                      database,
-                      rowMapper,
-                      initialNumReaders)))
+                      dataSourceConfiguration, actualQuery, database, rowMapper)))
           .setCoder(coder);
     }
 
@@ -635,19 +617,16 @@ public class SingleStoreIO {
       String query;
       String database;
       RowMapper<OutputT> rowMapper;
-      int initialNumReaders;
 
       ReadWithPartitionsFn(
           DataSourceConfiguration dataSourceConfiguration,
           String query,
           String database,
-          RowMapper<OutputT> rowMapper,
-          int initialNumReaders) {
+          RowMapper<OutputT> rowMapper) {
         this.dataSourceConfiguration = dataSourceConfiguration;
         this.query = query;
         this.database = database;
         this.rowMapper = rowMapper;
-        this.initialNumReaders = initialNumReaders;
       }
 
       @ProcessElement
@@ -690,19 +669,8 @@ public class SingleStoreIO {
           @Element ParameterT element,
           @Restriction OffsetRange range,
           OutputReceiver<OffsetRange> receiver) {
-        long numPartitions = range.getTo() - range.getFrom();
-        checkArgument(
-            initialNumReaders <= numPartitions,
-            "withInitialNumReaders() should not be greater then number of partitions in the database.\n"
-                + String.format(
-                    "InitialNumReaders is %d, number of partitions in the database is %d",
-                    initialNumReaders, range.getTo()));
-
-        for (int i = 0; i < initialNumReaders; i++) {
-          receiver.output(
-              new OffsetRange(
-                  range.getFrom() + numPartitions * i / initialNumReaders,
-                  range.getFrom() + numPartitions * (i + 1) / initialNumReaders));
+        for (long i = range.getFrom(); i < range.getTo(); i++) {
+          receiver.output(new OffsetRange(i, i + 1));
         }
       }
 
@@ -744,7 +712,6 @@ public class SingleStoreIO {
       builder.addIfNotNull(DisplayData.item("table", getTable()));
       builder.addIfNotNull(
           DisplayData.item("rowMapper", SingleStoreUtil.getClassNameOrNull(getRowMapper())));
-      builder.addIfNotNull(DisplayData.item("initialNumReaders", getInitialNumReaders()));
     }
   }
 

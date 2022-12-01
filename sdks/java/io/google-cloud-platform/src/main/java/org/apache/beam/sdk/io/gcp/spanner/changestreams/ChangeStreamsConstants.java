@@ -19,6 +19,10 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Options.RpcPriority;
+import java.util.Collections;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /**
  * Single place for defining the constants used in the {@code Spanner.readChangeStreams()}
@@ -45,4 +49,30 @@ public class ChangeStreamsConstants {
 
   /** The default priority for a change stream query is {@link RpcPriority#HIGH}. */
   public static final RpcPriority DEFAULT_RPC_PRIORITY = RpcPriority.HIGH;
+
+  /** The sliding window size in seconds for throughput reporting. */
+  public static final int THROUGHPUT_WINDOW_SECONDS = 10;
+
+  /**
+   * We use the following partition token to provide an estimate size of a partition token. A usual
+   * partition token has around 140 characters.
+   */
+  private static final String SAMPLE_PARTITION_TOKEN =
+      String.join("", Collections.nCopies(140, "*"));
+  /**
+   * We use a bogus partition here to estimate the average size of a partition metadata record.
+   *
+   * <p>The only dynamically allocated size field here is the "parentTokens", which is a set and can
+   * expand. In practice, however, partitions have 1 to 2 parents at most.
+   */
+  public static final PartitionMetadata SAMPLE_PARTITION =
+      PartitionMetadata.newBuilder()
+          .setPartitionToken(SAMPLE_PARTITION_TOKEN)
+          .setParentTokens(Sets.newHashSet(SAMPLE_PARTITION_TOKEN))
+          .setStartTimestamp(Timestamp.now())
+          .setHeartbeatMillis(1_000L)
+          .setState(State.CREATED)
+          .setWatermark(Timestamp.now())
+          .setCreatedAt(Timestamp.now())
+          .build();
 }

@@ -166,8 +166,7 @@ def runnerV2PipelineOptions = [
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
-  // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-  "--experiments=use_unified_worker,use_runner_v2,shuffle_mode=appliance",
+  "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
 ]
 
@@ -388,7 +387,7 @@ task validatesRunnerStreaming {
   description "Validates Dataflow runner forcing streaming mode"
   dependsOn(createLegacyWorkerValidatesRunnerTest(
     name: 'validatesRunnerLegacyWorkerTestStreaming',
-    pipelineOptions: legacyPipelineOptions + ['--streaming=true'],
+    pipelineOptions: legacyPipelineOptions + ['--streaming'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesMapState',
@@ -463,6 +462,8 @@ task validatesRunnerV2 {
   description = "Runs the ValidatesRunner tests on Dataflow Runner V2"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2Test',
+    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    pipelineOptions: runnerV2PipelineOptions + ['--experiments=shuffle_mode=appliance'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
       'org.apache.beam.sdk.testing.UsesStatefulParDo',
@@ -473,6 +474,7 @@ task validatesRunnerV2 {
     excludedTests: [
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
+      // TODO(https://github.com/apache/beam/issues/18592): respect ParDo lifecycle.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testFnCallSequenceStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
@@ -500,54 +502,19 @@ task validatesRunnerV2Streaming {
   description = "Runs the ValidatesRunner tests on Dataflow Runner V2 forcing streaming mode"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2TestStreaming',
-    pipelineOptions: runnerV2PipelineOptions + ['--streaming=true'],
+    pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
-      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* https://github.com/apache/beam/issues/19957 */,
-      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
     ],
     excludedTests: [
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
-      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithoutCustomWindowTypes',
-      'org.apache.beam.examples.complete.TopWikipediaSessionsTest.testComputeTopUsers',
-      'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
-
-      'org.apache.beam.sdk.io.AvroIOTest.testWriteWindowed',
-      'org.apache.beam.sdk.io.AvroIOTest.testWindowedAvroIOWriteViaSink',
-      'org.apache.beam.sdk.extensions.sql.BeamSqlDslAggregationTest.testTriggeredTumble',
+      // TestStream only (partially) supported on UW
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
-      // TODO(https://github.com/apache/beam/issues/20726) reading a side input twice fails
-      'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice',
-      'org.apache.beam.sdk.transforms.CombineFnsTest.testComposedCombineWithContext',
-      'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContextEmpty',
-      'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContext',
-      'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testFixedWindowsCombineWithContext',
-      'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext',
-      'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSlidingWindowsCombineWithContext',
-
-      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverride',
-
+      // TestStream with processing time control not supported
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
       'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
-
-      // TODO(https://github.com/apache/beam/issues/20601): Pipeline is hanging for these 3 tests.
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded',
-      'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
-
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
-
-      'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
-
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSameFixedWindows',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithDifferentFixedWindows',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSignalInSlidingWindows',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitInGlobalWindow',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitBoundedInDefaultWindow',
-      'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSomeSignalWindowsEmpty',
 
       // TODO(https://github.com/apache/beam/issues/18592): respect ParDo lifecycle.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
@@ -558,13 +525,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
-
-      // TODO(https://github.com/apache/beam/issues/20734) Empty flatten fails in streaming
-      "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput",
-      "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo",
-      "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty",
-
-      'org.apache.beam.sdk.io.CountingSourceTest.testBoundedSourceSplits',
 
       // TODO(https://github.com/apache/beam/issues/20931): Identify whether it's bug or a feature gap.
       'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
