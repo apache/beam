@@ -719,9 +719,12 @@ class BatchLoads<DestinationT, ElementT>
     // If the final destination table exists already (and we're appending to it), then the temp
     // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
     // with one that makes this happen.
-    DynamicDestinations<?, DestinationT> matchedDestinations =
-        DynamicDestinationsHelpers.matchTableDynamicDestinations(
-            dynamicDestinations, bigQueryServices);
+    // In the case schemaUpdateOptions are specified by the user, matching does not occur in order
+    // to respect those options.
+    DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
+    if (schemaUpdateOptions.isEmpty()) {
+      destinations = DynamicDestinationsHelpers.matchTableDynamicDestinations(dynamicDestinations, bigQueryServices);
+    }
 
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
@@ -741,7 +744,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                matchedDestinations,
+                destinations,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
