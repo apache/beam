@@ -203,6 +203,23 @@ jobs:
       - name: Copy sources to GCS bucket
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
+  set_py_versions:
+    name: Set Python Versions
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        PY_VERSIONS_FULL: "cp37-* cp38-* cp39-* cp310-*"
+      run: |
+        set -xeu
+        if [ $EVENT_NAME == "pull_request" ]; then
+          # run lowest and highest supported version on pull request
+          PY_VERSIONS_TEST="cp37-* cp310-*"
+        else
+          # run full version on push and cron job
+         PY_VERSIONS_TEST=$PY_VERSIONS_FULL
+        fi
+        echo "PY_VERSIONS_FULL=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
+        echo "PY_VERSIONS_TEST=PY_VERSIONS_TEST" >> $GITHUB_OUTPUT
+
   build_wheels:
     name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
     needs: build_source
@@ -212,13 +229,13 @@ jobs:
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
-          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
-          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-* cp310-*"},
+          {"os": "ubuntu-latest", "python": ${{ steps.set_py_versions.outputs.PY_VERSIONS_FULL }},
+          {"os": "macos-latest", "python": ${{ steps.set_py_versions.outputs.PY_VERSIONS_TEST }} },
+          {"os": "windows-latest", "python": ${{ steps.set_py_versions.outputs.PY_VERSIONS_TEST }} },
         ]
         arch: [auto]
         include:
-          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-* cp310-*"}
+          - os_python: {"os": "ubuntu-latest", "python": ${{ steps.set_py_versions.outputs.PY_VERSIONS_TEST }} }
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
