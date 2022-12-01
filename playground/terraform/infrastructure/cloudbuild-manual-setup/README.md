@@ -18,10 +18,7 @@
 # Beam Playground Cloud Build Setup
 
 This directory organizes Infrastructure-as-Code to provision dependent resources and set up Cloud Build for Beam Playground.
-
-Playground deployment main data and scripts can be found by next locations:
-- [Playground deployment main directory](https://github.com/apache/beam/blob/master/playground/)
-- [Playground deployment main README file](https://github.com/apache/beam/blob/master/playground/terraform/README.md)
+Cloud Build triggers created by terraform scripts from this directory automate steps described in [readme](https://github.com/apache/beam/blob/master/playground/terraform/README.md).
 
 ## Requirements:
 

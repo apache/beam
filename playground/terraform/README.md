@@ -18,6 +18,7 @@
 -->
 # Playground deployment on GCP
 This guide shows you how to deploy full Playground environment on Google Cloud Platform (GCP) environment.
+Alternatively, you can automate Playground environment deployment with Cloud Build as described in [readme](https://github.com/apache/beam/blob/master/playground/terraform/infrastructure/cloudbuild-manual-setup/README.md/README.md).
 
 ## Prerequisites:
 
