@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -47,7 +48,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
 import org.joda.time.ReadableInstant;
 
@@ -244,7 +244,7 @@ public class BeamRowToStorageApiProto {
       if (fieldDescriptor.isOptional()) {
         return null;
       } else if (fieldDescriptor.isRepeated()) {
-        return Lists.newArrayList();
+        return Collections.emptyList();
       } else {
         throw new IllegalArgumentException(
             "Received null value for non-nullable field " + fieldDescriptor.getName());
@@ -265,10 +265,8 @@ public class BeamRowToStorageApiProto {
           throw new RuntimeException("Unexpected null element type!");
         }
         Boolean shouldFlatMap =
-            arrayElementType.getTypeName().isCollectionType()
-                    || arrayElementType.getTypeName().isMapType()
-                ? true
-                : false;
+                arrayElementType.getTypeName().isCollectionType()
+                || arrayElementType.getTypeName().isMapType();
 
         Stream<Object> valueStream =
             list.stream().map(v -> toProtoValue(fieldDescriptor, arrayElementType, v));
@@ -311,7 +309,6 @@ public class BeamRowToStorageApiProto {
       FieldType keyFieldType,
       FieldType valueFieldType,
       Map.Entry<Object, Object> entryValue) {
-
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     FieldDescriptor keyFieldDescriptor =
         Preconditions.checkNotNull(descriptor.findFieldByName("key"));
