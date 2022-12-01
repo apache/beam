@@ -21,30 +21,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:playground_components/playground_components.dart';
 
-import '../../../models/unit_content.dart';
-
-class UnitContentWidget extends StatelessWidget {
-  final UnitContentModel unitContent;
-
-  const UnitContentWidget({
-    required this.unitContent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Markdown(
-      selectable: true,
-      data: unitContent.description,
-      builders: {
-        'code': CodeBuilder(),
-      },
-      styleSheet:
-          Theme.of(context).extension<BeamThemeExtension>()!.markdownStyle,
-    );
-  }
-}
-
-class CodeBuilder extends MarkdownElementBuilder {
+class MarkdownCodeBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final String textContent = element.textContent;

@@ -34,6 +34,9 @@ class $AssetsSvgGen {
   /// File path: assets/svg/google-logo.svg
   String get googleLogo => 'assets/svg/google-logo.svg';
 
+  /// File path: assets/svg/hint.svg
+  String get hint => 'assets/svg/hint.svg';
+
   /// File path: assets/svg/profile-about.svg
   String get profileAbout => 'assets/svg/profile-about.svg';
 
