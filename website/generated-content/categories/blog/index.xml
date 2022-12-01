@@ -1,4 +1,37 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Thu, 17 Nov 2022 09:00:00 -0700</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.43.0</title><link>/blog/beam-2.43.0/</link><pubDate>Thu, 17 Nov 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.43.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 30 Nov 2022 00:00:01 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam Playground: An interactive environment to try transforms and examples</title><link>/blog/apacheplayground/</link><pubDate>Wed, 30 Nov 2022 00:00:01 -0800</pubDate><guid>/blog/apacheplayground/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h3 id="what-is-apache-beam-playground">&lt;strong>What is Apache Beam Playground?&lt;/strong>&lt;/h3>
+&lt;p>&lt;a href="https://play.beam.apache.org/">Apache Beam Playground&lt;/a> is an interactive environment to try Apache Beam transforms and examples without requiring to install or set up a Beam environment.&lt;/p>
+&lt;h3 id="apache-beam-playground-features">&lt;strong>Apache Beam Playground Features&lt;/strong>&lt;/h3>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/BeamPlayground.gif"
+alt="Apache Beam Playground">&lt;/p>
+&lt;ul>
+&lt;li>Discover transform examples that you can try right away by browsing or searching Catalog that is sourced from Apache Beam GitHub&lt;/li>
+&lt;li>Supports Java, Python, Go SDKs, and Scio to execute the example in Beam Direct Runner&lt;/li>
+&lt;li>Displays pipeline execution graph (DAG)&lt;/li>
+&lt;li>Code editor to modify examples or try your own custom pipeline with a Direct Runner&lt;/li>
+&lt;li>Code editor with code highlighting, flexible layout, color schemes, and other features to provide responsive UX in desktop browsers&lt;/li>
+&lt;li>Embedding a Playground example on a web page prompts the web page readers to try the example pipeline in the Playground - e.g., &lt;a href="https://beam.apache.org/get-started/try-beam-playground/">Playground Quickstart&lt;/a> page&lt;/li>
+&lt;/ul>
+&lt;h3 id="whats-next">&lt;strong>What’s Next&lt;/strong>&lt;/h3>
+&lt;ul>
+&lt;li>Try examples in &lt;a href="https://play.beam.apache.org/">Apache Beam Playground&lt;/a>&lt;/li>
+&lt;li>Submit your feedback using “Enjoying Playground?” in Apache Beam Playground or via &lt;a href="https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url">this form&lt;/a>&lt;/li>
+&lt;li>Join the Beam &lt;a href="https://beam.apache.org/community/contact-us">users@&lt;/a> mailing list&lt;/li>
+&lt;li>Contribute to the Apache Beam Playground codebase by following a few steps in this &lt;a href="https://beam.apache.org/contribute">Contribution Guide&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>Please &lt;a href="https://beam.apache.org/community/contact-us">reach out&lt;/a> if you have any feedback or encounter any issues!&lt;/p></description></item><item><title>Blog: Apache Beam 2.43.0</title><link>/blog/beam-2.43.0/</link><pubDate>Thu, 17 Nov 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.43.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5267,276 +5300,4 @@ Peter Backx, Rakesh Kumar, Rasmi Elasmar, Reuven Lax, Reza Rokni, Robbe Sneyders
 Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Ruoyun Huang,
 Shoaib Zafar, Slava Chernyak, Steve Niemitz, Tanay Tummalapalli, Thomas Weise,
 Tim Robertson, Tim van der Lippe, Udi Meiri, Valentyn Tymofieiev, Varun Dhussa,
-Viktor Gerdin, Yichi Zhang, Yifan Mai, Yifan Zou, Yueyang Qiu.&lt;/p></description></item><item><title>Blog: Looping timers in Apache Beam</title><link>/blog/looping-timers/</link><pubDate>Tue, 11 Jun 2019 00:00:01 -0800</pubDate><guid>/blog/looping-timers/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Apache Beam’s primitives let you build expressive data pipelines, suitable for a
-variety of use cases. One specific use case is the analysis of time series data
-in which continuous sequences across window boundaries are important. A few fun
-challenges arise as you tackle this type of data and in this blog we will
-explore one of those in more detail and make use of the Timer API
-(&lt;a href="/blog/2017/08/28/timely-processing.html">blog post&lt;/a>)
-using the &amp;ldquo;looping timer&amp;rdquo; pattern.&lt;/p>
-&lt;p>With Beam in streaming mode, you can take streams of data and build analytical
-transforms to produce results on the data. But for time series data, the absence
-of data is useful information. So how can we produce results in the absence of
-data?&lt;/p>
-&lt;p>Let&amp;rsquo;s use a more concrete example to illustrate the requirement. Imagine you
-have a simple pipeline that sums the number of events coming from an IoT device
-every minute. We would like to produce the value 0 when no data has been seen
-within a specific time interval. So why can this get tricky? Well it is easy to
-build a simple pipeline that counts events as they arrive, but when there is no
-event, there is nothing to count!&lt;/p>
-&lt;p>Let&amp;rsquo;s build a simple pipeline to work with:&lt;/p>
-&lt;pre>&lt;code> // We will start our timer at 1 sec from the fixed upper boundary of our
-// minute window
-Instant now = Instant.parse(&amp;quot;2000-01-01T00:00:59Z&amp;quot;);
-// ----- Create some dummy data
-// Create 3 elements, incrementing by 1 minute and leaving a time gap between
-// element 2 and element 3
-TimestampedValue&amp;lt;KV&amp;lt;String, Integer&amp;gt;&amp;gt; time_1 =
-TimestampedValue.of(KV.of(&amp;quot;Key_A&amp;quot;, 1), now);
-TimestampedValue&amp;lt;KV&amp;lt;String, Integer&amp;gt;&amp;gt; time_2 =
-TimestampedValue.of(KV.of(&amp;quot;Key_A&amp;quot;, 2),
-now.plus(Duration.standardMinutes(1)));
-// No Value for start time + 2 mins
-TimestampedValue&amp;lt;KV&amp;lt;String, Integer&amp;gt;&amp;gt; time_3 =
-TimestampedValue.of(KV.of(&amp;quot;Key_A&amp;quot;, 3),
-now.plus(Duration.standardMinutes(3)));
-// Create pipeline
-PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-.as(PipelineOptions.class);
-Pipeline p = Pipeline.create(options);
-// Apply a fixed window of duration 1 min and Sum the results
-p.apply(Create.timestamped(time_1, time_2, time_3))
-.apply(
-Window.&amp;lt;KV&amp;lt;String,Integer&amp;gt;&amp;gt;into(
-FixedWindows.&amp;lt;Integer&amp;gt;of(Duration.standardMinutes(1))))
-.apply(Sum.integersPerKey())
-.apply(ParDo.of(new DoFn&amp;lt;KV&amp;lt;String, Integer&amp;gt;, KV&amp;lt;String, Integer&amp;gt;&amp;gt;() {
-@ProcessElement public void process(ProcessContext c) {
-LOG.info(&amp;quot;Value is {} timestamp is {}&amp;quot;, c.element(), c.timestamp());
-}
-}));
-p.run();
-&lt;/code>&lt;/pre>&lt;p>Running that pipeline will result in the following output:&lt;/p>
-&lt;pre>&lt;code>INFO LoopingTimer - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
-INFO LoopingTimer - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
-INFO LoopingTimer - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
-&lt;/code>&lt;/pre>&lt;blockquote>
-&lt;p>Note: The lack of order in the output should be expected, however the
-key-window tuple is correctly computed.&lt;/p>
-&lt;/blockquote>
-&lt;p>As expected, we see output in each of the interval windows which had a data
-point with a timestamp between the minimum and maximum value of the window.
-There was a data point at timestamps 00:00:59, 00:01:59 and 00:03:59, which
-fell into the following interval windows.&lt;/p>
-&lt;ul>
-&lt;li>[00:00:00, 00:00:59.999)&lt;/li>
-&lt;li>[00:01:00, 00:01:59.999)&lt;/li>
-&lt;li>[00:03:00, 00:03:59.999)&lt;/li>
-&lt;/ul>
-&lt;p>But as there was no data between 00:02:00 and 00:02:59, no value is produced
-for interval window [00:02:00,00:02:59.999).&lt;/p>
-&lt;p>How can we get Beam to output values for that missing window? First, let’s walk
-through some options that do not make use of the Timer API.&lt;/p>
-&lt;h2 id="option-1-external-heartbeat">Option 1: External heartbeat&lt;/h2>
-&lt;p>We can use an external system to emit a value for each time interval and inject
-it into the stream of data that Beam consumes. This simple option moves any
-complexity out of the Beam pipeline. But using an external system means we need
-to monitor this system and perform other maintenance tasks in tandem with the
-Beam pipeline.&lt;/p>
-&lt;h2 id="option-2-use-a-generated-source-in-the-beam-pipeline">Option 2: Use a generated source in the Beam pipeline&lt;/h2>
-&lt;p>We can use a generating source to emit the value using this code snippet:&lt;/p>
-&lt;pre>&lt;code>pipeline.apply(GenerateSequence.
-from(0).withRate(1,Duration.standardSeconds(1L)))
-&lt;/code>&lt;/pre>&lt;p>We can then:&lt;/p>
-&lt;ol>
-&lt;li>Use a DoFn to convert the value to zero.&lt;/li>
-&lt;li>Flatten this value with the real source.&lt;/li>
-&lt;li>Produce a PCollection which has ticks in every time interval.&lt;/li>
-&lt;/ol>
-&lt;p>This is also a simple way of producing a value in each time interval.&lt;/p>
-&lt;h2 id="option-1--2-the-problem-with-multiple-keys">Option 1 &amp;amp; 2 The problem with multiple keys&lt;/h2>
-&lt;p>Both options 1 and 2 work well for the case where there the pipeline processes a
-single key. Let’s now deal with the case where instead of 1 IoT device, there
-are 1000s or 100,000s of these devices, each with a unique key. To make option 1
-or option 2 work in this scenario, we need to carry out an extra step: creating
-a FanOut DoFn. Each tick needs to be distributed to all the potential keys, so
-we need to create a FanOut DoFn that takes the dummy value and generates a
-key-value pair for every available key.&lt;/p>
-&lt;p>For example, let&amp;rsquo;s assume we have 3 keys for 3 IoT devices, {key1,key2,key3}.
-Using the method we outlined in Option 2 when we get the first element from
-GenerateSequence, we need to create a loop in the DoFn that generates 3
-key-value pairs. These pairs become the heartbeat value for each of the IoT
-devices.&lt;/p>
-&lt;p>And things get a lot more fun when we need to deal with lots of IoT devices,
-with a list of keys that are dynamically changing. We would need to add a
-transform that does a Distinct operation and feed the data produced as a
-side-input into the FanOut DoFn.&lt;/p>
-&lt;h2 id="option-3-implementing-a-heartbeat-using-beam-timers">Option 3: Implementing a heartbeat using Beam timers&lt;/h2>
-&lt;p>So how do timers help? Well let&amp;rsquo;s have a look at a new transform:&lt;/p>
-&lt;p>Edit: Looping Timer State changed from Boolean to Long to allow for min value check.&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">LoopingStatefulTimer&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">Instant&lt;/span> &lt;span class="n">stopTimerTime&lt;/span>&lt;span class="o">;&lt;/span>
-&lt;span class="n">LoopingStatefulTimer&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Instant&lt;/span> &lt;span class="n">stopTime&lt;/span>&lt;span class="o">){&lt;/span>
-&lt;span class="k">this&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">stopTimerTime&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">stopTime&lt;/span>&lt;span class="o">;&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;loopingTimerTime&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">StateSpec&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">ValueState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">loopingTimerTime&lt;/span> &lt;span class="o">=&lt;/span>
-&lt;span class="n">StateSpecs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">value&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">BigEndianLongCoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;key&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">StateSpec&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">ValueState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">key&lt;/span> &lt;span class="o">=&lt;/span>
-&lt;span class="n">StateSpecs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">value&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">StringUtf8Coder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;span class="nd">@TimerId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;loopingTimer&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">TimerSpec&lt;/span> &lt;span class="n">loopingTimer&lt;/span> &lt;span class="o">=&lt;/span>
-&lt;span class="n">TimerSpecs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">timer&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">EVENT_TIME&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="nd">@ProcessElement&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ProcessContext&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;key&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">ValueState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">key&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;loopingTimerTime&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">ValueState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">loopingTimerTime&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="nd">@TimerId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;loopingTimer&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">Timer&lt;/span> &lt;span class="n">loopingTimer&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="c1">// If the timer has been set already, or if the value is smaller than
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// the current element + window duration, do not set
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">Long&lt;/span> &lt;span class="n">currentTimerValue&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">loopingTimerTime&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="n">Instant&lt;/span> &lt;span class="n">nextTimerTimeBasedOnCurrentElement&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">timestamp&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">currentTimerValue&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="kc">null&lt;/span> &lt;span class="o">||&lt;/span> &lt;span class="n">currentTimerValue&lt;/span> &lt;span class="o">&amp;gt;&lt;/span>
-&lt;span class="n">nextTimerTimeBasedOnCurrentElement&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getMillis&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">loopingTimer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">nextTimerTimeBasedOnCurrentElement&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">loopingTimerTime&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">write&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">nextTimerTimeBasedOnCurrentElement&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getMillis&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="c1">// We need this value so that we can output a value for the correct key in OnTimer
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">key&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">key&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">write&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">element&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getKey&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">output&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">element&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="nd">@OnTimer&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;loopingTimer&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">onTimer&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">OnTimerContext&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;key&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">ValueState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">key&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="nd">@TimerId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;loopingTimer&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">Timer&lt;/span> &lt;span class="n">loopingTimer&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">LOG&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">info&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;Timer @ {} fired&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">timestamp&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">output&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">key&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="n">0&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="c1">// If we do not put in a “time to live” value, then the timer would loop forever
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">Instant&lt;/span> &lt;span class="n">nextTimer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">timestamp&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">nextTimer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">isBefore&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">stopTimerTime&lt;/span>&lt;span class="o">))&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">loopingTimer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">nextTimer&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="o">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">LOG&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">info&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="s">&amp;#34;Timer not being set as exceeded Stop Timer value {} &amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="n">stopTimerTime&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>There are two data values that the state API needs to keep:&lt;/p>
-&lt;ol>
-&lt;li>A boolean &lt;code>timeRunning&lt;/code> value used to avoid resetting the timer if it’s
-already running.&lt;/li>
-&lt;li>A &amp;ldquo;&lt;em>key&lt;/em>&amp;rdquo; state object value that allows us to store the key that we are
-working with. This information will be needed in the &lt;code>OnTimer&lt;/code> event later.&lt;/li>
-&lt;/ol>
-&lt;p>We also have a Timer with the ID &lt;code>**loopingTimer**&lt;/code> that acts as our per
-interval alarm clock. Note that the timer is an &lt;em>event timer&lt;/em>. It fires based on
-the watermark, not on the passage of time as the pipeline runs.&lt;/p>
-&lt;p>Next, let&amp;rsquo;s unpack what&amp;rsquo;s happening in the @ProcessElement block:&lt;/p>
-&lt;p>The first element to come to this block will:&lt;/p>
-&lt;ol>
-&lt;li>Set the state of the &lt;code>timerRunner&lt;/code> to True.&lt;/li>
-&lt;li>Write the value of the key from the key-value pair into the key StateValue.&lt;/li>
-&lt;li>The code sets the value of the timer to fire one minute after the elements
-timestamp. Note that the maximum value allowed for this timestamp is
-XX:XX:59.999. This places the maximum alarm value at the upper boundary of
-the next time interval.&lt;/li>
-&lt;li>Finally, we output the data from the &lt;code>@ProcessElement&lt;/code> block using
-&lt;code>c.output&lt;/code>.&lt;/li>
-&lt;/ol>
-&lt;p>In the @OnTimer block, the following occurs:&lt;/p>
-&lt;ol>
-&lt;li>The code emits a value with the key pulled from our key StateValue and a
-value of 0. The timestamp of the event corresponds to the event time of the
-timer firing.&lt;/li>
-&lt;li>We set a new timer for one minute from now, unless we are past the
-&lt;code>stopTimerTime&lt;/code> value. Your use case will normally have more complex stopping
-conditions, but we use a simple condition here to allow us to keep the
-illustrated code simple. The topic of stopping conditions is discussed in
-more detail later.&lt;/li>
-&lt;/ol>
-&lt;p>And that&amp;rsquo;s it, let&amp;rsquo;s add our transform back into the pipeline:&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="c1">// Apply a fixed window of duration 1 min and Sum the results
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">timestamped&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">time_1&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">time_2&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">time_3&lt;/span>&lt;span class="o">)).&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">Window&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span>&lt;span class="n">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">FixedWindows&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">))))&lt;/span>
-&lt;span class="c1">// We use a combiner to reduce the number of calls in keyed state
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// from all elements to 1 per FixedWindow
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Sum&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">integersPerKey&lt;/span>&lt;span class="o">())&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Window&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GlobalWindows&lt;/span>&lt;span class="o">()))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">LoopingStatefulTimer&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Instant&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">parse&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;2000-01-01T00:04:00Z&amp;#34;&lt;/span>&lt;span class="o">))))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Window&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">FixedWindows&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">))))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Sum&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">integersPerKey&lt;/span>&lt;span class="o">())&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="nd">@ProcessElement&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ProcessContext&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">LOG&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">info&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;Value is {} timestamp is {}&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">element&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="n">c&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">timestamp&lt;/span>&lt;span class="o">());&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;ol>
-&lt;li>In the first part of the pipeline we create FixedWindows and reduce the value
-per key down to a single Sum.&lt;/li>
-&lt;li>Next we re-window the output into a GlobalWindow. Since state and timers are
-per window, they must be set within the window boundary. We want the looping
-timer to span all the fixed windows, so we set it up in the global window.&lt;/li>
-&lt;li>We then add our LoopingStatefulTimer DoFn.&lt;/li>
-&lt;li>Finally, we reapply the FixedWindows and Sum our values.&lt;/li>
-&lt;/ol>
-&lt;p>This pipeline ensures that a value of zero exists for each interval window, even
-if the Source of the pipeline emitted a value in the minimum and maximum
-boundaries of the interval window. This means that we can mark the absence of
-data.&lt;/p>
-&lt;p>You might question why we use two reducers with multiple &lt;code>Sum.integersPerKey&lt;/code>.
-Why not just use one? Functionally, using one would also produce the correct
-result. However, putting two &lt;code>Sum.integersPerKey&lt;/code> gives us a nice performance
-advantage. It reduces the number of elements from many to just one per time
-interval. This can reduce the number of reads of the State API during the
-&lt;code>@ProcessElement&lt;/code> calls.&lt;/p>
-&lt;p>Here is the logging output of running our modified pipeline:&lt;/p>
-&lt;pre>&lt;code>INFO LoopingTimer - Timer @ 2000-01-01T00:01:59.999Z fired
-INFO LoopingTimer - Timer @ 2000-01-01T00:02:59.999Z fired
-INFO LoopingTimer - Timer @ 2000-01-01T00:03:59.999Z fired
-INFO LoopingTimer - Timer not being set as exceeded Stop Timer value 2000-01-01T00:04:00.000Z
-INFO LoopingTimer - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
-INFO LoopingTimer - Value is KV{Key_A, 0} timestamp is 2000-01-01T00:02:59.999Z
-INFO LoopingTimer - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
-INFO LoopingTimer - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
-&lt;/code>&lt;/pre>&lt;p>Yay! We now have output from the time interval [00:01:00, 00:01:59.999), even
-though the source dataset has no elements in that interval.&lt;/p>
-&lt;p>In this blog, we covered one of the fun areas around time series use cases and
-worked through several options, including an advanced use case of the Timer API.
-Happy looping everyone!&lt;/p>
-&lt;p>&lt;strong>Note:&lt;/strong> Looping timers is an interesting new use case for the Timer API and
-runners will need to add support for it with all of their more advanced
-feature sets. You can experiment with this pattern today using the
-DirectRunner. For other runners, please look out for their release notes on
-support for dealing with this use case in production.&lt;/p>
-&lt;p>(&lt;a href="/documentation/runners/capability-matrix/">Capability Matrix&lt;/a>)&lt;/p>
-&lt;p>Runner specific notes:
-Google Cloud Dataflow Runners Drain feature does not support looping timers (Link to matrix)&lt;/p></description></item></channel></rss>
+Viktor Gerdin, Yichi Zhang, Yifan Mai, Yifan Zou, Yueyang Qiu.&lt;/p></description></item></channel></rss>
