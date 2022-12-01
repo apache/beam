@@ -267,10 +267,7 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryDirectReadSchemaTransformConfiguration config =
-        BigQueryDirectReadSchemaTransformConfiguration.builder()
-            .setTableSpec(TABLE_SPEC)
-            .setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient))
-            .build();
+        BigQueryDirectReadSchemaTransformConfiguration.builder().setTableSpec(TABLE_SPEC).build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
     BigQueryDirectReadPCollectionRowTupleTransform readTransform =
@@ -278,6 +275,7 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 
+    readTransform.setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient));
     PCollectionRowTuple output = input.apply(readTransform);
     assertTrue(output.has(tag));
     PCollection<Row> rows = output.get(tag);
@@ -333,7 +331,6 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
             .setTableSpec(TABLE_SPEC)
             .setSelectedFields(Arrays.asList("str"))
             .setRowRestriction("num > 1")
-            .setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient))
             .build();
     BigQueryDirectReadSchemaTransformProvider provider =
         new BigQueryDirectReadSchemaTransformProvider();
@@ -342,6 +339,7 @@ public class BigQueryDirectReadSchemaTransformProviderTest {
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
     String tag = provider.outputCollectionNames().get(0);
 
+    readTransform.setBigQueryServices(fakeBigQueryServices.withStorageClient(fakeStorageClient));
     PCollectionRowTuple output = input.apply(readTransform);
     assertTrue(output.has(tag));
     PCollection<Row> rows = output.get(tag);
