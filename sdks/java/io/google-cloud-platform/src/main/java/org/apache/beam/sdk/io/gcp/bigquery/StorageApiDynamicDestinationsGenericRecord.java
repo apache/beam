@@ -48,40 +48,41 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
   @Override
   public MessageConverter<T> getMessageConverter(
       DestinationT destination, DatasetService datasetService) throws Exception {
-    return new MessageConverter<T>() {
-      final Descriptor descriptor;
-      final long descriptorHash;
-      final Schema avroSchema;
-      final TableSchema tableSchema;
+    return new GenericRecordConverter(destination);
+  }
 
-      {
-        avroSchema = schemaFactory.apply(getSchema(destination));
-        tableSchema = BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(avroSchema));
-        descriptor = AvroGenericRecordToStorageApiProto.getDescriptorFromSchema(avroSchema);
-        descriptorHash = BigQueryUtils.hashSchemaDescriptorDeterministic(descriptor);
-      }
+  class GenericRecordConverter implements MessageConverter<T> {
 
-      @Override
-      public DescriptorWrapper getSchemaDescriptor() {
-        return new DescriptorWrapper(descriptor, descriptorHash);
-      }
+    final com.google.cloud.bigquery.storage.v1.TableSchema protoTableSchema;
+    final Schema avroSchema;
+    final TableSchema bqTableSchema;
+    final Descriptor descriptor;
 
-      @Override
-      public void refreshSchema(long expectedHash) {}
+    GenericRecordConverter(DestinationT destination) throws Exception {
+      avroSchema = schemaFactory.apply(getSchema(destination));
+      bqTableSchema = BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(avroSchema));
+      protoTableSchema =
+          AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(avroSchema);
+      descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(protoTableSchema, true);
+    }
 
-      @Override
-      public StorageApiWritePayload toMessage(T element) {
-        Message msg =
-            AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
-                descriptor, toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)));
-        return new AutoValue_StorageApiWritePayload(msg.toByteArray(), descriptorHash);
-      }
+    @Override
+    public StorageApiWritePayload toMessage(T element) {
+      Message msg =
+          AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+              descriptor, toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)));
+      return new AutoValue_StorageApiWritePayload(msg.toByteArray());
+    }
 
-      @Override
-      public TableRow toTableRow(T element) {
-        return BigQueryUtils.convertGenericRecordToTableRow(
-            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), tableSchema);
-      }
-    };
+    @Override
+    public TableRow toTableRow(T element) {
+      return BigQueryUtils.convertGenericRecordToTableRow(
+          toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), bqTableSchema);
+    }
+
+    @Override
+    public com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema() {
+      return protoTableSchema;
+    }
   }
 }

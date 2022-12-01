@@ -72,8 +72,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
       SchemaBuilder.record("TestRecord")
           .fields()
           .optionalBytes("bytesValue")
-          .requiredInt("int32Value")
-          .optionalLong("int64Value")
+          .requiredInt("intValue")
+          .optionalLong("longValue")
           .optionalFloat("floatValue")
           .optionalDouble("doubleValue")
           .optionalString("stringValue")
@@ -130,14 +130,14 @@ public class AvroGenericRecordToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("int32value")
+                  .setName("intvalue")
                   .setNumber(2)
-                  .setType(Type.TYPE_INT32)
+                  .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("int64value")
+                  .setName("longvalue")
                   .setNumber(3)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
@@ -146,7 +146,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("floatvalue")
                   .setNumber(4)
-                  .setType(Type.TYPE_FLOAT)
+                  .setType(Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -268,8 +268,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
       baseRecord =
           new GenericRecordBuilder(BASE_SCHEMA)
               .set("bytesValue", BYTES)
-              .set("int32Value", (int) 3)
-              .set("int64Value", (long) 4)
+              .set("intValue", (int) 3)
+              .set("longValue", (long) 4)
               .set("floatValue", (float) 3.14)
               .set("doubleValue", (double) 2.68)
               .set("stringValue", "I am a string. Hear me roar.")
@@ -300,9 +300,9 @@ public class AvroGenericRecordToStorageApiProtoTest {
       baseProtoExpectedFields =
           ImmutableMap.<String, Object>builder()
               .put("bytesvalue", ByteString.copyFrom(BYTES))
-              .put("int32value", (int) 3)
-              .put("int64value", (long) 4)
-              .put("floatvalue", (float) 3.14)
+              .put("intvalue", (long) 3)
+              .put("longvalue", (long) 4)
+              .put("floatvalue", (double) 3.14)
               .put("doublevalue", (double) 2.68)
               .put("stringvalue", "I am a string. Hear me roar.")
               .put("booleanvalue", true)
@@ -333,7 +333,9 @@ public class AvroGenericRecordToStorageApiProtoTest {
 
   void validateDescriptorAgainstSchema(Schema originalSchema, DescriptorProto schemaProto) {
     DescriptorProto descriptor =
-        AvroGenericRecordToStorageApiProto.descriptorSchemaFromAvroSchema(originalSchema);
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(originalSchema),
+            true);
     Map<String, Type> types =
         descriptor.getFieldList().stream()
             .collect(
@@ -375,7 +377,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
   @Test
   public void testNestedFromSchema() {
     DescriptorProto descriptor =
-        AvroGenericRecordToStorageApiProto.descriptorSchemaFromAvroSchema(NESTED_SCHEMA);
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA), true);
     Map<String, Type> expectedBaseTypes =
         BASE_SCHEMA_PROTO.getFieldList().stream()
             .collect(
@@ -430,7 +433,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
   @Test
   public void testMessageFromGenericRecord() throws Exception {
     Descriptors.Descriptor descriptor =
-        AvroGenericRecordToStorageApiProto.getDescriptorFromSchema(NESTED_SCHEMA);
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA), true);
     DynamicMessage msg =
         AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, nestedRecord);
 
@@ -446,7 +450,9 @@ public class AvroGenericRecordToStorageApiProtoTest {
   @Test
   public void testMessageFromGenericRecordLogicalTypes() throws Exception {
     Descriptors.Descriptor descriptor =
-        AvroGenericRecordToStorageApiProto.getDescriptorFromSchema(LOGICAL_TYPES_SCHEMA);
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(LOGICAL_TYPES_SCHEMA),
+            true);
     DynamicMessage msg =
         AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, logicalTypesRecord);
     assertEquals(6, msg.getAllFields().size());
