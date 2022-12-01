@@ -108,7 +108,7 @@ class ReadFromSparkReceiverWithOffsetDoFn<V> extends DoFn<byte[], V> {
     if (startOffset == null) {
       startOffset = DEFAULT_START_OFFSET;
     }
-    this.startOffset = pullFrequencySec;
+    this.startOffset = startOffset;
   }
 
   @GetInitialRestriction
