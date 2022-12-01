@@ -249,7 +249,7 @@ public class StateSpecs {
   }
 
   /**
-   * Create a {@link StateSpec} for a {@link MultimapState}, optimized for key lookups and writes.
+   * Create a {@link StateSpec} for a {@link MultimapState}, optimized for key lookups, key puts, and clear.
    *
    * <p>This method attempts to infer the key and value coders automatically.
    *
@@ -263,7 +263,7 @@ public class StateSpecs {
   }
 
   /**
-   * Create a {@link StateSpec} for a {@link MultimapState}, optimized for key lookups and writes.
+   * Create a {@link StateSpec} for a {@link MultimapState}, optimized for key lookups, key puts, and clear.
    *
    * <p>This method is for storing multimaps where both the keys and the values are rows with the
    * specified schemas.

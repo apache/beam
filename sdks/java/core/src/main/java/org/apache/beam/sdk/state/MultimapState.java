@@ -57,10 +57,10 @@ public interface MultimapState<K, V> extends State {
   ReadableState<Iterable<V>> get(K key);
 
   /**
-   * Removes all values associated with the key from this multimap if exists.
+   * Removes all values associated with the key from this multimap. This is a no-op if the key is not contained within the multimap.
    *
    * <p>Changes will not be reflected in the results returned by previous calls to {@link
-   * ReadableState#read} on the results any of the reading methods({@link #get}, {@link #keys},
+   * ReadableState#read} on the results of any of the reading methods({@link #get}, {@link #keys},
    * {@link #entries}).
    */
   void remove(K key);

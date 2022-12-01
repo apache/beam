@@ -19,6 +19,8 @@ package org.apache.beam.sdk.testing;
 
 import org.apache.beam.sdk.annotations.Internal;
 
-/** Category tag for validation tests which utilize {@link UsesMultimapState}. */
+import org.apache.beam.sdk.state.MultimapState;
+
+/** Category tag for validation tests which utilize {@link MultimapState}. */
 @Internal
 public class UsesMultimapState {}
