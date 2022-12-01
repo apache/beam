@@ -26,7 +26,8 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['dev-support/**', 'buildSrc/**', '**/build.gradle', 'sdks/python/setup.py', 'sdks/python/tox.ini']
+    paths: ['dev-support/**', 'buildSrc/**', '**/build.gradle', 'sdks/python/setup.py', 'sdks/python/tox.ini', 'local-env-setup.sh']
+  workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
