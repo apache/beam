@@ -25,7 +25,7 @@ import 'package:playground_components/playground_components.dart';
 
 import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
-import '../../cache/user_progress.dart';
+import '../../cache/unit_progress.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
@@ -41,7 +41,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _authNotifier = GetIt.instance.get<AuthNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
-  final _userProgressCache = GetIt.instance.get<UserProgressCache>();
+  final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
 
   TourNotifier({
@@ -55,7 +55,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     contentTreeController.addListener(_onUnitChanged);
     _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
-    _authNotifier.addListener(_onUserProgressChanged);
+    _authNotifier.addListener(_onUnitProgressChanged);
     _onUnitChanged();
   }
 
@@ -75,8 +75,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     );
   }
 
-  Future<void> _onUserProgressChanged() async {
-    await _userProgressCache.updateCompletedUnits();
+  Future<void> _onUnitProgressChanged() async {
+    await _unitProgressCache.updateCompletedUnits();
   }
 
   void _onAppNotifierChanged() {
@@ -84,7 +84,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (sdkId != null) {
       playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
       contentTreeController.sdkId = sdkId;
-      _onUserProgressChanged();
+      _onUnitProgressChanged();
     }
   }
 
@@ -188,7 +188,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
-    _authNotifier.removeListener(_onUserProgressChanged);
+    _authNotifier.removeListener(_onUnitProgressChanged);
     super.dispose();
   }
 }

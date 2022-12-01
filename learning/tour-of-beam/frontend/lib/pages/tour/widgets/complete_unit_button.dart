@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../cache/user_progress.dart';
+import '../../../cache/unit_progress.dart';
 import '../state.dart';
 
 class CompleteUnitButton extends StatelessWidget {
@@ -31,13 +31,13 @@ class CompleteUnitButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
-    final userProgressCache = GetIt.instance.get<UserProgressCache>();
+    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
 
     return AnimatedBuilder(
-      animation: userProgressCache,
+      animation: unitProgressCache,
       builder: (context, child) {
         final canComplete =
-            userProgressCache.canCompleteUnit(tourNotifier.currentUnitId);
+            unitProgressCache.canCompleteUnit(tourNotifier.currentUnitId);
         final borderColor =
             canComplete ? themeData.primaryColor : themeData.disabledColor;
         final onPressed = canComplete

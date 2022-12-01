@@ -26,8 +26,8 @@ import '../repositories/models/get_user_progress_response.dart';
 import '../state.dart';
 import 'cache.dart';
 
-class UserProgressCache extends Cache {
-  UserProgressCache({required super.client});
+class UnitProgressCache extends Cache {
+  UnitProgressCache({required super.client});
 
   final _completedUnitIds = <String>{};
   final _updatingUnitIds = <String>{};
