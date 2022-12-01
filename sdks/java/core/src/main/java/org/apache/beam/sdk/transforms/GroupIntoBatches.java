@@ -621,7 +621,6 @@ public class GroupIntoBatches<K, InputT>
         receiver.output(KV.of(key, values));
       }
       clearState(batch, storedBatchSize, storedBatchSizeBytes, timerTs, minBufferedTs);
-      ;
     }
 
     private void clearState(
