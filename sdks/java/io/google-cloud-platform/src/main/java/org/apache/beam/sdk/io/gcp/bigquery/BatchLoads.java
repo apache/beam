@@ -723,7 +723,9 @@ class BatchLoads<DestinationT, ElementT>
     // to respect those options.
     DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
     if (schemaUpdateOptions.isEmpty()) {
-      destinations = DynamicDestinationsHelpers.matchTableDynamicDestinations(dynamicDestinations, bigQueryServices);
+      destinations =
+          DynamicDestinationsHelpers.matchTableDynamicDestinations(
+              dynamicDestinations, bigQueryServices);
     }
 
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
