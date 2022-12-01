@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -451,8 +452,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                             DynamicMessage.parseFrom(
                                 Preconditions.checkStateNotNull(appendClientInfo).descriptor,
                                 protoBytes));
-                    new BigQueryStorageApiInsertError(
-                        failedRow, error.getRowIndexToErrorMessage().get(failedIndex));
                     failedRowsReceiver.output(
                         new BigQueryStorageApiInsertError(
                             failedRow, error.getRowIndexToErrorMessage().get(failedIndex)));
@@ -488,7 +487,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   "Append to stream {} by client #{} failed with error, operations will be retried. Details: {}",
                   streamName,
                   clientNumber,
-                  retrieveErrorDetails(failedContext));
+                  retrieveErrorDetails(contexts));
               invalidateWriteStream();
               appendFailures.inc();
               return RetryType.RETRY_ALL_OPERATIONS;
@@ -501,13 +500,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return inserts.getSerializedRowsCount();
       }
 
-      String retrieveErrorDetails(AppendRowsContext failedContext) {
-        return (failedContext.getError() != null)
-            ? Arrays.stream(
-                    Preconditions.checkStateNotNull(failedContext.getError()).getStackTrace())
-                .map(StackTraceElement::toString)
-                .collect(Collectors.joining("\n"))
-            : "no execption";
+      String retrieveErrorDetails(Iterable<AppendRowsContext> failedContext) {
+        return StreamSupport.stream(failedContext.spliterator(), false)
+            .<@Nullable Throwable>map(AppendRowsContext::getError)
+            .filter(err -> err != null)
+            .flatMap(thrw -> Arrays.stream(Preconditions.checkStateNotNull(thrw).getStackTrace()))
+            .map(StackTraceElement::toString)
+            .collect(Collectors.joining("\n"));
       }
     }
 
