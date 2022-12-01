@@ -38,34 +38,20 @@ class UserMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Body(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Info(user: user),
-          const BeamDivider(),
-          _Buttons(
-            closeOverlayCallback: closeOverlayCallback,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Body extends StatelessWidget {
-  final Widget child;
-
-  const _Body({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: BeamSizes.size10,
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
+    return OverlayBody(
+      child: Container(
         width: TobSizes.authOverlayWidth,
-        child: child,
+        padding: const EdgeInsets.all(BeamSizes.size24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Info(user: user),
+            const BeamDivider(),
+            _Buttons(
+              closeOverlayCallback: closeOverlayCallback,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -36,43 +36,28 @@ class LoginContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Body(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'ui.signIn',
-            style: Theme.of(context).textTheme.titleLarge,
-          ).tr(),
-          const SizedBox(height: BeamSizes.size10),
-          const Text(
-            'dialogs.signInIf',
-            textAlign: TextAlign.center,
-          ).tr(),
-          const _Divider(),
-          _BrandedLoginButtons(
-            onLoggedIn: onLoggedIn,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Body extends StatelessWidget {
-  final Widget child;
-
-  const _Body({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: BeamSizes.size10,
-      borderRadius: BorderRadius.circular(10),
+    return OverlayBody(
       child: Container(
         width: TobSizes.authOverlayWidth,
         padding: const EdgeInsets.all(BeamSizes.size24),
-        child: child,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'ui.signIn',
+              style: Theme.of(context).textTheme.titleLarge,
+            ).tr(),
+            const SizedBox(height: BeamSizes.size10),
+            const Text(
+              'dialogs.signInIf',
+              textAlign: TextAlign.center,
+            ).tr(),
+            const _Divider(),
+            _BrandedLoginButtons(
+              onLoggedIn: onLoggedIn,
+            ),
+          ],
+        ),
       ),
     );
   }
