@@ -17,22 +17,18 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
+import '../../../playground_components.dart';
 
-void openOverlay(
-  BuildContext context,
-  PublicNotifier closeNotifier,
-  Widget child,
-) {
+void openOverlay({
+  required BuildContext context,
+  required PublicNotifier closeNotifier,
+  required Positioned positioned,
+}) {
   final overlay = OverlayEntry(
     builder: (context) {
       return DismissibleOverlay(
         close: closeNotifier.notifyPublic,
-        child: Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: child,
-        ),
+        child: positioned,
       );
     },
   );

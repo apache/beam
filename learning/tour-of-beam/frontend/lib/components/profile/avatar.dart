@@ -33,11 +33,15 @@ class Avatar extends StatelessWidget {
       onTap: () {
         final closeNotifier = PublicNotifier();
         openOverlay(
-          context,
-          closeNotifier,
-          UserMenu(
-            closeOverlayCallback: closeNotifier.notifyPublic,
-            user: user,
+          context: context,
+          closeNotifier: closeNotifier,
+          positioned: Positioned(
+            right: BeamSizes.size10,
+            top: BeamSizes.appBarHeight,
+            child: UserMenu(
+              closeOverlayCallback: closeNotifier.notifyPublic,
+              user: user,
+            ),
           ),
         );
       },

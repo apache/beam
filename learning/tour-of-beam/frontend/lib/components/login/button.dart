@@ -31,9 +31,13 @@ class LoginButton extends StatelessWidget {
       onPressed: () {
         final closeNotifier = PublicNotifier();
         openOverlay(
-          context,
-          closeNotifier,
-          LoginContent(onLoggedIn: closeNotifier.notifyPublic),
+          context: context,
+          closeNotifier: closeNotifier,
+          positioned: Positioned(
+            right: BeamSizes.size10,
+            top: BeamSizes.appBarHeight,
+            child: LoginContent(onLoggedIn: closeNotifier.notifyPublic),
+          ),
         );
       },
       child: const Text('ui.signIn').tr(),
