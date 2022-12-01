@@ -115,7 +115,7 @@ export class OperatorContext {
     public loggingStageInfo: LoggingStageInfo,
     public metricsContainer: MetricsContainer
   ) {
-    this.pipelineContext = new PipelineContext(descriptor);
+    this.pipelineContext = new PipelineContext(descriptor, "");
   }
 }
 

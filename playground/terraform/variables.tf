@@ -58,24 +58,6 @@ variable "service_account" {
   description = "Service account id"
   default     = "playground-deploy@apache-beam-testing.iam.gserviceaccount.com"
 }
-
-#GCS
-
-variable "bucket_examples_name" {
-  description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-precompiled-objects"
-}
-
-variable "bucket_examples_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
-variable "bucket_examples_storage_class" {
-  description = "Examples Bucket Storage Class"
-  default     = "STANDARD"
-}
-
 # Artifact Registry
 
 variable "repository_id" {

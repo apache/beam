@@ -90,6 +90,7 @@ double (<code>"</code>) quotation marks, or <em>triple-quoted</em> with groups o
 
 <p><strong>Quoted literals:</strong></p>
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -118,6 +119,7 @@ double (<code>"</code>) quotation marks, or <em>triple-quoted</em> with groups o
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p>Prefix characters (<code>r</code>, <code>R</code>, <code>b</code>, <code>B)</code> are optional for quoted or triple-quoted strings, and indicate that the string is a raw/regex string or a byte sequence, respectively. For
 example, <code>b'abc'</code> and <code>b'''abc'''</code> are both interpreted as type bytes. Prefix characters are case insensitive.</p>
@@ -127,6 +129,7 @@ example, <code>b'abc'</code> and <code>b'''abc'''</code> are both interpreted as
 <p>The table below lists all valid escape sequences for representing non-alphanumeric characters in string literals.
 Any sequence not in this table produces an error.</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -203,6 +206,7 @@ Any sequence not in this table produces an error.</p>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p><a id="integer_literals"></a></p>
 
@@ -341,6 +345,7 @@ TIMESTAMP '2014-09-27 12:30:00 America/Argentina/Buenos_Aires'</code></pre>
 
 <p>Beam SQL follows these rules for case sensitivity:</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -399,6 +404,7 @@ TIMESTAMP '2014-09-27 12:30:00 America/Argentina/Buenos_Aires'</code></pre>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p><a id="reserved_keywords"></a></p>
 
@@ -414,6 +420,7 @@ language, and  have the following characteristics:</p>
 
 <p>Beam SQL has the following reserved keywords.</p>
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table style="table-layout: fixed; width: 110%">
 <tbody>
@@ -525,6 +532,7 @@ WITHIN<br/>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 <p><a id="terminating_semicolons"></a></p>
 

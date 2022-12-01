@@ -53,6 +53,9 @@ class RunButton extends StatelessWidget {
       child: ShortcutTooltip(
         shortcut: playgroundController.runShortcut,
         child: ElevatedButton.icon(
+          style: const ButtonStyle(
+            padding: MaterialStatePropertyAll(EdgeInsets.zero),
+          ),
           icon: isRunning
               ? SizedBox(
                   width: BeamIconSizes.small,

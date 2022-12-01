@@ -60,8 +60,8 @@ private void createGCSFileBasedIOITTestJob(testJob) {
     common.setAutoJob(delegate, 'H H * * *')
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
-      influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-      influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
+      influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+      influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
     ]
     testJob.pipelineOptions.putAll(additionalPipelineArgs)
 

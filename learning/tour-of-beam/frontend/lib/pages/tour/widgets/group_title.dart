@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../generated/assets.gen.dart';
+import '../../../assets/assets.gen.dart';
 import '../../../models/group.dart';
 import 'tour_progress_indicator.dart';
 

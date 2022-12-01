@@ -44,7 +44,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -467,10 +469,12 @@ public class TableRowToStorageApiProtoTest {
                           .setFields(BASE_TABLE_SCHEMA_NO_F.getFields()))
                   .build());
 
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testDescriptorFromTableSchema() {
     DescriptorProto descriptor =
-        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(BASE_TABLE_SCHEMA);
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(BASE_TABLE_SCHEMA, true);
     Map<String, Type> types =
         descriptor.getFieldList().stream()
             .collect(
@@ -485,7 +489,7 @@ public class TableRowToStorageApiProtoTest {
   @Test
   public void testNestedFromTableSchema() {
     DescriptorProto descriptor =
-        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(NESTED_TABLE_SCHEMA);
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(NESTED_TABLE_SCHEMA, true);
     Map<String, Type> expectedBaseTypes =
         BASE_TABLE_SCHEMA_PROTO.getFieldList().stream()
             .collect(
@@ -687,7 +691,7 @@ public class TableRowToStorageApiProtoTest {
             .set("nestedValueNoF2", BASE_TABLE_ROW_NO_F);
 
     Descriptor descriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA);
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA, true);
     TableRowToStorageApiProto.SchemaInformation schemaInformation =
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
     DynamicMessage msg =
@@ -707,7 +711,7 @@ public class TableRowToStorageApiProtoTest {
   @Test
   public void testMessageWithFFromTableRow() throws Exception {
     Descriptor descriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA);
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA, true);
     TableRowToStorageApiProto.SchemaInformation schemaInformation =
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(BASE_TABLE_SCHEMA);
     DynamicMessage msg =
@@ -750,7 +754,7 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof1", ImmutableList.of(BASE_TABLE_ROW_NO_F, BASE_TABLE_ROW_NO_F))
             .set("repeatednof2", ImmutableList.of(BASE_TABLE_ROW_NO_F, BASE_TABLE_ROW_NO_F));
     Descriptor descriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA, true);
     TableRowToStorageApiProto.SchemaInformation schemaInformation =
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
@@ -795,7 +799,7 @@ public class TableRowToStorageApiProtoTest {
             .set("repeatednof1", null)
             .set("repeatednof2", null);
     Descriptor descriptor =
-        TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA, true);
     TableRowToStorageApiProto.SchemaInformation schemaInformation =
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
@@ -817,5 +821,71 @@ public class TableRowToStorageApiProtoTest {
     List<DynamicMessage> repeatednof2 =
         (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeatednof2"));
     assertTrue(repeatednof2.isEmpty());
+  }
+
+  @Test
+  public void testRejectUnknownField() throws Exception {
+    TableRow row = new TableRow();
+    row.putAll(BASE_TABLE_ROW_NO_F);
+    row.set("unknown", "foobar");
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA_NO_F, true);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(BASE_TABLE_SCHEMA_NO_F);
+
+    thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
+    TableRowToStorageApiProto.messageFromTableRow(schemaInformation, descriptor, row, false);
+  }
+
+  @Test
+  public void testRejectUnknownFieldF() throws Exception {
+    TableRow row = new TableRow();
+    List<TableCell> cells = Lists.newArrayList(BASE_TABLE_ROW.getF());
+    cells.add(new TableCell().setV("foobar"));
+    row.setF(cells);
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA, true);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(BASE_TABLE_SCHEMA);
+
+    thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
+    TableRowToStorageApiProto.messageFromTableRow(schemaInformation, descriptor, row, false);
+  }
+
+  @Test
+  public void testRejectUnknownNestedField() throws Exception {
+    TableRow rowNoF = new TableRow();
+    rowNoF.putAll(BASE_TABLE_ROW_NO_F);
+    rowNoF.set("unknown", "foobar");
+
+    TableRow topRow = new TableRow().set("nestedValueNoF1", rowNoF);
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA, true);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
+
+    thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
+    TableRowToStorageApiProto.messageFromTableRow(schemaInformation, descriptor, topRow, false);
+  }
+
+  @Test
+  public void testRejectUnknownNestedFieldF() throws Exception {
+    TableRow rowWithF = new TableRow();
+    List<TableCell> cells = Lists.newArrayList(BASE_TABLE_ROW.getF());
+    cells.add(new TableCell().setV("foobar"));
+    rowWithF.setF(cells);
+
+    TableRow topRow = new TableRow().set("nestedValue1", rowWithF);
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA, true);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
+
+    thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
+    TableRowToStorageApiProto.messageFromTableRow(schemaInformation, descriptor, topRow, false);
   }
 }

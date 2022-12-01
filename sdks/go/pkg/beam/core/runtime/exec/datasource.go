@@ -324,7 +324,7 @@ func (n *DataSource) Down(ctx context.Context) error {
 }
 
 func (n *DataSource) String() string {
-	return fmt.Sprintf("DataSource[%v, %v] Coder:%v Out:%v", n.SID, n.Name, n.Coder, n.Out.ID())
+	return fmt.Sprintf("DataSource[%v, %v] Out:%v Coder:%v ", n.SID, n.Name, n.Out.ID(), n.Coder)
 }
 
 // incrementIndexAndCheckSplit increments DataSource.index by one and checks if
