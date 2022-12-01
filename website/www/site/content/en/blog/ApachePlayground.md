@@ -33,14 +33,14 @@ limitations under the License.
 * Discover transform examples that you can try right away by browsing or searching Catalog that is sourced from Apache Beam GitHub
 * Supports Java, Python, Go SDKs, and Scio to execute the example in Beam Direct Runner
 * Displays pipeline execution graph (DAG)
-* Code editor to modify examples or try your own custom pipeline with a Direct Runner 
+* Code editor to modify examples or try your own custom pipeline with a Direct Runner
 * Code editor with code highlighting, flexible layout, color schemes, and other features to provide responsive UX in desktop browsers
 * Embedding a Playground example on a web page prompts the web page readers to try the example pipeline in the Playground - e.g., [Playground Quickstart](https://beam.apache.org/get-started/try-beam-playground/) page
 
 
 ### **What’s Next**
 * Try examples in [Apache Beam Playground](https://play.beam.apache.org/)
-* Submit your feedback using “Enjoying Playground?” in Apache Beam Playground or via [this form](https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url) 
+* Submit your feedback using “Enjoying Playground?” in Apache Beam Playground or via [this form](https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url)
 * Join the Beam [users@](https://beam.apache.org/community/contact-us) mailing list
 * Contribute to the Apache Beam Playground codebase by following a few steps in this  [Contribution Guide](https://beam.apache.org/contribute)
 
