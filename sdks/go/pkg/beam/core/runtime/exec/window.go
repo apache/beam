@@ -33,6 +33,7 @@ type WindowInto struct {
 	Out Node
 }
 
+// ID returns the UnitID for this unit.
 func (w *WindowInto) ID() UnitID {
 	return w.UID
 }
@@ -98,16 +99,20 @@ func (w *WindowInto) String() string {
 	return fmt.Sprintf("WindowInto[%v]. Out:%v", w.Fn, w.Out.ID())
 }
 
+// MapWindows maps each element window from a main input window space
+// to window from a side input window space.
 type MapWindows struct {
 	UID UnitID
 	Fn  WindowMapper
 	Out Node
 }
 
+// ID returns the UnitID for this unit.
 func (m *MapWindows) ID() UnitID {
 	return m.UID
 }
 
+// Up does nothing
 func (m *MapWindows) Up(_ context.Context) error {
 	return nil
 }
@@ -135,10 +140,12 @@ func (m *MapWindows) ProcessElement(ctx context.Context, elm *FullValue, values 
 	return m.Out.ProcessElement(ctx, out, values...)
 }
 
+// FinishBundle propagates finish bundle to downstream nodes.
 func (m *MapWindows) FinishBundle(ctx context.Context) error {
 	return m.Out.FinishBundle(ctx)
 }
 
+// Down does nothing.
 func (m *MapWindows) Down(_ context.Context) error {
 	return nil
 }
