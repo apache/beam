@@ -573,7 +573,7 @@ public class AvroIO {
         .setMetadata(ImmutableMap.of())
         .setWindowedWrites(false)
         .setNoSpilling(false)
-        .setBlockSize(DataFileConstants.DEFAULT_SYNC_INTERVAL);
+        .setSyncInterval(DataFileConstants.DEFAULT_SYNC_INTERVAL);
   }
 
   @Experimental(Kind.SCHEMAS)
@@ -1320,7 +1320,7 @@ public class AvroIO {
 
     abstract boolean getGenericRecords();
 
-    abstract int getBlockSize();
+    abstract int getSyncInterval();
 
     abstract @Nullable Schema getSchema();
 
@@ -1366,7 +1366,7 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords);
 
-      abstract Builder<UserT, DestinationT, OutputT> setBlockSize(int blockSize);
+      abstract Builder<UserT, DestinationT, OutputT> setSyncInterval(int syncInterval);
 
       abstract Builder<UserT, DestinationT, OutputT> setSchema(Schema schema);
 
@@ -1483,8 +1483,8 @@ public class AvroIO {
      * Sets the approximate number of uncompressed bytes to write in each block for the AVRO
      * container format.
      */
-    public TypedWrite<UserT, DestinationT, OutputT> withBlockSize(int blockSize) {
-      return toBuilder().setBlockSize(blockSize).build();
+    public TypedWrite<UserT, DestinationT, OutputT> withSyncInterval(int syncInterval) {
+      return toBuilder().setSyncInterval(syncInterval).build();
     }
 
     /**
@@ -1677,7 +1677,7 @@ public class AvroIO {
                   tempDirectory,
                   resolveDynamicDestinations(),
                   getGenericRecords(),
-                  getBlockSize()));
+                  getSyncInterval()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -1760,9 +1760,9 @@ public class AvroIO {
       return new Write<>(inner.to(dynamicDestinations).withFormatFunction(null));
     }
 
-    /** See {@link TypedWrite#withBlockSize}. */
-    public Write<T> withBlockSize(int blockSize) {
-      return new Write<>(inner.withBlockSize(blockSize));
+    /** See {@link TypedWrite#withSyncInterval}. */
+    public Write<T> withSyncInterval(int syncInterval) {
+      return new Write<>(inner.withSyncInterval(syncInterval));
     }
 
     /** See {@link TypedWrite#withSchema}. */
