@@ -1,0 +1,14 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "pabloem",
+    "java": "apilloud",
+    "go": "lostluck",
+    "build": "Abacn",
+    "io": "pabloem"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
