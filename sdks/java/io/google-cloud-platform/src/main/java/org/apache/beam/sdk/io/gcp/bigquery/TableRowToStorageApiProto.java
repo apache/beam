@@ -673,6 +673,9 @@ public class TableRowToStorageApiProto {
         } else if (value instanceof Double || value instanceof Float) {
           return BigDecimalByteStringEncoder.encodeToNumericByteString(
               BigDecimal.valueOf(((Number) value).doubleValue()));
+        } else if (value instanceof Short || value instanceof Integer || value instanceof Long) {
+          return BigDecimalByteStringEncoder.encodeToNumericByteString(
+              BigDecimal.valueOf(((Number) value).longValue()));
         }
         break;
       case BIGNUMERIC:
@@ -684,6 +687,9 @@ public class TableRowToStorageApiProto {
         } else if (value instanceof Double || value instanceof Float) {
           return BigDecimalByteStringEncoder.encodeToBigNumericByteString(
               BigDecimal.valueOf(((Number) value).doubleValue()));
+        } else if (value instanceof Short || value instanceof Integer || value instanceof Long) {
+          return BigDecimalByteStringEncoder.encodeToBigNumericByteString(
+              BigDecimal.valueOf(((Number) value).longValue()));
         }
         break;
       case DATETIME:
