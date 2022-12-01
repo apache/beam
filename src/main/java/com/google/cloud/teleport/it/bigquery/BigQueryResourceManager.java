@@ -17,6 +17,7 @@ package com.google.cloud.teleport.it.bigquery;
 
 import com.google.cloud.bigquery.InsertAllRequest.RowToInsert;
 import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
 import java.util.List;
 
@@ -48,9 +49,10 @@ public interface BigQueryResourceManager {
    *
    * @param tableName The name of the table.
    * @param schema A schema object that defines the table.
+   * @return The TableId (reference) to the table
    * @throws BigQueryResourceManagerException if there is an error creating the table in BigQuery.
    */
-  void createTable(String tableName, Schema schema);
+  TableId createTable(String tableName, Schema schema);
 
   /**
    * Creates a table within the current dataset given a table name and schema.
@@ -63,9 +65,10 @@ public interface BigQueryResourceManager {
    * @param tableName The name of the table.
    * @param schema A schema object that defines the table.
    * @param expirationTime Sets the time when this table expires, in milliseconds since the epoch.
+   * @return The TableId (reference) to the table
    * @throws BigQueryResourceManagerException if there is an error creating the table in BigQuery.
    */
-  void createTable(String tableName, Schema schema, Long expirationTime);
+  TableId createTable(String tableName, Schema schema, Long expirationTime);
 
   /**
    * Writes a given row into a table. This method requires {@link

@@ -31,6 +31,7 @@ import com.google.cloud.teleport.it.dataflow.DataflowOperator;
 import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient;
 import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobInfo;
 import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.LaunchConfig;
+import com.google.cloud.teleport.it.dataflow.DataflowUtils;
 import com.google.cloud.teleport.it.dataflow.FlexTemplateClient;
 import com.google.cloud.teleport.metadata.Template;
 import com.google.cloud.teleport.metadata.TemplateIntegrationTest;
@@ -70,6 +71,7 @@ public abstract class TemplateTestBase {
   protected Credentials credentials;
   protected CredentialsProvider credentialsProvider;
   protected String artifactBucketName;
+  protected String testId = DataflowUtils.createJobName("");
 
   /** Cache to avoid staging the same template multiple times on the same execution. */
   private static final Map<String, String> stagedTemplates = new HashMap<>();

@@ -18,6 +18,7 @@ package com.google.cloud.teleport.it.pubsub;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.gax.core.CredentialsProvider;
+import com.google.cloud.pubsub.v1.Publisher;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
 import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
@@ -169,8 +170,10 @@ public final class DefaultPubsubResourceManager implements PubsubResourceManager
         PubsubMessage.newBuilder().putAllAttributes(attributes).setData(data).build();
 
     try {
-      String messageId = publisherFactory.createPublisher(topic).publish(pubsubMessage).get();
+      Publisher publisher = publisherFactory.createPublisher(topic);
+      String messageId = publisher.publish(pubsubMessage).get();
       LOG.info("Message published with id '{}'", messageId);
+      publisher.shutdown();
       return messageId;
     } catch (Exception e) {
       throw new PubsubResourceManagerException("Error publishing message to Pubsub", e);
