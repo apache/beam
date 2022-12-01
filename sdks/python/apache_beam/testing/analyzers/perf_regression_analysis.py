@@ -30,8 +30,10 @@ from datetime import datetime
 from datetime import timezone
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 import pandas as pd
 import yaml
@@ -61,7 +63,7 @@ _NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION = 10
 _NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS = 100
 # Variables used for finding duplicate change points.
 _DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS = 5
-_DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW = 7
+_DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW = 20
 
 _PERF_ALERT_LABEL = 'perf-alert'
 
@@ -133,14 +135,12 @@ def is_change_point_in_valid_window(
 
 def find_existing_issue(
     test_name: str,
-    change_point_timestamp: pd.Timestamp,
-    sibling_change_point_min_timestamp: pd.Timestamp,
-    sibling_change_point_max_timestamp: pd.Timestamp,
-) -> Optional[Tuple[bool, Optional[int]]]:
+) -> Tuple[Optional[int], Optional[pd.Timestamp]]:
   """
-  Finds the most recent GitHub issue created for change points for this
-  test+metric in sibling change point min and max timestamps window.
-  Returns a boolean and an issue ID whether the issue needs to be updated.
+  Finds the most recent GitHub issue created for the test_name.
+  If no table found with name=test_name, return (None, None)
+  else return issue_number and the timestamp of change point
+  reported in the existing issue.
   """
   query_template = f"""
   SELECT * FROM {_BQ_PROJECT_NAME}.{_BQ_DATASET}.{test_name}
@@ -152,17 +152,30 @@ def find_existing_issue(
   except exceptions.NotFound:
     # If no table found, that means this is first performance regression
     # on the current test+metric.
-    return True, None
+    return None, None
   issue_number = df[_ISSUE_NUMBER].tolist()[0]
-  previous_change_point_timestamp = df[_CHANGE_POINT_TIMESTAMP_LABEL].tolist(
+  existing_change_point_timestamp = df[_CHANGE_POINT_TIMESTAMP_LABEL].tolist(
   )[0]
+  return issue_number, existing_change_point_timestamp
+
+
+def is_perf_alert(
+    previous_change_point_timestamp: pd.Timestamp,
+    change_point_index: int,
+    timestamps: List[pd.Timestamp],
+    min_runs_between_change_points: int) -> bool:
+
+  change_point_timestamp = timestamps[change_point_index]
+  sibling_change_point_min_timestamp = timestamps[min(
+      change_point_index + min_runs_between_change_points, len(timestamps) - 1)]
+  sibling_change_point_max_timestamp = timestamps[max(
+      0, change_point_index - min_runs_between_change_points)]
 
   if (previous_change_point_timestamp == change_point_timestamp) or (
       sibling_change_point_min_timestamp <= previous_change_point_timestamp <=
       sibling_change_point_max_timestamp):
-    return False, None
-
-  return True, issue_number
+    return False
+  return True
 
 
 def read_test_config(config_file_path: str) -> Dict:
@@ -175,12 +188,49 @@ def read_test_config(config_file_path: str) -> Dict:
   return config
 
 
-def report_change_point_to_issue_tracker():
-  pass
-
-
 def validate_config(keys):
   return _PERF_TEST_KEYS.issubset(keys)
+
+
+def fetch_metric_data(
+    params: Dict[str,
+                 Any]) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
+  # replace . with _ in test_name. This test name would be used later
+  # as a BQ table name and the BQ table doesn't accept . in the name.
+  try:
+    metric_data: pd.DataFrame = BigQueryMetricsFetcher().get_metrics(
+        project_name=params['project'],
+        dataset=params['metrics_dataset'],
+        table=params['metrics_table'],
+        metric_name=params['metric_name'],
+        limit=_NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
+  except BaseException as e:
+    raise e
+  return (
+      metric_data[load_test_metrics_utils.VALUE_LABEL],
+      metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL])
+
+
+def find_latest_change_point_index(metric_values: List[Union[float, int]]):
+  change_points_idx = e_divisive(metric_values)
+  if not change_points_idx:
+    return None
+  # Consider the latest change point.
+  change_points_idx.sort(reverse=True)
+  change_point_index = change_points_idx[0]
+  return change_point_index
+
+
+def publish_issue_metadata_to_big_query(issue_metadata, test_name):
+  bq_metrics_publisher = BigQueryMetricsPublisher(
+      project_name=_BQ_PROJECT_NAME,
+      dataset=_BQ_DATASET,
+      table=test_name,
+      bq_schema=SCHEMA)
+  bq_metrics_publisher.publish([asdict(issue_metadata)])
+  logging.info(
+      'GitHub metadata is published to Big Query Dataset %s'
+      ', table %s' % (_BQ_DATASET, test_name))
 
 
 def run(config_file_path: str = None) -> None:
@@ -203,78 +253,64 @@ def run(config_file_path: str = None) -> None:
   tests_config: Dict[str, Dict[str, Any]] = read_test_config(config_file_path)
 
   for test_id, params in tests_config.items():
+
     if not validate_config(params.keys()):
       raise Exception(
           f"Please make sure all these keys {_PERF_TEST_KEYS} "
           f"are specified for the {test_id}")
+
     metric_name = params['metric_name']
-    # replace . with _ in test_name. This test name would be used later
-    # as a BQ table name and the BQ table doesn't accept . in the name.
     test_name = params['test_name'].replace('.', '_') + f'_{metric_name}'
-    try:
-      metric_data: pd.DataFrame = BigQueryMetricsFetcher().get_metrics(
-          project_name=params['project'],
-          dataset=params['metrics_dataset'],
-          table=params['metrics_table'],
-          metric_name=metric_name,
-          limit=_NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
-    except BaseException as e:
-      raise e
 
     labels = [_PERF_ALERT_LABEL]
     if 'labels' in params:
       labels += params['labels']
 
+    min_runs_between_change_points = _DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS
     if 'min_runs_between_change_points' in params:
       min_runs_between_change_points = params['min_runs_between_change_points']
-    else:
-      min_runs_between_change_points = _DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS
 
+    num_runs_in_change_point_window = _DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW
     if 'num_runs_in_change_point_window' in params:
       num_runs_in_change_point_window = params[
           'num_runs_in_change_point_window']
-    else:
-      num_runs_in_change_point_window = _DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW
 
-    metric_values = metric_data[load_test_metrics_utils.VALUE_LABEL]
-    timestamps = metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL]
+    metric_values, timestamps = fetch_metric_data(params)
 
-    change_points_idx = e_divisive(metric_values)
-    if not change_points_idx:
+    change_point_index = find_latest_change_point_index(
+        metric_values=metric_values)
+    if not change_point_index:
       continue
-
-    # Consider the latest change points to observe the latest perf alerts.
-    change_points_idx.sort(reverse=True)
-    change_point_index = change_points_idx[0]
-    change_point_timestamp = timestamps[change_point_index]
 
     if not is_change_point_in_valid_window(num_runs_in_change_point_window,
                                            change_point_index):
       logging.info(
-          'Performance regression found for the test: %s. '
-          'but not creating an alert since the Change Point '
-          'lies outside the '
-          'num_runs_in_change_point_window distance.' % test_name)
+          'Performance regression/improvement found for the test: %s. '
+          'Since the change point index %s '
+          'lies outside the num_runs_in_change_point_window distance: %s, '
+          'alert is not raised.' %
+          (test_name, change_point_index, num_runs_in_change_point_window))
       continue
 
-    sibling_change_point_min_timestamp = timestamps[min(
-        change_point_index + min_runs_between_change_points,
-        len(timestamps) - 1)]
-    sibling_change_point_max_timestamp = timestamps[max(
-        0, change_point_index - min_runs_between_change_points)]
-
-    create_alert, last_created_issue_number = (
-      find_existing_issue(
-        test_name=test_name,
-        change_point_timestamp=change_point_timestamp,
-        sibling_change_point_max_timestamp=sibling_change_point_max_timestamp,
-        sibling_change_point_min_timestamp=sibling_change_point_min_timestamp
-      )
+    existing_issue_number, existing_issue_timestamp = find_existing_issue(
+      test_name=test_name
     )
+    # since there was no issue found for the current change point,
+    # considering it as new change point and raising an alert.
+    if not existing_issue_timestamp:
+      create_alert = True
+    else:
+      create_alert = is_perf_alert(
+          previous_change_point_timestamp=existing_issue_timestamp,
+          change_point_index=change_point_index,
+          timestamps=timestamps,
+          min_runs_between_change_points=min_runs_between_change_points)
+
     # TODO: Remove this before merging.
     logging.info(
         "Create performance alert for the "
         "test %s: %s" % (test_name, create_alert))
+
     if create_alert:
       description = get_issue_description(
           metric_name=metric_name,
@@ -283,12 +319,11 @@ def run(config_file_path: str = None) -> None:
           change_point_index=change_point_index,
           max_results_to_display=_NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION)
 
-
       issue_number, issue_url = report_change_point_on_issues(
         title=TITLE_TEMPLATE.format(test_name, metric_name),
         description=description,
         labels=labels,
-        issue_number=last_created_issue_number
+        issue_number=existing_issue_number
       )
 
       logging.info(
@@ -306,17 +341,8 @@ def run(config_file_path: str = None) -> None:
           issue_url=issue_url,
           change_point_timestamp=timestamps[change_point_index])
 
-      bq_metrics_publisher = BigQueryMetricsPublisher(
-          project_name=_BQ_PROJECT_NAME,
-          dataset=_BQ_DATASET,
-          table=test_name,
-          bq_schema=SCHEMA,
-      )
-
-      bq_metrics_publisher.publish([asdict(issue_metadata)])
-      logging.info(
-          'GitHub metadata is published to Big Query Dataset %s'
-          ', table %s' % (_BQ_DATASET, test_name))
+      publish_issue_metadata_to_big_query(
+          issue_metadata=issue_metadata, test_name=test_name)
 
 
 if __name__ == '__main__':
