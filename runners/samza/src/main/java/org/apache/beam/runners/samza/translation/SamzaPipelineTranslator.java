@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.util.StoreIdUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
@@ -106,16 +107,24 @@ public class SamzaPipelineTranslator {
     pipeline.traverseTopologically(visitor);
   }
 
-  /** Rewrite user store configs if there exists same state ids with multiple ParDos. */
+  /**
+   * Rewrite user store configs if there exists same state ids used in multiple ParDos. For each
+   * entry of a stateId to escaped PTransform name of first occurrence in topological traversal,
+   * rewrite RocksDB configs with the new mapping enforced from stateId to storeId.
+   * (eg) @StateId("foo") used in two ParDos fn, fn2: .apply("First Stateful ParDo with same
+   * stateId", ParDo.of(fn)) .apply("Second Stateful ParDo with same stateId", ParDo.of(fn2)) Map =
+   * ("foo", "First_Stateful_ParDo_with_same_stateId") storeId =
+   * "foo-First_Stateful_ParDo_with_same_stateId"
+   */
   public static void rewriteConfigWithMultiParDoStateId(
       SamzaPipelineOptions options,
       Map<String, String> multiParDoStateIdMap,
       ConfigBuilder configBuilder) {
     multiParDoStateIdMap.forEach(
         (stateId, value) -> {
-          // rewrite single parDo state configs into multiple parDo state
-          String multiParDoStateId = String.join("-", stateId, value);
-          // replace old single parDo store configs with new storeId mapping appended with parDo
+          // rewrite single ParDo store configs with multiple ParDo storeId
+          String multiParDoStoreId = StoreIdUtils.toMultiParDoStoreId(stateId, value);
+          // replace old single ParDo store configs with new storeId mapping appended with parDo
           // name
           configBuilder.remove("stores." + stateId + ".factory");
           configBuilder.remove("stores." + stateId + ".key.serde");
@@ -123,17 +132,17 @@ public class SamzaPipelineTranslator {
           configBuilder.remove("stores." + stateId + ".rocksdb.compression");
           // put new config with multi pardo config
           configBuilder.put(
-              "stores." + multiParDoStateId + ".factory",
+              "stores." + multiParDoStoreId + ".factory",
               "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
-          configBuilder.put("stores." + multiParDoStateId + ".key.serde", "byteArraySerde");
-          configBuilder.put("stores." + multiParDoStateId + ".msg.serde", "stateValueSerde");
-          configBuilder.put("stores." + multiParDoStateId + ".rocksdb.compression", "lz4");
+          configBuilder.put("stores." + multiParDoStoreId + ".key.serde", "byteArraySerde");
+          configBuilder.put("stores." + multiParDoStoreId + ".msg.serde", "stateValueSerde");
+          configBuilder.put("stores." + multiParDoStoreId + ".rocksdb.compression", "lz4");
 
           if (options.getStateDurable()) {
             configBuilder.remove("stores." + stateId + ".changelog");
             configBuilder.put(
-                "stores." + multiParDoStateId + ".changelog",
-                ConfigBuilder.getChangelogTopic(options, multiParDoStateId));
+                "stores." + multiParDoStoreId + ".changelog",
+                ConfigBuilder.getChangelogTopic(options, multiParDoStoreId));
           }
         });
   }

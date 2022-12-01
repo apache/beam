@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.translation;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.util.StoreIdUtils;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,7 +36,7 @@ public class ConfigContext {
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SamzaPipelineOptions options;
   private final Map<String, String> usedStateIdMap;
-  private final Map<String, String> multiParDoStateIdMap;
+  private final Map<String, String> stateIdsToRewrite;
 
   public ConfigContext(
       Map<PValue, String> idMap,
@@ -44,7 +45,7 @@ public class ConfigContext {
     this.idMap = idMap;
     this.options = options;
     this.usedStateIdMap = new HashMap<>();
-    this.multiParDoStateIdMap = multiParDoStateIdMap;
+    this.stateIdsToRewrite = multiParDoStateIdMap;
   }
 
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
@@ -76,15 +77,17 @@ public class ConfigContext {
       return stateId;
     } else {
       // Same state id identified for the first time
-      if (!multiParDoStateIdMap.containsKey(stateId)) {
+      if (!stateIdsToRewrite.containsKey(stateId)) {
         final String prevParDoName = usedStateIdMap.get(stateId);
-        final String prevMultiParDoStateId = String.join("-", stateId, prevParDoName);
+        final String prevMultiParDoStateId =
+            StoreIdUtils.toMultiParDoStoreId(stateId, prevParDoName);
         usedStateIdMap.put(prevMultiParDoStateId, prevParDoName);
         // Store the stateId with previous parDo name which will be used for config rewriting
-        multiParDoStateIdMap.put(stateId, prevParDoName);
+        stateIdsToRewrite.put(stateId, prevParDoName);
       }
       // Compose a new store id with state id and parDo name (eg) "stateId-parDoName"
-      final String multiParDoStateId = String.join("-", stateId, parDoName);
+      final String multiParDoStateId = StoreIdUtils.toMultiParDoStoreId(stateId, parDoName);
+      ;
       // Leveraging framework which enforces unique parDo name.
       // If the framework logic changes, this is a safeguard to throw exception to avoid storeId
       // collision

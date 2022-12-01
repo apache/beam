@@ -141,13 +141,6 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     LOG.info("Beam pipeline JSON graph:\n{}", jsonGraph);
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
-    /* Map of stateId to sanitized (remove whitespace and replace '-' with '_') PTransform name, used in multiple ParDos
-    (eg) @StateId("foo") used in two ParDos:
-        .apply("First Stateful ParDo with same stateId", ParDo.of(fn))
-        .apply("Second Stateful ParDo with same stateId", ParDo.of(fn2))
-    Map = ("foo", "First_Stateful_ParDo_with_same_stateId")
-    This will be populated with the key of stateId and value as the sanitized ParDo name. This map will be used to
-    identify the stateId used in multiple ParDos and rewrite RocksDB configs. */
     final Map<String, String> multiParDoStateIdMap = new HashMap<>();
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
 

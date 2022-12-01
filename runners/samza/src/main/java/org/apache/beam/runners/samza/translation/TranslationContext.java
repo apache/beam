@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.HashIdGenerator;
+import org.apache.beam.runners.samza.util.StoreIdUtils;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -260,7 +261,7 @@ public class TranslationContext {
             storeIds.put(
                 stateId,
                 multiParDoStateIds.contains(stateId)
-                    ? String.join("-", stateId, escapedParDoName)
+                    ? StoreIdUtils.toMultiParDoStoreId(stateId, escapedParDoName)
                     : stateId));
     return storeIds;
   }

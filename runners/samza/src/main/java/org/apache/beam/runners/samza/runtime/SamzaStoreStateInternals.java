@@ -142,8 +142,8 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     // TODO: handle same stateIds in multiple ParDos for portable mode
     Map<String, String> stateIds =
         executableStage.getUserStates().stream()
-            .map(UserStateReference::localName)
-            .collect(Collectors.toMap(Function.identity(), Function.identity()));
+            .collect(
+                Collectors.toMap(UserStateReference::localName, UserStateReference::localName));
 
     return createStateInternalsFactory(id, keyCoder, context, pipelineOptions, stateIds);
   }
