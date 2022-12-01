@@ -150,9 +150,7 @@ public class AvroUtils {
     GenericData.get().addLogicalTypeConversion(new JodaTimestampConversion());
   }
 
-  /**
-   * Unwrap an AVRO schema into the base type an whether it is nullable.
-   */
+  /** Unwrap an AVRO schema into the base type an whether it is nullable. */
   public static class TypeWithNullability {
     final org.apache.avro.Schema type;
     final boolean nullable;
