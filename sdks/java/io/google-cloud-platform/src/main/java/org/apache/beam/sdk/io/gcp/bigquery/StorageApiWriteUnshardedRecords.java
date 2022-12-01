@@ -502,9 +502,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       String retrieveErrorDetails(Iterable<AppendRowsContext> failedContext) {
         return StreamSupport.stream(failedContext.spliterator(), false)
-            .filter(ctx -> ctx.getError() != null)
-            .map(AppendRowsContext::getError)
-            .flatMap(thrw -> Arrays.stream(thrw.getStackTrace()))
+            .<@Nullable Throwable>map(AppendRowsContext::getError)
+            .filter(err -> err != null)
+            .flatMap(thrw -> Arrays.stream(Preconditions.checkStateNotNull(thrw).getStackTrace()))
             .map(StackTraceElement::toString)
             .collect(Collectors.joining("\n"));
       }
