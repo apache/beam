@@ -265,7 +265,7 @@ public class BeamRowToStorageApiProto {
           throw new RuntimeException("Unexpected null element type!");
         }
         Boolean shouldFlatMap =
-                arrayElementType.getTypeName().isCollectionType()
+            arrayElementType.getTypeName().isCollectionType()
                 || arrayElementType.getTypeName().isMapType();
 
         Stream<Object> valueStream =
