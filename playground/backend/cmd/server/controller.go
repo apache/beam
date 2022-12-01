@@ -45,6 +45,7 @@ const (
 	errorTitleGetExampleLogs    = "Error during getting example logs"
 	errorTitleGetExampleGraph   = "Error during getting example graph"
 	errorTitleGetDefaultExample = "Error during getting default example"
+	errorTitleRunCode           = "Error during run code"
 
 	userBadCloudPathErrMsg    = "Invalid cloud path parameter"
 	userCloudConnectionErrMsg = "Cloud connection error"
@@ -104,24 +105,24 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	}
 
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving status of the code processing")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial run output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving value for the logs output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial cancel flag")
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Internal error")
 	}
 
