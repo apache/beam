@@ -44,8 +44,8 @@ Playground deployment main data and scripts can be found by next locations:
 
 The `playground/terraform/infrastructure/cloudbuild-manual-setup/01.setup` provisions dependencies required to set up Cloud Build for Playground:
 - Required API services
-- Cloud Build service account - `playground-cloudbuild-sa`
-- IAM permissions for Cloud Build service account - `playground-cloudbuild-sa`
+- Cloud Build service account
+- IAM roles for Cloud Build service account
 
 #### To execute the module:
 
