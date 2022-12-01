@@ -31,12 +31,10 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryStorageApiInsertError;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
@@ -75,7 +73,7 @@ import org.joda.time.Duration;
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
   private static final String INPUT_ROWS_TAG = "INPUT_ROWS";
-  private static final String OUTPUT_FAILED_ROWS_TAG = "FAILED_ROWS";
+  // private static final String OUTPUT_FAILED_ROWS_TAG = "FAILED_ROWS";
   private static final String OUTPUT_ERRORS_TAG = "FAILED_ERRORS";
 
   @Override
@@ -101,7 +99,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.singletonList(OUTPUT_FAILED_ROWS_TAG);
+    return Collections.singletonList(OUTPUT_ERRORS_TAG);
   }
 
   /** Configuration for writing to BigQuery with Storage Write API. */
@@ -133,8 +131,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       // validate create and write dispositions
       CreateDisposition createDisposition = null;
       if (!Strings.isNullOrEmpty(this.getCreateDisposition())) {
-        checkNotNull(
-            CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase()),
+        checkArgument(
+            CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase()) != null,
             invalidConfigMessage
                 + "Invalid create disposition was specified. Available dispositions are: ",
             CREATE_DISPOSITIONS.keySet());
@@ -152,7 +150,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       if (!Strings.isNullOrEmpty(this.getJsonSchema())) {
         // check if a TableSchema can be deserialized from the input schema string
         checkNotNull(BigQueryHelpers.fromJsonString(this.getJsonSchema(), TableSchema.class));
-      } else if (!this.getUseBeamSchema()) {
+      } else if (this.getUseBeamSchema() == null || !this.getUseBeamSchema()) {
         // if no schema is provided, create disposition CREATE_NEVER has to be specified.
         checkArgument(
             createDisposition == CreateDisposition.CREATE_NEVER,
@@ -276,57 +274,41 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       // Check that the input exists
       checkArgument(input.has(INPUT_ROWS_TAG), "Missing expected input tag: %s", INPUT_ROWS_TAG);
-
       PCollection<Row> inputRows = input.get(INPUT_ROWS_TAG);
 
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform();
 
       WriteResult result = inputRows.apply(write);
 
-      Schema rowSchema =
-          !Strings.isNullOrEmpty(configuration.getJsonSchema())
-              ? BigQueryUtils.fromTableSchema(
-                  BigQueryHelpers.fromJsonString(
-                      configuration.getJsonSchema(), TableSchema.class)) // get from input schema
-              : inputRows.getSchema(); // or get from PCollection
-
       Schema errorSchema =
           Schema.of(
-              Field.of("failed_row", FieldType.row(rowSchema)),
+              Field.of("failed_row", FieldType.STRING),
               Field.of("error_message", FieldType.STRING));
-
-      PCollection<BigQueryStorageApiInsertError> storageInsertErrors =
-          result.getFailedStorageApiInserts();
 
       // Errors consisting of failed rows along with their error message
       PCollection<Row> errorRows =
-          storageInsertErrors.apply(
-              MapElements.into(TypeDescriptor.of(Row.class))
-                  .via(
-                      (storageError) ->
-                          Row.withSchema(errorSchema)
-                              .withFieldValue(
-                                  "failed_row",
-                                  BigQueryUtils.toBeamRow(rowSchema, storageError.getRow()))
-                              .withFieldValue("error_message", storageError.getErrorMessage())
-                              .build()));
+          result
+              .getFailedStorageApiInserts()
+              .apply(
+                  "Extract Errors",
+                  MapElements.into(TypeDescriptor.of(Row.class))
+                      .via(
+                          (storageError) ->
+                              Row.withSchema(errorSchema)
+                                  .withFieldValue("error_message", storageError.getErrorMessage())
+                                  .withFieldValue("failed_row", storageError.getRow().toString())
+                                  .build()))
+              .setRowSchema(errorSchema);
 
-      // Failed rows
-      PCollection<Row> failedRows =
-          storageInsertErrors.apply(
-              MapElements.into(TypeDescriptor.of(Row.class))
-                  .via(
-                      (storageError) -> BigQueryUtils.toBeamRow(rowSchema, storageError.getRow())));
-
-      return PCollectionRowTuple.of(OUTPUT_FAILED_ROWS_TAG, failedRows)
-          .and(OUTPUT_ERRORS_TAG, errorRows);
+      return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorRows);
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform() {
       Method writeMethod =
-          configuration.getUseAtLeastOnceSemantics() != null && configuration.getUseAtLeastOnceSemantics()
-          ? Method.STORAGE_API_AT_LEAST_ONCE
-          : Method.STORAGE_WRITE_API;
+          configuration.getUseAtLeastOnceSemantics() != null
+                  && configuration.getUseAtLeastOnceSemantics()
+              ? Method.STORAGE_API_AT_LEAST_ONCE
+              : Method.STORAGE_WRITE_API;
       BigQueryIO.Write<Row> write =
           BigQueryIO.<Row>write()
               .to(configuration.getOutputTable())
