@@ -511,12 +511,32 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<Iterable<V>> get(K key) {
-      return CollectionViewState.of(contents.get(keyCoder.structuralValue(key)));
+      return new ReadableState<Iterable<V>>() {
+        @Override
+        public Iterable<V> read() {
+          return ImmutableList.copyOf(contents.get(keyCoder.structuralValue(key)));
+        }
+
+        @Override
+        public ReadableState<Iterable<V>> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override
     public ReadableState<Iterable<K>> keys() {
-      return CollectionViewState.of(structuralKeysMapping.values());
+      return new ReadableState<Iterable<K>>() {
+        @Override
+        public Iterable<K> read() {
+          return ImmutableList.copyOf(structuralKeysMapping.values());
+        }
+
+        @Override
+        public ReadableState<Iterable<K>> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override
