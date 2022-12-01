@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 
 class DismissibleOverlay extends StatelessWidget {
-  final void Function() close;
+  final VoidCallback close;
   final Positioned child;
 
   const DismissibleOverlay({
