@@ -30,7 +30,7 @@ steps:
         'network_name = "$_NETWORK_NAME"' \
         'gke_name = "$_GKE_NAME"' \
         'region = "$_PLAYGROUND_REGION"' \
-        'location = "$_PLAYGROUND_LOCATION"' \
+        'location = "$_PLAYGROUND_ZONE"' \
         'state_bucket = "$_STATE_BUCKET"' \
         > playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
         printf \
