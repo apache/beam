@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../playground_components.dart';
+import '../../constants/sizes.dart';
 
 class OverlayBody extends StatelessWidget {
   final Widget child;
