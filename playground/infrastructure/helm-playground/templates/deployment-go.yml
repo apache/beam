@@ -44,15 +44,15 @@ spec:
        livenessProbe:
          httpGet:
            path: /liveness
-           port: 8080
-         initialDelaySeconds: 3
-         periodSeconds: 3
+           port: {{ .Value.healthcheck.port }}
+         initialDelaySeconds: {{ .Value.healthcheck.livInitialDelaySeconds }}
+         periodSeconds: {{ .Value.healthcheck.livPeriodSeconds }}
        readinessProbe:
          httpGet:
            path: /readiness
-           port: 8080
-         initialDelaySeconds: 3
-         periodSeconds: 3
+           port: {{ .Value.healthcheck.port }}
+         initialDelaySeconds: {{ .Value.healthcheck.readInitialDelaySeconds }}
+         periodSeconds: {{ .Value.healthcheck.readPeriodSeconds }}
        resources:
          requests:
            memory: "500Mi"
