@@ -82,7 +82,9 @@ public class AvroGenericRecordToStorageApiProto {
           .put(Schema.Type.INT, o -> Long.valueOf((int) o))
           .put(Schema.Type.FIXED, o -> ByteString.copyFrom(((GenericData.Fixed) o).bytes()))
           .put(Schema.Type.LONG, Functions.identity())
-          .put(Schema.Type.FLOAT, o-> Double.valueOf(Float.valueOf((float)o).toString()).doubleValue())
+          .put(
+              Schema.Type.FLOAT,
+              o -> Double.valueOf(Float.valueOf((float) o).toString()).doubleValue())
           .put(Schema.Type.DOUBLE, Function.identity())
           .put(Schema.Type.STRING, Function.identity())
           .put(Schema.Type.BOOLEAN, Function.identity())

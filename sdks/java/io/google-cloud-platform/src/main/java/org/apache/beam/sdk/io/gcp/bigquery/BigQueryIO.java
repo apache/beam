@@ -540,13 +540,15 @@ public class BigQueryIO {
    * A formatting function that maps a TableRow to itself. This allows sending a {@code
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
-  static final SerializableFunction<TableRow, TableRow> TABLE_ROW_IDENTITY_FORMATTER = input -> input;
+  static final SerializableFunction<TableRow, TableRow> TABLE_ROW_IDENTITY_FORMATTER =
+      input -> input;
 
   /**
    * A formatting function that maps a GenericRecord to itself. This allows sending a {@code
    * PCollection<GenericRecord>} directly to BigQueryIO.Write.
    */
-  static final SerializableFunction<GenericRecord, GenericRecord> GENERIC_RECORD_IDENTITY_FORMATTER = input -> input;
+  static final SerializableFunction<AvroWriteRequest<GenericRecord>, GenericRecord>
+      GENERIC_RECORD_IDENTITY_FORMATTER = input -> input.getElement();
 
   static final SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>>
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
@@ -1933,16 +1935,17 @@ public class BigQueryIO {
   public static Write<TableRow> writeTableRows() {
     return BigQueryIO.<TableRow>write().withFormatFunction(TABLE_ROW_IDENTITY_FORMATTER);
   }
-  
+
   /**
-   * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord 
+   * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord
    * GenericRecords} to a BigQuery table.
    *
    * <p>It is recommended to instead use {@link #write} with {@link
    * Write#withFormatFunction(SerializableFunction)}.
    */
-  public static Write<GenericRecord> writeTableRows() {
-    return BigQueryIO.<GenericRecord>write().withFormatFunction(GENERIC_RECORD_IDENTITY_FORMATTER);
+  public static Write<GenericRecord> writeGenericRecords() {
+    return BigQueryIO.<GenericRecord>write()
+        .withAvroFormatFunction(GENERIC_RECORD_IDENTITY_FORMATTER);
   }
 
   /** Implementation of {@link #write}. */
