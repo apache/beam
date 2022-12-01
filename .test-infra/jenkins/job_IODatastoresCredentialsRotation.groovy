@@ -35,7 +35,7 @@ job('Rotate IO-Datastores Cluster Credentials') {
 
     //Rebuilding the nodes
     shell('''gcloud container clusters upgrade io-datastores \
-    --node-pool=default-pool --zone=us-central1-a --quiet''')
+    --node-pool=pool-1 --zone=us-central1-a --quiet''')
 
     //Completing the rotation
     shell('''gcloud container clusters update io-datastores \
