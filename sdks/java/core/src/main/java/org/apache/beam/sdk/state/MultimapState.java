@@ -23,8 +23,8 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * A {@link ReadableState} cell mapping keys to bags of values. Keys are considered equivalent if
- * their structural values are equivalent, see
- * {@link org.apache.beam.sdk.coders.Coder#structuralValue} for additional details.
+ * their structural values are equivalent, see {@link
+ * org.apache.beam.sdk.coders.Coder#structuralValue} for additional details.
  *
  * <p>Implementations of this form of state are expected to implement multimap operations
  * efficiently as supported by some associated backing key-value store.
@@ -57,7 +57,8 @@ public interface MultimapState<K, V> extends State {
   ReadableState<Iterable<V>> get(K key);
 
   /**
-   * Removes all values associated with the key from this multimap. This is a no-op if the key is not contained within the multimap.
+   * Removes all values associated with the key from this multimap. This is a no-op if the key is
+   * not contained within the multimap.
    *
    * <p>Changes will not be reflected in the results returned by previous calls to {@link
    * ReadableState#read} on the results of any of the reading methods({@link #get}, {@link #keys},
@@ -68,8 +69,8 @@ public interface MultimapState<K, V> extends State {
   /** Returns an {@link Iterable} over the keys contained in this multimap. */
   ReadableState<Iterable<K>> keys();
 
-  /** Returns an {@link Iterable} over all key-values pairs contained in this multimap. */
-  ReadableState<Iterable<Map.Entry<K, Iterable<V>>>> entries();
+  /** Returns an {@link Iterable} over all key-value pairs contained in this multimap. */
+  ReadableState<Iterable<Map.Entry<K, V>>> entries();
 
   /**
    * Returns a {@link ReadableState} whose {@link ReadableState#read} method will return true if

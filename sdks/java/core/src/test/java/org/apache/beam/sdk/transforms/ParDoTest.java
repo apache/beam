@@ -2253,14 +2253,6 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  private static <K, V> int countNestedIterables(Iterable<Entry<K, Iterable<V>>> iterable) {
-    int size = 0;
-    for (Entry<K, Iterable<V>> it : iterable) {
-      size += Iterables.size(it.getValue());
-    }
-    return size;
-  }
-
   /** Tests to validate ParDo state. */
   @RunWith(JUnit4.class)
   public static class StateTests extends SharedTestBase implements Serializable {
@@ -2822,21 +2814,18 @@ public class ParDoTest implements Serializable {
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, Integer>> r) {
               KV<String, Integer> value = element.getValue();
-              ReadableState<Iterable<Entry<String, Iterable<Integer>>>> entriesView =
-                  state.entries();
+              ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
               state.put(value.getKey(), value.getValue());
               count.add(1);
               if (count.read() >= 4) {
-                Iterable<Entry<String, Iterable<Integer>>> entries = state.entries().read();
+                Iterable<Entry<String, Integer>> entries = state.entries().read();
                 state.put("BadKey", -1);
-                assertEquals(4, countNestedIterables(entries));
-                assertEquals(5, countNestedIterables(entriesView.read()));
-                assertEquals(5, countNestedIterables(state.entries().read()));
+                assertEquals(4, Iterables.size(entries));
+                assertEquals(5, Iterables.size(entriesView.read()));
+                assertEquals(5, Iterables.size(state.entries().read()));
 
-                for (Entry<String, Iterable<Integer>> entry : entries) {
-                  for (Integer v : entry.getValue()) {
-                    r.output(KV.of(entry.getKey(), v));
-                  }
+                for (Entry<String, Integer> entry : entries) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
                 }
               }
             }
@@ -2882,21 +2871,19 @@ public class ParDoTest implements Serializable {
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, Integer>> r) {
               KV<String, Integer> value = element.getValue();
-              ReadableState<Iterable<Entry<byte[], Iterable<Integer>>>> entriesView =
-                  state.entries();
+              ReadableState<Iterable<Entry<byte[], Integer>>> entriesView = state.entries();
               state.put(value.getKey().getBytes(StandardCharsets.UTF_8), value.getValue());
               count.add(1);
               if (count.read() >= 4) {
-                Iterable<Entry<byte[], Iterable<Integer>>> entries = state.entries().read();
+                Iterable<Entry<byte[], Integer>> entries = state.entries().read();
                 state.put(bagKey, -1);
-                assertEquals(4, countNestedIterables(entries));
-                assertEquals(5, countNestedIterables(entriesView.read()));
-                assertEquals(5, countNestedIterables(state.entries().read()));
+                assertEquals(4, Iterables.size(entries));
+                assertEquals(5, Iterables.size(entriesView.read()));
+                assertEquals(5, Iterables.size(state.entries().read()));
 
-                for (Entry<byte[], Iterable<Integer>> entry : entries) {
-                  for (Integer v : entry.getValue()) {
-                    r.output(KV.of(new String(entry.getKey(), StandardCharsets.UTF_8), v));
-                  }
+                for (Entry<byte[], Integer> entry : entries) {
+                  r.output(
+                      KV.of(new String(entry.getKey(), StandardCharsets.UTF_8), entry.getValue()));
                 }
               }
             }
@@ -2939,22 +2926,19 @@ public class ParDoTest implements Serializable {
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, Integer>> r) {
               KV<String, Integer> value = element.getValue();
-              ReadableState<Iterable<Entry<String, Iterable<Integer>>>> entriesView =
-                  state.entries();
+              ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
               state.put(value.getKey(), value.getValue());
               count.add(1);
               if (count.read() >= 4) {
-                Iterable<Entry<String, Iterable<Integer>>> iterate = state.entries().read();
+                Iterable<Entry<String, Integer>> iterate = state.entries().read();
                 state.put("BadKey", -1);
                 state.remove("b");
-                assertEquals(4, countNestedIterables(iterate));
-                assertEquals(4, countNestedIterables(entriesView.read()));
-                assertEquals(4, countNestedIterables(state.entries().read()));
+                assertEquals(4, Iterables.size(iterate));
+                assertEquals(4, Iterables.size(entriesView.read()));
+                assertEquals(4, Iterables.size(state.entries().read()));
 
-                for (Entry<String, Iterable<Integer>> entry : entriesView.read()) {
-                  for (Integer v : entry.getValue()) {
-                    r.output(KV.of(entry.getKey(), v));
-                  }
+                for (Entry<String, Integer> entry : entriesView.read()) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
                 }
               }
             }
@@ -3953,21 +3937,18 @@ public class ParDoTest implements Serializable {
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, MyInteger>> r) {
               KV<String, Integer> value = element.getValue();
-              ReadableState<Iterable<Entry<String, Iterable<MyInteger>>>> entriesView =
-                  state.entries();
+              ReadableState<Iterable<Entry<String, MyInteger>>> entriesView = state.entries();
               state.put(value.getKey(), new MyInteger(value.getValue()));
               count.add(1);
               if (count.read() >= 4) {
-                Iterable<Entry<String, Iterable<MyInteger>>> iterate = state.entries().read();
+                Iterable<Entry<String, MyInteger>> iterate = state.entries().read();
                 state.put("BadKey", new MyInteger(-1));
-                assertEquals(4, countNestedIterables(iterate));
-                assertEquals(5, countNestedIterables(entriesView.read()));
-                assertEquals(5, countNestedIterables(state.entries().read()));
+                assertEquals(4, Iterables.size(iterate));
+                assertEquals(5, Iterables.size(entriesView.read()));
+                assertEquals(5, Iterables.size(state.entries().read()));
 
-                for (Entry<String, Iterable<MyInteger>> entry : iterate) {
-                  for (MyInteger v : entry.getValue()) {
-                    r.output(KV.of(entry.getKey(), v));
-                  }
+                for (Entry<String, MyInteger> entry : iterate) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
                 }
               }
             }
@@ -4013,16 +3994,13 @@ public class ParDoTest implements Serializable {
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, MyInteger>> r) {
               KV<String, Integer> value = element.getValue();
-              ReadableState<Iterable<Entry<String, Iterable<MyInteger>>>> entriesView =
-                  state.entries();
+              ReadableState<Iterable<Entry<String, MyInteger>>> entriesView = state.entries();
               state.put(value.getKey(), new MyInteger(value.getValue()));
               count.add(1);
               if (count.read() >= 4) {
-                Iterable<Entry<String, Iterable<MyInteger>>> iterate = state.entries().read();
-                for (Entry<String, Iterable<MyInteger>> entry : iterate) {
-                  for (MyInteger v : entry.getValue()) {
-                    r.output(KV.of(entry.getKey(), v));
-                  }
+                Iterable<Entry<String, MyInteger>> iterate = state.entries().read();
+                for (Entry<String, MyInteger> entry : iterate) {
+                  r.output(KV.of(entry.getKey(), entry.getValue()));
                 }
               }
             }

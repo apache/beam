@@ -520,22 +520,22 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public ReadableState<Iterable<Map.Entry<K, Iterable<V>>>> entries() {
-      return new ReadableState<Iterable<Map.Entry<K, Iterable<V>>>>() {
+    public ReadableState<Iterable<Map.Entry<K, V>>> entries() {
+      return new ReadableState<Iterable<Map.Entry<K, V>>>() {
         @Override
-        public Iterable<Map.Entry<K, Iterable<V>>> read() {
-          List<Map.Entry<K, Iterable<V>>> result =
-              Lists.newArrayListWithExpectedSize(structuralKeysMapping.size());
-          for (Map.Entry<Object, K> entry : structuralKeysMapping.entrySet()) {
+        public Iterable<Map.Entry<K, V>> read() {
+          List<Map.Entry<K, V>> result =
+              Lists.newArrayListWithExpectedSize(contents.entries().size());
+          for (Map.Entry<Object, V> entry : contents.entries()) {
             result.add(
-                new AbstractMap.SimpleEntry(
-                    entry.getValue(), ImmutableList.copyOf(contents.get(entry.getKey()))));
+                new AbstractMap.SimpleEntry<>(
+                    structuralKeysMapping.get(entry.getKey()), entry.getValue()));
           }
           return Collections.unmodifiableList(result);
         }
 
         @Override
-        public ReadableState<Iterable<Map.Entry<K, Iterable<V>>>> readLater() {
+        public ReadableState<Iterable<Map.Entry<K, V>>> readLater() {
           return this;
         }
       };
