@@ -74,7 +74,6 @@
 * Make Python SDK containers reusable on portable runners by installing dependencies to temporary venvs ([BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792)).
 * RunInference model handlers now support the specification of a custom inference function in Python ([#22572](https://github.com/apache/beam/issues/22572))
 * Support for `map_windows` urn added to Go SDK ([#24307](https://github.apache/beam/pull/24307)).
-* DataFrame API now supports pandas 1.5 ([#22847](https://github.com/apache/beam/issues/22847)).
 
 ## Breaking Changes
 
