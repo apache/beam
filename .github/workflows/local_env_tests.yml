@@ -44,6 +44,9 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: '1.19'
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
       - name: "Installing local env dependencies"
         run: "sudo ./local-env-setup.sh"
         id: local_env_install_ubuntu
@@ -59,6 +62,9 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: '1.19'
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
       - name: "Installing local env dependencies"
         run: "./local-env-setup.sh"
         id: local_env_install_mac
