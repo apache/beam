@@ -33,7 +33,7 @@ import (
 const (
 	brokerCount        = 1
 	addressSeperator   = ":"
-	pauseDuration      = 400 * time.Microsecond
+	pauseDuration      = 100 * time.Millisecond
 	globalDuration     = 2 * time.Second
 	bootstrapServerKey = "bootstrap.servers"
 	networkType        = "tcp"
@@ -93,6 +93,7 @@ type KafkaProducer struct {
 func NewKafkaProducer(cluster *KafkaMockCluster) (*KafkaProducer, error) {
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
 		bootstrapServerKey: cluster.GetAddress(),
+		"acks":             "all",
 	})
 	if err != nil {
 		return nil, err
@@ -132,7 +133,14 @@ func produce(entries []map[string]interface{}, kp *KafkaProducer, topic *string)
 		); err != nil {
 			return errors.New("failed to produce data to a topic")
 		}
+		e := <-kp.producer.Events()
+		m := e.(*kafka.Message)
+
+		if m.TopicPartition.Error != nil {
+			return fmt.Errorf("delivery failed: %v", m.TopicPartition.Error)
+		}
 	}
+
 	return nil
 }
 

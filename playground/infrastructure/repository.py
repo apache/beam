@@ -30,9 +30,9 @@ def set_dataset_path_for_examples(examples: List[Example]):
         if example.datasets:
             dataset_tag = example.datasets[0]
             file_name = f"{dataset_tag.name}.{dataset_tag.format}"
-            dataset_path = f"{RepoProps.DATASET_REP_ROOT}/{file_name}"
+            dataset_path = os.path.join(RepoProps.REPO_DATASETS_PATH, file_name)
             if not os.path.isfile(dataset_path):
                 logging.error("File not found at the specified path: %s", dataset_path)
                 raise FileNotFoundError
-            dataset_tag.path = dataset_path
+            dataset_tag.path = os.path.join(RepoProps.RUNNER_DATASETS_PATH, file_name)
             example.datasets[0] = dataset_tag

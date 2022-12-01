@@ -56,6 +56,7 @@ ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
 COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
+COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/datasets/
 
 # Install Beam DirectRunner
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
