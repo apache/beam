@@ -38,6 +38,11 @@ public final class RecordsSubject extends Subject {
     return RecordsSubject::new;
   }
 
+  /** Check if records list has rows (i.e., is not empty). */
+  public void hasRows() {
+    check("there are rows").that(actual.size()).isGreaterThan(0);
+  }
+
   /**
    * Check if records list has a specific number of rows.
    *

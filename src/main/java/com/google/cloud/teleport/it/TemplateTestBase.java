@@ -181,10 +181,10 @@ public abstract class TemplateTestBase {
     // Classic templates run on parent pom and -pl v1
     if (pomPath.endsWith("v1/pom.xml")) {
       pomPath = new File(pom.getParentFile().getParentFile(), "pom.xml").getAbsolutePath();
-      moduleBuild = "v1";
+      moduleBuild = "it,v1";
     } else if (pomPath.contains("v2/")) {
       // Flex templates run on parent pom and -pl {path-to-folder}
-      moduleBuild = pomPath.substring(pomPath.indexOf("v2/")).replace("/pom.xml", "");
+      moduleBuild = "it," + pomPath.substring(pomPath.indexOf("v2/")).replace("/pom.xml", "");
       pomPath = pomPath.replaceAll("/v2/.*", "/pom.xml");
     } else {
       LOG.warn(
@@ -194,6 +194,7 @@ public abstract class TemplateTestBase {
 
     return new String[] {
       "mvn",
+      "compile",
       "package",
       "-q",
       "-f",
@@ -210,6 +211,7 @@ public abstract class TemplateTestBase {
       "-Dspotless.check.skip",
       "-Denforcer.skip",
       "-DprojectId=" + TestProperties.project(),
+      "-Dregion=" + TestProperties.region(),
       "-DbucketName=" + bucketName,
       "-DstagePrefix=" + prefix,
       "-DtemplateName=" + template.name()
