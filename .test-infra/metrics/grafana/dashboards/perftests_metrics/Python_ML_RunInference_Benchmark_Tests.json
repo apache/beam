@@ -159,6 +159,45 @@
             ]
           ],
           "tags": []
+        },
+        {
+          "alias": "mean_inference_request_batch_size_resnet152_TESLA_T4_GPU",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152_tesla_t4\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_inference_request_batch_size' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
+          "rawQuery": true,
+          "refId": "C",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
         }
       ],
       "thresholds": [],
@@ -482,6 +521,45 @@
           "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_inference_batch_latency_micro_secs' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
           "rawQuery": true,
           "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "alias": "mean_inference_batch_latency_resnet_152_TESLA_T4_GPU",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152_tesla_t4\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_inference_batch_latency_micro_secs' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
+          "rawQuery": true,
+          "refId": "C",
           "resultFormat": "time_series",
           "select": [
             [
@@ -836,6 +914,45 @@
             ]
           ],
           "tags": []
+        },
+        {
+          "alias": "mean_load_model_latency_resnet_152_TELSA_T4_GPU",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152_tesla_t4\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_load_model_latency_milli_secs' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
+          "rawQuery": true,
+          "refId": "C",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
         }
       ],
       "thresholds": [],
@@ -1082,5 +1199,5 @@
   "timezone": "",
   "title": "Python ML RunInference Benchmarks",
   "uid": "ZpS8Uf44z",
-  "version": 1
+  "version": 2
 }
