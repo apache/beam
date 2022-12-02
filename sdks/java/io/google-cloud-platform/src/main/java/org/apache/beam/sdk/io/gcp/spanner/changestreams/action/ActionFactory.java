@@ -33,7 +33,7 @@ import org.joda.time.Duration;
  */
 // transient fields are un-initialized, because we start them during the first fetch call (with the
 // singleton pattern).
-@SuppressWarnings("initialization.fields.uninitialized")
+@SuppressWarnings("initialization.field.uninitialized")
 public class ActionFactory implements Serializable {
 
   private static final long serialVersionUID = -4060958761369602619L;

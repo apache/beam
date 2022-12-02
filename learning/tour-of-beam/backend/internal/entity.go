@@ -15,12 +15,13 @@
 
 package internal
 
-import "errors"
+import (
+	"errors"
+)
 
 var (
-	ErrNoUnit     = errors.New("unit not found")
-	ErrNoUser     = errors.New("user not found")
-	ErrPlayground = errors.New("playground error")
+	ErrNoUnit = errors.New("unit not found")
+	ErrNoUser = errors.New("user not found")
 )
 
 type SdkItem struct {

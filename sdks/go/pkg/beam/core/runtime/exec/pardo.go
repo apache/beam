@@ -403,5 +403,5 @@ func (n *ParDo) fail(err error) error {
 }
 
 func (n *ParDo) String() string {
-	return fmt.Sprintf("ParDo[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out...))
+	return fmt.Sprintf("ParDo[%v] Out:%v Sig: %v", path.Base(n.Fn.Name()), IDs(n.Out...), n.Fn.ProcessElementFn().Fn.Type())
 }

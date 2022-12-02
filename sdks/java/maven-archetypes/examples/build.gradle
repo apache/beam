@@ -24,6 +24,7 @@ ext.summary = """A Maven Archetype to create a project containing all the
 example pipelines from the Apache Beam Java SDK."""
 
 processResources {
+  dependsOn 'generateSources'
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'project.version':  version,
     'bigquery.version': dependencies.create(project.library.java.google_api_services_bigquery).getVersion(),
