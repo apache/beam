@@ -28,4 +28,7 @@ class CatalogDefaultExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   @override
   List<Object> get props => [sdk.id];
+
+  @override
+  bool get canBePassedInUrl => true;
 }

@@ -35,4 +35,7 @@ class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
         uri,
         viewOptions,
       ];
+
+  @override
+  bool get canBePassedInUrl => true;
 }

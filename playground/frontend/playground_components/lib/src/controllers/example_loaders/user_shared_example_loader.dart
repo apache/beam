@@ -32,5 +32,5 @@ class UserSharedExampleLoader extends ExampleLoader {
 
   @override
   Future<Example> get future =>
-      exampleCache.loadSharedExample(descriptor);
+      exampleCache.loadSharedExample(descriptor.snippetId);
 }

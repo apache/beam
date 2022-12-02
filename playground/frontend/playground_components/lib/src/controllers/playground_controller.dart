@@ -139,8 +139,8 @@ class PlaygroundController with ChangeNotifier {
       [Sdk.java, Sdk.python].contains(sdk);
 
   void setExample(
-    Example example,
-    ExampleLoadingDescriptor descriptor, {
+    Example example, {
+    required ExampleLoadingDescriptor descriptor,
     required bool setCurrentSdk,
   }) {
     if (setCurrentSdk) {

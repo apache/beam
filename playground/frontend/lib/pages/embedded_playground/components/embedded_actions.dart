@@ -77,7 +77,7 @@ class EmbeddedActions extends StatelessWidget {
       javaScriptPostMessageRepeated(
         window,
         SetContentMessage(
-          descriptor: descriptor.copyWith(
+          descriptor: ExamplesLoadingDescriptor(
             descriptors: jsDescriptors.toList(growable: false),
           ),
         ),

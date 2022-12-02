@@ -31,4 +31,7 @@ class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
         snippetId,
         viewOptions,
       ];
+
+  @override
+  bool get canBePassedInUrl => true;
 }

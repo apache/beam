@@ -77,16 +77,4 @@ class ExamplesLoadingDescriptor {
       'descriptors': descriptors.map((d) => d.toJson()).toList(growable: false),
     };
   }
-
-  ExamplesLoadingDescriptor copyWith({
-    List<ExampleLoadingDescriptor>? descriptors,
-    Map<Sdk, List<ExampleLoadingDescriptor>>? lazyLoadDescriptors,
-    Sdk? initialSdk,
-  }) {
-    return ExamplesLoadingDescriptor(
-      descriptors: descriptors ?? this.descriptors,
-      lazyLoadDescriptors: lazyLoadDescriptors ?? this.lazyLoadDescriptors,
-      initialSdk: initialSdk ?? this.initialSdk,
-    );
-  }
 }

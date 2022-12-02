@@ -48,25 +48,18 @@ class SnippetEditingController extends ChangeNotifier {
   }
 
   void configure({
-    required Example? example,
-    ExampleLoadingDescriptor? descriptor,
-    String? pipelineOptions,
+    required Example example,
+    required ExampleLoadingDescriptor? descriptor,
   }) {
-    _descriptor = descriptor ?? _descriptor;
-    _selectedExample = example ?? _selectedExample;
-    
-    if (example != null && descriptor == null) {
-      _descriptor = null;
-    }
+    _descriptor = descriptor;
+    _selectedExample = example;
+    _pipelineOptions = _selectedExample?.pipelineOptions ?? _pipelineOptions;
+
     setSource(_selectedExample?.source ?? '');
 
-    final viewOptions = example?.viewOptions;
-    if (viewOptions != null) {
-      _applyViewOptions(viewOptions);
-    }
+    final viewOptions = example.viewOptions;
+    _applyViewOptions(viewOptions);
 
-    _pipelineOptions =
-        _selectedExample?.pipelineOptions ?? pipelineOptions ?? '';
     notifyListeners();
   }
 

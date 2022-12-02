@@ -21,11 +21,13 @@ import 'package:playground_components/src/controllers/snippet_editing_controller
 import 'package:playground_components/src/enums/complexity.dart';
 import 'package:playground_components/src/models/example_loading_descriptors/content_example_loading_descriptor.dart';
 import 'package:playground_components/src/models/sdk.dart';
+import 'package:playground_components/src/playground_components.dart';
 
 import '../common/descriptors.dart';
 import '../common/examples.dart';
 
-void main() {
+void main() async {
+  await PlaygroundComponents.ensureInitialized();
   group(
     'Snippet editing controller',
     () {
@@ -71,9 +73,9 @@ void main() {
         'Returns content descriptor if descriptor has not been set',
         () {
           final controller = SnippetEditingController(sdk: Sdk.python);
-          controller.configure(example: exampleMock1);
+          controller.configure(example: exampleMock1, descriptor: null);
 
-          controller.configure(example: exampleMock2);
+          controller.configure(example: exampleMock2, descriptor: null);
           final descriptor = controller.getLoadingDescriptor();
 
           const expected = ContentExampleLoadingDescriptor(
@@ -96,7 +98,7 @@ void main() {
             descriptor: standardDescriptor1,
           );
 
-          controller.configure(example: exampleMock2);
+          controller.configure(example: exampleMock2, descriptor: null);
           final descriptor = controller.getLoadingDescriptor();
 
           expect(descriptor, contentDescriptor2);

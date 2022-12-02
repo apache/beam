@@ -19,7 +19,6 @@
 import 'package:equatable/equatable.dart';
 
 import '../example_view_options.dart';
-import 'content_example_loading_descriptor.dart';
 
 abstract class ExampleLoadingDescriptor with EquatableMixin {
   const ExampleLoadingDescriptor({
@@ -30,5 +29,5 @@ abstract class ExampleLoadingDescriptor with EquatableMixin {
 
   Map<String, dynamic> toJson() => throw UnimplementedError();
 
-  bool get canBePassedInUrl => this is! ContentExampleLoadingDescriptor;
+  bool get canBePassedInUrl;
 }

@@ -106,16 +106,16 @@ class ExampleCache extends ChangeNotifier {
   }
 
   Future<Example> loadSharedExample(
-    UserSharedExampleLoadingDescriptor descriptor,
+    String id,
   ) async {
     final result = await _exampleRepository.getSnippet(
-      GetSnippetRequest(id: descriptor.snippetId),
+      GetSnippetRequest(id: id),
     );
 
     return Example(
       sdk: result.sdk,
       name: result.files.first.name,
-      path: descriptor.snippetId,
+      path: id,
       description: '',
       tags: [],
       type: ExampleType.example,

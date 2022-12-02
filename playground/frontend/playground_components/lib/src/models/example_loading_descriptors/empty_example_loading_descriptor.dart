@@ -28,4 +28,7 @@ class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   @override
   List<Object> get props => [sdk];
+
+  @override
+  bool get canBePassedInUrl => true;
 }

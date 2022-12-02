@@ -4,7 +4,7 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i7;
-import 'dart:ui' as _i15;
+import 'dart:ui' as _i14;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:playground_components/src/cache/example_cache.dart' as _i11;
@@ -22,11 +22,9 @@ import 'package:playground_components/src/models/example_loading_descriptors/exa
     as _i10;
 import 'package:playground_components/src/models/example_loading_descriptors/examples_loading_descriptor.dart'
     as _i8;
-import 'package:playground_components/src/models/example_loading_descriptors/user_shared_example_loading_descriptor.dart'
-    as _i13;
 import 'package:playground_components/src/models/sdk.dart' as _i9;
 import 'package:playground_components/src/repositories/models/shared_file.dart'
-    as _i14;
+    as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -255,18 +253,16 @@ class MockExampleCache extends _i1.Mock implements _i11.ExampleCache {
         returnValue: Future<String>.value(''),
       ) as _i7.Future<String>);
   @override
-  _i7.Future<_i4.Example> loadSharedExample(
-          _i13.UserSharedExampleLoadingDescriptor? descriptor) =>
-      (super.noSuchMethod(
+  _i7.Future<_i4.Example> loadSharedExample(String? id) => (super.noSuchMethod(
         Invocation.method(
           #loadSharedExample,
-          [descriptor],
+          [id],
         ),
         returnValue: Future<_i4.Example>.value(_FakeExample_2()),
       ) as _i7.Future<_i4.Example>);
   @override
   _i7.Future<String> getSnippetId({
-    List<_i14.SharedFile>? files,
+    List<_i13.SharedFile>? files,
     _i9.Sdk? sdk,
     String? pipelineOptions,
   }) =>
@@ -327,7 +323,7 @@ class MockExampleCache extends _i1.Mock implements _i11.ExampleCache {
         returnValue: Future<_i3.ExampleBase?>.value(),
       ) as _i7.Future<_i3.ExampleBase?>);
   @override
-  void addListener(_i15.VoidCallback? listener) => super.noSuchMethod(
+  void addListener(_i14.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(
           #addListener,
           [listener],
@@ -335,7 +331,7 @@ class MockExampleCache extends _i1.Mock implements _i11.ExampleCache {
         returnValueForMissingStub: null,
       );
   @override
-  void removeListener(_i15.VoidCallback? listener) => super.noSuchMethod(
+  void removeListener(_i14.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(
           #removeListener,
           [listener],

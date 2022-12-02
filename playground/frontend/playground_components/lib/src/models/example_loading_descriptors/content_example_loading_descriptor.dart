@@ -76,7 +76,10 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   }
 
   @override
-  List<Object> get props => [content, sdk.id, complexity?.name ?? '', name ?? ''];
+  List<Object?> get props => [content, sdk.id, complexity?.name, name];
+
+  @override
+  bool get canBePassedInUrl => false;
 
   @override
   Map<String, dynamic> toJson() => {
