@@ -118,6 +118,7 @@ func expand(
 	for tag := range edge.External.InputsMap {
 		if tag == xlang.SetOutputCoder {
 			set = true
+			break
 		}
 	}
 	outputCoderID := make(map[string]string)
