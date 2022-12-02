@@ -515,7 +515,7 @@ func file_go_pkg_beam_core_runtime_harness_session_proto_rawDescGZIP() []byte {
 
 var file_go_pkg_beam_core_runtime_harness_session_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_go_pkg_beam_core_runtime_harness_session_proto_goTypes = []any{
+var file_go_pkg_beam_core_runtime_harness_session_proto_goTypes = []interface{}{
 	(Kind)(0),           // 0: org.apache.beam.sdks.go.pkg.beam.core.runtime.harness.session.Kind
 	(*Header)(nil),      // 1: org.apache.beam.sdks.go.pkg.beam.core.runtime.harness.session.Header
 	(*Footer)(nil),      // 2: org.apache.beam.sdks.go.pkg.beam.core.runtime.harness.session.Footer
@@ -548,7 +548,7 @@ func file_go_pkg_beam_core_runtime_harness_session_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[0].Exporter = func(v any, i int) any {
+		file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Header); i {
 			case 0:
 				return &v.state
@@ -560,7 +560,7 @@ func file_go_pkg_beam_core_runtime_harness_session_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[1].Exporter = func(v any, i int) any {
+		file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Footer); i {
 			case 0:
 				return &v.state
@@ -572,7 +572,7 @@ func file_go_pkg_beam_core_runtime_harness_session_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[2].Exporter = func(v any, i int) any {
+		file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*EntryHeader); i {
 			case 0:
 				return &v.state
@@ -584,7 +584,7 @@ func file_go_pkg_beam_core_runtime_harness_session_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[3].Exporter = func(v any, i int) any {
+		file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Entry); i {
 			case 0:
 				return &v.state
@@ -597,7 +597,7 @@ func file_go_pkg_beam_core_runtime_harness_session_proto_init() {
 			}
 		}
 	}
-	file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[3].OneofWrappers = []any{
+	file_go_pkg_beam_core_runtime_harness_session_proto_msgTypes[3].OneofWrappers = []interface{}{
 		(*Entry_InstReq)(nil),
 		(*Entry_InstResp)(nil),
 		(*Entry_Elems)(nil),
