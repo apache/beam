@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+"""The file defines global variables for performance analysis."""
+
 BQ_PROJECT_NAME = 'apache-beam-testing'
 BQ_DATASET = 'beam_perf_storage'
 
