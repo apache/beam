@@ -36,7 +36,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 @Experimental
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class KafkaSchemaTransformReadConfiguration {
+public abstract class KafkaReadSchemaTransformConfiguration {
 
   public static final Set<String> VALID_START_OFFSET_VALUES = Sets.newHashSet("earliest", "latest");
   public static final Set<String> VALID_DATA_FORMATS = Sets.newHashSet("AVRO", "JSON");
@@ -50,9 +50,9 @@ public abstract class KafkaSchemaTransformReadConfiguration {
         : "Valid data formats are " + VALID_DATA_FORMATS;
   }
 
-  /** Instantiates a {@link KafkaSchemaTransformReadConfiguration.Builder} instance. */
+  /** Instantiates a {@link KafkaReadSchemaTransformConfiguration.Builder} instance. */
   public static Builder builder() {
-    return new AutoValue_KafkaSchemaTransformReadConfiguration.Builder();
+    return new AutoValue_KafkaReadSchemaTransformConfiguration.Builder();
   }
 
   /** Sets the bootstrap servers for the Kafka consumer. */
@@ -80,7 +80,7 @@ public abstract class KafkaSchemaTransformReadConfiguration {
   /** Sets the topic from which to read. */
   public abstract String getTopic();
 
-  /** Builder for the {@link KafkaSchemaTransformReadConfiguration}. */
+  /** Builder for the {@link KafkaReadSchemaTransformConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
 
@@ -102,7 +102,7 @@ public abstract class KafkaSchemaTransformReadConfiguration {
     /** Sets the topic from which to read. */
     public abstract Builder setTopic(String value);
 
-    /** Builds a {@link KafkaSchemaTransformReadConfiguration} instance. */
-    public abstract KafkaSchemaTransformReadConfiguration build();
+    /** Builds a {@link KafkaReadSchemaTransformConfiguration} instance. */
+    public abstract KafkaReadSchemaTransformConfiguration build();
   }
 }

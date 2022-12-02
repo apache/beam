@@ -43,16 +43,16 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 @AutoService(SchemaTransformProvider.class)
-public class KafkaSchemaTransformReadProvider
-    extends TypedSchemaTransformProvider<KafkaSchemaTransformReadConfiguration> {
+public class KafkaReadSchemaTransformProvider
+    extends TypedSchemaTransformProvider<KafkaReadSchemaTransformConfiguration> {
 
   @Override
-  protected Class<KafkaSchemaTransformReadConfiguration> configurationClass() {
-    return KafkaSchemaTransformReadConfiguration.class;
+  protected Class<KafkaReadSchemaTransformConfiguration> configurationClass() {
+    return KafkaReadSchemaTransformConfiguration.class;
   }
 
   @Override
-  protected SchemaTransform from(KafkaSchemaTransformReadConfiguration configuration) {
+  protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
     return new KafkaReadSchemaTransform(configuration);
   }
 
@@ -72,9 +72,9 @@ public class KafkaSchemaTransformReadProvider
   }
 
   private static class KafkaReadSchemaTransform implements SchemaTransform {
-    private final KafkaSchemaTransformReadConfiguration configuration;
+    private final KafkaReadSchemaTransformConfiguration configuration;
 
-    KafkaReadSchemaTransform(KafkaSchemaTransformReadConfiguration configuration) {
+    KafkaReadSchemaTransform(KafkaReadSchemaTransformConfiguration configuration) {
       configuration.validate();
       this.configuration = configuration;
     }
