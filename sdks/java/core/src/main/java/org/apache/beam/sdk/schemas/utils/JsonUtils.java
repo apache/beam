@@ -180,8 +180,7 @@ public class JsonUtils {
       return ((NumberSchema) propertySchema).requiresInteger()
           ? Schema.FieldType.INT64
           : Schema.FieldType.DOUBLE;
-    }
-    if (propertySchema instanceof org.everit.json.schema.StringSchema) {
+    } else if (propertySchema instanceof org.everit.json.schema.StringSchema) {
       return Schema.FieldType.STRING;
     } else if (propertySchema instanceof org.everit.json.schema.ReferenceSchema) {
       org.everit.json.schema.Schema sch = ((ReferenceSchema) propertySchema).getReferredSchema();
