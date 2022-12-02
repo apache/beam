@@ -72,7 +72,7 @@ import org.json.JSONObject;
  *
  * <ul>
  *   <li>Tuple-like arrays (or arrays with multiple item types).
- *   <li>Validation of row regular expressions, enum values, etc.
+ *   <li>Validation of row regular expressions, enum values, array lengths, etc.
  *   <li>Special annotations for types (e.g. <code>contentMediaType</code>) are ignored.
  *   <li>Composite schemas (schemas made out of a <a
  *       href="https://json-schema.org/understanding-json-schema/reference/combining.html#combining">combination
