@@ -81,7 +81,7 @@ except ImportError:
 # From the Beam site, circa November 2022.
 DEFAULT_EDGE_STYLE = 'color="#ff570b"'
 DEFAULT_TRANSFORM_STYLE = (
-   'shape=rect style="rounded, filled" color="#ff570b" fillcolor="#fff6dd"')
+    'shape=rect style="rounded, filled" color="#ff570b" fillcolor="#fff6dd"')
 DEFAULT_HIGHLIGHT_STYLE = (
     'shape=rect style="rounded, filled" color="#ff570b" fillcolor="#ffdb97"')
 
