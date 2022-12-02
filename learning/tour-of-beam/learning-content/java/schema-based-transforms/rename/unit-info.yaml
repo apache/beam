@@ -17,7 +17,6 @@
 # under the License.
 #
 
-sdk: Python
-content:
-  - introduction
-  - schema-based-transforms
+id: rename
+name: Rename
+taskName: rename

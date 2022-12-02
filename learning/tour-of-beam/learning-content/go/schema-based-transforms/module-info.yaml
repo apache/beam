@@ -17,7 +17,15 @@
 # under the License.
 #
 
-sdk: Python
+id: schema-based-transforms
+name: Schema-based transforms
+complexity: Medium+
 content:
-  - introduction
-  - schema-based-transforms
+  - schema-concept
+  - select
+  - join
+  - group
+  - filter
+  - co-group
+
+

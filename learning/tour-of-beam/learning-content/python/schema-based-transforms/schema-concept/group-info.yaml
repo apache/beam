@@ -17,7 +17,10 @@
 # under the License.
 #
 
-sdk: Python
+id: schema-concepts
+name: Schema Concepts
 content:
-  - introduction
-  - schema-based-transforms
+- creating-schema
+- logical-type
+
+
