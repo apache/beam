@@ -29,12 +29,16 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOITHelper;
@@ -49,6 +53,8 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -72,9 +78,12 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -500,6 +509,103 @@ public class KafkaIOIT {
     assertEquals(
         sourceOptions.numRecords,
         readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+  }
+
+  public static final Schema KAFKA_TOPIC_SCHEMA =
+      Schema.builder()
+          .addStringField("name")
+          .addInt64Field("userId")
+          .addInt32Field("age")
+          .addBooleanField("ageIsEven")
+          .addDoubleField("temperature")
+          .addArrayField("childrenNames", Schema.FieldType.STRING)
+          .build();
+
+  private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
+
+  @Test(timeout = FIVE_MINUTES_IN_MS)
+  public void testKafkaViaSchemaTransformJson() {}
+
+  @Test(timeout = FIVE_MINUTES_IN_MS)
+  public void testKafkaViaSchemaTransformAvro() {
+    runReadWriteKafkaViaSchemaTransforms(
+        "AVRO", AvroUtils.toAvroSchema(KAFKA_TOPIC_SCHEMA).toString());
+  }
+
+  public void runReadWriteKafkaViaSchemaTransforms(String format, String schemaDefinition) {
+    PCollectionRowTuple.of(
+            "input",
+            writePipeline
+                .apply("Generate records", GenerateSequence.from(0).to(1000))
+                .apply(
+                    "Transform to Beam Rows",
+                    MapElements.into(TypeDescriptors.rows())
+                        .via(
+                            numb ->
+                                Row.withSchema(KAFKA_TOPIC_SCHEMA)
+                                    .addValue(numb.toString()) // Name
+                                    .addValue(Long.valueOf(numb.hashCode())) // User ID
+                                    .addValue(numb.intValue()) // Age
+                                    .addValue(numb % 2 == 0) // ageIsEven
+                                    .addValue(new Random(numb).nextDouble())
+                                    .addValue(
+                                        Lists.newArrayList(
+                                            Long.toString(numb + 1),
+                                            Long.toString(numb + 2))) // childrenNames
+                                    .build()))
+                .setRowSchema(KAFKA_TOPIC_SCHEMA))
+        .apply(
+            "Write to Kafka",
+            new KafkaWriteSchemaTransformProvider()
+                .from(
+                    KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration
+                        .builder()
+                        .setTopic(options.getKafkaTopic() + "-schema-transform")
+                        .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                        .setFormat(format)
+                        .build())
+                .buildTransform());
+
+    PAssert.that(
+            PCollectionRowTuple.empty(readPipeline)
+                .apply(
+                    "Read from unbounded Kafka",
+                    // A timeout of 30s for local, container-based tests, and 2 minutes for
+                    // real-kafka tests.
+                    new KafkaSchemaTransformReadProvider(
+                            true, options.isWithTestcontainers() ? 30 : 120)
+                        .from(
+                            KafkaSchemaTransformReadConfiguration.builder()
+                                .setDataFormat(format)
+                                .setAutoOffsetResetConfig("earliest")
+                                .setAvroSchema(schemaDefinition)
+                                .setTopic(options.getKafkaTopic() + "-schema-transform")
+                                .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                                .build())
+                        .buildTransform())
+                .get("output"))
+        .containsInAnyOrder(
+            LongStream.range(0L, 1000L)
+                .<Row>mapToObj(
+                    numb ->
+                        Row.withSchema(KAFKA_TOPIC_SCHEMA)
+                            .addValue(Long.toString(numb)) // Name
+                            .addValue(Long.valueOf(Long.valueOf(numb).hashCode())) // User ID
+                            .addValue(Long.valueOf(numb).intValue()) // Age
+                            .addValue(numb % 2 == 0) // ageIsEven
+                            .addValue(new Random(numb).nextDouble())
+                            .addValue(
+                                Lists.newArrayList(
+                                    Long.toString(numb + 1),
+                                    Long.toString(numb + 2))) // childrenNames
+                            .build())
+                .collect(Collectors.toList()));
+
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    PipelineResult readResult = readPipeline.run();
+    readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
   }
 
   private static class DelayedCheckStopReadingFn
