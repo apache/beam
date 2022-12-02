@@ -437,6 +437,9 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, req *pb
 		logger.Error("SaveSnippet(): files are empty")
 		return nil, cerrors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have files")
 	}
+	if req.PersistenceKey > "" {
+		logger.Debugf("saving snippet by persistence_key: %v", req.PersistenceKey)
+	}
 
 	snippet := controller.entityMapper.ToSnippet(req)
 
