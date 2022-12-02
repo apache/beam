@@ -39,7 +39,7 @@ RUN go mod tidy -v &&\
     go build -o /go/bin/server_go_backend
 
 # Null image
-FROM debian:stable-slim
+FROM debian:stable-20221114-slim
 
 # Install deps being used by sh files
 RUN apt-get update \
