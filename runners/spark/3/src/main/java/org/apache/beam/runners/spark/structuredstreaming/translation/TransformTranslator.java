@@ -73,10 +73,12 @@ public abstract class TransformTranslator<
    * Checks if a composite / primitive transform can be translated. Composites that cannot be
    * translated as is, will be exploded further for translation of their parts.
    *
-   * <p>This should be overridden where necessary. If a transform is know to be unsupported, this
-   * should throw a runtime exception to give early feedback before any part of the pipeline is run.
+   * <p>This returns {@code true} by default and should be overridden where necessary.
+   *
+   * @throws RuntimeException If a transform uses unsupported features, an exception shall be thrown
+   *     to give early feedback before any part of the pipeline is run.
    */
-  protected boolean canTranslate(TransformT transform) {
+  protected boolean canTranslate(TransformT transform) throws RuntimeException {
     return true;
   }
 
