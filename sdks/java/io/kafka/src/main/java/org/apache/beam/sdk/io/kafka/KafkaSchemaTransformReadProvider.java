@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import com.google.auto.service.AutoService;
 import java.util.List;
+import java.util.Objects;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -56,7 +58,7 @@ public class KafkaSchemaTransformReadProvider
 
   @Override
   public String identifier() {
-    return "kafka:read";
+    return "beam:schematransform:org.apache.beam:kafka_read:v1";
   }
 
   @Override
@@ -79,20 +81,24 @@ public class KafkaSchemaTransformReadProvider
 
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      final String avroSchema = configuration.getAvroSchema();
+      final String inputSchema = configuration.getSchema();
       final Integer groupId = configuration.hashCode() % Integer.MAX_VALUE;
       final String autoOffsetReset =
           configuration.getAutoOffsetResetConfig() == null
               ? "latest"
               : configuration.getAutoOffsetResetConfig();
-      if (avroSchema != null) {
+      if (inputSchema != null) {
         assert configuration.getConfluentSchemaRegistryUrl() == null
             : "To read from Kafka, a schema must be provided directly or though Confluent "
                 + "Schema Registry, but not both.";
         final Schema beamSchema =
-            AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(avroSchema));
+            Objects.equals(configuration.getDataFormat(), "JSON")
+                ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
+                : AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
         SerializableFunction<byte[], Row> valueMapper =
-            AvroUtils.getAvroBytesToRowFunction(beamSchema);
+            Objects.equals(configuration.getDataFormat(), "JSON")
+                ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
+                : AvroUtils.getAvroBytesToRowFunction(beamSchema);
         return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
           @Override
           public PCollectionRowTuple expand(PCollectionRowTuple input) {

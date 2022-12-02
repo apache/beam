@@ -69,7 +69,7 @@ public abstract class KafkaSchemaTransformReadConfiguration {
   public abstract String getConfluentSchemaRegistrySubject();
 
   @Nullable
-  public abstract String getAvroSchema();
+  public abstract String getSchema();
 
   @Nullable
   public abstract String getAutoOffsetResetConfig();
@@ -91,7 +91,7 @@ public abstract class KafkaSchemaTransformReadConfiguration {
 
     public abstract Builder setConfluentSchemaRegistrySubject(String subject);
 
-    public abstract Builder setAvroSchema(String schema);
+    public abstract Builder setSchema(String schema);
 
     public abstract Builder setDataFormat(String dataFormat);
 
