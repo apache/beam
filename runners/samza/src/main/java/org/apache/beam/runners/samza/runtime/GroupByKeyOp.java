@@ -126,7 +126,6 @@ public class GroupByKeyOp<K, InputT, OutputT>
             Collections.singletonMap(
                 SamzaStoreStateInternals.BEAM_STORE,
                 SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
-            Collections.emptyMap(),
             keyCoder,
             pipelineOptions.getStoreBatchGetSize());
 

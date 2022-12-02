@@ -19,11 +19,8 @@ package org.apache.beam.runners.samza.util;
 
 public class StoreIdUtils {
 
-  /**
-   * Join stateId and escaped PTransform name, used for RocksDB storeId of stateIds with multiple
-   * ParDos.
-   */
-  public static String toMultiParDoStoreId(String stateId, String escapedPTransformName) {
+  /** Join stateId and escaped PTransform name to uniquify storeId. */
+  public static String toUniqueStoreId(String stateId, String escapedPTransformName) {
     return String.join("-", stateId, escapedPTransformName);
   }
 }

@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.util.StoreIdUtils;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,17 +34,13 @@ public class ConfigContext {
   private final Map<PValue, String> idMap;
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SamzaPipelineOptions options;
-  private final Map<String, String> usedStateIdMap;
-  private final Map<String, String> stateIdsToRewrite;
+  private final Set<String> nonUniqueStateIds;
 
   public ConfigContext(
-      Map<PValue, String> idMap,
-      SamzaPipelineOptions options,
-      Map<String, String> multiParDoStateIdMap) {
+      Map<PValue, String> idMap, Set<String> nonUniqueStateIds, SamzaPipelineOptions options) {
     this.idMap = idMap;
+    this.nonUniqueStateIds = nonUniqueStateIds;
     this.options = options;
-    this.usedStateIdMap = new HashMap<>();
-    this.stateIdsToRewrite = multiParDoStateIdMap;
   }
 
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
@@ -69,39 +64,8 @@ public class ConfigContext {
     return this.options;
   }
 
-  /** Helper to keep track of used stateIds and return unique store id. */
-  public String getUniqueStoreId(String stateId, String parDoName) {
-    // Update a map of used state id with parDo name.
-    if (!usedStateIdMap.containsKey(stateId)) {
-      usedStateIdMap.put(stateId, parDoName);
-      return stateId;
-    } else {
-      // Same state id identified for the first time
-      if (!stateIdsToRewrite.containsKey(stateId)) {
-        final String prevParDoName = usedStateIdMap.get(stateId);
-        final String prevMultiParDoStateId =
-            StoreIdUtils.toMultiParDoStoreId(stateId, prevParDoName);
-        usedStateIdMap.put(prevMultiParDoStateId, prevParDoName);
-        // Store the stateId with previous parDo name which will be used for config rewriting
-        stateIdsToRewrite.put(stateId, prevParDoName);
-      }
-      // Compose a new store id with state id and parDo name (eg) "stateId-parDoName"
-      final String multiParDoStateId = StoreIdUtils.toMultiParDoStoreId(stateId, parDoName);
-      ;
-      // Leveraging framework which enforces unique parDo name.
-      // If the framework logic changes, this is a safeguard to throw exception to avoid storeId
-      // collision
-      if (usedStateIdMap.containsKey(multiParDoStateId)) {
-        throw new IllegalStateException(
-            "Same stateId "
-                + stateId
-                + " with the same parDoName "
-                + parDoName
-                + " found in multiple ParDo.");
-      }
-      usedStateIdMap.put(multiParDoStateId, parDoName);
-      return multiParDoStateId;
-    }
+  public boolean isUniqueStateId(String stateId) {
+    return !nonUniqueStateIds.contains(stateId);
   }
 
   private String getIdForPValue(PValue pvalue) {

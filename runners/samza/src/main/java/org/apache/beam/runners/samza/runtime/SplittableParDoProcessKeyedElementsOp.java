@@ -124,7 +124,6 @@ public class SplittableParDoProcessKeyedElementsOp<
             Collections.singletonMap(
                 SamzaStoreStateInternals.BEAM_STORE,
                 SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
-            Collections.emptyMap(),
             ByteArrayCoder.of(),
             pipelineOptions.getStoreBatchGetSize());
 
