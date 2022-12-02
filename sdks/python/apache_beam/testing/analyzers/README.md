@@ -22,11 +22,11 @@
 
 <h2> Alerts </h2>
 
-Performance regressions or improvements detected with the [Change Point Analysis](https://en.wikipedia.org/wiki/Change_detection) using [edivisive](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30) 
+Performance regressions or improvements detected with the [Change Point Analysis](https://en.wikipedia.org/wiki/Change_detection) using [edivisive](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30)
 analyzer are automatically filed as Beam GitHub issues with a label `perf-alert`.
 
 The GitHub issue description will contain the information on the affected test and metric by providing the metric values for N consecutive runs with timestamps
-before and after the observed change point. Observed change point is pointed as `Anomaly` in the issue description. 
+before and after the observed change point. Observed change point is pointed as `Anomaly` in the issue description.
 
 Example: [sample perf alert GitHub issue](https://github.com/AnandInguva/beam/issues/83).
 
@@ -35,7 +35,7 @@ URL, issue number along with the change point value and timestamp are exported t
 update already created GitHub issue or ignore performance alert by not creating GitHub issue to avoid duplicate issue creation.
 
 <h2> Config file structure </h2>
-The config file defines the structure to run change point analysis on a given test. To add a test to the config file, 
+The config file defines the structure to run change point analysis on a given test. To add a test to the config file,
 please follow the below structure.
 
 **NOTE**: The Change point analysis only supports reading the metric data from Big Query for now.
@@ -57,26 +57,26 @@ test_1:
 ```
 
 **Note**: If the source is **BigQuery**, the metrics_dataset, metrics_table, project and metric_name should match with the values defined for performance/load tests.
-The above example uses this [test configuration](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30) 
+The above example uses this [test configuration](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30)
 to fill up the values required to fetch the data from source.
 
 <h3>Different ways to avoid false positive change points</h3>
 
-**min_runs_between_change_points**: As the metric data moves across the runs, the change point analysis can place the 
+**min_runs_between_change_points**: As the metric data moves across the runs, the change point analysis can place the
 change point in a slightly different place. These change points refer to the same regression and are just noise.
-When we find a new change point, we will search up to the `min_runs_between_change_points` in both directions from the 
+When we find a new change point, we will search up to the `min_runs_between_change_points` in both directions from the
 current change point. If an existing change point is found within the distance, then the current change point will be
-suppressed. 
+suppressed.
 
 **num_runs_in_change_point_window**: This defines how many runs to consider from the most recent run to be in change point window.
-Sometimes, the change point found might be way back in time and could be irrelevant. For a test, if a change point needs to be 
+Sometimes, the change point found might be way back in time and could be irrelevant. For a test, if a change point needs to be
 reported only when it was observed in the last 7 runs from the current run,
 setting `num_runs_in_change_point_window=7` will achieve it.
 
 <h2> Register a test for performance alerts. </h2>
 
-If a new test needs to be registered for the performance alerting tool, please add the required test parameters to the 
-config file. 
+If a new test needs to be registered for the performance alerting tool, please add the required test parameters to the
+config file.
 
 **Note**: Please add the label `perf-alert` along with the other labels that are relevant to the test. This will help keeping
 track of the issues created by the performance alerting tool.
