@@ -53,9 +53,9 @@ class SnippetEditingController extends ChangeNotifier {
   }) {
     _descriptor = descriptor;
     _selectedExample = example;
-    _pipelineOptions = _selectedExample?.pipelineOptions ?? _pipelineOptions;
+    _pipelineOptions = example.pipelineOptions;
 
-    setSource(_selectedExample?.source ?? '');
+    setSource(example.source);
 
     final viewOptions = example.viewOptions;
     _applyViewOptions(viewOptions);

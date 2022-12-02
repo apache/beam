@@ -105,9 +105,7 @@ class ExampleCache extends ChangeNotifier {
     );
   }
 
-  Future<Example> loadSharedExample(
-    String id,
-  ) async {
+  Future<Example> loadSharedExample(String id) async {
     final result = await _exampleRepository.getSnippet(
       GetSnippetRequest(id: id),
     );
