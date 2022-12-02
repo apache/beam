@@ -48,9 +48,12 @@ import org.json.JSONObject;
  *  <dependency>
  * 	  <groupId>com.github.erosb < /groupId>
  * 	  <artifactId>everit-json-schema < /artifactId>
- * 	  <version>1.14.1 < /version>
+ * 	  <version>${everit-json.version} < /version>
  *  < /dependency>
  * }</pre>
+ *
+ * <p><b>Note:</b> This functionality has been tested with {@code everit-json-schema} version
+ * 1.14.1.
  *
  * <h3>JSON-Schema supported features</h3>
  *
