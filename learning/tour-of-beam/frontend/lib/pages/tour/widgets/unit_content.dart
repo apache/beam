@@ -26,10 +26,10 @@ import 'complete_unit_button.dart';
 import 'hints.dart';
 import 'markdown/tob_markdown.dart';
 
-class ContentWidget extends StatelessWidget {
+class UnitContentWidget extends StatelessWidget {
   final TourNotifier tourNotifier;
 
-  const ContentWidget(this.tourNotifier);
+  const UnitContentWidget(this.tourNotifier);
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +54,7 @@ class ContentWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: _UnitContent(unitContent: currentUnitContent),
+                child: _Content(unitContent: currentUnitContent),
               ),
               _ContentFooter(tourNotifier),
             ],
@@ -65,10 +65,10 @@ class ContentWidget extends StatelessWidget {
   }
 }
 
-class _UnitContent extends StatelessWidget {
+class _Content extends StatelessWidget {
   final UnitContentModel? unitContent;
 
-  const _UnitContent({
+  const _Content({
     required this.unitContent,
   });
 
