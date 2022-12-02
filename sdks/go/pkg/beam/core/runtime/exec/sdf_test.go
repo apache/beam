@@ -1536,7 +1536,7 @@ func (rt *SplittableUnitRTracker) IsDone() bool {
 	return rt.ThisIsDone
 }
 
-func (rt *SplittableUnitRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
+func (rt *SplittableUnitRTracker) TrySplit(_ float64) (any, any, error) {
 	rest1 := rt.Rest.copy()
 	rest1.ID += ".1"
 	rest2 := rt.Rest.copy()
@@ -1560,7 +1560,7 @@ func (rt *SplittableUnitCheckpointingRTracker) IsDone() bool {
 	return rt.isDone
 }
 
-func (rt *SplittableUnitCheckpointingRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
+func (rt *SplittableUnitCheckpointingRTracker) TrySplit(_ float64) (any, any, error) {
 	rest1 := rt.Rest.copy()
 	rest1.ID += ".1"
 	rest2 := rt.Rest.copy()

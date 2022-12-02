@@ -1655,7 +1655,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_rawDescGZIP() []byte {
 
 var file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
-var file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_goTypes = []interface{}{
+var file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_goTypes = []any{
 	(Type_Kind)(0),                   // 0: org.apache.beam.sdks.go.pkg.beam.core.runtime.graphx.v1.Type.Kind
 	(Type_ChanDir)(0),                // 1: org.apache.beam.sdks.go.pkg.beam.core.runtime.graphx.v1.Type.ChanDir
 	(Type_Special)(0),                // 2: org.apache.beam.sdks.go.pkg.beam.core.runtime.graphx.v1.Type.Special
@@ -1719,7 +1719,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*Type); i {
 			case 0:
 				return &v.state
@@ -1731,7 +1731,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*FullType); i {
 			case 0:
 				return &v.state
@@ -1743,7 +1743,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[2].Exporter = func(v any, i int) any {
 			switch v := v.(*UserFn); i {
 			case 0:
 				return &v.state
@@ -1755,7 +1755,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[3].Exporter = func(v any, i int) any {
 			switch v := v.(*DynFn); i {
 			case 0:
 				return &v.state
@@ -1767,7 +1767,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[4].Exporter = func(v any, i int) any {
 			switch v := v.(*Fn); i {
 			case 0:
 				return &v.state
@@ -1779,7 +1779,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[5].Exporter = func(v any, i int) any {
 			switch v := v.(*WindowFn); i {
 			case 0:
 				return &v.state
@@ -1791,7 +1791,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[6].Exporter = func(v any, i int) any {
 			switch v := v.(*CustomCoder); i {
 			case 0:
 				return &v.state
@@ -1803,7 +1803,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[7].Exporter = func(v any, i int) any {
 			switch v := v.(*MultiEdge); i {
 			case 0:
 				return &v.state
@@ -1815,7 +1815,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[8].Exporter = func(v any, i int) any {
 			switch v := v.(*InjectPayload); i {
 			case 0:
 				return &v.state
@@ -1827,7 +1827,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[9].Exporter = func(v any, i int) any {
 			switch v := v.(*ReshufflePayload); i {
 			case 0:
 				return &v.state
@@ -1839,7 +1839,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[10].Exporter = func(v any, i int) any {
 			switch v := v.(*TransformPayload); i {
 			case 0:
 				return &v.state
@@ -1851,7 +1851,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[11].Exporter = func(v any, i int) any {
 			switch v := v.(*Type_StructField); i {
 			case 0:
 				return &v.state
@@ -1863,7 +1863,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[12].Exporter = func(v any, i int) any {
 			switch v := v.(*MultiEdge_Inbound); i {
 			case 0:
 				return &v.state
@@ -1875,7 +1875,7 @@ func file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_init() {
 				return nil
 			}
 		}
-		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+		file_go_pkg_beam_core_runtime_graphx_v1_v1_proto_msgTypes[13].Exporter = func(v any, i int) any {
 			switch v := v.(*MultiEdge_Outbound); i {
 			case 0:
 				return &v.state
