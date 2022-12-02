@@ -50,7 +50,7 @@ type sklearnConfig struct {
 type sklearnConfigOption func(*sklearnConfig)
 
 // Sets keyword arguments for the python transform parameters.
-func WithKwarg(kwargs SklearnKwargs) sklearnConfigOption {
+func WithSklearnKwarg(kwargs SklearnKwargs) sklearnConfigOption {
 	return func(c *sklearnConfig) {
 		c.kwargs = kwargs
 	}

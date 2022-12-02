@@ -44,7 +44,7 @@ func SklearnInference(expansionAddr string) *beam.Pipeline {
 			Inference: 1,
 		},
 	}
-	outCol := inference.Sklearn(s, "apache_beam.ml.inference.sklearn_inference.SklearnModelHandlerNumpy", input, inference.WithKwarg(kwargs), inference.WithExpansionAddr(expansionAddr))
+	outCol := inference.Sklearn(s, "apache_beam.ml.inference.sklearn_inference.SklearnModelHandlerNumpy", input, inference.WithSklearnKwarg(kwargs), inference.WithExpansionAddr(expansionAddr))
 	passert.Equals(s, outCol, output[0], output[1])
 	return p
 }
