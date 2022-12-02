@@ -63,48 +63,50 @@ def is_change_point_in_valid_window(
   return num_runs_in_change_point_window >= change_point_index
 
 
-def find_existing_issue(
-    test_name: str,
-) -> Tuple[Optional[int], Optional[pd.Timestamp]]:
+def get_existing_issues_data(test_name: str, ) -> Optional[pd.DataFrame]:
   """
   Finds the most recent GitHub issue created for the test_name.
   If no table found with name=test_name, return (None, None)
-  else return issue_number and the timestamp of change point
-  reported in the existing issue.
+  else return latest created issue_number along with
   """
   query_template = f"""
   SELECT * FROM {constants.BQ_PROJECT_NAME}.{constants.BQ_DATASET}.{test_name}
   ORDER BY {constants.ISSUE_CREATION_TIMESTAMP_LABEL} DESC
-  LIMIT 1
+  LIMIT 10
   """
   try:
     df = BigQueryMetricsFetcher().get_metrics(query_template=query_template)
   except exceptions.NotFound:
     # If no table found, that means this is first performance regression
     # on the current test+metric.
-    return None, None
-  issue_number = df[constants.ISSUE_NUMBER].tolist()[0]
-  existing_change_point_timestamp = df[
-      constants.CHANGE_POINT_TIMESTAMP_LABEL].tolist()[0]
-  return issue_number, existing_change_point_timestamp
+    return None
+  return df
 
 
 def is_perf_alert(
-    previous_change_point_timestamp: pd.Timestamp,
+    previous_change_point_timestamps: List[pd.Timestamp],
     change_point_index: int,
     timestamps: List[pd.Timestamp],
     min_runs_between_change_points: int) -> bool:
+  """
+  Search the previous_change_point_timestamps with current observed
+  change point sibling window and determine if it is a duplicate
+  change point or not.
 
-  change_point_timestamp = timestamps[change_point_index]
+  Return False if the current observed change point is a duplicate of
+  already reported change points else return True.
+  """
   sibling_change_point_min_timestamp = timestamps[min(
       change_point_index + min_runs_between_change_points, len(timestamps) - 1)]
   sibling_change_point_max_timestamp = timestamps[max(
       0, change_point_index - min_runs_between_change_points)]
-
-  if (previous_change_point_timestamp == change_point_timestamp) or (
-      sibling_change_point_min_timestamp <= previous_change_point_timestamp <=
-      sibling_change_point_max_timestamp):
-    return False
+  # Search a list of previous change point timestamps and compare it with
+  # current change point timestamp. We do this in case, if a current change
+  # point is already reported in the past.
+  for previous_change_point_timestamp in previous_change_point_timestamps:
+    if (sibling_change_point_min_timestamp <= previous_change_point_timestamp <=
+        sibling_change_point_max_timestamp):
+      return False
   return True
 
 
