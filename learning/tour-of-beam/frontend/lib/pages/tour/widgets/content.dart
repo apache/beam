@@ -83,12 +83,40 @@ class _UnitContent extends StatelessWidget {
         unitContent: content,
       );
     }
-    return TobMarkdown(
-      padding: const EdgeInsets.symmetric(
-        horizontal: BeamSizes.size12,
-        vertical: BeamSizes.size8,
+    return ListView(
+      children: [
+        _Title(title: content.title),
+        TobMarkdown(
+          padding: const EdgeInsets.all(
+            BeamSizes.size12,
+          ),
+          data: content.description,
+        ),
+      ],
+    );
+  }
+}
+
+class _Title extends StatelessWidget {
+  final String title;
+
+  const _Title({
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: BeamSizes.size12,
+        left: BeamSizes.size12,
+        right: BeamSizes.size12,
       ),
-      data: content.description,
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.headlineLarge,
+        textAlign: TextAlign.start,
+      ),
     );
   }
 }
@@ -105,14 +133,16 @@ class _ChallengeContent extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _ChallengeButtons(
-          unitContent: unitContent,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Title(title: unitContent.title),
+            _ChallengeButtons(unitContent: unitContent),
+          ],
         ),
         TobMarkdown(
-          padding: const EdgeInsets.symmetric(
-            horizontal: BeamSizes.size12,
-            vertical: BeamSizes.size8,
-          ),
+          padding: const EdgeInsets.all(BeamSizes.size12),
           data: unitContent.description,
         ),
       ],
@@ -138,7 +168,7 @@ class _ChallengeButtons extends StatelessWidget {
     final hints = unitContent.hints;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
         if (hints != null)
           Padding(
