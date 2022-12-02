@@ -29,6 +29,7 @@ import '../../cache/unit_progress.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
+import '../../solution.dart';
 import '../../state.dart';
 import 'controllers/content_tree.dart';
 import 'controllers/unit.dart';
@@ -40,6 +41,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   UnitController? currentUnitController;
   final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _authNotifier = GetIt.instance.get<AuthNotifier>();
+  final _solutionNotifier = GetIt.instance.get<SolutionNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
@@ -53,6 +55,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         ),
         playgroundController = _createPlaygroundController(initialSdkId) {
     contentTreeController.addListener(_onUnitChanged);
+    _solutionNotifier.addListener(_onSolutionToggled);
     _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onUnitProgressChanged);
@@ -105,6 +108,16 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
+  void _onSolutionToggled() {
+    final snippetId = _solutionNotifier.showSolution
+        ? _currentUnitContent?.solutionSnippetId
+        : _currentUnitContent?.taskSnippetId;
+    if (snippetId != null) {
+      unawaited(_setPlaygroundSnippet(snippetId));
+    }
+    notifyListeners();
+  }
+
   Future<void> _setCurrentUnitContent(UnitContentModel? content) async {
     if (content == _currentUnitContent) {
       return;
@@ -115,9 +128,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (content == null) {
       return;
     }
-
     final taskSnippetId = content.taskSnippetId;
-    if (taskSnippetId == null) {
+    await _setPlaygroundSnippet(taskSnippetId);
+  }
+
+  Future<void> _setPlaygroundSnippet(String? snippetId) async {
+    if (snippetId == null) {
       await _emptyPlayground();
       return;
     }
@@ -125,7 +141,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     await playgroundController.examplesLoader.load(
       ExamplesLoadingDescriptor(
         descriptors: [
-          UserSharedExampleLoadingDescriptor(snippetId: taskSnippetId),
+          UserSharedExampleLoadingDescriptor(snippetId: snippetId),
         ],
       ),
     );
@@ -187,6 +203,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   void dispose() {
     _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
+    _solutionNotifier.removeListener(_onSolutionToggled);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onUnitProgressChanged);
     super.dispose();

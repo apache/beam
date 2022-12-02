@@ -16,41 +16,34 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:playground_components/playground_components.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../assets/assets.gen.dart';
+import '../../../solution.dart';
 
-class CompletenessIndicator extends StatelessWidget {
-  final bool isCompleted;
-  final bool isSelected;
-
-  const CompletenessIndicator({
-    required this.isCompleted,
-    required this.isSelected,
-  });
+class SolutionButton extends StatelessWidget {
+  const SolutionButton();
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
-    final Color color;
-    if (isCompleted) {
-      color = BeamColors.green;
-    } else if (isSelected) {
-      color = ext.selectedProgressColor;
-    } else {
-      color = ext.unselectedProgressColor;
-    }
+    final solutionNotifier = GetIt.instance.get<SolutionNotifier>();
 
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: BeamSizes.size4,
-        right: BeamSizes.size8,
-      ),
-      child: SvgPicture.asset(
-        isCompleted ? Assets.svg.unitProgress100 : Assets.svg.unitProgress0,
-        color: color,
+    return AnimatedBuilder(
+      animation: solutionNotifier,
+      builder: (context, child) => TextButton.icon(
+        style: ButtonStyle(
+          backgroundColor: MaterialStateProperty.all(
+            solutionNotifier.showSolution
+                ? Theme.of(context).splashColor
+                : null,
+          ),
+        ),
+        onPressed: solutionNotifier.toggleShowSolution,
+        icon: SvgPicture.asset(Assets.svg.solution),
+        label: const Text('ui.solution').tr(),
       ),
     );
   }

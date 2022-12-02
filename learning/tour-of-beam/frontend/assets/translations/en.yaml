@@ -27,6 +27,7 @@ ui:
   reportIssue: Report Issue in GitHub
   signIn: Sign in
   signOut: Sign out
+  solution: Solution
   toWebsite: To Apache Beam website
 
 pages:

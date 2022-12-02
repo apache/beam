@@ -46,6 +46,9 @@ class $AssetsSvgGen {
   /// File path: assets/svg/profile-logout.svg
   String get profileLogout => 'assets/svg/profile-logout.svg';
 
+  /// File path: assets/svg/solution.svg
+  String get solution => 'assets/svg/solution.svg';
+
   /// File path: assets/svg/unit-progress-0.svg
   String get unitProgress0 => 'assets/svg/unit-progress-0.svg';
 

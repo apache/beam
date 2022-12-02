@@ -25,6 +25,7 @@ import '../state.dart';
 import 'complete_unit_button.dart';
 import 'hints.dart';
 import 'markdown/tob_markdown.dart';
+import 'solution_button.dart';
 
 class UnitContentWidget extends StatelessWidget {
   final TourNotifier tourNotifier;
@@ -159,13 +160,13 @@ class _ChallengeButtons extends StatelessWidget {
 
   static const _buttonPadding = EdgeInsets.only(
     top: BeamSizes.size10,
-    left: BeamSizes.size10,
     right: BeamSizes.size10,
   );
 
   @override
   Widget build(BuildContext context) {
     final hints = unitContent.hints;
+    final solution = unitContent.solutionSnippetId;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -177,8 +178,11 @@ class _ChallengeButtons extends StatelessWidget {
               hints: hints,
             ),
           ),
-        // TODO(nausharipov): solution button
-        Container(),
+        if (solution != null)
+          const Padding(
+            padding: _buttonPadding,
+            child: SolutionButton(),
+          ),
       ],
     );
   }
