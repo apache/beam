@@ -78,7 +78,7 @@ public abstract class TransformTranslator<
    * @throws RuntimeException If a transform uses unsupported features, an exception shall be thrown
    *     to give early feedback before any part of the pipeline is run.
    */
-  protected boolean canTranslate(TransformT transform) throws RuntimeException {
+  protected boolean canTranslate(TransformT transform) {
     return true;
   }
 
