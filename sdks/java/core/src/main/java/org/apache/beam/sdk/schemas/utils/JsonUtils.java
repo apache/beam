@@ -61,7 +61,8 @@ import org.json.JSONObject;
  *
  * <ul>
  *   <li>String, boolean and numeric values (integer and floating-point).
- *   <li>Arrays, nested arrays and arbitratily nested object types
+ *   <li>Arrays with any <b>one</b> of the supported types as elements. This includes nested arrays.
+ *   <li>Objects with any of the supported types as fields. This includes nested objects.
  *   <li>Fields marked as required are non-null. Other fields are nullable.
  * </ul>
  *
