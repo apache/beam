@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/structx"
 	bq "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
@@ -42,6 +43,9 @@ const writeSizeLimit = 10485760
 
 // Estimate for overall message overhead.for a write message in bytes.
 const writeOverheadBytes = 1024
+
+// bigQueryTag is the struct tag key used to identify BigQuery field names.
+const bigQueryTag = "bigquery"
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*queryFn)(nil)).Elem())
@@ -88,9 +92,21 @@ func Read(s beam.Scope, project, table string, t reflect.Type) beam.PCollection 
 
 	s = s.Scope("bigquery.Read")
 
-	// TODO(herohde) 7/13/2017: using * is probably too inefficient. We could infer
-	// a focused query from the type.
-	return query(s, project, fmt.Sprintf("SELECT * from [%v]", table), t)
+	stmt := constructSelectStatement(t, bigQueryTag, table)
+
+	return query(s, project, stmt, t)
+}
+
+func constructSelectStatement(t reflect.Type, tagKey string, table string) string {
+	columns := structx.InferFieldNames(t, tagKey)
+
+	if len(columns) == 0 {
+		panic(fmt.Sprintf("bigqueryio.Read: type %v has no columns to select", t))
+	}
+
+	columnStr := strings.Join(columns, ", ")
+
+	return fmt.Sprintf("SELECT %v FROM [%v]", columnStr, table)
 }
 
 // QueryOptions represents additional options for executing a query.
