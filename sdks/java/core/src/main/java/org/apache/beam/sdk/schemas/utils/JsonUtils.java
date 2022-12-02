@@ -130,9 +130,9 @@ public class JsonUtils {
 
   private static Schema beamSchemaFromJsonSchema(org.everit.json.schema.ObjectSchema jsonSchema) {
     Schema.Builder beamSchemaBuilder = Schema.builder();
-    for (String propertyName : jsonSchema.getPropertySchemas().keySet()) {
-      org.everit.json.schema.Schema propertySchema =
-          jsonSchema.getPropertySchemas().get(propertyName);
+    for (Map.Entry<String, org.everit.json.schema.Schema> entry : jsonSchema.getPropertySchemas().entries()) {
+      String propertyName = entry.getKey();
+      org.everit.json.schema.Schema propertySchema = entry.getValue();
       if (propertySchema == null) {
         throw new IllegalArgumentException("Unable to parse schema " + jsonSchema);
       }
