@@ -28,7 +28,7 @@ import (
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*sklearnConfig)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*ArgsStruct)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*argsStruct)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*SklearnKwargs)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*PredictionResult)(nil)).Elem())
 }
@@ -43,7 +43,7 @@ type PredictionResult struct {
 
 type sklearnConfig struct {
 	kwargs        SklearnKwargs
-	args          ArgsStruct
+	args          argsStruct
 	expansionAddr string
 }
 
@@ -59,7 +59,7 @@ func WithKwarg(kwargs SklearnKwargs) sklearnConfigOption {
 // Sets arguments for the python transform parameters
 func WithArgs(args []string) sklearnConfigOption {
 	return func(c *sklearnConfig) {
-		c.args.Args = append(c.args.Args, args...)
+		c.args.args = append(c.args.args, args...)
 	}
 }
 
@@ -70,8 +70,8 @@ func WithExpansionAddr(expansionAddr string) sklearnConfigOption {
 	}
 }
 
-type ArgsStruct struct {
-	Args []string
+type argsStruct struct {
+	args []string
 }
 
 // SklearnKwargs defines acceptable keyword args for Sklearn Model Handler.
@@ -95,12 +95,12 @@ func Sklearn(s beam.Scope, modelLoader string, col beam.PCollection, opts ...skl
 	return runInference[SklearnKwargs](s, col, cfg.args, cfg.kwargs, cfg.expansionAddr)
 }
 
-func runInference[Kwargs any](s beam.Scope, col beam.PCollection, a ArgsStruct, k Kwargs, addr string) beam.PCollection {
+func runInference[Kwargs any](s beam.Scope, col beam.PCollection, a argsStruct, k Kwargs, addr string) beam.PCollection {
 	expansionAddr := addr
 	if expansionAddr == "" {
 		expansionAddr = xlangx.UseAutomatedPythonExpansionService(python.ExpansionServiceModule)
 	}
-	pet := python.NewExternalTransform[ArgsStruct, Kwargs]("apache_beam.ml.inference.base.RunInference.from_callable")
+	pet := python.NewExternalTransform[argsStruct, Kwargs]("apache_beam.ml.inference.base.RunInference.from_callable")
 	pet.WithKwargs(k)
 	pet.WithArgs(a)
 	pl := beam.CrossLanguagePayload(pet)
