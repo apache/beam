@@ -19,13 +19,13 @@
 
 id: schema-based-transforms
 name: Schema-based transforms
-complexity: Medium+
+complexity: ADVANCED
 content:
   - schema-concept
   - select
   - join
   - group
-  - filter
+  - schema-filter
   - co-group
 
 
