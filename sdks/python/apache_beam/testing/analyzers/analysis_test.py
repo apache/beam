@@ -14,15 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 import logging
 import os
+import time
 import unittest
 
-import mock
 import pandas as pd
 
 try:
   import apache_beam.testing.analyzers.perf_regression_analysis as analysis
+  from apache_beam.testing.analyzers import constants
+  from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
+  from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
+  from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
+  from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
 except ImportError as e:
   analysis = None
 
@@ -38,12 +44,12 @@ def fake_data(query_template):
   test_name = 'fake_test'
   change_point_timestamp = 'timestamp'
   df = pd.DataFrame([{
-      analysis.CHANGE_POINT_LABEL: change_point,
-      analysis.TEST_NAME: test_name,
-      analysis.METRIC_NAME: metric_name,
-      analysis.CHANGE_POINT_TIMESTAMP_LABEL: change_point_timestamp,
-      analysis.ISSUE_NUMBER: '1',
-      analysis.ISSUE_URL: 'Fake URL'
+      constants.CHANGE_POINT_LABEL: change_point,
+      constants.TEST_NAME: test_name,
+      constants.METRIC_NAME: metric_name,
+      constants.CHANGE_POINT_TIMESTAMP_LABEL: change_point_timestamp,
+      constants.ISSUE_NUMBER: '1',
+      constants.ISSUE_URL: 'Fake URL'
   }])
   return df
 
@@ -60,14 +66,9 @@ class TestChangePointAnalysis(unittest.TestCase):
     ] * 20
 
   def test_edivisive_means(self):
-    cp_analyzer = analysis.ChangePointAnalysis(
-        data=self.single_change_point_series, metric_name='fake_name')
-    change_point_indexes = cp_analyzer.edivisive_means()
+    change_point_indexes = e_divisive(self.single_change_point_series)
     self.assertEqual(change_point_indexes, [10])
-
-    cp_analyzer = analysis.ChangePointAnalysis(
-        data=self.multiple_change_point_series, metric_name='fake_name')
-    change_point_indexes = cp_analyzer.edivisive_means()
+    change_point_indexes = e_divisive(self.multiple_change_point_series)
     self.assertEqual(sorted(change_point_indexes), [10, 20])
 
   def test_is_changepoint_in_valid_window(self):
@@ -75,35 +76,51 @@ class TestChangePointAnalysis(unittest.TestCase):
     changepoint_to_recent_run_window = 19
     change_point_index = 14
 
-    is_valid = analysis.is_change_point_in_valid_window(
+    is_valid = is_change_point_in_valid_window(
         changepoint_to_recent_run_window, change_point_index)
     self.assertEqual(is_valid, True)
 
     changepoint_to_recent_run_window = 13
-    is_valid = analysis.is_change_point_in_valid_window(
+    is_valid = is_change_point_in_valid_window(
         changepoint_to_recent_run_window, change_point_index)
     self.assertEqual(is_valid, False)
 
     changepoint_to_recent_run_window = 14
-    is_valid = analysis.is_change_point_in_valid_window(
+    is_valid = is_change_point_in_valid_window(
         changepoint_to_recent_run_window, change_point_index)
     self.assertEqual(is_valid, True)
 
-  @mock.patch(
-      'apache_beam.testing.load_tests.'
-      'load_test_metrics_utils.FetchMetrics.fetch_from_bq',
-      fake_data)
-  def test_has_sibling_change_point(self):
-    metric_name = 'fake_metric_name'
-    test_name = 'fake_test_name'
-    alert_new_issue = analysis.find_existing_issue(
-        metric_name=metric_name,
-        test_name=test_name,
-        change_point_timestamp=100,
-        sibling_change_point_max_timestamp=150,
-        sibling_change_point_min_timestamp=80)
+  def test_validate_config(self):
+    test_keys = {
+        'test_name',
+        'metrics_dataset',
+        'metrics_table',
+        'project',
+        'metric_name'
+    }
+    self.assertEqual(test_keys, constants.PERF_TEST_KEYS)
+    self.assertTrue(validate_config(test_keys))
 
-    self.assertEqual(alert_new_issue[0], False)
+  def test_is_perf_alert(self):
+    timestamp_1 = time.time()
+    timestamps = [timestamp_1 + i for i in range(4, -1, -1)]
+
+    change_point_index = 2
+    min_runs_between_change_points = 1
+
+    is_alert = is_perf_alert(
+        previous_change_point_timestamp=timestamps[3],
+        timestamps=timestamps,
+        change_point_index=change_point_index,
+        min_runs_between_change_points=min_runs_between_change_points)
+    self.assertFalse(is_alert)
+
+    is_alert = is_perf_alert(
+        previous_change_point_timestamp=timestamps[0],
+        timestamps=timestamps,
+        change_point_index=change_point_index,
+        min_runs_between_change_points=min_runs_between_change_points)
+    self.assertTrue(is_alert)
 
 
 if __name__ == '__main__':

@@ -31,6 +31,8 @@ import yaml
 from google.api_core import exceptions
 
 from apache_beam.testing.analyzers import constants
+from apache_beam.testing.analyzers.github_issues_utils import get_issue_description
+from apache_beam.testing.analyzers.github_issues_utils import report_change_point_on_issues
 from apache_beam.testing.load_tests import load_test_metrics_utils
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
@@ -150,6 +152,9 @@ def find_latest_change_point_index(metric_values: List[Union[float, int]]):
 
 
 def publish_issue_metadata_to_big_query(issue_metadata, test_name):
+  """
+  Published issue_metadata to BigQuery with table name=test_name.
+  """
   bq_metrics_publisher = BigQueryMetricsPublisher(
       project_name=constants.BQ_PROJECT_NAME,
       dataset=constants.BQ_DATASET,
@@ -159,3 +164,35 @@ def publish_issue_metadata_to_big_query(issue_metadata, test_name):
   logging.info(
       'GitHub metadata is published to Big Query Dataset %s'
       ', table %s' % (constants.BQ_DATASET, test_name))
+
+
+def create_performance_alert(
+    metric_name: str,
+    test_name: str,
+    timestamps: List[pd.Timestamp],
+    metric_values: List[Union[int, float]],
+    change_point_index: int,
+    labels: List[str],
+    existing_issue_number: int) -> Tuple[int, str]:
+  """
+  Creates performance alert on GitHub issues and returns GitHub issue
+  number and issue URL.
+  """
+  description = get_issue_description(
+      metric_name=metric_name,
+      timestamps=timestamps,
+      metric_values=metric_values,
+      change_point_index=change_point_index,
+      max_results_to_display=(
+          constants.NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
+
+  issue_number, issue_url = report_change_point_on_issues(
+        title=constants.TITLE_TEMPLATE.format(test_name, metric_name),
+        description=description,
+        labels=labels,
+        issue_number=existing_issue_number)
+
+  logging.info(
+      'Performance regression is alerted on issue #%s. Link to '
+      'the issue: %s' % (issue_number, issue_url))
+  return issue_number, issue_url

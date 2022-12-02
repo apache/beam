@@ -33,8 +33,7 @@ from typing import Dict
 import pandas as pd
 
 from apache_beam.testing.analyzers import constants
-from apache_beam.testing.analyzers.github_issues_utils import get_issue_description
-from apache_beam.testing.analyzers.github_issues_utils import report_change_point_on_issues
+from apache_beam.testing.analyzers.perf_analysis_utils import create_performance_alert
 from apache_beam.testing.analyzers.perf_analysis_utils import fetch_metric_data
 from apache_beam.testing.analyzers.perf_analysis_utils import find_existing_issue
 from apache_beam.testing.analyzers.perf_analysis_utils import find_latest_change_point_index
@@ -113,38 +112,19 @@ def run(config_file_path: str = None) -> None:
     # since there was no issue found for the current change point,
     # considering it as new change point and raising an alert.
     if not existing_issue_timestamp:
-      create_alert = True
+      is_alert = True
     else:
-      create_alert = is_perf_alert(
+      is_alert = is_perf_alert(
           previous_change_point_timestamp=existing_issue_timestamp,
           change_point_index=change_point_index,
           timestamps=timestamps,
           min_runs_between_change_points=min_runs_between_change_points)
 
-    # TODO: Remove this before merging.
-    logging.info(
-        "Create performance alert for the "
-        "test %s: %s" % (test_name, create_alert))
-
-    if create_alert:
-      description = get_issue_description(
-          metric_name=metric_name,
-          timestamps=timestamps,
-          metric_values=metric_values,
-          change_point_index=change_point_index,
-          max_results_to_display=(
-              constants.NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
-
-      issue_number, issue_url = report_change_point_on_issues(
-        title=constants.TITLE_TEMPLATE.format(test_name, metric_name),
-        description=description,
-        labels=labels,
-        issue_number=existing_issue_number
-      )
-
-      logging.info(
-          'Performance regression is alerted on issue #%s. Link to '
-          'the issue: %s' % (issue_number, issue_url))
+    if is_alert:
+      issue_number, issue_url = create_performance_alert(
+       metric_name, test_name, timestamps,
+       metric_values, change_point_index,
+       labels, existing_issue_number)
 
       issue_metadata = GitHubIssueMetaData(
           issue_timestamp=pd.Timestamp(
