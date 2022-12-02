@@ -51,7 +51,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
@@ -179,36 +178,33 @@ public class ReadWriteIT {
   }
 
   public static void writeJsonMessages(TopicPath topicPath, Pipeline pipeline) {
-    final SimpleFunction<Row, String> rowToJsonFn =
-        JsonUtils.getRowToJsonStringsFunction(SAMPLE_BEAM_SCHEMA);
-    pipeline
-        .apply(Create.of((Void) null))
-        .apply("createIndexes", new CustomCreate())
+    PCollectionRowTuple.of(
+            "input",
+            pipeline
+                .apply(Create.of((Void) null))
+                .apply("createIndexes", new CustomCreate())
+                .apply(
+                    "format to rows",
+                    MapElements.via(
+                        new SimpleFunction<Integer, Row>(
+                            index ->
+                                Row.withSchema(SAMPLE_BEAM_SCHEMA)
+                                    .addValue(Objects.requireNonNull(index).toString())
+                                    .addValue(index)
+                                    .build()) {}))
+                .setRowSchema(SAMPLE_BEAM_SCHEMA))
         .apply(
-            "format to rows",
-            MapElements.via(
-                new SimpleFunction<Integer, Row>(
-                    index ->
-                        Row.withSchema(SAMPLE_BEAM_SCHEMA)
-                            .addValue(Objects.requireNonNull(index).toString())
-                            .addValue(index)
-                            .build()) {}))
-        .setRowSchema(SAMPLE_BEAM_SCHEMA)
-        .apply(
-            "createMessages",
-            MapElements.via(
-                new SimpleFunction<Row, PubSubMessage>(
-                    beamRow ->
-                        Message.builder()
-                            .setData(
-                                ByteString.copyFromUtf8(
-                                    Objects.requireNonNull(rowToJsonFn.apply(beamRow))))
-                            .build()
-                            .toProto()) {}))
-        .apply("addUuids", PubsubLiteIO.addUuids())
-        .apply(
-            "writeMessages",
-            PubsubLiteIO.write(PublisherOptions.newBuilder().setTopicPath(topicPath).build()));
+            "write to pslite",
+            new PubsubLiteWriteSchemaTransformProvider()
+                .from(
+                    PubsubLiteWriteSchemaTransformProvider
+                        .PubsubLiteWriteSchemaTransformConfiguration.builder()
+                        .setFormat("JSON")
+                        .setLocation(ZONE.toString())
+                        .setTopicName(topicPath.name().value())
+                        .setProject(topicPath.project().name().value())
+                        .build())
+                .buildTransform());
   }
 
   public static void writeMessages(TopicPath topicPath, Pipeline pipeline) {
@@ -256,7 +252,7 @@ public class ReadWriteIT {
 
   public static SerializableFunction<Set<Integer>, Boolean> testIds() {
     return ids -> {
-      LOG.info("Ids are: {}", ids);
+      LOG.debug("Ids are: {}", ids);
       Set<Integer> target = IntStream.range(0, MESSAGE_COUNT).boxed().collect(Collectors.toSet());
       return target.equals(ids);
     };
@@ -293,10 +289,11 @@ public class ReadWriteIT {
     PCollection<Row> messages =
         PCollectionRowTuple.empty(pipeline)
             .apply(
-                new PubsubLiteReadSchemaTransformProvider()
+                "read from pslite",
+                new PubsubLiteSchemaTransformReadProvider()
                     .from(
-                        PubsubLiteReadSchemaTransformProvider
-                            .PubsubLiteReadSchemaTransformConfiguration.builder()
+                        PubsubLiteSchemaTransformReadProvider
+                            .PubsubLiteSchemaTransformReadConfiguration.builder()
                             .setDataFormat("JSON")
                             .setSchema(
                                 "{\n"
@@ -324,7 +321,7 @@ public class ReadWriteIT {
                     }));
     ids.apply("PubsubSignalTest", signal.signalSuccessWhen(BigEndianIntegerCoder.of(), testIds()));
     Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
-    pipeline.apply(signal.signalStart());
+    pipeline.apply("start signal", signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
     LOG.info("Running!");
