@@ -728,6 +728,18 @@ class BatchLoads<DestinationT, ElementT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
 
+    // If the final destination table exists already (and we're appending to it), then the temp
+    // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
+    // with one that makes this happen.
+    // In the case schemaUpdateOptions are specified by the user, matching does not occur in order
+    // to respect those options.
+    DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
+    if (schemaUpdateOptions.isEmpty()) {
+      destinations =
+          DynamicDestinationsHelpers.matchTableDynamicDestinations(
+              dynamicDestinations, bigQueryServices);
+    }
+
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
@@ -746,7 +758,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                dynamicDestinations,
+                destinations,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
