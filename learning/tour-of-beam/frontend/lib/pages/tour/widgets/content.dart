@@ -53,29 +53,42 @@ class ContentWidget extends StatelessWidget {
           return Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (currentUnitContent == null)
-                Expanded(child: Container())
-              else if (currentUnitContent.hints != null)
-                Expanded(
-                  child: _ChallengeContent(
-                    unitContent: currentUnitContent,
-                  ),
-                )
-              else
-                Expanded(
-                  child: TobMarkdown(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: BeamSizes.size12,
-                      vertical: BeamSizes.size8,
-                    ),
-                    data: currentUnitContent.description,
-                  ),
-                ),
+              Expanded(
+                child: _UnitContent(unitContent: currentUnitContent),
+              ),
               _ContentFooter(tourNotifier),
             ],
           );
         },
       ),
+    );
+  }
+}
+
+class _UnitContent extends StatelessWidget {
+  final UnitContentModel? unitContent;
+
+  const _UnitContent({
+    required this.unitContent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final content = unitContent;
+
+    if (content == null) {
+      return Container();
+    } else if (content.hints != null) {
+      return _ChallengeContent(
+        unitContent: content,
+      );
+    }
+    return TobMarkdown(
+      padding: const EdgeInsets.symmetric(
+        horizontal: BeamSizes.size12,
+        vertical: BeamSizes.size8,
+      ),
+      data: content.description,
     );
   }
 }
@@ -89,29 +102,12 @@ class _ChallengeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hints = unitContent.hints;
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (hints != null)
-          Padding(
-            padding: const EdgeInsets.only(
-              top: BeamSizes.size10,
-              left: BeamSizes.size10,
-              right: BeamSizes.size10,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                HintsWidget(
-                  hints: hints,
-                ),
-                // TODO(nausharipov): solution button
-                Container(),
-              ],
-            ),
-          ),
+        _ChallengeButtons(
+          unitContent: unitContent,
+        ),
         TobMarkdown(
           padding: const EdgeInsets.symmetric(
             horizontal: BeamSizes.size12,
@@ -119,6 +115,40 @@ class _ChallengeContent extends StatelessWidget {
           ),
           data: unitContent.description,
         ),
+      ],
+    );
+  }
+}
+
+class _ChallengeButtons extends StatelessWidget {
+  final UnitContentModel unitContent;
+
+  const _ChallengeButtons({
+    required this.unitContent,
+  });
+
+  static const _buttonPadding = EdgeInsets.only(
+    top: BeamSizes.size10,
+    left: BeamSizes.size10,
+    right: BeamSizes.size10,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final hints = unitContent.hints;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        if (hints != null)
+          Padding(
+            padding: _buttonPadding,
+            child: HintsWidget(
+              hints: hints,
+            ),
+          ),
+        // TODO(nausharipov): solution button
+        Container(),
       ],
     );
   }

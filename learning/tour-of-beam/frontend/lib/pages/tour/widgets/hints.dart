@@ -36,12 +36,14 @@ class HintsWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton.icon(
       onPressed: () {
-        showDialog(
-          context: context,
-          builder: (context) => Dialog(
-            child: _Popup(hint: hints.first),
-          ),
-        );
+        if (hints.isNotEmpty) {
+          showDialog(
+            context: context,
+            builder: (context) => Dialog(
+              child: _Popup(hint: hints.first),
+            ),
+          );
+        }
       },
       icon: SvgPicture.asset(Assets.svg.hint),
       label: const Text('ui.hint').tr(),
