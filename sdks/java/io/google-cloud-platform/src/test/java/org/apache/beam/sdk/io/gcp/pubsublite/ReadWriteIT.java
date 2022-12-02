@@ -295,7 +295,8 @@ public class ReadWriteIT {
             .apply(
                 new PubsubLiteReadSchemaTransformProvider()
                     .from(
-                        PubsubLiteReadSchemaTransformProvider.PubsubLiteReadSchemaTransformConfiguration.builder()
+                        PubsubLiteReadSchemaTransformProvider
+                            .PubsubLiteReadSchemaTransformConfiguration.builder()
                             .setDataFormat("JSON")
                             .setSchema(
                                 "{\n"
