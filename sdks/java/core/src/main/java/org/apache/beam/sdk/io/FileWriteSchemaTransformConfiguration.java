@@ -22,6 +22,11 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
+/**
+ * The configuration for building file writing transforms using {@link
+ * org.apache.beam.sdk.schemas.transforms.SchemaTransform} and {@link
+ * org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider}.
+ */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class FileWriteSchemaTransformConfiguration {
@@ -119,6 +124,7 @@ public abstract class FileWriteSchemaTransformConfiguration {
   }
 
   /** Configures extra details related to writing CSV formatted files. */
+  @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class CsvConfiguration {
 
@@ -154,6 +160,7 @@ public abstract class FileWriteSchemaTransformConfiguration {
   }
 
   /** Configures extra details related to writing Parquet formatted files. */
+  @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class ParquetConfiguration {
 
@@ -183,6 +190,7 @@ public abstract class FileWriteSchemaTransformConfiguration {
   }
 
   /** Configures extra details related to writing XML formatted files. */
+  @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class XmlConfiguration {
 
