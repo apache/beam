@@ -144,9 +144,8 @@ public class JsonUtils {
       if (propertySchema instanceof org.everit.json.schema.ArraySchema) {
         if (((ArraySchema) propertySchema).getAllItemSchema() == null) {
           throw new IllegalArgumentException(
-              "Array schema is not properly formatted or unsupported ("
-                  + propertyName
-                  + "). Note that JSON-schema's tuple-like arrays are not supported by Beam.");
+              "Tuple-like arrays are unsupported. Expected a single item type for field "
+                  + propertyName);
         }
         beamSchemaBuilder =
             beamSchemaBuilder.addField(
