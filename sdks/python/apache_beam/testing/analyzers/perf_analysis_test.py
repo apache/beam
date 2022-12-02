@@ -20,36 +20,25 @@ import os
 import time
 import unittest
 
+import mock
 import pandas as pd
 
 try:
-  import apache_beam.testing.analyzers.perf_regression_analysis as analysis
+  import apache_beam.testing.analyzers.perf_analysis as analysis
   from apache_beam.testing.analyzers import constants
   from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
   from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
   from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
+  from apache_beam.testing.analyzers.perf_analysis_utils import find_existing_issue
   from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
 except ImportError as e:
   analysis = None
 
 
-class IgnoreChangePointObject:
-  min_runs_between_changepoints = 2
-  changepoint_to_recent_run_window = 2
-
-
-def fake_data(query_template):
-  metric_name = 'fake_metric_name'
-  change_point = 0
-  test_name = 'fake_test'
-  change_point_timestamp = 'timestamp'
+def fake_data(*args, **kwargs):
   df = pd.DataFrame([{
-      constants.CHANGE_POINT_LABEL: change_point,
-      constants.TEST_NAME: test_name,
-      constants.METRIC_NAME: metric_name,
-      constants.CHANGE_POINT_TIMESTAMP_LABEL: change_point_timestamp,
-      constants.ISSUE_NUMBER: '1',
-      constants.ISSUE_URL: 'Fake URL'
+      constants.CHANGE_POINT_TIMESTAMP_LABEL: 100,
+      constants.ISSUE_NUMBER: 1,
   }])
   return df
 
@@ -121,6 +110,17 @@ class TestChangePointAnalysis(unittest.TestCase):
         change_point_index=change_point_index,
         min_runs_between_change_points=min_runs_between_change_points)
     self.assertTrue(is_alert)
+
+  @mock.patch.object(
+      apache_beam.testing.load_tests.load_test_metrics_utils.
+      BigQueryMetricsFetcher,
+      'get_metrics',
+      fake_data)
+  def test_find_existing_issue(self):
+    test_name = 'fake_test'
+    issue_number, issue_timestamp = find_existing_issue(test_name)
+    self.assertEqual(issue_number, 1)
+    self.assertEqual(issue_timestamp, 100)
 
 
 if __name__ == '__main__':
