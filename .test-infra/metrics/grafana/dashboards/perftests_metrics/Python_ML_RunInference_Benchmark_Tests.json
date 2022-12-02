@@ -21,21 +21,26 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "links": [
-    {
-      "asDropdown": false,
-      "icon": "info",
-      "includeVars": false,
-      "keepTime": false,
-      "tags": [],
-      "targetBlank": false,
-      "title": "Explanation of Benchmarks",
-      "tooltip": "Documentation of metrics used",
-      "type": "link",
-      "url": "https://s.apache.org/beam-ml-metrics"
-    }
-  ],
+  "links": [],
   "panels": [
+    {
+      "datasource": null,
+      "description": "",
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "content": "Detailed descriptions of each benchmark can be found at https://s.apache.org/beam-ml-metrics",
+        "mode": "markdown"
+      },
+      "pluginVersion": "8.1.8",
+      "title": "Benchmark descriptions",
+      "type": "text"
+    },
     {
       "aliasColors": {},
       "bars": false,
