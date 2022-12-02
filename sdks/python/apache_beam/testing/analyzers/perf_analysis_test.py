@@ -20,27 +20,15 @@ import os
 import time
 import unittest
 
-import mock
-import pandas as pd
-
 try:
   import apache_beam.testing.analyzers.perf_analysis as analysis
   from apache_beam.testing.analyzers import constants
   from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
   from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
   from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
-  from apache_beam.testing.analyzers.perf_analysis_utils import find_existing_issue
   from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
 except ImportError as e:
   analysis = None
-
-
-def fake_data(*args, **kwargs):
-  df = pd.DataFrame([{
-      constants.CHANGE_POINT_TIMESTAMP_LABEL: 100,
-      constants.ISSUE_NUMBER: 1,
-  }])
-  return df
 
 
 @unittest.skipIf(
@@ -98,29 +86,18 @@ class TestChangePointAnalysis(unittest.TestCase):
     min_runs_between_change_points = 1
 
     is_alert = is_perf_alert(
-        previous_change_point_timestamp=timestamps[3],
+        previous_change_point_timestamps=[timestamps[3]],
         timestamps=timestamps,
         change_point_index=change_point_index,
         min_runs_between_change_points=min_runs_between_change_points)
     self.assertFalse(is_alert)
 
     is_alert = is_perf_alert(
-        previous_change_point_timestamp=timestamps[0],
+        previous_change_point_timestamps=[timestamps[0]],
         timestamps=timestamps,
         change_point_index=change_point_index,
         min_runs_between_change_points=min_runs_between_change_points)
     self.assertTrue(is_alert)
-
-  @mock.patch.object(
-      apache_beam.testing.load_tests.load_test_metrics_utils.
-      BigQueryMetricsFetcher,
-      'get_metrics',
-      fake_data)
-  def test_find_existing_issue(self):
-    test_name = 'fake_test'
-    issue_number, issue_timestamp = find_existing_issue(test_name)
-    self.assertEqual(issue_number, 1)
-    self.assertEqual(issue_timestamp, 100)
 
 
 if __name__ == '__main__':
