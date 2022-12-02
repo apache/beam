@@ -57,7 +57,7 @@ import scala.reflect.ClassTag;
  */
 @Internal
 public abstract class TransformTranslator<
-    InT extends PInput, OutT extends POutput, TransformT extends PTransform<? super InT, OutT>> {
+    InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>> {
 
   protected abstract void translate(TransformT transform, Context cxt) throws IOException;
 

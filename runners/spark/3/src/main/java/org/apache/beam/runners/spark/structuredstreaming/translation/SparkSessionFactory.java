@@ -74,10 +74,15 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.KryoRegistrator;
+import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SparkSessionFactory {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SparkSessionFactory.class);
 
   /**
    * Gets active {@link SparkSession} or creates one using {@link
@@ -107,15 +112,16 @@ public class SparkSessionFactory {
       sparkConf.setJars(jars.toArray(new String[0]));
     }
 
-    if (!sparkConf.contains("spark.serializer")) {
-      // Set to 'org.apache.spark.serializer.JavaSerializer' via system property to disable Kryo
-      sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
+    // Set to 'org.apache.spark.serializer.JavaSerializer' via system property to disable Kryo
+    String serializer = sparkConf.get("spark.serializer", KryoSerializer.class.getName());
+    if (serializer.equals(KryoSerializer.class.getName())) {
+      // Set to 'false' via system property to disable usage of Kryo unsafe
+      boolean unsafe = sparkConf.getBoolean("spark.kryo.unsafe", true);
+      sparkConf.set("spark.serializer", serializer);
+      sparkConf.set("spark.kryo.unsafe", Boolean.toString(unsafe));
+      sparkConf.set("spark.kryo.registrator", SparkKryoRegistrator.class.getName());
+      LOG.info("Configured `spark.serializer` to use KryoSerializer [unsafe={}]", unsafe);
     }
-    if (!sparkConf.contains("spark.kryo.unsafe")) {
-      // Disable using system property
-      sparkConf.set("spark.kryo.unsafe", "true");
-    }
-    sparkConf.set("spark.kryo.registrator", SparkKryoRegistrator.class.getName());
 
     // By default, Spark defines 200 as a number of sql partitions. This seems too much for local
     // mode, so try to align with value of "sparkMaster" option in this case.
@@ -134,6 +140,13 @@ public class SparkSessionFactory {
     return SparkSession.builder().config(sparkConf);
   }
 
+  /**
+   * {@link KryoRegistrator} for Spark to serialize broadcast variables used for side-inputs.
+   *
+   * <p>Note, this registrator must be public to be accessible for Kryo.
+   *
+   * @see SideInputValues
+   */
   public static class SparkKryoRegistrator implements KryoRegistrator {
     @Override
     public void registerClasses(Kryo kryo) {
