@@ -145,7 +145,7 @@ public class PubsubLiteReadSchemaTransformProvider
     public abstract String getLocation();
 
     public static Builder builder() {
-      return new AutoValue_PubsubLiteSchemaTransformReadProvider_PubsubLiteReadSchemaTransformConfiguration
+      return new AutoValue_PubsubLiteReadSchemaTransformProvider_PubsubLiteReadSchemaTransformConfiguration
           .Builder();
     }
 
