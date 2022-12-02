@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -134,7 +135,8 @@ public class JsonUtils {
 
   private static Schema beamSchemaFromJsonSchema(org.everit.json.schema.ObjectSchema jsonSchema) {
     Schema.Builder beamSchemaBuilder = Schema.builder();
-    for (Map.Entry<String, org.everit.json.schema.Schema> entry : jsonSchema.getPropertySchemas().entries()) {
+    for (Map.Entry<String, org.everit.json.schema.Schema> entry :
+        jsonSchema.getPropertySchemas().entrySet()) {
       String propertyName = entry.getKey();
       org.everit.json.schema.Schema propertySchema = entry.getValue();
       if (propertySchema == null) {

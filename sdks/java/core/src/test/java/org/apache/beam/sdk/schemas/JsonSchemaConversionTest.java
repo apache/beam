@@ -173,7 +173,9 @@ public class JsonSchemaConversionTest {
               });
 
       assertThat(
-          thrownException.getMessage(), containsString("Array schema is not properly formatted"));
+          thrownException.getMessage(),
+          containsString(
+              "Tuple-like arrays are unsupported. Expected a single item type for field tupleArray"));
     }
   }
 
@@ -192,7 +194,8 @@ public class JsonSchemaConversionTest {
 
       assertThat(
           thrownException.getCause().getMessage(),
-          containsString("Array schema is not properly formatted"));
+          containsString(
+              "Tuple-like arrays are unsupported. Expected a single item type for field tupleArray"));
     }
   }
 }
