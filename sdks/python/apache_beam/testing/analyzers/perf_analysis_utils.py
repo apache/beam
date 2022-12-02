@@ -175,7 +175,7 @@ def create_performance_alert(
     metric_values: List[Union[int, float]],
     change_point_index: int,
     labels: List[str],
-    existing_issue_number: int) -> Tuple[int, str]:
+    existing_issue_number: Optional[int]) -> Tuple[int, str]:
   """
   Creates performance alert on GitHub issues and returns GitHub issue
   number and issue URL.

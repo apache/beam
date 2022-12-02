@@ -29,6 +29,7 @@ from datetime import datetime
 from datetime import timezone
 from typing import Any
 from typing import Dict
+from typing import Optional
 
 import pandas as pd
 
@@ -148,7 +149,7 @@ def run_change_point_analysis(params, test_id):
         issue_metadata=issue_metadata, test_name=test_name)
 
 
-def run(config_file_path: str = None) -> None:
+def run(config_file_path: Optional[str] = None) -> None:
   """
   run is the entry point to run change point analysis on test metric
   data, which is read from config file, and if there is a performance

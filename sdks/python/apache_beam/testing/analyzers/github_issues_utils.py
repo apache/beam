@@ -25,7 +25,7 @@ import pandas as pd
 import requests
 
 try:
-  _GITHUB_TOKEN = os.environ['GITHUB_TOKEN']
+  _GITHUB_TOKEN: Optional[str] = os.environ['GITHUB_TOKEN']
 except KeyError as e:
   _GITHUB_TOKEN = None
   logging.warning(
@@ -54,7 +54,7 @@ _AWAITING_TRIAGE_LABEL = 'awaiting triage'
 def create_issue(
     title: str,
     description: str,
-    labels: Optional[List] = None,
+    labels: Optional[List[str]] = None,
 ) -> Tuple[int, str]:
   """
   Create an issue with title, description with a label.
@@ -114,7 +114,7 @@ def comment_on_issue(issue_number: int,
   return False, None
 
 
-def add_label_to_issue(issue_number: int, labels: List[str] = None):
+def add_label_to_issue(issue_number: int, labels: Optional[List[str]] = None):
   url = 'https://api.github.com/repos/{}/{}/issues/{}/labels'.format(
       _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
   if labels:
@@ -162,13 +162,16 @@ def get_issue_description(
 
 
 def report_change_point_on_issues(
-    title, issue_number, description, labels=None) -> Tuple[int, str]:
+    title: str,
+    issue_number: Optional[int],
+    description: str,
+    labels: Optional[List[str]] = None) -> Tuple[int, str]:
   """
   Looks for a GitHub issue with the issue number. First, we try to
   find the issue that's open and comment on it with the provided description.
   If that issue is closed, we create a new issue.
   """
-  if issue_number:
+  if issue_number is not None:
     commented_on_issue, issue_url = comment_on_issue(
           issue_number=issue_number,
           comment_description=description

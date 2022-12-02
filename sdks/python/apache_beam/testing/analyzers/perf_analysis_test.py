@@ -102,5 +102,5 @@ class TestChangePointAnalysis(unittest.TestCase):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
-  os.environ['GITHUB_TOKEN'] = None
+  os.environ['GITHUB_TOKEN'] = 'fake_token'
   unittest.main()
