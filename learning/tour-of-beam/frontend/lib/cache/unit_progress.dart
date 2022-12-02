@@ -20,30 +20,66 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
-import '../models/user_progress.dart';
+import '../auth/notifier.dart';
+import '../enums/unit_completion.dart';
+import '../repositories/models/get_user_progress_response.dart';
 import '../state.dart';
 import 'cache.dart';
 
-class UserProgressCache extends Cache {
-  UserProgressCache({required super.client});
+class UnitProgressCache extends Cache {
+  UnitProgressCache({required super.client});
 
   final _completedUnitIds = <String>{};
-  Future<List<UserProgressModel>?>? _future;
+  final _updatingUnitIds = <String>{};
+  Future<GetUserProgressResponse?>? _future;
+
+  Set<String> getUpdatingUnitIds() => _updatingUnitIds;
+
+  void addUpdatingUnitId(String unitId) {
+    _updatingUnitIds.add(unitId);
+    notifyListeners();
+  }
+
+  void clearUpdatingUnitId(String unitId) {
+    _updatingUnitIds.remove(unitId);
+    notifyListeners();
+  }
+
+  bool canCompleteUnit(String? unitId) {
+    if (unitId == null) {
+      return false;
+    }
+    return _getUnitCompletion(unitId) == UnitCompletion.uncompleted;
+  }
+
+  UnitCompletion _getUnitCompletion(String unitId) {
+    final authNotifier = GetIt.instance.get<AuthNotifier>();
+    if (!authNotifier.isAuthenticated) {
+      return UnitCompletion.unauthenticated;
+    }
+    if (_updatingUnitIds.contains(unitId)) {
+      return UnitCompletion.updating;
+    }
+    if (isUnitCompleted(unitId)) {
+      return UnitCompletion.completed;
+    }
+    return UnitCompletion.uncompleted;
+  }
 
   bool isUnitCompleted(String? unitId) {
     return getCompletedUnits().contains(unitId);
   }
 
-  void updateCompletedUnits() {
+  Future<void> updateCompletedUnits() async {
     final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
     if (sdkId != null) {
-      unawaited(_loadCompletedUnits(sdkId));
+      await _loadCompletedUnits(sdkId);
     }
   }
 
   Set<String> getCompletedUnits() {
     if (_future == null) {
-      updateCompletedUnits();
+      unawaited(updateCompletedUnits());
     }
 
     return _completedUnitIds;
@@ -55,9 +91,9 @@ class UserProgressCache extends Cache {
 
     _completedUnitIds.clear();
     if (result != null) {
-      for (final unitProgress in result) {
+      for (final unitProgress in result.units) {
         if (unitProgress.isCompleted) {
-          _completedUnitIds.add(unitProgress.unitId);
+          _completedUnitIds.add(unitProgress.id);
         }
       }
     }

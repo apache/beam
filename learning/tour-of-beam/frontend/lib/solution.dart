@@ -18,26 +18,13 @@
 
 import 'package:flutter/material.dart';
 
-class DismissibleOverlay extends StatelessWidget {
-  final void Function() close;
-  final Positioned child;
+// TODO(nausharipov): can I put SolutionNotifier and AppNotifier into lib/state?
+class SolutionNotifier extends ChangeNotifier {
+  bool _showSolution = false;
+  bool get showSolution => _showSolution;
 
-  const DismissibleOverlay({
-    required this.close,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: close,
-          ),
-        ),
-        child,
-      ],
-    );
+  void toggleShowSolution() {
+    _showSolution = !_showSolution;
+    notifyListeners();
   }
 }

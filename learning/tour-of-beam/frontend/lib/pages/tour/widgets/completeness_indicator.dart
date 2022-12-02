@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../generated/assets.gen.dart';
+import '../../../assets/assets.gen.dart';
 
 class CompletenessIndicator extends StatelessWidget {
   final bool isCompleted;

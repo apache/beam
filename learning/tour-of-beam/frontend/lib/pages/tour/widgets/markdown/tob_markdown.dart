@@ -16,20 +16,35 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:playground_components/playground_components.dart';
 
-part 'user_progress.g.dart';
+import 'code_builder.dart';
 
-@JsonSerializable(createToJson: false)
-class UserProgressModel {
-  final String unitId;
-  final bool isCompleted;
+class TobMarkdown extends StatelessWidget {
+  final EdgeInsets padding;
+  final String data;
+  final bool shrinkWrap;
 
-  const UserProgressModel({
-    required this.unitId,
-    required this.isCompleted,
+  const TobMarkdown({
+    required this.padding,
+    required this.data,
+    this.shrinkWrap = true,
   });
 
-  factory UserProgressModel.fromJson(Map<String, dynamic> json) =>
-      _$UserProgressModelFromJson(json);
+  @override
+  Widget build(BuildContext context) {
+    return Markdown(
+      data: data,
+      builders: {
+        'code': MarkdownCodeBuilder(),
+      },
+      padding: padding,
+      selectable: true,
+      shrinkWrap: shrinkWrap,
+      styleSheet:
+          Theme.of(context).extension<BeamThemeExtension>()!.markdownStyle,
+    );
+  }
 }

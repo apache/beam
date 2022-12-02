@@ -20,8 +20,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../generated/assets.gen.dart';
-import '../open_overlay.dart';
 import 'user_menu.dart';
 
 class Avatar extends StatelessWidget {
@@ -34,21 +32,26 @@ class Avatar extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         final closeNotifier = PublicNotifier();
-        kOpenOverlay(
-          context,
-          closeNotifier,
-          UserMenu(
-            closeOverlayCallback: closeNotifier.notifyPublic,
-            user: user,
+        openOverlay(
+          context: context,
+          closeNotifier: closeNotifier,
+          positioned: Positioned(
+            right: BeamSizes.size10,
+            top: BeamSizes.appBarHeight,
+            child: UserMenu(
+              closeOverlayCallback: closeNotifier.notifyPublic,
+              user: user,
+            ),
           ),
         );
       },
       child: CircleAvatar(
         backgroundColor: BeamColors.white,
-        foregroundImage: photoUrl == null
-            // TODO(nausharipov): placeholder avatar asset
-            ? AssetImage(Assets.png.laptopLight.path) as ImageProvider
-            : NetworkImage(photoUrl),
+        foregroundImage: photoUrl == null ? null : NetworkImage(photoUrl),
+        child: const Icon(
+          Icons.person,
+          color: BeamColors.grey3,
+        ),
       ),
     );
   }

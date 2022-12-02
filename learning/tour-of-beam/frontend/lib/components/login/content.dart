@@ -22,6 +22,8 @@ import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../assets/assets.gen.dart';
+import '../../auth/method.dart';
+import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
 
 class LoginContent extends StatelessWidget {
@@ -33,40 +35,28 @@ class LoginContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Body(
-      child: Column(
-        children: [
-          Text(
-            'ui.signIn',
-            style: Theme.of(context).textTheme.titleLarge,
-          ).tr(),
-          const SizedBox(height: BeamSizes.size10),
-          const Text(
-            'dialogs.signInIf',
-            textAlign: TextAlign.center,
-          ).tr(),
-          const _Divider(),
-          const _BrandedLoginButtons(),
-        ],
-      ),
-    );
-  }
-}
-
-class _Body extends StatelessWidget {
-  final Widget child;
-
-  const _Body({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: BeamSizes.size10,
-      borderRadius: BorderRadius.circular(10),
+    return OverlayBody(
       child: Container(
         width: TobSizes.authOverlayWidth,
         padding: const EdgeInsets.all(BeamSizes.size24),
-        child: child,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'ui.signIn',
+              style: Theme.of(context).textTheme.titleLarge,
+            ).tr(),
+            const SizedBox(height: BeamSizes.size10),
+            const Text(
+              'dialogs.signInIf',
+              textAlign: TextAlign.center,
+            ).tr(),
+            const _Divider(),
+            _BrandedLoginButtons(
+              onLoggedIn: onLoggedIn,
+            ),
+          ],
+        ),
       ),
     );
   }

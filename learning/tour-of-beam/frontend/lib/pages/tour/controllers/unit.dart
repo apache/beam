@@ -19,6 +19,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../cache/unit_progress.dart';
 import '../../../repositories/client/client.dart';
 
 class UnitController extends ChangeNotifier {
@@ -32,7 +33,13 @@ class UnitController extends ChangeNotifier {
 
   Future<void> completeUnit() async {
     final client = GetIt.instance.get<TobClient>();
-    await client.postUnitComplete(sdkId, unitId);
-    notifyListeners();
+    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
+    try {
+      unitProgressCache.addUpdatingUnitId(unitId);
+      await client.postUnitComplete(sdkId, unitId);
+    } finally {
+      await unitProgressCache.updateCompletedUnits();
+      unitProgressCache.clearUpdatingUnitId(unitId);
+    }
   }
 }

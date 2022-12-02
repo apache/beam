@@ -16,26 +16,20 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-void kOpenOverlay(
-  BuildContext context,
-  PublicNotifier closeNotifier,
-  Widget child,
-) {
-  final overlay = OverlayEntry(
-    builder: (context) {
-      return DismissibleOverlay(
-        close: closeNotifier.notifyPublic,
-        child: Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: child,
-        ),
-      );
-    },
-  );
-  closeNotifier.addListener(overlay.remove);
-  Overlay.of(context)?.insert(overlay);
+part 'unit_progress.g.dart';
+
+@JsonSerializable(createToJson: false)
+class UnitProgressModel {
+  final String id;
+  final bool isCompleted;
+
+  const UnitProgressModel({
+    required this.id,
+    required this.isCompleted,
+  });
+
+  factory UnitProgressModel.fromJson(Map<String, dynamic> json) =>
+      _$UnitProgressModelFromJson(json);
 }

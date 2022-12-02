@@ -421,8 +421,8 @@ MarkdownStyleSheet _getMarkdownStyle(Brightness brightness) {
   return MarkdownStyleSheet(
     p: textTheme.bodyMedium,
     pPadding: EdgeInsets.only(top: BeamSizes.size2),
-    h1: textTheme.headlineLarge,
-    h3: textTheme.headlineMedium,
+    h1: textTheme.headlineMedium,
+    h3: textTheme.headlineSmall,
     h3Padding: EdgeInsets.only(top: BeamSizes.size4),
     code: GoogleFonts.sourceCodePro(
       color: textColor,

@@ -16,31 +16,24 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
 
-import 'content.dart';
+import '../../controllers/public_notifier.dart';
+import 'dismissible.dart';
 
-class LoginButton extends StatelessWidget {
-  const LoginButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        final closeNotifier = PublicNotifier();
-        openOverlay(
-          context: context,
-          closeNotifier: closeNotifier,
-          positioned: Positioned(
-            right: BeamSizes.size10,
-            top: BeamSizes.appBarHeight,
-            child: LoginContent(onLoggedIn: closeNotifier.notifyPublic),
-          ),
-        );
-      },
-      child: const Text('ui.signIn').tr(),
-    );
-  }
+void openOverlay({
+  required BuildContext context,
+  required PublicNotifier closeNotifier,
+  required Positioned positioned,
+}) {
+  final overlay = OverlayEntry(
+    builder: (context) {
+      return DismissibleOverlay(
+        close: closeNotifier.notifyPublic,
+        child: positioned,
+      );
+    },
+  );
+  closeNotifier.addListener(overlay.remove);
+  Overlay.of(context)?.insert(overlay);
 }

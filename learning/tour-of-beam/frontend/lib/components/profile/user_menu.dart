@@ -23,6 +23,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../assets/assets.gen.dart';
 import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
 import '../../generated/assets.gen.dart';
@@ -38,34 +39,20 @@ class UserMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Body(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Info(user: user),
-          const BeamDivider(),
-          _Buttons(
-            closeOverlayCallback: closeOverlayCallback,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Body extends StatelessWidget {
-  final Widget child;
-
-  const _Body({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: BeamSizes.size10,
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
+    return OverlayBody(
+      child: Container(
         width: TobSizes.authOverlayWidth,
-        child: child,
+        padding: const EdgeInsets.all(BeamSizes.size24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Info(user: user),
+            const BeamDivider(),
+            _Buttons(
+              closeOverlayCallback: closeOverlayCallback,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -31,13 +31,13 @@ import 'firebase_options.dart';
 import 'locator.dart';
 import 'router/route_information_parser.dart';
 
-// TODO(nausharipov): reproduce "ScrollController not attached to any scroll views."
 void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   setPathUrlStrategy();
   await EasyLocalization.ensureInitialized();
+  await PlaygroundComponents.ensureInitialized();
   await initializeServiceLocator();
   const englishLocale = Locale('en');
 

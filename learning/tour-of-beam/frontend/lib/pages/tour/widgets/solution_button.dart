@@ -18,29 +18,33 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 
-import 'content.dart';
+import '../../../assets/assets.gen.dart';
+import '../../../solution.dart';
 
-class LoginButton extends StatelessWidget {
-  const LoginButton();
+class SolutionButton extends StatelessWidget {
+  const SolutionButton();
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        final closeNotifier = PublicNotifier();
-        openOverlay(
-          context: context,
-          closeNotifier: closeNotifier,
-          positioned: Positioned(
-            right: BeamSizes.size10,
-            top: BeamSizes.appBarHeight,
-            child: LoginContent(onLoggedIn: closeNotifier.notifyPublic),
+    final solutionNotifier = GetIt.instance.get<SolutionNotifier>();
+
+    return AnimatedBuilder(
+      animation: solutionNotifier,
+      builder: (context, child) => TextButton.icon(
+        style: ButtonStyle(
+          backgroundColor: MaterialStateProperty.all(
+            solutionNotifier.showSolution
+                ? Theme.of(context).splashColor
+                : null,
           ),
-        );
-      },
-      child: const Text('ui.signIn').tr(),
+        ),
+        onPressed: solutionNotifier.toggleShowSolution,
+        icon: SvgPicture.asset(Assets.svg.solution),
+        label: const Text('ui.solution').tr(),
+      ),
     );
   }
 }

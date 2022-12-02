@@ -27,6 +27,7 @@ class UnitContentModel {
   final String description;
   final String? taskSnippetId;
   final String? solutionSnippetId;
+  final List<String>? hints;
 
   const UnitContentModel({
     required this.id,
@@ -34,6 +35,7 @@ class UnitContentModel {
     required this.description,
     required this.taskSnippetId,
     required this.solutionSnippetId,
+    required this.hints,
   });
 
   factory UnitContentModel.fromJson(Map<String, dynamic> json) =>
