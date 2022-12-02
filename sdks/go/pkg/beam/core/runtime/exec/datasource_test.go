@@ -303,7 +303,7 @@ func TestDataSource_Split(t *testing.T) {
 			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
 			// SDK never splits on 0, so check that every test.
-			splitRes, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}})
+			splitRes, err := p.Split(ctx, SplitPoints{Splits: []int64{0, test.splitIdx}})
 			if err != nil {
 				t.Fatalf("error in Split: %v", err)
 			}
@@ -373,7 +373,7 @@ func TestDataSource_Split(t *testing.T) {
 					<-blockedCh
 					// Validate that we do not split on the element we're blocking on index.
 					// The first valid split is at test.splitIdx.
-					if splitRes, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, -1, 0); err != nil {
+					if splitRes, err := source.Split(context.Background(), []int64{0, 1, 2, 3, 4, 5}, -1, 0); err != nil {
 						t.Errorf("error in Split: %v", err)
 					} else {
 						if got, want := splitRes.RI, test.splitIdx; got != want {
@@ -439,7 +439,7 @@ func TestDataSource_Split(t *testing.T) {
 
 		// SDK never splits on 0, so check that every test.
 		sp := SplitPoints{Splits: test.splitPts, Frac: test.frac, BufSize: test.bufSize}
-		splitRes, err := p.Split(sp)
+		splitRes, err := p.Split(ctx, sp)
 		if err != nil {
 			t.Fatalf("error in Split: %v", err)
 		}
@@ -505,7 +505,7 @@ func TestDataSource_Split(t *testing.T) {
 					<-blockedCh
 					// Validate that we either do or do not perform a sub-element split with the
 					// given fraction.
-					if splitRes, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, test.fraction, int64(len(elements))); err != nil {
+					if splitRes, err := source.Split(context.Background(), []int64{0, 1, 2, 3, 4, 5}, test.fraction, int64(len(elements))); err != nil {
 						t.Errorf("error in Split: %v", err)
 					} else {
 						// For sub-element splits, check sub-element split only results.
@@ -566,8 +566,8 @@ func TestDataSource_Split(t *testing.T) {
 		dc := DataContext{Data: &TestDataManager{R: pr}}
 		ctx := context.Background()
 
-		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
-			t.Fatal("plan uninitialized, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(before active) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		for i, root := range p.units {
 			if err := root.Up(ctx); err != nil {
@@ -575,30 +575,30 @@ func TestDataSource_Split(t *testing.T) {
 			}
 		}
 		p.status = Active
-		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
-			t.Fatal("plan not started, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(active, not started) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
-		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
-			t.Fatal("plan started, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(active) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		runOnRoots(ctx, t, p, "Process", Root.Process)
-		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
-			t.Fatal("plan in progress, expected error when unable to get a desired split, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(active, unable to get desired split) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
-		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
-			t.Fatal("plan finished, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(finished) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		validateSource(t, out, source, makeValues(elements...))
 	})
 
 	t.Run("sanity_errors", func(t *testing.T) {
 		var source *DataSource
-		if _, err := source.Split([]int64{0}, -1, 0); err == nil {
+		if _, err := source.Split(context.Background(), []int64{0}, -1, 0); err == nil {
 			t.Fatal("expected error splitting nil *DataSource")
 		}
-		if _, err := source.Split(nil, -1, 0); err == nil {
+		if _, err := source.Split(context.Background(), nil, -1, 0); err == nil {
 			t.Fatal("expected error splitting nil desired splits")
 		}
 	})
