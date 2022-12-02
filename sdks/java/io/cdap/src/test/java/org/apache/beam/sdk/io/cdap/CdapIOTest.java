@@ -66,6 +66,9 @@ import org.mockito.Mockito;
 @RunWith(JUnit4.class)
 public class CdapIOTest {
 
+  private static final long PULL_FREQUENCY_SEC = 1L;
+  private static final long START_OFFSET = 0L;
+
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -208,8 +211,8 @@ public class CdapIOTest {
             .withPluginConfig(pluginConfig)
             .withKeyClass(String.class)
             .withValueClass(String.class)
-            .withPullFrequencySec(1L)
-            .withStartOffset(0L);
+            .withPullFrequencySec(PULL_FREQUENCY_SEC)
+            .withStartOffset(START_OFFSET);
 
     List<String> storedRecords = EmployeeReceiver.getStoredRecords();
 
