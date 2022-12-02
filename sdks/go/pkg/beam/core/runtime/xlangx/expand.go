@@ -31,6 +31,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
 	"google.golang.org/grpc"
 )
 
@@ -111,12 +112,28 @@ func expand(
 		ext.ExpansionAddr = config
 	}
 
+	// The external transforms that needs to specify the output coder
+	// in expansion request sends tagged input as xlang.SetOutputCoder.
+	var set bool
+	for tag := range edge.External.InputsMap {
+		if tag == xlang.SetOutputCoder {
+			set = true
+		}
+	}
+	outputCoderID := make(map[string]string)
+	for tag, id := range edge.External.OutputsMap {
+		if set {
+			outputCoderID[tag] = edge.Output[id].To.Coder.ID
+		}
+	}
+
 	return h(ctx, &HandlerParams{
 		Config: config,
 		Req: &jobpb.ExpansionRequest{
-			Components: comps,
-			Transform:  transform,
-			Namespace:  ext.Namespace,
+			Components:          comps,
+			Transform:           transform,
+			Namespace:           ext.Namespace,
+			OutputCoderRequests: outputCoderID,
 		},
 		edge: edge,
 		ext:  ext,
