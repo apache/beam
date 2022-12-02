@@ -55,6 +55,7 @@ def sparkTestProperties(overrides = [:]) {
       "spark.sql.shuffle.partitions": "4",
       "spark.ui.enabled"            : "false",
       "spark.ui.showConsoleProgress": "false",
+      "spark.kryo.registrationRequired": "true", // be strict in tests
       "beamTestPipelineOptions"     :
           JsonOutput.toJson((defaults + overrides).collect { k, v -> "$k=$v" })
   ]
@@ -184,6 +185,7 @@ dependencies {
   testImplementation library.java.kafka_clients
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
+  testImplementation "org.assertj:assertj-core:3.11.1"
   testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
@@ -206,6 +208,8 @@ configurations.all {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
   // Avoid any transitive usage of the old codahale group to make dependency resolution deterministic
   exclude group: "com.codahale.metrics", module: "metrics-core"
+  // Prevent conflict with kryo-shaded used by spark (from :sdks:java:core testRuntimeClasspath)
+  exclude group: "com.esotericsoftware.kryo", module: "kryo"
 }
 
 configurations.validatesRunner {
@@ -322,6 +326,10 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   // Disable gradle cache
   outputs.upToDateWhen { false }
   systemProperties sparkTestProperties(["--runner":"SparkStructuredStreamingRunner", "--testMode":"true"])
+  // Register various other classes used in tests
+  systemProperty 'spark.kryo.classesToRegister',
+    'org.apache.beam.sdk.transforms.ViewTest$NonDeterministicStringCoder,' +
+    'org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RegularImmutableList'
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(
