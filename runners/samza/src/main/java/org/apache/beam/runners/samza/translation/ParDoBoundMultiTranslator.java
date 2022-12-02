@@ -163,6 +163,17 @@ class ParDoBoundMultiTranslator<InT, OutT>
     Map<String, PCollectionView<?>> sideInputMapping =
         ParDoTranslation.getSideInputMapping(ctx.getCurrentTransform());
 
+    final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
+    final Map<String, String> stateIdToStoreMapping = new HashMap<>();
+    for (String stateId : signature.stateDeclarations().keySet()) {
+      String storeId = stateId;
+      if (!ctx.isUniqueStateId(stateId)) {
+        final String escapedName =
+            SamzaPipelineTranslatorUtils.escape(node.getEnclosingNode().getFullName());
+        storeId = StoreIdUtils.toUniqueStoreId(stateId, escapedName);
+      }
+      stateIdToStoreMapping.put(stateId, storeId);
+    }
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
             transform.getMainOutputTag(),
@@ -184,7 +195,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             null,
             Collections.emptyMap(),
             doFnSchemaInformation,
-            sideInputMapping);
+            sideInputMapping,
+            stateIdToStoreMapping);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -335,7 +347,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
             ctx.getJobInfo(),
             idToTupleTagMap,
             doFnSchemaInformation,
-            sideInputMapping);
+            sideInputMapping,
+            Collections.emptyMap());
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {

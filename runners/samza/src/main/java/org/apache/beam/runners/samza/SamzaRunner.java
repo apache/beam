@@ -166,7 +166,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
           appDescriptor.withMetricsReporterFactories(reporterFactories);
 
           SamzaPipelineTranslator.translate(
-              pipeline, new TranslationContext(appDescriptor, idMap, options));
+              pipeline, new TranslationContext(appDescriptor, idMap, nonUniqueStateIds, options));
         };
 
     // perform a final round of validation for the pipeline options now that all configs are

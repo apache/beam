@@ -83,6 +83,7 @@ public class TranslationContext {
   private final Map<PValue, String> idMap;
   private final Map<String, MessageStream> registeredInputStreams = new HashMap<>();
   private final Map<String, Table> registeredTables = new HashMap<>();
+  private final Set<String> nonUniqueStateIds;
   private final SamzaPipelineOptions options;
   private final HashIdGenerator idGenerator = new HashIdGenerator();
 
@@ -91,9 +92,11 @@ public class TranslationContext {
   public TranslationContext(
       StreamApplicationDescriptor appDescriptor,
       Map<PValue, String> idMap,
+      Set<String> nonUniqueStateIds,
       SamzaPipelineOptions options) {
     this.appDescriptor = appDescriptor;
     this.idMap = idMap;
+    this.nonUniqueStateIds = nonUniqueStateIds;
     this.options = options;
   }
 
@@ -239,6 +242,10 @@ public class TranslationContext {
       throw new IllegalArgumentException("No id mapping for value: " + pvalue);
     }
     return id;
+  }
+
+  public boolean isUniqueStateId(String stateId) {
+    return !nonUniqueStateIds.contains(stateId);
   }
 
   public String getTransformFullName() {
