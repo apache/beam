@@ -621,7 +621,8 @@ public class TableRowToStorageApiProto {
         if (value instanceof String) {
           try {
             // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
-            return instantToMicros(Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
+            return instantToMicros(
+                Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
           } catch (DateTimeParseException e) {
             try {
               // "12345667"
