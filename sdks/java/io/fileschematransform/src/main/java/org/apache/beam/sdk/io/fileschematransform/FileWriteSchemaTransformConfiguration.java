@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.fileschematransform;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
@@ -46,8 +46,8 @@ public abstract class FileWriteSchemaTransformConfiguration {
 
   /**
    * Specifies to compress all generated shard files by default, append the respective extension to
-   * the filename. See {@link Compression} for expected values, though stringified in all lowercase
-   * format.
+   * the filename. See {@link org.apache.beam.sdk.io.Compression} for expected values, though
+   * stringified in all lowercase format.
    */
   @Nullable
   public abstract String getCompression();
@@ -60,7 +60,7 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @Nullable
   public abstract Integer getNumShards();
 
-  /** Uses the given {@link ShardNameTemplate} for naming output files. */
+  /** Uses the given {@link org.apache.beam.sdk.io.ShardNameTemplate} for naming output files. */
   @Nullable
   public abstract String getShardNameTemplate();
 
@@ -94,8 +94,8 @@ public abstract class FileWriteSchemaTransformConfiguration {
 
     /**
      * Specifies to compress all generated shard files by default, append the respective extension
-     * to the filename. See {@link Compression} for expected values, though stringified in all
-     * lowercase format.
+     * to the filename. See {@link org.apache.beam.sdk.io.Compression} for expected values, though
+     * stringified in all lowercase format.
      */
     public abstract Builder setCompression(String value);
 
@@ -105,7 +105,7 @@ public abstract class FileWriteSchemaTransformConfiguration {
     /** The number of output shards produced; a value of 1 disables sharding. */
     public abstract Builder setNumShards(Integer value);
 
-    /** Uses the given {@link ShardNameTemplate} for naming output files. */
+    /** Uses the given {@link org.apache.beam.sdk.io.ShardNameTemplate} for naming output files. */
     public abstract Builder setShardNameTemplate(String value);
 
     /** Configures the filename suffix for written files. */

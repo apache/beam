@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.fileschematransform;
 
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.io.Providers;

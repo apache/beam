@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.fileschematransform;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <p>The design goals of this class are to enable clean {@link
  * FileWriteSchemaTransformConfiguration#getFormat()} lookups that map to the appropriate {@link
- * FileIO.Write} that encodes the file data into the configured format.
+ * org.apache.beam.sdk.io.FileIO.Write} that encodes the file data into the configured format.
  */
 @Internal
 public final class FileWriteSchemaTransformFormatProviders {
