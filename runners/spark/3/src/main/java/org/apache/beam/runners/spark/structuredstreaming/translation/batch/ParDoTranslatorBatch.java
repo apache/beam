@@ -21,6 +21,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.oneOfEncoder;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun1;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.tuple;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.storage.StorageLevel.MEMORY_ONLY;
@@ -34,24 +35,27 @@ import java.util.Map;
 import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
@@ -82,28 +86,36 @@ class ParDoTranslatorBatch<InputT, OutputT>
       ClassTag.apply(Tuple2.class);
 
   @Override
-  public void translate(ParDo.MultiOutput<InputT, OutputT> transform, Context cxt)
-      throws IOException {
-    String stepName = cxt.getCurrentTransform().getFullName();
-
-    SparkCommonPipelineOptions opts = cxt.getOptions().as(SparkCommonPipelineOptions.class);
-    StorageLevel storageLevel = StorageLevel.fromString(opts.getStorageLevel());
-
-    // Check for not supported advanced features
-    // TODO: add support of Splittable DoFn
+  public boolean canTranslate(ParDo.MultiOutput<InputT, OutputT> transform) {
     DoFn<InputT, OutputT> doFn = transform.getFn();
+    DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
+
+    // TODO: add support of Splittable DoFn
     checkState(
-        !DoFnSignatures.isSplittable(doFn),
+        !signature.processElement().isSplittable(),
         "Not expected to directly translate splittable DoFn, should have been overridden: %s",
         doFn);
 
     // TODO: add support of states and timers
     checkState(
-        !DoFnSignatures.isStateful(doFn), "States and timers are not supported for the moment.");
+        !signature.usesState() && !signature.usesTimers(),
+        "States and timers are not supported for the moment.");
 
     checkState(
-        !DoFnSignatures.requiresTimeSortedInput(doFn),
+        signature.onWindowExpiration() == null, "onWindowExpiration is not supported: %s", doFn);
+
+    checkState(
+        !signature.processElement().requiresTimeSortedInput(),
         "@RequiresTimeSortedInput is not supported for the moment");
+
+    SparkSideInputReader.validateMaterializations(transform.getSideInputs().values());
+    return true;
+  }
+
+  @Override
+  public void translate(ParDo.MultiOutput<InputT, OutputT> transform, Context cxt)
+      throws IOException {
+    String stepName = cxt.getCurrentTransform().getFullName();
 
     TupleTag<OutputT> mainOutputTag = transform.getMainOutputTag();
 
@@ -111,38 +123,45 @@ class ParDoTranslatorBatch<InputT, OutputT>
         ParDoTranslation.getSchemaInformation(cxt.getCurrentTransform());
 
     PCollection<InputT> input = (PCollection<InputT>) cxt.getInput();
+    Map<String, PCollectionView<?>> sideInputs = transform.getSideInputs();
+    Map<TupleTag<?>, PCollection<?>> outputs = cxt.getOutputs();
+
     DoFnMapPartitionsFactory<InputT, OutputT> factory =
         new DoFnMapPartitionsFactory<>(
             stepName,
-            doFn,
+            transform.getFn(),
             doFnSchema,
             cxt.getSerializableOptions(),
             input,
             mainOutputTag,
-            cxt.getOutputs(),
-            transform.getSideInputs(),
-            createBroadcastSideInputs(transform.getSideInputs().values(), cxt));
+            outputs,
+            sideInputs,
+            createSideInputReader(sideInputs.values(), cxt));
 
     Dataset<WindowedValue<InputT>> inputDs = cxt.getDataset(input);
-    if (cxt.getOutputs().size() > 1) {
+    if (outputs.size() > 1) {
       // In case of multiple outputs / tags, map each tag to a column by index.
       // At the end split the result into multiple datasets selecting one column each.
-      Map<TupleTag<?>, Integer> tags = ImmutableMap.copyOf(zipwithIndex(cxt.getOutputs().keySet()));
+      Map<TupleTag<?>, Integer> tags = ImmutableMap.copyOf(zipwithIndex(outputs.keySet()));
 
       List<Encoder<WindowedValue<Object>>> encoders =
-          createEncoders(cxt.getOutputs(), (Iterable<TupleTag<?>>) tags.keySet(), cxt);
+          createEncoders(outputs, (Iterable<TupleTag<?>>) tags.keySet(), cxt);
 
       Function1<Iterator<WindowedValue<InputT>>, Iterator<Tuple2<Integer, WindowedValue<Object>>>>
           doFnMapper = factory.create((tag, v) -> tuple(tags.get(tag), (WindowedValue<Object>) v));
 
       // FIXME What's the strategy to unpersist Datasets / RDDs?
 
+      SparkCommonPipelineOptions opts = cxt.getOptions().as(SparkCommonPipelineOptions.class);
+      StorageLevel storageLevel = StorageLevel.fromString(opts.getStorageLevel());
       // If using storage level MEMORY_ONLY, it's best to persist the dataset as RDD to avoid any
       // serialization / use of encoders. Persisting a Dataset, even if using a "deserialized"
       // storage level, involves converting the data to the internal representation (InternalRow)
       // by use of an encoder.
       // For any other storage level, persist as Dataset, so we can select columns by TupleTag
       // individually without restoring the entire row.
+      // In both cases caching of the outputs in the translation context is disabled to avoid
+      // caching the same data twice.
       if (MEMORY_ONLY().equals(storageLevel)) {
 
         RDD<Tuple2<Integer, WindowedValue<Object>>> allTagsRDD =
@@ -160,7 +179,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
                   .map(fun1(Tuple2::_2), WINDOWED_VALUE_CTAG);
 
           cxt.putDataset(
-              cxt.getOutput(key), cxt.getSparkSession().createDataset(rddByTag, encoders.get(id)));
+              cxt.getOutput(key),
+              cxt.getSparkSession().createDataset(rddByTag, encoders.get(id)),
+              false);
         }
       } else {
         // Persist as wide rows with one column per TupleTag to support different schemas
@@ -177,7 +198,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
           TypedColumn<Tuple2<Integer, WindowedValue<Object>>, WindowedValue<Object>> col =
               (TypedColumn) col(id.toString()).as(encoders.get(id));
 
-          cxt.putDataset(cxt.getOutput(key), allTagsDS.filter(col.isNotNull()).select(col));
+          cxt.putDataset(cxt.getOutput(key), allTagsDS.filter(col.isNotNull()).select(col), false);
         }
       }
     } else {
@@ -205,32 +226,21 @@ class ParDoTranslatorBatch<InputT, OutputT>
     return (Coder<Object>) pc.getCoder();
   }
 
-  // FIXME Better ways?
-  private SideInputBroadcast createBroadcastSideInputs(
-      Collection<PCollectionView<?>> sideInputs, Context context) {
-
-    SideInputBroadcast sideInputBroadcast = new SideInputBroadcast();
-    for (PCollectionView<?> sideInput : sideInputs) {
-      PCollection<?> pc = sideInput.getPCollection();
-      if (pc == null) {
-        throw new NullPointerException("PCollection for SideInput is null");
-      }
-      Coder<? extends BoundedWindow> windowCoder =
-          pc.getWindowingStrategy().getWindowFn().windowCoder();
-      Coder<WindowedValue<?>> windowedValueCoder =
-          (Coder<WindowedValue<?>>)
-              (Coder<?>) WindowedValue.getFullCoder(pc.getCoder(), windowCoder);
-      Dataset<WindowedValue<?>> broadcastSet = context.getSideInputDataset(sideInput);
-      List<WindowedValue<?>> valuesList = broadcastSet.collectAsList();
-      List<byte[]> codedValues = new ArrayList<>();
-      for (WindowedValue<?> v : valuesList) {
-        codedValues.add(CoderHelpers.toByteArray(v, windowedValueCoder));
-      }
-
-      sideInputBroadcast.add(
-          sideInput.getTagInternal().getId(), context.broadcast(codedValues), windowedValueCoder);
+  private <T> SideInputReader createSideInputReader(
+      Collection<PCollectionView<?>> views, Context cxt) {
+    if (views.isEmpty()) {
+      return SparkSideInputReader.empty();
     }
-    return sideInputBroadcast;
+    Map<String, Broadcast<SideInputValues<?>>> broadcasts =
+        Maps.newHashMapWithExpectedSize(views.size());
+    for (PCollectionView<?> view : views) {
+      PCollection<T> pCol = checkStateNotNull((PCollection<T>) view.getPCollection());
+      // get broadcasted SideInputValues for pCol, if not available use loader function
+      Broadcast<SideInputValues<T>> broadcast =
+          cxt.getSideInputBroadcast(pCol, SideInputValues.loader(pCol));
+      broadcasts.put(view.getTagInternal().getId(), (Broadcast) broadcast);
+    }
+    return SparkSideInputReader.create(broadcasts);
   }
 
   private static <T> Collection<Entry<T, Integer>> zipwithIndex(Collection<T> col) {

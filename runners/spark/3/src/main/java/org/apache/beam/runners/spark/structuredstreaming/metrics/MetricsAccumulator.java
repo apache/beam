@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.SparkContext;
 import org.apache.spark.util.AccumulatorV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,14 +41,14 @@ public class MetricsAccumulator {
   private static volatile MetricsContainerStepMapAccumulator instance = null;
 
   /** Init metrics accumulator if it has not been initiated. This method is idempotent. */
-  public static void init(JavaSparkContext jsc) {
+  public static void init(SparkContext sparkContext) {
     if (instance == null) {
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
           MetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
           MetricsContainerStepMapAccumulator accumulator =
               new MetricsContainerStepMapAccumulator(metricsContainerStepMap);
-          jsc.sc().register(accumulator, ACCUMULATOR_NAME);
+          sparkContext.register(accumulator, ACCUMULATOR_NAME);
 
           instance = accumulator;
         }

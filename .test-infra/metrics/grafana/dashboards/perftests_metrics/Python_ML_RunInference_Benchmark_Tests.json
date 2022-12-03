@@ -24,6 +24,24 @@
   "links": [],
   "panels": [
     {
+      "datasource": null,
+      "description": "",
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "content": "Detailed descriptions of each benchmark can be found at https://s.apache.org/beam-ml-metrics",
+        "mode": "markdown"
+      },
+      "pluginVersion": "8.1.8",
+      "title": "Benchmark descriptions",
+      "type": "text"
+    },
+    {
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
@@ -130,6 +148,45 @@
           "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_inference_request_batch_size' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
           "rawQuery": true,
           "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "alias": "mean_inference_request_batch_size_resnet152_TESLA_T4_GPU",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152_tesla_t4\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_inference_request_batch_size' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
+          "rawQuery": true,
+          "refId": "C",
           "resultFormat": "time_series",
           "select": [
             [
@@ -411,7 +468,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "mean_load_model_latency_milli_seconds_resnet101",
+          "alias": "mean_inference_batch_latency_resnet101",
           "groupBy": [
             {
               "params": [
@@ -449,7 +506,7 @@
           "tags": []
         },
         {
-          "alias": "mean_load_model_latency_milli_seconds_resnet_152",
+          "alias": "mean_inference_batch_latency_resnet_152",
           "groupBy": [
             {
               "params": [
@@ -469,6 +526,45 @@
           "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_inference_batch_latency_micro_secs' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
           "rawQuery": true,
           "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "alias": "mean_inference_batch_latency_resnet_152_TESLA_T4_GPU",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152_tesla_t4\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_inference_batch_latency_micro_secs' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
+          "rawQuery": true,
+          "refId": "C",
           "resultFormat": "time_series",
           "select": [
             [
@@ -580,7 +676,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "$mean_inference_batch_latency_bert_base_uncased",
+          "alias": "mean_inference_batch_latency_bert_base_uncased",
           "groupBy": [
             {
               "params": [
@@ -749,7 +845,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "mean_load_model_latency_milli_seconds_resnet101",
+          "alias": "mean_load_model_latency_resnet101",
           "groupBy": [
             {
               "params": [
@@ -787,7 +883,7 @@
           "tags": []
         },
         {
-          "alias": "mean_load_model_latency_milli_seconds_resnet_152",
+          "alias": "mean_load_model_latency_resnet_152",
           "groupBy": [
             {
               "params": [
@@ -807,6 +903,45 @@
           "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_load_model_latency_milli_secs' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
           "rawQuery": true,
           "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        },
+        {
+          "alias": "mean_load_model_latency_resnet_152_TELSA_T4_GPU",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"torch_inference_imagenet_resnet152_tesla_t4\" WHERE metric = 'BeamML_PyTorch_pytorchruninference/beamml_runinference_mean_load_model_latency_milli_secs' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
+          "rawQuery": true,
+          "refId": "C",
           "resultFormat": "time_series",
           "select": [
             [
@@ -918,7 +1053,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "mean_load_model_latency_milli_seconds_bert_base_uncased",
+          "alias": "mean_load_model_latency_bert_base_uncased",
           "groupBy": [
             {
               "params": [
@@ -956,7 +1091,7 @@
           "tags": []
         },
         {
-          "alias": "mean_load_model_latency_milli_seconds_bert_large_uncased",
+          "alias": "mean_load_model_latency_bert_large_uncased",
           "groupBy": [
             {
               "params": [
@@ -1069,5 +1204,5 @@
   "timezone": "",
   "title": "Python ML RunInference Benchmarks",
   "uid": "ZpS8Uf44z",
-  "version": 1
+  "version": 2
 }

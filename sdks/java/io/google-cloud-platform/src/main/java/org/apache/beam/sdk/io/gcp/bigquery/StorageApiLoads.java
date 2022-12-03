@@ -41,7 +41,6 @@ import org.joda.time.Duration;
 /** This {@link PTransform} manages loads into BigQuery using the Storage API. */
 public class StorageApiLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
-  static final int MAX_BATCH_SIZE_BYTES = 2 * 1024 * 1024;
   final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulRowsTag =
       new TupleTag<>("successfulRows");
   final TupleTag<BigQueryStorageApiInsertError> failedRowsTag = new TupleTag<>("failedRows");
@@ -162,6 +161,12 @@ public class StorageApiLoads<DestinationT, ElementT>
 
     PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords;
 
+    int maxAppendBytes =
+        input
+            .getPipeline()
+            .getOptions()
+            .as(BigQueryOptions.class)
+            .getStorageApiAppendThresholdBytes();
     if (this.allowAutosharding) {
       groupedRecords =
           convertMessagesResult
@@ -169,7 +174,7 @@ public class StorageApiLoads<DestinationT, ElementT>
               .apply(
                   "GroupIntoBatches",
                   GroupIntoBatches.<DestinationT, StorageApiWritePayload>ofByteSize(
-                          MAX_BATCH_SIZE_BYTES,
+                          maxAppendBytes,
                           (StorageApiWritePayload e) -> (long) e.getPayload().length)
                       .withMaxBufferingDuration(triggeringFrequency)
                       .withShardedKey());
@@ -182,8 +187,7 @@ public class StorageApiLoads<DestinationT, ElementT>
           shardedRecords.apply(
               "GroupIntoBatches",
               GroupIntoBatches.<ShardedKey<DestinationT>, StorageApiWritePayload>ofByteSize(
-                      MAX_BATCH_SIZE_BYTES,
-                      (StorageApiWritePayload e) -> (long) e.getPayload().length)
+                      maxAppendBytes, (StorageApiWritePayload e) -> (long) e.getPayload().length)
                   .withMaxBufferingDuration(triggeringFrequency));
     }
     PCollectionTuple writeRecordsResult =

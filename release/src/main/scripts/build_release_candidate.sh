@@ -344,7 +344,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   git checkout ${RC_TAG}
 
-  ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}rc${RC_NUM} -Pjava11Home=${JAVA11_HOME}
+  ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}rc${RC_NUM} -Pjava11Home=${JAVA11_HOME} --no-daemon --no-parallel
 
   wipe_local_clone_dir
 fi
@@ -383,7 +383,7 @@ if [[ $confirmation = "y" ]]; then
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
-  ./gradlew :sdks:java:javadoc:aggregateJavadoc
+  ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 
   echo "------------------Updating Release Docs---------------------"
