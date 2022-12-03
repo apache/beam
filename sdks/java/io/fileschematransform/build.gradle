@@ -40,7 +40,6 @@ def jacocoExcludes = [
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-//    provided library.java.junit
     testImplementation library.java.junit
     testImplementation project(path: ":sdks:java:core", configuration: "shadow")
 }
