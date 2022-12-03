@@ -45,7 +45,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
@@ -622,21 +621,18 @@ public class TableRowToStorageApiProto {
         if (value instanceof String) {
           try {
             // '2011-12-03T10:15:30+01:00' '2011-12-03T10:15:30'
-            return ChronoUnit.MICROS.between(
-                Instant.EPOCH, Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
+            return instantToMicros(Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse((String) value)));
           } catch (DateTimeParseException e) {
             try {
               // "12345667"
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+              return instantToMicros(Instant.ofEpochMilli(Long.parseLong((String) value)));
             } catch (NumberFormatException e2) {
               // "yyyy-MM-dd HH:mm:ss.SSSSSS"
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH, Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
+              return instantToMicros(Instant.from(DATETIME_SPACE_FORMATTER.parse((String) value)));
             }
           }
         } else if (value instanceof Instant) {
-          return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value);
+          return instantToMicros((Instant) value);
         } else if (value instanceof org.joda.time.Instant) {
           // joda instant precision is millisecond
           return ((org.joda.time.Instant) value).getMillis() * 1000L;
@@ -797,5 +793,9 @@ public class TableRowToStorageApiProto {
         // JSON (due to JSON's float-based representation of all numbers).
         return fieldValue.toString();
     }
+  }
+
+  private static long instantToMicros(Instant instant) {
+    return instant.getEpochSecond() * 1000_000L + instant.getNano() / 1000L;
   }
 }
