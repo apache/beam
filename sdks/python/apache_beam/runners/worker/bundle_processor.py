@@ -198,7 +198,7 @@ class DataInputOperation(RunnerIOOperation):
             counter_factory=self.counter_factory,
             step_name=self.name_context.step_name,
             output_index=0,
-            consumer=self.consumer,
+            consumers=self.consumer,
             coder=self.windowed_coder,
             producer_type_hints=self._get_runtime_performance_hints(),
             producer_batch_converter=self.get_output_batch_converter())
