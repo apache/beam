@@ -18,7 +18,7 @@
 -->
 
 # CdapIO
-CdapIO provides I/O transforms to for [CDAP](https://cdap.io/) plugins.
+CdapIO provides I/O transforms for [CDAP](https://cdap.io/) plugins.
 
 ## What is CDAP?
 
