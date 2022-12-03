@@ -259,7 +259,7 @@ public class ReadWriteIT {
   }
 
   @Test
-  public void testPubsubLiteReadWithSchemaTransform() throws Exception {
+  public void testPubsubLiteWriteReadWithSchemaTransform() throws Exception {
     pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
     pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
 
