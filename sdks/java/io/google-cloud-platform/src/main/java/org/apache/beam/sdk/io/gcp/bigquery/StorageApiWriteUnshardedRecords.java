@@ -278,7 +278,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return this.streamName;
       }
 
-      AppendClientInfo generateClient(boolean createAppendClient) throws Exception {
+      AppendClientInfo generateClient() throws Exception {
         Preconditions.checkStateNotNull(maybeDatasetService);
         AppendClientInfo appendClientInfo =
             new AppendClientInfo(
@@ -286,16 +286,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 // Make sure that the client is always closed in a different thread to avoid
                 // blocking.
                 client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close));
-        if (createAppendClient) {
-          appendClientInfo =
-              appendClientInfo.createAppendClient(
-                  maybeDatasetService, () -> streamName, usingMultiplexing);
-          Preconditions.checkStateNotNull(appendClientInfo.streamAppendClient).pin();
-        }
+        appendClientInfo =
+            appendClientInfo.createAppendClient(
+                maybeDatasetService, () -> streamName, usingMultiplexing);
+        Preconditions.checkStateNotNull(appendClientInfo.streamAppendClient).pin();
         return appendClientInfo;
       }
 
-      AppendClientInfo getAppendClientInfo(boolean lookupCache, boolean createAppendClient) {
+      AppendClientInfo getAppendClientInfo(boolean lookupCache) {
         try {
           if (this.appendClientInfo == null) {
             getOrCreateStreamName();
@@ -304,10 +302,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               if (lookupCache) {
                 newAppendClientInfo =
                     APPEND_CLIENTS.get(
-                        getStreamAppendClientCacheEntryKey(),
-                        () -> generateClient(createAppendClient));
+                        getStreamAppendClientCacheEntryKey(), () -> generateClient());
               } else {
-                newAppendClientInfo = generateClient(createAppendClient);
+                newAppendClientInfo = generateClient();
                 // override the clients in the cache.
                 APPEND_CLIENTS.put(getStreamAppendClientCacheEntryKey(), newAppendClientInfo);
               }
@@ -392,8 +389,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           for (ByteString rowBytes : inserts.getSerializedRowsList()) {
             TableRow failedRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
-                    DynamicMessage.parseFrom(
-                        getAppendClientInfo(true, false).descriptor, rowBytes));
+                    DynamicMessage.parseFrom(getAppendClientInfo(true).descriptor, rowBytes));
             failedRowsReceiver.output(
                 new BigQueryStorageApiInsertError(
                     failedRow, "Row payload too large. Maximum size " + maxRequestSize));
@@ -417,8 +413,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               }
               try {
                 StreamAppendClient writeStream =
-                    Preconditions.checkStateNotNull(
-                        getAppendClientInfo(true, true).streamAppendClient);
+                    Preconditions.checkStateNotNull(getAppendClientInfo(true).streamAppendClient);
                 ApiFuture<AppendRowsResponse> response =
                     writeStream.appendRows(c.offset, c.protoRows);
                 inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
