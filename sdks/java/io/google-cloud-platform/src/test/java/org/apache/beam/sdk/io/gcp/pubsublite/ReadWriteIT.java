@@ -290,10 +290,10 @@ public class ReadWriteIT {
         PCollectionRowTuple.empty(pipeline)
             .apply(
                 "read from pslite",
-                new PubsubLiteSchemaTransformReadProvider()
+                new PubsubLiteReadSchemaTransformProvider()
                     .from(
-                        PubsubLiteSchemaTransformReadProvider
-                            .PubsubLiteSchemaTransformReadConfiguration.builder()
+                        PubsubLiteReadSchemaTransformProvider
+                            .PubsubLiteReadSchemaTransformConfiguration.builder()
                             .setDataFormat("JSON")
                             .setSchema(
                                 "{\n"
