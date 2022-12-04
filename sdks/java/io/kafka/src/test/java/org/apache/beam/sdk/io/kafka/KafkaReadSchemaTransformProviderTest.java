@@ -147,7 +147,7 @@ public class KafkaReadSchemaTransformProviderTest {
                         ByteStreams.toByteArray(
                             Objects.requireNonNull(
                                 getClass()
-                                    .getResourceAsStream("/schemas/json/basic_json_schema.json"))),
+                                    .getResourceAsStream("/json-schema/basic_json_schema.json"))),
                         StandardCharsets.UTF_8))
                 .build())
         .buildTransform();
