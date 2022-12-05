@@ -96,6 +96,8 @@ dependencies {
   runtimeOnly project(":sdks:java:io:google-cloud-platform")
   // SqlTransform
   runtimeOnly project(":sdks:java:extensions:sql:expansion-service")
+  // Azure IO
+  runtimeOnly project(":sdks:java:io:azure")
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
