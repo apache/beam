@@ -41,6 +41,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -187,7 +188,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     String topicName = "kinesis_to_kafka";
     String bootstrapServer = "localhost:9093";
 
-    byte[] payload = createPayload(topicName, bootstrapServer, true, false);
+    byte[] payload = createKafkaInputPayload(Arrays.asList(topicName), bootstrapServer, true, false);
     runAndAssertKafkaInput(id, topicName, payload);
   }
 
@@ -198,7 +199,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     String topicName = "kinesis_to_kafka";
     String bootstrapServer = "staging-hdd.lyft.net";
 
-    byte[] payload = createPayload(topicName, bootstrapServer, true, true);
+    byte[] payload = createKafkaInputPayload(Arrays.asList(topicName), bootstrapServer, true, true);
     runAndAssertKafkaInput(id, topicName, payload);
   }
 
@@ -230,7 +231,7 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     String topicName = "kinesis_to_kafka";
     String bootstrapServer = "test-hdd.lyft.com";
 
-    byte[] payload = createPayload(topicName, bootstrapServer, false, false);
+    byte[] payload = createKafkaInputPayload(Arrays.asList(topicName), bootstrapServer, false, false);
     RunnerApi.Pipeline pipeline = createPipeline(id, payload);
 
     NullPointerException npe =
@@ -287,6 +288,39 @@ public class LyftFlinkStreamingPortableTranslationsTest {
     Assert.assertTrue(kafkaSinkNameCaptor.getValue().contains(topicName));
     Assert.assertEquals(FlinkKafkaProducer.class, kafkaSinkCaptor.getValue().getClass());
   }
+
+  /**
+   * utility method to create payload for tests.
+   *
+   * @param topics name of kafka topics
+   * @param bootstrapServers bootstrap server
+   * @param withGroupId if {@code true}, include group.id to properties
+   * @param withCredentials if {@code true}, include username/password to properties.
+   * @return byte[]
+   * @throws JsonProcessingException
+   */
+  private byte[] createKafkaInputPayload(
+      List<String> topics, String bootstrapServers, boolean withGroupId, boolean withCredentials)
+      throws JsonProcessingException {
+
+    Properties properties = new Properties();
+    properties.put("bootstrap.servers", bootstrapServers);
+    if (withGroupId) {
+      properties.put("group.id", String.format("%s_%s", topics.get(0), System.currentTimeMillis()));
+    }
+
+    ImmutableMap.Builder<String, Object> builder =
+        ImmutableMap.<String, Object>builder()
+            .put("topics", topics)
+            .put("properties", properties);
+
+    if (withCredentials) {
+      builder.put("username", "kinesis_to_kafka").put("password", "abcde1234");
+    }
+
+    return new ObjectMapper().writeValueAsBytes(builder.build());
+  }
+
 
   /**
    * utility method to create payload for tests.

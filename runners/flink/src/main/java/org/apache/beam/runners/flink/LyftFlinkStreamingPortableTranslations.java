@@ -42,11 +42,13 @@ import com.lyft.streamingplatform.flink.InitialRoundRobinKinesisShardAssigner;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +69,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -140,11 +143,12 @@ public class LyftFlinkStreamingPortableTranslations {
       throw new RuntimeException("Could not parse KafkaConsumer properties.", e);
     }
 
-    final String topic;
-    Preconditions.checkNotNull(topic = (String) params.get("topic"), "'topic' needs to be set");
+    List<String> topics = (List) params.get("topics");
+    Preconditions.checkNotNull(topics);
+    Preconditions.checkArgument(topics.size() > 0, "'topics' need to be set");
     Map<String, String> consumerProps = (Map) params.get("properties");
     Preconditions.checkNotNull(consumerProps, "'properties' need to be set");
-    LOG.info("Configuring kafka consumer for topic {} with properties {}", topic, consumerProps);
+    LOG.info("Configuring kafka consumer for topics {} with properties {}", topics, consumerProps);
 
     final String userName = (String) params.get("username");
     final String password = (String) params.get("password");
@@ -160,7 +164,7 @@ public class LyftFlinkStreamingPortableTranslations {
     consumerBuilder.withKafkaProperties(properties);
 
     FlinkKafkaConsumer<WindowedValue<byte[]>> kafkaSource =
-        consumerBuilder.build(topic, new ByteArrayWindowedValueSchema(context));
+        consumerBuilder.build(topics, new ByteArrayWindowedValueSchema(context));
 
     if (params.getOrDefault("start_from_timestamp_millis", null) != null) {
       kafkaSource.setStartFromTimestamp(
@@ -169,20 +173,35 @@ public class LyftFlinkStreamingPortableTranslations {
       kafkaSource.setStartFromLatest();
     }
 
+    Number maxOutOfOrdernessMillis = 1000;
+    Number idlenessTimeoutMillis = null;
+
     if (params.containsKey("max_out_of_orderness_millis")) {
-      Number maxOutOfOrdernessMillis = (Number) params.get("max_out_of_orderness_millis");
-      if (maxOutOfOrdernessMillis != null) {
-        kafkaSource.assignTimestampsAndWatermarks(
-            new WindowedTimestampExtractor<>(
-                Time.milliseconds(maxOutOfOrdernessMillis.longValue())));
-      }
+      maxOutOfOrdernessMillis = (Number) params.get("max_out_of_orderness_millis");
+    }
+
+    if (params.containsKey("idleness_timeout_millis")) {
+      idlenessTimeoutMillis = (Number) params.get("idleness_timeout_millis");
+    }
+
+    if (idlenessTimeoutMillis != null) {
+      WatermarkStrategy<WindowedValue<byte[]>> watermarkStrategy =
+          WatermarkStrategy.<WindowedValue<byte[]>>forBoundedOutOfOrderness(
+              Duration.ofMillis(maxOutOfOrdernessMillis.longValue()))
+          .withIdleness(Duration.ofMillis(idlenessTimeoutMillis.longValue()));
+      kafkaSource.assignTimestampsAndWatermarks(watermarkStrategy);
+    } else {
+      kafkaSource.assignTimestampsAndWatermarks(
+          new WindowedTimestampExtractor<>(
+              Time.milliseconds(maxOutOfOrdernessMillis.longValue())));
     }
 
     context.addDataStream(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         context
             .getExecutionEnvironment()
-            .addSource(kafkaSource, FlinkKafkaConsumer.class.getSimpleName() + "-" + topic));
+            .addSource(kafkaSource, FlinkKafkaConsumer.class.getSimpleName() + "-" +
+                String.join(",", topics)));
   }
 
   /**
