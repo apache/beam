@@ -206,7 +206,7 @@ class GroupByKeyTranslatorBatch<K, V>
                       windowing,
                       (SerStateInternalsFactory) key -> InMemoryStateInternals.forKey(key),
                       SystemReduceFn.buffering(inputCoder.getValueCoder()),
-                      cxt.getSerializableOptions()),
+                      cxt.getOptionsSupplier()),
                   cxt.windowedEncoder(outputCoder));
     }
 

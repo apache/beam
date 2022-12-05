@@ -131,7 +131,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
             stepName,
             transform.getFn(),
             doFnSchema,
-            cxt.getSerializableOptions(),
+            cxt.getOptionsSupplier(),
             input,
             mainOutputTag,
             outputs,
