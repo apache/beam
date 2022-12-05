@@ -84,7 +84,7 @@ public class KafkaWordCountAvro {
                 .apply("ExtractWords", ParDo.of(new DoFn<String, String>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) {
-                        for (String word : c.element().split(TOKENIZER_PATTERN)) {
+                        for (String word : c.element().split(TOKENIZER_PATTERN, 0)) {
                             if (!word.isEmpty()) {
                                 c.output(word);
                             }
