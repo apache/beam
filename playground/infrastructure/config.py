@@ -121,9 +121,6 @@ class DatastoreProps:
 @dataclass(frozen=True)
 class RepoProps:
     REPO_DATASETS_PATH = "../backend/datasets"
-    # SDK runner has its own fs layout
-    RUNNER_DATASETS_PATH = "/opt/playground/backend/datasets"
-
 
 class Origin(str, Enum):
     PG_EXAMPLES = 'PG_EXAMPLES'

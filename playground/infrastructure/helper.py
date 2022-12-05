@@ -545,7 +545,7 @@ def validate_example_fields(example: Example):
     for dataset in datasets:
         location = dataset.location
         dataset_format = dataset.format
-        if not location or not dataset_format or location not in ["GCS"] or dataset_format not in ["json", "avro"]:
+        if not location or not dataset_format or location not in ["local"] or dataset_format not in ["json", "avro"]:
             _log_and_rise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
         dataset_names.append(dataset.name)
     for emulator in emulators:

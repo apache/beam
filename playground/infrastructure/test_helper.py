@@ -226,7 +226,7 @@ def test__get_example():
             "context_line": 1,
             "complexity": "MEDIUM",
             "emulators": {"kafka": {"topic": {"id": "dataset", "dataset": "dataset"}}},
-            "datasets": {"dataset": {"location": "GCS", "format": "json"}},
+            "datasets": {"dataset": {"location": "local", "format": "json"}},
         },
         "",
     )
@@ -243,7 +243,7 @@ def test__get_example():
             "Name",
             "MEDIUM",
             {"kafka": {"topic": {"id": "dataset", "dataset": "dataset"}}},
-            {"dataset": {"location": "GCS", "format": "json"}},
+            {"dataset": {"location": "local", "format": "json"}},
             "Description",
             "False",
             [""],
@@ -256,7 +256,7 @@ def test__get_example():
         emulators=[
             Emulator(topic=Topic(id="dataset", dataset="dataset"), name="kafka")
         ],
-        datasets=[Dataset(format="json", location="GCS", name="dataset")],
+        datasets=[Dataset(format="json", location="local", name="dataset")],
     )
 
 
@@ -463,7 +463,7 @@ def test_validate_example_fields_when_dataset_not_set_but_emulator_set():
 
 def test_validate_example_fields_when_emulator_not_set_but_dataset_set():
     example = _create_example("MOCK_NAME")
-    dataset = Dataset(format="json", location="GCS", name="dataset")
+    dataset = Dataset(format="json", location="local", name="dataset")
     example.datasets.append(dataset)
     with pytest.raises(
           ValidationException,
@@ -475,7 +475,7 @@ def test_validate_example_fields_when_emulator_not_set_but_dataset_set():
 def test_validate_example_fields_when_topic_dataset_is_invalid():
     example = _create_example("MOCK_NAME")
     emulator = Emulator(topic=Topic(id="MOCK_ID", dataset="MOCK_DATASET"), name="kafka")
-    dataset = Dataset(format="json", location="GCS", name="dataset")
+    dataset = Dataset(format="json", location="local", name="dataset")
     example.datasets.append(dataset)
     example.emulators.append(emulator)
     with pytest.raises(
@@ -488,7 +488,7 @@ def test_validate_example_fields_when_topic_dataset_is_invalid():
 def test_validate_example_fields_when_emulator_name_is_invalid():
     example = _create_example("MOCK_NAME")
     emulator = Emulator(topic=Topic(id="MOCK_ID", dataset="dataset"), name="MOCK_NAME")
-    dataset = Dataset(format="json", location="GCS", name="dataset")
+    dataset = Dataset(format="json", location="local", name="dataset")
     example.datasets.append(dataset)
     example.emulators.append(emulator)
     with pytest.raises(
@@ -501,7 +501,7 @@ def test_validate_example_fields_when_emulator_name_is_invalid():
 def test_validate_example_fields_when_dataset_format_is_invalid():
     example = _create_example("MOCK_NAME")
     emulator = Emulator(topic=Topic(id="MOCK_ID", dataset="dataset"), name="dataset")
-    dataset = Dataset(format="MOCK_FORMAT", location="GCS", name="dataset")
+    dataset = Dataset(format="MOCK_FORMAT", location="local", name="dataset")
     example.datasets.append(dataset)
     example.emulators.append(emulator)
     with pytest.raises(
@@ -586,11 +586,11 @@ def _create_example_with_meta(name: str, object_meta: Dict[str, Union[str, bool,
 //   emulators:
 //      kafka:
 //          topic:
-//              id: dataset
-//              dataset: dataset
+//              id: topic_1
+//              dataset: dataset_id_1
 //   datasets:
-//      dataset:
-//          location: GCS
+//      dataset_id_1:
+//          location: local
 //          format: json
 
 """
@@ -608,8 +608,8 @@ def test_get_tag_with_datasets():
             "categories": ["Filtering", "Options", "Quickstart"],
             "complexity": "MEDIUM",
             "tags": ["filter", "strings", "emulator"],
-            "emulators": {"kafka": {"topic": {"id": "dataset", "dataset": "dataset"}}},
-            "datasets": {"dataset": {"location": "GCS", "format": "json"}},
+            "emulators": {"kafka": {"topic": {"id": "topic_1", "dataset": "dataset_id_1"}}},
+            "datasets": {"dataset_id_1": {"location": "local", "format": "json"}},
         },
         tag_as_string="",
     )

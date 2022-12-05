@@ -29,7 +29,7 @@ def test_set_dataset_path_for_examples(mock_file_check):
     examples = _get_examples_with_datasets(3)
     set_dataset_path_for_examples(examples)
     for example in examples:
-        assert example.datasets[0].path == f"{RepoProps.RUNNER_DATASETS_PATH}/MOCK_NAME.MOCK_FORMAT"
+        assert example.datasets[0].path == "MOCK_NAME.MOCK_FORMAT"
 
 
 @mock.patch("os.path.isfile", return_value=False)
