@@ -150,4 +150,10 @@ public interface BigQueryOptions
   Long getStorageWriteApiMaxRequestSize();
 
   void setStorageWriteApiMaxRequestSize(Long value);
+
+  @Description("If set, BigQueryIO.Read will default to using the V2 implementation of the Read API Source")
+  @Default.Boolean(false)
+  Boolean getUseReadAPISourceV2();
+
+  void setUseReadAPISourceV2(Boolean value);
 }

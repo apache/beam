@@ -161,6 +161,7 @@ public class BigQueryIOStorageReadTest {
                   options
                       .as(BigQueryOptions.class)
                       .setTempLocation(testFolder.getRoot().getAbsolutePath());
+                  options.as(BigQueryOptions.class).setUseReadAPISourceV2(true);
                   p = TestPipeline.fromOptions(options);
                   p.apply(base, description).evaluate();
                 }
