@@ -484,6 +484,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jackson_version = "2.14.1"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
+    def everit_json_version = "1.14.1"
     def kafka_version = "2.4.1"
     def nemo_version = "0.1"
     def netty_version = "4.1.77.Final"
@@ -678,6 +679,8 @@ class BeamModulePlugin implements Plugin<Project> {
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
+        json_org                                    : "org.json:json",     // Try to keep in sync with google_cloud_platform_libraries_bom transitive deps.
+        everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",

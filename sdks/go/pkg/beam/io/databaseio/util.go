@@ -24,7 +24,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-//mapFields maps column into field index in record type
+// mapFields maps column into field index in record type
 func mapFields(columns []string, recordType reflect.Type) ([]int, error) {
 	var indexedFields = map[string]int{}
 	for i := 0; i < recordType.NumField(); i++ {

@@ -170,4 +170,4 @@ jobs:
           BEAM_SERVICE_OVERRIDES: '{"python:*": "python"}'
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
-          GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
+          GCP_TESTING_BUCKET: 'gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp'

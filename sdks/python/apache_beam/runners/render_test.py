@@ -44,13 +44,13 @@ class RenderRunnerTest(unittest.TestCase):
     pcoll = p | beam.Impulse() | beam.FlatMap(lambda x: [1, 2, 3])
     dot = render.PipelineRenderer(p.to_runner_api(), default_options).to_dot()
     self.assertEqual(dot.count('->'), 1)
-    self.assertNotIn('dotted', dot)
+    self.assertNotIn('dashed', dot)
 
     _ = pcoll | beam.Map(
         lambda x, side: x * side, side=beam.pvalue.AsList(pcoll))
     dot = render.PipelineRenderer(p.to_runner_api(), default_options).to_dot()
     self.assertEqual(dot.count('->'), 3)
-    self.assertIn('dotted', dot)
+    self.assertIn('dashed', dot)
 
   def test_composite_collapse(self):
     p = beam.Pipeline()
