@@ -449,7 +449,6 @@ func TestInvokes(t *testing.T) {
 // called with it. When using VetRestriction, the SDF methods it's used in
 // should pass it as a pointer so the method can make changes to the restriction
 // even if it doesn't output one directly (such as RestrictionSize).
-//
 type VetRestriction struct {
 	// An identifier to differentiate restrictions on the same elements. When
 	// split, a suffix in the form of ".#" is appended to this ID.

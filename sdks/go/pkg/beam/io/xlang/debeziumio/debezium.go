@@ -17,7 +17,7 @@
 // (http://kafka.apache.org/). These transforms only work on runners that
 // support cross-language transforms.
 //
-// Setup
+// # Setup
 //
 // Transforms specified here are cross-language transforms implemented in a
 // different SDK (listed below). During pipeline construction, the Go SDK will
@@ -33,12 +33,13 @@
 // released to the Maven repository as modules. For development versions of
 // Beam, it is recommended to build and run it from source using Gradle.
 //
-// Current supported SDKs including expansion service modules
-// * Java
-// 	  - Vendored Module: beam-sdks-java-io-debezium-expansion-service
-// 	  - Run via Gradle: ./gradlew :sdks:java:io:debezium:expansion-service:shadowJar
-//						 java -jar <path-to-debezium-jar> <port>
-//    - Reference Class: org.apache.beam.io.debezium.DebeziumIO
+// # Current supported SDKs including expansion service modules
+//
+// Java:
+//   - Vendored Module: beam-sdks-java-io-debezium-expansion-service
+//   - Run via Gradle: ./gradlew :sdks:java:io:debezium:expansion-service:shadowJar
+//     java -jar <path-to-debezium-jar> <port>
+//   - Reference Class: org.apache.beam.io.debezium.DebeziumIO
 package debeziumio
 
 import (
@@ -92,14 +93,15 @@ type readOption func(*debeziumConfig)
 // persistent expansion service running.
 //
 // Example:
-//   username := "debezium"
-//   password := "dbz"
-//   host := "localhost"
-//   port := "5432"
-//   connectorClass := debeziumIO.POSTGRESQL
-//   maxrecords := 1
-//   debeziumio.Read(s.Scope("Read from debezium"), expansionAddr, username, password, host, port, connectorClass,
-//                   reflectx.String, debeziumio.MaxRecord(maxrecords), debeziumio.ExpansionAddr("localhost:9000"))
+//
+//	username := "debezium"
+//	password := "dbz"
+//	host := "localhost"
+//	port := "5432"
+//	connectorClass := debeziumIO.POSTGRESQL
+//	maxrecords := 1
+//	debeziumio.Read(s.Scope("Read from debezium"), expansionAddr, username, password, host, port, connectorClass,
+//	                reflectx.String, debeziumio.MaxRecord(maxrecords), debeziumio.ExpansionAddr("localhost:9000"))
 func Read(s beam.Scope, username, password, host, port string, connectorClass DriverClassName, t reflect.Type, opts ...readOption) beam.PCollection {
 	rfds := readFromDebeziumSchema{
 		ConnectorClass: string(connectorClass),

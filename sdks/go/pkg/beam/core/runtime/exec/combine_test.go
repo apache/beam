@@ -455,14 +455,14 @@ func constructAndExecutePlan(t *testing.T, us []Unit) {
 
 // mergeFn represents a combine that is just a binary merge, where
 //
-//  InputT == OutputT == AccumT == int
+//	InputT == OutputT == AccumT == int
 func mergeFn(a, b int) int {
 	return a + b
 }
 
 // nonBinaryMergeFn represents a combine with a context parameter and an error return, where
 //
-//  InputT == OutputT == AccumT == int
+//	InputT == OutputT == AccumT == int
 func nonBinaryMergeFn(ctx context.Context, a, b int) (int, error) {
 	return a + b, nil
 }
@@ -470,8 +470,8 @@ func nonBinaryMergeFn(ctx context.Context, a, b int) (int, error) {
 // MyCombine represents a combine with the same Input and Output type (int), but a
 // distinct accumulator type (int64).
 //
-//  InputT == OutputT == int
-//  AccumT == int64
+//	InputT == OutputT == int
+//	AccumT == int64
 type MyCombine struct{}
 
 func (*MyCombine) AddInput(a int64, v int) int64 {
@@ -488,9 +488,9 @@ func (*MyCombine) ExtractOutput(a int64) int {
 
 // MyOtherCombine is the same as MyCombine, but has strings extracted as output.
 //
-//  InputT == int
-//  AccumT == int64
-//  OutputT == string
+//	InputT == int
+//	AccumT == int64
+//	OutputT == string
 type MyOtherCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput and MergeAccumulators implementations
 }
@@ -501,9 +501,9 @@ func (*MyOtherCombine) ExtractOutput(a int64) string {
 
 // MyThirdCombine parses strings as Input, and doesn't specify an ExtractOutput
 //
-//  InputT == string
-//  AccumT == int
-//  OutputT == int
+//	InputT == string
+//	AccumT == int
+//	OutputT == int
 type MyThirdCombine struct{}
 
 func (c *MyThirdCombine) AddInput(a int, s string) (int, error) {
@@ -520,9 +520,9 @@ func (*MyThirdCombine) MergeAccumulators(a, b int) int {
 
 // MyContextCombine is the same as MyCombine, but requires a context parameter.
 //
-//  InputT == int
-//  AccumT == int64
-//  OutputT == string
+//	InputT == int
+//	AccumT == int64
+//	OutputT == string
 type MyContextCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput implementations
 }
@@ -533,9 +533,9 @@ func (*MyContextCombine) MergeAccumulators(_ context.Context, a, b int64) int64 
 
 // MyErrorCombine is the same as MyCombine, but may return an error.
 //
-//  InputT == int
-//  AccumT == int64
-//  OutputT == string
+//	InputT == int
+//	AccumT == int64
+//	OutputT == string
 type MyErrorCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput implementations
 }
