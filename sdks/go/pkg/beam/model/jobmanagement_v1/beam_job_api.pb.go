@@ -1159,11 +1159,12 @@ func (*JobMessagesResponse_StateResponse) isJobMessagesResponse_Response() {}
 // Enumeration of all JobStates
 //
 // The state transition diagram is:
-//   STOPPED -> STARTING -> RUNNING -> DONE
-//                                  \> FAILED
-//                                  \> CANCELLING -> CANCELLED
-//                                  \> UPDATING -> UPDATED
-//                                  \> DRAINING -> DRAINED
+//
+//	STOPPED -> STARTING -> RUNNING -> DONE
+//	                               \> FAILED
+//	                               \> CANCELLING -> CANCELLED
+//	                               \> UPDATING -> UPDATED
+//	                               \> DRAINING -> DRAINED
 //
 // Transitions are optional such that a job may go from STOPPED to RUNNING
 // without needing to pass through STARTING.
