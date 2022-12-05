@@ -60,4 +60,3 @@ substitutions:
   _ORIGIN: "PG_EXAMPLES"
   _SUBDIRS: "././learning/katas ././examples ././sdks"
   _STEP: "CD"
-  _SDK: "JAVA"
