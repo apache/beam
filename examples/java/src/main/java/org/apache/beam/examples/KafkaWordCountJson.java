@@ -61,7 +61,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public class KafkaConsumerExample {
+public class KafkaWordCountJson {
     static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
 
     public static void main(String[] args) {
