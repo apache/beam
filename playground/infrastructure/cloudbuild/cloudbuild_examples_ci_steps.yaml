@@ -21,20 +21,24 @@ steps:
     args:
       - '-c'
       - |
-        chmod +x playground/infrastructure/cloudbuild/playground_examples_cd.sh \
-        && ./playground/infrastructure/cloudbuild/playground_examples_cd.sh
+        chmod +x playground/infrastructure/cloudbuild/playground_examples_ci.sh \
+        && ./playground/infrastructure/cloudbuild/playground_examples_ci.sh
     env:
       - 'ORIGIN=${_ORIGIN}'
       - 'STEP=${_STEP}'
       - 'SUBDIRS=${_SUBDIRS}'
       - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
+      - 'SDK_CONFIG="../../playground/sdks.yaml"'
+      - 'BEAM_EXAMPLE_CATEGORIES="../categories.yaml"'
+      - 'SERVER_ADDRESS=localhost:8080'
+      - 'BEAM_CONCURRENCY=4'
 
 options:
   logging: CLOUD_LOGGING_ONLY
 
-timeout: 1800s
+timeout: 3600s
 
 substitutions:
   _ORIGIN: "PG_EXAMPLES"
   _SUBDIRS: "././learning/katas ././examples ././sdks"
-  _STEP: "CD"
+  _STEP: "CI"
