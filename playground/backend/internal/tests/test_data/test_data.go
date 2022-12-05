@@ -149,7 +149,7 @@ func createSnippetEntities(ctx context.Context, examples []*entity.ExampleEntity
 		}
 		if example.Name == "MOCK_NAME_DATASET" {
 			snippet.Datasets = append(snippet.Datasets, &entity.DatasetNestedEntity{
-				Config:   "{\"topic\": \"dataset\"}",
+				Config:   "{\"topic\": \"topic_name_1\"}",
 				Dataset:  datasetKeys[0],
 				Emulator: "kafka",
 			})

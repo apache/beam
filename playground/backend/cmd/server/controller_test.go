@@ -1077,13 +1077,12 @@ func TestPlaygroundController_GetPrecompiledObjects(t *testing.T) {
 					}
 				}
 			}
-			if pcWithDataset == nil {
-				t.Fatalf("PlaygroundController_GetPrecompiledObjects() object with a dataset not found")
+			expectedDataset := &pb.Dataset{
+				Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+				Options:     map[string]string{"topic": "topic_name_1"},
+				DatasetPath: "MOCK_LINK",
 			}
-			if pcWithDataset.Datasets[0].DatasetPath != "MOCK_LINK" ||
-				pcWithDataset.Datasets[0].Type != pb.EmulatorType_EMULATOR_TYPE_KAFKA {
-				t.Fatalf("PlaygroundController_GetPrecompiledObjects() unexpected object with a dataset")
-			}
+			assert.Equal(t, expectedDataset, pcWithDataset.Datasets[0])
 		})
 	}
 }
@@ -1111,18 +1110,21 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 			},
 			wantErr: false,
 			check: func(response *pb.GetPrecompiledObjectResponse) {
-				if response.PrecompiledObject.Multifile != false ||
-					response.PrecompiledObject.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE" ||
-					response.PrecompiledObject.Name != "MOCK_DEFAULT_EXAMPLE" ||
-					response.PrecompiledObject.Type != pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE ||
-					response.PrecompiledObject.ContextLine != 10 ||
-					response.PrecompiledObject.PipelineOptions != "MOCK_P_OPTS" ||
-					response.PrecompiledObject.Link != "MOCK_PATH" ||
-					response.PrecompiledObject.Description != "MOCK_DESCR" ||
-					!response.PrecompiledObject.DefaultExample ||
-					response.PrecompiledObject.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
-					t.Fatalf("PlaygroundController_GetPrecompiledObject() unexpected result")
+				expected := &pb.PrecompiledObject{
+					Sdk:             pb.Sdk_SDK_JAVA,
+					Multifile:       false,
+					CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE",
+					Name:            "MOCK_DEFAULT_EXAMPLE",
+					Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+					ContextLine:     10,
+					PipelineOptions: "MOCK_P_OPTS",
+					Link:            "MOCK_PATH",
+					Description:     "MOCK_DESCR",
+					DefaultExample:  true,
+					Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+					Tags:            []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
 				}
+				assert.Equal(t, expected, response.PrecompiledObject)
 			},
 		},
 		{
@@ -1133,20 +1135,28 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 			},
 			wantErr: false,
 			check: func(response *pb.GetPrecompiledObjectResponse) {
-				if response.PrecompiledObject.Multifile != false ||
-					response.PrecompiledObject.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME_DATASET" ||
-					response.PrecompiledObject.Name != "MOCK_NAME_DATASET" ||
-					response.PrecompiledObject.Type != pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE ||
-					response.PrecompiledObject.ContextLine != 10 ||
-					response.PrecompiledObject.PipelineOptions != "MOCK_P_OPTS" ||
-					response.PrecompiledObject.Link != "MOCK_PATH" ||
-					response.PrecompiledObject.Description != "MOCK_DESCR" ||
-					response.PrecompiledObject.Complexity != pb.Complexity_COMPLEXITY_MEDIUM ||
-					response.PrecompiledObject.Datasets[0].DatasetPath != "MOCK_LINK" ||
-					response.PrecompiledObject.Datasets[0].Type != pb.EmulatorType_EMULATOR_TYPE_KAFKA ||
-					response.PrecompiledObject.Datasets[0].Options["topic"] != "dataset" {
-					t.Fatalf("PlaygroundController_GetPrecompiledObject() unexpected result")
+				expected := &pb.PrecompiledObject{
+					Sdk:             pb.Sdk_SDK_JAVA,
+					Multifile:       false,
+					CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME_DATASET",
+					Name:            "MOCK_NAME_DATASET",
+					Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+					ContextLine:     10,
+					PipelineOptions: "MOCK_P_OPTS",
+					Link:            "MOCK_PATH",
+					Description:     "MOCK_DESCR",
+					DefaultExample:  false,
+					Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+					Tags:            []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
+					Datasets: []*pb.Dataset{
+						{
+							DatasetPath: "MOCK_LINK",
+							Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+							Options:     map[string]string{"topic": "topic_name_1"},
+						},
+					},
 				}
+				assert.Equal(t, expected, response.PrecompiledObject)
 			},
 		},
 	}
