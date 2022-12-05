@@ -127,15 +127,12 @@ def validate_config(keys):
 def fetch_metric_data(
     params: Dict[str,
                  Any]) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
-  try:
-    metric_data: pd.DataFrame = big_query_metrics_fetcher(
-        project_name=params['project'],
-        dataset=params['metrics_dataset'],
-        table=params['metrics_table'],
-        metric_name=params['metric_name'],
-        limit=constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
-  except BaseException as e:
-    raise e
+  metric_data: pd.DataFrame = big_query_metrics_fetcher(
+      project_name=params['project'],
+      dataset=params['metrics_dataset'],
+      table=params['metrics_table'],
+      metric_name=params['metric_name'],
+      limit=constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
   return (
       metric_data[load_test_metrics_utils.VALUE_LABEL],
       metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL])

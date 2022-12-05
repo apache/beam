@@ -48,7 +48,7 @@ from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
 
 def run_change_point_analysis(params, test_id):
   if not validate_config(params.keys()):
-    raise Exception(
+    raise ValueError(
         f"Please make sure all these keys {constants._PERF_TEST_KEYS} "
         f"are specified for the {test_id}")
 
