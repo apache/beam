@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.commons.csv.CSVFormat;
 
 /**
  * The configuration for building file writing transforms using {@link
@@ -33,6 +34,19 @@ public abstract class FileWriteSchemaTransformConfiguration {
 
   public static FileWriteSchemaTransformConfiguration.Builder builder() {
     return new AutoValue_FileWriteSchemaTransformConfiguration.Builder();
+  }
+
+  public static CsvConfiguration.Builder csvConfigurationBuilder() {
+    return new AutoValue_FileWriteSchemaTransformConfiguration_CsvConfiguration.Builder()
+        .setCsvFormat(CSVFormat.DEFAULT.toString().toLowerCase());
+  }
+
+  public static ParquetConfiguration.Builder parquetConfigurationBuilder() {
+    return new AutoValue_FileWriteSchemaTransformConfiguration_ParquetConfiguration.Builder();
+  }
+
+  public static XmlConfiguration.Builder xmlConfigurationBuilder() {
+    return new AutoValue_FileWriteSchemaTransformConfiguration_XmlConfiguration.Builder();
   }
 
   /**
@@ -153,7 +167,6 @@ public abstract class FileWriteSchemaTransformConfiguration {
      * for allowed values, stringified in lowercase. Defaults to <a
      * href="https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/CSVFormat.html#DEFAULT">CSVFormat.DEFAULT</a>
      */
-    @Nullable
     public abstract String getCsvFormat();
 
     @AutoValue.Builder
