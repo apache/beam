@@ -55,7 +55,7 @@ spec:
          periodSeconds: {{ .Value.healthcheck.readPeriodSeconds }}
        resources:
          requests:
-           memory: "500Mi"
+           memory: "1000Mi"
            cpu: "250m"
          limits: 
            cpu: "500"
