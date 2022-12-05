@@ -25,6 +25,8 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: ['v*']
+env:
+  FLINK_VERSION: 1.13
 permissions: read-all
 
 jobs:
@@ -43,13 +45,6 @@ jobs:
     needs: set-properties
     name: Run Flink Java ValidatesRunner
     runs-on: [self-hosted, ubuntu-20.04]
-    strategy:
-      fail-fast: false
-      matrix:
-        flink-versions: ${{fromJson(needs.set-properties.outputs.properties).JavaTestProperties.FLINK_VERSIONS}}
-        exclude: # exclude other versions, we only need 1.13 for this test
-          - flink-versions: "1.14"
-          - flink-versions: "1.15"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -57,7 +52,7 @@ jobs:
           persist-credentials: false
       - name: Setup Environment
         uses: ./.github/actions/setup-self-hosted-action
-      - name: Run :runners:flink:${{ matrix.flink-versions }}:validatesRunner
+      - name: Run :runners:flink:${{ env.FLINK_VERSION }}:validatesRunner
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:flink:${{ matrix.flink-versions }}:validatesRunner
+          gradle-command: :runners:flink:${{ env.FLINK_VERSION }}:validatesRunner
