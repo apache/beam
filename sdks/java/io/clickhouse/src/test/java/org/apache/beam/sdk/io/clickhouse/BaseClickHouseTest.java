@@ -58,7 +58,7 @@ public class BaseClickHouseTest {
     zookeeper.start();
 
     clickHouse =
-        new ClickHouseContainer("clickhouse/clickhouse-server:22.5")
+        new ClickHouseContainer("clickhouse/clickhouse-server:22.9")
             .withStartupAttempts(10)
             .withNetwork(network)
             .withClasspathResourceMapping(
@@ -73,6 +73,7 @@ public class BaseClickHouseTest {
   @AfterClass
   public static void tearDown() {
     clickHouse.close();
+    zookeeper.close();
   }
 
   boolean executeSql(String sql) throws SQLException {
