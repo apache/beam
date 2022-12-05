@@ -37,6 +37,12 @@ variable "gke_trigger_name" {
   default     = "playground-to-gke-trigger"
 }
 
+variable "examples_cd_trigger_name" {
+  type        = string
+  description = "The name of the trigger that will run CD scripts to deploy Playground examples"
+  default     = "playground-examples-cd-trigger"
+}
+
 variable "cloudbuild_service_account_id" {
   type        = string
   description = "The ID of the cloud build service account responsible for provisioning Google Cloud resources"
