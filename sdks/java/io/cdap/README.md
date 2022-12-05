@@ -35,7 +35,7 @@ To learn more about CDAP plugins please see [io.cdap.cdap.api.annotation.Plugin]
 
 ## CDAP Batch plugins support in CDAP IO
 
-CdapIO supports CDAP Batch plugins based on Hadoop [`InputFormat`](https://hadoop.apache.org/docs/stable/api/org/apache/hadoop/mapred/InputFormat.html) and [`OutputFormat`](https://hadoop.apache.org/docs/stable/api/org/apache/hadoop/mapred/OutputFormat.html).
+CdapIO supports CDAP Batch plugins based on Hadoop [InputFormat](https://hadoop.apache.org/docs/stable/api/org/apache/hadoop/mapred/InputFormat.html) and [OutputFormat](https://hadoop.apache.org/docs/stable/api/org/apache/hadoop/mapred/OutputFormat.html).
 CDAP batch plugins support is implemented using [HadoopFormatIO](https://beam.apache.org/documentation/io/built-in/hadoop/).
 
 CdapIO currently supports the following CDAP Batch plugins by referencing `CDAP plugin` class:
