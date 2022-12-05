@@ -230,7 +230,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
       String failedTableRow = BigQueryUtils.toTableRow(row).toString();
       String errorMessage =
           "org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto$SchemaTooNarrowException: "
-              + "TableRow contained unexpected field with name name not found in schema for __root__";
+              + "TableRow contained unexpected field with name name not found in schema for root";
       expectedFailedRows.add(
           Row.withSchema(errorSchema)
               .withFieldValue("failed_row", failedTableRow)
