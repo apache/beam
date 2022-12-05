@@ -159,7 +159,7 @@ def get_issue_description(
 
   runs_to_display = [
       _METRIC_INFO.format(timestamps[i].ctime(), metric_values[i])
-      for i in (lower_bound, upper_bound)
+      for i in range(lower_bound, upper_bound)
   ]
 
   runs_to_display[change_point_index - lower_bound] += " <---- Anomaly"

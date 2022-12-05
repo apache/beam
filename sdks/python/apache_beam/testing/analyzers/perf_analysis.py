@@ -86,7 +86,7 @@ def run_change_point_analysis(params, test_id):
   last_reported_issue_number = None
   existing_issue_data = get_existing_issues_data(test_name)
 
-  if existing_issue_data:
+  if existing_issue_data is not None:
     existing_issue_timestamps = existing_issue_data[
         constants._CHANGE_POINT_TIMESTAMP_LABEL].tolist()
     last_reported_issue_number = existing_issue_data[
@@ -99,12 +99,11 @@ def run_change_point_analysis(params, test_id):
         min_runs_between_change_points=min_runs_between_change_points)
 
   logging.info("Performance alert is %s for test %s" % (is_alert, test_name))
-
   if is_alert:
     issue_number, issue_url = create_performance_alert(
      metric_name, test_name, timestamps,
      metric_values, change_point_index,
-     params.get('labels', default=None),
+     params.get('labels', None),
       last_reported_issue_number)
 
     issue_metadata = GitHubIssueMetaData(
