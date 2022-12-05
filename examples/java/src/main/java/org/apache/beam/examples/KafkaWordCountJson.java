@@ -38,7 +38,7 @@ package org.apache.beam.examples;
 //              dataset: dataset
 //   datasets:
 //      dataset:
-//          location: GCS
+//          location: local
 //          format: json
 
 import org.apache.beam.sdk.Pipeline;

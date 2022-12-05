@@ -24,6 +24,8 @@ import (
 	"beam.apache.org/playground/backend/internal/logger"
 )
 
+const DATASETS_PATH = "/opt/playground/backend/datasets"
+
 type EmulatorMockCluster interface {
 	Stop()
 	GetAddress() string
@@ -88,7 +90,7 @@ func PrepareMockClustersAndGetPrepareParams(request *pb.RunCodeRequest) ([]Emula
 func toDatasetDTOs(datasets []*pb.Dataset) ([]*DatasetDTO, error) {
 	result := make([]*DatasetDTO, 0, len(datasets))
 	for _, dataset := range datasets {
-		path := dataset.DatasetPath
+		path := DATASETS_PATH + "/" + dataset.DatasetPath
 		data, err := ioutil.ReadFile(path)
 		if err != nil {
 			return nil, err
