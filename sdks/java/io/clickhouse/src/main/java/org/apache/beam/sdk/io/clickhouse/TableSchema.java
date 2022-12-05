@@ -285,18 +285,10 @@ public abstract class TableSchema implements Serializable {
      * <p>E.g., "CREATE TABLE hits(id Int32, count Int32 DEFAULT &lt;str&gt;)"
      *
      * @param columnType type of ClickHouse expression
-     * @param str ClickHouse expression
+     * @param value ClickHouse expression
      * @return value of ClickHouse expression
      */
-    public static Object parseDefaultExpression(ColumnType columnType, String str) {
-      //      try {
-      String value = str;
-      /*
-      String value =
-          new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
-                  new StringReader(str))
-              .parseDefaultExpression();
-      */
+    public static Object parseDefaultExpression(ColumnType columnType, String value) {
       switch (columnType.typeName()) {
         case INT8:
           return Byte.valueOf(value);
@@ -322,9 +314,6 @@ public abstract class TableSchema implements Serializable {
         default:
           throw new UnsupportedOperationException("Unsupported type: " + columnType);
       }
-      //      } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
-      //        throw new IllegalArgumentException("failed to parse", e);
-      //      }
     }
 
     abstract Builder toBuilder();
