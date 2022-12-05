@@ -626,40 +626,29 @@ class AssignTimestamps(beam.DoFn):
         element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))
 
 
-class MetricsFetcher:
-  def get_metrics(self):
-    raise NotImplementedError
-
-
-class BigQueryMetricsFetcher(MetricsFetcher):
-  def get_metrics(
-      self,
-      project_name=None,
-      table=None,
-      dataset=None,
-      metric_name=None,
-      limit=1000,
-      query_template=None) -> pd.DataFrame:
-    if not query_template:
-      query_template = """
-        SELECT *
-        FROM {}.{}.{}
-        WHERE CONTAINS_SUBSTR(({}), '{}')
-        ORDER BY {} DESC
-        LIMIT {}
-      """.format(
-          project_name,
-          dataset,
-          table,
-          METRICS_TYPE_LABEL,
-          metric_name,
-          SUBMIT_TIMESTAMP_LABEL,
-          limit)
-    bq_client = bigquery.Client()
-    query_job = bq_client.query(query_template)
-    result = query_job.result()
-    return result.to_dataframe()
-
-  @staticmethod
-  def fetch_from_influxdb():
-    pass
+def big_query_metrics_fetcher(
+    project_name=None,
+    table=None,
+    dataset=None,
+    metric_name=None,
+    limit=1000,
+    query_template=None) -> pd.DataFrame:
+  if not query_template:
+    query_template = """
+      SELECT *
+      FROM {}.{}.{}
+      WHERE CONTAINS_SUBSTR(({}), '{}')
+      ORDER BY {} DESC
+      LIMIT {}
+    """.format(
+        project_name,
+        dataset,
+        table,
+        METRICS_TYPE_LABEL,
+        metric_name,
+        SUBMIT_TIMESTAMP_LABEL,
+        limit)
+  bq_client = bigquery.Client()
+  query_job = bq_client.query(query_template)
+  result = query_job.result()
+  return result.to_dataframe()

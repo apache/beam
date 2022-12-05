@@ -35,7 +35,7 @@ from apache_beam.testing.analyzers.github_issues_utils import get_issue_descript
 from apache_beam.testing.analyzers.github_issues_utils import report_change_point_on_issues
 from apache_beam.testing.load_tests import load_test_metrics_utils
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
-from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
+from apache_beam.testing.load_tests.load_test_metrics_utils import big_query_metrics_fetcher
 from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
 
 
@@ -75,7 +75,7 @@ def get_existing_issues_data(test_name: str, ) -> Optional[pd.DataFrame]:
   LIMIT 10
   """
   try:
-    df = BigQueryMetricsFetcher().get_metrics(query_template=query_template)
+    df = big_query_metrics_fetcher(query_template=query_template)
   except exceptions.NotFound:
     # If no table found, that means this is first performance regression
     # on the current test+metric.
@@ -130,7 +130,7 @@ def fetch_metric_data(
   # replace . with _ in test_name. This test name would be used later
   # as a BQ table name and the BQ table doesn't accept . in the name.
   try:
-    metric_data: pd.DataFrame = BigQueryMetricsFetcher().get_metrics(
+    metric_data: pd.DataFrame = big_query_metrics_fetcher(
         project_name=params['project'],
         dataset=params['metrics_dataset'],
         table=params['metrics_table'],
