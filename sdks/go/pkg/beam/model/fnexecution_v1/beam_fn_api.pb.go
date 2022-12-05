@@ -1552,14 +1552,14 @@ func (x *ProcessBundleSplitRequest) GetDesiredSplits() map[string]*ProcessBundle
 
 // Represents a partition of the bundle: a "primary" and a "residual", with the
 // following properties:
-// - The work in primary and residual doesn't overlap, and combined, adds up
-//   to the work in the current bundle if the split hadn't happened.
-// - The current bundle, if it keeps executing, will have done exactly none of
-//   the work under residual_roots and none of the elements at and beyond the
-//   first_residual_element.
-// - The current bundle, if no further splits happen, will have done exactly
-//   the work under primary_roots and all elements up to and including the
-//   channel splits last_primary_element.
+//   - The work in primary and residual doesn't overlap, and combined, adds up
+//     to the work in the current bundle if the split hadn't happened.
+//   - The current bundle, if it keeps executing, will have done exactly none of
+//     the work under residual_roots and none of the elements at and beyond the
+//     first_residual_element.
+//   - The current bundle, if no further splits happen, will have done exactly
+//     the work under primary_roots and all elements up to and including the
+//     channel splits last_primary_element.
 //
 // This allows the SDK to relinquish ownership of and commit to not process some
 // of the elements that it may have been sent (the residual) while retaining
@@ -3291,19 +3291,19 @@ func (x *ProcessBundleSplitRequest_DesiredSplit) GetEstimatedInputElements() int
 // as some range in an underlying dataset).
 //
 // Note that for a split the following properties must hold:
-// - last_primary_element < first_residual_element
-// - primary roots and residual roots can only be specified if the
-//   last_primary_element + 1 < first_residual_element
-//   (typically there is one primary and residual root per element in the
-//   range (last_primary_element, first_residual_element))
-// - primary roots and residual roots must represent a disjoint but full
-//   coverage of work represented by the elements between last_primary_element
-//   and first_residual_element
+//   - last_primary_element < first_residual_element
+//   - primary roots and residual roots can only be specified if the
+//     last_primary_element + 1 < first_residual_element
+//     (typically there is one primary and residual root per element in the
+//     range (last_primary_element, first_residual_element))
+//   - primary roots and residual roots must represent a disjoint but full
+//     coverage of work represented by the elements between last_primary_element
+//     and first_residual_element
 //
 // Note that subsequent splits of the same bundle must ensure that:
-// - the first_residual_element does not increase
-// - the first_residual_element does not decrease if there were residual
-//   or primary roots returned in a prior split.
+//   - the first_residual_element does not increase
+//   - the first_residual_element does not decrease if there were residual
+//     or primary roots returned in a prior split.
 type ProcessBundleSplitResponse_ChannelSplit struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

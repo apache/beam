@@ -29,7 +29,7 @@ import (
 // function types in a group can differ in optional leading arguments and
 // trailing returns only. For example, a signature can represent:
 //
-//     (context.Context?, int, string) -> (bool, error?)
+//	(context.Context?, int, string) -> (bool, error?)
 //
 // where the context arguments and error return are optional. The int and
 // string parameters as well as the bool return are mandatory.
@@ -102,8 +102,8 @@ func replace(list []reflect.Type, old, new reflect.Type) []reflect.Type {
 // Satisfy returns nil iff the fn can satisfy the signature, respecting
 // generics. For example, for
 //
-//    foo : (context.Context, X) -> bool
-//    bar : (int) -> bool
+//	foo : (context.Context, X) -> bool
+//	bar : (int) -> bool
 //
 // both would satisfy a signature of (context.Context?, int) -> bool. Only
 // "foo" would satisfy (context.Context, string) -> bool and only "bar" would

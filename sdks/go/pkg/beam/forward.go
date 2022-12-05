@@ -79,11 +79,11 @@ func RegisterFunction(fn interface{}) {
 // RegisterDoFn will panic if the argument type is not a DoFn.
 //
 // Usage:
-//    func init() {
-//	    beam.RegisterDoFn(FunctionalDoFn)
-//	    beam.RegisterDoFn(reflect.TypeOf((*StructuralDoFn)(nil)).Elem())
-//    }
 //
+//	   func init() {
+//		    beam.RegisterDoFn(FunctionalDoFn)
+//		    beam.RegisterDoFn(reflect.TypeOf((*StructuralDoFn)(nil)).Elem())
+//	   }
 func RegisterDoFn(dofn interface{}) {
 	genx.RegisterDoFn(dofn)
 }
@@ -100,10 +100,10 @@ func RegisterInit(hook func()) {
 // Must be called prior to beam.Init(), preferably in an init() function.
 //
 // The coder used for a given type follows this ordering:
-//   1. Coders for Known Beam types.
-//   2. Coders registered for specific types
-//   3. Coders registered for interfaces types
-//   4. Default coder (JSON)
+//  1. Coders for Known Beam types.
+//  2. Coders registered for specific types
+//  3. Coders registered for interfaces types
+//  4. Default coder (JSON)
 //
 // Coders for interface types are iterated over to check if a type
 // satisfies them, and the most recent one registered will be used.
@@ -115,17 +115,17 @@ func RegisterInit(hook func()) {
 //
 // Supported Encoder Signatures
 //
-//  func(T) []byte
-//  func(reflect.Type, T) []byte
-//  func(T) ([]byte, error)
-//  func(reflect.Type, T) ([]byte, error)
+//	func(T) []byte
+//	func(reflect.Type, T) []byte
+//	func(T) ([]byte, error)
+//	func(reflect.Type, T) ([]byte, error)
 //
 // Supported Decoder Signatures
 //
-//  func([]byte) T
-//  func(reflect.Type, []byte) T
-//  func([]byte) (T, error)
-//  func(reflect.Type, []byte) (T, error)
+//	func([]byte) T
+//	func(reflect.Type, []byte) T
+//	func([]byte) (T, error)
+//	func(reflect.Type, []byte) (T, error)
 //
 // where T is the matching user type.
 func RegisterCoder(t reflect.Type, encoder, decoder interface{}) {

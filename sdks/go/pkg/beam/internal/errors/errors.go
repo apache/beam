@@ -125,12 +125,12 @@ func getTop(e error) string {
 // The presence or lack of certain fields implicitly indicates some details
 // about the error.
 //
-// * If no cause is present it indicates that this instance is the original
-//   error, and the message is assumed to be present.
-// * If both message and context are present, the context describes this error,
-//   not the cause of this error.
-// * top is always propogated up from the cause. If it's empty that means that
-//   it was never set on any error in the sequence.
+//   - If no cause is present it indicates that this instance is the original
+//     error, and the message is assumed to be present.
+//   - If both message and context are present, the context describes this error,
+//     not the cause of this error.
+//   - top is always propogated up from the cause. If it's empty that means that
+//     it was never set on any error in the sequence.
 type beamError struct {
 	cause   error  // The error being wrapped. If nil then this is the first error.
 	context string // Adds additional context to this error and any following.
