@@ -66,13 +66,6 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @Nullable
   public abstract String getCompression();
 
-  /**
-   * For text based file writes, the custom delimiter to be used in place of the default ones ('\r',
-   * '\n' or '\r\n').
-   */
-  @Nullable
-  public abstract String getDelimiter();
-
   /** The number of output shards produced; a value of 1 disables sharding. */
   @Nullable
   public abstract Integer getNumShards();
@@ -115,12 +108,6 @@ public abstract class FileWriteSchemaTransformConfiguration {
      * stringified in all lowercase format.
      */
     public abstract Builder setCompression(String value);
-
-    /**
-     * For text based file writes, the custom delimiter to be used in place of the default ones
-     * ('\r', '\n' or '\r\n').
-     */
-    public abstract Builder setDelimiter(String value);
 
     /** The number of output shards produced; a value of 1 disables sharding. */
     public abstract Builder setNumShards(Integer value);
