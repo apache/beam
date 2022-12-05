@@ -47,30 +47,6 @@ from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
 
 
 def run_change_point_analysis(params, test_id):
-  """
-  Runs change point analysis for a given test parameters defined in params.
-
-  Steps:
-  1. Validate the params to check for required keys to fetch data for
-    change point analysis.
-  2. Initialize labels, min_runs_between_change_points,
-    num_runs_in_change_point_window. If they are passed in params,
-    override/append the default values with values in params.
-  3. Find most recent change point from the metric data of the
-      specified test+metric_name in params.
-  4. Find if the current observed change point is a duplicate/sibling change
-      point.
-      a. Check if the current observed change point lies in
-          num_runs_in_change_point_window.
-      b. Check if the current observed change point is a duplicate/sibling
-          change point of the last 10 reported change points for the current
-          test+metric_name
-  5. File an alert as a GitHub issue or GitHub issue comment if the
-      current observed change point is not a duplicate change point.
-  6. Publish the alerted GitHub issue metadata for BigQuery, This data is used
-      to determine whether a change point is duplicate or not.
-
-  """
   if not validate_config(params.keys()):
     raise Exception(
         f"Please make sure all these keys {constants._PERF_TEST_KEYS} "
