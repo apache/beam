@@ -52,7 +52,7 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @Nullable
   public abstract String getCompression();
 
-  /** The custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n'). */
+  /** For text based file writes, the custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n'). */
   @Nullable
   public abstract String getDelimiter();
 
@@ -99,7 +99,7 @@ public abstract class FileWriteSchemaTransformConfiguration {
      */
     public abstract Builder setCompression(String value);
 
-    /** The custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n'). */
+    /** For text based file writes, the custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n'). */
     public abstract Builder setDelimiter(String value);
 
     /** The number of output shards produced; a value of 1 disables sharding. */
@@ -128,7 +128,19 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @AutoValue
   public abstract static class CsvConfiguration {
 
-    /** Content written to the top of every sharded file prior to the header. */
+    /**
+     * Not to be confused with the CSV header, it is content written to the top of every sharded file prior to the header.
+     * In the example below, all the text proceeding the header 'column1,column2,column3' is the preamble.
+     *
+     * Fake company, Inc.
+     * Lab experiment: abcdefg123456
+     * Experiment date: 2022-12-05
+     * Operator: John Doe
+     *
+     * column1,column2,column3
+     * 1,2,3
+     * 4,5,6
+     */
     @Nullable
     public abstract String getPreamble();
 
@@ -144,7 +156,19 @@ public abstract class FileWriteSchemaTransformConfiguration {
     @AutoValue.Builder
     public abstract static class Builder {
 
-      /** Content written to the top of every sharded file prior to the header. */
+      /**
+       * Not to be confused with the CSV header, it is content written to the top of every sharded file prior to the header.
+       * In the example below, all the text proceeding the header 'column1,column2,column3' is the preamble.
+       *
+       * Fake company, Inc.
+       * Lab experiment: abcdefg123456
+       * Experiment date: 2022-12-05
+       * Operator: John Doe
+       *
+       * column1,column2,column3
+       * 1,2,3
+       * 4,5,6
+       */
       public abstract Builder setPreamble(String value);
 
       /**
@@ -197,7 +221,10 @@ public abstract class FileWriteSchemaTransformConfiguration {
     /** Sets the enclosing root element for the generated XML files. */
     public abstract String getRootElement();
 
-    /** Sets the charset used to write the file. */
+    /**
+     * The charset used to write the file.
+     * Defaults to {@link java.nio.charset.StandardCharsets#UTF_8}.
+     */
     public abstract String getCharset();
 
     @AutoValue.Builder
@@ -206,7 +233,10 @@ public abstract class FileWriteSchemaTransformConfiguration {
       /** Sets the enclosing root element for the generated XML files. */
       public abstract Builder setRootElement(String value);
 
-      /** Sets the charset used to write the file. */
+      /**
+       * The charset used to write the file.
+       * Defaults to {@link java.nio.charset.StandardCharsets#UTF_8}.
+       */
       public abstract Builder setCharset(String value);
 
       public abstract XmlConfiguration build();
