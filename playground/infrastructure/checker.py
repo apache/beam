@@ -99,7 +99,7 @@ def main():
     if check_sdk_examples(args.paths, Sdk.Value(args.sdk), root_dir):
         return
 
-    sys.exit(1)
+    sys.exit(2)
 
 
 if __name__ == "__main__":

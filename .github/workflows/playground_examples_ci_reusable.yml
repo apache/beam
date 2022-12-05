@@ -54,6 +54,9 @@ jobs:
       - name: install deps
         run: pip install -r requirements.txt
         working-directory: playground/infrastructure
+      - name: pytest
+        run: pytest
+        working-directory: playground/infrastructure
       - name: get Difference
         id: check_file_changed
         run: |
@@ -64,7 +67,7 @@ jobs:
             BASE_REF=origin/master
           fi
           DIFF=$(git diff --name-only $BASE_REF $GITHUB_SHA | tr '\n' ' ')
-          echo "::set-output name=example_diff::$DIFF"
+          echo "example_diff=$DIFF" >> $GITHUB_OUTPUT
       - id: check_has_example
         name: has Examples
         run: |
@@ -76,9 +79,12 @@ jobs:
             --allowlist ${{ inputs.allowlist }} \
             --paths ${{ steps.check_file_changed.outputs.example_diff }}
           if [ $? -eq 0 ]; then
-            echo "::set-output name=example_has_changed::True"
+            echo "example_has_changed=True" >> $GITHUB_OUTPUT
+          elif [ $? -eq 2 ]; then
+            echo "example_has_changed=False" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=example_has_changed::False"
+            echo "checker is broken"
+            exit 1
           fi
         working-directory: playground/infrastructure
         env:
