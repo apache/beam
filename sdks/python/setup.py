@@ -332,7 +332,7 @@ if __name__ == '__main__':
           'interactive_test': [
             # notebok utils
             'nbformat>=5.0.5,<6',
-            'nbconvert>=6.2.0,<7',
+            'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
             'chromedriver-binary>=100,<101',
