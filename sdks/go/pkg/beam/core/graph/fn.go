@@ -34,7 +34,7 @@ type Fn struct {
 	Fn *funcx.Fn
 	// Recv hold the struct receiver, if present. If Recv is nil, Fn
 	// must be non-nil.
-	Recv interface{}
+	Recv any
 	// DynFn holds the function-generator, if dynamic. If not nil, Fn
 	// holds the generated function.
 	DynFn *DynFn
@@ -78,7 +78,7 @@ type DynFn struct {
 
 // NewFn pre-processes a function, dynamic function or struct for graph
 // construction.
-func NewFn(fn interface{}) (*Fn, error) {
+func NewFn(fn any) (*Fn, error) {
 	if gen, ok := fn.(*DynFn); ok {
 		f, err := funcx.New(gen.Gen(gen.Name, gen.T, gen.Data))
 		if err != nil {
@@ -438,7 +438,7 @@ func CoGBKMainInput(components int) func(*config) {
 }
 
 // NewDoFn constructs a DoFn from the given value, if possible.
-func NewDoFn(fn interface{}, options ...func(*config)) (*DoFn, error) {
+func NewDoFn(fn any, options ...func(*config)) (*DoFn, error) {
 	ret, err := NewFn(fn)
 	if err != nil {
 		return nil, errors.WithContext(errors.Wrapf(err, "invalid DoFn"), "constructing DoFn")
@@ -1357,7 +1357,7 @@ func (f *CombineFn) Name() string {
 }
 
 // NewCombineFn constructs a CombineFn from the given value, if possible.
-func NewCombineFn(fn interface{}) (*CombineFn, error) {
+func NewCombineFn(fn any) (*CombineFn, error) {
 	ret, err := NewFn(fn)
 	if err != nil {
 		return nil, errors.WithContext(errors.Wrapf(err, "invalid CombineFn"), "constructing CombineFn")

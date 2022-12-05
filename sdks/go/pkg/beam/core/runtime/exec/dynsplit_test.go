@@ -370,7 +370,7 @@ func newSplitTestRTracker(rest offsetrange.Restriction) *splitTestRTracker {
 	}
 }
 
-func (rt *splitTestRTracker) TryClaim(pos interface{}) bool {
+func (rt *splitTestRTracker) TryClaim(pos any) bool {
 	i := pos.(int64)
 	if i == rt.blockInd {
 		rt.claim <- struct{}{}
@@ -395,7 +395,7 @@ func (rt *splitTestRTracker) GetError() error {
 	return rt.rt.GetError()
 }
 
-func (rt *splitTestRTracker) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *splitTestRTracker) TrySplit(fraction float64) (any, any, error) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	rt.blockSplit <- struct{}{}
@@ -418,7 +418,7 @@ func (rt *splitTestRTracker) IsDone() bool {
 	return rt.rt.IsDone()
 }
 
-func (rt *splitTestRTracker) GetRestriction() interface{} {
+func (rt *splitTestRTracker) GetRestriction() any {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	return rt.rt.GetRestriction()
