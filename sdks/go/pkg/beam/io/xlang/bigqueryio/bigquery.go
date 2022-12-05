@@ -37,7 +37,8 @@
 //
 // Current supported SDKs, including expansion service modules and reference
 // documentation:
-//   - Java
+//
+// Java:
 //   - Vendored Module: beam-sdks-java-extensions-schemaio-expansion-service
 //   - Run via Gradle: ./gradlew :sdks:java:extensions:schemaio-expansion-service:runExpansionService
 //   - Reference Class: org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaIOProvider and

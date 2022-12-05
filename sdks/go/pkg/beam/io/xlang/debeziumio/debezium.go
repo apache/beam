@@ -33,8 +33,9 @@
 // released to the Maven repository as modules. For development versions of
 // Beam, it is recommended to build and run it from source using Gradle.
 //
-// Current supported SDKs including expansion service modules
-// * Java
+// # Current supported SDKs including expansion service modules
+//
+// Java:
 //   - Vendored Module: beam-sdks-java-io-debezium-expansion-service
 //   - Run via Gradle: ./gradlew :sdks:java:io:debezium:expansion-service:shadowJar
 //     java -jar <path-to-debezium-jar> <port>

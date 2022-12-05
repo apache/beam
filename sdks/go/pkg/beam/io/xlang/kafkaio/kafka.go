@@ -35,7 +35,8 @@
 //
 // Current supported SDKs, including expansion service modules and reference
 // documentation:
-// * Java
+//
+// Java:
 //   - Vendored Module: beam-sdks-java-io-expansion-service
 //   - Run via Gradle: ./gradlew :sdks:java:io:expansion-service:runExpansionService
 //   - Reference Class: org.apache.beam.sdk.io.kafka.KafkaIO
