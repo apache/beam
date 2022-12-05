@@ -2011,10 +2011,10 @@ func (x *Components) GetEnvironments() map[string]*Environment {
 // A Pipeline is a hierarchical graph of PTransforms, linked
 // by PCollections. A typical graph may look like:
 //
-//   Impulse -> PCollection -> ParDo -> PCollection -> GroupByKey -> ...
-//                                   \> PCollection -> ParDo      -> ...
-//                                                  \> ParDo      -> ...
-//   Impulse -> PCollection -> ParDo -> PCollection -> ...
+//	Impulse -> PCollection -> ParDo -> PCollection -> GroupByKey -> ...
+//	                                \> PCollection -> ParDo      -> ...
+//	                                               \> ParDo      -> ...
+//	Impulse -> PCollection -> ParDo -> PCollection -> ...
 //
 // This is represented by a number of by-reference maps to transforms,
 // PCollections, SDK environments, coders, etc., for
@@ -5634,28 +5634,28 @@ func (*StandardRequirements) Descriptor() ([]byte, []int) {
 //
 // This structure is reused in two distinct, but compatible, ways:
 //
-// 1. This can be a specification of the function over PCollections
-//    that a PTransform computes.
-// 2. This can be a specification of a user-defined function, possibly
-//    SDK-specific. (external to this message must be adequate context
-//    to indicate the environment in which the UDF can be understood).
+//  1. This can be a specification of the function over PCollections
+//     that a PTransform computes.
+//  2. This can be a specification of a user-defined function, possibly
+//     SDK-specific. (external to this message must be adequate context
+//     to indicate the environment in which the UDF can be understood).
 //
 // Though not explicit in this proto, there are two possibilities
 // for the relationship of a runner to this specification that
 // one should bear in mind:
 //
-// 1. The runner understands the URN. For example, it might be
-//    a well-known URN like "beam:transform:Top" or
-//    "beam:window_fn:FixedWindows" with
-//    an agreed-upon payload (e.g. a number or duration,
-//    respectively).
-// 2. The runner does not understand the URN. It might be an
-//    SDK specific URN such as "beam:dofn:javasdk:1.0"
-//    that indicates to the SDK what the payload is,
-//    such as a serialized Java DoFn from a particular
-//    version of the Beam Java SDK. The payload will often
-//    then be an opaque message such as bytes in a
-//    language-specific serialization format.
+//  1. The runner understands the URN. For example, it might be
+//     a well-known URN like "beam:transform:Top" or
+//     "beam:window_fn:FixedWindows" with
+//     an agreed-upon payload (e.g. a number or duration,
+//     respectively).
+//  2. The runner does not understand the URN. It might be an
+//     SDK specific URN such as "beam:dofn:javasdk:1.0"
+//     that indicates to the SDK what the payload is,
+//     such as a serialized Java DoFn from a particular
+//     version of the Beam Java SDK. The payload will often
+//     then be an opaque message such as bytes in a
+//     language-specific serialization format.
 type FunctionSpec struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -6995,7 +6995,9 @@ which restrictions to split and who should process them.
 
 By default, we use the restriction tracker’s estimate for work remaining falling back to assuming
 that all restrictions have an equal cost. To override the default, SDF authors can provide the
-appropriate method within the restriction provider.
+appropriate method within the restriction provider. SDF authors need to be aware that the
+sizing method will be invoked concurrently during bundle processing due to runner initiated splitting
+and progress estimation.
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_GetSize >}}
@@ -7745,12 +7747,12 @@ other transform, provided the dependencies (e.g. a recent Python interpreter or
 a Java JRE) is available.  For example, most of the Typescript IOs are simply
 wrappers around Beam transforms from other languages.
 
-If a wrapper is not already available, one can use it explicitly using
-[apache_beam.transforms.external.rawExternalTransform](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/external.ts).
+<p class="paragraph-wrap">If a wrapper is not already available, one can use it explicitly using
+<a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/transforms/external.ts" target="_blank" rel="noopener noreferrer">apache_beam.transforms.external.rawExternalTransform</a>.
 which takes a `urn` (a string identifying the transform),
 a `payload` (a binary or json object parameterizing the transform),
 and a `expansionService` which can either be an address of a pre-started service
-or a callable returning an auto-started expansion service object.
+or a callable returning an auto-started expansion service object.</p>
 
 For example, one could write
 

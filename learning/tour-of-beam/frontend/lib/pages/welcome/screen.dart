@@ -22,12 +22,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../assets/assets.gen.dart';
 import '../../components/builders/content_tree.dart';
 import '../../components/builders/sdks.dart';
-import '../../components/filler_text.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
 import '../../models/module.dart';
 import 'state.dart';
 
@@ -397,7 +396,6 @@ class _ModuleBody extends StatelessWidget {
       padding: _modulePadding,
       child: Column(
         children: [
-          const FillerText(width: 20),
           const SizedBox(height: BeamSizes.size16),
           Divider(
             color: themeData.dividerColor,
@@ -416,7 +414,6 @@ class _LastModuleBody extends StatelessWidget {
     return Container(
       margin: _moduleLeftMargin,
       padding: _modulePadding,
-      child: const FillerText(width: 20),
     );
   }
 }

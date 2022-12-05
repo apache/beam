@@ -708,11 +708,11 @@ func (c *callerInt) Call1x1(a0 interface{}) interface{} {
 // * Implicit or Explicit method Receiver
 // * Pre-wrapped values and pre-allocated slices.
 // * Invocations along the following ways
-//   * Indirect via extracting from a reflect.Value.Interface()
-//   * Reflect Package (reflect.Value.Call())
-//   * Beam's reflectx.Func, and reflectx.FuncNxM interfaces
-//       * Beam's default reflection based reflectx.Func shim
-//       * A Type assertion specialized reflectx.Func shim
+//   - Indirect via extracting from a reflect.Value.Interface()
+//   - Reflect Package (reflect.Value.Call())
+//   - Beam's reflectx.Func, and reflectx.FuncNxM interfaces
+//   - Beam's default reflection based reflectx.Func shim
+//   - A Type assertion specialized reflectx.Func shim
 //
 // The Implicit or Explicit method receiver difference exists because
 // Go's reflect package treats the two cases different, and there are

@@ -26,10 +26,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-//rowMapper represents a record mapper
+// rowMapper represents a record mapper
 type rowMapper func(value reflect.Value) ([]interface{}, error)
 
-//newQueryMapper creates a new record mapped
+// newQueryMapper creates a new record mapped
 func newQueryMapper(columns []string, columnTypes []*sql.ColumnType, recordType reflect.Type) (rowMapper, error) {
 	val := reflect.New(recordType).Interface()
 	if _, isLoader := val.(MapLoader); isLoader {
@@ -40,7 +40,7 @@ func newQueryMapper(columns []string, columnTypes []*sql.ColumnType, recordType 
 	return nil, errors.Errorf("unsupported type %s", recordType)
 }
 
-//newQueryStructMapper creates a new record mapper for supplied struct type
+// newQueryStructMapper creates a new record mapper for supplied struct type
 func newQueryStructMapper(columns []string, recordType reflect.Type) (rowMapper, error) {
 	mappedFieldIndex, err := mapFields(columns, recordType)
 	if err != nil {
@@ -57,7 +57,7 @@ func newQueryStructMapper(columns []string, recordType reflect.Type) (rowMapper,
 	return mapper, nil
 }
 
-//newQueryStructMapper creates a new record mapper for supplied struct type
+// newQueryStructMapper creates a new record mapper for supplied struct type
 func newQueryLoaderMapper(columns []string, columnTypes []*sql.ColumnType) (rowMapper, error) {
 	var record = make([]interface{}, len(columns))
 	var valueProviders = make([]func(index int, values []interface{}), len(columns))
@@ -112,7 +112,7 @@ func newQueryLoaderMapper(columns []string, columnTypes []*sql.ColumnType) (rowM
 	return mapper, nil
 }
 
-//newQueryMapper creates a new record mapped
+// newQueryMapper creates a new record mapped
 func newWriterRowMapper(columns []string, recordType reflect.Type) (rowMapper, error) {
 	mappedFieldIndex, err := mapFields(columns, recordType)
 	if err != nil {

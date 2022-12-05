@@ -86,7 +86,7 @@ func MakePlaygroundClient(ctx context.Context) pb.PlaygroundServiceClient {
 	// * PLAYGROUND_ROUTER_HOST: playground API host/port
 	if os.Getenv("TOB_MOCK") > "" {
 		fmt.Println("Using mock playground client")
-		return pb.GetMockClient()
+		return service.GetMockClient()
 	} else {
 		host := os.Getenv("PLAYGROUND_ROUTER_HOST")
 		cc, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -197,6 +197,10 @@ func postUnitComplete(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid s
 	unitId := r.URL.Query().Get("id")
 
 	err := svc.SetUnitComplete(r.Context(), sdk, unitId, uid)
+	if errors.Is(err, tob.ErrNoUnit) {
+		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
+		return
+	}
 	if err != nil {
 		log.Println("Set unit complete error:", err)
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
@@ -219,7 +223,11 @@ func postUserCode(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid strin
 	}
 
 	err = svc.SaveUserCode(r.Context(), sdk, unitId, uid, userCodeRequest)
-	if err != nil {
+	if errors.Is(err, tob.ErrNoUnit) {
+		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
+		return
+	}
+	if err := errors.Unwrap(err); err != nil {
 		log.Println("Save user code error:", err)
 		message := "storage error"
 		if st, ok := grpc_status.FromError(err); ok {

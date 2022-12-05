@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.runners.samza.SamzaPipelineExceptionContext;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.translation.TranslationContext;
 import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.runners.samza.util.SamzaPipelineExceptionListener;
@@ -60,6 +61,7 @@ public class OpAdapter<InT, OutT, K>
 
   private final Op<InT, OutT, K> op;
   private final String transformFullName;
+  private final transient SamzaPipelineOptions samzaPipelineOptions;
   private transient OpEmitter<OutT> emitter;
   private transient Config config;
   private transient Context context;
@@ -67,12 +69,14 @@ public class OpAdapter<InT, OutT, K>
 
   public static <InT, OutT, K> AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>> adapt(
       Op<InT, OutT, K> op, TranslationContext ctx) {
-    return new OpAdapter<>(op, ctx.getTransformFullName());
+    return new OpAdapter<>(op, ctx.getTransformFullName(), ctx.getPipelineOptions());
   }
 
-  private OpAdapter(Op<InT, OutT, K> op, String transformFullName) {
+  private OpAdapter(
+      Op<InT, OutT, K> op, String transformFullName, SamzaPipelineOptions samzaPipelineOptions) {
     this.op = op;
     this.transformFullName = transformFullName;
+    this.samzaPipelineOptions = samzaPipelineOptions;
   }
 
   @Override
@@ -113,7 +117,7 @@ public class OpAdapter<InT, OutT, K>
       }
     } catch (Exception e) {
       LOG.error("Exception happened in transform: {}", transformFullName, e);
-      notifyExceptionListeners(transformFullName, e);
+      notifyExceptionListeners(transformFullName, e, samzaPipelineOptions);
       throw UserCodeException.wrap(e);
     }
 
@@ -217,12 +221,13 @@ public class OpAdapter<InT, OutT, K>
     }
   }
 
-  private void notifyExceptionListeners(String transformFullName, Exception e) {
+  private void notifyExceptionListeners(
+      String transformFullName, Exception e, SamzaPipelineOptions samzaPipelineOptions) {
     try {
       exceptionListeners.forEach(
           listener -> {
             listener
-                .getExceptionListener()
+                .getExceptionListener(samzaPipelineOptions)
                 .onException(new SamzaPipelineExceptionContext(transformFullName, e));
           });
     } catch (Exception t) {
