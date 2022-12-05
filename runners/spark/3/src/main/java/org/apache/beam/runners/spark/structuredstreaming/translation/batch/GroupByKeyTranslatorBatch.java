@@ -110,9 +110,9 @@ class GroupByKeyTranslatorBatch<K, V>
 
   private boolean useCollectList = true;
 
-  public GroupByKeyTranslatorBatch() {}
+  GroupByKeyTranslatorBatch() {}
 
-  public GroupByKeyTranslatorBatch(boolean useCollectList) {
+  GroupByKeyTranslatorBatch(boolean useCollectList) {
     this.useCollectList = useCollectList;
   }
 

@@ -39,6 +39,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.SparkSessio
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -83,6 +84,7 @@ import org.slf4j.LoggerFactory;
  * PipelineResult result = p.run();
  * }</pre>
  */
+@Experimental
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
