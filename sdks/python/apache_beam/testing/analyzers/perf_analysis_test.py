@@ -75,7 +75,7 @@ class TestChangePointAnalysis(unittest.TestCase):
         'project',
         'metric_name'
     }
-    self.assertEqual(test_keys, constants.PERF_TEST_KEYS)
+    self.assertEqual(test_keys, constants._PERF_TEST_KEYS)
     self.assertTrue(validate_config(test_keys))
 
   def test_is_perf_alert(self):

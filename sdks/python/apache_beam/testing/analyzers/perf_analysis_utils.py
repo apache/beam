@@ -70,8 +70,8 @@ def get_existing_issues_data(test_name: str, ) -> Optional[pd.DataFrame]:
   else return latest created issue_number along with
   """
   query_template = f"""
-  SELECT * FROM {constants.BQ_PROJECT_NAME}.{constants.BQ_DATASET}.{test_name}
-  ORDER BY {constants.ISSUE_CREATION_TIMESTAMP_LABEL} DESC
+  SELECT * FROM {constants._BQ_PROJECT_NAME}.{constants._BQ_DATASET}.{test_name}
+  ORDER BY {constants._ISSUE_CREATION_TIMESTAMP_LABEL} DESC
   LIMIT 10
   """
   try:
@@ -121,7 +121,7 @@ def read_test_config(config_file_path: str) -> Dict:
 
 
 def validate_config(keys):
-  return constants.PERF_TEST_KEYS.issubset(keys)
+  return constants._PERF_TEST_KEYS.issubset(keys)
 
 
 def fetch_metric_data(
@@ -135,7 +135,7 @@ def fetch_metric_data(
         dataset=params['metrics_dataset'],
         table=params['metrics_table'],
         metric_name=params['metric_name'],
-        limit=constants.NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
+        limit=constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
   except BaseException as e:
     raise e
   return (
@@ -158,14 +158,14 @@ def publish_issue_metadata_to_big_query(issue_metadata, test_name):
   Published issue_metadata to BigQuery with table name=test_name.
   """
   bq_metrics_publisher = BigQueryMetricsPublisher(
-      project_name=constants.BQ_PROJECT_NAME,
-      dataset=constants.BQ_DATASET,
+      project_name=constants._BQ_PROJECT_NAME,
+      dataset=constants._BQ_DATASET,
       table=test_name,
-      bq_schema=constants.SCHEMA)
+      bq_schema=constants._SCHEMA)
   bq_metrics_publisher.publish([asdict(issue_metadata)])
   logging.info(
       'GitHub metadata is published to Big Query Dataset %s'
-      ', table %s' % (constants.BQ_DATASET, test_name))
+      ', table %s' % (constants._BQ_DATASET, test_name))
 
 
 def create_performance_alert(
@@ -186,10 +186,10 @@ def create_performance_alert(
       metric_values=metric_values,
       change_point_index=change_point_index,
       max_results_to_display=(
-          constants.NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
+          constants._NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
 
   issue_number, issue_url = report_change_point_on_issues(
-        title=constants.TITLE_TEMPLATE.format(test_name, metric_name),
+        title=constants._TITLE_TEMPLATE.format(test_name, metric_name),
         description=description,
         labels=labels,
         issue_number=existing_issue_number)

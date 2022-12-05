@@ -73,23 +73,23 @@ def run_change_point_analysis(params, test_id):
   """
   if not validate_config(params.keys()):
     raise Exception(
-        f"Please make sure all these keys {constants.PERF_TEST_KEYS} "
+        f"Please make sure all these keys {constants._PERF_TEST_KEYS} "
         f"are specified for the {test_id}")
 
   metric_name = params['metric_name']
   test_name = params['test_name'].replace('.', '_') + f'_{metric_name}'
 
-  labels = [constants.PERF_ALERT_LABEL]
+  labels = [constants._PERF_ALERT_LABEL]
   if 'labels' in params:
     labels += params['labels']
 
   min_runs_between_change_points = (
-      constants.DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS)
+      constants._DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS)
   if 'min_runs_between_change_points' in params:
     min_runs_between_change_points = params['min_runs_between_change_points']
 
   num_runs_in_change_point_window = (
-      constants.DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW)
+      constants._DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW)
   if 'num_runs_in_change_point_window' in params:
     num_runs_in_change_point_window = params['num_runs_in_change_point_window']
 
@@ -116,9 +116,9 @@ def run_change_point_analysis(params, test_id):
 
   if existing_issue_data:
     existing_issue_timestamps = existing_issue_data[
-        constants.CHANGE_POINT_TIMESTAMP_LABEL].tolist()
+        constants._CHANGE_POINT_TIMESTAMP_LABEL].tolist()
     last_reported_issue_number = existing_issue_data[
-        constants.ISSUE_NUMBER].tolist()[0]
+        constants._ISSUE_NUMBER].tolist()[0]
 
     is_alert = is_perf_alert(
         previous_change_point_timestamps=existing_issue_timestamps,
