@@ -78,9 +78,10 @@ jobs:
             --sdk SDK_${SDK^^} \
             --allowlist ${{ inputs.allowlist }} \
             --paths ${{ steps.check_file_changed.outputs.example_diff }}
-          if [ $? -eq 0 ]; then
+          CODE=$?
+          if [ $CODE -eq 0 ]; then
             echo "example_has_changed=True" >> $GITHUB_OUTPUT
-          elif [ $? -eq 2 ]; then
+          elif [ $CODE -eq 11 ]; then
             echo "example_has_changed=False" >> $GITHUB_OUTPUT
           else
             echo "checker is broken"
