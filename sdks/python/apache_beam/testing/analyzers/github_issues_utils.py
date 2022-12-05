@@ -32,6 +32,7 @@ except KeyError as e:
       'A Github Personal Access token is required '
       'to create Github Issues.')
 
+# TODO: Change the REPO owner name to apache before merging.
 _BEAM_GITHUB_REPO_OWNER = 'AnandInguva'
 _BEAM_GITHUB_REPO_NAME = 'beam'
 # Adding GitHub Rest API version to the header to maintain version stability.
@@ -63,6 +64,8 @@ def create_issue(
     title:  GitHub issue title.
     description: GitHub issue description.
     labels: Labels used to tag the GitHub issue.
+  Returns:
+    Tuple containing GitHub issue number and issue URL.
   """
   url = "https://api.github.com/repos/{}/{}/issues".format(
       _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME)
@@ -90,6 +93,9 @@ def comment_on_issue(issue_number: int,
     issue_number: A GitHub issue number.
     comment_description: If an issue with issue_number is open,
       then comment on the issue with the using comment_description.
+  Returns:
+    Boolean, indicating a comment was added to issue, and URL directing to
+     the comment.
   """
   url = 'https://api.github.com/repos/{}/{}/issues/{}'.format(
       _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)

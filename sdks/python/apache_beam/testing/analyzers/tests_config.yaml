@@ -15,14 +15,6 @@
 # limitations under the License.
 #
 
-# NOTE:
-# min_runs_between_change_points: units for this variable is number of runs.
-# So if a test runs 2 times a day, and we want to look for sibling change point in
-# the runs that happened 3 days before and after the change point,
-# then this value will should be 3 * 2 = 6.
-
-# change_point_to_recent_run_window: same units as min_runs_between_change_points.
-
 test_1:
   test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
@@ -30,7 +22,6 @@ test_1:
   project: apache-beam-testing
   metric_name: mean_load_model_latency_milli_secs
   labels:
-    - perf-alert
     - run-inference
   min_runs_between_change_points: 5
   num_runs_in_change_point_window: 7
@@ -42,7 +33,6 @@ test_2:
   project: apache-beam-testing
   metric_name: mean_load_model_latency_milli_secs
   labels:
-    - perf-alert
     - run-inference
   min_runs_between_change_points: 5
   num_runs_in_change_point_window: 7

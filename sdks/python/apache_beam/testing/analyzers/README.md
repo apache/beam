@@ -50,7 +50,6 @@ test_1:
   project: apache-beam-testing
   metric_name: mean_load_model_latency_milli_secs
   labels:
-    - perf-alert
     - run-inference
   min_runs_between_change_points: 5
   num_runs_in_change_point_window: 7
@@ -77,8 +76,5 @@ setting `num_runs_in_change_point_window=7` will achieve it.
 
 If a new test needs to be registered for the performance alerting tool, please add the required test parameters to the
 config file.
-
-**Note**: Please add the label `perf-alert` along with the other labels that are relevant to the test. This will help keeping
-track of the issues created by the performance alerting tool.
 
 
