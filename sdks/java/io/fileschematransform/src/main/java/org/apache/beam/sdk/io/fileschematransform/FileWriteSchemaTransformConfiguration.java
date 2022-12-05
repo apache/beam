@@ -52,7 +52,10 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @Nullable
   public abstract String getCompression();
 
-  /** For text based file writes, the custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n'). */
+  /**
+   * For text based file writes, the custom delimiter to be used in place of the default ones ('\r',
+   * '\n' or '\r\n').
+   */
   @Nullable
   public abstract String getDelimiter();
 
@@ -99,7 +102,10 @@ public abstract class FileWriteSchemaTransformConfiguration {
      */
     public abstract Builder setCompression(String value);
 
-    /** For text based file writes, the custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n'). */
+    /**
+     * For text based file writes, the custom delimiter to be used in place of the default ones
+     * ('\r', '\n' or '\r\n').
+     */
     public abstract Builder setDelimiter(String value);
 
     /** The number of output shards produced; a value of 1 disables sharding. */
@@ -129,17 +135,14 @@ public abstract class FileWriteSchemaTransformConfiguration {
   public abstract static class CsvConfiguration {
 
     /**
-     * Not to be confused with the CSV header, it is content written to the top of every sharded file prior to the header.
-     * In the example below, all the text proceeding the header 'column1,column2,column3' is the preamble.
+     * Not to be confused with the CSV header, it is content written to the top of every sharded
+     * file prior to the header. In the example below, all the text proceeding the header
+     * 'column1,column2,column3' is the preamble.
      *
-     * Fake company, Inc.
-     * Lab experiment: abcdefg123456
-     * Experiment date: 2022-12-05
-     * Operator: John Doe
+     * <p>Fake company, Inc. Lab experiment: abcdefg123456 Experiment date: 2022-12-05 Operator:
+     * John Doe
      *
-     * column1,column2,column3
-     * 1,2,3
-     * 4,5,6
+     * <p>column1,column2,column3 1,2,3 4,5,6
      */
     @Nullable
     public abstract String getPreamble();
@@ -157,17 +160,14 @@ public abstract class FileWriteSchemaTransformConfiguration {
     public abstract static class Builder {
 
       /**
-       * Not to be confused with the CSV header, it is content written to the top of every sharded file prior to the header.
-       * In the example below, all the text proceeding the header 'column1,column2,column3' is the preamble.
+       * Not to be confused with the CSV header, it is content written to the top of every sharded
+       * file prior to the header. In the example below, all the text proceeding the header
+       * 'column1,column2,column3' is the preamble.
        *
-       * Fake company, Inc.
-       * Lab experiment: abcdefg123456
-       * Experiment date: 2022-12-05
-       * Operator: John Doe
+       * <p>Fake company, Inc. Lab experiment: abcdefg123456 Experiment date: 2022-12-05 Operator:
+       * John Doe
        *
-       * column1,column2,column3
-       * 1,2,3
-       * 4,5,6
+       * <p>column1,column2,column3 1,2,3 4,5,6
        */
       public abstract Builder setPreamble(String value);
 
@@ -222,8 +222,8 @@ public abstract class FileWriteSchemaTransformConfiguration {
     public abstract String getRootElement();
 
     /**
-     * The charset used to write the file.
-     * Defaults to {@link java.nio.charset.StandardCharsets#UTF_8}.
+     * The charset used to write the file. Defaults to {@link
+     * java.nio.charset.StandardCharsets#UTF_8}.
      */
     public abstract String getCharset();
 
@@ -234,8 +234,8 @@ public abstract class FileWriteSchemaTransformConfiguration {
       public abstract Builder setRootElement(String value);
 
       /**
-       * The charset used to write the file.
-       * Defaults to {@link java.nio.charset.StandardCharsets#UTF_8}.
+       * The charset used to write the file. Defaults to {@link
+       * java.nio.charset.StandardCharsets#UTF_8}.
        */
       public abstract Builder setCharset(String value);
 
