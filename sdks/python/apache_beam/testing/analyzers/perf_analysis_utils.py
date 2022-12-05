@@ -127,8 +127,6 @@ def validate_config(keys):
 def fetch_metric_data(
     params: Dict[str,
                  Any]) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
-  # replace . with _ in test_name. This test name would be used later
-  # as a BQ table name and the BQ table doesn't accept . in the name.
   try:
     metric_data: pd.DataFrame = big_query_metrics_fetcher(
         project_name=params['project'],
@@ -192,7 +190,7 @@ def create_performance_alert(
         title=constants._TITLE_TEMPLATE.format(test_name, metric_name),
         description=description,
         labels=labels,
-        issue_number=existing_issue_number)
+        existing_issue_number=existing_issue_number)
 
   logging.info(
       'Performance regression is alerted on issue #%s. Link to '

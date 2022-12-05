@@ -50,6 +50,7 @@ _ISSUE_DESCRIPTION_HEADER = """
 """
 _METRIC_INFO = "timestamp: {}, metric_value: `{}`"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'
+_PERF_ALERT_LABEL = 'perf-alert'
 
 
 def create_issue(
@@ -74,9 +75,10 @@ def create_issue(
       'repo': _BEAM_GITHUB_REPO_NAME,
       'title': title,
       'body': description,
+      'labels': [_AWAITING_TRIAGE_LABEL, _PERF_ALERT_LABEL]
   }
   if labels:
-    data['labels'] = labels + [_AWAITING_TRIAGE_LABEL]
+    data['labels'] += labels
   response = requests.post(
       url=url, data=json.dumps(data), headers=_HEADERS).json()
   return response['number'], response['html_url']
@@ -120,11 +122,11 @@ def comment_on_issue(issue_number: int,
   return False, None
 
 
-def add_label_to_issue(issue_number: int, labels: Optional[List[str]] = None):
+def add_awaiting_triage_label_to_issue(issue_number: int):
   url = 'https://api.github.com/repos/{}/{}/issues/{}/labels'.format(
       _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
-  if labels:
-    requests.post(url, json.dumps({'labels': labels}), headers=_HEADERS)
+  requests.post(
+      url, json.dumps({'labels': [_AWAITING_TRIAGE_LABEL]}), headers=_HEADERS)
 
 
 def get_issue_description(
@@ -169,21 +171,20 @@ def get_issue_description(
 
 def report_change_point_on_issues(
     title: str,
-    issue_number: Optional[int],
     description: str,
-    labels: Optional[List[str]] = None) -> Tuple[int, str]:
+    labels: Optional[List[str]] = None,
+    existing_issue_number: Optional[int] = None,
+) -> Tuple[int, str]:
   """
-  Looks for a GitHub issue with the issue number. First, we try to
-  find the issue that's open and comment on it with the provided description.
-  If that issue is closed, we create a new issue.
+  Comments the description on the existing issue (if provided and still open),
+   or creates a new issue.
   """
-  if issue_number is not None:
+  if existing_issue_number is not None:
     commented_on_issue, issue_url = comment_on_issue(
-          issue_number=issue_number,
+          issue_number=existing_issue_number,
           comment_description=description
           )
     if commented_on_issue:
-      add_label_to_issue(
-          issue_number=issue_number, labels=[_AWAITING_TRIAGE_LABEL])
-      return issue_number, issue_url
+      add_awaiting_triage_label_to_issue(issue_number=existing_issue_number)
+      return existing_issue_number, issue_url
   return create_issue(title=title, description=description, labels=labels)

@@ -55,10 +55,6 @@ def run_change_point_analysis(params, test_id):
   metric_name = params['metric_name']
   test_name = params['test_name'].replace('.', '_') + f'_{metric_name}'
 
-  labels = [constants._PERF_ALERT_LABEL]
-  if 'labels' in params:
-    labels += params['labels']
-
   min_runs_between_change_points = (
       constants._DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS)
   if 'min_runs_between_change_points' in params:
@@ -108,7 +104,8 @@ def run_change_point_analysis(params, test_id):
     issue_number, issue_url = create_performance_alert(
      metric_name, test_name, timestamps,
      metric_values, change_point_index,
-     labels, last_reported_issue_number)
+     params.get('labels', default=None),
+      last_reported_issue_number)
 
     issue_metadata = GitHubIssueMetaData(
         issue_timestamp=pd.Timestamp(

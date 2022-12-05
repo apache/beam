@@ -36,8 +36,6 @@ _NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS = 100
 _DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS = 5
 _DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW = 20
 
-_PERF_ALERT_LABEL = 'perf-alert'
-
 _PERF_TEST_KEYS = {
     'test_name', 'metrics_dataset', 'metrics_table', 'project', 'metric_name'
 }
