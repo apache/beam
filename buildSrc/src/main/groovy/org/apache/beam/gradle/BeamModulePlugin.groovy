@@ -498,8 +498,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark2_version = "2.4.8"
     def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.16.3"
-    def testcontainers_version_clickhouse = "1.17.3"
+    def testcontainers_version = "1.17.3"
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
 
@@ -724,7 +723,7 @@ class BeamModulePlugin implements Plugin<Project> {
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
         tephra                                      : "org.apache.tephra:tephra-api:0.15.0-incubating",
         testcontainers_base                         : "org.testcontainers:testcontainers:$testcontainers_version",
-        testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version_clickhouse",
+        testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
