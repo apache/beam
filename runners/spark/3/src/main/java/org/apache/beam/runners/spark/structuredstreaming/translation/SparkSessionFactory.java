@@ -18,10 +18,12 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -155,6 +157,9 @@ public class SparkSessionFactory {
       kryo.register(byte[][].class);
       kryo.register(HashMap.class);
       kryo.register(ArrayList.class);
+
+      // TODO find more efficient ways
+      kryo.register(SerializablePipelineOptions.class, new JavaSerializer());
 
       // side input values (spark runner specific)
       kryo.register(SideInputValues.ByWindow.class);
