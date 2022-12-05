@@ -42,7 +42,7 @@ var (
 // over to check if element types implement them.
 //
 // Repeated registrations of the same type overrides prior ones.
-func RegisterCoder(t reflect.Type, enc, dec interface{}) {
+func RegisterCoder(t reflect.Type, enc, dec any) {
 	key := tkey(t)
 
 	if _, err := NewCustomCoder(t.String(), t, enc, dec); err != nil {

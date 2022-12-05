@@ -134,7 +134,7 @@ func returnTypes(list []funcx.ReturnParam) []reflect.Type {
 
 func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputKind, error) {
 	// log.Printf("Bind inbound: %v %v", fn, in)
-	addContext := func(err error, p []funcx.FnParam, in interface{}) error {
+	addContext := func(err error, p []funcx.FnParam, in any) error {
 		return errors.WithContextf(err, "binding params %v to input %v", p, in)
 	}
 
