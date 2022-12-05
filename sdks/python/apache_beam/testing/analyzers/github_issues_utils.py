@@ -151,22 +151,19 @@ def get_issue_description(
   """
 
   # TODO: Add mean and median before and after the changepoint index.
-  indices_to_display = []
   upper_bound = min(
       change_point_index + max_results_to_display + 1, len(metric_values))
   lower_bound = max(0, change_point_index - max_results_to_display)
-  for i in range(lower_bound, upper_bound):
-    indices_to_display.append(i)
 
-  indices_to_display.sort()
   description = _ISSUE_DESCRIPTION_HEADER.format(metric_name) + 2 * '\n'
-  for index_to_display in indices_to_display:
-    description += _METRIC_INFO.format(
-        timestamps[index_to_display].ctime(), metric_values[index_to_display])
-    if index_to_display == change_point_index:
-      description += ' <---- Anomaly'
-    description += '\n'
-  return description
+
+  runs_to_display = [
+      _METRIC_INFO.format(timestamps[i].ctime(), metric_values[i])
+      for i in (lower_bound, upper_bound)
+  ]
+
+  runs_to_display[change_point_index - lower_bound] += " <---- Anomaly"
+  return description + '\n'.join(runs_to_display)
 
 
 def report_change_point_on_issues(
