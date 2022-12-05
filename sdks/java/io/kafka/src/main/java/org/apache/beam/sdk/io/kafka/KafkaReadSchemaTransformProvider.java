@@ -50,13 +50,13 @@ public class KafkaReadSchemaTransformProvider
   final Boolean isTest;
   final Integer testTimeoutSecs;
 
-  KafkaSchemaTransformReadProvider(Boolean isTest, Integer testTimeoutSecs) {
-    this.isTest = isTest;
-    this.testTimeoutSecs = testTimeoutSecs;
+  public KafkaReadSchemaTransformProvider() {
+    this(false, 0);
   }
 
-  KafkaSchemaTransformReadProvider() {
-    this(false, 0);
+  KafkaReadSchemaTransformProvider(Boolean isTest, Integer testTimeoutSecs) {
+    this.isTest = isTest;
+    this.testTimeoutSecs = testTimeoutSecs;
   }
 
   @Override
@@ -65,7 +65,7 @@ public class KafkaReadSchemaTransformProvider
   }
 
   @Override
-  protected SchemaTransform from(KafkaSchemaTransformReadConfiguration configuration) {
+  protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
     return new KafkaReadSchemaTransform(configuration, isTest, testTimeoutSecs);
   }
 
@@ -85,12 +85,12 @@ public class KafkaReadSchemaTransformProvider
   }
 
   private static class KafkaReadSchemaTransform implements SchemaTransform {
-    private final KafkaSchemaTransformReadConfiguration configuration;
+    private final KafkaReadSchemaTransformConfiguration configuration;
     private final Boolean isTest;
     private final Integer testTimeoutSeconds;
 
     KafkaReadSchemaTransform(
-        KafkaSchemaTransformReadConfiguration configuration,
+        KafkaReadSchemaTransformConfiguration configuration,
         Boolean isTest,
         Integer testTimeoutSeconds) {
       configuration.validate();

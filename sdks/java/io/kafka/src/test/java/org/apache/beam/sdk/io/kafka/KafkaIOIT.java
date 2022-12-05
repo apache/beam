@@ -572,13 +572,13 @@ public class KafkaIOIT {
                     "Read from unbounded Kafka",
                     // A timeout of 30s for local, container-based tests, and 2 minutes for
                     // real-kafka tests.
-                    new KafkaSchemaTransformReadProvider(
+                    new KafkaReadSchemaTransformProvider(
                             true, options.isWithTestcontainers() ? 30 : 120)
                         .from(
-                            KafkaSchemaTransformReadConfiguration.builder()
+                            KafkaReadSchemaTransformConfiguration.builder()
                                 .setDataFormat(format)
                                 .setAutoOffsetResetConfig("earliest")
-                                .setAvroSchema(schemaDefinition)
+                                .setSchema(schemaDefinition)
                                 .setTopic(options.getKafkaTopic() + "-schema-transform")
                                 .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
                                 .build())
