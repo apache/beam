@@ -1,6 +1,6 @@
 ---
 title:  "Spotify"
-icon: /images/logos/powered-by/spotify.svg
+icon: /images/logos/powered-by/spotify.png
 hasLink: "https://www.youtube.com/watch?v=sJ5EPAJUzTg&list=PL4dEBWmGSIU9OkXQU2OAXmITPLhiMSPRp&index=5"
 ---
 <!--

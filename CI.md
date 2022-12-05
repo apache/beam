@@ -127,6 +127,12 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 
 ### Release Preparation and Validation Workflows
 
+#### Cut Release Branch - [verify_release_build.yml](.github/workflows/cut_release_branch.yml)
+| Job                   | Description                                                | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------------|------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Update Master         | Update Apache Beam master branch with next release version | No               | No                    | No            | No                       |
+| Update Release Branch | Cut release branch for current development version         | No               | No                    | No            | No                       |
+
 #### Verify Release Build - [verify_release_build.yml](.github/workflows/verify_release_build.yml)
 
 | Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
