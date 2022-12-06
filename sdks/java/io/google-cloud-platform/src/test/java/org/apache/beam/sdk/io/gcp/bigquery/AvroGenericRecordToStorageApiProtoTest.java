@@ -114,6 +114,9 @@ public class AvroGenericRecordToStorageApiProtoTest {
           .name("timestampMicrosAsInstantValue")
           .type(LogicalTypes.timestampMicros().addToSchema(Schema.create(Schema.Type.LONG)))
           .noDefault()
+          .name("timestampMillisAsInstantValue")
+          .type(LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG)))
+          .noDefault()
           .name("uuidValue")
           .type(LogicalTypes.uuid().addToSchema(Schema.create(Schema.Type.STRING)))
           .noDefault()
@@ -232,8 +235,15 @@ public class AvroGenericRecordToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("uuidvalue")
+                  .setName("timestampmillisasinstantvalue")
                   .setNumber(6)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("uuidvalue")
+                  .setNumber(7)
                   .setType(Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -294,7 +304,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
               .set("dateValue", now)
               .set("timestampMicrosValue", now.getMillis() * 1000)
               .set("timestampMicrosAsInstantValue", now)
-              .set("timestampMillisValue", now.toDateTime())
+              .set("timestampMillisValue", now.getMillis())
+              .set("timestampMillisAsInstantValue", now)
               .set("uuidValue", uuid)
               .build();
       baseProtoExpectedFields =
@@ -319,6 +330,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
               .put("timestampmicrosvalue", now.getMillis() * 1000)
               .put("timestampmicrosasinstantvalue", now.getMillis() * 1000)
               .put("timestampmillisvalue", now.getMillis())
+              .put("timestampmillisasinstantvalue", now.getMillis())
               .put("uuidvalue", uuid.toString())
               .build();
       nestedRecord =
@@ -455,7 +467,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
             true);
     DynamicMessage msg =
         AvroGenericRecordToStorageApiProto.messageFromGenericRecord(descriptor, logicalTypesRecord);
-    assertEquals(6, msg.getAllFields().size());
+    assertEquals(7, msg.getAllFields().size());
     assertBaseRecord(msg, logicalTypesProtoExpectedFields);
   }
 }

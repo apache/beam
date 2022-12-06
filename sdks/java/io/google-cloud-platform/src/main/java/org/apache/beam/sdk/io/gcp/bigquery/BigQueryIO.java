@@ -541,14 +541,14 @@ public class BigQueryIO {
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
   static final SerializableFunction<TableRow, TableRow> TABLE_ROW_IDENTITY_FORMATTER =
-      input -> input;
+      SerializableFunctions.identity();;
 
   /**
    * A formatting function that maps a GenericRecord to itself. This allows sending a {@code
    * PCollection<GenericRecord>} directly to BigQueryIO.Write.
    */
   static final SerializableFunction<AvroWriteRequest<GenericRecord>, GenericRecord>
-      GENERIC_RECORD_IDENTITY_FORMATTER = input -> input.getElement();
+      GENERIC_RECORD_IDENTITY_FORMATTER = AvroWriteRequest::getElement;
 
   static final SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>>
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
@@ -1939,9 +1939,6 @@ public class BigQueryIO {
   /**
    * A {@link PTransform} that writes a {@link PCollection} containing {@link GenericRecord
    * GenericRecords} to a BigQuery table.
-   *
-   * <p>It is recommended to instead use {@link #write} with {@link
-   * Write#withFormatFunction(SerializableFunction)}.
    */
   public static Write<GenericRecord> writeGenericRecords() {
     return BigQueryIO.<GenericRecord>write()

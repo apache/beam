@@ -1060,40 +1060,51 @@ public class BigQueryIOWriteTest implements Serializable {
   private static final Coder<InputRecord> INPUT_RECORD_CODER =
       SerializableCoder.of(InputRecord.class);
 
-  @Test
-  public void testWriteAvro() throws Exception {
-    // only streaming inserts don't support avro types
-    assumeTrue(!useStreaming);
+  public void runTestWriteAvro(boolean schemaFromView) throws Exception {
+    String tableName = "project-id:dataset-id.table-id";
+    BigQueryIO.Write<InputRecord> bqWrite =
+        BigQueryIO.<InputRecord>write()
+            .to(tableName)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withTestServices(fakeBqServices)
+            .withAvroFormatFunction(
+                r -> {
+                  GenericRecord rec = new GenericData.Record(r.getSchema());
+                  InputRecord i = r.getElement();
+                  rec.put("strval", i.strVal());
+                  rec.put("longval", i.longVal());
+                  rec.put("doubleval", i.doubleVal());
+                  rec.put("instantval", i.instantVal().getMillis() * 1000);
+                  return rec;
+                })
+            .withoutValidation();
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("strval").setType("STRING"),
+                    new TableFieldSchema().setName("longval").setType("INTEGER"),
+                    new TableFieldSchema().setName("doubleval").setType("FLOAT"),
+                    new TableFieldSchema().setName("instantval").setType("TIMESTAMP")));
+    if (schemaFromView) {
+      bqWrite =
+          bqWrite.withSchemaFromView(
+              p.apply(
+                      "CreateTableSchemaString",
+                      Create.of(KV.of(tableName, BigQueryHelpers.toJsonString(tableSchema))))
+                  .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+                  .apply(View.<String, String>asMap()));
+    } else {
+      bqWrite = bqWrite.withSchema(tableSchema);
+    }
 
     p.apply(
             Create.of(
                     InputRecord.create("test", 1, 1.0, Instant.parse("2019-01-01T00:00:00Z")),
                     InputRecord.create("test2", 2, 2.0, Instant.parse("2019-02-01T00:00:00Z")))
                 .withCoder(INPUT_RECORD_CODER))
-        .apply(
-            BigQueryIO.<InputRecord>write()
-                .to("project-id:dataset-id.table-id")
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("strval").setType("STRING"),
-                                new TableFieldSchema().setName("longval").setType("INTEGER"),
-                                new TableFieldSchema().setName("doubleval").setType("FLOAT"),
-                                new TableFieldSchema().setName("instantval").setType("TIMESTAMP"))))
-                .withTestServices(fakeBqServices)
-                .withAvroFormatFunction(
-                    r -> {
-                      GenericRecord rec = new GenericData.Record(r.getSchema());
-                      InputRecord i = r.getElement();
-                      rec.put("strval", i.strVal());
-                      rec.put("longval", i.longVal());
-                      rec.put("doubleval", i.doubleVal());
-                      rec.put("instantval", i.instantVal().getMillis() * 1000);
-                      return rec;
-                    })
-                .withoutValidation());
+        .apply(bqWrite);
+
     p.run();
 
     assertThat(
@@ -1117,6 +1128,22 @@ public class BigQueryIOWriteTest implements Serializable {
                     useStorageApi || useStorageApiApproximate
                         ? String.valueOf(Instant.parse("2019-02-01T00:00:00Z").getMillis() * 1000)
                         : "2019-02-01 00:00:00 UTC")));
+  }
+
+  @Test
+  public void testWriteAvro() throws Exception {
+    // only streaming inserts don't support avro types
+    assumeTrue(!useStreaming);
+
+    runTestWriteAvro(false);
+  }
+
+  @Test
+  public void testWriteAvroWithSchemaFromView() throws Exception {
+    // only streaming inserts don't support avro types
+    assumeTrue(useStorageApi);
+
+    runTestWriteAvro(true);
   }
 
   @Test

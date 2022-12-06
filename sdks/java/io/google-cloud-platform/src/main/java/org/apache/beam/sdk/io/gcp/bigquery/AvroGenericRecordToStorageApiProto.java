@@ -25,13 +25,13 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -82,9 +82,7 @@ public class AvroGenericRecordToStorageApiProto {
           .put(Schema.Type.INT, o -> Long.valueOf((int) o))
           .put(Schema.Type.FIXED, o -> ByteString.copyFrom(((GenericData.Fixed) o).bytes()))
           .put(Schema.Type.LONG, Functions.identity())
-          .put(
-              Schema.Type.FLOAT,
-              o -> Double.valueOf(Float.valueOf((float) o).toString()).doubleValue())
+          .put(Schema.Type.FLOAT, o -> Double.parseDouble(Float.valueOf((float) o).toString()))
           .put(Schema.Type.DOUBLE, Function.identity())
           .put(Schema.Type.STRING, Function.identity())
           .put(Schema.Type.BOOLEAN, Function.identity())
@@ -192,14 +190,12 @@ public class AvroGenericRecordToStorageApiProto {
 
   private static TableFieldSchema fieldDescriptorFromAvroField(Schema.Field field) {
     @Nullable Schema schema = field.schema();
+    Preconditions.checkNotNull(schema, "Unexpected null schema!");
     TableFieldSchema.Builder builder =
         TableFieldSchema.newBuilder().setName(field.name().toLowerCase());
     Schema elementType = null;
     switch (schema.getType()) {
       case RECORD:
-        if (schema == null) {
-          throw new RuntimeException("Unexpected null schema!");
-        }
         Preconditions.checkState(!schema.getFields().isEmpty());
         builder = builder.setType(TableFieldSchema.Type.STRUCT);
         for (Schema.Field recordField : schema.getFields()) {
@@ -306,12 +302,12 @@ public class AvroGenericRecordToStorageApiProto {
       case RECORD:
         return messageFromGenericRecord(fieldDescriptor.getMessageType(), (GenericRecord) value);
       case ARRAY:
-        List<Object> list = (List<Object>) value;
+        Iterable<Object> iterable = (Iterable<Object>) value;
         @Nullable Schema arrayElementType = avroSchema.getElementType();
         if (arrayElementType == null) {
           throw new RuntimeException("Unexpected null element type!");
         }
-        return list.stream()
+        return StreamSupport.stream(iterable.spliterator(), false)
             .map(v -> toProtoValue(fieldDescriptor, arrayElementType, v))
             .collect(Collectors.toList());
       case UNION:
