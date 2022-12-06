@@ -52,38 +52,6 @@ allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
 
 echo "Environment variables exported"
 
-## Get Difference
-#set -xeu
-## define the base ref
-#base_ref=${BRANCH_NAME}
-#if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
-#then
-#  base_ref=origin/master
-#fi
-#diff=$(git diff --name-only $base_ref "${COMMIT_SHA}" | tr '\n' ' ')
-#
-## Check if there are Examples
-#set +e -ux
-#for sdk in "${sdks[@]}"
-#do
-#    for allowpath in "${allowlist[@]}"
-#    do
-#        python3 checker.py \
-#        --verbose \
-#        --sdk SDK_"${sdk^^}" \
-#        --allowlist "${allowpath}" \
-#        --paths "${diff}"
-#    done
-#done
-#if [[ $? -eq 0 ]]
-#then
-#    example_has_changed=True
-#    echo "Example has been changed"
-#else
-#    example_has_changed=False
-#    echo "Example has NOT been changed"
-#fi
-
 rm ~/.m2/settings.xml
 
 if [[ -z ${TAG_NAME} ]]
@@ -100,6 +68,7 @@ do
   if [[ "$sdk" == "python" ]]
   then
       # builds apache/beam_python3.7_sdk:$DOCKERTAG image
+      cd ~/beam
       ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
       # and set SDK_TAG to DOCKERTAG so that the next step would find it
       echo "SDK_TAG=${DOCKERTAG}" && SDK_TAG=${DOCKERTAG}
@@ -120,6 +89,7 @@ fi
 
 # by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
 # TODO Java SDK doesn't, it uses 2.42.0, fix this
+cd ~/beam
 ./gradlew -i playground:backend:containers:"$SDK":docker "$opts"
 
 echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" && IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG
