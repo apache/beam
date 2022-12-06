@@ -14204,7 +14204,429 @@ If you also set the &lt;code>withExtendedErrorInfo&lt;/code> property , you will
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;PrintErrors&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span>
 &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">FlatMap&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">err&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="k">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;Error Found {}&amp;#34;&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">format&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">err&lt;/span>&lt;span class="p">))))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;/div></description></item><item><title>Documentation: CoGroupByKey</title><link>/documentation/transforms/java/aggregation/cogroupbykey/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/cogroupbykey/</guid><description>
+&lt;/div></description></item><item><title>Documentation: Cdap IO</title><link>/documentation/io/built-in/cdap/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/io/built-in/cdap/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="cdap-io">Cdap IO&lt;/h1>
+&lt;p>A &lt;code>CdapIO&lt;/code> is a transform for reading data from source or writing data to sink CDAP plugin.&lt;/p>
+&lt;h2 id="batch-plugins-support">Batch plugins support&lt;/h2>
+&lt;p>&lt;code>CdapIO&lt;/code> currently supports the following CDAP Batch plugins by referencing &lt;code>CDAP plugin&lt;/code> class name:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/data-integrations/hubspot/blob/develop/src/main/java/io/cdap/plugin/hubspot/source/batch/HubspotBatchSource.java">Hubspot Batch Source&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/data-integrations/hubspot/blob/develop/src/main/java/io/cdap/plugin/hubspot/sink/batch/HubspotBatchSink.java">Hubspot Batch Sink&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/data-integrations/salesforce/blob/develop/src/main/java/io/cdap/plugin/salesforce/plugin/source/batch/SalesforceBatchSource.java">Salesforce Batch Source&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/data-integrations/salesforce/blob/develop/src/main/java/io/cdap/plugin/salesforce/plugin/sink/batch/SalesforceBatchSink.java">Salesforce Batch Sink&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/data-integrations/servicenow-plugins/blob/develop/src/main/java/io/cdap/plugin/servicenow/source/ServiceNowSource.java">ServiceNow Batch Source&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/data-integrations/zendesk/blob/develop/src/main/java/io/cdap/plugin/zendesk/source/batch/ZendeskBatchSource.java">Zendesk Batch Source&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>Also, any other CDAP Batch plugin based on Hadoop&amp;rsquo;s &lt;code>InputFormat&lt;/code> or &lt;code>OutputFormat&lt;/code> can be used. They can be easily added to the list of supported by class name plugins, for more details please see &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/cdap/README.md">CdapIO readme&lt;/a>.&lt;/p>
+&lt;h2 id="streaming-plugins-support">Streaming plugins support&lt;/h2>
+&lt;p>&lt;code>CdapIO&lt;/code> currently supports CDAP Streaming plugins based on &lt;a href="https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html">Apache Spark Receiver&lt;/a>.&lt;/p>
+&lt;p>Requirements for CDAP Streaming plugins:&lt;/p>
+&lt;ul>
+&lt;li>CDAP Streaming plugin should be based on &lt;code>Spark Receiver&lt;/code> (Spark 2.4).&lt;/li>
+&lt;li>CDAP Streaming plugin should support work with offsets.&lt;/li>
+&lt;li>Corresponding Spark Receiver should implement &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java">HasOffset&lt;/a> interface.&lt;/li>
+&lt;li>Records should have the numeric field that represents record offset.&lt;/li>
+&lt;/ul>
+&lt;h2 id="batch-reading-using-cdapio">Batch reading using CdapIO&lt;/h2>
+&lt;p>In order to read from CDAP plugin you will need to pass:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>Key&lt;/code> and &lt;code>Value&lt;/code> classes. You will need to check if these classes have a Beam Coder available.&lt;/li>
+&lt;li>&lt;code>PluginConfig&lt;/code> object with parameters for certain CDAP plugin.&lt;/li>
+&lt;/ul>
+&lt;p>You can easily build &lt;code>PluginConfig&lt;/code> object using &lt;code>ConfigWrapper&lt;/code> class by specifying:&lt;/p>
+&lt;ul>
+&lt;li>Class of the needed &lt;code>PluginConfig&lt;/code>.&lt;/li>
+&lt;li>&lt;code>Map&amp;lt;String, Object&amp;gt;&lt;/code> parameters map for corresponding CDAP plugin.&lt;/li>
+&lt;/ul>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Object&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">myPluginConfigParams&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">HashMap&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;();&lt;/span>
+&lt;span class="c1">// Read plugin parameters (e.g. from PipelineOptions) and put them into &amp;#39;myPluginConfigParams&amp;#39; map.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">myPluginConfigParams&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">put&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyPluginConstants&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">USERNAME_PARAMETER_NAME&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">pipelineOptions&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getUsername&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;span class="c1">// ...
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">MyPluginConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">MyPluginConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">myPluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="read-data-by-plugin-class-name">Read data by plugin class name&lt;/h3>
+&lt;p>Some CDAP plugins are already supported and can be used just by plugin class name.&lt;/p>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Read&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">JsonElement&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">JsonElement&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">HubspotBatchSource&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">JsonElement&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;read&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="read-data-with-building-batch-plugin">Read data with building Batch Plugin&lt;/h3>
+&lt;p>If CDAP plugin is not supported by plugin class name, you can easily build &lt;code>Plugin&lt;/code> object by passing the following parameters:&lt;/p>
+&lt;ul>
+&lt;li>Class of CDAP Batch plugin.&lt;/li>
+&lt;li>The &lt;code>InputFormat&lt;/code> class used to connect to your CDAP plugin of choice.&lt;/li>
+&lt;li>The &lt;code>InputFormatProvider&lt;/code> class used to provide &lt;code>InputFormat&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;p>Then you will be able to pass this &lt;code>Plugin&lt;/code> object to &lt;code>CdapIO&lt;/code>.&lt;/p>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Read&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPlugin&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Plugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">createBatch&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">MyCdapPlugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">MyInputFormat&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">MyInputFormatProvider&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;read&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="examples-for-specific-cdap-plugins">Examples for specific CDAP plugins&lt;/h3>
+&lt;h4 id="cdap-hubspot-batch-source-plugin">CDAP Hubspot Batch Source plugin&lt;/h4>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">SourceHubspotConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">SourceHubspotConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">JsonElement&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">JsonElement&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">HubspotBatchSource&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">JsonElement&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;readFromHubspotPlugin&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h4 id="cdap-salesforce-batch-source-plugin">CDAP Salesforce Batch Source plugin&lt;/h4>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">SalesforceSourceConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">SalesforceSourceConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Schema&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">LinkedHashMap&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">Schema&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">LinkedHashMap&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">SalesforceBatchSource&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Schema&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">LinkedHashMap&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;readFromSalesforcePlugin&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h4 id="cdap-servicenow-batch-source-plugin">CDAP ServiceNow Batch Source plugin&lt;/h4>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">ServiceNowSourceConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">ServiceNowSourceConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">StructuredRecord&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">StructuredRecord&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ServiceNowSource&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">StructuredRecord&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;readFromServiceNowPlugin&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h4 id="cdap-zendesk-batch-source-plugin">CDAP Zendesk Batch Source plugin&lt;/h4>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">ZendeskBatchSourceConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">ZendeskBatchSourceConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">StructuredRecord&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">StructuredRecord&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ZendeskBatchSource&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">StructuredRecord&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;readFromZendeskPlugin&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>To learn more please check out &lt;a href="https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap">complete examples&lt;/a>.&lt;/p>
+&lt;h2 id="batch-writing-using-cdapio">Batch writing using CdapIO&lt;/h2>
+&lt;p>In order to write to CDAP plugin you will need to pass:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>Key&lt;/code> and &lt;code>Value&lt;/code> classes. You will need to check if these classes have a Beam Coder available.&lt;/li>
+&lt;li>&lt;code>locksDirPath&lt;/code>, which is locks directory path where locks will be stored. This parameter is needed for Hadoop External Synchronization (mechanism for acquiring locks related to the write job).&lt;/li>
+&lt;li>&lt;code>PluginConfig&lt;/code> object with parameters for certain CDAP plugin.&lt;/li>
+&lt;/ul>
+&lt;p>You can easily build &lt;code>PluginConfig&lt;/code> object using &lt;code>ConfigWrapper&lt;/code> class by specifying:&lt;/p>
+&lt;ul>
+&lt;li>Class of the needed &lt;code>PluginConfig&lt;/code>.&lt;/li>
+&lt;li>&lt;code>Map&amp;lt;String, Object&amp;gt;&lt;/code> parameters map for corresponding CDAP plugin.&lt;/li>
+&lt;/ul>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">MyPluginConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">MyPluginConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="write-data-by-plugin-class-name">Write data by plugin class name&lt;/h3>
+&lt;p>Some CDAP plugins are already supported and can be used just by plugin class name.&lt;/p>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Write&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">HubspotBatchSink&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withLocksDirPath&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">locksDirPath&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;write&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">writeTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="write-data-with-building-batch-plugin">Write data with building Batch Plugin&lt;/h3>
+&lt;p>If CDAP plugin is not supported by plugin class name, you can easily build &lt;code>Plugin&lt;/code> object by passing the following parameters:&lt;/p>
+&lt;ul>
+&lt;li>Class of CDAP plugin.&lt;/li>
+&lt;li>The &lt;code>OutputFormat&lt;/code> class used to connect to your CDAP plugin of choice.&lt;/li>
+&lt;li>The &lt;code>OutputFormatProvider&lt;/code> class used to provide &lt;code>OutputFormat&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;p>Then you will be able to pass this &lt;code>Plugin&lt;/code> object to &lt;code>CdapIO&lt;/code>.&lt;/p>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Write&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">writeTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPlugin&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Plugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">createBatch&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">MyCdapPlugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">MyOutputFormat&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">MyOutputFormatProvider&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withLocksDirPath&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">locksDirPath&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;write&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">writeTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="examples-for-specific-cdap-plugins-1">Examples for specific CDAP plugins&lt;/h3>
+&lt;h4 id="cdap-hubspot-batch-sink-plugin">CDAP Hubspot Batch Sink plugin&lt;/h4>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">SinkHubspotConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">SinkHubspotConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">writeTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginClass&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withLocksDirPath&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">locksDirPath&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;writeToHubspotPlugin&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">writeTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h4 id="cdap-salesforce-batch-sink-plugin">CDAP Salesforce Batch Sink plugin&lt;/h4>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">SalesforceSinkConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">SalesforceSinkConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">CSVRecord&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">writeTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">CSVRecord&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginClass&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">CSVRecord&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withLocksDirPath&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">locksDirPath&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;writeToSalesforcePlugin&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">writeTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>To learn more please check out &lt;a href="https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap">complete examples&lt;/a>.&lt;/p>
+&lt;h2 id="streaming-reading-using-cdapio">Streaming reading using CdapIO&lt;/h2>
+&lt;p>In order to read from CDAP plugin you will need to pass:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>Key&lt;/code> and &lt;code>Value&lt;/code> classes. You will need to check if these classes have a Beam Coder available.&lt;/li>
+&lt;li>&lt;code>PluginConfig&lt;/code> object with parameters for certain CDAP plugin.&lt;/li>
+&lt;/ul>
+&lt;p>You can easily build &lt;code>PluginConfig&lt;/code> object using &lt;code>ConfigWrapper&lt;/code> class by specifying:&lt;/p>
+&lt;ul>
+&lt;li>Class of the needed &lt;code>PluginConfig&lt;/code>.&lt;/li>
+&lt;li>&lt;code>Map&amp;lt;String, Object&amp;gt;&lt;/code> parameters map for corresponding CDAP plugin.&lt;/li>
+&lt;/ul>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">MyPluginConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">MyPluginConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="read-data-by-plugin-class-name-1">Read data by plugin class name&lt;/h3>
+&lt;p>Some CDAP plugins are already supported and can be used just by plugin class name.&lt;/p>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Read&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyStreamingPlugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;read&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="read-data-with-building-streaming-plugin">Read data with building Streaming Plugin&lt;/h3>
+&lt;p>If CDAP plugin is not supported by plugin class name, you can easily build &lt;code>Plugin&lt;/code> object by passing the following parameters:&lt;/p>
+&lt;ul>
+&lt;li>Class of CDAP Streaming plugin.&lt;/li>
+&lt;li>&lt;code>getOffsetFn&lt;/code>, which is &lt;code>SerializableFunction&lt;/code> that defines how to get &lt;code>Long&lt;/code> record offset from a record.&lt;/li>
+&lt;li>&lt;code>receiverClass&lt;/code>, which is Spark (v 2.4) &lt;code>Receiver&lt;/code> class associated with CDAP plugin.&lt;/li>
+&lt;li>(Optionally) &lt;code>getReceiverArgsFromConfigFn&lt;/code>, which is &lt;code>SerializableFunction&lt;/code> that defines how to get constructor arguments for Spark &lt;code>Receiver&lt;/code> using &lt;code>PluginConfig&lt;/code> object.&lt;/li>
+&lt;/ul>
+&lt;p>Then you will be able to pass this &lt;code>Plugin&lt;/code> object to &lt;code>CdapIO&lt;/code>.&lt;/p>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Read&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPlugin&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Plugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">createStreaming&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">MyStreamingPlugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">myGetOffsetFn&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">MyReceiver&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">myGetReceiverArgsFromConfigFn&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;read&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="read-data-with-optional-parameters">Read data with optional parameters&lt;/h3>
+&lt;p>Optionally you can pass the following optional parameters:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>pullFrequencySec&lt;/code>, which is delay in seconds between polling for new records updates.&lt;/li>
+&lt;li>&lt;code>startOffset&lt;/code>, which is inclusive start offset from which the reading should be started.&lt;/li>
+&lt;/ul>
+&lt;p>For example:&lt;/p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Read&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPluginClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyStreamingPlugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPullFrequencySec&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1L&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStartOffset&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1L&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;read&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="examples-for-specific-cdap-plugins-2">Examples for specific CDAP plugins&lt;/h3>
+&lt;h4 id="cdap-hubspot-streaming-source-plugin">CDAP Hubspot Streaming Source plugin&lt;/h4>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">HubspotStreamingSourceConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">HubspotStreamingSourceConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Read&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPlugin&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Plugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">createStreaming&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">HubspotStreamingSource&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">GetOffsetUtils&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getOffsetFnForHubspot&lt;/span>&lt;span class="o">(),&lt;/span>
+&lt;span class="n">HubspotReceiver&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;readFromHubspotPlugin&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h4 id="cdap-salesforce-streaming-source-plugin">CDAP Salesforce Streaming Source plugin&lt;/h4>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">SalesforceStreamingSourceConfig&lt;/span> &lt;span class="n">pluginConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">ConfigWrapper&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="n">SalesforceStreamingSourceConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withParams&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfigParams&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Read&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">readTransform&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">CdapIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCdapPlugin&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Plugin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">createStreaming&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">SalesforceStreamingSource&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">GetOffsetUtils&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getOffsetFnForSalesforce&lt;/span>&lt;span class="o">(),&lt;/span>
+&lt;span class="n">SalesforceReceiver&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">config&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">SalesforceStreamingSourceConfig&lt;/span> &lt;span class="n">salesforceConfig&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">SalesforceStreamingSourceConfig&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Object&lt;/span>&lt;span class="o">[]&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">salesforceConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getAuthenticatorCredentials&lt;/span>&lt;span class="o">(),&lt;/span>
+&lt;span class="n">salesforceConfig&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getPushTopicName&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">};&lt;/span>
+&lt;span class="o">}))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withPluginConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">pluginConfig&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withKeyClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">NullWritable&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValueClass&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;readFromSalesforcePlugin&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">readTransform&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>To learn more please check out &lt;a href="https://github.com/apache/beam/tree/master/examples/java/cdap/src/main/java/org/apache/beam/examples/complete/cdap">complete examples&lt;/a>.&lt;/p></description></item><item><title>Documentation: CoGroupByKey</title><link>/documentation/transforms/java/aggregation/cogroupbykey/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/cogroupbykey/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19874,102 +20296,4 @@ to the output collection.&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/java/aggregation/groupbykey">GroupByKey&lt;/a> takes one input collection.&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: GroupIntoBatches</title><link>/documentation/transforms/python/aggregation/groupintobatches/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/groupintobatches/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="groupintobatches">GroupIntoBatches&lt;/h1>
-&lt;script type="text/javascript">
-localStorage.setItem("language", "language-py")
-&lt;/script>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.GroupIntoBatches"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;p>Batches the input into desired batch size.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>In the following example, we create a pipeline with a &lt;code>PCollection&lt;/code> of produce by season.&lt;/p>
-&lt;p>We use &lt;code>GroupIntoBatches&lt;/code> to get fixed-sized batches for every key, which outputs a list of elements for every key.&lt;/p>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches.py">
-&lt;img src="/images/code-icon.svg"/>
-&lt;/a>
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">batches_with_keys&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">pipeline&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create produce&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🌽&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;winter&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">])&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Group into batches&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupIntoBatches&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>(&amp;#39;spring&amp;#39;, [&amp;#39;🍓&amp;#39;, &amp;#39;🥕&amp;#39;, &amp;#39;🍆&amp;#39;])
-(&amp;#39;summer&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;, &amp;#39;🌽&amp;#39;])
-(&amp;#39;spring&amp;#39;, [&amp;#39;🍅&amp;#39;])
-(&amp;#39;fall&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;])
-(&amp;#39;winter&amp;#39;, [&amp;#39;🍆&amp;#39;])&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;!-- TODO(BEAM-10889): Create a page for BatchElements and link to it here. //-->
-&lt;p>For unkeyed data and dynamic batch sizes, one may want to use
-&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.BatchElements">BatchElements&lt;/a>.&lt;/p>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.GroupIntoBatches"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
+&lt;/ul></description></item></channel></rss>
