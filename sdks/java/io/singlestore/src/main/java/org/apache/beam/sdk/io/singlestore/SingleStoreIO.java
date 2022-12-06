@@ -41,6 +41,8 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -243,6 +245,7 @@ public class SingleStoreIO {
    * A POJO describing a SingleStoreDB {@link DataSource} by providing all properties needed to
    * create it.
    */
+  @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class DataSourceConfiguration implements Serializable {
     abstract @Nullable String getEndpoint();
