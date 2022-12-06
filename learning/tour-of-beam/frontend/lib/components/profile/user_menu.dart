@@ -39,9 +39,8 @@ class UserMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OverlayBody(
-      child: Container(
+      child: SizedBox(
         width: TobSizes.authOverlayWidth,
-        padding: const EdgeInsets.all(BeamSizes.size24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
