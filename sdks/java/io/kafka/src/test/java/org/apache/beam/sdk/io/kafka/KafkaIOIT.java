@@ -521,10 +521,40 @@ public class KafkaIOIT {
           .addArrayField("childrenNames", Schema.FieldType.STRING)
           .build();
 
+  public static final String SCHEMA_IN_JSON =
+      "{\n"
+          + "  \"type\": \"object\",\n"
+          + "  \"properties\": {\n"
+          + "    \"name\": {\n"
+          + "      \"type\": \"string\"\n"
+          + "    },\n"
+          + "    \"userId\": {\n"
+          + "      \"type\": \"integer\"\n"
+          + "    },\n"
+          + "    \"age\": {\n"
+          + "      \"type\": \"integer\"\n"
+          + "    },\n"
+          + "    \"ageIsEven\": {\n"
+          + "      \"type\": \"boolean\"\n"
+          + "    },\n"
+          + "    \"temperature\": {\n"
+          + "      \"type\": \"number\"\n"
+          + "    },\n"
+          + "    \"childrenNames\": {\n"
+          + "      \"type\": \"array\",\n"
+          + "      \"items\": {\n"
+          + "        \"type\": \"string\"\n"
+          + "      }\n"
+          + "    }\n"
+          + "  }\n"
+          + "}";
+
   private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
-  public void testKafkaViaSchemaTransformJson() {}
+  public void testKafkaViaSchemaTransformJson() {
+    runReadWriteKafkaViaSchemaTransforms("JSON", SCHEMA_IN_JSON);
+  }
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testKafkaViaSchemaTransformAvro() {
@@ -606,6 +636,7 @@ public class KafkaIOIT {
 
     PipelineResult readResult = readPipeline.run();
     readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    assertEquals(PipelineResult.State.DONE, readResult.getState());
   }
 
   private static class DelayedCheckStopReadingFn

@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -54,6 +55,7 @@ public class KafkaReadSchemaTransformProvider
     this(false, 0);
   }
 
+  @VisibleForTesting
   KafkaReadSchemaTransformProvider(Boolean isTest, Integer testTimeoutSecs) {
     this.isTest = isTest;
     this.testTimeoutSecs = testTimeoutSecs;
