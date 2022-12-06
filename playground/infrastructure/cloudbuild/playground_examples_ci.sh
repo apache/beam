@@ -23,7 +23,7 @@ add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3-pip openjdk-8-jdk > /dev/null
 curl -L https://services.gradle.org/distributions/${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip
 unzip gradle-${GRADLE_VERSION}-bin.zip
-export GRADLE_HOME=/gradle/gradle-${GRADLE_VERSION}
+export GRADLE_HOME=/gradle-${GRADLE_VERSION}
 export PATH=$PATH:$GRADLE_HOME/bin
 cd playground/infrastructure && pip install -r requirements.txt > /dev/null
 
