@@ -55,6 +55,7 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -515,7 +516,7 @@ public class KafkaIOIT {
       Schema.builder()
           .addStringField("name")
           .addInt64Field("userId")
-          .addInt32Field("age")
+          .addInt64Field("age")
           .addBooleanField("ageIsEven")
           .addDoubleField("temperature")
           .addArrayField("childrenNames", Schema.FieldType.STRING)
@@ -553,16 +554,18 @@ public class KafkaIOIT {
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testKafkaViaSchemaTransformJson() {
-    runReadWriteKafkaViaSchemaTransforms("JSON", SCHEMA_IN_JSON);
+    runReadWriteKafkaViaSchemaTransforms(
+        "JSON", SCHEMA_IN_JSON, JsonUtils.beamSchemaFromJsonSchema(SCHEMA_IN_JSON));
   }
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
   public void testKafkaViaSchemaTransformAvro() {
     runReadWriteKafkaViaSchemaTransforms(
-        "AVRO", AvroUtils.toAvroSchema(KAFKA_TOPIC_SCHEMA).toString());
+        "AVRO", AvroUtils.toAvroSchema(KAFKA_TOPIC_SCHEMA).toString(), KAFKA_TOPIC_SCHEMA);
   }
 
-  public void runReadWriteKafkaViaSchemaTransforms(String format, String schemaDefinition) {
+  public void runReadWriteKafkaViaSchemaTransforms(
+      String format, String schemaDefinition, Schema beamSchema) {
     PCollectionRowTuple.of(
             "input",
             writePipeline
@@ -572,18 +575,20 @@ public class KafkaIOIT {
                     MapElements.into(TypeDescriptors.rows())
                         .via(
                             numb ->
-                                Row.withSchema(KAFKA_TOPIC_SCHEMA)
-                                    .addValue(numb.toString()) // Name
-                                    .addValue(Long.valueOf(numb.hashCode())) // User ID
-                                    .addValue(numb.intValue()) // Age
-                                    .addValue(numb % 2 == 0) // ageIsEven
-                                    .addValue(new Random(numb).nextDouble())
-                                    .addValue(
+                                Row.withSchema(beamSchema)
+                                    .withFieldValue("name", numb.toString())
+                                    .withFieldValue(
+                                        "userId", Long.valueOf(numb.hashCode())) // User ID
+                                    .withFieldValue("age", Long.valueOf(numb.intValue())) // Age
+                                    .withFieldValue("ageIsEven", numb % 2 == 0) // ageIsEven
+                                    .withFieldValue("temperature", new Random(numb).nextDouble())
+                                    .withFieldValue(
+                                        "childrenNames",
                                         Lists.newArrayList(
                                             Long.toString(numb + 1),
                                             Long.toString(numb + 2))) // childrenNames
                                     .build()))
-                .setRowSchema(KAFKA_TOPIC_SCHEMA))
+                .setRowSchema(beamSchema))
         .apply(
             "Write to Kafka",
             new KafkaWriteSchemaTransformProvider()
@@ -618,13 +623,14 @@ public class KafkaIOIT {
             LongStream.range(0L, 1000L)
                 .<Row>mapToObj(
                     numb ->
-                        Row.withSchema(KAFKA_TOPIC_SCHEMA)
-                            .addValue(Long.toString(numb)) // Name
-                            .addValue(Long.valueOf(Long.valueOf(numb).hashCode())) // User ID
-                            .addValue(Long.valueOf(numb).intValue()) // Age
-                            .addValue(numb % 2 == 0) // ageIsEven
-                            .addValue(new Random(numb).nextDouble())
-                            .addValue(
+                        Row.withSchema(beamSchema)
+                            .withFieldValue("name", Long.toString(numb)) // Name
+                            .withFieldValue("userId", Long.valueOf(Long.hashCode(numb))) // User ID
+                            .withFieldValue("age", Long.valueOf(numb)) // Age
+                            .withFieldValue("ageIsEven", numb % 2 == 0) // ageIsEven
+                            .withFieldValue("temperature", new Random(numb).nextDouble())
+                            .withFieldValue(
+                                "childrenNames",
                                 Lists.newArrayList(
                                     Long.toString(numb + 1),
                                     Long.toString(numb + 2))) // childrenNames
