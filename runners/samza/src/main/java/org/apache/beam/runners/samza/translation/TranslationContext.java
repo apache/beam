@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.HashIdGenerator;
+import org.apache.beam.runners.samza.util.StoreIdGenerator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -83,9 +84,9 @@ public class TranslationContext {
   private final Map<PValue, String> idMap;
   private final Map<String, MessageStream> registeredInputStreams = new HashMap<>();
   private final Map<String, Table> registeredTables = new HashMap<>();
-  private final Set<String> nonUniqueStateIds;
   private final SamzaPipelineOptions options;
   private final HashIdGenerator idGenerator = new HashIdGenerator();
+  private final StoreIdGenerator storeIdGenerator;
 
   private AppliedPTransform<?, ?, ?> currentTransform;
 
@@ -96,8 +97,8 @@ public class TranslationContext {
       SamzaPipelineOptions options) {
     this.appDescriptor = appDescriptor;
     this.idMap = idMap;
-    this.nonUniqueStateIds = nonUniqueStateIds;
     this.options = options;
+    this.storeIdGenerator = new StoreIdGenerator(nonUniqueStateIds);
   }
 
   public <OutT> void registerInputMessageStream(
@@ -244,16 +245,16 @@ public class TranslationContext {
     return id;
   }
 
-  public boolean isUniqueStateId(String stateId) {
-    return !nonUniqueStateIds.contains(stateId);
-  }
-
   public String getTransformFullName() {
     return currentTransform.getFullName();
   }
 
   public String getTransformId() {
     return idGenerator.getId(getTransformFullName());
+  }
+
+  public StoreIdGenerator getStoreIdGenerator() {
+    return storeIdGenerator;
   }
 
   /** The dummy stream created will only be used in Beam tests. */

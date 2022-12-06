@@ -45,7 +45,6 @@ import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.runtime.SamzaDoFnInvokerRegistrar;
 import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.runners.samza.util.StateUtils;
-import org.apache.beam.runners.samza.util.StoreIdUtils;
 import org.apache.beam.runners.samza.util.WindowUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -166,12 +165,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final Map<String, String> stateIdToStoreMapping = new HashMap<>();
     for (String stateId : signature.stateDeclarations().keySet()) {
-      String storeId = stateId;
-      if (!ctx.isUniqueStateId(stateId)) {
-        final String escapedName =
-            SamzaPipelineTranslatorUtils.escape(node.getEnclosingNode().getFullName());
-        storeId = StoreIdUtils.toUniqueStoreId(stateId, escapedName);
-      }
+      final String transformFullName = node.getEnclosingNode().getFullName();
+      final String storeId = ctx.getStoreIdGenerator().getId(stateId, transformFullName);
       stateIdToStoreMapping.put(stateId, storeId);
     }
     final DoFnOp<InT, OutT, RawUnionValue> op =
@@ -391,14 +386,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     if (signature.usesState()) {
       // set up user state configs
-      for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
-        final String stateId = state.id();
-        String storeId = stateId;
-        if (!ctx.isUniqueStateId(stateId)) {
-          final String escapedName =
-              SamzaPipelineTranslatorUtils.escape(node.getEnclosingNode().getFullName());
-          storeId = StoreIdUtils.toUniqueStoreId(stateId, escapedName);
-        }
+      for (String stateId : signature.stateDeclarations().keySet()) {
+        final String transformFullName = node.getEnclosingNode().getFullName();
+        final String storeId = ctx.getStoreIdGenerator().getId(stateId, transformFullName);
         config.put(
             "stores." + storeId + ".factory", RocksDbKeyValueStorageEngineFactory.class.getName());
         config.put("stores." + storeId + ".key.serde", "byteArraySerde");
