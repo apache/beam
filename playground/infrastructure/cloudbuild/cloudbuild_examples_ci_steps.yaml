@@ -32,11 +32,12 @@ steps:
       - 'BEAM_EXAMPLE_CATEGORIES="../categories.yaml"'
       - 'SERVER_ADDRESS=localhost:8080'
       - 'BEAM_CONCURRENCY=4'
+      - 'BEAM_VERSION=2.43.0'
 
 options:
   logging: CLOUD_LOGGING_ONLY
 
-timeout: 3600s
+timeout: 7200s
 
 substitutions:
   _ORIGIN: "PG_EXAMPLES"
