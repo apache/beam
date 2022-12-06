@@ -626,29 +626,11 @@ class AssignTimestamps(beam.DoFn):
         element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))
 
 
-def big_query_metrics_fetcher(
-    project_name=None,
-    table=None,
-    dataset=None,
-    metric_name=None,
-    limit=1000,
-    query_template=None) -> pd.DataFrame:
-  if not query_template:
-    query_template = """
-      SELECT *
-      FROM {}.{}.{}
-      WHERE CONTAINS_SUBSTR(({}), '{}')
-      ORDER BY {} DESC
-      LIMIT {}
-    """.format(
-        project_name,
-        dataset,
-        table,
-        METRICS_TYPE_LABEL,
-        metric_name,
-        SUBMIT_TIMESTAMP_LABEL,
-        limit)
-  bq_client = bigquery.Client()
-  query_job = bq_client.query(query_template)
-  result = query_job.result()
-  return result.to_dataframe()
+class BigQueryMetricsFetcher:
+  def __init__(self):
+    self.client = bigquery.Client()
+
+  def fetch(self, query) -> pd.DataFrame:
+    query_job = self.client.query(query=query)
+    result = query_job.result()
+    return result.to_dataframe()

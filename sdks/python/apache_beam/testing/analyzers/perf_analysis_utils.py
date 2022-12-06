@@ -34,8 +34,8 @@ from apache_beam.testing.analyzers import constants
 from apache_beam.testing.analyzers.github_issues_utils import get_issue_description
 from apache_beam.testing.analyzers.github_issues_utils import report_change_point_on_issues
 from apache_beam.testing.load_tests import load_test_metrics_utils
+from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
-from apache_beam.testing.load_tests.load_test_metrics_utils import big_query_metrics_fetcher
 from signal_processing_algorithms.energy_statistics.energy_statistics import e_divisive
 
 
@@ -63,19 +63,21 @@ def is_change_point_in_valid_window(
   return num_runs_in_change_point_window >= change_point_index
 
 
-def get_existing_issues_data(test_name: str, ) -> Optional[pd.DataFrame]:
+def get_existing_issues_data(
+    test_name: str, big_query_metrics_fetcher: BigQueryMetricsFetcher
+) -> Optional[pd.DataFrame]:
   """
   Finds the most recent GitHub issue created for the test_name.
   If no table found with name=test_name, return (None, None)
   else return latest created issue_number along with
   """
-  query_template = f"""
+  query = f"""
   SELECT * FROM {constants._BQ_PROJECT_NAME}.{constants._BQ_DATASET}.{test_name}
   ORDER BY {constants._ISSUE_CREATION_TIMESTAMP_LABEL} DESC
   LIMIT 10
   """
   try:
-    df = big_query_metrics_fetcher(query_template=query_template)
+    df = big_query_metrics_fetcher.fetch(query=query)
   except exceptions.NotFound:
     # If no table found, that means this is first performance regression
     # on the current test+metric.
@@ -125,14 +127,16 @@ def validate_config(keys):
 
 
 def fetch_metric_data(
-    params: Dict[str,
-                 Any]) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
-  metric_data: pd.DataFrame = big_query_metrics_fetcher(
-      project_name=params['project'],
-      dataset=params['metrics_dataset'],
-      table=params['metrics_table'],
-      metric_name=params['metric_name'],
-      limit=constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS)
+    params: Dict[str, Any], big_query_metrics_fetcher: BigQueryMetricsFetcher
+) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
+  query = f"""
+      SELECT *
+      FROM {params['project']}.{params['metrics_dataset']}.{params['metrics_table']}
+      WHERE CONTAINS_SUBSTR(({load_test_metrics_utils.METRICS_TYPE_LABEL}), '{params['metric_name']}')
+      ORDER BY {load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL} DESC
+      LIMIT {constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS}
+    """
+  metric_data: pd.DataFrame = big_query_metrics_fetcher.fetch(query=query)
   return (
       metric_data[load_test_metrics_utils.VALUE_LABEL],
       metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL])

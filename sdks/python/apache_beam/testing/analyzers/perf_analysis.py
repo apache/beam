@@ -44,9 +44,10 @@ from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
 from apache_beam.testing.analyzers.perf_analysis_utils import publish_issue_metadata_to_big_query
 from apache_beam.testing.analyzers.perf_analysis_utils import read_test_config
 from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
+from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
 
 
-def run_change_point_analysis(params, test_id):
+def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
   if not validate_config(params.keys()):
     raise ValueError(
         f"Please make sure all these keys {constants._PERF_TEST_KEYS} "
@@ -65,7 +66,10 @@ def run_change_point_analysis(params, test_id):
   if 'num_runs_in_change_point_window' in params:
     num_runs_in_change_point_window = params['num_runs_in_change_point_window']
 
-  metric_values, timestamps = fetch_metric_data(params)
+  metric_values, timestamps = fetch_metric_data(
+    params=params,
+    big_query_metrics_fetcher=big_query_metrics_fetcher
+  )
 
   change_point_index = find_latest_change_point_index(
       metric_values=metric_values)
@@ -84,7 +88,8 @@ def run_change_point_analysis(params, test_id):
 
   is_alert = True
   last_reported_issue_number = None
-  existing_issue_data = get_existing_issues_data(test_name)
+  existing_issue_data = get_existing_issues_data(
+      test_name=test_name, big_query_metrics_fetcher=big_query_metrics_fetcher)
 
   if existing_issue_data is not None:
     existing_issue_timestamps = existing_issue_data[
@@ -141,8 +146,10 @@ def run(config_file_path: Optional[str] = None) -> None:
 
   tests_config: Dict[str, Dict[str, Any]] = read_test_config(config_file_path)
 
+  big_query_metrics_fetcher = BigQueryMetricsFetcher()
+
   for test_id, params in tests_config.items():
-    run_change_point_analysis(params, test_id)
+    run_change_point_analysis(params, test_id, big_query_metrics_fetcher)
 
 
 if __name__ == '__main__':
