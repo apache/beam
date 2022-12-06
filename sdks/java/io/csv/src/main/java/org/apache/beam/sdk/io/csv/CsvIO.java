@@ -41,6 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Transforms for reading and writing CSV files. */
 @SuppressWarnings({
+  "unused",
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CsvIO {
@@ -69,13 +70,16 @@ public class CsvIO {
     }
 
     private transient @Nullable PrintWriter writer;
-    private Schema schema;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
       writer =
           new PrintWriter(
               new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
+      if (getPreamble() != null) {
+        writer.println(getPreamble());
+      }
+
     }
 
     @Override
@@ -84,23 +88,11 @@ public class CsvIO {
     @Override
     public void flush() throws IOException {}
 
-    Schema getOrDeriveSchema(T element) {
-      if (schema != null) {
-        return schema;
-      }
-
-      if (Row.class.isAssignableFrom(element.getClass())) {
-        return ((Row) element).getSchema();
-      }
-
-      return JavaBeanUtils.schemaFromJavaBeanClass(
-          element.getClass(), JavaFieldTypeSupplier.INSTANCE);
-    }
-
-    @Nullable
-    abstract String getPreamble();
+    abstract @Nullable String getPreamble();
 
     abstract CSVFormat getCSVFormat();
+
+    abstract Schema getSchema();
 
     abstract Builder<T> toBuilder();
 
