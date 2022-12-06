@@ -35,7 +35,6 @@ import java.util.TreeMap;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -56,6 +55,7 @@ import org.apache.spark.sql.expressions.Aggregator;
 import org.apache.spark.util.MutablePair;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.joda.time.Instant;
 
@@ -350,7 +350,10 @@ class Aggregators {
 
     /** Reduce function to merge multiple windowed accumulator values into one target window. */
     private interface ReduceFn<AccT>
-        extends BiFunction<MutablePair<Instant, AccT>, BoundedWindow, MutablePair<Instant, AccT>> {}
+        extends BiFunction<
+            @Nullable MutablePair<Instant, AccT>,
+            BoundedWindow,
+            @Nullable MutablePair<Instant, AccT>> {}
 
     /**
      * Attempt to merge windows of accumulator map with additional windows using the reducer
@@ -373,8 +376,12 @@ class Aggregators {
 
               @Override
               public void merge(Collection<BoundedWindow> merges, BoundedWindow target) {
-                buff.put(
-                    target, merges.stream().reduce(null, reduceFn.apply(target), combiner(target)));
+                @Nullable
+                MutablePair<Instant, AccT> merged =
+                    merges.stream().reduce(null, reduceFn.apply(target), combiner(target));
+                if (merged != null) {
+                  buff.put(target, merged);
+                }
                 newUnmerged.removeAll(merges);
               }
             });
@@ -507,8 +514,7 @@ class Aggregators {
       return (T) a1.update(resolveTimestamp(window, a1._1, a2._1), mergeAccs(a1._2, a2._2));
     }
 
-    @SuppressWarnings("nullness") // may return null
-    protected BinaryOperator<MutablePair<Instant, AccT>> combiner(W target) {
+    protected BinaryOperator<@Nullable MutablePair<Instant, AccT>> combiner(W target) {
       return (a1, a2) -> mergeAccs(target, a1, a2);
     }
 
