@@ -73,8 +73,7 @@ import org.joda.time.Duration;
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
   private static final String INPUT_ROWS_TAG = "INPUT_ROWS";
-  // private static final String OUTPUT_FAILED_ROWS_TAG = "FAILED_ROWS";
-  private static final String OUTPUT_ERRORS_TAG = "FAILED_ERRORS";
+  private static final String OUTPUT_ERRORS_TAG = "ERROR_ROWS";
 
   @Override
   protected Class<BigQueryStorageWriteApiSchemaTransformConfiguration> configurationClass() {

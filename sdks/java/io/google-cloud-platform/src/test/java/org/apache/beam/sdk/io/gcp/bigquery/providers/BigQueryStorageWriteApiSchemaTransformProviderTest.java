@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -130,14 +129,13 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
     PCollection<Row> rows = p.apply(Create.of(ROWS).withRowSchema(SCHEMA));
 
-    PCollectionRowTuple input = PCollectionRowTuple.of(tag, rows.setRowSchema(SCHEMA));
+    PCollectionRowTuple input = PCollectionRowTuple.of(tag, rows);
     PCollectionRowTuple result = input.apply(writeRowTupleTransform);
 
     return result;
   }
 
   @Test
-  @Ignore
   public void testSimpleWrite() throws Exception {
     String tableSpec = "project:dataset.simple_write";
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
@@ -155,7 +153,6 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   }
 
   @Test
-  @Ignore
   public void testWithJsonSchema() throws Exception {
     String tableSpec = "project:dataset.with_json_schema";
 
@@ -184,7 +181,6 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
             .setOutputTable(tableSpec)
             .setJsonSchema(jsonSchema)
-            .setUseBeamSchema(false)
             .build();
 
     runWithConfig(config);
@@ -219,7 +215,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
             .build();
 
     PCollectionRowTuple result = runWithConfig(config);
-    PCollection<Row> failedRows = result.get("FAILED_ERRORS");
+    PCollection<Row> failedRows = result.get("ERROR_ROWS");
 
     Schema errorSchema =
         Schema.of(
