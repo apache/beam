@@ -16,28 +16,31 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 
-class DismissibleOverlay extends StatelessWidget {
-  final void Function() close;
-  final Positioned child;
+import 'content.dart';
 
-  const DismissibleOverlay({
-    required this.close,
-    required this.child,
-  });
+class LoginButton extends StatelessWidget {
+  const LoginButton();
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: close,
+    return TextButton(
+      onPressed: () {
+        final closeNotifier = PublicNotifier();
+        openOverlay(
+          context: context,
+          closeNotifier: closeNotifier,
+          positioned: Positioned(
+            right: BeamSizes.size10,
+            top: BeamSizes.appBarHeight,
+            child: LoginContent(onLoggedIn: closeNotifier.notifyPublic),
           ),
-        ),
-        child,
-      ],
+        );
+      },
+      child: const Text('ui.signIn').tr(),
     );
   }
 }

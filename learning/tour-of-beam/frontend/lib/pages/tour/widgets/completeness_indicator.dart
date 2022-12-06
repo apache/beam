@@ -16,39 +16,42 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'login_content.dart';
+import '../../../generated/assets.gen.dart';
 
-class LoginButton extends StatelessWidget {
-  const LoginButton();
+class CompletenessIndicator extends StatelessWidget {
+  final bool isCompleted;
+  final bool isSelected;
+
+  const CompletenessIndicator({
+    required this.isCompleted,
+    required this.isSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        _openOverlay(context);
-      },
-      child: const Text('ui.signIn').tr(),
-    );
-  }
+    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
+    final Color color;
+    if (isCompleted) {
+      color = BeamColors.green;
+    } else if (isSelected) {
+      color = ext.selectedProgressColor;
+    } else {
+      color = ext.unselectedProgressColor;
+    }
 
-  void _openOverlay(BuildContext context) {
-    OverlayEntry? overlay;
-    overlay = OverlayEntry(
-      builder: (context) => DismissibleOverlay(
-        close: () {
-          overlay?.remove();
-        },
-        child: const Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: LoginContent(),
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: BeamSizes.size4,
+        right: BeamSizes.size8,
+      ),
+      child: SvgPicture.asset(
+        isCompleted ? Assets.svg.unitProgress100 : Assets.svg.unitProgress0,
+        color: color,
       ),
     );
-    Overlay.of(context)?.insert(overlay);
   }
 }

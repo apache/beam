@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
-import 'package:flutter/widgets.dart';
-import 'path.dart';
+import 'package:flutter/material.dart';
 
-class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  // TODO(nausharipov): remove state from Welcome?
-  @override
-  PagePath get path => const WelcomePath();
+import '../repositories/client/client.dart';
+
+abstract class Cache extends ChangeNotifier {
+  final TobClient client;
+
+  Cache({required this.client});
 }

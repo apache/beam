@@ -16,12 +16,20 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
-import 'package:flutter/widgets.dart';
-import 'path.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  // TODO(nausharipov): remove state from Welcome?
-  @override
-  PagePath get path => const WelcomePath();
+part 'unit_progress.g.dart';
+
+@JsonSerializable(createToJson: false)
+class UnitProgressModel {
+  final String id;
+  final bool isCompleted;
+
+  const UnitProgressModel({
+    required this.id,
+    required this.isCompleted,
+  });
+
+  factory UnitProgressModel.fromJson(Map<String, dynamic> json) =>
+      _$UnitProgressModelFromJson(json);
 }

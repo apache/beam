@@ -17,34 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:playground_components/playground_components.dart';
 
-class TourProgressIndicator extends StatelessWidget {
-  // TODO(nausharipov): replace assetPath with progress enum
-  final String assetPath;
-  final bool isSelected;
-
-  const TourProgressIndicator({
-    required this.assetPath,
-    required this.isSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
-
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: BeamSizes.size4,
-        right: BeamSizes.size8,
-      ),
-      child: SvgPicture.asset(
-        assetPath,
-        color: isSelected
-            ? ext.selectedProgressColor
-            : ext.unselectedProgressColor,
-      ),
-    );
-  }
+class PublicNotifier extends ChangeNotifier {
+  void notifyPublic() => notifyListeners();
 }

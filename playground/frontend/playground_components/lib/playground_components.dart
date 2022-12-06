@@ -24,6 +24,7 @@ export 'src/constants/sizes.dart';
 
 export 'src/controllers/example_loaders/examples_loader.dart';
 export 'src/controllers/playground_controller.dart';
+export 'src/controllers/public_notifier.dart';
 
 export 'src/enums/complexity.dart';
 
@@ -63,12 +64,14 @@ export 'src/util/pipeline_options.dart';
 export 'src/widgets/bubble.dart';
 export 'src/widgets/clickable.dart';
 export 'src/widgets/complexity.dart';
-export 'src/widgets/dismissible_overlay.dart';
 export 'src/widgets/divider.dart';
 export 'src/widgets/header_icon_button.dart';
 export 'src/widgets/loading_indicator.dart';
 export 'src/widgets/logo.dart';
 export 'src/widgets/output/output.dart';
+export 'src/widgets/overlay/body.dart';
+export 'src/widgets/overlay/dismissible.dart';
+export 'src/widgets/overlay/opener.dart';
 export 'src/widgets/reset_button.dart';
 export 'src/widgets/run_or_cancel_button.dart';
 export 'src/widgets/shortcut_tooltip.dart';

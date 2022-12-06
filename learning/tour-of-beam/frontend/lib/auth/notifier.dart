@@ -18,33 +18,33 @@
 
 import 'dart:async';
 
-import 'package:playground_components/playground_components.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'method.dart';
 
-import '../repositories/models/get_sdks_response.dart';
-import 'cache.dart';
+class AuthNotifier extends ChangeNotifier {
+  final _authProviders = UnmodifiableAuthMethodMap(
+    google: GoogleAuthProvider(),
+    github: GithubAuthProvider(),
+  );
 
-class SdkCache extends Cache {
-  SdkCache({
-    required super.client,
-  });
-
-  final _sdks = <Sdk>[];
-  Future<GetSdksResponse>? _future;
-
-  List<Sdk> getSdks() {
-    if (_future == null) {
-      unawaited(_loadSdks());
-    }
-
-    return _sdks;
+  AuthNotifier() {
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      notifyListeners();
+    });
   }
 
-  Future<List<Sdk>> _loadSdks() async {
-    _future = client.getSdks();
-    final result = await _future!;
+  bool get isAuthenticated => FirebaseAuth.instance.currentUser != null;
 
-    _sdks.addAll(result.sdks);
-    notifyListeners();
-    return _sdks;
+  Future<String?> getToken() async {
+    return await FirebaseAuth.instance.currentUser?.getIdToken();
+  }
+
+  Future<void> logIn(AuthMethod authMethod) async {
+    await FirebaseAuth.instance.signInWithPopup(_authProviders.get(authMethod));
+  }
+
+  Future<void> logOut() async {
+    await FirebaseAuth.instance.signOut();
   }
 }

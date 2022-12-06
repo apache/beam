@@ -16,12 +16,28 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
-import 'package:flutter/widgets.dart';
-import 'path.dart';
+import 'package:flutter/material.dart';
 
-class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  // TODO(nausharipov): remove state from Welcome?
+class DismissibleOverlay extends StatelessWidget {
+  final VoidCallback close;
+  final Positioned child;
+
+  const DismissibleOverlay({
+    required this.close,
+    required this.child,
+  });
+
   @override
-  PagePath get path => const WelcomePath();
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: close,
+          ),
+        ),
+        child,
+      ],
+    );
+  }
 }

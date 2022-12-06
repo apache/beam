@@ -16,12 +16,30 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
-import 'path.dart';
+import 'package:get_it/get_it.dart';
 
-class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  // TODO(nausharipov): remove state from Welcome?
-  @override
-  PagePath get path => const WelcomePath();
+import '../../../cache/unit_progress.dart';
+import '../../../repositories/client/client.dart';
+
+class UnitController extends ChangeNotifier {
+  final String unitId;
+  final String sdkId;
+
+  UnitController({
+    required this.unitId,
+    required this.sdkId,
+  });
+
+  Future<void> completeUnit() async {
+    final client = GetIt.instance.get<TobClient>();
+    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
+    try {
+      unitProgressCache.addUpdatingUnitId(unitId);
+      await client.postUnitComplete(sdkId, unitId);
+    } finally {
+      await unitProgressCache.updateCompletedUnits();
+      unitProgressCache.clearUpdatingUnitId(unitId);
+    }
+  }
 }

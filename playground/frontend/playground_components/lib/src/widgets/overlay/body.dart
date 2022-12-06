@@ -16,12 +16,21 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
-import 'package:flutter/widgets.dart';
-import 'path.dart';
+import 'package:flutter/material.dart';
 
-class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  // TODO(nausharipov): remove state from Welcome?
+import '../../constants/sizes.dart';
+
+class OverlayBody extends StatelessWidget {
+  final Widget child;
+
+  const OverlayBody({required this.child});
+
   @override
-  PagePath get path => const WelcomePath();
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: BeamSizes.size10,
+      borderRadius: BorderRadius.circular(BeamSizes.size10),
+      child: child,
+    );
+  }
 }
