@@ -26,6 +26,7 @@ steps:
     env:
       - 'BRANCH_NAME=${BRANCH_NAME}'
       - 'BASE_BRANCH=${_BASE_BRANCH}'
+      - 'COMMIT_SHA=${COMMIT_SHA}'
 
 options:
   logging: CLOUD_LOGGING_ONLY
