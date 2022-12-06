@@ -20,7 +20,7 @@ export GRADLE_VERSION=7.5.1
 #Install python java8 and dependencies
 apt-get update > /dev/null
 export DEBIAN_FRONTEND=noninteractive
-apt-get install -y software-properties-common > /dev/null
+apt-get install -y software-properties-common curl unzip > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3-pip > /dev/null
 # Install jdk
