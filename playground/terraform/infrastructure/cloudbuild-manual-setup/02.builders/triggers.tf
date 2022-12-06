@@ -80,11 +80,11 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   service_account = data.google_service_account.cloudbuild_sa.id
 }
 
-resource "google_cloudbuild_trigger" "playground_to_gke" {
-  name     = var.gke_trigger_name
+resource "google_cloudbuild_trigger" "playground_examples_ci" {
+  name     = var.examples_ci_trigger_name
   project  = var.project_id
 
-  description = "Builds the base image and then runs cloud build config file to deploy Playground to GKE"
+  description = "Runs CI pipeline steps for Playground Examples"
 
   github {
     owner = var.github_repository_owner
@@ -94,20 +94,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     }
   }
 
-  substitutions = {
-    _PLAYGROUND_REGION : var.playground_region
-    _PLAYGROUND_ZONE : var.playground_zone
-    _ENVIRONMENT_NAME : var.playground_environment_name
-    _DNS_NAME : var.playground_dns_name
-    _NETWORK_NAME : var.playground_network_name
-    _GKE_NAME : var.playground_gke_name
-    _STATE_BUCKET : var.state_bucket
-    _TAG : var.image_tag
-    _DOCKER_REPOSITORY_ROOT : var.docker_repository_root
-    _SDK_TAG : var.sdk_tag
-  }
-
-  filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
+  filename = "playground/infrastructure/cloudbuild/cloudbuild_examples_ci_steps.yaml"
 
   service_account = data.google_service_account.cloudbuild_sa.id
 }
