@@ -169,29 +169,25 @@ Future<void> main() async {
     );
 
     test('getLoadingDescriptor()', () {
-      controller.setExample(exampleMock2,
-          descriptor: standardDescriptor2, setCurrentSdk: true,);
-      controller.setExample(exampleMockGo,
-          descriptor: standardGoDescriptor, setCurrentSdk: false,);
+      controller.setExample(
+        exampleMock2,
+        descriptor: standardDescriptor2,
+        setCurrentSdk: true,
+      );
+      controller.setExample(
+        exampleMockGo,
+        descriptor: standardGoDescriptor,
+        setCurrentSdk: false,
+      );
 
       final descriptor = controller.getLoadingDescriptor();
 
       expect(
         descriptor,
-        const ExamplesLoadingDescriptor(
+        ExamplesLoadingDescriptor(
           descriptors: [
-            ContentExampleLoadingDescriptor(
-              complexity: Complexity.basic,
-              content: 'ex2',
-              name: 'Kata',
-              sdk: Sdk.python,
-            ),
-            ContentExampleLoadingDescriptor(
-              complexity: Complexity.medium,
-              content: 'ex1',
-              name: 'Example',
-              sdk: Sdk.go,
-            ),
+            standardDescriptor2,
+            standardGoDescriptor,
           ],
         ),
       );

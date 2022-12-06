@@ -59,7 +59,9 @@ class StandalonePlaygroundPath extends PagePath {
 
     return Uri(
       path: _basePath,
-      queryParameters: params.isEmpty ? null : params,
+      queryParameters: params.isEmpty
+          ? null
+          : params.map((k, v) => MapEntry(k, v.toString())),
     ).toString();
   }
 

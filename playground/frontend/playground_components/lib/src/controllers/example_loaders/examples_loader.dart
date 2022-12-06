@@ -126,7 +126,7 @@ class ExamplesLoader {
     final example = await loader.future;
     _playgroundController!.setExample(
       example,
-      descriptor: one,
+      descriptor: loader.descriptor,
       setCurrentSdk: _shouldSetCurrentSdk(example.sdk),
     );
   }

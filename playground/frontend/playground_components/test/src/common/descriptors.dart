@@ -24,6 +24,7 @@ const emptyDescriptor = EmptyExampleLoadingDescriptor(sdk: Sdk.java);
 
 final standardDescriptor1 = StandardExampleLoadingDescriptor(
   path: exampleMock1.path,
+  sdk: exampleMock1.sdk,
 );
 final contentDescriptor1 = ContentExampleLoadingDescriptor(
   content: exampleMock1.source,
@@ -34,6 +35,7 @@ final contentDescriptor1 = ContentExampleLoadingDescriptor(
 
 final standardDescriptor2 = StandardExampleLoadingDescriptor(
   path: exampleMock2.path,
+  sdk: exampleMock2.sdk,
 );
 final contentDescriptor2 = ContentExampleLoadingDescriptor(
   content: exampleMock2.source,
@@ -44,4 +46,5 @@ final contentDescriptor2 = ContentExampleLoadingDescriptor(
 
 final standardGoDescriptor = StandardExampleLoadingDescriptor(
   path: exampleMockGo.path,
+  sdk: exampleMockGo.sdk,
 );

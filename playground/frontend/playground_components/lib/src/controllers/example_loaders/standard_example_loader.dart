@@ -30,7 +30,9 @@ import 'example_loader.dart';
 /// This loader assumes that [ExampleCache] is loading all examples to
 /// its cache. So it only completes if this is successful.
 class StandardExampleLoader extends ExampleLoader {
+  @override
   final StandardExampleLoadingDescriptor descriptor;
+
   final ExampleCache exampleCache;
   final _completer = Completer<Example>();
   Sdk? _sdk;

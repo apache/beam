@@ -56,5 +56,8 @@ class _UnregisteredDescriptor extends ExampleLoadingDescriptor {
   List<Object?> get props => [];
 
   @override
+  bool get canBePassedInUrl => true;
+
+  @override
   Map<String, dynamic> toJson() => throw UnimplementedError();
 }

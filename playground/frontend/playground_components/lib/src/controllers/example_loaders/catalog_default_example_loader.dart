@@ -23,7 +23,9 @@ import '../../models/sdk.dart';
 import 'example_loader.dart';
 
 class CatalogDefaultExampleLoader extends ExampleLoader {
+  @override
   final CatalogDefaultExampleLoadingDescriptor descriptor;
+
   final ExampleCache exampleCache;
 
   const CatalogDefaultExampleLoader({

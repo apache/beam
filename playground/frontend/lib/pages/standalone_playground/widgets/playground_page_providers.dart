@@ -20,8 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-import '../../../modules/analytics/analytics_service.dart';
-import '../../../modules/analytics/google_analytics_service.dart';
 import '../../../modules/output/models/output_placement_state.dart';
 import '../notifiers/feedback_state.dart';
 
@@ -38,9 +36,6 @@ class PlaygroundPageProviders extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<AnalyticsService>(
-          create: (context) => GoogleAnalyticsService(),
-        ),
         ChangeNotifierProvider<PlaygroundController>.value(
           value: playgroundController,
         ),

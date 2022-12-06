@@ -3,29 +3,15 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i12;
-import 'dart:ui' as _i13;
+import 'dart:async' as _i4;
+import 'dart:ui' as _i5;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:playground_components/src/cache/example_cache.dart' as _i2;
-import 'package:playground_components/src/controllers/example_loaders/examples_loader.dart'
-    as _i3;
-import 'package:playground_components/src/controllers/playground_controller.dart'
-    as _i9;
+import 'package:playground_components/playground_components.dart' as _i2;
 import 'package:playground_components/src/controllers/snippet_editing_controller.dart'
-    as _i5;
-import 'package:playground_components/src/models/category_with_examples.dart'
-    as _i14;
-import 'package:playground_components/src/models/example.dart' as _i8;
-import 'package:playground_components/src/models/example_base.dart' as _i7;
-import 'package:playground_components/src/models/example_loading_descriptors/examples_loading_descriptor.dart'
-    as _i6;
-import 'package:playground_components/src/models/loading_status.dart' as _i15;
-import 'package:playground_components/src/models/outputs.dart' as _i10;
-import 'package:playground_components/src/models/sdk.dart' as _i11;
-import 'package:playground_components/src/models/shortcut.dart' as _i4;
+    as _i3;
 import 'package:playground_components/src/repositories/models/shared_file.dart'
-    as _i16;
+    as _i6;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -39,25 +25,25 @@ import 'package:playground_components/src/repositories/models/shared_file.dart'
 
 class _FakeExampleCache_0 extends _i1.Fake implements _i2.ExampleCache {}
 
-class _FakeExamplesLoader_1 extends _i1.Fake implements _i3.ExamplesLoader {}
+class _FakeExamplesLoader_1 extends _i1.Fake implements _i2.ExamplesLoader {}
 
-class _FakeBeamShortcut_2 extends _i1.Fake implements _i4.BeamShortcut {}
+class _FakeBeamShortcut_2 extends _i1.Fake implements _i2.BeamShortcut {}
 
 class _FakeSnippetEditingController_3 extends _i1.Fake
-    implements _i5.SnippetEditingController {}
+    implements _i3.SnippetEditingController {}
 
 class _FakeExamplesLoadingDescriptor_4 extends _i1.Fake
-    implements _i6.ExamplesLoadingDescriptor {}
+    implements _i2.ExamplesLoadingDescriptor {}
 
-class _FakeExampleBase_5 extends _i1.Fake implements _i7.ExampleBase {}
+class _FakeExampleBase_5 extends _i1.Fake implements _i2.ExampleBase {}
 
-class _FakeExample_6 extends _i1.Fake implements _i8.Example {}
+class _FakeExample_6 extends _i1.Fake implements _i2.Example {}
 
 /// A class which mocks [PlaygroundController].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockPlaygroundController extends _i1.Mock
-    implements _i9.PlaygroundController {
+    implements _i2.PlaygroundController {
   MockPlaygroundController() {
     _i1.throwOnMissingStub(this);
   }
@@ -68,17 +54,17 @@ class MockPlaygroundController extends _i1.Mock
         returnValue: _FakeExampleCache_0(),
       ) as _i2.ExampleCache);
   @override
-  _i3.ExamplesLoader get examplesLoader => (super.noSuchMethod(
+  _i2.ExamplesLoader get examplesLoader => (super.noSuchMethod(
         Invocation.getter(#examplesLoader),
         returnValue: _FakeExamplesLoader_1(),
-      ) as _i3.ExamplesLoader);
+      ) as _i2.ExamplesLoader);
   @override
-  _i10.OutputType get selectedOutputFilterType => (super.noSuchMethod(
+  _i2.OutputType get selectedOutputFilterType => (super.noSuchMethod(
         Invocation.getter(#selectedOutputFilterType),
-        returnValue: _i10.OutputType.all,
-      ) as _i10.OutputType);
+        returnValue: _i2.OutputType.all,
+      ) as _i2.OutputType);
   @override
-  set selectedOutputFilterType(_i10.OutputType? _selectedOutputFilterType) =>
+  set selectedOutputFilterType(_i2.OutputType? _selectedOutputFilterType) =>
       super.noSuchMethod(
         Invocation.setter(
           #selectedOutputFilterType,
@@ -100,12 +86,12 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  _i4.BeamShortcut get runShortcut => (super.noSuchMethod(
+  _i2.BeamShortcut get runShortcut => (super.noSuchMethod(
         Invocation.getter(#runShortcut),
         returnValue: _FakeBeamShortcut_2(),
-      ) as _i4.BeamShortcut);
+      ) as _i2.BeamShortcut);
   @override
-  set runShortcut(_i4.BeamShortcut? _runShortcut) => super.noSuchMethod(
+  set runShortcut(_i2.BeamShortcut? _runShortcut) => super.noSuchMethod(
         Invocation.setter(
           #runShortcut,
           _runShortcut,
@@ -113,12 +99,12 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  _i4.BeamShortcut get resetShortcut => (super.noSuchMethod(
+  _i2.BeamShortcut get resetShortcut => (super.noSuchMethod(
         Invocation.getter(#resetShortcut),
         returnValue: _FakeBeamShortcut_2(),
-      ) as _i4.BeamShortcut);
+      ) as _i2.BeamShortcut);
   @override
-  set resetShortcut(_i4.BeamShortcut? _resetShortcut) => super.noSuchMethod(
+  set resetShortcut(_i2.BeamShortcut? _resetShortcut) => super.noSuchMethod(
         Invocation.setter(
           #resetShortcut,
           _resetShortcut,
@@ -146,26 +132,26 @@ class MockPlaygroundController extends _i1.Mock
         returnValue: false,
       ) as bool);
   @override
-  List<_i4.BeamShortcut> get shortcuts => (super.noSuchMethod(
+  List<_i2.BeamShortcut> get shortcuts => (super.noSuchMethod(
         Invocation.getter(#shortcuts),
-        returnValue: <_i4.BeamShortcut>[],
-      ) as List<_i4.BeamShortcut>);
+        returnValue: <_i2.BeamShortcut>[],
+      ) as List<_i2.BeamShortcut>);
   @override
   bool get hasListeners => (super.noSuchMethod(
         Invocation.getter(#hasListeners),
         returnValue: false,
       ) as bool);
   @override
-  _i5.SnippetEditingController requireSnippetEditingController() =>
+  _i3.SnippetEditingController requireSnippetEditingController() =>
       (super.noSuchMethod(
         Invocation.method(
           #requireSnippetEditingController,
           [],
         ),
         returnValue: _FakeSnippetEditingController_3(),
-      ) as _i5.SnippetEditingController);
+      ) as _i3.SnippetEditingController);
   @override
-  void setEmptyIfNoSdk(_i11.Sdk? sdk) => super.noSuchMethod(
+  void setEmptyIfNoSdk(_i2.Sdk? sdk) => super.noSuchMethod(
         Invocation.method(
           #setEmptyIfNoSdk,
           [sdk],
@@ -174,7 +160,7 @@ class MockPlaygroundController extends _i1.Mock
       );
   @override
   void setEmptyIfNotExists(
-    _i11.Sdk? sdk, {
+    _i2.Sdk? sdk, {
     bool? setCurrentSdk,
   }) =>
       super.noSuchMethod(
@@ -187,20 +173,24 @@ class MockPlaygroundController extends _i1.Mock
       );
   @override
   void setExample(
-    _i8.Example? example, {
+    _i2.Example? example, {
+    _i2.ExampleLoadingDescriptor? descriptor,
     bool? setCurrentSdk,
   }) =>
       super.noSuchMethod(
         Invocation.method(
           #setExample,
           [example],
-          {#setCurrentSdk: setCurrentSdk},
+          {
+            #descriptor: descriptor,
+            #setCurrentSdk: setCurrentSdk,
+          },
         ),
         returnValueForMissingStub: null,
       );
   @override
   void setSdk(
-    _i11.Sdk? sdk, {
+    _i2.Sdk? sdk, {
     bool? notify = true,
   }) =>
       super.noSuchMethod(
@@ -220,7 +210,7 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  void setSelectedOutputFilterType(_i10.OutputType? type) => super.noSuchMethod(
+  void setSelectedOutputFilterType(_i2.OutputType? type) => super.noSuchMethod(
         Invocation.method(
           #setSelectedOutputFilterType,
           [type],
@@ -277,16 +267,16 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  _i12.Future<void> cancelRun() => (super.noSuchMethod(
+  _i4.Future<void> cancelRun() => (super.noSuchMethod(
         Invocation.method(
           #cancelRun,
           [],
         ),
         returnValue: Future<void>.value(),
         returnValueForMissingStub: Future<void>.value(),
-      ) as _i12.Future<void>);
+      ) as _i4.Future<void>);
   @override
-  void filterOutput(_i10.OutputType? type) => super.noSuchMethod(
+  void filterOutput(_i2.OutputType? type) => super.noSuchMethod(
         Invocation.method(
           #filterOutput,
           [type],
@@ -294,23 +284,23 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  _i12.Future<String> saveSnippet() => (super.noSuchMethod(
+  _i4.Future<String> saveSnippet() => (super.noSuchMethod(
         Invocation.method(
           #saveSnippet,
           [],
         ),
         returnValue: Future<String>.value(''),
-      ) as _i12.Future<String>);
+      ) as _i4.Future<String>);
   @override
-  _i6.ExamplesLoadingDescriptor getLoadingDescriptor() => (super.noSuchMethod(
+  _i2.ExamplesLoadingDescriptor getLoadingDescriptor() => (super.noSuchMethod(
         Invocation.method(
           #getLoadingDescriptor,
           [],
         ),
         returnValue: _FakeExamplesLoadingDescriptor_4(),
-      ) as _i6.ExamplesLoadingDescriptor);
+      ) as _i2.ExamplesLoadingDescriptor);
   @override
-  void addListener(_i13.VoidCallback? listener) => super.noSuchMethod(
+  void addListener(_i5.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(
           #addListener,
           [listener],
@@ -318,7 +308,7 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  void removeListener(_i13.VoidCallback? listener) => super.noSuchMethod(
+  void removeListener(_i5.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(
           #removeListener,
           [listener],
@@ -352,16 +342,16 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
   }
 
   @override
-  Map<_i11.Sdk, List<_i14.CategoryWithExamples>> get categoryListsBySdk =>
+  Map<_i2.Sdk, List<_i2.CategoryWithExamples>> get categoryListsBySdk =>
       (super.noSuchMethod(
         Invocation.getter(#categoryListsBySdk),
-        returnValue: <_i11.Sdk, List<_i14.CategoryWithExamples>>{},
-      ) as Map<_i11.Sdk, List<_i14.CategoryWithExamples>>);
+        returnValue: <_i2.Sdk, List<_i2.CategoryWithExamples>>{},
+      ) as Map<_i2.Sdk, List<_i2.CategoryWithExamples>>);
   @override
-  Map<_i11.Sdk, _i8.Example> get defaultExamplesBySdk => (super.noSuchMethod(
+  Map<_i2.Sdk, _i2.Example> get defaultExamplesBySdk => (super.noSuchMethod(
         Invocation.getter(#defaultExamplesBySdk),
-        returnValue: <_i11.Sdk, _i8.Example>{},
-      ) as Map<_i11.Sdk, _i8.Example>);
+        returnValue: <_i2.Sdk, _i2.Example>{},
+      ) as Map<_i2.Sdk, _i2.Example>);
   @override
   bool get isSelectorOpened => (super.noSuchMethod(
         Invocation.getter(#isSelectorOpened),
@@ -376,42 +366,42 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
         returnValueForMissingStub: null,
       );
   @override
-  _i12.Future<void> get allExamplesFuture => (super.noSuchMethod(
+  _i4.Future<void> get allExamplesFuture => (super.noSuchMethod(
         Invocation.getter(#allExamplesFuture),
         returnValue: Future<void>.value(),
-      ) as _i12.Future<void>);
+      ) as _i4.Future<void>);
   @override
-  _i15.LoadingStatus get catalogStatus => (super.noSuchMethod(
+  _i2.LoadingStatus get catalogStatus => (super.noSuchMethod(
         Invocation.getter(#catalogStatus),
-        returnValue: _i15.LoadingStatus.loading,
-      ) as _i15.LoadingStatus);
+        returnValue: _i2.LoadingStatus.loading,
+      ) as _i2.LoadingStatus);
   @override
   bool get hasListeners => (super.noSuchMethod(
         Invocation.getter(#hasListeners),
         returnValue: false,
       ) as bool);
   @override
-  _i12.Future<void> loadAllPrecompiledObjectsIfNot() => (super.noSuchMethod(
+  _i4.Future<void> loadAllPrecompiledObjectsIfNot() => (super.noSuchMethod(
         Invocation.method(
           #loadAllPrecompiledObjectsIfNot,
           [],
         ),
         returnValue: Future<void>.value(),
         returnValueForMissingStub: Future<void>.value(),
-      ) as _i12.Future<void>);
+      ) as _i4.Future<void>);
   @override
-  List<_i14.CategoryWithExamples> getCategories(_i11.Sdk? sdk) =>
+  List<_i2.CategoryWithExamples> getCategories(_i2.Sdk? sdk) =>
       (super.noSuchMethod(
         Invocation.method(
           #getCategories,
           [sdk],
         ),
-        returnValue: <_i14.CategoryWithExamples>[],
-      ) as List<_i14.CategoryWithExamples>);
+        returnValue: <_i2.CategoryWithExamples>[],
+      ) as List<_i2.CategoryWithExamples>);
   @override
-  _i12.Future<_i7.ExampleBase> getPrecompiledObject(
+  _i4.Future<_i2.ExampleBase> getPrecompiledObject(
     String? path,
-    _i11.Sdk? sdk,
+    _i2.Sdk? sdk,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -421,20 +411,20 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
             sdk,
           ],
         ),
-        returnValue: Future<_i7.ExampleBase>.value(_FakeExampleBase_5()),
-      ) as _i12.Future<_i7.ExampleBase>);
+        returnValue: Future<_i2.ExampleBase>.value(_FakeExampleBase_5()),
+      ) as _i4.Future<_i2.ExampleBase>);
   @override
-  _i12.Future<_i8.Example> loadSharedExample(String? id) => (super.noSuchMethod(
+  _i4.Future<_i2.Example> loadSharedExample(String? id) => (super.noSuchMethod(
         Invocation.method(
           #loadSharedExample,
           [id],
         ),
-        returnValue: Future<_i8.Example>.value(_FakeExample_6()),
-      ) as _i12.Future<_i8.Example>);
+        returnValue: Future<_i2.Example>.value(_FakeExample_6()),
+      ) as _i4.Future<_i2.Example>);
   @override
-  _i12.Future<String> saveSnippet({
-    List<_i16.SharedFile>? files,
-    _i11.Sdk? sdk,
+  _i4.Future<String> saveSnippet({
+    List<_i6.SharedFile>? files,
+    _i2.Sdk? sdk,
     String? pipelineOptions,
   }) =>
       (super.noSuchMethod(
@@ -448,16 +438,16 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
           },
         ),
         returnValue: Future<String>.value(''),
-      ) as _i12.Future<String>);
+      ) as _i4.Future<String>);
   @override
-  _i12.Future<_i8.Example> loadExampleInfo(_i7.ExampleBase? example) =>
+  _i4.Future<_i2.Example> loadExampleInfo(_i2.ExampleBase? example) =>
       (super.noSuchMethod(
         Invocation.method(
           #loadExampleInfo,
           [example],
         ),
-        returnValue: Future<_i8.Example>.value(_FakeExample_6()),
-      ) as _i12.Future<_i8.Example>);
+        returnValue: Future<_i2.Example>.value(_FakeExample_6()),
+      ) as _i4.Future<_i2.Example>);
   @override
   void changeSelectorVisibility() => super.noSuchMethod(
         Invocation.method(
@@ -467,43 +457,43 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
         returnValueForMissingStub: null,
       );
   @override
-  _i12.Future<_i8.Example?> getDefaultExampleBySdk(_i11.Sdk? sdk) =>
+  _i4.Future<_i2.Example?> getDefaultExampleBySdk(_i2.Sdk? sdk) =>
       (super.noSuchMethod(
         Invocation.method(
           #getDefaultExampleBySdk,
           [sdk],
         ),
-        returnValue: Future<_i8.Example?>.value(),
-      ) as _i12.Future<_i8.Example?>);
+        returnValue: Future<_i2.Example?>.value(),
+      ) as _i4.Future<_i2.Example?>);
   @override
-  _i12.Future<void> loadDefaultPrecompiledObjects() => (super.noSuchMethod(
+  _i4.Future<void> loadDefaultPrecompiledObjects() => (super.noSuchMethod(
         Invocation.method(
           #loadDefaultPrecompiledObjects,
           [],
         ),
         returnValue: Future<void>.value(),
         returnValueForMissingStub: Future<void>.value(),
-      ) as _i12.Future<void>);
+      ) as _i4.Future<void>);
   @override
-  _i12.Future<void> loadDefaultPrecompiledObjectsIfNot() => (super.noSuchMethod(
+  _i4.Future<void> loadDefaultPrecompiledObjectsIfNot() => (super.noSuchMethod(
         Invocation.method(
           #loadDefaultPrecompiledObjectsIfNot,
           [],
         ),
         returnValue: Future<void>.value(),
         returnValueForMissingStub: Future<void>.value(),
-      ) as _i12.Future<void>);
+      ) as _i4.Future<void>);
   @override
-  _i12.Future<_i7.ExampleBase?> getCatalogExampleByPath(String? path) =>
+  _i4.Future<_i2.ExampleBase?> getCatalogExampleByPath(String? path) =>
       (super.noSuchMethod(
         Invocation.method(
           #getCatalogExampleByPath,
           [path],
         ),
-        returnValue: Future<_i7.ExampleBase?>.value(),
-      ) as _i12.Future<_i7.ExampleBase?>);
+        returnValue: Future<_i2.ExampleBase?>.value(),
+      ) as _i4.Future<_i2.ExampleBase?>);
   @override
-  void addListener(_i13.VoidCallback? listener) => super.noSuchMethod(
+  void addListener(_i5.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(
           #addListener,
           [listener],
@@ -511,7 +501,7 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
         returnValueForMissingStub: null,
       );
   @override
-  void removeListener(_i13.VoidCallback? listener) => super.noSuchMethod(
+  void removeListener(_i5.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(
           #removeListener,
           [listener],

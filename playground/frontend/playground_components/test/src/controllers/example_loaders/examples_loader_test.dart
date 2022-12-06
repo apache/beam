@@ -42,13 +42,23 @@ void main() async {
 
     playgroundController = MockPlaygroundController();
 
-    when(playgroundController.setExample(any, setCurrentSdk: true))
-        .thenAnswer((realInvocation) {
+    when(
+      playgroundController.setExample(
+        any,
+        descriptor: anyNamed('descriptor'),
+        setCurrentSdk: true,
+      ),
+    ).thenAnswer((realInvocation) {
       final example = realInvocation.positionalArguments[0] as Example;
       setExampleTrue.add(example.name);
     });
-    when(playgroundController.setExample(any, setCurrentSdk: false))
-        .thenAnswer((realInvocation) {
+    when(
+      playgroundController.setExample(
+        any,
+        descriptor: anyNamed('descriptor'),
+        setCurrentSdk: false,
+      ),
+    ).thenAnswer((realInvocation) {
       final example = realInvocation.positionalArguments[0] as Example;
       setExampleFalse.add(example.name);
     });

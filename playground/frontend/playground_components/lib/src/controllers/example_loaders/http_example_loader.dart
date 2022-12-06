@@ -27,6 +27,7 @@ import '../../models/sdk.dart';
 import 'example_loader.dart';
 
 class HttpExampleLoader extends ExampleLoader {
+  @override
   final HttpExampleLoadingDescriptor descriptor;
 
   const HttpExampleLoader({

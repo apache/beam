@@ -17,6 +17,7 @@
  */
 
 import '../../models/example.dart';
+import '../../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../../models/sdk.dart';
 
 abstract class ExampleLoader {
@@ -25,4 +26,6 @@ abstract class ExampleLoader {
   Sdk? get sdk;
 
   Future<Example> get future;
+
+  ExampleLoadingDescriptor get descriptor;
 }

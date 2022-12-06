@@ -23,7 +23,9 @@ import '../../models/sdk.dart';
 import 'example_loader.dart';
 
 class EmptyExampleLoader extends ExampleLoader {
+  @override
   final EmptyExampleLoadingDescriptor descriptor;
+
   final Example _example;
 
   EmptyExampleLoader({

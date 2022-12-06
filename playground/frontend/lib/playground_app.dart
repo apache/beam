@@ -26,6 +26,8 @@ import 'package:provider/provider.dart';
 
 import 'config/locale.dart';
 import 'l10n/l10n.dart';
+import 'modules/analytics/analytics_service.dart';
+import 'modules/analytics/google_analytics_service.dart';
 
 class PlaygroundApp extends StatelessWidget {
   final BackButtonDispatcher backButtonDispatcher;
@@ -47,23 +49,26 @@ class PlaygroundApp extends StatelessWidget {
             create: (context) => LocaleProvider(),
             builder: (context, state) {
               final localeProvider = Provider.of<LocaleProvider>(context);
-              return MaterialApp.router(
-                backButtonDispatcher: backButtonDispatcher,
-                routeInformationParser: routeInformationParser,
-                routerDelegate: routerDelegate,
-                title: 'Apache Beam Playground',
-                themeMode: themeSwitchNotifier.themeMode,
-                theme: kLightTheme,
-                darkTheme: kDarkTheme,
-                debugShowCheckedModeBanner: false,
-                locale: localeProvider.locale,
-                supportedLocales: L10n.locales,
-                localizationsDelegates: [
-                  ...context.localizationDelegates,
-                  AppLocalizations.delegate,
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                ],
+              return Provider<AnalyticsService>(
+                create: (context) => GoogleAnalyticsService(),
+                child: MaterialApp.router(
+                  backButtonDispatcher: backButtonDispatcher,
+                  routeInformationParser: routeInformationParser,
+                  routerDelegate: routerDelegate,
+                  title: 'Apache Beam Playground',
+                  themeMode: themeSwitchNotifier.themeMode,
+                  theme: kLightTheme,
+                  darkTheme: kDarkTheme,
+                  debugShowCheckedModeBanner: false,
+                  locale: localeProvider.locale,
+                  supportedLocales: L10n.locales,
+                  localizationsDelegates: [
+                    ...context.localizationDelegates,
+                    AppLocalizations.delegate,
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                  ],
+                ),
               );
             },
           );

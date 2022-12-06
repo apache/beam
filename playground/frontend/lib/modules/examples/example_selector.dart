@@ -35,12 +35,13 @@ const double kLgContainerWidth = 400.0;
 class ExampleSelector extends StatefulWidget {
   final void Function() changeSelectorVisibility;
   final bool isSelectorOpened;
+  final PlaygroundController playgroundController;
 
   const ExampleSelector({
-    Key? key,
     required this.changeSelectorVisibility,
     required this.isSelectorOpened,
-  }) : super(key: key);
+    required this.playgroundController,
+  });
 
   @override
   State<ExampleSelector> createState() => _ExampleSelectorState();
@@ -58,15 +59,16 @@ class _ExampleSelectorState extends State<ExampleSelector> {
         color: Theme.of(context).dividerColor,
         borderRadius: BorderRadius.circular(kSmBorderRadius),
       ),
-      child: Consumer<PlaygroundController>(
-        builder: (context, playgroundController, child) => TextButton(
+      child: ChangeNotifierProvider<PlaygroundController>.value(
+        value: widget.playgroundController,
+        builder: (context, child) => TextButton(
           key: _selectorKey,
           onPressed: () {
             if (widget.isSelectorOpened) {
               _overlayEntry?.remove();
             } else {
-              unawaited(_loadCatalogIfNot(playgroundController));
-              _overlayEntry = createExamplesDropdown();
+              unawaited(_loadCatalogIfNot(widget.playgroundController));
+              _overlayEntry = _createExamplesDropdown();
               Overlay.of(context)?.insert(_overlayEntry!);
             }
             widget.changeSelectorVisibility();
@@ -75,9 +77,7 @@ class _ExampleSelectorState extends State<ExampleSelector> {
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Consumer<PlaygroundController>(
-                builder: (context, state, child) => Text(state.examplesTitle),
-              ),
+              Text(widget.playgroundController.examplesTitle),
               const Icon(Icons.keyboard_arrow_down),
             ],
           ),
@@ -94,7 +94,7 @@ class _ExampleSelectorState extends State<ExampleSelector> {
     }
   }
 
-  OverlayEntry createExamplesDropdown() {
+  OverlayEntry _createExamplesDropdown() {
     Offset dropdownOffset = findDropdownOffset(key: _selectorKey);
 
     return OverlayEntry(
@@ -102,12 +102,13 @@ class _ExampleSelectorState extends State<ExampleSelector> {
         return ChangeNotifierProvider<PopoverState>(
           create: (context) => PopoverState(false),
           builder: (context, state) {
-            return Consumer<PlaygroundController>(
-              builder: (context, playgroundController, child) => Stack(
+            return ChangeNotifierProvider<PlaygroundController>.value(
+              value: widget.playgroundController,
+              builder: (context, child) => Stack(
                 children: [
                   OutsideClickHandler(
                     onTap: () {
-                      _closeDropdown(playgroundController.exampleCache);
+                      _closeDropdown(widget.playgroundController.exampleCache);
                       // handle description dialogs
                       Navigator.of(context, rootNavigator: true)
                           .popUntil((route) {
@@ -117,9 +118,9 @@ class _ExampleSelectorState extends State<ExampleSelector> {
                   ),
                   ChangeNotifierProvider(
                     create: (context) => ExampleSelectorState(
-                      playgroundController,
-                      playgroundController.exampleCache
-                          .getCategories(playgroundController.sdk),
+                      widget.playgroundController,
+                      widget.playgroundController.exampleCache
+                          .getCategories(widget.playgroundController.sdk),
                     ),
                     builder: (context, _) => Positioned(
                       left: dropdownOffset.dx,
@@ -136,9 +137,9 @@ class _ExampleSelectorState extends State<ExampleSelector> {
                           ),
                           child: ExamplesDropdownContent(
                             onSelected: () => _closeDropdown(
-                              playgroundController.exampleCache,
+                              widget.playgroundController.exampleCache,
                             ),
-                            playgroundController: playgroundController,
+                            playgroundController: widget.playgroundController,
                           ),
                         ),
                       ),

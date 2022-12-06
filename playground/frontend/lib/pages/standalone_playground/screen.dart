@@ -71,6 +71,7 @@ class StandalonePlaygroundScreen extends StatelessWidget {
                           .exampleCache.changeSelectorVisibility,
                       isSelectorOpened: notifier
                           .playgroundController.exampleCache.isSelectorOpened,
+                      playgroundController: notifier.playgroundController,
                     ),
                     SDKSelector(
                       value: notifier.playgroundController.sdk,

@@ -26,6 +26,7 @@ import 'package:get_it/get_it.dart';
 import '../cache/example_cache.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
+import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/examples_loading_descriptor.dart';
 import '../models/intents.dart';
@@ -147,6 +148,7 @@ class PlaygroundController with ChangeNotifier {
 
     setExample(
       Example.empty(sdk),
+      descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
       setCurrentSdk: true,
     );
   }
@@ -162,6 +164,7 @@ class PlaygroundController with ChangeNotifier {
 
     setExample(
       Example.empty(sdk),
+      descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
       setCurrentSdk: setCurrentSdk,
     );
   }

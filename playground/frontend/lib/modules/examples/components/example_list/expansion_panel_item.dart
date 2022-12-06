@@ -17,11 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/modules/examples/components/example_list/example_item_actions.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../constants/sizes.dart';
+import '../../../analytics/analytics_service.dart';
+import 'example_item_actions.dart';
 
 class ExpansionPanelItem extends StatelessWidget {
   final ExampleBase example;
@@ -51,8 +52,10 @@ class ExpansionPanelItem extends StatelessWidget {
               //  per-SDK output and run status.
               //  Now using true to reset the output and run status.
               //  https://github.com/apache/beam/issues/23248
-              final descriptor =
-                  StandardExampleLoadingDescriptor(path: exampleWithInfo.path);
+              final descriptor = StandardExampleLoadingDescriptor(
+                sdk: exampleWithInfo.sdk,
+                path: exampleWithInfo.path,
+              );
               controller.setExample(
                 exampleWithInfo,
                 descriptor: descriptor,

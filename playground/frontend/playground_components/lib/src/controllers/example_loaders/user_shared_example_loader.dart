@@ -23,7 +23,9 @@ import '../../models/sdk.dart';
 import 'example_loader.dart';
 
 class UserSharedExampleLoader extends ExampleLoader {
+  @override
   final UserSharedExampleLoadingDescriptor descriptor;
+
   final ExampleCache exampleCache;
   Example? _example;
 

@@ -24,6 +24,7 @@ import '../../models/sdk.dart';
 import 'example_loader.dart';
 
 class ContentExampleLoader extends ExampleLoader {
+  @override
   final ContentExampleLoadingDescriptor descriptor;
 
   const ContentExampleLoader({
