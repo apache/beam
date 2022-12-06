@@ -24,7 +24,7 @@ SparkReceiverIO is a transform for reading data from an Apache Spark Receiver as
 `SparkReceiverIO` currently supports [Apache Spark Receiver](https://spark.apache.org/docs/2.4.0/streaming-custom-receivers.html).
 
 Requirements for `Spark Receiver`:
-- Version of Spark should be 2.4.
+- Version of Spark should be 2.4.*.
 - `Spark Receiver` should support work with offsets.
 - `Spark Receiver` should implement [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
 - Records should have the numeric field that represents record offset.
@@ -46,10 +46,12 @@ You can easily create `receiverBuilder` object by passing the following paramete
 For example:
 
 {{< highlight java >}}
-Object[] myConstructorArgs = new Object [] {myConfiguration};
+//In this example, MyReceiver accepts a MyConfig object as its only constructor parameter.
+MyConfig myPluginConfig = new MyConfig(authToken, apiServerUrl);
+Object[] myConstructorArgs = new Object[] {myConfig};
 ReceiverBuilder<String, MyReceiver<String>> myReceiverBuilder =
-    new ReceiverBuilder<>(MyReceiver.class)
-        .withConstructorArgs(myConstructorArgs);
+  new ReceiverBuilder<>(MyReceiver.class)
+    .withConstructorArgs(myConstructorArgs);
 {{< /highlight >}}
 
 Then you will be able to pass this `receiverBuilder` object to `SparkReceiverIO`.
@@ -58,7 +60,7 @@ For example:
 
 {{< highlight java >}}
 SparkReceiverIO.Read<String> readTransform =
-SparkReceiverIO.<String>read()
+  SparkReceiverIO.<String>read()
     .withGetOffsetFn(Long::valueOf)
     .withSparkReceiverBuilder(myReceiverBuilder)
 p.apply("readFromMyReceiver", readTransform);
@@ -76,7 +78,7 @@ For example:
 
 {{< highlight java >}}
 SparkReceiverIO.Read<String> readTransform =
-SparkReceiverIO.<String>read()
+  SparkReceiverIO.<String>read()
     .withGetOffsetFn(Long::valueOf)
     .withSparkReceiverBuilder(myReceiverBuilder)
     .withPullFrequencySec(1L)
@@ -91,10 +93,10 @@ p.apply("readFromReceiver", readTransform);
 
 {{< highlight java >}}
 ReceiverBuilder<String, HubspotReceiver<String>> hubspotReceiverBuilder =
-    new ReceiverBuilder<>(HubspotReceiver.class)
-        .withConstructorArgs(hubspotConfig);
+  new ReceiverBuilder<>(HubspotReceiver.class)
+    .withConstructorArgs(hubspotConfig);
 SparkReceiverIO.Read<String> readTransform =
-SparkReceiverIO.<String>read()
+  SparkReceiverIO.<String>read()
     .withGetOffsetFn(GetOffsetUtils.getOffsetFnForHubspot())
     .withSparkReceiverBuilder(hubspotReceiverBuilder)
 p.apply("readFromHubspotReceiver", readTransform);

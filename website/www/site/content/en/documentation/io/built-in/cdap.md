@@ -55,8 +55,12 @@ You can easily build `PluginConfig` object using `ConfigWrapper` class by specif
 For example:
 
 {{< highlight java >}}
+Map<String, Object> myPluginConfigParams = new HashMap<>();
+// Read plugin parameters (e.g. from PipelineOptions) and put them into 'myPluginConfigParams' map.
+myPluginConfigParams.put(MyPluginConstants.USERNAME_PARAMETER_NAME, pipelineOptions.getUsername());
+// ...
 MyPluginConfig pluginConfig =
-new ConfigWrapper<>(MyPluginConfig.class).withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(MyPluginConfig.class).withParams(myPluginConfigParams).build();
 {{< /highlight >}}
 
 ### Read data by plugin class name
@@ -67,7 +71,7 @@ For example:
 
 {{< highlight java >}}
 CdapIO.Read<NullWritable, JsonElement> readTransform =
-CdapIO.<NullWritable, JsonElement>read()
+  CdapIO.<NullWritable, JsonElement>read()
     .withCdapPluginClass(HubspotBatchSource.class)
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
@@ -89,12 +93,12 @@ For example:
 
 {{< highlight java >}}
 CdapIO.Read<String, String> readTransform =
-CdapIO.<String, String>read()
+  CdapIO.<String, String>read()
     .withCdapPlugin(
-        Plugin.createBatch(
-            MyCdapPlugin.class,
-            MyInputFormat.class,
-            MyInputFormatProvider.class))
+      Plugin.createBatch(
+        MyCdapPlugin.class,
+        MyInputFormat.class,
+        MyInputFormatProvider.class))
     .withPluginConfig(pluginConfig)
     .withKeyClass(String.class)
     .withValueClass(String.class);
@@ -107,9 +111,9 @@ p.apply("read", readTransform);
 
 {{< highlight java >}}
 SourceHubspotConfig pluginConfig =
-    new ConfigWrapper<>(SourceHubspotConfig.class).withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(SourceHubspotConfig.class).withParams(pluginConfigParams).build();
 CdapIO<NullWritable, JsonElement> readTransform =
-CdapIO.<NullWritable, JsonElement>read()
+  CdapIO.<NullWritable, JsonElement>read()
     .withCdapPluginClass(HubspotBatchSource.class)
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
@@ -121,9 +125,9 @@ p.apply("readFromHubspotPlugin", readTransform);
 
 {{< highlight java >}}
 SalesforceSourceConfig pluginConfig =
-    new ConfigWrapper<>(SalesforceSourceConfig.class).withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(SalesforceSourceConfig.class).withParams(pluginConfigParams).build();
 CdapIO<Schema, LinkedHashMap> readTransform =
-CdapIO.<Schema, LinkedHashMap>read()
+  CdapIO.<Schema, LinkedHashMap>read()
     .withCdapPluginClass(SalesforceBatchSource.class)
     .withPluginConfig(pluginConfig)
     .withKeyClass(Schema.class)
@@ -135,9 +139,9 @@ p.apply("readFromSalesforcePlugin", readTransform);
 
 {{< highlight java >}}
 ServiceNowSourceConfig pluginConfig =
-    new ConfigWrapper<>(ServiceNowSourceConfig.class).withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(ServiceNowSourceConfig.class).withParams(pluginConfigParams).build();
 CdapIO<NullWritable, StructuredRecord> readTransform =
-CdapIO.<NullWritable, StructuredRecord>read()
+  CdapIO.<NullWritable, StructuredRecord>read()
     .withCdapPluginClass(ServiceNowSource.class)
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
@@ -149,9 +153,9 @@ p.apply("readFromServiceNowPlugin", readTransform);
 
 {{< highlight java >}}
 ZendeskBatchSourceConfig pluginConfig =
-    new ConfigWrapper<>(ZendeskBatchSourceConfig.class).withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(ZendeskBatchSourceConfig.class).withParams(pluginConfigParams).build();
 CdapIO<NullWritable, StructuredRecord> readTransform =
-CdapIO.<NullWritable, StructuredRecord>read()
+  CdapIO.<NullWritable, StructuredRecord>read()
     .withCdapPluginClass(ZendeskBatchSource.class)
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
@@ -177,7 +181,7 @@ For example:
 
 {{< highlight java >}}
 MyPluginConfig pluginConfig =
-new ConfigWrapper<>(MyPluginConfig.class).withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(MyPluginConfig.class).withParams(pluginConfigParams).build();
 {{< /highlight >}}
 
 ### Write data by plugin class name
@@ -188,7 +192,7 @@ For example:
 
 {{< highlight java >}}
 CdapIO.Write<NullWritable, String> readTransform =
-CdapIO.<NullWritable, String>write()
+  CdapIO.<NullWritable, String>write()
     .withCdapPluginClass(HubspotBatchSink.class)
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
@@ -211,12 +215,12 @@ For example:
 
 {{< highlight java >}}
 CdapIO.Write<String, String> writeTransform =
-CdapIO.<String, String>write()
+  CdapIO.<String, String>write()
     .withCdapPlugin(
-        Plugin.createBatch(
-            MyCdapPlugin.class,
-            MyOutputFormat.class,
-            MyOutputFormatProvider.class))
+      Plugin.createBatch(
+        MyCdapPlugin.class,
+        MyOutputFormat.class,
+        MyOutputFormatProvider.class))
     .withPluginConfig(pluginConfig)
     .withKeyClass(String.class)
     .withValueClass(String.class)
@@ -230,9 +234,9 @@ p.apply("write", writeTransform);
 
 {{< highlight java >}}
 SinkHubspotConfig pluginConfig =
-    new ConfigWrapper<>(SinkHubspotConfig.class).withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(SinkHubspotConfig.class).withParams(pluginConfigParams).build();
 CdapIO<NullWritable, String> writeTransform =
-CdapIO.<NullWritable, String>write()
+  CdapIO.<NullWritable, String>write()
     .withCdapPluginClass(pluginClass)
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
@@ -245,9 +249,9 @@ p.apply("writeToHubspotPlugin", writeTransform);
 
 {{< highlight java >}}
 SalesforceSinkConfig pluginConfig =
-    new ConfigWrapper<>(SalesforceSinkConfig.class).withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(SalesforceSinkConfig.class).withParams(pluginConfigParams).build();
 CdapIO<NullWritable, CSVRecord> writeTransform =
-CdapIO.<NullWritable, CSVRecord>write()
+  CdapIO.<NullWritable, CSVRecord>write()
     .withCdapPluginClass(pluginClass)
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
@@ -273,7 +277,7 @@ For example:
 
 {{< highlight java >}}
 MyPluginConfig pluginConfig =
-new ConfigWrapper<>(MyPluginConfig.class).withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(MyPluginConfig.class).withParams(pluginConfigParams).build();
 {{< /highlight >}}
 
 ### Read data by plugin class name
@@ -284,7 +288,7 @@ For example:
 
 {{< highlight java >}}
 CdapIO.Read<String, String> readTransform =
-CdapIO.<String, String>read()
+  CdapIO.<String, String>read()
     .withCdapPluginClass(MyStreamingPlugin.class)
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
@@ -307,13 +311,13 @@ For example:
 
 {{< highlight java >}}
 CdapIO.Read<String, String> readTransform =
-CdapIO.<String, String>read()
+  CdapIO.<String, String>read()
     .withCdapPlugin(
-        Plugin.createStreaming(
-            MyStreamingPlugin.class,
-            myGetOffsetFn,
-            MyReceiver.class,
-            myGetReceiverArgsFromConfigFn))
+      Plugin.createStreaming(
+        MyStreamingPlugin.class,
+        myGetOffsetFn,
+        MyReceiver.class,
+        myGetReceiverArgsFromConfigFn))
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
     .withValueClass(String.class);
@@ -331,7 +335,7 @@ For example:
 
 {{< highlight java >}}
 CdapIO.Read<String, String> readTransform =
-CdapIO.<String, String>read()
+  CdapIO.<String, String>read()
     .withCdapPluginClass(MyStreamingPlugin.class)
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
@@ -347,12 +351,12 @@ p.apply("read", readTransform);
 
 {{< highlight java >}}
 HubspotStreamingSourceConfig pluginConfig =
-    new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
-        .withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
+    .withParams(pluginConfigParams).build();
 CdapIO.Read<NullWritable, String> readTransform =
-CdapIO.<NullWritable, String>read()
+  CdapIO.<NullWritable, String>read()
     .withCdapPlugin(
-        Plugin.createStreaming(
+      Plugin.createStreaming(
         HubspotStreamingSource.class,
         GetOffsetUtils.getOffsetFnForHubspot(),
         HubspotReceiver.class))
@@ -366,23 +370,23 @@ p.apply("readFromHubspotPlugin", readTransform);
 
 {{< highlight java >}}
 SalesforceStreamingSourceConfig pluginConfig =
-    new ConfigWrapper<>(SalesforceStreamingSourceConfig.class)
-        .withParams(pluginConfigParams).build();
+  new ConfigWrapper<>(SalesforceStreamingSourceConfig.class)
+    .withParams(pluginConfigParams).build();
 CdapIO.Read<NullWritable, String> readTransform =
-CdapIO.<NullWritable, String>read()
+  CdapIO.<NullWritable, String>read()
     .withCdapPlugin(
-        Plugin.createStreaming(
-            SalesforceStreamingSource.class,
-            GetOffsetUtils.getOffsetFnForSalesforce(),
-            SalesforceReceiver.class,
-            config -> {
-                SalesforceStreamingSourceConfig salesforceConfig =
-                    (SalesforceStreamingSourceConfig) config;
-                return new Object[] {
-                    salesforceConfig.getAuthenticatorCredentials(),
-                    salesforceConfig.getPushTopicName()
-                };
-            }))
+      Plugin.createStreaming(
+        SalesforceStreamingSource.class,
+        GetOffsetUtils.getOffsetFnForSalesforce(),
+        SalesforceReceiver.class,
+        config -> {
+          SalesforceStreamingSourceConfig salesforceConfig =
+            SalesforceStreamingSourceConfig) config;
+          return new Object[] {
+            salesforceConfig.getAuthenticatorCredentials(),
+            salesforceConfig.getPushTopicName()
+          };
+        }))
     .withPluginConfig(pluginConfig)
     .withKeyClass(NullWritable.class)
     .withValueClass(String.class);

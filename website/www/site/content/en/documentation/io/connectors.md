@@ -777,12 +777,12 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>SparkReceiverIO</td>
+    <td>SparkReceiverIO (<a href="/documentation/io/built-in/sparkreceiver/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✘</td>
     <td class="present">
       ✔
-      native
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/sparkreceiver/2/SparkReceiverIO.html">native</a>
     </td>
     <td>Not available</td>
     <td>Not available</td>
@@ -790,12 +790,12 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>CdapIO</td>
+    <td>CdapIO (<a href="/documentation/io/built-in/cdap/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
       ✔
-      native
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/cdap/CdapIO.html">native</a>
     </td>
     <td>Not available</td>
     <td>Not available</td>
