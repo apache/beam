@@ -23,7 +23,8 @@ add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3-pip > /dev/null
 
 cd playground/infrastructure
-pip install -r requirements.txt > /dev/null
+pip install -r requirements.txt
+
 export \
 ORIGIN=PG_EXAMPLES \
 STEP=CD \
@@ -40,6 +41,7 @@ sdks=("go" "java" "python")
 for sdk in "${sdks[@]}"
 do
   export SERVER_ADDRESS=https://"$sdk".${_DNS_NAME}
+  echo $SERVER_ADDRESS
   python3 ci_cd.py \
   --step ${STEP} \
   --sdk SDK_"${sdk^^}" \
