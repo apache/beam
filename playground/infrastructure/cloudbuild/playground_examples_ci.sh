@@ -56,6 +56,7 @@ then
   base_ref=origin/master
 fi
 diff=$(git diff --name-only $base_ref "${COMMIT_SHA}" | tr '\n' ' ')
+echo "::set-output name=example_diff::$diff"
 
 # Check if there are Examples
 set +e -ux
