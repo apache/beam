@@ -119,14 +119,17 @@ public class SingleStoreSchemaTransformReadProvider
       Boolean outputParallelization = configuration.getOutputParallelization();
       Boolean withPartitions = configuration.getWithPartitions();
 
-      Preconditions.checkArgument(!(outputParallelization != null && withPartitions != null && withPartitions),
+      Preconditions.checkArgument(
+          !(outputParallelization != null && withPartitions != null && withPartitions),
           "outputParallelization parameter is not supported for partitioned read");
 
       if (withPartitions != null && withPartitions) {
-        SingleStoreIO.ReadWithPartitionsRows readWithPartitions = SingleStoreIO.readWithPartitionsRows();
+        SingleStoreIO.ReadWithPartitionsRows readWithPartitions =
+            SingleStoreIO.readWithPartitionsRows();
 
         if (dataSourceConfiguration != null) {
-          readWithPartitions = readWithPartitions.withDataSourceConfiguration(dataSourceConfiguration);
+          readWithPartitions =
+              readWithPartitions.withDataSourceConfiguration(dataSourceConfiguration);
         }
 
         if (table != null && !table.isEmpty()) {
