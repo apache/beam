@@ -26,8 +26,6 @@ cd playground/infrastructure
 pip install -r requirements.txt > /dev/null
 
 # Set required environment variables
-export \
-
 declare -a sdks=("go" "java" "python")
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
@@ -35,8 +33,8 @@ for sdk in "${sdks[@]}"
 do
   export SERVER_ADDRESS=https://"$sdk".${_DNS_NAME}
   python3 ci_cd.py \
-  --step ${_STEP} \
+  --step ${STEP} \
   --sdk SDK_"${sdk^^}" \
-  --origin ${_ORIGIN} \
-  --subdirs ${_SUBDIRS}
+  --origin ${ORIGIN} \
+  --subdirs ${SUBDIRS}
 done

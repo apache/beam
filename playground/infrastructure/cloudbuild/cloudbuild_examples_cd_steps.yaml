@@ -24,9 +24,9 @@ steps:
         chmod +x playground/infrastructure/cloudbuild/playground_examples_cd.sh \
         && ./playground/infrastructure/cloudbuild/playground_examples_cd.sh
     env:
-      - 'ORIGIN=${_ORIGIN}'
-      - 'STEP=${_STEP}'
-      - 'SUBDIRS=${_SUBDIRS}'
+      - 'ORIGIN=PG_EXAMPLES'
+      - 'STEP=CD'
+      - 'SUBDIRS="././learning/katas ././examples ././sdks"'
       - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
       - 'BEAM_ROOT_DIR="../../"'
       - 'SDK_CONFIG="../../playground/sdks.yaml"'
@@ -38,8 +38,3 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 timeout: 1800s
-
-substitutions:
-  _ORIGIN: PG_EXAMPLES
-  _SUBDIRS: "././learning/katas ././examples ././sdks"
-  _STEP: CD
