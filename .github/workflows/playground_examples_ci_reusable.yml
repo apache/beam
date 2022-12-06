@@ -57,6 +57,7 @@ jobs:
       - name: pytest
         run: pytest
         working-directory: playground/infrastructure
+
       - name: get Difference
         id: check_file_changed
         run: |
