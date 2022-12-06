@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GRADLE_VERSION=7.5.1
+export GRADLE_VERSION=7.5.1
 
 #Install python java8 and dependencies
 apt-get update > /dev/null && apt-get install -y software-properties-common curl unzip > /dev/null
