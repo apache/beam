@@ -90,7 +90,7 @@ class ExpansionPanelItem extends StatelessWidget {
   }
 
   void _closeDropdown(ExampleCache exampleCache) {
-    exampleCache.changeSelectorVisibility();
+    exampleCache.setSelectorOpened(false);
     onSelected();
   }
 }

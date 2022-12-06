@@ -35,8 +35,8 @@ void main() async {
         'Returns given descriptor if code has not been changed',
         () {
           final controller = SnippetEditingController(sdk: Sdk.python);
-          controller.configure(
-            example: exampleMock1,
+          controller.setExample(
+            exampleMock1,
             descriptor: standardDescriptor1,
           );
 
@@ -50,8 +50,8 @@ void main() async {
         'Returns content descriptor if code has been changed',
         () {
           final controller = SnippetEditingController(sdk: Sdk.python);
-          controller.configure(
-            example: exampleMock1,
+          controller.setExample(
+            exampleMock1,
             descriptor: standardDescriptor1,
           );
 
@@ -73,9 +73,9 @@ void main() async {
         'Returns content descriptor if descriptor has not been set',
         () {
           final controller = SnippetEditingController(sdk: Sdk.python);
-          controller.configure(example: exampleMock1, descriptor: null);
+          controller.setExample(exampleMock1, descriptor: null);
 
-          controller.configure(example: exampleMock2, descriptor: null);
+          controller.setExample(exampleMock2, descriptor: null);
           final descriptor = controller.getLoadingDescriptor();
 
           const expected = ContentExampleLoadingDescriptor(
@@ -93,12 +93,12 @@ void main() async {
         'Returns configured descriptor if example has been changed',
         () {
           final controller = SnippetEditingController(sdk: Sdk.python);
-          controller.configure(
-            example: exampleMock1,
+          controller.setExample(
+            exampleMock1,
             descriptor: standardDescriptor1,
           );
 
-          controller.configure(example: exampleMock2, descriptor: null);
+          controller.setExample(exampleMock2, descriptor: null);
           final descriptor = controller.getLoadingDescriptor();
 
           expect(descriptor, contentDescriptor2);

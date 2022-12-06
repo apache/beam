@@ -181,20 +181,14 @@ class PlaygroundController with ChangeNotifier {
         loadDefaultIfNot: false,
       );
 
-      controller.configure(
-        example: example,
-        descriptor: descriptor,
-      );
+      controller.setExample(example, descriptor: descriptor);
       _ensureSymbolsInitialized();
     } else {
       final controller = _getOrCreateSnippetEditingController(
         example.sdk,
         loadDefaultIfNot: false,
       );
-      controller.configure(
-        example: example,
-        descriptor: descriptor,
-      );
+      controller.setExample(example, descriptor: descriptor);
     }
 
     _result = null;

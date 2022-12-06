@@ -66,12 +66,13 @@ class StandalonePlaygroundScreen extends StatelessWidget {
                   spacing: kXlSpacing,
                   children: [
                     const Logo(),
-                    ExampleSelector(
-                      changeSelectorVisibility: notifier.playgroundController
-                          .exampleCache.changeSelectorVisibility,
-                      isSelectorOpened: notifier
-                          .playgroundController.exampleCache.isSelectorOpened,
-                      playgroundController: notifier.playgroundController,
+                    AnimatedBuilder(
+                      animation: notifier.playgroundController.exampleCache,
+                      builder: (context, child) => ExampleSelector(
+                        isSelectorOpened: notifier
+                            .playgroundController.exampleCache.isSelectorOpened,
+                        playgroundController: notifier.playgroundController,
+                      ),
                     ),
                     SDKSelector(
                       value: notifier.playgroundController.sdk,

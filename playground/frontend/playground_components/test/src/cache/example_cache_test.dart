@@ -69,16 +69,6 @@ void main() {
       },
     );
 
-    test(
-      'changeSelectorVisibility negates isSelectorOpened',
-      () {
-        cache.changeSelectorVisibility();
-        expect(cache.isSelectorOpened, true);
-        cache.changeSelectorVisibility();
-        expect(cache.isSelectorOpened, false);
-      },
-    );
-
     group('loadExampleInfo tests', () {
       test(
         'If example info is fetched (source is not empty), '

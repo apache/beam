@@ -206,8 +206,8 @@ class ExampleCache extends ChangeNotifier {
     notifyListeners();
   }
 
-  void changeSelectorVisibility() {
-    isSelectorOpened = !isSelectorOpened;
+  void setSelectorOpened(bool value) {
+    isSelectorOpened = value;
     notifyListeners();
   }
 

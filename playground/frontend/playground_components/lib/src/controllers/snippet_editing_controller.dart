@@ -47,8 +47,8 @@ class SnippetEditingController extends ChangeNotifier {
     _onSymbolsNotifierChanged();
   }
 
-  void configure({
-    required Example example,
+  void setExample(
+    Example example, {
     required ExampleLoadingDescriptor? descriptor,
   }) {
     _descriptor = descriptor;

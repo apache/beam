@@ -33,12 +33,10 @@ const double kLgContainerHeight = 490.0;
 const double kLgContainerWidth = 400.0;
 
 class ExampleSelector extends StatefulWidget {
-  final void Function() changeSelectorVisibility;
   final bool isSelectorOpened;
   final PlaygroundController playgroundController;
 
   const ExampleSelector({
-    required this.changeSelectorVisibility,
     required this.isSelectorOpened,
     required this.playgroundController,
   });
@@ -66,12 +64,13 @@ class _ExampleSelectorState extends State<ExampleSelector> {
           onPressed: () {
             if (widget.isSelectorOpened) {
               _overlayEntry?.remove();
+              widget.playgroundController.exampleCache.setSelectorOpened(false);
             } else {
               unawaited(_loadCatalogIfNot(widget.playgroundController));
               _overlayEntry = _createExamplesDropdown();
               Overlay.of(context)?.insert(_overlayEntry!);
+              widget.playgroundController.exampleCache.setSelectorOpened(true);
             }
-            widget.changeSelectorVisibility();
           },
           child: Wrap(
             alignment: WrapAlignment.center,
@@ -156,6 +155,7 @@ class _ExampleSelectorState extends State<ExampleSelector> {
 
   void _closeDropdown(ExampleCache exampleCache) {
     _overlayEntry?.remove();
-    exampleCache.changeSelectorVisibility();
+    _overlayEntry = null;
+    exampleCache.setSelectorOpened(false);
   }
 }
