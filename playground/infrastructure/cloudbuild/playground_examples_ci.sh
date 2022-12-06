@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+export GRADLE_VERSION=7.5.1
+
 #Install python java8 and dependencies
 apt-get update > /dev/null
 export DEBIAN_FRONTEND=noninteractive
@@ -22,7 +24,10 @@ apt-get install -y software-properties-common > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3-pip > /dev/null
 # Install jdk
-apt-get install openjdk-11-jdk -y > /dev/null
+apt-get install openjdk-8-jdk -y > /dev/null
+curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip
+unzip gradle-${GRADLE_VERSION}-bin.zip
+export PATH=$PATH:gradle-${GRADLE_VERSION}/bin
 
 cd playground/infrastructure
 pip install -r requirements.txt > /dev/null
