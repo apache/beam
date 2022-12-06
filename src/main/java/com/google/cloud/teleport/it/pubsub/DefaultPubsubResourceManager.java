@@ -27,6 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
+import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.PushConfig;
 import com.google.pubsub.v1.Subscription;
 import com.google.pubsub.v1.SubscriptionName;
@@ -178,6 +179,17 @@ public final class DefaultPubsubResourceManager implements PubsubResourceManager
     } catch (Exception e) {
       throw new PubsubResourceManagerException("Error publishing message to Pubsub", e);
     }
+  }
+
+  @Override
+  public PullResponse pull(SubscriptionName subscriptionName, int maxMessages) {
+    LOG.info("Pulling messages from subscription '{}'", subscriptionName);
+    PullResponse response = subscriptionAdminClient.pull(subscriptionName, maxMessages);
+    LOG.info(
+        "Received {} messages from subscription '{}'",
+        response.getReceivedMessagesCount(),
+        subscriptionName);
+    return response;
   }
 
   @Override

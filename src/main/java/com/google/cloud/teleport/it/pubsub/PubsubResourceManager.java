@@ -16,6 +16,7 @@
 package com.google.cloud.teleport.it.pubsub;
 
 import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.TopicName;
 import java.util.Map;
@@ -53,6 +54,14 @@ public interface PubsubResourceManager {
    */
   String publish(TopicName topic, Map<String, String> attributes, ByteString data)
       throws PubsubResourceManagerException;
+
+  /**
+   * Pulls messages from the given subscription.
+   *
+   * @param subscriptionName Name of the subscription to use.
+   * @return The message id that was generated.
+   */
+  PullResponse pull(SubscriptionName subscriptionName, int maxMessages);
 
   /** Delete any topics or subscriptions created by this manager. */
   void cleanupAll();

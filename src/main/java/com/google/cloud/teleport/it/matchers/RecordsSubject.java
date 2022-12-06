@@ -17,6 +17,7 @@ package com.google.cloud.teleport.it.matchers;
 
 import com.google.common.truth.FailureMetadata;
 import com.google.common.truth.Subject;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.jetbrains.annotations.Nullable;
@@ -70,5 +71,15 @@ public final class RecordsSubject extends Subject {
     check("records %s are there", records.toString())
         .that(actual)
         .containsExactlyElementsIn(records);
+  }
+
+  /**
+   * Check if all the records match given record.
+   *
+   * @param record Expected record
+   */
+  public void allMatch(Map<String, Object> record) {
+    List<Map<String, Object>> records = Collections.nCopies(actual.size(), record);
+    hasRecords(records);
   }
 }

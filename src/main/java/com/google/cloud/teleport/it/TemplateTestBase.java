@@ -88,10 +88,11 @@ public abstract class TemplateTestBase {
           getClass());
       return;
     }
-
     Class<?> templateClass = annotation.value();
-    template = templateClass.getAnnotation(Template.class);
-
+    template = getTemplateAnnotation(annotation, templateClass);
+    if (template == null) {
+      return;
+    }
     if (TestProperties.hasAccessToken()) {
       credentials = TestProperties.googleCredentials();
     } else {
@@ -172,6 +173,34 @@ public abstract class TemplateTestBase {
         throw new IllegalArgumentException("Error staging template", e);
       }
     }
+  }
+
+  private Template getTemplateAnnotation(
+      TemplateIntegrationTest annotation, Class<?> templateClass) {
+    String templateName = annotation.template();
+    Template[] templateAnnotations = templateClass.getAnnotationsByType(Template.class);
+    if (templateAnnotations.length == 0) {
+      LOG.warn(
+          "Template mentioned in @TemplateIntegrationTest for {} does not contain a @Template annotation, skipping.",
+          getClass());
+      return null;
+    } else if (templateAnnotations.length == 1) {
+      return templateAnnotations[0];
+    } else if (templateName.isEmpty()) {
+      LOG.warn(
+          "Template mentioned in @TemplateIntegrationTest for {} contains multiple @Template annotations. "
+              + "Please provide templateName field in @TemplateIntegrationTest, skipping.",
+          getClass());
+      return null;
+    }
+    for (Template template : templateAnnotations) {
+      if (template.name().equals(templateName)) {
+        return template;
+      }
+    }
+    LOG.warn(
+        "templateName does not match any Template annotations. Please recheck @TemplateIntegrationTest, skipping");
+    return null;
   }
 
   private String[] buildMavenStageCommand(String prefix, File pom, String bucketName) {
