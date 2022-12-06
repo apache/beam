@@ -517,6 +517,7 @@ class TopCombineFn(core.CombineFn):
               (holds_comparables, result_heap),
               comparable.value if holds_comparables else comparable)
 
+    assert result_heap is not None and holds_comparables is not None
     return (holds_comparables, result_heap)
 
   def compact(self, accumulator, *args, **kwargs):
@@ -536,9 +537,8 @@ class TopCombineFn(core.CombineFn):
     else:
       assert not holds_comparables
 
-    if heap:
-      heap.sort(reverse=True)
-
+    assert len(heap) <= self._n
+    heap.sort(reverse=True)
     return [
         comparable.value if holds_comparables else comparable
         for comparable in heap

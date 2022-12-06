@@ -2475,7 +2475,7 @@ class CombineGlobally(PTransform):
 
       def inject_default(_, combined):
         if combined:
-          assert len(combined) >= 1
+          assert len(combined) == 1
           return combined[0]
         else:
           try:
