@@ -42,14 +42,6 @@ class AppendClientInfo {
     this.closeAppendClient = closeAppendClient;
   }
 
-  public AppendClientInfo clearAppendClient() {
-    if (streamAppendClient != null) {
-      closeAppendClient.accept(streamAppendClient);
-      this.streamAppendClient = null;
-    }
-    return this;
-  }
-
   public AppendClientInfo createAppendClient(
       BigQueryServices.DatasetService datasetService,
       Supplier<String> getStreamName,
@@ -63,6 +55,8 @@ class AppendClientInfo {
   }
 
   public void close() {
-    clearAppendClient();
+    if (streamAppendClient != null) {
+      closeAppendClient.accept(streamAppendClient);
+    }
   }
 }
