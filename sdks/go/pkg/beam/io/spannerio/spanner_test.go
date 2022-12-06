@@ -35,17 +35,6 @@ type TestDto struct {
 	Two int64  `spanner:"Two"`
 }
 
-func TestColumnsFromStructReturnsColumns(t *testing.T) {
-	// arrange
-	// act
-	cols := columnsFromStruct(reflect.TypeOf(TestDto{}))
-
-	// assert
-	if len(cols) != 2 {
-		t.Fatalf("got %v columns, expected 2", len(cols))
-	}
-}
-
 func TestRead(t *testing.T) {
 	testCases := []struct {
 		name          string

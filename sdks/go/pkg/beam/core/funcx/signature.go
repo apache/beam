@@ -108,7 +108,7 @@ func replace(list []reflect.Type, old, new reflect.Type) []reflect.Type {
 // both would satisfy a signature of (context.Context?, int) -> bool. Only
 // "foo" would satisfy (context.Context, string) -> bool and only "bar" would
 // satisfy (int) -> bool.
-func Satisfy(fn interface{}, sig *Signature) error {
+func Satisfy(fn any, sig *Signature) error {
 	var in, out []reflect.Type
 	var typ reflect.Type
 	switch fx := fn.(type) {
@@ -227,7 +227,7 @@ func matchOpt(list, models []reflect.Type, m map[string]reflect.Type) error {
 }
 
 // MustSatisfy panics if the given fn does not satisfy the signature.
-func MustSatisfy(fn interface{}, sig *Signature) {
+func MustSatisfy(fn any, sig *Signature) {
 	if err := Satisfy(fn, sig); err != nil {
 		panic(errors.Wrapf(err, "fn does not satisfy signature %v", sig))
 	}

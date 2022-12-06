@@ -49,13 +49,13 @@ var (
 // T, U, V, W, X, Y, Z are universal types. They play the role of generic
 // type variables in UserFn signatures, but are limited to top-level positions.
 
-type T interface{}
-type U interface{}
-type V interface{}
-type W interface{}
-type X interface{}
-type Y interface{}
-type Z interface{}
+type T any
+type U any
+type V any
+type W any
+type X any
+type Y any
+type Z any
 
 // EventTime is a timestamp that Beam understands as attached to an element.
 type EventTime = mtime.Time

@@ -33,15 +33,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-var intInput = []interface{}{int(1), int(2), int(3), int(4), int(5), int(6)}
-var int64Input = []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)}
-var strInput = []interface{}{"1", "2", "3", "4", "5", "6"}
+var intInput = []any{int(1), int(2), int(3), int(4), int(5), int(6)}
+var int64Input = []any{int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)}
+var strInput = []any{"1", "2", "3", "4", "5", "6"}
 
 var tests = []struct {
-	Fn         interface{}
+	Fn         any
 	AccumCoder *coder.Coder
-	Input      []interface{}
-	Expected   interface{}
+	Input      []any
+	Expected   any
 }{
 	{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
 	{Fn: nonBinaryMergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
@@ -52,7 +52,7 @@ var tests = []struct {
 	{Fn: &MyErrorCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
 }
 
-func fnName(x interface{}) string {
+func fnName(x any) string {
 	v := reflect.ValueOf(x)
 	if v.Kind() != reflect.Func {
 		return v.Type().String()
@@ -83,7 +83,7 @@ func TestCombine(t *testing.T) {
 // TestLiftedCombine verifies that the LiftedCombine, MergeAccumulators, and
 // ExtractOutput nodes work correctly after the lift has been performed.
 func TestLiftedCombine(t *testing.T) {
-	withCoder := func(t *testing.T, suffix string, key interface{}, keyCoder *coder.Coder) {
+	withCoder := func(t *testing.T, suffix string, key any, keyCoder *coder.Coder) {
 		// The test values are all single global window.
 		wc := coder.NewGlobalWindow()
 		for _, test := range tests {
@@ -122,7 +122,7 @@ type pigeonHasher struct {
 	hasher elementHasher
 }
 
-func (p *pigeonHasher) Hash(element interface{}, w typex.Window) (uint64, error) {
+func (p *pigeonHasher) Hash(element any, w typex.Window) (uint64, error) {
 	k, err := p.hasher.Hash(element, w)
 	if err != nil {
 		return 0, err
@@ -316,10 +316,10 @@ func TestLiftingCache(t *testing.T) {
 // correctly doesn't accumulate values at all.
 func TestConvertToAccumulators(t *testing.T) {
 	tests := []struct {
-		Fn         interface{}
+		Fn         any
 		AccumCoder *coder.Coder
-		Input      []interface{}
-		Expected   []interface{}
+		Input      []any
+		Expected   []any
 	}{
 		{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: intInput},
 		{Fn: nonBinaryMergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: intInput},
@@ -385,7 +385,7 @@ func (c *myCodable) DecodeMe(b []byte) {
 	c.val = binary.LittleEndian.Uint64(b)
 }
 
-func getCombineEdge(t *testing.T, cfn interface{}, kt reflect.Type, ac *coder.Coder) *graph.MultiEdge {
+func getCombineEdge(t *testing.T, cfn any, kt reflect.Type, ac *coder.Coder) *graph.MultiEdge {
 	t.Helper()
 	fn, err := graph.NewCombineFn(cfn)
 	if err != nil {

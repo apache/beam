@@ -34,7 +34,8 @@
 //
 // Current supported SDKs, including expansion service modules and reference
 // documentation:
-// * Java
+//
+// Java:
 //   - Vendored Module: beam-sdks-java-extensions-schemaio-expansion-service
 //   - Run via Gradle: ./gradlew :sdks:java:extensions:schemaio-expansion-service:build
 //     java -jar <location_of_jar_file_generated_from_above> <port>

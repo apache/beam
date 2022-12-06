@@ -34,6 +34,25 @@ spec:
        imagePullPolicy: {{ .Values.image.pullPolicy }}
        ports:
         - containerPort: 8080
+       livenessProbe:
+         httpGet:
+           path: /liveness
+           port: {{ .Value.healthcheck.port }}
+         initialDelaySeconds: {{ .Value.healthcheck.livInitialDelaySeconds }}
+         periodSeconds: {{ .Value.healthcheck.livPeriodSeconds }}
+       readinessProbe:
+         httpGet:
+           path: /readiness
+           port: {{ .Value.healthcheck.port }}
+         initialDelaySeconds: {{ .Value.healthcheck.readInitialDelaySeconds }}
+         periodSeconds: {{ .Value.healthcheck.readPeriodSeconds }}
+       resources:
+         requests:
+           memory: "50Mi"
+           cpu: "250m"
+         limits:
+           cpu: "500"
+           memory: "500Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:
