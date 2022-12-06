@@ -52,7 +52,7 @@ type sklearnConfig struct {
 
 type sklearnConfigOption func(*sklearnConfig)
 
-// Sets arguments for the python transform parameters
+// WithArgs set arguments for the sklearn inference transform parameters
 func WithArgs(args []string) sklearnConfigOption {
 	return func(c *sklearnConfig) {
 		c.args.args = append(c.args.args, args...)
@@ -83,6 +83,7 @@ type sklearnKwargs struct {
 // This wrapper doesn't work for keyed input PCollection.
 //
 // Example:
+//
 //		inputRow := [][]int64{{0, 0}, {1, 1}}
 //	    input := beam.CreateList(s, inputRow)
 //	    modelURI = gs://example.com/tmp/staged/sklearn_model
