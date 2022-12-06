@@ -20,20 +20,19 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java_GCP_IO_Direct',
+    nameBase: 'Java_Pulsar_IO_Direct',
     gradleTasks: [
-      ':sdks:java:io:google-cloud-platform:build',
-      ':sdks:java:io:google-cloud-platform:postCommit',
+      ':sdks:java:io:pulsar:build',
     ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
-    timeoutMins: 120,
     triggerPathPatterns: [
       '^sdks/java/core/src/main/.*$',
-      '^sdks/java/io/google-cloud-platform/.*$',
-    ]
+      '^sdks/java/io/pulsar/.*$',
+    ],
+    timeoutMins: 60,
     )
 builder.build {
   publishers {
