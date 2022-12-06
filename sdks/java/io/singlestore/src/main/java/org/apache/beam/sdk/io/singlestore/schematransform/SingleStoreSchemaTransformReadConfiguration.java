@@ -63,6 +63,9 @@ public abstract class SingleStoreSchemaTransformReadConfiguration {
   @Nullable
   public abstract Boolean getOutputParallelization();
 
+  @Nullable
+  public abstract Boolean getWithPartitions();
+
   @AutoValue.Builder
   public abstract static class Builder {
 
@@ -73,6 +76,8 @@ public abstract class SingleStoreSchemaTransformReadConfiguration {
     public abstract Builder setQuery(String value);
 
     public abstract Builder setOutputParallelization(Boolean value);
+
+    public abstract Builder setWithPartitions(Boolean value);
 
     /** Builds the {@link SingleStoreSchemaTransformReadConfiguration} configuration. */
     public abstract SingleStoreSchemaTransformReadConfiguration build();

@@ -31,8 +31,6 @@ import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformReadConfiguration;
 import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformReadProvider;
-import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformReadWithPartitionsConfiguration;
-import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformReadWithPartitionsProvider;
 import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformWriteConfiguration;
 import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformWriteProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -218,13 +216,13 @@ public class SingleStoreIOSchemaTransformIT {
   }
 
   private PipelineResult runReadWithPartitions() {
-    SchemaTransformProvider provider = new SingleStoreSchemaTransformReadWithPartitionsProvider();
+    SchemaTransformProvider provider = new SingleStoreSchemaTransformReadProvider();
 
-    SingleStoreSchemaTransformReadWithPartitionsConfiguration configuration =
-        SingleStoreSchemaTransformReadWithPartitionsConfiguration.builder()
+    SingleStoreSchemaTransformReadConfiguration configuration =
+        SingleStoreSchemaTransformReadConfiguration.builder()
             .setDataSourceConfiguration(dataSourceConfiguration)
             .setTable(tableName)
-            .setInitialNumReaders(1)
+            .setWithPartitions(true)
             .build();
 
     Row configurationRow = configuration.toBeamRow();

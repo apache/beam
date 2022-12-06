@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for SingleStoreDB read jobs configured
@@ -116,29 +117,54 @@ public class SingleStoreSchemaTransformReadProvider
       String table = configuration.getTable();
       String query = configuration.getQuery();
       Boolean outputParallelization = configuration.getOutputParallelization();
+      Boolean withPartitions = configuration.getWithPartitions();
 
-      SingleStoreIO.ReadRows read = SingleStoreIO.readRows();
+      Preconditions.checkArgument(!(outputParallelization != null && withPartitions != null && withPartitions),
+          "outputParallelization parameter is not supported for partitioned read");
 
-      if (dataSourceConfiguration != null) {
-        read = read.withDataSourceConfiguration(dataSourceConfiguration);
+      if (withPartitions != null && withPartitions) {
+        SingleStoreIO.ReadWithPartitionsRows readWithPartitions = SingleStoreIO.readWithPartitionsRows();
+
+        if (dataSourceConfiguration != null) {
+          readWithPartitions = readWithPartitions.withDataSourceConfiguration(dataSourceConfiguration);
+        }
+
+        if (table != null && !table.isEmpty()) {
+          readWithPartitions = readWithPartitions.withTable(table);
+        }
+
+        if (query != null && !query.isEmpty()) {
+          readWithPartitions = readWithPartitions.withQuery(query);
+        }
+
+        PCollection<Row> rows = input.getPipeline().apply(readWithPartitions);
+        Schema schema = rows.getSchema();
+
+        return PCollectionRowTuple.of(OUTPUT_TAG, rows.setRowSchema(schema));
+      } else {
+        SingleStoreIO.ReadRows read = SingleStoreIO.readRows();
+
+        if (dataSourceConfiguration != null) {
+          read = read.withDataSourceConfiguration(dataSourceConfiguration);
+        }
+
+        if (table != null && !table.isEmpty()) {
+          read = read.withTable(table);
+        }
+
+        if (query != null && !query.isEmpty()) {
+          read = read.withQuery(query);
+        }
+
+        if (outputParallelization != null) {
+          read = read.withOutputParallelization(outputParallelization);
+        }
+
+        PCollection<Row> rows = input.getPipeline().apply(read);
+        Schema schema = rows.getSchema();
+
+        return PCollectionRowTuple.of(OUTPUT_TAG, rows.setRowSchema(schema));
       }
-
-      if (table != null) {
-        read = read.withTable(table);
-      }
-
-      if (query != null) {
-        read = read.withQuery(query);
-      }
-
-      if (outputParallelization != null) {
-        read = read.withOutputParallelization(outputParallelization);
-      }
-
-      PCollection<Row> rows = input.getPipeline().apply(read);
-      Schema schema = rows.getSchema();
-
-      return PCollectionRowTuple.of(OUTPUT_TAG, rows.setRowSchema(schema));
     }
   }
 }

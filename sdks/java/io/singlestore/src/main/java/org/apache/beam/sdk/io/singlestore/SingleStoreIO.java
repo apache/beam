@@ -897,8 +897,6 @@ public class SingleStoreIO {
 
     abstract @Nullable String getTable();
 
-    abstract @Nullable Integer getInitialNumReaders();
-
     abstract ReadWithPartitionsRows.Builder toBuilder();
 
     @AutoValue.Builder
@@ -909,8 +907,6 @@ public class SingleStoreIO {
       abstract Builder setQuery(String query);
 
       abstract Builder setTable(String table);
-
-      abstract Builder setInitialNumReaders(Integer initialNumReaders);
 
       abstract ReadWithPartitionsRows build();
     }
@@ -930,19 +926,12 @@ public class SingleStoreIO {
       return toBuilder().setTable(table).build();
     }
 
-    /** Pre-split initial restriction and start initialNumReaders reading at the very beginning. */
-    public ReadWithPartitionsRows withInitialNumReaders(Integer initialNumReaders) {
-      checkNotNull(initialNumReaders, "initialNumReaders can not be null");
-      return toBuilder().setInitialNumReaders(initialNumReaders).build();
-    }
-
     @Override
     public PCollection<Row> expand(PBegin input) {
       DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
       Preconditions.checkArgumentNotNull(
           dataSourceConfiguration, "withDataSourceConfiguration() is required");
       String actualQuery = SingleStoreUtil.getSelectQuery(getTable(), getQuery());
-      Integer initialNumReaders = getInitialNumReaders();
 
       SingleStoreDefaultRowMapper rowMapper = getRowMapper(dataSourceConfiguration, actualQuery);
 
@@ -952,10 +941,6 @@ public class SingleStoreIO {
               .withQuery(actualQuery)
               .withRowMapper(rowMapper)
               .withCoder(RowCoder.of(rowMapper.getSchema()));
-
-      if (initialNumReaders != null) {
-        readWithPartitions = readWithPartitions.withInitialNumReaders(initialNumReaders);
-      }
 
       PCollection<Row> output = input.apply(readWithPartitions);
 
@@ -969,7 +954,6 @@ public class SingleStoreIO {
       DataSourceConfiguration.populateDisplayData(getDataSourceConfiguration(), builder);
       builder.addIfNotNull(DisplayData.item("query", getQuery()));
       builder.addIfNotNull(DisplayData.item("table", getTable()));
-      builder.addIfNotNull(DisplayData.item("initialNumReaders", getInitialNumReaders()));
     }
   }
 

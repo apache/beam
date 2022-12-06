@@ -127,7 +127,7 @@ public class SingleStoreSchemaTransformWriteProvider
         write = write.withDataSourceConfiguration(dataSourceConfiguration);
       }
 
-      if (table != null) {
+      if (table != null && !table.isEmpty()) {
         write = write.withTable(table);
       }
 
