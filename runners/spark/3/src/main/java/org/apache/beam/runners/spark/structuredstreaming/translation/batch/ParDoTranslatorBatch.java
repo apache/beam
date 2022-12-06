@@ -17,33 +17,29 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.oneOfEncoder;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun1;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.tuple;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.emptyList;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.listOf;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.storage.StorageLevel.MEMORY_ONLY;
 
 import java.io.IOException;
-import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
+import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -52,18 +48,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.TypedColumn;
 import org.apache.spark.storage.StorageLevel;
-import scala.Function1;
 import scala.Tuple2;
-import scala.collection.Iterator;
+import scala.collection.TraversableOnce;
 import scala.reflect.ClassTag;
 
 /**
@@ -115,40 +108,27 @@ class ParDoTranslatorBatch<InputT, OutputT>
   @Override
   public void translate(ParDo.MultiOutput<InputT, OutputT> transform, Context cxt)
       throws IOException {
-    String stepName = cxt.getCurrentTransform().getFullName();
-
-    TupleTag<OutputT> mainOutputTag = transform.getMainOutputTag();
-
-    DoFnSchemaInformation doFnSchema =
-        ParDoTranslation.getSchemaInformation(cxt.getCurrentTransform());
 
     PCollection<InputT> input = (PCollection<InputT>) cxt.getInput();
-    Map<String, PCollectionView<?>> sideInputs = transform.getSideInputs();
     Map<TupleTag<?>, PCollection<?>> outputs = cxt.getOutputs();
 
-    DoFnMapPartitionsFactory<InputT, OutputT> factory =
-        new DoFnMapPartitionsFactory<>(
-            stepName,
-            transform.getFn(),
-            doFnSchema,
-            cxt.getOptionsSupplier(),
-            input,
-            mainOutputTag,
-            outputs,
-            sideInputs,
-            createSideInputReader(sideInputs.values(), cxt));
-
     Dataset<WindowedValue<InputT>> inputDs = cxt.getDataset(input);
+    SideInputReader sideInputReader =
+        createSideInputReader(transform.getSideInputs().values(), cxt);
+
     if (outputs.size() > 1) {
       // In case of multiple outputs / tags, map each tag to a column by index.
       // At the end split the result into multiple datasets selecting one column each.
-      Map<TupleTag<?>, Integer> tags = ImmutableMap.copyOf(zipwithIndex(outputs.keySet()));
+      Map<String, Integer> tagColIdx = tagsColumnIndex((Collection<TupleTag<?>>) outputs.keySet());
+      List<Encoder<WindowedValue<Object>>> encoders = createEncoders(outputs, tagColIdx, cxt);
 
-      List<Encoder<WindowedValue<Object>>> encoders =
-          createEncoders(outputs, (Iterable<TupleTag<?>>) tags.keySet(), cxt);
-
-      Function1<Iterator<WindowedValue<InputT>>, Iterator<Tuple2<Integer, WindowedValue<Object>>>>
-          doFnMapper = factory.create((tag, v) -> tuple(tags.get(tag), (WindowedValue<Object>) v));
+      DoFnMapPartitionsFactory<InputT, ?, Tuple2<Integer, WindowedValue<Object>>> doFnMapper =
+          DoFnMapPartitionsFactory.multiOutput(
+              cxt.getCurrentTransform(),
+              cxt.getOptionsSupplier(),
+              input,
+              sideInputReader,
+              tagColIdx);
 
       // FIXME What's the strategy to unpersist Datasets / RDDs?
 
@@ -169,18 +149,13 @@ class ParDoTranslatorBatch<InputT, OutputT>
         allTagsRDD.persist();
 
         // divide into separate output datasets per tag
-        for (Entry<TupleTag<?>, Integer> e : tags.entrySet()) {
-          TupleTag<Object> key = (TupleTag<Object>) e.getKey();
-          Integer id = e.getValue();
-
+        for (TupleTag<?> tag : outputs.keySet()) {
+          int colIdx = checkStateNotNull(tagColIdx.get(tag.getId()), "Unknown tag");
           RDD<WindowedValue<Object>> rddByTag =
-              allTagsRDD
-                  .filter(fun1(t -> t._1.equals(id)))
-                  .map(fun1(Tuple2::_2), WINDOWED_VALUE_CTAG);
-
+              allTagsRDD.flatMap(selectByColumnIdx(colIdx), WINDOWED_VALUE_CTAG);
           cxt.putDataset(
-              cxt.getOutput(key),
-              cxt.getSparkSession().createDataset(rddByTag, encoders.get(id)),
+              cxt.getOutput((TupleTag) tag),
+              cxt.getSparkSession().createDataset(rddByTag, encoders.get(colIdx)),
               false);
         }
       } else {
@@ -190,40 +165,51 @@ class ParDoTranslatorBatch<InputT, OutputT>
         allTagsDS.persist(storageLevel);
 
         // divide into separate output datasets per tag
-        for (Entry<TupleTag<?>, Integer> e : tags.entrySet()) {
-          TupleTag<Object> key = (TupleTag<Object>) e.getKey();
-          Integer id = e.getValue();
-
+        for (TupleTag<?> tag : outputs.keySet()) {
+          int colIdx = checkStateNotNull(tagColIdx.get(tag.getId()), "Unknown tag");
           // Resolve specific column matching the tuple tag (by id)
           TypedColumn<Tuple2<Integer, WindowedValue<Object>>, WindowedValue<Object>> col =
-              (TypedColumn) col(id.toString()).as(encoders.get(id));
+              (TypedColumn) col(Integer.toString(colIdx)).as(encoders.get(colIdx));
 
-          cxt.putDataset(cxt.getOutput(key), allTagsDS.filter(col.isNotNull()).select(col), false);
+          cxt.putDataset(
+              cxt.getOutput((TupleTag) tag), allTagsDS.filter(col.isNotNull()).select(col), false);
         }
       }
     } else {
-      PCollection<OutputT> output = cxt.getOutput(mainOutputTag);
+      PCollection<OutputT> output = cxt.getOutput(transform.getMainOutputTag());
+      DoFnMapPartitionsFactory<InputT, ?, WindowedValue<OutputT>> doFnMapper =
+          DoFnMapPartitionsFactory.singleOutput(
+              cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader);
+
       Dataset<WindowedValue<OutputT>> mainDS =
-          inputDs.mapPartitions(
-              factory.create((tag, value) -> (WindowedValue<OutputT>) value),
-              cxt.windowedEncoder(output.getCoder()));
+          inputDs.mapPartitions(doFnMapper, cxt.windowedEncoder(output.getCoder()));
 
       cxt.putDataset(output, mainDS);
     }
   }
 
-  private List<Encoder<WindowedValue<Object>>> createEncoders(
-      Map<TupleTag<?>, PCollection<?>> outputs, Iterable<TupleTag<?>> columns, Context ctx) {
-    return Streams.stream(columns)
-        .map(tag -> ctx.windowedEncoder(getCoder(outputs.get(tag), tag)))
-        .collect(toList());
+  static <T> Fun1<Tuple2<Integer, T>, TraversableOnce<T>> selectByColumnIdx(int idx) {
+    return t -> idx == t._1 ? listOf(t._2) : emptyList();
   }
 
-  private Coder<Object> getCoder(@Nullable PCollection<?> pc, TupleTag<?> tag) {
-    if (pc == null) {
-      throw new NullPointerException("No PCollection for tag " + tag);
+  private Map<String, Integer> tagsColumnIndex(Collection<TupleTag<?>> tags) {
+    Map<String, Integer> index = Maps.newHashMapWithExpectedSize(tags.size());
+    for (TupleTag<?> tag : tags) {
+      index.put(tag.getId(), index.size());
     }
-    return (Coder<Object>) pc.getCoder();
+    return index;
+  }
+
+  /** List of encoders matching the order of tagIds. */
+  private List<Encoder<WindowedValue<Object>>> createEncoders(
+      Map<TupleTag<?>, PCollection<?>> outputs, Map<String, Integer> tagIdColIdx, Context ctx) {
+    ArrayList<Encoder<WindowedValue<Object>>> encoders = new ArrayList<>(outputs.size());
+    for (Entry<TupleTag<?>, PCollection<?>> e : outputs.entrySet()) {
+      Encoder<WindowedValue<Object>> enc = ctx.windowedEncoder((Coder) e.getValue().getCoder());
+      int colIdx = checkStateNotNull(tagIdColIdx.get(e.getKey().getId()));
+      encoders.add(colIdx, enc);
+    }
+    return encoders;
   }
 
   private <T> SideInputReader createSideInputReader(
@@ -241,14 +227,5 @@ class ParDoTranslatorBatch<InputT, OutputT>
       broadcasts.put(view.getTagInternal().getId(), (Broadcast) broadcast);
     }
     return SparkSideInputReader.create(broadcasts);
-  }
-
-  private static <T> Collection<Entry<T, Integer>> zipwithIndex(Collection<T> col) {
-    ArrayList<Entry<T, Integer>> zipped = new ArrayList<>(col.size());
-    int i = 0;
-    for (T t : col) {
-      zipped.add(new SimpleImmutableEntry<>(t, i++));
-    }
-    return zipped;
   }
 }
