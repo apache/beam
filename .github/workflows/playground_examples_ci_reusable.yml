@@ -104,6 +104,7 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
@@ -111,6 +112,7 @@ jobs:
         with:
             distribution: 'zulu'
             java-version: '8'
+
       - name: install deps
         run: pip install -r requirements.txt
         working-directory: playground/infrastructure
