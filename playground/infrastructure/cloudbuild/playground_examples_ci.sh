@@ -16,12 +16,16 @@
 # limitations under the License.
 
 #Install python java8 and dependencies
-apt-get update > /dev/null && apt-get install -y software-properties-common > /dev/null
+apt-get update > /dev/null
+export DEBIAN_FRONTEND=noninteractive
+apt-get install -y software-properties-common > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3-pip > /dev/null
 # Install jdk
 apt-get install openjdk-11-jdk -y > /dev/null
-cd playground/infrastructure && pip install -r requirements.txt > /dev/null
+
+cd playground/infrastructure
+pip install -r requirements.txt > /dev/null
 
 echo "Dependencies installed"
 
@@ -34,7 +38,7 @@ BEAM_ROOT_DIR="../../" \
 SDK_CONFIG="../../playground/sdks.yaml" \
 BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
 BEAM_CONCURRENCY=4 \
-SERVER_ADDRESS=localhost:8080
+SERVER_ADDRESS=localhost:8080 \
 sdks=("go" "java" "python") \
 allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
 ".github/workflows/playground_examples_ci.yml" \
