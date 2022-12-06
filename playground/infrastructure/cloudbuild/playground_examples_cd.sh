@@ -24,9 +24,17 @@ apt install -y python3.8 python3-pip > /dev/null
 
 cd playground/infrastructure
 pip install -r requirements.txt > /dev/null
-
-# Set required environment variables
-declare -a sdks=("go" "java" "python")
+export \
+ORIGIN=PG_EXAMPLES \
+STEP=CD \
+SUBDIRS="././learning/katas ././examples ././sdks" \
+GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
+BEAM_ROOT_DIR="../../" \
+SDK_CONFIG="../../playground/sdks.yaml" \
+BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
+BEAM_USE_WEBGRPC=yes \
+BEAM_CONCURRENCY=4 \
+sdks=("go" "java" "python")
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
 for sdk in "${sdks[@]}"
