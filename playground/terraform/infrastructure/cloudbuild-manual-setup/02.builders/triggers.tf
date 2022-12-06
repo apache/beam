@@ -33,6 +33,8 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     }
   }
 
+  included_files = ["playground/**"]
+
   substitutions = {
     _PLAYGROUND_REGION : var.playground_region
     _PLAYGROUND_ZONE : var.playground_zone
@@ -61,6 +63,8 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
       branch = var.github_repository_branch
     }
   }
+
+  included_files = ["playground/**"]
 
   substitutions = {
     _PLAYGROUND_REGION : var.playground_region
