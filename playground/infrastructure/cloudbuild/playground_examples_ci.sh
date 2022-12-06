@@ -47,92 +47,87 @@ allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
 
 echo "Environment variables exported"
 
-# Get Difference
-set -xeu
-# define the base ref
-base_ref=${BRANCH_NAME}
-if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
-then
-  base_ref=origin/master
-fi
-diff=$(git diff --name-only $base_ref "${COMMIT_SHA}" | tr '\n' ' ')
-echo "::set-output name=example_diff::$diff"
+## Get Difference
+#set -xeu
+## define the base ref
+#base_ref=${BRANCH_NAME}
+#if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
+#then
+#  base_ref=origin/master
+#fi
+#diff=$(git diff --name-only $base_ref "${COMMIT_SHA}" | tr '\n' ' ')
+#
+## Check if there are Examples
+#set +e -ux
+#for sdk in "${sdks[@]}"
+#do
+#    for allowpath in "${allowlist[@]}"
+#    do
+#        python3 checker.py \
+#        --verbose \
+#        --sdk SDK_"${sdk^^}" \
+#        --allowlist "${allowpath}" \
+#        --paths "${diff}"
+#    done
+#done
+#if [[ $? -eq 0 ]]
+#then
+#    example_has_changed=True
+#    echo "Example has been changed"
+#else
+#    example_has_changed=False
+#    echo "Example has NOT been changed"
+#fi
 
-# Check if there are Examples
-set +e -ux
+rm ~/.m2/settings.xml
+
+if [[ -z ${TAG_NAME} ]]
+then
+      DOCKERTAG=${COMMIT_SHA} && echo "DOCKERTAG=${COMMIT_SHA}"
+elif [[ -z ${COMMIT_SHA} ]]
+then
+      DOCKERTAG=${TAG_NAME} && echo "DOCKERTAG=${TAG_NAME}"
+fi
+
+set -uex
 for sdk in "${sdks[@]}"
 do
-    for allowpath in "${allowlist[@]}"
-    do
-        python3 checker.py \
-        --verbose \
-        --sdk SDK_"${sdk^^}" \
-        --allowlist "${allowpath}" \
-        --paths "${diff}"
-    done
+  if [[ "$sdk" == "python" ]]
+  then
+      # builds apache/beam_python3.7_sdk:$DOCKERTAG image
+      ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
+      # and set SDK_TAG to DOCKERTAG so that the next step would find it
+      echo "SDK_TAG=${DOCKERTAG}" && SDK_TAG=${DOCKERTAG}
+  fi
 done
-if [[ $? -eq 0 ]]
+
+set -ex
+opts=" -Pdocker-tag=$DOCKERTAG"
+if [[ -n "$SDK_TAG" ]]
 then
-    example_has_changed=True
-    echo "Example has been changed"
-else
-    example_has_changed=False
-    echo "Example has NOT been changed"
+      opts="$opts -Psdk-tag=$SDK_TAG"
+fi
+if [[ "$SDK" == "java" ]]
+then
+      # Java uses a fixed BEAM_VERSION
+      opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
 fi
 
-# If there are changed examples run CI scripts
-if [[ "$example_has_changed" == True ]]
-then
-    rm ~/.m2/settings.xml
+# by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
+# TODO Java SDK doesn't, it uses 2.42.0, fix this
+./gradlew -i playground:backend:containers:"$SDK":docker "$opts"
 
-    if [[ -z ${TAG_NAME} ]]
-    then
-        DOCKERTAG=${COMMIT_SHA} && echo "DOCKERTAG=${COMMIT_SHA}"
-    elif [[ -z ${COMMIT_SHA} ]]
-    then
-        DOCKERTAG=${TAG_NAME} && echo "DOCKERTAG=${TAG_NAME}"
-    fi
+echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" && IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG
 
-    set -uex
-    for sdk in "${sdks[@]}"
-    do
-      if [[ "$sdk" == "python" ]]
-      then
-          # builds apache/beam_python3.7_sdk:$DOCKERTAG image
-          ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
-          # and set SDK_TAG to DOCKERTAG so that the next step would find it
-          echo "SDK_TAG=${DOCKERTAG}" && SDK_TAG=${DOCKERTAG}
-      fi
-    done
+set -uex
+NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP "$IMAGE_TAG")
+echo "NAME=$NAME" && NAME=$NAME
 
-    set -ex
-    opts=" -Pdocker-tag=$DOCKERTAG"
-    if [[ -n "$SDK_TAG" ]]
-    then
-        opts="$opts -Psdk-tag=$SDK_TAG"
-    fi
-    if [[ "$SDK" == "java" ]]
-    then
-        # Java uses a fixed BEAM_VERSION
-        opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
-    fi
-
-    # by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
-    # TODO Java SDK doesn't, it uses 2.42.0, fix this
-    ./gradlew -i playground:backend:containers:"$SDK":docker "$opts"
-
-    echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" && IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG
-
-    set -uex
-    NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP "$IMAGE_TAG")
-    echo "NAME=$NAME" && NAME=$NAME
-
-    for sdk in "${sdks[@]}"
-    do
-      python3 ci_cd.py \
-      --step $STEP \
-      --sdk SDK_"${sdk^^}" \
-      --origin "${ORIGIN}" \
-      --subdirs "${SUBDIRS}"
-    done
-fi
+for sdk in "${sdks[@]}"
+do
+    python3 ci_cd.py \
+    --step $STEP \
+    --sdk SDK_"${sdk^^}" \
+    --origin "${ORIGIN}" \
+    --subdirs "${SUBDIRS}"
+done
