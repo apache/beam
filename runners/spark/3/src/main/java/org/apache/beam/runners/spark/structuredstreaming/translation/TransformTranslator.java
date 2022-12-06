@@ -24,7 +24,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.I
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.TranslationState;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
@@ -150,12 +150,13 @@ public abstract class TransformTranslator<
     }
 
     @Override
-    public SerializablePipelineOptions getSerializableOptions() {
-      return state.getSerializableOptions();
+    public Supplier<PipelineOptions> getOptionsSupplier() {
+      return state.getOptionsSupplier();
     }
 
+    @Override
     public PipelineOptions getOptions() {
-      return state.getSerializableOptions().get();
+      return state.getOptions();
     }
 
     public <T> Dataset<WindowedValue<T>> createDataset(
