@@ -77,7 +77,7 @@ public class KafkaWordCountAvro {
                         .withKeyDeserializer(LongDeserializer.class)
                         .withValueDeserializer(StringDeserializer.class)
                         .withConsumerConfigUpdates(consumerConfig)
-                        .withMaxNumRecords(5)
+                        .withMaxNumRecords(500)
                         .withoutMetadata()
                 )
                 .apply(Values.create())
