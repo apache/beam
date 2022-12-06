@@ -27,11 +27,7 @@ pip install -r requirements.txt > /dev/null
 
 # Set required environment variables
 export \
-BEAM_ROOT_DIR="../../" \
-SDK_CONFIG="../../playground/sdks.yaml" \
-BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
-BEAM_USE_WEBGRPC=yes \
-BEAM_CONCURRENCY=4
+
 declare -a sdks=("go" "java" "python")
 
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
