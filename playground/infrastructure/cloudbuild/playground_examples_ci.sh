@@ -50,12 +50,12 @@ echo "Environment variables exported"
 # Get Difference
 set -xeu
 # define the base ref
-base_ref=${_BASE_BRANCH}
+base_ref=${BRANCH_NAME}
 if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
 then
   base_ref=origin/master
 fi
-diff=${git diff --name-only $base_ref ${COMMIT_SHA} | tr '\n' ' '}
+diff=$(git diff --name-only $base_ref "${COMMIT_SHA}" | tr '\n' ' ')
 
 # Check if there are Examples
 set +e -ux
@@ -65,9 +65,9 @@ do
     do
         python3 checker.py \
         --verbose \
-        --sdk SDK_${sdk^^} \
-        --allowlist ${allowpath} \
-        --paths ${diff}
+        --sdk SDK_"${sdk^^}" \
+        --allowlist "${allowpath}" \
+        --paths "${diff}"
     done
 done
 if [[ $? -eq 0 ]]
@@ -118,20 +118,20 @@ then
 
     # by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
     # TODO Java SDK doesn't, it uses 2.42.0, fix this
-    ./gradlew -i playground:backend:containers:$SDK:docker $opts
+    ./gradlew -i playground:backend:containers:"$SDK":docker "$opts"
 
     echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" && IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG
 
     set -uex
-    NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP $IMAGE_TAG)
+    NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP "$IMAGE_TAG")
     echo "NAME=$NAME" && NAME=$NAME
 
     for sdk in "${sdks[@]}"
     do
       python3 ci_cd.py \
       --step $STEP \
-      --sdk SDK_${sdk^^} \
-      --origin ${_ORIGIN} \
-      --subdirs ${_SUBDIRS}
+      --sdk SDK_"${sdk^^}" \
+      --origin "${ORIGIN}" \
+      --subdirs "${SUBDIRS}"
     done
 fi
