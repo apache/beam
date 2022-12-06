@@ -30,7 +30,7 @@ func New(message string) error {
 
 // Errorf returns an error with a message formatted according to the format
 // specifier.
-func Errorf(format string, args ...interface{}) error {
+func Errorf(format string, args ...any) error {
 	return fmt.Errorf(format, args...)
 }
 
@@ -48,7 +48,7 @@ func Wrap(err error, message string) error {
 
 // Wrapf returns a new error annotating err with a new message according to
 // the format specifier.
-func Wrapf(err error, format string, args ...interface{}) error {
+func Wrapf(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -73,7 +73,7 @@ func WithContext(err error, context string) error {
 
 // WithContextf returns a new error adding additional context to err according
 // to the format specifier.
-func WithContextf(err error, format string, args ...interface{}) error {
+func WithContextf(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -101,7 +101,7 @@ func SetTopLevelMsg(err error, top string) error {
 // according to the format specifier. The top level message is the first error
 // message that gets printed when Error() is called on the returned error or
 // any error wrapping it.
-func SetTopLevelMsgf(err error, format string, args ...interface{}) error {
+func SetTopLevelMsgf(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}

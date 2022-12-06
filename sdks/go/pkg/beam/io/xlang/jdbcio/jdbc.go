@@ -101,7 +101,7 @@ type jdbcConfig struct {
 }
 
 // TODO(riteshghorse): update the IO to use wrapper created in BigQueryIO.
-func toRow(pl interface{}) []byte {
+func toRow(pl any) []byte {
 	rt := reflect.TypeOf(pl)
 
 	enc, err := coder.RowEncoderForStruct(rt)
