@@ -68,7 +68,7 @@ do
   if [[ "$sdk" == "python" ]]
   then
       # builds apache/beam_python3.7_sdk:$DOCKERTAG image
-      cd ~/beam
+      cd ../..
       ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
       # and set SDK_TAG to DOCKERTAG so that the next step would find it
       echo "SDK_TAG=${DOCKERTAG}" && SDK_TAG=${DOCKERTAG}
@@ -89,7 +89,7 @@ fi
 
 # by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
 # TODO Java SDK doesn't, it uses 2.42.0, fix this
-cd ~/beam
+cd ../..
 ./gradlew -i playground:backend:containers:"$SDK":docker "$opts"
 
 echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" && IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG
