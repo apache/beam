@@ -87,10 +87,16 @@ Prerequisites:
     * Cloud Functions API
     * Firebase Admin API
     * Secret Manager API
+ - existing setup of Playground backend in a project
  - set environment variables:
    * PROJECT_ID: GCP id
    * REGION: the region, "us-central1" fe
- - existing setup of Playground backend in a project
+   * PLAYGROUND_ROUTER_HOST: router serving Playground Router GRPC API
+```
+PLAYGROUND_ROUTER_HOST=$(kubectl get svc -l "app=backend-router-grpc" \
+    -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'\
+)
+```
 
 1. Deploy Datastore indexes (but don't delete existing Playground indexes!)
 ```
@@ -103,7 +109,7 @@ for endpoint in getSdkList getContentTree getUnitContent getUserProgress postUni
 gcloud functions deploy $endpoint --entry-point $endpoint \
   --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http \
-  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID"
+  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID,PLAYGROUND_ROUTER_HOST=$PLAYGROUND_ROUTER_HOST"
 done
 
 ```
