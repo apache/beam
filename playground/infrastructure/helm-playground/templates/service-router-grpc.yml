@@ -29,3 +29,7 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: 8080
+  - name: redis
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
