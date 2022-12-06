@@ -476,7 +476,7 @@ helm {
         }
     }
 }
-tasks.register("gkebackend") {
+task ("gkebackend") {
   group = "deploy"
   val init = tasks.getByName("terraformInit")
   val takeConfig = tasks.getByName("takeConfig")
