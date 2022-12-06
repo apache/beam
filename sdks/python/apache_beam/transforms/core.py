@@ -760,19 +760,19 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
   @property
   def _process_defined(self) -> bool:
-    # Check if this DoFn's process method has heen overriden
+    # Check if this DoFn's process method has been overridden
     # Note that we retrieve the __func__ attribute, if it exists, to get the
     # underlying function from the bound method.
-    # If __func__ doesn't exist, self.process was likely overriden with a free
+    # If __func__ doesn't exist, self.process was likely overridden with a free
     # function, as in CallableWrapperDoFn.
     return getattr(self.process, '__func__', self.process) != DoFn.process
 
   @property
   def _process_batch_defined(self) -> bool:
-    # Check if this DoFn's process_batch method has heen overriden
+    # Check if this DoFn's process_batch method has been overridden
     # Note that we retrieve the __func__ attribute, if it exists, to get the
     # underlying function from the bound method.
-    # If __func__ doesn't exist, self.process_batch was likely overriden with
+    # If __func__ doesn't exist, self.process_batch was likely overridden with
     # a free function.
     return getattr(
         self.process_batch, '__func__',
@@ -2743,8 +2743,6 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
   def expand(self, pcoll):
 
     from apache_beam.transforms.trigger import AccumulationMode
-    from apache_beam.transforms.util import _IdentityWindowFn
-
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
 
@@ -2804,15 +2802,11 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     precombined_hot = (
         hot
         # Avoid double counting that may happen with stacked accumulating mode.
-        | 'ForceDiscardingAccumulation' >> WindowInto(
-            _IdentityWindowFn(pcoll.windowing.windowfn.get_window_coder()),
-            trigger=pcoll.windowing.triggerfn,
-            accumulation_mode=AccumulationMode.DISCARDING,
-            timestamp_combiner=pcoll.windowing.timestamp_combiner,
-            allowed_lateness=pcoll.windowing.allowed_lateness)
+        | 'WindowIntoDiscarding' >> WindowInto(
+            pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
         | CombinePerKey(PreCombineFn())
-        | Map(StripNonce))
-
+        | Map(StripNonce)
+        | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
     return ((cold, precombined_hot)
             | Flatten()
             | CombinePerKey(PostCombineFn()))

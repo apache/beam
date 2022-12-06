@@ -21,7 +21,7 @@ name: Dask Runner Tests
 
 on:
   schedule:
-    - cron: 'H H * * *'
+    - cron: '3 7 * * *'
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
