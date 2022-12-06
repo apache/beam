@@ -16,6 +16,7 @@
 # limitations under the License.
 
 export GRADLE_VERSION=7.5.1
+export GO_VERSION=1.18
 
 #Install python java8 and dependencies
 apt-get update > /dev/null
@@ -23,11 +24,16 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get install -y software-properties-common curl unzip > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3-pip > /dev/null
-# Install jdk
+# Install jdk and gradle
 apt-get install openjdk-8-jdk -y > /dev/null
 curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip
 unzip gradle-${GRADLE_VERSION}-bin.zip
 export PATH=$PATH:gradle-${GRADLE_VERSION}/bin
+# Install go
+curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz
+tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz
+go version
+
 
 cd playground/infrastructure
 pip install -r requirements.txt > /dev/null

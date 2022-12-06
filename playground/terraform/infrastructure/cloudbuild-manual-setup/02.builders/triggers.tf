@@ -98,7 +98,7 @@ resource "google_cloudbuild_trigger" "playground_examples_ci" {
     }
   }
 
-  included_files = ["playground/**"]
+  included_files = ["playground/backend/**", "playground/infrastructure/**"]
 
   filename = "playground/infrastructure/cloudbuild/cloudbuild_examples_ci_steps.yaml"
 
@@ -111,21 +111,20 @@ resource "google_cloudbuild_trigger" "playground_examples_cd" {
 
   description = "Runs CD pipeline steps for Playground Examples"
 
-  github {
-    owner = var.github_repository_owner
-    name  = var.github_repository_name
-    push {
-      branch = var.github_repository_branch
-    }
+  source_to_build {
+    uri       = "https://github.com/${var.github_repository_owner}/${var.github_repository_name}"
+    ref       = "refs/heads/${var.github_repository_branch}"
+    repo_type = "GITHUB"
   }
 
-  included_files = ["playground/**"]
+  git_file_source {
+    path      = "playground/infrastructure/cloudbuild/cloudbuild_examples_cd_steps.yaml"
+    repo_type = "GITHUB"
+  }
 
   substitutions = {
     _DNS_NAME : var.playground_dns_name
   }
-
-  filename = "playground/infrastructure/cloudbuild/cloudbuild_examples_cd_steps.yaml"
 
   service_account = data.google_service_account.cloudbuild_sa.id
 }
