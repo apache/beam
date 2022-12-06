@@ -99,6 +99,13 @@ class TestChangePointAnalysis(unittest.TestCase):
         min_runs_between_change_points=min_runs_between_change_points)
     self.assertTrue(is_alert)
 
+    is_alert = is_perf_alert(
+        previous_change_point_timestamps=[timestamps[0], timestamps[3]],
+        timestamps=timestamps,
+        change_point_index=change_point_index,
+        min_runs_between_change_points=min_runs_between_change_points)
+    self.assertFalse(is_alert)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
