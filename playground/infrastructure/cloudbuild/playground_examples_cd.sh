@@ -40,8 +40,7 @@ sdks=("go" "java" "python")
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
 for sdk in "${sdks[@]}"
 do
-  export SERVER_ADDRESS=https://"$sdk"."${_DNS_NAME}"
-  echo
+  export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
   python3 ci_cd.py \
   --step ${STEP} \
   --sdk SDK_"${sdk^^}" \

@@ -23,6 +23,8 @@ steps:
       - |
         chmod +x playground/infrastructure/cloudbuild/playground_examples_cd.sh \
         && ./playground/infrastructure/cloudbuild/playground_examples_cd.sh
+    env:
+      - 'DNS_NAME=${_DNS_NAME}'
 
 options:
   logging: CLOUD_LOGGING_ONLY
