@@ -101,7 +101,7 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make OCF Reader: %v", err)
 	}
-	var nativeData []interface{}
+	var nativeData []any
 	for ocf.Scan() {
 		datum, err := ocf.Read()
 		if err != nil {
@@ -115,10 +115,10 @@ func TestWrite(t *testing.T) {
 	if got, want := len(nativeData), 1; got != want {
 		t.Fatalf("Avro data, got %v records, want %v", got, want)
 	}
-	if got, want := nativeData[0].(map[string]interface{})["username"], testUsername; got != want {
+	if got, want := nativeData[0].(map[string]any)["username"], testUsername; got != want {
 		t.Fatalf("User.User=%v, want %v", got, want)
 	}
-	if got, want := nativeData[0].(map[string]interface{})["info"], testInfo; got != want {
+	if got, want := nativeData[0].(map[string]any)["info"], testInfo; got != want {
 		t.Fatalf("User.User=%v, want %v", got, want)
 	}
 }

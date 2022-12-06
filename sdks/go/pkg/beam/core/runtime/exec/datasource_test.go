@@ -34,15 +34,15 @@ import (
 func TestDataSource_PerElement(t *testing.T) {
 	tests := []struct {
 		name     string
-		expected []interface{}
+		expected []any
 		Coder    *coder.Coder
-		driver   func(*coder.Coder, io.WriteCloser, []interface{})
+		driver   func(*coder.Coder, io.WriteCloser, []any)
 	}{
 		{
 			name:     "perElement",
-			expected: []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			expected: []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder:    coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, pw io.WriteCloser, expected []interface{}) {
+			driver: func(c *coder.Coder, pw io.WriteCloser, expected []any) {
 				wc := MakeWindowEncoder(c.Window)
 				ec := MakeElementEncoder(coder.SkipW(c))
 				for _, v := range expected {
@@ -89,16 +89,16 @@ func TestDataSource_Iterators(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		keys, vals []interface{}
+		keys, vals []any
 		Coder      *coder.Coder
-		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []interface{})
+		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []any)
 	}{
 		{
 			name:  "beam:coder:iterable:v1-singleChunk",
-			keys:  []interface{}{int64(42), int64(53)},
-			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			keys:  []any{int64(42), int64(53)},
+			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -113,10 +113,10 @@ func TestDataSource_Iterators(t *testing.T) {
 		},
 		{
 			name:  "beam:coder:iterable:v1-multiChunk",
-			keys:  []interface{}{int64(42), int64(53)},
-			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			keys:  []any{int64(42), int64(53)},
+			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -134,10 +134,10 @@ func TestDataSource_Iterators(t *testing.T) {
 		},
 		{
 			name:  "beam:coder:state_backed_iterable:v1",
-			keys:  []interface{}{int64(42), int64(53)},
-			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			keys:  []any{int64(42), int64(53)},
+			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -232,7 +232,7 @@ func TestDataSource_Iterators(t *testing.T) {
 }
 
 func TestDataSource_Split(t *testing.T) {
-	elements := []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)}
+	elements := []any{int64(1), int64(2), int64(3), int64(4), int64(5)}
 	initSourceTest := func(name string) (*DataSource, *CaptureNode, io.ReadCloser) {
 		out := &CaptureNode{UID: 1}
 		c := coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow())
@@ -245,7 +245,7 @@ func TestDataSource_Split(t *testing.T) {
 		}
 		pr, pw := io.Pipe()
 
-		go func(c *coder.Coder, pw io.WriteCloser, elements []interface{}) {
+		go func(c *coder.Coder, pw io.WriteCloser, elements []any) {
 			wc := MakeWindowEncoder(c.Window)
 			ec := MakeElementEncoder(coder.SkipW(c))
 			for _, v := range elements {
@@ -259,7 +259,7 @@ func TestDataSource_Split(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		expected []interface{}
+		expected []any
 		splitIdx int64
 	}{
 		{splitIdx: 1},
@@ -325,7 +325,7 @@ func TestDataSource_Split(t *testing.T) {
 		// Check splitting *while* elements are in process.
 		tests := []struct {
 			name     string
-			expected []interface{}
+			expected []any
 			splitIdx int64
 		}{
 			{splitIdx: 1},
@@ -406,7 +406,7 @@ func TestDataSource_Split(t *testing.T) {
 			frac     float64
 			bufSize  int64
 			splitIdx int64
-			expected []interface{}
+			expected []any
 		}{
 			// splitIdx defaults to the max int64, so if bufSize is respected
 			// the closest splitPt is 3, otherwise it'll be 5000.
@@ -610,7 +610,7 @@ const testInputId = "input_id"
 // TestSplittableUnit is an implementation of the SplittableUnit interface
 // for DataSource tests.
 type TestSplittableUnit struct {
-	elm interface{} // The element to split.
+	elm any // The element to split.
 }
 
 // Split checks the input fraction for correctness, but otherwise always returns

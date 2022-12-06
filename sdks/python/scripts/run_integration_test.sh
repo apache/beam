@@ -37,7 +37,6 @@
 #     num_workers   -> Number of workers.
 #     sleep_secs    -> Number of seconds to wait before verification.
 #     streaming     -> True if a streaming job.
-#     worker_jar    -> Customized worker jar for dataflow runner.
 #     kms_key_name  -> Name of Cloud KMS encryption key to use in some tests.
 #     pipeline_opts -> List of space separated pipeline options. If this
 #                      flag is specified, all above flag will be ignored.
@@ -75,7 +74,6 @@ SDK_LOCATION=build/apache-beam.tar.gz
 NUM_WORKERS=1
 SLEEP_SECS=20
 STREAMING=false
-WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 SUITE=""
 COLLECT_MARKERS=
@@ -132,11 +130,6 @@ case $key in
         ;;
     --streaming)
         STREAMING="$2"
-        shift # past argument
-        shift # past value
-        ;;
-    --worker_jar)
-        WORKER_JAR="$2"
         shift # past argument
         shift # past value
         ;;
@@ -249,11 +242,6 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # Add --streaming if provided
   if [[ "$STREAMING" = true ]]; then
     opts+=("--streaming")
-  fi
-
-  # Add --dataflow_worker_jar if provided
-  if [[ ! -z "$WORKER_JAR" ]]; then
-    opts+=("--dataflow_worker_jar=$WORKER_JAR")
   fi
 
   # Add --runner_v2 if provided

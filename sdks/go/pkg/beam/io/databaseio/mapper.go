@@ -27,7 +27,7 @@ import (
 )
 
 // rowMapper represents a record mapper
-type rowMapper func(value reflect.Value) ([]interface{}, error)
+type rowMapper func(value reflect.Value) ([]any, error)
 
 // newQueryMapper creates a new record mapped
 func newQueryMapper(columns []string, columnTypes []*sql.ColumnType, recordType reflect.Type) (rowMapper, error) {
@@ -46,8 +46,8 @@ func newQueryStructMapper(columns []string, recordType reflect.Type) (rowMapper,
 	if err != nil {
 		return nil, err
 	}
-	var record = make([]interface{}, recordType.NumField())
-	var mapper = func(value reflect.Value) ([]interface{}, error) {
+	var record = make([]any, recordType.NumField())
+	var mapper = func(value reflect.Value) ([]any, error) {
 		value = value.Elem() //T = *T
 		for i, fieldIndex := range mappedFieldIndex {
 			record[i] = value.Field(fieldIndex).Addr().Interface()
@@ -59,10 +59,10 @@ func newQueryStructMapper(columns []string, recordType reflect.Type) (rowMapper,
 
 // newQueryStructMapper creates a new record mapper for supplied struct type
 func newQueryLoaderMapper(columns []string, columnTypes []*sql.ColumnType) (rowMapper, error) {
-	var record = make([]interface{}, len(columns))
-	var valueProviders = make([]func(index int, values []interface{}), len(columns))
-	defaultProvider := func(index int, values []interface{}) {
-		val := new(interface{})
+	var record = make([]any, len(columns))
+	var valueProviders = make([]func(index int, values []any), len(columns))
+	defaultProvider := func(index int, values []any) {
+		val := new(any)
 		values[index] = &val
 	}
 	for i := range columns {
@@ -72,38 +72,38 @@ func newQueryLoaderMapper(columns []string, columnTypes []*sql.ColumnType) (rowM
 		}
 		dbTypeName := strings.ToLower(columnTypes[i].DatabaseTypeName())
 		if strings.Contains(dbTypeName, "char") || strings.Contains(dbTypeName, "string") || strings.Contains(dbTypeName, "text") {
-			valueProviders[i] = func(index int, values []interface{}) {
+			valueProviders[i] = func(index int, values []any) {
 				val := ""
 				values[index] = &val
 			}
 		} else if strings.Contains(dbTypeName, "int") {
-			valueProviders[i] = func(index int, values []interface{}) {
+			valueProviders[i] = func(index int, values []any) {
 				val := 0
 				values[index] = &val
 			}
 		} else if strings.Contains(dbTypeName, "decimal") || strings.Contains(dbTypeName, "numeric") || strings.Contains(dbTypeName, "float") {
-			valueProviders[i] = func(index int, values []interface{}) {
+			valueProviders[i] = func(index int, values []any) {
 				val := 0.0
 				values[index] = &val
 			}
 		} else if strings.Contains(dbTypeName, "time") || strings.Contains(dbTypeName, "date") {
-			valueProviders[i] = func(index int, values []interface{}) {
+			valueProviders[i] = func(index int, values []any) {
 				val := time.Now()
 				values[index] = &val
 			}
 		} else if strings.Contains(dbTypeName, "bool") {
-			valueProviders[i] = func(index int, values []interface{}) {
+			valueProviders[i] = func(index int, values []any) {
 				val := false
 				values[index] = &val
 			}
 		} else {
-			valueProviders[i] = func(index int, values []interface{}) {
+			valueProviders[i] = func(index int, values []any) {
 				val := reflect.New(columnTypes[i].ScanType()).Elem().Interface()
 				values[index] = &val
 			}
 		}
 	}
-	mapper := func(value reflect.Value) ([]interface{}, error) {
+	mapper := func(value reflect.Value) ([]any, error) {
 		for i := range columns {
 			valueProviders[i](i, record)
 		}
@@ -119,8 +119,8 @@ func newWriterRowMapper(columns []string, recordType reflect.Type) (rowMapper, e
 		return nil, err
 	}
 	columnCount := len(columns)
-	mapper := func(value reflect.Value) ([]interface{}, error) {
-		var record = make([]interface{}, columnCount)
+	mapper := func(value reflect.Value) ([]any, error) {
+		var record = make([]any, columnCount)
 		if value.Kind() == reflect.Ptr {
 			value = value.Elem() //T = *T
 		}

@@ -27,17 +27,18 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.CachedSideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun2;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -60,7 +61,7 @@ class DoFnMapPartitionsFactory<InT, OutT> implements Serializable {
 
   private final DoFn<InT, OutT> doFn;
   private final DoFnSchemaInformation doFnSchema;
-  private final SerializablePipelineOptions options;
+  private final Supplier<PipelineOptions> options;
 
   private final Coder<InT> coder;
   private final WindowingStrategy<?, ?> windowingStrategy;
@@ -75,7 +76,7 @@ class DoFnMapPartitionsFactory<InT, OutT> implements Serializable {
       String stepName,
       DoFn<InT, OutT> doFn,
       DoFnSchemaInformation doFnSchema,
-      SerializablePipelineOptions options,
+      Supplier<PipelineOptions> options,
       PCollection<InT> input,
       TupleTag<OutT> mainOutput,
       Map<TupleTag<?>, PCollection<?>> outputs,
