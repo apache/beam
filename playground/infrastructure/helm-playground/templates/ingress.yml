@@ -26,6 +26,16 @@ metadata:
      app: playground-go
 spec:
   rules:
+  - host: "go.{{ .Values.dns_name }}"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-go
+            port:
+              number: {{ .Values.service.port }}
   - host: "java.{{ .Values.dns_name }}"
     http:
       paths:
@@ -36,6 +46,16 @@ spec:
             name: playground-java
             port:
               number: {{ .Values.service.port }}
+  - host: "python.{{ .Values.dns_name }}"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-python
+            port:
+              number: {{ .Values.service.port }}
   - host: "router.{{ .Values.dns_name }}"
     http:
       paths:
@@ -44,6 +64,16 @@ spec:
         backend:
           service:
             name: playground-router
+            port:
+              number: {{ .Values.service.port }}
+  - host: "scio.{{ .Values.dns_name }}"
+    http:
+      paths:
+      - path: "/*"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: playground-scio
             port:
               number: {{ .Values.service.port }}
   - host: "{{ .Values.dns_name }}"

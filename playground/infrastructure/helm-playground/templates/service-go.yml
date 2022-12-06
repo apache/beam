@@ -1,3 +1,4 @@
+
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,15 +14,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: networking.gke.io/v1
-kind: ManagedCertificate
+apiVersion: v1
+kind: Service
 metadata:
-  name: {{ .Values.project_id }}
+  labels:
+    app: backend-go
+    type: backend
+  name: playground-go
+  annotations:
+    cloud.google.com/backend-config: '{"default": "bkend-health"}'
+    cloud.google.com/neg: '{"ingress": true}'
 spec:
-  domains:
-    - go.{{ .Values.dns_name }}
-    - java.{{ .Values.dns_name }}
-    - scio.{{ .Values.dns_name }}
-    - python.{{ .Values.dns_name }}
-    - router.{{ .Values.dns_name }}
-    - {{ .Values.dns_name }}  
+  ports:
+  - name: https
+    port: {{ .Values.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.service.targetPort }}
+  - name: redis
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: backend-go
+  type: {{ .Values.service.type }} 
