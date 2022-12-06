@@ -88,11 +88,19 @@ Prerequisites:
     * Firebase Admin API
     * Secret Manager API
  - existing setup of Playground backend in a project
+   * (output) GKE_CLUSTER_NAME (`playground` by default)
+   * (output) GKE_ZONE, like `us-east1-b`
  - set environment variables:
    * PROJECT_ID: GCP id
    * REGION: the region, "us-central1" fe
    * PLAYGROUND_ROUTER_HOST: router serving Playground Router GRPC API
+
+__To discover Router host:__
 ```
+# setup kubectl credentials
+gcloud container clusters get-credentials $GKE_CLUSTER_NAME --zone $GKE_ZONE --project $PROJECT_ID
+
+# get external host:port of a backend-router-grpc service
 PLAYGROUND_ROUTER_HOST=$(kubectl get svc -l "app=backend-router-grpc" \
     -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'\
 )
