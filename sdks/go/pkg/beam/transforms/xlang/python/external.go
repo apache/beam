@@ -46,25 +46,32 @@ func init() {
 // that can be evaluated to Python callables in Python SDK.
 //
 // The snippet of Python code can be a valid Python expression such as
-//    lambda x: x * x
-// 	  str.upper
+//
+//	   lambda x: x * x
+//		  str.upper
+//
 // a fully qualified name such as
-//    math.sin
+//
+//	math.sin
+//
 // or a complete multi-line function or class definition such as
-//    def foo(x):
-// 	   ...
-//    class Foo:
-// 	   ...
+//
+//	   def foo(x):
+//		   ...
+//	   class Foo:
+//		   ...
 //
 // Any lines preceding the function definition are first evaluated to provide context in which to
 // define the function which can be useful to declare imports or any other needed values, e.g.
-//    import math
 //
-//    def helper(x):
-//        return x * x
+//	import math
 //
-//    def func(y):
-//        return helper(y) + y
+//	def helper(x):
+//	    return x * x
+//
+//	def func(y):
+//	    return helper(y) + y
+//
 // in which case `func` would get applied to each element.
 type CallableSource string
 

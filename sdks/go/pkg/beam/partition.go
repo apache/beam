@@ -86,7 +86,7 @@ type partitionData struct {
 
 // partitionFn is a Func with the following underlying type:
 //
-//     fn : (EventTime, T, emit_1, emit_2, ..., emit_N) -> error
+//	fn : (EventTime, T, emit_1, emit_2, ..., emit_N) -> error
 //
 // where emit_i : (EventTime, T) -> () and N is given by the encoded
 // partitionData value. For any input element, it invokes to the
@@ -124,7 +124,7 @@ func (f *partitionFn) Call(args []interface{}) []interface{} {
 
 // partitionFnKV is a Func with the following underlying type:
 //
-//     fn : (EventTime, K, V, emit_1, emit_2, ..., emit_N) -> error
+//	fn : (EventTime, K, V, emit_1, emit_2, ..., emit_N) -> error
 //
 // where emit_i : (EventTime, K, V) -> () and N is given by the encoded
 // partitionData value. For any input element, it invokes to the

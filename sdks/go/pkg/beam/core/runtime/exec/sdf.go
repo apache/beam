@@ -80,15 +80,15 @@ func (n *PairWithRestriction) StartBundle(ctx context.Context, id string, data D
 //
 // Output Diagram:
 //
-//   *FullValue {
-//     Elm: *FullValue (original input)
-//     Elm2: *FullValue {
-//       Elm: Restriction
-//       Elm2: Watermark estimator state
-//     }
-//     Windows
-//     Timestamps
-//   }
+//	*FullValue {
+//	  Elm: *FullValue (original input)
+//	  Elm2: *FullValue {
+//	    Elm: Restriction
+//	    Elm2: Watermark estimator state
+//	  }
+//	  Windows
+//	  Timestamps
+//	}
 func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	rest := n.inv.Invoke(elm)
 	output := FullValue{Elm: elm, Elm2: &FullValue{Elm: rest, Elm2: n.iwesInv.Invoke(rest, elm)}, Timestamp: elm.Timestamp, Windows: elm.Windows}
@@ -158,15 +158,15 @@ func (n *SplitAndSizeRestrictions) StartBundle(ctx context.Context, id string, d
 //
 // Input Diagram:
 //
-//   *FullValue {
-//     Elm: *FullValue (original input)
-//     Elm2: *FullValue {
-//       Elm: Restriction
-//       Elm2: Watermark estimator state
-//     }
-//     Windows
-//     Timestamps
-//   }
+//	*FullValue {
+//	  Elm: *FullValue (original input)
+//	  Elm2: *FullValue {
+//	    Elm: Restriction
+//	    Elm2: Watermark estimator state
+//	  }
+//	  Windows
+//	  Timestamps
+//	}
 //
 // ProcessElement splits the given restriction into one or more restrictions and
 // then sizes each. The outputs are in the structure <<elem, <restriction, watermark estimator state>>, size>
@@ -175,18 +175,18 @@ func (n *SplitAndSizeRestrictions) StartBundle(ctx context.Context, id string, d
 //
 // Output Diagram:
 //
-//   *FullValue {
-//     Elm: *FullValue {
-//       Elm:  *FullValue (original input)
-//       Elm2: *FullValue {
-// 		   Elm: Restriction
-//         Elm2: Watermark estimator state
-//		 }
-//     }
-//     Elm2: float64 (size)
-//     Windows
-//     Timestamps
-//   }
+//	  *FullValue {
+//	    Elm: *FullValue {
+//	      Elm:  *FullValue (original input)
+//	      Elm2: *FullValue {
+//			   Elm: Restriction
+//	        Elm2: Watermark estimator state
+//			 }
+//	    }
+//	    Elm2: float64 (size)
+//	    Windows
+//	    Timestamps
+//	  }
 func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	rest := elm.Elm2.(*FullValue).Elm
 	ws := elm.Elm2.(*FullValue).Elm2
@@ -281,32 +281,34 @@ func (n *TruncateSizedRestriction) StartBundle(ctx context.Context, id string, d
 
 // ProcessElement gets input elm as:
 // Input Diagram:
-//   *FullValue {
-//     Elm: *FullValue {
-//       Elm:  *FullValue (original input)
-//       Elm2: *FullValue {
-// 	       Elm: Restriction
-// 	       Elm2: Watermark estimator state
-//       }
-//     }
-//     Elm2: float64 (size)
-//     Windows
-//     Timestamps
-//    }
+//
+//	  *FullValue {
+//	    Elm: *FullValue {
+//	      Elm:  *FullValue (original input)
+//	      Elm2: *FullValue {
+//		       Elm: Restriction
+//		       Elm2: Watermark estimator state
+//	      }
+//	    }
+//	    Elm2: float64 (size)
+//	    Windows
+//	    Timestamps
+//	   }
 //
 // Output Diagram:
-//   *FullValue {
-//     Elm: *FullValue {
-//       Elm:  *FullValue (original input)
-//       Elm2: *FullValue {
-// 	       Elm: Restriction
-// 	       Elm2: Watermark estimator state
-//       }
-//     }
-//     Elm2: float64 (size)
-//     Windows
-//     Timestamps
-//    }
+//
+//	  *FullValue {
+//	    Elm: *FullValue {
+//	      Elm:  *FullValue (original input)
+//	      Elm2: *FullValue {
+//		       Elm: Restriction
+//		       Elm2: Watermark estimator state
+//	      }
+//	    }
+//	    Elm2: float64 (size)
+//	    Windows
+//	    Timestamps
+//	   }
 func (n *TruncateSizedRestriction) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	mainElm := elm.Elm.(*FullValue)
 	inp := mainElm.Elm
@@ -454,18 +456,18 @@ func (n *ProcessSizedElementsAndRestrictions) StartBundle(ctx context.Context, i
 //
 // Input Diagram:
 //
-//   *FullValue {
-//     Elm: *FullValue {
-//       Elm:  *FullValue (KV input) or InputType (single-element input)
-//		 Elm2: *FullValue {
-// 		   Elm: Restriction
-//         Elm2: Watermark estimator state
-//		 }
-//     }
-//     Elm2: float64 (size)
-//     Windows
-//     Timestamps
-//   }
+//	  *FullValue {
+//	    Elm: *FullValue {
+//	      Elm:  *FullValue (KV input) or InputType (single-element input)
+//			 Elm2: *FullValue {
+//			   Elm: Restriction
+//	        Elm2: Watermark estimator state
+//			 }
+//	    }
+//	    Elm2: float64 (size)
+//	    Windows
+//	    Timestamps
+//	  }
 //
 // ProcessElement then creates a restriction tracker from the stored restriction
 // and processes each element using the underlying ParDo and adding the
@@ -732,14 +734,14 @@ func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(f float64, pWeSt
 // at all.
 //
 // Therefore, when such a split happens, the split result consists of:
-// 1. A primary containing the unsplit restriction and a subset of windows that
-//    fall within the primary.
-// 2. (Optional) A second primary containing the primary half of a split
-//    restriction and the single window it was split in.
-// 3. A residual containing the unsplit restriction and a subset of windows that
-//    fall within the residual.
-// 4. (Optional) A second residual containing the residual half of a split
-//    restriction and the window it was split in (same window as primary half).
+//  1. A primary containing the unsplit restriction and a subset of windows that
+//     fall within the primary.
+//  2. (Optional) A second primary containing the primary half of a split
+//     restriction and the single window it was split in.
+//  3. A residual containing the unsplit restriction and a subset of windows that
+//     fall within the residual.
+//  4. (Optional) A second residual containing the residual half of a split
+//     restriction and the window it was split in (same window as primary half).
 //
 // The current implementation does not split restrictions outside of the current
 // RTracker (i.e. the current window). Otherwise, the split will occur at the

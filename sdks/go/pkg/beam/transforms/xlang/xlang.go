@@ -16,4 +16,6 @@
 // Package xlang contains cross-language transforms.
 package xlang
 
+// SetOutputCoder is used to set the tagged input in cases of external transforms
+// where the output coder request field needs to be specified.
 const SetOutputCoder = "SetOutputCoder"
