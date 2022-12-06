@@ -234,7 +234,7 @@ type writeFn struct {
 }
 
 // Approximate the size of an element as it would appear in a BQ insert request.
-func getInsertSize(v interface{}, schema bigquery.Schema) (int, error) {
+func getInsertSize(v any, schema bigquery.Schema) (int, error) {
 	saver := bigquery.StructSaver{
 		InsertID: strings.Repeat("0", 27),
 		Struct:   v,
@@ -291,7 +291,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 
 	var val beam.X
 	for iter(&val) {
-		current, err := getInsertSize(val.(interface{}), schema)
+		current, err := getInsertSize(val.(any), schema)
 		if err != nil {
 			return errors.Wrapf(err, "bigquery write error")
 		}
@@ -303,7 +303,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 			data = nil
 			size = writeOverheadBytes
 		} else {
-			data = append(data, reflect.ValueOf(val.(interface{})))
+			data = append(data, reflect.ValueOf(val.(any)))
 			size += current
 		}
 	}
