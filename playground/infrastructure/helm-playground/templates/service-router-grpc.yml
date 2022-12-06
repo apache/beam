@@ -20,15 +20,16 @@ metadata:
     app: backend-router-grpc
     type: backend
   name: playground-router-grpc-service
-  annotations:
-    cloud.google.com/backend-config: '{"default": "bkend-health"}'
-    cloud.google.com/neg: '{"ingress": true}'
 spec:
+  type: LoadBalancer
+  selector:
+    app: backend-router-grpc
   ports:
   - name: grpc
     port: 8080
     protocol: TCP
     targetPort: 8080
-  selector:
-    app: backend-router-grpc
-  type: LoadBalancer
+  - name: redis
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
