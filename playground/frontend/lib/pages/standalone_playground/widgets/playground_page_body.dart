@@ -17,13 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/output/components/output_header/output_placements.dart';
-import 'package:playground/modules/output/models/output_placement.dart';
-import 'package:playground/modules/output/models/output_placement_state.dart';
-import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../../constants/sizes.dart';
+import '../../../modules/output/components/output_header/output_placements.dart';
+import '../../../modules/output/models/output_placement.dart';
+import '../../../modules/output/models/output_placement_state.dart';
+import 'editor_textarea_wrapper.dart';
 
 class PlaygroundPageBody extends StatelessWidget {
   const PlaygroundPageBody({Key? key}) : super(key: key);

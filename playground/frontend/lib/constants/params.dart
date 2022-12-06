@@ -26,10 +26,4 @@ const kContextLine = 'line';
 
 const kQuickStartCategoryName = 'quick start';
 
-const _kIsEmbedded = 'embedded';
-
-bool isEmbedded() {
-  return Uri.base.toString().contains(_kIsEmbedded);
-}
-
 const defaultSdk = Sdk.java;

@@ -81,7 +81,7 @@ void main() {
         final map = {
           'type': SetContentMessage.type,
           'descriptor': {
-            'descriptors': [
+            'examples': [
               null,
               1,
               1.0,

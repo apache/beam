@@ -16,26 +16,27 @@
  * limitations under the License.
  */
 
+import 'package:app_state/app_state.dart';
+import 'package:flutter/foundation.dart';
+import 'package:playground/controllers/factories.dart';
 import 'package:playground_components/playground_components.dart';
 
-enum ExampleTokenType {
-  /// A URI to load the plain content from.
-  http,
+import 'path.dart';
 
-  standard,
-  userShared,
-  ;
+class EmbeddedPlaygroundNotifier extends ChangeNotifier
+    with PageStateMixin<void> {
+  final PlaygroundController playgroundController;
+  final bool isEditable;
 
-  static ExampleTokenType fromToken(String token) {
-    if (token.startsWith(RegExp('http(s)?://'))) {
-      return http;
-    }
+  @override
+  final PagePath path;
 
-    final sdk = Sdk.tryParseExamplePath(token);
-    if (sdk != null) {
-      return standard;
-    }
-
-    return userShared;
-  }
+  EmbeddedPlaygroundNotifier({
+    required ExamplesLoadingDescriptor initialDescriptor,
+    required this.isEditable,
+  })  : path = EmbeddedPlaygroundPath(
+          descriptor: initialDescriptor,
+          isEditable: isEditable,
+        ),
+        playgroundController = createPlaygroundController(initialDescriptor);
 }

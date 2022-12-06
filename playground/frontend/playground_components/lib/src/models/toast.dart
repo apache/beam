@@ -18,26 +18,26 @@
 
 import 'package:equatable/equatable.dart';
 
+import 'toast_type.dart';
+
 /// An entity for a popup notification.
 ///
 /// Named after 'fluttertoast' package.
 class Toast with EquatableMixin {
-  final String text;
+  final String description;
+  final String title;
   final ToastType type;
 
   const Toast({
-    required this.text,
+    required this.description,
+    required this.title,
     required this.type,
   });
 
   @override
   List<Object> get props => [
-        text,
+    description,
+        title,
         type,
       ];
-}
-
-enum ToastType {
-  error,
-  info,
 }

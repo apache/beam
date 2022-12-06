@@ -32,6 +32,9 @@ class TestExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
   @override
   List<Object?> get props => [sdk, succeed];
+
+  @override
+  Map<String, dynamic> toJson() => throw UnimplementedError();
 }
 
 class TestExampleLoader extends ExampleLoader {

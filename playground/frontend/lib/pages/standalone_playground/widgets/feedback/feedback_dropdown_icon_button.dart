@@ -18,9 +18,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/example_selector.dart';
-import 'package:playground/pages/playground/components/feedback/feedback_dropdown_content.dart';
+
+import '../../../../constants/sizes.dart';
+import 'feedback_dropdown_content.dart';
 
 const double kFeedbackTitleFontSize = 24.0;
 const double kFeedbackContentFontSize = 14.0;

@@ -18,20 +18,22 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/components/playground_run_or_cancel_button.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_button.dart';
-import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
-import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../../components/playground_run_or_cancel_button.dart';
+import '../../../constants/sizes.dart';
+import '../../../modules/editor/components/share_dropdown/share_button.dart';
+import '../../../modules/examples/components/description_popover/description_popover_button.dart';
+import '../../../modules/examples/components/multifile_popover/multifile_popover_button.dart';
 
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlaygroundController>(builder: (context, controller, child) {
+    return Consumer<PlaygroundController>(
+        builder: (context, controller, child) {
       if (controller.result?.errorMessage?.isNotEmpty ?? false) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _handleError(context, controller);
@@ -83,7 +85,9 @@ class CodeTextAreaWrapper extends StatelessWidget {
                       ],
                       Semantics(
                         container: true,
-                        child: const ShareButton(),
+                        child: ShareButton(
+                          playgroundController: controller,
+                        ),
                       ),
                       const SizedBox(width: kLgSpacing),
                       Semantics(
@@ -102,10 +106,12 @@ class CodeTextAreaWrapper extends StatelessWidget {
   }
 
   void _handleError(BuildContext context, PlaygroundController controller) {
-    NotificationManager.showError(
-      context,
-      AppLocalizations.of(context)!.runCode,
-      controller.result?.errorMessage ?? '',
+    PlaygroundComponents.toastNotifier.add(
+      Toast(
+        description: controller.result?.errorMessage ?? '',
+        title: AppLocalizations.of(context)!.runCode,
+        type: ToastType.error,
+      ),
     );
     controller.resetError();
   }

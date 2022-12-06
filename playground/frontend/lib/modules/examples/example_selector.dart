@@ -19,14 +19,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/components/outside_click_handler.dart';
-import 'package:playground/modules/examples/examples_dropdown_content.dart';
-import 'package:playground/modules/examples/models/popover_state.dart';
-import 'package:playground/pages/playground/states/example_selector_state.dart';
-import 'package:playground/utils/dropdown_utils.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../constants/sizes.dart';
+import '../../pages/standalone_playground/notifiers/example_selector_state.dart';
+import '../../utils/dropdown_utils.dart';
+import 'components/outside_click_handler.dart';
+import 'examples_dropdown_content.dart';
+import 'models/popover_state.dart';
 
 const double kLgContainerHeight = 490.0;
 const double kLgContainerWidth = 400.0;

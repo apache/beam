@@ -16,10 +16,11 @@
 #  under the License.
 
 errors:
+  error: 'Error'
   loading: 'Error while loading.'
-  loadingCatalog: 'Error loading the example catalog.'
-  loadingExample: 'Error loading the example.'
-  savingSnippet: 'Error creating a shareable link.'
+  loadingCatalog: 'Cannot load the example catalog.'
+  loadingExample: 'Cannot load the example.'
+  savingSnippet: 'Cannot create a shareable link.'
 
 ui:
   darkMode: 'Dark Mode'
@@ -43,7 +44,6 @@ widgets:
     filterTitle: 'Display at this tab'
     graph: 'Graph'
     result: 'Result'
-
 
   resetButton:
     label: 'Reset'

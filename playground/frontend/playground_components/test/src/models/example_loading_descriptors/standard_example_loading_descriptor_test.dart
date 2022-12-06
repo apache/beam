@@ -17,32 +17,29 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/modules/examples/models/example_token_type.dart';
+import 'package:playground_components/playground_components.dart';
+
+import 'common.dart';
 
 void main() {
-  test('ExampleTokenType.fromToken', () {
-    const examples = {
-      //
-      'http://': ExampleTokenType.http,
-      'https://example.com/path': ExampleTokenType.http,
+  group('StandardExampleLoadingDescriptor', () {
+    const descriptor = StandardExampleLoadingDescriptor(
+      sdk: Sdk.go,
+      path: 'path',
+    );
 
-      'SDK_GO': ExampleTokenType.standard,
-      'SDK_JAVA_something': ExampleTokenType.standard,
-      'SDK_PYTHONNNN': ExampleTokenType.standard,
-      'SDK_SCIO/something': ExampleTokenType.standard,
+    test('toJson -> tryParse', () {
+      final map = descriptor.toJson();
+      final parsed = StandardExampleLoadingDescriptor.tryParse(map);
 
-      '': ExampleTokenType.userShared,
-      '123': ExampleTokenType.userShared,
-      'abc': ExampleTokenType.userShared,
-      'SDK_TYPESCRIPT': ExampleTokenType.userShared,
-      'SDK_RUST': ExampleTokenType.userShared,
-    };
+      expect(parsed, descriptor);
+    });
 
-    for (final example in examples.entries) {
-      final token = example.key;
-      final result = ExampleTokenType.fromToken(token);
+    test('parses viewOptions', () {
+      final map = descriptor.toJson()..addAll(viewOptionsMap);
+      final parsed = StandardExampleLoadingDescriptor.tryParse(map);
 
-      expect(result, example.value, reason: token);
-    }
+      expect(parsed?.viewOptions, viewOptions);
+    });
   });
 }

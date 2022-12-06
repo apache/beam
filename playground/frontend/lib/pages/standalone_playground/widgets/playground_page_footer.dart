@@ -18,13 +18,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/constants/links.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/pages/playground/components/feedback/playground_feedback.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../../constants/font_weight.dart';
+import '../../../constants/links.dart';
+import '../../../constants/sizes.dart';
+import '../../../modules/analytics/analytics_service.dart';
+import 'feedback/playground_feedback.dart';
 
 class PlaygroundPageFooter extends StatelessWidget {
   const PlaygroundPageFooter({Key? key}) : super(key: key);

@@ -18,12 +18,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/pages/playground/components/feedback/feedback_dropdown_icon_button.dart';
-import 'package:playground/pages/playground/states/feedback_state.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../constants/assets.dart';
+import '../../../../constants/font_weight.dart';
+import '../../../../modules/analytics/analytics_service.dart';
+import '../../notifiers/feedback_state.dart';
+import 'feedback_dropdown_icon_button.dart';
 
 class PlaygroundFeedback extends StatelessWidget {
   const PlaygroundFeedback({Key? key}) : super(key: key);

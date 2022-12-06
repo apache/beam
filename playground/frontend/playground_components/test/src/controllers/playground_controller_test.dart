@@ -154,23 +154,23 @@ Future<void> main() async {
       final descriptor = controller.getLoadingDescriptor();
 
       expect(
-        descriptor.toJson(),
-        {
-          'descriptors': [
-            {
-              'sdk': 'python',
-              'content': 'ex2',
-              'name': 'Kata',
-              'complexity': 'basic'
-            },
-            {
-              'sdk': 'go',
-              'content': 'ex1',
-              'name': 'Example',
-              'complexity': 'medium'
-            },
+        descriptor,
+        const ExamplesLoadingDescriptor(
+          descriptors: [
+            ContentExampleLoadingDescriptor(
+              complexity: Complexity.basic,
+              content: 'ex2',
+              name: 'Kata',
+              sdk: Sdk.python,
+            ),
+            ContentExampleLoadingDescriptor(
+              complexity: Complexity.medium,
+              content: 'ex1',
+              name: 'Example',
+              sdk: Sdk.go,
+            ),
           ],
-        },
+        ),
       );
     });
 

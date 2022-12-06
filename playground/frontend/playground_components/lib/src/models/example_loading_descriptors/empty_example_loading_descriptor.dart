@@ -19,6 +19,8 @@
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+const _key = 'empty';
+
 class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   final Sdk sdk;
 
@@ -27,5 +29,23 @@ class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   });
 
   @override
-  List<Object> get props => [sdk];
+  List<Object> get props => [sdk.id];
+
+  @override
+  Map<String, dynamic> toJson() => {
+        _key: true,
+        'sdk': sdk.id,
+      };
+
+  static EmptyExampleLoadingDescriptor? tryParse(
+    Map<String, dynamic> map,
+  ) {
+    if (map[_key] != true) {
+      return null;
+    }
+
+    return EmptyExampleLoadingDescriptor(
+      sdk: Sdk.parseOrCreate(map['sdk']),
+    );
+  }
 }

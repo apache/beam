@@ -45,8 +45,7 @@ export 'src/models/outputs.dart';
 export 'src/models/sdk.dart';
 export 'src/models/shortcut.dart';
 export 'src/models/toast.dart';
-
-export 'src/notifications/notification.dart';
+export 'src/models/toast_type.dart';
 
 export 'src/playground_components.dart';
 

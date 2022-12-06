@@ -54,4 +54,7 @@ void main() {
 class _UnregisteredDescriptor extends ExampleLoadingDescriptor {
   @override
   List<Object?> get props => [];
+
+  @override
+  Map<String, dynamic> toJson() => throw UnimplementedError();
 }

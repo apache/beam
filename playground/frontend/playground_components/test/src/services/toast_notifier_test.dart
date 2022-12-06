@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground_components/src/models/toast.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components/src/services/toast_notifier.dart';
 
 void main() {
@@ -33,7 +33,8 @@ void main() {
   group('ToastNotifier', () {
     test('add', () async {
       const toast = Toast(
-        text: 'text',
+        title: 'title',
+        description: 'text',
         type: ToastType.info,
       );
 
@@ -53,7 +54,8 @@ void main() {
         toasts,
         [
           Toast(
-            text: exception.toString(),
+            title: 'errors.error',
+            description: exception.toString(),
             type: ToastType.error,
           ),
         ],

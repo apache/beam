@@ -18,12 +18,15 @@
 
 import 'dart:async';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:rxdart/rxdart.dart';
 
 import '../models/toast.dart';
+import '../models/toast_type.dart';
 
 class ToastNotifier {
   final _controller = BehaviorSubject<Toast>();
+
   Stream<Toast> get toasts => _controller.stream;
 
   void add(Toast toast) {
@@ -33,7 +36,8 @@ class ToastNotifier {
   void addException(Exception ex) {
     add(
       Toast(
-        text: ex.toString(),
+        title: 'errors.error'.tr(),
+        description: ex.toString(),
         type: ToastType.error,
       ),
     );

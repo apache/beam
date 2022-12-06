@@ -71,9 +71,8 @@ void main() {
     group('fromUriParts', () {
       void testExamples(Iterable<_Example> examples) {
         for (final example in examples) {
-          final result = ExamplesLoadingDescriptorFactory.fromUriParts(
-            params: example.params,
-            path: '',
+          final result = ExamplesLoadingDescriptorFactory.fromStandaloneParams(
+            example.params,
           );
 
           expect(result, example.expected);
@@ -124,11 +123,11 @@ void main() {
                 [
                   {
                     'sdk': 'go',
-                    'example': 'http://',
+                    'url': 'http://',
                   },
                   {
                     'sdk': 'python',
-                    'example': 'https://',
+                    'url': 'https://',
                     ..._viewOptionsMap,
                   },
                 ],
@@ -158,17 +157,23 @@ void main() {
             params: {
               kExamplesParam: jsonEncode(
                 [
-                  {'example': 'SDK_GO'},
-                  {'example': 'SDK_PYTHON/something', ..._viewOptionsMap},
+                  {'sdk': 'go', 'path': 'SDK_GO'},
+                  {
+                    'sdk': 'python',
+                    'path': 'SDK_PYTHON/something',
+                    ..._viewOptionsMap,
+                  },
                 ],
               ),
             },
             expected: ExamplesLoadingDescriptor(
               descriptors: const [
                 StandardExampleLoadingDescriptor(
+                  sdk: Sdk.go,
                   path: 'SDK_GO',
                 ),
                 StandardExampleLoadingDescriptor(
+                  sdk: Sdk.python,
                   path: 'SDK_PYTHON/something',
                   viewOptions: _viewOptions,
                 ),
@@ -185,21 +190,24 @@ void main() {
             params: {
               kExamplesParam: jsonEncode(
                 [
-                  {'example': ''},
-                  {'example': '123'},
-                  {'example': 'abc', ..._viewOptionsMap},
+                  {'sdk': 'go', 'shared': ''},
+                  {'sdk': 'python', 'shared': '123'},
+                  {'sdk': 'scio', 'shared': 'abc', ..._viewOptionsMap},
                 ],
               ),
             },
             expected: ExamplesLoadingDescriptor(
               descriptors: const [
                 UserSharedExampleLoadingDescriptor(
+                  sdk: Sdk.go,
                   snippetId: '',
                 ),
                 UserSharedExampleLoadingDescriptor(
+                  sdk: Sdk.python,
                   snippetId: '123',
                 ),
                 UserSharedExampleLoadingDescriptor(
+                  sdk: Sdk.scio,
                   snippetId: 'abc',
                   viewOptions: _viewOptions,
                 ),

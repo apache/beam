@@ -32,8 +32,25 @@ Embedding example:
 
     {{ range $divMatches }}
         {{ $sdk := replaceRE "(.|\\s)*data-sdk=\"(\\w+)\"(.|\\s)*" "$2" . }}
-        {{ $example := replaceRE "(.|\\s)*example=\"([^\"]+)\"(.|\\s)*" "$2" . }}
-        {{ $dict := dict "sdk" $sdk "example" $example }}
+        {{ $dict := dict "sdk" $sdk }}
+
+        {{ $pathRegex := "(.|\\s)*path=\"([^\"]+)\"(.|\\s)*" }}
+        {{ if findRE $pathRegex . }}
+            {{ $path := replaceRE $pathRegex "$2" . }}
+            {{ $dict = merge $dict (dict "path" $path) }}
+        {{ end }}
+
+        {{ $sharedRegex := "(.|\\s)*shared=\"([_a-zA-Z0-9]+)\"(.|\\s)*" }}
+        {{ if findRE $sharedRegex . }}
+            {{ $shared := replaceRE $sharedRegex "$2" . }}
+            {{ $dict = merge $dict (dict "shared" $shared) }}
+        {{ end }}
+
+        {{ $urlRegex := "(.|\\s)*url=\"([^\"]+)\"(.|\\s)*" }}
+        {{ if findRE $urlRegex . }}
+            {{ $url := replaceRE $urlRegex "$2" . }}
+            {{ $dict = merge $dict (dict "url" $url) }}
+        {{ end }}
 
         {{ $readonlyRegex := "(.|\\s)*readonly=\"([_,a-zA-Z0-9]+)\"(.|\\s)*" }}
         {{ if findRE $readonlyRegex . }}
@@ -60,7 +77,7 @@ Embedding example:
     {{ $editable := 1 }}{{ if isset .Params "editable" }}{{ $editable = index .Params "editable" }}{{ end }}
     <div class="code-snippet code-snippet-playground">
         <iframe
-            src="https://play.beam.apache.org/embedded?editable={{ $editable }}&examples={{ $snippets }}"
+            src="http://localhost:40000/embedded?editable={{ $editable }}&examples={{ $snippets }}"
             width="100%"
             height="{{ .Get "height" }}"
             class="playground"

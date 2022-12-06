@@ -17,12 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/constants/fonts.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/pages/playground/components/feedback/feedback_dropdown_icon_button.dart';
 import 'package:playground_components/playground_components.dart';
+
+import '../../../../constants/font_weight.dart';
+import '../../../../constants/fonts.dart';
+import '../../../../constants/sizes.dart';
+import '../../../../modules/analytics/analytics_service.dart';
+import 'feedback_dropdown_icon_button.dart';
 
 const double kTextFieldWidth = 365.0;
 const double kTextFieldHeight = 68.0;

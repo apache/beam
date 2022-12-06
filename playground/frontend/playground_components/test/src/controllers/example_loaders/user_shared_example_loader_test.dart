@@ -31,6 +31,7 @@ void main() async {
       Exception? thrown;
       final loader = UserSharedExampleLoader(
         descriptor: const UserSharedExampleLoadingDescriptor(
+          sdk: Sdk.go,
           snippetId: 'non-existent',
         ),
         exampleCache: createFailingExampleCache(),
