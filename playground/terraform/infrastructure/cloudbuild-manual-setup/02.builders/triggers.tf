@@ -98,6 +98,8 @@ resource "google_cloudbuild_trigger" "playground_examples_ci" {
     }
   }
 
+  included_files = ["playground/**"]
+
   filename = "playground/infrastructure/cloudbuild/cloudbuild_examples_ci_steps.yaml"
 
   service_account = data.google_service_account.cloudbuild_sa.id
@@ -116,6 +118,8 @@ resource "google_cloudbuild_trigger" "playground_examples_cd" {
       branch = var.github_repository_branch
     }
   }
+
+  included_files = ["playground/**"]
 
   substitutions = {
     _DNS_NAME : var.playground_dns_name

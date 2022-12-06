@@ -15,12 +15,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+GRADLE_VERSION=7.5.1
 
 #Install python java8 and dependencies
-apt-get update > /dev/null && apt-get install -y software-properties-common > /dev/null
+apt-get update > /dev/null && apt-get install -y software-properties-common curl unzip > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3-pip openjdk-8-jdk > /dev/null
+curl -L https://services.gradle.org/distributions/${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip
+unzip gradle-${GRADLE_VERSION}-bin.zip
+export GRADLE_HOME=/gradle/gradle-${GRADLE_VERSION}
+export PATH=$PATH:$GRADLE_HOME/bin
 cd playground/infrastructure && pip install -r requirements.txt > /dev/null
+
+export \
+ORIGIN=PG_EXAMPLES \
+STEP=CI \
+SUBDIRS="././learning/katas ././examples ././sdks" \
+GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
+BEAM_ROOT_DIR="../../" \
+SDK_CONFIG="../../playground/sdks.yaml" \
+BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
+BEAM_CONCURRENCY=4 \
+SERVER_ADDRESS=localhost:8080
+sdks=("go" "java" "python") \
+allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
+".github/workflows/playground_examples_ci.yml" \
+"playground/backend" \
+"playground/infrastructure")
 
 # Get Difference
 set -xeu
@@ -34,16 +55,10 @@ diff=${git diff --name-only $base_ref ${COMMIT_SHA} | tr '\n' ' '}
 
 # Check if there are Examples
 set +e -ux
-declare -a sdks=("go" "java" "python")
-declare -a allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
-".github/workflows/playground_examples_ci.yml" \
-"playground/backend" \
-"playground/infrastructure")
 for sdk in "${sdks[@]}"
 do
     for allowpath in "${allowlist[@]}"
     do
-        # export sdks=$sdk
         python3 checker.py \
         --verbose \
         --sdk SDK_${sdk^^} \
