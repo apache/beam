@@ -38,7 +38,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class SingleStoreSchemaTransformWriteProvider
     extends TypedSchemaTransformProvider<SingleStoreSchemaTransformWriteConfiguration> {
 
-  private static final String API = "singlestore";
   private static final String OUTPUT_TAG = "OUTPUT";
   public static final String INPUT_TAG = "INPUT";
 
@@ -57,7 +56,7 @@ public class SingleStoreSchemaTransformWriteProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
-    return String.format("%s:write", API);
+    return "beam:schematransform:org.apache.beam:singlestore_write:v1";
   }
 
   /**
