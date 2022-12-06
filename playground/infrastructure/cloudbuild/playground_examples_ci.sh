@@ -16,12 +16,14 @@
 # limitations under the License.
 
 #Install python java8 and dependencies
-apt-get update > /dev/null && apt-get install -y software-properties-common curl unzip > /dev/null
+apt-get update > /dev/null && apt-get install -y software-properties-common > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3-pip > /dev/null
 # Install jdk
 apt-get install openjdk-11-jdk -y > /dev/null
 cd playground/infrastructure && pip install -r requirements.txt > /dev/null
+
+echo "Dependencies installed"
 
 export \
 ORIGIN=PG_EXAMPLES \
@@ -38,6 +40,8 @@ allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
 ".github/workflows/playground_examples_ci.yml" \
 "playground/backend" \
 "playground/infrastructure")
+
+echo "Environment variables exported"
 
 # Get Difference
 set -xeu
