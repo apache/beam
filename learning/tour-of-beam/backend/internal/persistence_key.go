@@ -13,28 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package playground
+package internal
 
 import (
-	context "context"
-
-	grpc "google.golang.org/grpc"
+	"crypto/rand"
+	"encoding/base64"
 )
 
-func GetMockClient() PlaygroundServiceClient {
+// size in bytes
+const PERSISTENCE_KEY_SIZE = 16
 
-	return &PlaygroundServiceClientMock{
-		SaveSnippetFunc: func(ctx context.Context, in *SaveSnippetRequest, opts ...grpc.CallOption) (*SaveSnippetResponse, error) {
-			return &SaveSnippetResponse{Id: "snippet_id_1"}, nil
-		},
-		GetSnippetFunc: func(ctx context.Context, in *GetSnippetRequest, opts ...grpc.CallOption) (*GetSnippetResponse, error) {
-			return &GetSnippetResponse{
-				Files: []*SnippetFile{
-					{Name: "main.py", Content: "import sys; sys.exit(0)", IsMain: true},
-				},
-				Sdk:             Sdk_SDK_PYTHON,
-				PipelineOptions: "some opts",
-			}, nil
-		},
+// Generate random persistence_key, return it as base64 URL-encoded string
+// NOT to be exposed on a front-channel!
+func GeneratePersistentKey() string {
+	raw := make([]byte, PERSISTENCE_KEY_SIZE)
+	_, err := rand.Read(raw)
+	if err != nil {
+		panic(err)
 	}
+
+	// base64 encode to pass as protobuf string
+	return base64.URLEncoding.EncodeToString(raw)
 }

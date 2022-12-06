@@ -21,6 +21,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../common/descriptors.dart';
 import '../common/examples.dart';
 import 'playground_controller_test.mocks.dart';
 
@@ -72,7 +73,11 @@ Future<void> main() async {
       test(
         'If example source is changed, value of isExampleChanged should be true',
         () {
-          controller.setExample(exampleMock1, setCurrentSdk: true);
+          controller.setExample(
+            exampleMock1,
+            descriptor: emptyDescriptor,
+            setCurrentSdk: true,
+          );
           expect(controller.isExampleChanged, false);
           controller.setSource('test');
           expect(controller.isExampleChanged, true);
@@ -82,7 +87,11 @@ Future<void> main() async {
       test(
         'If pipelineOptions is changed, value of isExampleChanged should be true',
         () {
-          controller.setExample(exampleMock1, setCurrentSdk: true);
+          controller.setExample(
+            exampleMock1,
+            descriptor: emptyDescriptor,
+            setCurrentSdk: true,
+          );
           expect(controller.isExampleChanged, false);
           controller.setPipelineOptions('test options');
           expect(controller.isExampleChanged, true);
@@ -93,7 +102,11 @@ Future<void> main() async {
     test(
       'If selected example type is not test and SDK is java or python, graph should be available',
       () {
-        controller.setExample(exampleMock1, setCurrentSdk: true);
+        controller.setExample(
+          exampleMock1,
+          descriptor: emptyDescriptor,
+          setCurrentSdk: true,
+        );
         expect(controller.graphAvailable, true);
       },
     );
@@ -106,7 +119,11 @@ Future<void> main() async {
           expect(controller.source, exampleMockGo.source);
           expect(controller.selectedExample, exampleMockGo);
         });
-        controller.setExample(exampleMockGo, setCurrentSdk: true);
+        controller.setExample(
+          exampleMockGo,
+          descriptor: emptyDescriptor,
+          setCurrentSdk: true,
+        );
       },
     );
 
@@ -120,7 +137,11 @@ Future<void> main() async {
     test(
         'Playground state reset should reset source to example notify all listeners',
         () {
-      controller.setExample(exampleMock1, setCurrentSdk: true);
+      controller.setExample(
+        exampleMock1,
+        descriptor: emptyDescriptor,
+        setCurrentSdk: true,
+      );
       controller.setSource('source');
       controller.addListener(() {
         expect(controller.source, exampleMock1.source);
@@ -148,8 +169,10 @@ Future<void> main() async {
     );
 
     test('getLoadingDescriptor()', () {
-      controller.setExample(exampleMock2, setCurrentSdk: true);
-      controller.setExample(exampleMockGo, setCurrentSdk: false);
+      controller.setExample(exampleMock2,
+          descriptor: standardDescriptor2, setCurrentSdk: true,);
+      controller.setExample(exampleMockGo,
+          descriptor: standardGoDescriptor, setCurrentSdk: false,);
 
       final descriptor = controller.getLoadingDescriptor();
 

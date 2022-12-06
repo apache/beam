@@ -28,7 +28,7 @@ const exampleMock1 = Example(
   tags: ['tag1'],
   type: ExampleType.example,
   description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
+  path: 'SDK_PYTHON/Category/Name1',
   complexity: Complexity.basic,
 );
 
@@ -39,7 +39,7 @@ const exampleMock2 = Example(
   tags: ['tag2'],
   type: ExampleType.kata,
   description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
+  path: 'SDK_PYTHON/Category/Name2',
   complexity: Complexity.basic,
 );
 

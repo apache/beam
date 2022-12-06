@@ -38,6 +38,9 @@ class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       ];
 
   @override
+  bool get canBePassedInUrl => true;
+
+  @override
   Map<String, dynamic> toJson() => {
         'sdk': sdk.id,
         'shared': snippetId,

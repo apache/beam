@@ -144,7 +144,10 @@ public class DataProtectors {
   }
 
   /** Class implements stateful doFn for data tokenization using remote RPC. */
-  @SuppressWarnings("initialization.static.fields.uninitialized")
+  @SuppressWarnings({
+    "initialization.static.fields.uninitialized",
+    "initialization.static.field.uninitialized"
+  })
   public static class TokenizationFn extends DoFn<KV<Integer, Iterable<Row>>, Row> {
 
     private static Schema schemaToRpc;
@@ -195,7 +198,7 @@ public class DataProtectors {
     }
 
     @ProcessElement
-    @SuppressWarnings("argument.type.incompatible")
+    @SuppressWarnings("argument")
     public void process(@Element KV<Integer, Iterable<Row>> element, ProcessContext context) {
       Iterable<Row> rows = element.getValue();
 
@@ -243,7 +246,7 @@ public class DataProtectors {
       return stringBuilder.toString();
     }
 
-    @SuppressWarnings("argument.type.incompatible")
+    @SuppressWarnings("argument")
     private ArrayList<Row> getTokenizedRow(Iterable<Row> inputRows) throws IOException {
       ArrayList<Row> outputRows = new ArrayList<>();
 

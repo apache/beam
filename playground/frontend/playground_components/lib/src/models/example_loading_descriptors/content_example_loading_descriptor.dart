@@ -69,6 +69,9 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       ];
 
   @override
+  bool get canBePassedInUrl => false;
+
+  @override
   Map<String, dynamic> toJson() => {
         'complexity': complexity?.name,
         'content': content,

@@ -22,6 +22,7 @@ import 'package:get_it/get_it.dart';
 
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
+import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_view_options.dart';
 import '../models/sdk.dart';
@@ -32,6 +33,7 @@ class SnippetEditingController extends ChangeNotifier {
   final CodeController codeController;
   final _symbolsNotifier = GetIt.instance.get<SymbolsNotifier>();
   Example? _selectedExample;
+  ExampleLoadingDescriptor? _descriptor;
   String _pipelineOptions = '';
 
   SnippetEditingController({
@@ -45,16 +47,19 @@ class SnippetEditingController extends ChangeNotifier {
     _onSymbolsNotifierChanged();
   }
 
-  set selectedExample(Example? value) {
-    _selectedExample = value;
-    setSource(_selectedExample?.source ?? '');
+  void configure({
+    required Example example,
+    required ExampleLoadingDescriptor? descriptor,
+  }) {
+    _descriptor = descriptor;
+    _selectedExample = example;
+    _pipelineOptions = example.pipelineOptions;
 
-    final viewOptions = value?.viewOptions;
-    if (viewOptions != null) {
-      _applyViewOptions(viewOptions);
-    }
+    setSource(example.source);
 
-    _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
+    final viewOptions = example.viewOptions;
+    _applyViewOptions(viewOptions);
+
     notifyListeners();
   }
 
@@ -105,13 +110,19 @@ class SnippetEditingController extends ChangeNotifier {
   /// Creates an [ExampleLoadingDescriptor] that can recover the
   /// current content.
   ExampleLoadingDescriptor getLoadingDescriptor() {
-    // TODO: Return other classes for unchanged standard examples,
-    //  user-shared examples, and an empty editor,
-    //  https://github.com/apache/beam/issues/23252
+    final example = selectedExample;
+    if (example == null) {
+      return EmptyExampleLoadingDescriptor(sdk: sdk);
+    }
+
+    if (!isChanged && _descriptor != null) {
+      return _descriptor!;
+    }
+
     return ContentExampleLoadingDescriptor(
-      complexity: _selectedExample?.complexity,
+      complexity: example.complexity,
       content: codeController.fullText,
-      name: _selectedExample?.name,
+      name: example.name,
       sdk: sdk,
     );
   }

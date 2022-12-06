@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -40,12 +41,12 @@ import org.joda.time.Duration;
 public class SparkStructuredStreamingPipelineResult implements PipelineResult {
 
   final Future pipelineExecution;
-  final Runnable onTerminalState;
+  @Nullable final Runnable onTerminalState;
 
   PipelineResult.State state;
 
   SparkStructuredStreamingPipelineResult(
-      final Future<?> pipelineExecution, final Runnable onTerminalState) {
+      final Future<?> pipelineExecution, @Nullable final Runnable onTerminalState) {
     this.pipelineExecution = pipelineExecution;
     this.onTerminalState = onTerminalState;
     // pipelineExecution is expected to have started executing eagerly.
@@ -123,7 +124,7 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
   private void offerNewState(State newState) {
     State oldState = this.state;
     this.state = newState;
-    if (!oldState.isTerminal() && newState.isTerminal()) {
+    if (!oldState.isTerminal() && newState.isTerminal() && onTerminalState != null) {
       try {
         onTerminalState.run();
       } catch (Exception e) {

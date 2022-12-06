@@ -34,6 +34,9 @@ class CatalogDefaultExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   List<Object> get props => [sdk.id];
 
   @override
+  bool get canBePassedInUrl => true;
+
+  @override
   Map<String, dynamic> toJson() => {
         'sdk': sdk.id,
         _key: true,

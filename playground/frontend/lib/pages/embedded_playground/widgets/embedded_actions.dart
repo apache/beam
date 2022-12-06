@@ -19,6 +19,7 @@
 // ignore_for_file: unsafe_html
 
 import 'dart:html' as html;
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -58,16 +59,29 @@ class EmbeddedActions extends StatelessWidget {
   void _openStandalonePlayground(PlaygroundController controller) {
     // The empty list forces the parsing of EmptyExampleLoadingDescriptor
     // and prevents the glimpse of the default catalog example.
+
+    final descriptor = controller.getLoadingDescriptor();
+    final descriptors = descriptor.descriptors;
+    final urlDescriptors = descriptors.where((d) => d.canBePassedInUrl);
+    final jsDescriptors = descriptors.where((d) => !d.canBePassedInUrl);
+
+    final json = jsonEncode(
+      urlDescriptors.map((d) => d.toJson()).toList(growable: false),
+    );
     final window = html.window.open(
-      '/?$kExamplesParam=[]&$kSdkParam=${controller.sdk?.id}',
+      '/?$kExamplesParam=$json&$kSdkParam=${controller.sdk?.id}',
       '',
     );
 
-    javaScriptPostMessageRepeated(
-      window,
-      SetContentMessage(
-        descriptor: controller.getLoadingDescriptor(),
-      ),
-    );
+    if (jsDescriptors.isNotEmpty) {
+      javaScriptPostMessageRepeated(
+        window,
+        SetContentMessage(
+          descriptor: ExamplesLoadingDescriptor(
+            descriptors: jsDescriptors.toList(growable: false),
+          ),
+        ),
+      );
+    }
   }
 }

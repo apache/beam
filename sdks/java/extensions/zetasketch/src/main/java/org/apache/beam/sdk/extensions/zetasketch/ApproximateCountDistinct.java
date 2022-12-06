@@ -150,7 +150,7 @@ public class ApproximateCountDistinct {
         return input.apply(builder.globally()).apply(HllCount.Extract.globally());
       }
 
-      // Boiler plate to avoid  [argument.type.incompatible] NonNull vs Nullable
+      // Boiler plate to avoid  [argument] NonNull vs Nullable
       Contextful<Fn<T, Long>> mapping = getMapping();
 
       if (mapping != null) {
@@ -221,7 +221,7 @@ public class ApproximateCountDistinct {
         return input.apply(builder.perKey()).apply(HllCount.Extract.perKey());
       }
 
-      // Boiler plate to avoid  [argument.type.incompatible] NonNull vs Nullable
+      // Boiler plate to avoid  [argument] NonNull vs Nullable
       Contextful<Fn<KV<K, V>, KV<K, Long>>> mapping = getMapping();
 
       if (mapping != null) {

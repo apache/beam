@@ -65,11 +65,15 @@
 
 ## New Features / Improvements
 
+* Beam now provides a portable "runner" that can render pipeline graphs with
+  graphviz.  See `python -m apache_beam.runners.render --help` for more details.
 * Local packages can now be used as dependencies in the requirements.txt file, rather
   than requiring them to be passed separately via the `--extra_package` option
   (Python) ([#23684](https://github.com/apache/beam/pull/23684)).
 * Pipeline Resource Hints now supported via `--resource_hints` flag (Go) ([#23990](https://github.com/apache/beam/pull/23990)).
 * Make Python SDK containers reusable on portable runners by installing dependencies to temporary venvs ([BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792)).
+* RunInference model handlers now support the specification of a custom inference function in Python ([#22572](https://github.com/apache/beam/issues/22572))
+* Support for `map_windows` urn added to Go SDK ([#24307](https://github.apache/beam/pull/24307)).
 
 ## Breaking Changes
 
@@ -79,6 +83,10 @@
   dependency of the Java SDK Harness. Some users of a portable runner (such as Dataflow Runner v2)
   may have an undeclared dependency on this package (for example using GCS with
   TextIO) and will now need to declare the dependency.
+* `beam-sdks-java-core` is no longer a dependency of the Java SDK Harness. Users of a portable
+  runner (such as Dataflow Runner v2) will need to provide this package and its dependencies.
+* Slices now use the Beam Iterable Coder. This enables cross language use, but breaks pipeline updates
+  if a Slice type is used as a PCollection element or State API element. (Go)[#24339](https://github.com/apache/beam/issues/24339)
 
 ## Deprecations
 

@@ -50,7 +50,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,7 +168,7 @@ public abstract class PipelineTranslator {
    */
   private class TranslatingVisitor extends PTransformVisitor implements TranslationState {
     private final Map<PCollection<?>, TranslationResult<?>> translationResults;
-    private final Map<Coder<?>, ExpressionEncoder<?>> encoders;
+    private final Map<Coder<?>, Encoder<?>> encoders;
     private final SparkSession sparkSession;
     private final SerializablePipelineOptions serializableOptions;
     private final StorageLevel storageLevel;
@@ -209,7 +208,13 @@ public abstract class PipelineTranslator {
 
     @Override
     public <T> Encoder<T> encoderOf(Coder<T> coder, Factory<T> factory) {
-      return (Encoder<T>) encoders.computeIfAbsent(coder, (Factory) factory);
+      // computeIfAbsent fails with Java 11 on recursive factory
+      Encoder<T> enc = (Encoder<T>) encoders.get(coder);
+      if (enc == null) {
+        enc = factory.apply(coder);
+        encoders.put(coder, enc);
+      }
+      return enc;
     }
 
     private <T> TranslationResult<T> getResult(PCollection<T> pCollection) {
