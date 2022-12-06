@@ -133,6 +133,7 @@ class DataInput(NamedTuple):
 
 class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""
+
   def __init__(
       self,
       name,  # type: str
@@ -141,7 +142,23 @@ class Stage(object):
       must_follow=frozenset(),  # type: FrozenSet[Stage]
       parent=None,  # type: Optional[str]
       environment=None,  # type: Optional[str]
-      forced_root=False):
+      forced_root=False,
+      tags: Optional[Set[str]] = None):
+    """Create stage with a series of transforms and stage metadata.
+
+    Args:
+        name: Name of the stage. Usually a concatenation of transform names.
+        transforms: A list of PTransforms that are part of this stage.
+        downstream_side_inputs: A set of transforms downstream that consume
+            outputs of this Stage as side inputs. This is used to prevent
+            fusion.
+        must_follow: A list of stages that must execute before this stage.
+        parent: TODO
+        environment: The environment to use to execute this stage. This usually
+            marks an SDK or container.
+        forced_root: TODO
+        tags: A set of tags that describe semantic information about this stage.
+    """
     self.name = name
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
@@ -154,6 +171,7 @@ class Stage(object):
           (self._extract_environment(t) for t in transforms))
     self.environment = environment
     self.forced_root = forced_root
+    self.tags = tags or set()
 
   def __repr__(self):
     must_follow = ', '.join(prev.name for prev in self.must_follow)
@@ -225,6 +243,7 @@ class Stage(object):
         for transform in self.transforms)
 
   def is_all_sdk_urns(self, context):
+
     def is_sdk_transform(transform):
       # Execute multi-input flattens in the runner.
       if transform.spec.urn == common_urns.primitives.FLATTEN.urn and len(
@@ -965,6 +984,7 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
   tuples from this PCollection and sends them to the original output
   PCollections.
   """
+
   class _UnpackFn(core.DoFn):
     """A DoFn that unpacks a packed to multiple tagged outputs.
 
@@ -973,6 +993,7 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
       input = (K, (V1, V2, ...))
       output = TaggedOutput(T1, (K, V1)), TaggedOutput(T2, (K, V1)), ...
     """
+
     def __init__(self, tags):
       self._tags = tags
 
@@ -1018,8 +1039,8 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
     if (len(stage.transforms) == 1 and can_pack(stage.name) and
-        stage.environment is not None and python_urns.PACKED_COMBINE_FN in
-        context.components.environments[stage.environment].capabilities):
+        stage.environment is not None and python_urns.PACKED_COMBINE_FN
+        in context.components.environments[stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
@@ -1205,6 +1226,7 @@ def lift_combiners(stages, context):
 
   ... -> PreCombine -> GBK -> MergeAccumulators -> ExtractOutput -> ...
   """
+
   def is_compatible_with_combiner_lifting(trigger):
     '''Returns whether this trigger is compatible with combiner lifting.
 
