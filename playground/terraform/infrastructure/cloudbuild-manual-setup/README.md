@@ -71,7 +71,7 @@ terraform apply -var="project_id=$(gcloud config get-value project)"
 
 ## 2. Connect Apache Beam GitHub repository and GCP Cloud Build
 
-**Note:** Ensure correct `region` is set in [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page before proceeding further.
+**Note:** Due to trigger settings, ensure that `global region` is set in [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page before proceeding further.
 
 Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect Apache Beam GitHub repository and GCP Cloud Build.
 
