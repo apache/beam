@@ -273,10 +273,10 @@ tasks.register("readState") {
 
 tasks.register("pushBack") {
     group = "deploy"
-//    dependsOn(":playground:backend:containers:go:dockerTagsPush")
+    dependsOn(":playground:backend:containers:go:dockerTagsPush")
     dependsOn(":playground:backend:containers:java:dockerTagsPush")
-//    dependsOn(":playground:backend:containers:python:dockerTagsPush")
-//    dependsOn(":playground:backend:containers:scio:dockerTagsPush")
+    dependsOn(":playground:backend:containers:python:dockerTagsPush")
+    dependsOn(":playground:backend:containers:scio:dockerTagsPush")
     dependsOn(":playground:backend:containers:router:dockerTagsPush")
 }
 
