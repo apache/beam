@@ -29,6 +29,7 @@ pip install --upgrade google-api-python-client > /dev/null
 python3.8 -m pip install pip --upgrade > /dev/null
 ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
 apt install python3.8-venv > /dev/null
+pip install -r playground/infrastructure/requirements.txt
 
 # Install jdk and gradle
 apt-get install openjdk-8-jdk -y > /dev/null
@@ -45,10 +46,6 @@ export PATH=$PATH:/usr/local/go/bin
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
 apt update > /dev/null && apt install -y docker-ce > /dev/null
-
-pip install -r playground/infrastructure/requirements.txt> /dev/null
-
-echo "Dependencies installed"
 
 export \
 ORIGIN=PG_EXAMPLES \
