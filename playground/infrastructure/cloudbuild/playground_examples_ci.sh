@@ -147,7 +147,6 @@ done
 
 # by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
 # TODO Java SDK doesn't, it uses 2.42.0, fix this
-cd ../..
 for sdk in "${sdks[@]}"
 do
     ./gradlew -i playground:backend:containers:"$sdk":docker "$opts"
