@@ -75,7 +75,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <pre>{@code
  * PCollection<UserAccount> users = readUsers();
- * users.apply(Filter
+ * users.apply(Filter.create()
  *    .whereFieldNames(Lists.newArrayList("spendOnBooks", "spendOnMovies"),
  *        row -> return row.getDouble("spendOnBooks") + row.getDouble("spendOnMovies") > 100.00));
  * }</pre>
