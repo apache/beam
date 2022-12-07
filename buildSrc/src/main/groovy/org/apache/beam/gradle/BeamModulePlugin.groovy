@@ -1020,6 +1020,7 @@ class BeamModulePlugin implements Plugin<Project> {
         extraJavacArgs = [
           "-AskipDefs=${skipDefCombinedRegex}",
           "-AskipUses=${skipUsesCombinedRegex}",
+          "-AnoWarnMemoryConstraints",
           "-AsuppressWarnings=annotation.not.completed,keyfor",
         ]
 
