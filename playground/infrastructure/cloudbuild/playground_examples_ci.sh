@@ -21,7 +21,7 @@ export GO_VERSION=1.18
 #Install python java8 and dependencies
 apt-get update > /dev/null
 export DEBIAN_FRONTEND=noninteractive
-apt-get install -y software-properties-common curl unzip > /dev/null
+apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
 apt install --reinstall python3.8-distutils > /dev/null
@@ -37,10 +37,9 @@ unzip gradle-${GRADLE_VERSION}-bin.zip > /dev/null
 export PATH=$PATH:gradle-${GRADLE_VERSION}/bin
 
 # Install go
-curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz > /dev/null
-tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz > /dev/null
-export PATH=$PATH:/usr/local/go/bin
-go version
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+apt install -y docker-ce
 
 # Install Docker
 curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
