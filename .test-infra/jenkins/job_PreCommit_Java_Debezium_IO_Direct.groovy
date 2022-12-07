@@ -23,6 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java_Debezium_IO_Direct',
     gradleTasks: [
       ':sdks:java:io:debezium:build',
+      ':sdks:java:io:debezium:expansion-service:build',
       ':sdks:java:io:debezium:integrationTest',
     ],
     gradleSwitches: [

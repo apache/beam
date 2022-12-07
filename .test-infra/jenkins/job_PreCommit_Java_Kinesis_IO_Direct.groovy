@@ -23,6 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java_Kinesis_IO_Direct',
     gradleTasks: [
       ':sdks:java:io:kinesis:build',
+      ':sdks:java:io:kinesis:expansion-service:build',
       ':sdks:java:io:kinesis:integrationTest',
     ],
     gradleSwitches: [

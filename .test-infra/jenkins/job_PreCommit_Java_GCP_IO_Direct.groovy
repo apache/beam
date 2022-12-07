@@ -23,6 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java_GCP_IO_Direct',
     gradleTasks: [
       ':sdks:java:io:google-cloud-platform:build',
+      ':sdks:java:io:google-cloud-platform:expansion-service:build',
       ':sdks:java:io:google-cloud-platform:postCommit',
     ],
     gradleSwitches: [
