@@ -76,7 +76,7 @@ echo "Environment variables exported"
 # Get Difference
 set -xeu
 # define the base ref
-base_ref=${BASE_BRANCH}
+base_ref=${BRANCH_NAME}
 if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
 then
   base_ref=master
@@ -99,15 +99,12 @@ done
 if [[ $? -eq 0 ]]
 then
     example_has_changed=True
-    echo "Example has been changed"
 else
     example_has_changed=False
-    echo "Example has NOT been changed"
 fi
 
 if [[ ${example_has_changed} == True ]]
 then
-
       rm ~/.m2/settings.xml
 
       if [[ -z ${TAG_NAME} ]]
@@ -160,4 +157,6 @@ then
           --origin "${ORIGIN}" \
           --subdirs "${SUBDIRS}"
       done
+else
+      echo "Example has NOT been changed"
 fi
