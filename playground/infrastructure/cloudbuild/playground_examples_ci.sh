@@ -28,6 +28,7 @@ apt install --reinstall python3.8-distutils
 pip install --upgrade google-api-python-client
 python3.8 -m pip install pip --upgrade
 ln -s /usr/bin/python3.8 /usr/bin/python
+apt install python3.8-venv
 # Install jdk and gradle
 apt-get install openjdk-8-jdk -y > /dev/null
 curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip
