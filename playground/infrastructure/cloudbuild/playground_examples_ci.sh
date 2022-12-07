@@ -92,14 +92,15 @@ do
         --sdk SDK_"${sdk^^}" \
         --allowlist "${allowpath}" \
         --paths "${diff}"
+    if [[ $? -eq 0 ]]
+    then
+        example_has_changed=True
+    else
+        example_has_changed=False
+    fi
     done
 done
-if [[ $? -eq 0 ]]
-then
-    example_has_changed=True
-else
-    example_has_changed=False
-fi
+
 
 if [[ ${example_has_changed} == True ]]
 then
