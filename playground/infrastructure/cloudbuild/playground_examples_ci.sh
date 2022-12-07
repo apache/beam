@@ -76,12 +76,12 @@ echo "Environment variables exported"
 # Get Difference
 set -xeu
 # define the base ref
-base_ref=${BRANCH_NAME}
+base_ref=refs/remotes/origin/${BRANCH_NAME}
 if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
 then
-  base_ref=master
+  base_ref=refs/remotes/origin/master
 fi
-diff=$(git diff --name-only $base_ref | tr '\n' ' ')
+diff=$(git diff --name-only $base_ref ${COMMIT_SHA} | tr '\n' ' ')
 
 # Check if there are Examples
 set +e -ux
