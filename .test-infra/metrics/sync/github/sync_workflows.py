@@ -11,13 +11,13 @@
 '''
 This module queries GitHub to collect Beam-related workflows metrics and put them in
 PostgreSQL.
-This Script it's running every 2  minutes in a cloud function in apache-beam-testing project.
+This Script is running every 3 hours in a cloud function in apache-beam-testing project.
 This cloud function is triggered by a pubsub topic.
 You can found the cloud function in the next link 
 https://console.cloud.google.com/functions/details/us-central1/github_actions_workflows_dashboard_sync?env=gen1&project=apache-beam-testing
 Pub sub topic : https://console.cloud.google.com/cloudpubsub/topic/detail/github_actions_workflows_sync?project=apache-beam-testing
 Cron Job : https://console.cloud.google.com/cloudscheduler/jobs/edit/us-central1/github_actions_workflows_dashboard_sync?project=apache-beam-testing
-Writing the latest 10 jobs of every postcommit workflow in master branch in a beammetrics database
+Writing the latest 10 runs of every postcommit workflow in master branch in a beammetrics database
 '''
 
 import os
@@ -39,28 +39,44 @@ GH_WORKFLOWS_TABLE_NAME = "github_workflows"
 # Number of workflows that fetch github API
 GH_NUMBER_OF_WORKFLOWS = 100  
 GH_WORKFLOWS_NUMBER_EXECUTIONS = 10
-GH_WORKFLOWS_YML_FILENAME = []
+WORKFLOWS_OBJECT_LIST = []
+
+class Workflow:
+    def __init__(self,id,filename):
+        self.id = id
+        self.filename = filename
+        self.listOfRuns = []
+        self.runUrl = []
 
 # The table will save the latest ten run of every workflow
 GH_WORKFLOWS_CREATE_TABLE_QUERY = f"""
 CREATE TABLE IF NOT EXISTS {GH_WORKFLOWS_TABLE_NAME} (
     job_name text PRIMARY KEY,
     job_yml_filename text,
-    job1 text,
-    job2 text,
-    job3 text,
-    job4 text,
-    job5 text,
-    job6 text,
-    job7 text,
-    job8 text,
-    job9 text,
-    job10 text
+    run1 text,
+    run1Id text,
+    run2 text,
+    run2Id text,
+    run3 text,
+    run3Id text,
+    run4 text,
+    run4Id text,
+    run5 text,
+    run5Id text,
+    run6 text,
+    run6Id text,
+    run7 text,
+    run7Id text,
+    run8 text,
+    run8Id text,
+    run9 text,
+    run9Id text,
+    run10 text,
+    run10Id text
 )
 """
 def githubWorkflowsGrafanaSync(data,context):
     print('Started')
-
     print('Updating table with recent workflow runs')
     databaseOperations(initDbConnection(),fetchWorkflowData())
     print('Done')
@@ -76,18 +92,20 @@ def initDbConnection():
             connection = psycopg2.connect(
                 f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
                 f" port='{DB_PORT}' password='{DB_PASSWORD}'")
-        except:
+        except Exception as e:
             print('Failed to connect to DB; retrying in 1 minute')
-            sys.stdout.flush()
+            print(e)
             time.sleep(60)
             i = i + 1
+            if i >= maxRetries:
+                print("Number of retries exceded ")
+                sys.exit(1)
     return connection
 
 def getToken():
     git_integration = GithubIntegration(
     os.environ["GH_APP_ID"],
     os.environ["GH_PEM_KEY"])
-
     token=git_integration.get_access_token(
             os.environ["GH_APP_INSTALLATION_ID"]
         ).token
@@ -96,45 +114,67 @@ def getToken():
 def fetchWorkflowData():
     '''Return a json with all the workflows and the latests
     ten executions'''
-    listOfWorkflows = {}
-    workflowsStatus = {}
+    completed = False
+    page = 1 
+    workflows = []
+    retryFactor = 1
     try:
-        url = "https://api.github.com/repos/apache/beam/actions/workflows"
-        queryOptions = { 'branch' : 'master', 'per_page' : GH_NUMBER_OF_WORKFLOWS }
-        response = requests.get(url = url, params = queryOptions)
-        jsonResponse = response.json()
-        workflows = jsonResponse['workflows']
-        for item in workflows:
-            path =(item['path'])
-            isPostCommit = re.search('(.*)postcommit(.*)',path)
-            if isPostCommit:
-                result = re.search('/(.*).yml', path)
-                path =(result.group(1)) + ".yml"
-                GH_WORKFLOWS_YML_FILENAME.append(path)
-                listOfWorkflows[(item['id'])] = item['name']
-        url = "https://api.github.com/repos/apache/beam/actions/workflows/"
-        queryOptions = { 'branch' : 'master', 'per_page' : GH_WORKFLOWS_NUMBER_EXECUTIONS,
-                    'page' :'1', 'exclude_pull_request':True }
-        #headers = {'Authorization': 'Bearer {}'.format(getToken())}
-        for key in listOfWorkflows:
-            response = requests.get(url = "{}{}/runs".format(url,key),
+        while not completed:
+            url = "https://api.github.com/repos/apache/beam/actions/workflows"
+            queryOptions = { 'branch' : 'master', 'page': page, 'per_page' : GH_NUMBER_OF_WORKFLOWS }
+            response = requests.get(url = url, params = queryOptions)
+            jsonResponse = response.json()
+            if jsonResponse['total_count'] >= 100:
+                page = page + 1
+                workflowsPage = jsonResponse['workflows']
+                workflows.append(workflowsPage)
+            else:
+                completed = True
+                workflowsPage = jsonResponse['workflows']
+                workflows.append(workflowsPage)
+        for pageItem in workflows:
+            for item in pageItem:
+                path =(item['path'])
+                isPostCommit = re.search('(.*)postcommit(.*)',path)
+                if isPostCommit:
+                    result = re.search('/(.*).yml', path)
+                    path =(result.group(1)) + ".yml"
+                    workflowObject = Workflow(item['name'],path)
+                    WORKFLOWS_OBJECT_LIST.append(workflowObject)
+            url = "https://api.github.com/repos/apache/beam/actions/workflows/"
+            queryOptions = { 'branch' : 'master', 'per_page' : GH_WORKFLOWS_NUMBER_EXECUTIONS,
+                        'page' :'1', 'exclude_pull_request':True }
+            #headers = {'Authorization': 'Bearer {}'.format(getToken())}
+        for workflow in WORKFLOWS_OBJECT_LIST:
+            requestSucceeded = False
+            while not requestSucceeded:
+                retryTime = 60 * retryFactor
+                response = requests.get(url = "{}{}/runs".format(url,workflow.id),
                                 params=queryOptions)
+                if response.status_code != 200:
+                    print('Failed to get the request with code %s'.format(response.status_code))
+                    time.sleep(retryTime)
+                    retryFactor = retryFactor + retryFactor
+                else:
+                    requestSucceeded = True
             responseJson = response.json()
             workflowsRuns = responseJson['workflow_runs']
-            workflowsStatus[listOfWorkflows[key]] = []
             for  item in workflowsRuns:
                 if item['status'] == 'completed':
-                    workflowsStatus[listOfWorkflows[key]].append(item['conclusion'])
+                    workflow.runUrl.append(item['html_url'])
+                    workflow.listOfRuns.append(item['conclusion'])
                 else:
-                    workflowsStatus[listOfWorkflows[key]].append(item['status'])
+                    workflow.listOfRuns.append(item['status'])
+                    workflow.runUrl.append(item['html_url'])
             for i in range(0,GH_WORKFLOWS_NUMBER_EXECUTIONS):   
-                if i >= len(workflowsStatus[listOfWorkflows[key]]):
-                    workflowsStatus[listOfWorkflows[key]].append('None')
-    except:
+                if i >= len(workflow.listOfRuns):
+                    workflow.listOfRuns.append('None')
+                    workflow.runUrl.append('None')
+    except Exception as e:
         print('Failed to get GHA workflows')
-    return workflowsStatus
+        print(e)
 
-def databaseOperations(connection, workflowStatus):
+def databaseOperations(connection,fetchWorkflows):
     '''Create the table if not exist and update the table with the latest runs
     of the workflows '''
     queryInsert = "INSERT INTO {} VALUES ".format(GH_WORKFLOWS_TABLE_NAME)
@@ -142,18 +182,12 @@ def databaseOperations(connection, workflowStatus):
     cursor.execute(GH_WORKFLOWS_CREATE_TABLE_QUERY)
     cursor.execute("DELETE FROM {};".format(GH_WORKFLOWS_TABLE_NAME))
     query = ""
-    for item in workflowStatus:
-        rowInsert = """ (\'{}\',\'{}\',\'{}\',\'{}\',\'{}\',\'{}\',
-            \'{}\',\'{}\',\'{}\',\'{}\',\'{}\',\'{}\'),""".format(
-            item, GH_WORKFLOWS_YML_FILENAME[0],
-            workflowStatus[item][0],workflowStatus[item][1],
-            workflowStatus[item][2], workflowStatus[item][3],
-            workflowStatus[item][4], workflowStatus[item][5],
-            workflowStatus[item][6], workflowStatus[item][7],
-            workflowStatus[item][8], workflowStatus[item][9]
-            )
+    for workflow in WORKFLOWS_OBJECT_LIST:
+        rowInsert = "(\'{}\',\'{}\'".format(workflow.id,workflow.filename)
+        for run, runUrl  in zip(workflow.listOfRuns,workflow.runUrl):
+            rowInsert += ",\'{}\',\'{}\'".format(run,runUrl)
         query = query + rowInsert
-        GH_WORKFLOWS_YML_FILENAME.pop(0)
+        rowInsert += "),"
     query = query[:-1] + ";"  
     query = queryInsert + query
     cursor.execute(query)
