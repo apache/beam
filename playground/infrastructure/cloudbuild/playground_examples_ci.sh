@@ -46,10 +46,6 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
 apt update > /dev/null && apt install -y docker-ce > /dev/null
 
-
-ls -la && echo "LS -LA"
-pwd && echo "PWD"
-
 pip install -r playground/infrastructure/requirements.txt> /dev/null
 
 echo "Dependencies installed"
@@ -72,6 +68,8 @@ allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
 "playground/infrastructure")
 
 echo "Environment variables exported"
+git branch
+git show-ref
 
 # Get Difference
 set -xeu
