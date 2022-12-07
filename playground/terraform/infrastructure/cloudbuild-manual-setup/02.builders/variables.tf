@@ -73,7 +73,7 @@ variable "github_repository_branch" {
 variable "playground_environment_name" {
   description = <<EOF
 Environment name where to deploy Playground. Located in playground/terraform/environment/{environment_name}. E.g. test, dev, prod.
-More details: https://github.com/akvelon/beam/blob/cloudbuild%2Bmanualsetup%2Bplayground/playground/terraform/README.md#prepare-deployment-configuration"
+More details: https://github.com/apache/beam/blob/master/playground/terraform/README.md#prepare-deployment-configuration"
   EOF
 }
 

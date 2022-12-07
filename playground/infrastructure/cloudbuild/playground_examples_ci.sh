@@ -50,7 +50,7 @@ apt update > /dev/null && apt install -y docker-ce > /dev/null
 ls -la && echo "LS -LA"
 pwd && echo "PWD"
 
-pip install -r playground/infrastucture/requirements.txt > /dev/null
+pip install -r playground/infrastructure/requirements.txt> /dev/null
 
 echo "Dependencies installed"
 
@@ -76,7 +76,7 @@ echo "Environment variables exported"
 # Get Difference
 set -xeu
 # define the base ref
-base_ref=${BRANCH_NAME}
+base_ref=${_BASE_BRANCH}
 if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
 then
   base_ref=origin/master
@@ -121,10 +121,6 @@ do
   if [[ "$sdk" == "python" ]]
   then
       # builds apache/beam_python3.7_sdk:$DOCKERTAG image
-      echo "This is pip list beginning"
-      pip freeze
-      pip --version
-      echo "This is pip list beginning"
       ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
       # and set SDK_TAG to DOCKERTAG so that the next step would find it
       echo "SDK_TAG=${DOCKERTAG}" && SDK_TAG=${DOCKERTAG}
@@ -133,27 +129,21 @@ done
 
 set -ex
 opts=" -Pdocker-tag=$DOCKERTAG"
-if [[ -n "$SDK_TAG" ]]
+if [[ -n "${SDK_TAG}" ]]
 then
-      opts="$opts -Psdk-tag=$SDK_TAG"
+      opts="${opts} -Psdk-tag=${SDK_TAG}"
 fi
 for sdk in "${sdks[@]}"
 do
   if [[ "$sdk" == "java" ]]
   then
       # Java uses a fixed BEAM_VERSION
-      opts="$opts -Pbase-image=apache/beam_java8_sdk:2.43.0"
+      opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
+      ./gradlew -i playground:backend:containers:${sdk}:docker ${opts}
   fi
 done
 
-# by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
-# TODO Java SDK doesn't, it uses 2.42.0, fix this
-for sdk in "${sdks[@]}"
-do
-    ./gradlew -i playground:backend:containers:"$sdk":docker "$opts"
-
-    echo "IMAGE_TAG=apache/beam_playground-backend-$sdk:$DOCKERTAG" && IMAGE_TAG=apache/beam_playground-backend-$sdk:$DOCKERTAG
-done
+echo "IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}" && IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
 
 set -uex
 NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP "$IMAGE_TAG")
