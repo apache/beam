@@ -62,6 +62,7 @@ SDK_CONFIG="../../playground/sdks.yaml" \
 BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
 BEAM_CONCURRENCY=4 \
 SERVER_ADDRESS=localhost:8080 \
+BEAM_VERSION=2.43.0/
 sdks=("go" "java" "python") \
 allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
 ".github/workflows/playground_examples_ci.yml" \
