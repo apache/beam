@@ -56,6 +56,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery Storage Write API jobs
@@ -72,6 +74,8 @@ import org.joda.time.Duration;
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageWriteApiSchemaTransformProvider.class);
+
   private static final String INPUT_ROWS_TAG = "INPUT_ROWS";
   private static final String OUTPUT_ERRORS_TAG = "ERROR_ROWS";
 
@@ -277,6 +281,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform();
 
+      LOG.info("JSON SCHEMA: " + configuration.getJsonSchema());
       WriteResult result = inputRows.apply(write);
 
       Schema errorSchema =
