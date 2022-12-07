@@ -55,7 +55,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <pre>{@code
  * PCollection<Location> locations = readLocations();
- * locations.apply(Filter
+ * locations.apply(Filter.create()
  *    .whereFieldName("latitude", lat -> lat < 40.720 && lat > 40.699)
  *    .whereFieldName("longitude", long -> long < -73.969 && long > -74.747));
  * }</pre>
