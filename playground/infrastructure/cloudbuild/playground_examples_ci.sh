@@ -139,8 +139,8 @@ do
   then
       # Java uses a fixed BEAM_VERSION
       opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
-      ./gradlew -i playground:backend:containers:${sdk}:docker ${opts}
   fi
+./gradlew -i playground:backend:containers:${sdk}:docker ${opts}
 done
 
 echo "IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}" && IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
