@@ -74,10 +74,10 @@ git show-ref
 # Get Difference
 set -xeu
 # define the base ref
-base_ref=refs/remotes/origin/${BRANCH_NAME}
+base_ref=refs/heads/master
 if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
 then
-  base_ref=refs/remotes/origin/master
+  base_ref=refs/heads/master
 fi
 diff=$(git diff --name-only $base_ref ${COMMIT_SHA} | tr '\n' ' ')
 
