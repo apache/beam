@@ -46,9 +46,7 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
 apt update > /dev/null && apt install -y docker-ce > /dev/null
 
-
-cd playground/infrastructure
-pip install -r requirements.txt > /dev/null
+pip install -r playground/infrastucture/requirements.txt > /dev/null
 
 echo "Dependencies installed"
 
@@ -119,7 +117,6 @@ do
   if [[ "$sdk" == "python" ]]
   then
       # builds apache/beam_python3.7_sdk:$DOCKERTAG image
-      cd ../..
       echo "This is pip list beginning"
       pip freeze
       pip --version
@@ -141,7 +138,7 @@ do
   if [[ "$sdk" == "java" ]]
   then
       # Java uses a fixed BEAM_VERSION
-      opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
+      opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
   fi
 done
 
