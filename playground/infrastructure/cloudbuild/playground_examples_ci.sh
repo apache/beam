@@ -24,21 +24,28 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get install -y software-properties-common curl unzip > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
-apt install --reinstall python3.8-distutils
-pip install --upgrade google-api-python-client
-python3.8 -m pip install pip --upgrade
-ln -s /usr/bin/python3.8 /usr/bin/python
-apt install python3.8-venv
+apt install --reinstall python3.8-distutils > /dev/null
+pip install --upgrade google-api-python-client > /dev/null
+python3.8 -m pip install pip --upgrade > /dev/null
+ln -s /usr/bin/python3.8 /usr/bin/python > /dev/null
+apt install python3.8-venv > /dev/null
+
 # Install jdk and gradle
 apt-get install openjdk-8-jdk -y > /dev/null
-curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip
-unzip gradle-${GRADLE_VERSION}-bin.zip
+curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip > /dev/null
+unzip gradle-${GRADLE_VERSION}-bin.zip > /dev/null
 export PATH=$PATH:gradle-${GRADLE_VERSION}/bin
+
 # Install go
-curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz
-tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz
+curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz > /dev/null
+tar -C /usr/local -xvf go$GO_VERSION.linux-amd64.tar.gz > /dev/null
 export PATH=$PATH:/usr/local/go/bin
 go version
+
+# Install Docker
+curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable" > /dev/null
+apt update > /dev/null && apt install -y docker-ce > /dev/null
 
 
 cd playground/infrastructure
