@@ -24,6 +24,7 @@ steps:
         chmod +x playground/infrastructure/cloudbuild/playground_examples_ci.sh \
         && ./playground/infrastructure/cloudbuild/playground_examples_ci.sh
     env:
+      - 'BRANCH_NAME=${BRANCH_NAME}'
       - 'BASE_BRANCH=${_BASE_BRANCH}'
       - 'COMMIT_SHA=${COMMIT_SHA}'
       - 'TAG_NAME=${TAG_NAME}'

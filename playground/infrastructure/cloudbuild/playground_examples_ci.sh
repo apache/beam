@@ -76,7 +76,7 @@ echo "Environment variables exported"
 # Get Difference
 set -xeu
 # define the base ref
-base_ref=${_BASE_BRANCH}
+base_ref=${BASE_BRANCH}
 if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
 then
   base_ref=origin/master
