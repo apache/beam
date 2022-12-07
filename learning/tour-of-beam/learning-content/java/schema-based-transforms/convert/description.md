@@ -16,7 +16,16 @@ limitations under the License.
 As mentioned, Beam can automatically convert between different Java types, as long as those types have equivalent schemas. One way to do this is by using the ```Convert``` transform, as follows.
 
 ```
-PCollection<PurchaseBean> purchaseBeans = readPurchasesAsBeans();
-PCollection<PurchasePojo> pojoPurchases =
-    purchaseBeans.apply(Convert.to(PurchasePojo.class));
+PCollection<Object> userPCollection = pipeline.apply(Create.of(user1));
+
+// Object convert to Row
+PCollection<Row> convertedToRow = userPCollection.apply(Convert.toRows());
 ```
+
+### Playground exercise
+
+You can find the complete code of this example in the playground window you can run and experiment with.
+
+One of the differences you will notice is that it also contains the part to output `PCollection` elements to the console.
+
+Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.

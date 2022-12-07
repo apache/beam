@@ -17,6 +17,6 @@
 # under the License.
 #
 
-id: filter
+id: schema-filter
 name: Filter
-taskName: filter
+taskName: schema-filter

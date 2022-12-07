@@ -31,8 +31,8 @@ PCollection<Row> rows = purchases.apply(Select.fieldNames("userId", "shippingAdd
 Will result in the following schema:
 
 ```
-Field Name	   Field Type
-userId	           STRING
+Field Name       Field Type
+userId           STRING
 ```
 
 ### Nested fields
@@ -46,8 +46,8 @@ PCollection<Row> rows = purchases.apply(Select.fieldNames("shippingAddress.postC
 Will result in the following schema:
 
 ```
-Field Name	   Field Type
-postCode	       STRING
+Field Name       Field Type
+postCode         STRING
 ```
 
 ### Wildcards
@@ -63,12 +63,12 @@ PCollection<Row> rows = purchases.apply(Select.fieldNames("shippingAddress.*"));
 Will result in the following schema:
 
 ```
-Field Name	   Field Type
-streetAddress	   STRING
-city	           STRING
-state	  nullable STRING
-country	           STRING
-postCode	       STRING
+Field Name         Field Type
+streetAddress      STRING
+city               STRING
+state              nullable STRING
+country            STRING
+postCode           STRING
 
 ```
 
@@ -83,9 +83,9 @@ PCollection<Row> rows = purchases.apply(Select.fieldNames( "transactions.bank", 
 Will result in the following schema:
 
 ```
-Field Name	   Field Type
-bank	          ARRAY[STRING]
-purchaseAmount	  ARRAY[DOUBLE]
+Field Name        Field Type
+bank              ARRAY[STRING]
+purchaseAmount    ARRAY[DOUBLE]
 ```
 
 ### Flatten schema
@@ -99,16 +99,24 @@ PCollection<Row> rows = purchases.apply(Select.flattenedSchema());
 Will result in the following schema:
 
 ```
-Field Name	                    Field Type
-userId	                            STRING
-itemId	                            STRING
-shippingAddress_streetAddress	    STRING
-shippingAddress_city	   nullable STRING
-shippingAddress_state	            STRING
-shippingAddress_country	            STRING
-shippingAddress_postCode	        STRING
-costCents	INT64
-transactions_bank	         ARRAY[STRING]
-transactions_purchaseAmount	 ARRAY[DOUBLE]
+Field Name                          Field Type
+userId                              STRING
+itemId                              STRING
+shippingAddress_streetAddress       STRING
+shippingAddress_city                nullable STRING
+shippingAddress_state               STRING
+shippingAddress_country             STRING
+shippingAddress_postCode            STRING
+costCents                           INT64
+transactions_bank                   ARRAY[STRING]
+transactions_purchaseAmount         ARRAY[DOUBLE]
 
 ```
+
+### Playground exercise
+
+You can find the complete code of this example in the playground window you can run and experiment with.
+
+One of the differences you will notice is that it also contains the part to output `PCollection` elements to the console.
+
+Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.

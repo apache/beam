@@ -16,11 +16,11 @@ limitations under the License.
 
 Most structured records share some common characteristics:
 
-&#8594; They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed tuples - have numerical indices instead.
+→  They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed tuples - have numerical indices instead.
 
-&#8594; There is a confined list of primitive types that a field can have. These often match primitive types in most programming languages: int, long, string, etc.
+→  There is a confined list of primitive types that a field can have. These often match primitive types in most programming languages: int, long, string, etc.
 
-&#8594; Often a field type can be marked as optional (sometimes referred to as nullable) or required.
+→  Often a field type can be marked as optional (sometimes referred to as nullable) or required.
 
 Often records have a nested structure. A nested structure occurs when a field itself has subfields so the type of the field itself has a schema. Fields that are array or map types is also a common feature of these structured records.
 
@@ -29,31 +29,31 @@ For example, consider the following schema, representing actions in a fictitious
 **Purchase**
 
 ```
-Field Name	        Field Type
-userId	                STRING
-itemId	                INT64
-shippingAddress	        ROW(ShippingAddress)
-cost	                INT64
-transactions	        ARRAY[ROW(Transaction)]
+Field Name              Field Type
+userId                  STRING
+itemId                  INT64
+shippingAddress         ROW(ShippingAddress)
+cost                    INT64
+transactions            ARRAY[ROW(Transaction)]
 ```
 
 **ShippingAddress**
 
 ```
-Field Name	        Field Type
-streetAddress	        STRING
-city	                STRING
-state	                nullable STRING
-country	                STRING
-postCode	        STRING
+Field Name              Field Type
+streetAddress           STRING
+city                    STRING
+state                   nullable STRING
+country                 STRING
+postCode                STRING
 ```
 
 **Transaction**
 
 ```
-Field Name	        Field Type
-bank	                STRING
-purchaseAmount	        DOUBLE
+Field Name              Field Type
+bank                    STRING
+purchaseAmount          DOUBLE
 ```
 
 Schemas provide us a type-system for Beam records that is independent of any specific programming-language type. There might be multiple Java classes that all have the same schema (for example a Protocol-Buffer class or a POJO class), and Beam will allow us to seamlessly convert between these types. Schemas also provide a simple way to reason about types across different programming-language APIs.
@@ -144,3 +144,10 @@ This is all that’s needed to generate a simple `AutoValue` class, and the abov
 
 `@SchemaFieldName` and `@SchemaIgnore` can be used to alter the schema inferred.
 
+### Playground exercise
+
+You can find the complete code of this example in the playground window you can run and experiment with.
+
+One of the differences you will notice is that it also contains the part to output `PCollection` elements to the console.
+
+Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.

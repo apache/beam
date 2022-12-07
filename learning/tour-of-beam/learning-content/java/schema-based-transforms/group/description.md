@@ -51,3 +51,11 @@ PCollection<Row> aggregated = purchases
 The result will be a new row schema containing the fields `total_cost`, ``top_purchases``, and `transactionDurations`, containing the sum of all purchases costs (for that user and country), the top ten purchases, and a histogram of transaction durations. The schema will also contain a key field, which will be a row containing userId and country.
 
 Note that usually the field type can be automatically inferred from the `Combine.CombineFn` passed in. However sometimes it cannot be inferred, due to Java type erasure, in which case a `Schema.Field` object containing the field type must be passed in. This is currently the case for `ApproximateQuantilesCombineFn` in the above example.
+
+### Playground exercise
+
+You can find the complete code of this example in the playground window you can run and experiment with.
+
+One of the differences you will notice is that it also contains the part to output `PCollection` elements to the console.
+
+Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.

@@ -16,33 +16,31 @@ limitations under the License.
 
 Most structured records share some common characteristics:
 
-&#8594; They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed tuples - have numerical indices instead.
+→  They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed tuples - have numerical indices instead.
 
-&#8594; There is a confined list of primitive types that a field can have. These often match primitive types in most programming languages: int, long, string, etc.
+→  There is a confined list of primitive types that a field can have. These often match primitive types in most programming languages: int, long, string, etc.
 
-&#8594; Often a field type can be marked as optional (sometimes referred to as nullable) or required.
+→  Often a field type can be marked as optional (sometimes referred to as nullable) or required.
 
 Often records have a nested structure. A nested structure occurs when a field itself has subfields so the type of the field itself has a schema. Fields that are array or map types is also a common feature of these structured records.
 
-For example, consider the following schema :
+For example, consider the following schema, representing actions in a fictitious e-commerce company:
 
 **Transaction**
 
 ```
-Field Name	        Field Type
-bank	                STRING
-purchase_amount	        DOUBLE
+Field Name              Field Type
+bank                    STRING
+purchaseAmount          DOUBLE
 ```
 
 ### Creating Schemas
-
 While schemas themselves are language independent, they are designed to embed naturally into the programming languages of the Beam SDK being used. This allows Beam users to continue using native types while reaping the advantage of having Beam understand their element schemas.
 
 Beam has a few different mechanisms for inferring schemas from Python code.
 
-#### NamedTuple classes
-
-A `NamedTuple` class is a Python class that wraps a tuple, assigning a name to each element and restricting it to a particular type. Beam will automatically infer the schema for `PCollections` with `NamedTuple` output types. For example:
+### NamedTuple classes
+A `NamedTuple` class is a Python class that wraps a tuple, assigning a name to each element and restricting it to a particular type. Beam will automatically infer the schema for PCollections with NamedTuple output types. For example:
 
 ```
 class Transaction(typing.NamedTuple):
@@ -52,15 +50,13 @@ class Transaction(typing.NamedTuple):
 pc = input | beam.Map(lambda ...).with_output_types(Transaction)
 ```
 
-
-#### beam.Row and Select
+### beam.Row and Select
 
 There are also methods for creating ad-hoc schema declarations. First, you can use a lambda that returns instances of `beam.Row`:
-
 ```
 input_pc = ... # {"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=item["bank"],
-                                                      purchase_amount=item["purchase_amount"])
+                                                      purchase_amount=item["purchase_amount"]
 ```
 
 Sometimes it can be more concise to express the same logic with the `Select` transform:

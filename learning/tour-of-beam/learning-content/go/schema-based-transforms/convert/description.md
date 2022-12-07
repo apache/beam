@@ -11,18 +11,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+### Converting between types
 
-# Joins
-
-A transform that performs equijoins across two schema PCollections.
-
-This transform allows joins between two input `PCollections` simply by specifying the fields to join on. The resulting `PCollection<Row>` will have two fields named "**lhs**" and "**rhs**" respectively, each with the schema of the corresponding input `PCollection`.
-
-### Supported methods
-
-* `Full outer join`
-* `Left outer join`
-* `Right outer join`
-* `Inner join`
-* `Left inner join`
-* `Right inner join`
+As mentioned, Beam can automatically convert between different Java types, as long as those types have equivalent schemas. One way to do this is by using the ```Convert``` transform, as follows.
