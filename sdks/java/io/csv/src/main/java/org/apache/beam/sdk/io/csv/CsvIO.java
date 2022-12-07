@@ -26,12 +26,14 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.Objects;
 import java.util.Optional;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.schemas.JavaFieldSchema.JavaFieldTypeSupplier;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -70,6 +72,8 @@ public class CsvIO {
     }
 
     private transient @Nullable PrintWriter writer;
+    private SimpleFunction<T, Row> elementToRowFn;
+    private SimpleFunction<Row, String> rowToStringFn;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
@@ -86,11 +90,22 @@ public class CsvIO {
     public void write(T element) throws IOException {}
 
     @Override
-    public void flush() throws IOException {}
+    public void flush() throws IOException {
+      if (writer == null) {
+        throw new IllegalStateException(String.format("%s writer is null", PrintWriter.class.getName()));
+      }
+      writer.flush();
+    }
+
+    SimpleFunction<T, String> getOrCreateUserTypeToRowFunction() {
+      return DEFA
+    }
 
     abstract @Nullable String getPreamble();
 
     abstract CSVFormat getCSVFormat();
+
+    abstract Class<T> getElementClass();
 
     abstract Schema getSchema();
 
@@ -104,6 +119,8 @@ public class CsvIO {
       abstract Builder<T> setCSVFormat(CSVFormat value);
 
       abstract Optional<CSVFormat> getCSVFormat();
+
+      abstract Builder<T> setElementClass(Class<T> value);
 
       abstract Sink<T> autoBuild();
 
