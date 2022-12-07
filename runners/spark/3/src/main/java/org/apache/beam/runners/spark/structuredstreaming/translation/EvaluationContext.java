@@ -22,7 +22,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
-import org.apache.spark.api.java.function.ForeachFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.execution.ExplainMode;
@@ -82,8 +81,8 @@ public final class EvaluationContext {
   public static <T> void evaluate(String name, Dataset<T> ds) {
     long startMs = System.currentTimeMillis();
     try {
-      // force evaluation using a dummy foreach action
-      ds.foreach(NOOP);
+      // force computation using noop format
+      ds.write().mode("overwrite").format("noop").save();
       LOG.info("Evaluated dataset {} in {}", name, durationSince(startMs));
     } catch (RuntimeException e) {
       LOG.error("Failed to evaluate dataset {}: {}", name, Throwables.getRootCause(e).getMessage());
@@ -114,7 +113,4 @@ public final class EvaluationContext {
   private static String durationSince(long startMs) {
     return Utils.msDurationToString(System.currentTimeMillis() - startMs);
   }
-
-  @SuppressWarnings("rawtypes")
-  private static final ForeachFunction NOOP = obj -> {};
 }
