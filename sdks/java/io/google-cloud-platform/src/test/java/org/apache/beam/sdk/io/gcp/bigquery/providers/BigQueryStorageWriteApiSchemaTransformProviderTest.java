@@ -22,11 +22,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiPCollectionRowTupleTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
@@ -36,7 +34,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
@@ -95,16 +92,10 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     List<BigQueryStorageWriteApiSchemaTransformConfiguration.Builder> invalidConfigs =
         Arrays.asList(
             BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
-                .setOutputTable("not_a_valid_table_spec"),
+                .setTable("not_a_valid_table_spec"),
             BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
-                .setOutputTable("project:dataset.table")
-                .setCreateDisposition("INVALID_DISPOSITION"),
-            BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
-                .setOutputTable("project:dataset.table")
-                .setJsonSchema("not a valid schema"),
-            BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
-                .setOutputTable("create_table:without.schema")
-                .setUseBeamSchema(false));
+                .setTable("project:dataset.table")
+                .setCreateDisposition("INVALID_DISPOSITION"));
 
     for (BigQueryStorageWriteApiSchemaTransformConfiguration.Builder config : invalidConfigs) {
       assertThrows(
@@ -139,10 +130,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   public void testSimpleWrite() throws Exception {
     String tableSpec = "project:dataset.simple_write";
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
-            .setOutputTable(tableSpec)
-            .setUseBeamSchema(true)
-            .build();
+        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(tableSpec).build();
 
     runWithConfig(config);
     p.run().waitUntilFinish();
@@ -150,91 +138,5 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     assertNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(tableSpec)));
     assertEquals(
         ROWS.size(), fakeDatasetService.getAllRows("project", "dataset", "simple_write").size());
-  }
-
-  @Test
-  public void testWithJsonSchema() throws Exception {
-    String tableSpec = "project:dataset.with_json_schema";
-
-    String jsonSchema =
-        "{"
-            + "  \"fields\": ["
-            + "    {"
-            + "      \"name\": \"name\","
-            + "      \"type\": \"STRING\","
-            + "      \"mode\": \"REQUIRED\""
-            + "    },"
-            + "    {"
-            + "      \"name\": \"number\","
-            + "      \"type\": \"INTEGER\","
-            + "      \"mode\": \"REQUIRED\""
-            + "    },"
-            + "    {"
-            + "      \"name\": \"dt\","
-            + "      \"type\": \"DATETIME\","
-            + "      \"mode\": \"REQUIRED\""
-            + "    }"
-            + "  ]"
-            + "}";
-
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
-            .setOutputTable(tableSpec)
-            .setJsonSchema(jsonSchema)
-            .build();
-
-    runWithConfig(config);
-    p.run().waitUntilFinish();
-
-    assertNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(tableSpec)));
-    assertEquals(
-        ROWS.size(),
-        fakeDatasetService.getAllRows("project", "dataset", "with_json_schema").size());
-  }
-
-  @Test
-  public void testFailedRows() {
-    String tableSpec = "project:dataset.with_json_schema";
-
-    String jsonSchema =
-        "{"
-            + "  \"fields\": ["
-            + "    {"
-            + "      \"name\": \"wrong_column\","
-            + "      \"type\": \"BOOLEAN\","
-            + "      \"mode\": \"REQUIRED\""
-            + "    }"
-            + "  ]"
-            + "}";
-
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
-            .setOutputTable(tableSpec)
-            .setJsonSchema(jsonSchema)
-            .setUseBeamSchema(false)
-            .build();
-
-    PCollectionRowTuple result = runWithConfig(config);
-    PCollection<Row> failedRows = result.get("ERROR_ROWS");
-
-    Schema errorSchema =
-        Schema.of(
-            Field.of("failed_row", FieldType.STRING), Field.of("error_message", FieldType.STRING));
-
-    List<Row> expectedFailedRows = new ArrayList<>();
-    for (Row row : ROWS) {
-      String failedTableRow = BigQueryUtils.toTableRow(row).toString();
-      String errorMessage =
-          "org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto$SchemaTooNarrowException: "
-              + "TableRow contained unexpected field with name name not found in schema for root";
-      expectedFailedRows.add(
-          Row.withSchema(errorSchema)
-              .withFieldValue("failed_row", failedTableRow)
-              .withFieldValue("error_message", errorMessage)
-              .build());
-    }
-
-    PAssert.that(failedRows).containsInAnyOrder(expectedFailedRows);
-    p.run().waitUntilFinish();
   }
 }

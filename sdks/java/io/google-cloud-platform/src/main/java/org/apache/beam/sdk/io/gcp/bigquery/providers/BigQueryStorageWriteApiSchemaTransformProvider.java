@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -56,8 +56,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery Storage Write API jobs
@@ -74,8 +72,7 @@ import org.slf4j.LoggerFactory;
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageWriteApiSchemaTransformProvider.class);
-
+  private static final Duration DEFAULT_TRIGGERING_FREQUENCY = Duration.standardSeconds(60);
   private static final String INPUT_ROWS_TAG = "INPUT_ROWS";
   private static final String OUTPUT_ERRORS_TAG = "ERROR_ROWS";
 
@@ -127,19 +124,17 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       // validate output table spec
       checkArgument(
-          !Strings.isNullOrEmpty(this.getOutputTable()),
+          !Strings.isNullOrEmpty(this.getTable()),
           invalidConfigMessage + "Table spec for a BigQuery Write must be specified.");
-      checkNotNull(BigQueryHelpers.parseTableSpec(this.getOutputTable()));
+      checkNotNull(BigQueryHelpers.parseTableSpec(this.getTable()));
 
       // validate create and write dispositions
-      CreateDisposition createDisposition = null;
       if (!Strings.isNullOrEmpty(this.getCreateDisposition())) {
         checkArgument(
             CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase()) != null,
             invalidConfigMessage
                 + "Invalid create disposition was specified. Available dispositions are: ",
             CREATE_DISPOSITIONS.keySet());
-        createDisposition = CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase());
       }
       if (!Strings.isNullOrEmpty(this.getWriteDisposition())) {
         checkNotNull(
@@ -148,32 +143,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                 + "Invalid write disposition was specified. Available dispositions are: ",
             WRITE_DISPOSITIONS.keySet());
       }
-
-      // validate schema
-      if (!Strings.isNullOrEmpty(this.getJsonSchema())) {
-        // check if a TableSchema can be deserialized from the input schema string
-        checkNotNull(BigQueryHelpers.fromJsonString(this.getJsonSchema(), TableSchema.class));
-      } else if (this.getUseBeamSchema() == null || !this.getUseBeamSchema()) {
-        // if no schema is provided, create disposition CREATE_NEVER has to be specified.
-        checkArgument(
-            createDisposition == CreateDisposition.CREATE_NEVER,
-            invalidConfigMessage
-                + "Create disposition is CREATE_IF_NEEDED, but no schema was provided.");
-      }
-
-      // validation checks for streaming writes
-      checkArgument(
-          this.getNumStorageWriteApiStreams() == null || this.getNumStorageWriteApiStreams() > 0,
-          invalidConfigMessage + "When set, numStorageWriteApiStreams must be > 0, but was: %s",
-          this.getNumStorageWriteApiStreams());
-      checkArgument(
-          this.getNumFileShards() == null || this.getNumFileShards() > 0,
-          invalidConfigMessage + "When set, numFileShards must be > 0, but was: %s",
-          this.getNumFileShards());
-      checkArgument(
-          this.getTriggeringFrequencySeconds() == null || this.getTriggeringFrequencySeconds() > 0,
-          invalidConfigMessage + "When set, the trigger frequency must be > 0, but was: %s",
-          this.getTriggeringFrequencySeconds());
     }
 
     /**
@@ -184,25 +153,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
           .Builder();
     }
 
-    public abstract String getOutputTable();
-
-    @Nullable
-    public abstract String getJsonSchema();
-
-    @Nullable
-    public abstract Boolean getUseBeamSchema();
+    public abstract String getTable();
 
     @Nullable
     public abstract String getCreateDisposition();
 
     @Nullable
     public abstract String getWriteDisposition();
-
-    @Nullable
-    public abstract Integer getNumStorageWriteApiStreams();
-
-    @Nullable
-    public abstract Integer getNumFileShards();
 
     @Nullable
     public abstract Integer getTriggeringFrequencySeconds();
@@ -213,19 +170,11 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setOutputTable(String tableSpec);
-
-      public abstract Builder setJsonSchema(String jsonSchema);
-
-      public abstract Builder setUseBeamSchema(Boolean useBeamSchema);
+      public abstract Builder setTable(String tableSpec);
 
       public abstract Builder setCreateDisposition(String createDisposition);
 
       public abstract Builder setWriteDisposition(String writeDisposition);
-
-      public abstract Builder setNumStorageWriteApiStreams(Integer numStorageWriteApiStreams);
-
-      public abstract Builder setNumFileShards(Integer numFileShards);
 
       public abstract Builder setTriggeringFrequencySeconds(Integer seconds);
 
@@ -281,7 +230,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform();
 
-      LOG.info("JSON SCHEMA: " + configuration.getJsonSchema());
+      if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
+        write =
+            write.withTriggeringFrequency(
+                configuration.getTriggeringFrequencySeconds() == null
+                    ? DEFAULT_TRIGGERING_FREQUENCY
+                    : Duration.standardSeconds(configuration.getTriggeringFrequencySeconds()));
+      }
+
       WriteResult result = inputRows.apply(write);
 
       Schema errorSchema =
@@ -313,20 +269,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                   && configuration.getUseAtLeastOnceSemantics()
               ? Method.STORAGE_API_AT_LEAST_ONCE
               : Method.STORAGE_WRITE_API;
+
       BigQueryIO.Write<Row> write =
           BigQueryIO.<Row>write()
-              .to(configuration.getOutputTable())
+              .to(configuration.getTable())
               .withMethod(writeMethod)
+              .useBeamSchema()
               .withFormatFunction(BigQueryUtils.toTableRow());
 
-      if (!Strings.isNullOrEmpty(configuration.getJsonSchema())) {
-        write =
-            write.withSchema(
-                BigQueryHelpers.fromJsonString(configuration.getJsonSchema(), TableSchema.class));
-      }
-      if (configuration.getUseBeamSchema() != null && configuration.getUseBeamSchema()) {
-        write = write.useBeamSchema();
-      }
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =
             BigQueryStorageWriteApiSchemaTransformConfiguration.CREATE_DISPOSITIONS.get(
@@ -338,17 +288,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             BigQueryStorageWriteApiSchemaTransformConfiguration.WRITE_DISPOSITIONS.get(
                 configuration.getWriteDisposition());
         write = write.withWriteDisposition(writeDisposition);
-      }
-      if (configuration.getNumStorageWriteApiStreams() != null) {
-        write = write.withNumStorageWriteApiStreams(configuration.getNumStorageWriteApiStreams());
-      }
-      if (configuration.getNumFileShards() != null) {
-        write = write.withNumFileShards(configuration.getNumFileShards());
-      }
-      if (configuration.getTriggeringFrequencySeconds() != null) {
-        write =
-            write.withTriggeringFrequency(
-                Duration.standardSeconds(configuration.getTriggeringFrequencySeconds()));
       }
 
       if (this.testBigQueryServices != null) {
