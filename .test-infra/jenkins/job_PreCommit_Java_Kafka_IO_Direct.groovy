@@ -30,7 +30,13 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
+      '^runners/core-construction-java/.*$',
       '^sdks/java/core/src/main/.*$',
+      '^sdks/java/testing/test-utils/.*$',
+      '^sdks/java/expansion-service/.*$',
+      '^sdks/java/io/common/.*$',
+      '^sdks/java/io/synthetic/.*$',
+      '^sdks/java/io/expansion-service/.*$',
       '^sdks/java/io/kafka/.*$',
     ],
     timeoutMins: 120,
