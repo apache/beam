@@ -79,7 +79,7 @@ set -xeu
 base_ref=${BASE_BRANCH}
 if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
 then
-  base_ref=origin/master
+  base_ref=master
 fi
 diff=$(git diff --name-only $base_ref "${COMMIT_SHA}" | tr '\n' ' ')
 
@@ -89,7 +89,7 @@ for sdk in "${sdks[@]}"
 do
     for allowpath in "${allowlist[@]}"
     do
-        python3 checker.py \
+        python3 playground/infrastructure/checker.py \
         --verbose \
         --sdk SDK_"${sdk^^}" \
         --allowlist "${allowpath}" \
@@ -151,7 +151,7 @@ echo "NAME=$NAME" && NAME=$NAME
 
 for sdk in "${sdks[@]}"
 do
-    python3 ci_cd.py \
+    python3 playground/infrastructure/ci_cd.py \
     --step $STEP \
     --sdk SDK_"${sdk^^}" \
     --origin "${ORIGIN}" \
