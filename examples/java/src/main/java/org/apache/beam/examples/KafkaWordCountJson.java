@@ -41,6 +41,9 @@ package org.apache.beam.examples;
 //          location: local
 //          format: json
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
@@ -57,50 +60,59 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
 public class KafkaWordCountJson {
-    static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
+  static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
 
-    public static void main(String[] args) {
-        final PipelineOptions options = PipelineOptionsFactory.create();
-        final Pipeline p = Pipeline.create(options);
+  public static void main(String[] args) {
+    final PipelineOptions options = PipelineOptionsFactory.create();
+    final Pipeline p = Pipeline.create(options);
 
-        final Map<String, Object> consumerConfig = new HashMap<>();
-        consumerConfig.put("auto.offset.reset", "earliest");
+    final Map<String, Object> consumerConfig = new HashMap<>();
+    consumerConfig.put("auto.offset.reset", "earliest");
 
-        p.apply(KafkaIO.<Long, String>read()
-                        .withBootstrapServers("kafka_server:9092") // The argument is predefined to a correct value. Do not change it manually.
-                        .withTopicPartitions(Collections.singletonList(new TopicPartition("dataset", 0))) // The argument is predefined to a correct value. Do not change it manually.
-                        .withKeyDeserializer(LongDeserializer.class)
-                        .withValueDeserializer(StringDeserializer.class)
-                        .withConsumerConfigUpdates(consumerConfig)
-                        .withMaxNumRecords(5)
-                        .withoutMetadata()
-                )
-                .apply(Values.create())
-                .apply("ExtractWords", ParDo.of(new DoFn<String, String>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                        for (String word : c.element().split(TOKENIZER_PATTERN, 0)) {
-                            if (!word.isEmpty()) {
-                                c.output(word);
-                            }
-                        }
+    p.apply(
+            KafkaIO.<Long, String>read()
+                .withBootstrapServers(
+                    "kafka_server:9092") // The argument is predefined to a correct value. Do not
+                // change it manually.
+                .withTopicPartitions(
+                    Collections.singletonList(
+                        new TopicPartition(
+                            "dataset",
+                            0))) // The argument is predefined to a correct value. Do not change it
+                // manually.
+                .withKeyDeserializer(LongDeserializer.class)
+                .withValueDeserializer(StringDeserializer.class)
+                .withConsumerConfigUpdates(consumerConfig)
+                .withMaxNumRecords(5)
+                .withoutMetadata())
+        .apply(Values.create())
+        .apply(
+            "ExtractWords",
+            ParDo.of(
+                new DoFn<String, String>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    for (String word : c.element().split(TOKENIZER_PATTERN, 0)) {
+                      if (!word.isEmpty()) {
+                        c.output(word);
+                      }
                     }
+                  }
                 }))
-                .apply(Count.perElement())
-                .apply("FormatResults", MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
-                    @Override
-                    public String apply(KV<String, Long> input) {
-                        System.out.printf("key: %s, value: %d%n", input.getKey(), input.getValue());
-                        return input.getKey() + ": " + input.getValue();
-                    }
+        .apply(Count.perElement())
+        .apply(
+            "FormatResults",
+            MapElements.via(
+                new SimpleFunction<KV<String, Long>, String>() {
+                  @Override
+                  public String apply(KV<String, Long> input) {
+                    System.out.printf("key: %s, value: %d%n", input.getKey(), input.getValue());
+                    return input.getKey() + ": " + input.getValue();
+                  }
                 }))
-                .apply(TextIO.write().to("word-counts"));
+        .apply(TextIO.write().to("word-counts"));
 
-        p.run().waitUntilFinish();
-    }
+    p.run().waitUntilFinish();
+  }
 }
