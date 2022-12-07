@@ -159,9 +159,6 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([(1, 'empty'), (2, 'empty')]))
     pipeline.run()
 
-  # TODO(https://github.com/apache/beam/issues/19012): Disable this test in
-  # streaming temporarily. Remove sickbay-streaming tag after it's fixed.
-  @pytest.mark.no_sickbay_streaming
   @pytest.mark.it_validatesrunner
   def test_multi_valued_singleton_side_input(self):
     pipeline = self.create_pipeline()
