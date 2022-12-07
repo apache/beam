@@ -58,7 +58,7 @@ BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
 BEAM_CONCURRENCY=4 \
 SERVER_ADDRESS=localhost:8080 \
 BEAM_VERSION=2.43.0 \
-sdks=("go" "java" "python") \
+sdks=("python" "java" "go") \
 allowlist=("playground/backend" \
 "playground/infrastructure")
 
@@ -134,6 +134,7 @@ then
             # Java uses a fixed BEAM_VERSION
             opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
         fi
+
       ./gradlew -i playground:backend:containers:${sdk}:docker ${opts}
       done
 
