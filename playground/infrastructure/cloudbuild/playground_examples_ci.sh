@@ -135,18 +135,24 @@ if [[ -n "$SDK_TAG" ]]
 then
       opts="$opts -Psdk-tag=$SDK_TAG"
 fi
-if [[ "$SDK" == "java" ]]
-then
+for sdk in "${sdks[@]}"
+do
+  if [[ "$sdk" == "java" ]]
+  then
       # Java uses a fixed BEAM_VERSION
       opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
-fi
+  fi
+done
 
 # by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks
 # TODO Java SDK doesn't, it uses 2.42.0, fix this
 cd ../..
-./gradlew -i playground:backend:containers:"$SDK":docker "$opts"
+for sdk in "${sdks[@]}"
+do
+    ./gradlew -i playground:backend:containers:"$sdk":docker "$opts"
 
-echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG" && IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG
+    echo "IMAGE_TAG=apache/beam_playground-backend-$sdk:$DOCKERTAG" && IMAGE_TAG=apache/beam_playground-backend-$sdk:$DOCKERTAG
+done
 
 set -uex
 NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP "$IMAGE_TAG")
