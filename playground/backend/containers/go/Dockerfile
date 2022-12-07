@@ -22,8 +22,6 @@ ARG SDK_TAG
 ARG SDK_TAG_LOCAL
 
 # Setup Go Environment
-ENV GO111MODULE=on
-ENV GOPRIVATE=github.com/akvelon/beam
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" &&\
