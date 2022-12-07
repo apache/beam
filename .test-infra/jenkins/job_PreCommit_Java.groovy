@@ -36,7 +36,18 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^release/.*$',
     ],
     excludePathPatterns: [
-      '^sdks/java/extensions/sql/.*$'
+      '^sdks/java/extensions/sql/.*$',
+      '^sdks/java/io/amazon-web-services/.*$',
+      '^sdks/java/io/amazon-web-services2/.*$',
+      '^sdks/java/io/cassandra/.*$',
+      '^sdks/java/io/clickhouse/.*$',
+      '^sdks/java/io/debezium/.*$',
+      '^sdks/java/io/google-cloud-platform/.*$',
+      '^sdks/java/io/jdbc/.*$',
+      '^sdks/java/io/kafka/.*$',
+      '^sdks/java/io/kinesis/.*$',
+      '^sdks/java/io/neo4j/.*$',
+      '^sdks/java/io/pulsar/.*$',
     ]
     )
 builder.build {
