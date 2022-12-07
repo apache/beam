@@ -94,7 +94,7 @@ class CrossLanguageTestPipelines(object):
           | beam.Create(['a', 'b']).with_output_types(str)
           | beam.ExternalTransform(
               TEST_PREFIX_URN,
-              ImplicitSchemaPayloadBuilder({'data': u'0'}),
+              ImplicitSchemaPayloadBuilder({'data': '0'}),
               self.expansion_service))
       assert_that(res, equal_to(['0a', '0b']))
 
@@ -284,9 +284,8 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     CrossLanguageTestPipelines().run_combine_per_key(
         test_pipeline or self.create_pipeline())
 
-  # TODO: enable after fixing BEAM-10507
-  # @pytest.mark.uses_java_expansion_service
-  # @pytest.mark.uses_python_expansion_service
+  @pytest.mark.uses_java_expansion_service
+  @pytest.mark.uses_python_expansion_service
   def test_flatten(self, test_pipeline=None):
     CrossLanguageTestPipelines().run_flatten(
         test_pipeline or self.create_pipeline())
