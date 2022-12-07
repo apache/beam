@@ -105,55 +105,59 @@ else
     echo "Example has NOT been changed"
 fi
 
-rm ~/.m2/settings.xml
+if [[ ${example_has_changed} == True ]]
+then
 
-if [[ -z ${TAG_NAME} ]]
-then
-      DOCKERTAG=${COMMIT_SHA} && echo "DOCKERTAG=${COMMIT_SHA}"
-elif [[ -z ${COMMIT_SHA} ]]
-then
-      DOCKERTAG=${TAG_NAME} && echo "DOCKERTAG=${TAG_NAME}"
+      rm ~/.m2/settings.xml
+
+      if [[ -z ${TAG_NAME} ]]
+      then
+            DOCKERTAG=${COMMIT_SHA} && echo "DOCKERTAG=${COMMIT_SHA}"
+      elif [[ -z ${COMMIT_SHA} ]]
+      then
+            DOCKERTAG=${TAG_NAME} && echo "DOCKERTAG=${TAG_NAME}"
+      fi
+
+      set -uex
+      for sdk in "${sdks[@]}"
+      do
+        if [[ "$sdk" == "python" ]]
+        then
+            # builds apache/beam_python3.7_sdk:$DOCKERTAG image
+            ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
+            # and set SDK_TAG to DOCKERTAG so that the next step would find it
+            echo "SDK_TAG=${DOCKERTAG}" && SDK_TAG=${DOCKERTAG}
+        fi
+      done
+
+      set -ex
+      opts=" -Pdocker-tag=$DOCKERTAG"
+      if [[ -n "${SDK_TAG}" ]]
+      then
+            opts="${opts} -Psdk-tag=${SDK_TAG}"
+      fi
+      for sdk in "${sdks[@]}"
+      do
+        if [[ "$sdk" == "java" ]]
+        then
+            # Java uses a fixed BEAM_VERSION
+            opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
+        fi
+      ./gradlew -i playground:backend:containers:${sdk}:docker ${opts}
+      done
+
+      echo "IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}" && IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
+
+      set -uex
+      NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP "$IMAGE_TAG")
+      echo "NAME=$NAME" && NAME=$NAME
+
+      for sdk in "${sdks[@]}"
+      do
+          python3 playground/infrastructure/ci_cd.py \
+          --step $STEP \
+          --sdk SDK_"${sdk^^}" \
+          --origin "${ORIGIN}" \
+          --subdirs "${SUBDIRS}"
+      done
 fi
-
-set -uex
-for sdk in "${sdks[@]}"
-do
-  if [[ "$sdk" == "python" ]]
-  then
-      # builds apache/beam_python3.7_sdk:$DOCKERTAG image
-      ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
-      # and set SDK_TAG to DOCKERTAG so that the next step would find it
-      echo "SDK_TAG=${DOCKERTAG}" && SDK_TAG=${DOCKERTAG}
-  fi
-done
-
-set -ex
-opts=" -Pdocker-tag=$DOCKERTAG"
-if [[ -n "${SDK_TAG}" ]]
-then
-      opts="${opts} -Psdk-tag=${SDK_TAG}"
-fi
-for sdk in "${sdks[@]}"
-do
-  if [[ "$sdk" == "java" ]]
-  then
-      # Java uses a fixed BEAM_VERSION
-      opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
-  fi
-./gradlew -i playground:backend:containers:${sdk}:docker ${opts}
-done
-
-echo "IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}" && IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
-
-set -uex
-NAME=$(docker run -d --rm -p 8080:8080 -e PROTOCOL_TYPE=TCP "$IMAGE_TAG")
-echo "NAME=$NAME" && NAME=$NAME
-
-for sdk in "${sdks[@]}"
-do
-    python3 playground/infrastructure/ci_cd.py \
-    --step $STEP \
-    --sdk SDK_"${sdk^^}" \
-    --origin "${ORIGIN}" \
-    --subdirs "${SUBDIRS}"
-done
