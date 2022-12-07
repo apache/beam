@@ -268,23 +268,21 @@ The key points to know:
 - The release branch has the SNAPSHOT/dev version to be released.
 - The Dataflow container image should be modified to the version to be released.
 
-This will all be accomplished by the [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
-script.
+This will all be accomplished by executing the [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml)
+GitHub Action.
 
 After cutting the branch, you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
 
-#### Use cut_release_branch.sh to cut a release branch
-* **Script:** [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
+#### Use cut_release_branch to cut a release branch
+* **GitHub Action:** [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml)
 
 * **Usage**
   ```
-  # Cut a release branch
-  ./beam/release/src/main/scripts/cut_release_branch.sh \
-  --release=${RELEASE_VERSION} \
-  --next_release=${NEXT_VERSION}
-
-  # Show help page
-  ./beam/release/src/main/scripts/cut_release_branch.sh -h
+  Navigate to the link above. Once there, click the 'Run workflow' dropdown.
+  Next, fill the required parameters: 'Beam version of current release' and
+  'Next release version'.
+  Click the 'Run workflow' button.
+  
   ```
 
 ### Start a snapshot build
@@ -293,18 +291,22 @@ Start a build of [the nightly snapshot](https://ci-beam.apache.org/job/beam_Rele
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version from the `master` branch.
 Once the release branch is cut, these SNAPSHOT versions are no longer found, so builds will be broken until a new snapshot is available.
 
-There are 2 ways to trigger a nightly build, either using automation script(recommended), or perform all operations manually.
+There are 2 ways to trigger a nightly build, either using the GitHub Action(recommended), or perform all operations manually.
 
-#### Run start_snapshot_build.sh to trigger build
-* **Script:** [start_snapshot_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh)
+#### Run start_snapshot_build to trigger build
+* **GitHub Action:** [start_snapshot_build](https://github.com/apache/beam/actions/workflows/start_snapshot_build.yml)
 
 * **Usage**
 
-      ./beam/release/src/main/scripts/start_snapshot_build.sh
+```
+  Navigate to the link above. Once there, click the 'Run workflow' dropdown.
+  Next, fill the required parameters: 'Your beam repo URL'
+  Click the 'Run workflow' button.
 
-* **The script will:**
-  1. Install [hub](https://github.com/github/hub) with your agreement.
-  1. Touch an empty txt file and commit changes into ```${your remote beam repo}/snapshot_build```
+  ```
+
+* **The GitHub Action will:**
+  1. Touch an empty txt file and commit changes into ```${your beam repo URL}/snapshot_build```
   1. Use hub to create a PR against apache:master, which triggers a Jenkins job to build snapshot.
 
 * Tasks you need to do manually to __verify the SNAPSHOT build__
@@ -324,25 +326,25 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 ## 6. Verify release branch
 
 After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
-There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
+There are 2 ways to perform this verification, either running the GitHub Action(recommended), or running all commands manually.
 
 ! Dataflow tests will fail if Dataflow worker container is not created and published by this time. (Should be done by Google)
 
-#### Run automation script (verify_release_build.sh)
-* **Script:** [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
+#### Run automation script (verify_release_build)
+* **GitHub Action:** [verify_release_build](https://github.com/apache/beam/actions/workflows/verify_release_build.yml)
 
 * **Usage**
-  1. Create a personal access token from your Github account.
-  See instruction [here](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line).
-     It'll be used by the script for accessing Github API.
-     You only need to enable "repo" permissions to this token.
-  1. Update required configurations listed in `RELEASE_BUILD_CONFIGS` in [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
-  1. Then run
+  1. 
      ```
-     cd beam/release/src/main/scripts && ./verify_release_build.sh
+       Navigate to the link above. Once there, click the 'Run workflow' dropdown.
+       Next, fill the required parameters: 'RELEASE_VER' and 'COMMENT_TRIGGER_PHRASES'
+       Click the 'Run workflow' button.
      ```
-  1. Trigger `beam_Release_Gradle_Build` and all Jenkins PostCommit jobs from the PR created by the previous step.
-     You can run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
+     
+* **Tasks performed by the GitHub Action**
+  1. Create a test PR against release branch;
+  1. Triggers PostCommit jobs listed [here](https://github.com/apache/beam/blob/master/scripts/ci/release/test/resources/mass_comment.txt)
+     You can also run [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to do that.
      Or manually add one trigger phrase per PR comment.
      See `COMMENTS_TO_ADD` in [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
      for full list of phrases. Please note that this list of phrases can get
@@ -350,10 +352,6 @@ There are 2 ways to perform this verification, either running automation script(
      the ones listed there.
      [BEAM-13951](https://issues.apache.org/jira/browse/BEAM-13951) has
      directions for updating this list using the Jenkins API.
-
-* **Tasks included in the script**
-  1. Installs ```hub``` with your agreement and setup local git repo;
-  1. Create a test PR against release branch;
 
 The [`beam_Release_Gradle_Build`](https://ci-beam.apache.org/job/beam_Release_Gradle_Build/) Jenkins job runs `./gradlew build -PisRelease`.
 This only verifies that everything builds with unit tests passing.
@@ -520,21 +518,19 @@ The final state of the repository should match this diagram:
 - There is a commit not on the release branch with the version adjusted.
 - The RC tag points to that commit.
 
-* **Script:** [choose_rc_commit.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/choose_rc_commit.sh)
+* **GitHub Action:** [choose_rc_commit](https://github.com/apache/beam/actions/workflows/choose_rc_commit.yml)
 
 * **Usage**
 
-      ./beam/release/src/main/scripts/choose_rc_commit.sh \
-          --release "${RELEASE_VERSION}" \
-          --rc "${RC_NUM}" \
-          --commit "${COMMIT_REF}" \
-          --clone \
-          --push-tag
+     ```
+       Navigate to the link above. Once there, click the 'Run workflow' dropdown.
+       Next, fill the required parameters: 'RELEASE', 'RC', 'COMMIT'
+       Click the 'Run workflow' button.
+     ```
 
-You can do a dry run by omitting the `--push-tag` flag. Then it will only clone the repo,
-adjust the version, and add the tag locally. If it looks good, run it again with `--push-tag`.
-If you already have a clone that includes the `${COMMIT_REF}` then you can omit `--clone`. This
-is perfectly safe since the script does not depend on the current working tree.
+You can do a dry run by setting the `PUSH_TAG` parameter to `yes`. Then it will only clone the repo,
+adjust the version, and add the tag locally. If it looks good, run the GitHub Action again with
+`PUSH_TAG` parameter set to `no`.
 
 See the source of the script for more details, or to run commands manually in case of a problem.
 
@@ -551,53 +547,78 @@ See the source of the script for more details, or to run commands manually in ca
   1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
-  1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
+
+#### Tasks you need to do manually
+1. Verify the script worked.
+   1. Verify that the source and Python binaries are present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
+1. Publish staging artifacts
+    1. Log in to the [Apache Nexus](https://repository.apache.org/#stagingRepositories) website.
+    1. Navigate to Build Promotion -> Staging Repositories (in the left sidebar).
+    1. Select repository `orgapachebeam-NNNN`.
+    1. Click the Close button.
+    1. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
+    1. Review all staged artifacts on `https://repository.apache.org/content/repositories/orgapachebeam-NNNN/`.
+       They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
+       Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
+       Carefully review any new artifacts.
+
+### Run Push All Docker Images GitHub Action to deploy to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
+
+* **GitHub Action:** [push_all_docker_images](https://github.com/apache/beam/actions/workflows/push_all_docker_images.yml)
+
+* **Usage**
+
+    ```
+       Navigate to the link above. Once there, click the 'Run workflow' dropdown.
+       Next, fill the required parameters: 'RELEASE', 'RC_TAG' and 'RC'.
+       Click the 'Run workflow' button.
+     ```
+#### Tasks you need to do manually
+1. Verify Docker images are published. How to find images:
+   1. Visit [https://hub.docker.com/u/apache](https://hub.docker.com/search?q=apache%2Fbeam&type=image)
+   2. Visit each repository and navigate to *tags* tab.
+   3. Verify images are pushed with tags: ${RELEASE_VERSION}_rc{RC_NUM}
+1. Verify that third party licenses are included in Docker containers by logging in to the images.
+    - For Python SDK images, there should be around 80 ~ 100 dependencies.
+      Please note that dependencies for the SDKs with different Python versions vary.
+      Need to verify all Python images by replacing `${ver}` with each supported Python version `X.Y`.
+    ```
+    docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
+    ls -al /opt/apache/beam/third_party_licenses/ | wc -l
+    ```
+    - For Java SDK images, there should be around 200 dependencies.
+    ```
+    docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
+    ls -al /opt/apache/beam/third_party_licenses/ | wc -l
+
+### Run Update Beam Site GitHub Action.
+
+* **GitHub Action:** [update_beam_site](https://github.com/apache/beam/actions/workflows/update_beam_site.yml)
+
+* **Usage**
+
+    ```
+       Navigate to the link above. Once there, click the 'Run workflow' dropdown.
+       Next, fill the required parameters: 'RELEASE', 'RC_TAG' and 'RC_NUM'.
+       Click the 'Run workflow' button.
+     ```
+
+* **The GitHub Action will:**
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
 
-#### Tasks you need to do manually
-  1. Verify the script worked.
-      1. Verify that the source and Python binaries are present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
-      1. Verify Docker images are published. How to find images:
-          1. Visit [https://hub.docker.com/u/apache](https://hub.docker.com/search?q=apache%2Fbeam&type=image)
-          2. Visit each repository and navigate to *tags* tab.
-          3. Verify images are pushed with tags: ${RELEASE_VERSION}_rc{RC_NUM}
-      1. Verify that third party licenses are included in Docker containers by logging in to the images.
-          - For Python SDK images, there should be around 80 ~ 100 dependencies.
-          Please note that dependencies for the SDKs with different Python versions vary.
-          Need to verify all Python images by replacing `${ver}` with each supported Python version `X.Y`.
-          ```
-          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
-          ls -al /opt/apache/beam/third_party_licenses/ | wc -l
-          ```
-          - For Java SDK images, there should be around 200 dependencies.
-          ```
-          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE_VERSION}_rc{RC_NUM}
-          ls -al /opt/apache/beam/third_party_licenses/ | wc -l
-          ```
-  1. Publish staging artifacts
-      1. Log in to the [Apache Nexus](https://repository.apache.org/#stagingRepositories) website.
-      1. Navigate to Build Promotion -> Staging Repositories (in the left sidebar).
-      1. Select repository `orgapachebeam-NNNN`.
-      1. Click the Close button.
-      1. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
-      1. Review all staged artifacts on `https://repository.apache.org/content/repositories/orgapachebeam-NNNN/`.
-         They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
-         Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
-         Carefully review any new artifacts.
-
 ### Upload release candidate to PyPi
 
-* **Script:** [deploy_release_candidate_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh)
+* **GitHub Action:** [deploy_release_candidate_pypi](https://github.com/apache/beam/actions/workflows/deploy_release_candidate_pypi.yml)
 
 * **Usage**
 
-		./release/src/main/scripts/deploy_release_candidate_pypi.sh \
-		    --release "${RELEASE_VERSION}" \
-		    --rc "${RC_NUM}" \
-		    --user "${GITHUB_USER}" \
-		    --deploy
+     ```
+       Navigate to the link above. Once there, click the 'Run workflow' dropdown.
+       Next, fill the required parameters: 'RELEASE', 'RC_NUMBER' and 'DEPLOY' to 'yes'. 
+       Click the 'Run workflow' button.
+     ```
 
 * **The script will:**
 	1. Download python binary artifacts
@@ -610,9 +631,10 @@ __Attention:__ Verify that:
   * Release source's zip published
   * Signatures and hashes do not need to be uploaded
 
-You can do a dry run by omitting the `--deploy` flag. Then it will only download the release candidate binaries. If it looks good, rerun it with `--deploy`.
+You can do a dry run by setting the `DEPLOY` parameter to `no`. Then it will only download the release candidate binaries.
+If it looks good, rerun it with `DEPLOY` parameter set to `yes`.
 
-See the source of the script for more details or to run commands manually in case of a problem.
+See the source of the GitHub Action for more details or to run commands manually in case of a problem.
 
 
 
