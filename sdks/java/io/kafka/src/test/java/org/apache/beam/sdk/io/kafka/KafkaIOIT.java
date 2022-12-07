@@ -566,6 +566,7 @@ public class KafkaIOIT {
 
   public void runReadWriteKafkaViaSchemaTransforms(
       String format, String schemaDefinition, Schema beamSchema) {
+    String topicName = options.getKafkaTopic() + "-schema-transform" + UUID.randomUUID();
     PCollectionRowTuple.of(
             "input",
             writePipeline
@@ -595,7 +596,7 @@ public class KafkaIOIT {
                 .from(
                     KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration
                         .builder()
-                        .setTopic(options.getKafkaTopic() + "-schema-transform")
+                        .setTopic(topicName)
                         .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
                         .setFormat(format)
                         .build())
@@ -614,7 +615,7 @@ public class KafkaIOIT {
                                 .setDataFormat(format)
                                 .setAutoOffsetResetConfig("earliest")
                                 .setSchema(schemaDefinition)
-                                .setTopic(options.getKafkaTopic() + "-schema-transform")
+                                .setTopic(topicName)
                                 .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
                                 .build())
                         .buildTransform())
