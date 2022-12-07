@@ -62,9 +62,7 @@ BEAM_CONCURRENCY=4 \
 SERVER_ADDRESS=localhost:8080 \
 BEAM_VERSION=2.43.0 \
 sdks=("go" "java" "python") \
-allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
-".github/workflows/playground_examples_ci.yml" \
-"playground/backend" \
+allowlist=("playground/backend" \
 "playground/infrastructure")
 
 echo "Environment variables exported"
@@ -92,12 +90,12 @@ do
         --sdk SDK_"${sdk^^}" \
         --allowlist "${allowpath}" \
         --paths "${diff}"
-    if [[ $? -eq 0 ]]
-    then
-        example_has_changed=True
-    else
-        example_has_changed=False
-    fi
+        if [[ $? -eq 0 ]]
+        then
+            example_has_changed=True
+        else
+            example_has_changed=False
+        fi
     done
 done
 
