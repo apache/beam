@@ -29,7 +29,7 @@ export \
 ORIGIN=PG_EXAMPLES \
 STEP=CD \
 SUBDIRS="././learning/katas ././examples ././sdks" \
-GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
+GOOGLE_CLOUD_PROJECT=${PROJECT_ID} \
 BEAM_ROOT_DIR="../../" \
 SDK_CONFIG="../../playground/sdks.yaml" \
 BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
@@ -40,10 +40,10 @@ sdks=("go" "java" "python")
 # Run CD script to deploy Examples to Playground for Go, Java, Python SDK
 for sdk in "${sdks[@]}"
 do
-  export SERVER_ADDRESS=https://"${sdk}"."${DNS_NAME}"
+  export SERVER_ADDRESS=https://${sdk}.${DNS_NAME}
   python3 ci_cd.py \
   --step ${STEP} \
   --sdk SDK_"${sdk^^}" \
-  --origin "${ORIGIN}" \
-  --subdirs "${SUBDIRS}"
+  --origin ${ORIGIN} \
+  --subdirs ${SUBDIRS}
 done

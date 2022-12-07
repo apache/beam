@@ -25,7 +25,7 @@ steps:
         && ./playground/infrastructure/cloudbuild/playground_examples_cd.sh
     env:
       - 'DNS_NAME=${_DNS_NAME}'
-      - 'PROJECT_ID=${PROJECT_ID}'
+      - 'PROJECT_ID=$PROJECT_ID'
 
 options:
   logging: CLOUD_LOGGING_ONLY
