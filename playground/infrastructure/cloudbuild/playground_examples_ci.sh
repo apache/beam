@@ -25,6 +25,7 @@ apt-get install -y software-properties-common curl unzip > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
 apt install --reinstall python3.8-distutils
+pip install --upgrade google-api-python-client
 python3.8 -m pip install pip --upgrade
 ln -s /usr/bin/python3.8 /usr/bin/python
 # Install jdk and gradle
