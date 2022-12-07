@@ -24,6 +24,8 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get install -y software-properties-common curl unzip > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3-pip > /dev/null
+python3.8 -m pip install pip --upgrade
+ln -s /usr/bin/python3.8 /usr/bin/python
 # Install jdk and gradle
 apt-get install openjdk-8-jdk -y > /dev/null
 curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip
@@ -59,6 +61,38 @@ allowlist=(".github/workflows/playground_examples_ci_reusable.yml" \
 
 echo "Environment variables exported"
 
+# Get Difference
+set -xeu
+# define the base ref
+base_ref=${BRANCH_NAME}
+if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
+then
+  base_ref=origin/master
+fi
+diff=$(git diff --name-only $base_ref "${COMMIT_SHA}" | tr '\n' ' ')
+
+# Check if there are Examples
+set +e -ux
+for sdk in "${sdks[@]}"
+do
+    for allowpath in "${allowlist[@]}"
+    do
+        python3 checker.py \
+        --verbose \
+        --sdk SDK_"${sdk^^}" \
+        --allowlist "${allowpath}" \
+        --paths "${diff}"
+    done
+done
+if [[ $? -eq 0 ]]
+then
+    example_has_changed=True
+    echo "Example has been changed"
+else
+    example_has_changed=False
+    echo "Example has NOT been changed"
+fi
+
 rm ~/.m2/settings.xml
 
 if [[ -z ${TAG_NAME} ]]
@@ -76,6 +110,10 @@ do
   then
       # builds apache/beam_python3.7_sdk:$DOCKERTAG image
       cd ../..
+      echo "This is pip list beginning"
+      pip freeze
+      pip --version
+      echo "This is pip list beginning"
       ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag="$DOCKERTAG"
       # and set SDK_TAG to DOCKERTAG so that the next step would find it
       echo "SDK_TAG=${DOCKERTAG}" && SDK_TAG=${DOCKERTAG}
