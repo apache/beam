@@ -81,7 +81,7 @@ if [[ -z "$base_ref" ]] || [[ "$base_ref" == "master" ]]
 then
   base_ref=master
 fi
-diff=$(git diff --name-only $base_ref "${COMMIT_SHA}" | tr '\n' ' ')
+diff=$(git diff --name-only $base_ref | tr '\n' ' ')
 
 # Check if there are Examples
 set +e -ux
