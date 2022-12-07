@@ -46,6 +46,10 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
 apt update > /dev/null && apt install -y docker-ce > /dev/null
 
+
+ls -la && echo "LS -LA"
+pwd && echo "PWD"
+
 pip install -r playground/infrastucture/requirements.txt > /dev/null
 
 echo "Dependencies installed"
@@ -138,7 +142,7 @@ do
   if [[ "$sdk" == "java" ]]
   then
       # Java uses a fixed BEAM_VERSION
-      opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
+      opts="$opts -Pbase-image=apache/beam_java8_sdk:2.43.0"
   fi
 done
 
