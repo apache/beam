@@ -20,20 +20,25 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java_Neo4j_IO_Direct',
+    nameBase: 'Java_Hadoop_IO_Direct',
     gradleTasks: [
-      ':sdks:java:io:neo4j:build',
-      ':sdks:java:io:kinesis:integrationTest',
+      ':sdks:java:io:hadoop-common:build',
+      ':sdks:java:io:hadoop-file-system:build',
+      ':sdks:java:io:hadoop-format:build',
     ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true'
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
+      '^examples/java/.*$',
       '^sdks/java/core/src/main/.*$',
       '^sdks/java/testing/test-utils/.*$',
       '^sdks/java/io/common/.*$',
-      '^sdks/java/io/neo4j/.*$',
+      '^sdks/java/io/jdbc/.*$',
+      '^sdks/java/io/hadoop-common/.*$',
+      '^sdks/java/io/hadoop-file-system/.*$',
+      '^sdks/java/io/hadoop-format/.*$',
     ],
     timeoutMins: 60,
     )

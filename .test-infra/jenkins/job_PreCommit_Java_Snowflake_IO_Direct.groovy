@@ -20,10 +20,10 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java_Neo4j_IO_Direct',
+    nameBase: 'Java_Snowflake_IO_Direct',
     gradleTasks: [
-      ':sdks:java:io:neo4j:build',
-      ':sdks:java:io:kinesis:integrationTest',
+      ':sdks:java:io:snowflake:build',
+      ':sdks:java:io:snowflake:expansion-service:build',
     ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
@@ -31,9 +31,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^sdks/java/core/src/main/.*$',
+      '^sdks/java/extensions/google-cloud-platform-core/.*$',
       '^sdks/java/testing/test-utils/.*$',
       '^sdks/java/io/common/.*$',
-      '^sdks/java/io/neo4j/.*$',
+      '^sdks/java/io/snowflake/.*$',
     ],
     timeoutMins: 60,
     )

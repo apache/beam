@@ -20,10 +20,14 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java_Neo4j_IO_Direct',
+    nameBase: 'Java_ElasticSearch_IO_Direct',
     gradleTasks: [
-      ':sdks:java:io:neo4j:build',
-      ':sdks:java:io:kinesis:integrationTest',
+      ':sdks:java:io:elasticsearch-tests:elasticsearch-tests-5:build',
+      ':sdks:java:io:elasticsearch-tests:elasticsearch-tests-6:build',
+      ':sdks:java:io:elasticsearch-tests:elasticsearch-tests-7:build',
+      ':sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build',
+      ':sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build',
+      ':sdks:java:io:elasticsearch:build',
     ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
@@ -31,9 +35,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^sdks/java/core/src/main/.*$',
-      '^sdks/java/testing/test-utils/.*$',
       '^sdks/java/io/common/.*$',
-      '^sdks/java/io/neo4j/.*$',
+      '^sdks/java/io/elasticsearch/.*$',
+      '^sdks/java/io/elasticsearch-tests/.*$',
     ],
     timeoutMins: 60,
     )

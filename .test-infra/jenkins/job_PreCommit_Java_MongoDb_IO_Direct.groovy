@@ -20,10 +20,9 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java_Neo4j_IO_Direct',
+    nameBase: 'Java_MongoDb_IO_Direct',
     gradleTasks: [
-      ':sdks:java:io:neo4j:build',
-      ':sdks:java:io:kinesis:integrationTest',
+      ':sdks:java:io:mongodb:build',
     ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
@@ -33,7 +32,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/java/core/src/main/.*$',
       '^sdks/java/testing/test-utils/.*$',
       '^sdks/java/io/common/.*$',
-      '^sdks/java/io/neo4j/.*$',
+      '^sdks/java/io/mongodb/.*$',
     ],
     timeoutMins: 60,
     )

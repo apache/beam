@@ -20,10 +20,9 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Java_Neo4j_IO_Direct',
+    nameBase: 'Java_Azure_IO_Direct',
     gradleTasks: [
-      ':sdks:java:io:neo4j:build',
-      ':sdks:java:io:kinesis:integrationTest',
+      ':sdks:java:io:azure:build',
     ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
@@ -31,9 +30,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^sdks/java/core/src/main/.*$',
-      '^sdks/java/testing/test-utils/.*$',
-      '^sdks/java/io/common/.*$',
-      '^sdks/java/io/neo4j/.*$',
+      '^sdks/java/io/azure/.*$',
     ],
     timeoutMins: 60,
     )
