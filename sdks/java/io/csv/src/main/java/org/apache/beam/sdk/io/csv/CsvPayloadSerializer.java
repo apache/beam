@@ -47,7 +47,8 @@ public class CsvPayloadSerializer implements PayloadSerializer {
     StringBuilder builder = new StringBuilder();
     try {
       boolean newRecord = true;
-      for (String name : schema.getFieldNames()) {
+      for (int i = 0; i < schema.getFieldCount(); i++) {
+        String name = schema.getField(i).getName();
         Object value = row.getValue(name);
         if (value == null) {
           value = "";

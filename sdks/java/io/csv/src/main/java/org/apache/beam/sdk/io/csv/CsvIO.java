@@ -18,22 +18,30 @@
 package org.apache.beam.sdk.io.csv;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.values.TypeDescriptors.rows;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.schemas.JavaFieldSchema.JavaFieldTypeSupplier;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -48,9 +56,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class CsvIO {
 
+  public static <T> Write<T> write() {
+    return new AutoValue_CsvIO_Write.Builder<T>().build();
+  }
+
+  public static Write<Row> writeRows() {
+    return new AutoValue_CsvIO_Write.Builder<Row>().build();
+  }
+
   /** Implementation of {@link FileIO.Sink}. */
   @AutoValue
-  public abstract static class Sink<T> implements FileIO.Sink<T> {
+  public static abstract class Sink<T> implements FileIO.Sink<T> {
+
+    public static <T> Builder<T> builder() {
+      return new AutoValue_CsvIO_Sink.Builder<>();
+    }
 
     /**
      * Not to be confused with the CSV header, it is content written to the top of every sharded
@@ -66,14 +86,7 @@ public class CsvIO {
       return toBuilder().setPreamble(preamble).build();
     }
 
-    /** The {@link CSVFormat} of the written CSV file. */
-    public Sink<T> withCSVFormat(CSVFormat csvFormat) {
-      return toBuilder().setCSVFormat(csvFormat).build();
-    }
-
     private transient @Nullable PrintWriter writer;
-    private SimpleFunction<T, Row> elementToRowFn;
-    private SimpleFunction<Row, String> rowToStringFn;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
@@ -83,11 +96,17 @@ public class CsvIO {
       if (getPreamble() != null) {
         writer.println(getPreamble());
       }
-
+      writer.println(getHeader());
     }
 
     @Override
-    public void write(T element) throws IOException {}
+    public void write(T element) throws IOException {
+      if (writer == null) {
+        throw new IllegalStateException(String.format("%s writer is null", PrintWriter.class.getName()));
+      }
+      String line = getFormatFunction().apply(element);
+      writer.println(line);
+    }
 
     @Override
     public void flush() throws IOException {
@@ -97,17 +116,11 @@ public class CsvIO {
       writer.flush();
     }
 
-    SimpleFunction<T, String> getOrCreateUserTypeToRowFunction() {
-      return DEFA
-    }
-
     abstract @Nullable String getPreamble();
 
-    abstract CSVFormat getCSVFormat();
+    abstract String getHeader();
 
-    abstract Class<T> getElementClass();
-
-    abstract Schema getSchema();
+    abstract SimpleFunction<T, String> getFormatFunction();
 
     abstract Builder<T> toBuilder();
 
@@ -116,16 +129,74 @@ public class CsvIO {
 
       abstract Builder<T> setPreamble(String value);
 
-      abstract Builder<T> setCSVFormat(CSVFormat value);
+      abstract Builder<T> setHeader(String value);
 
+      abstract Builder<T> setFormatFunction(SimpleFunction<T, String> value);
+
+      abstract Sink<T> build();
+    }
+  }
+
+  @AutoValue
+  public static abstract class Write<T> extends PTransform<PCollection<T>, PDone> implements HasDisplayData {
+
+    public Write<T> to(String filenamePrefix) {
+      return toBuilder().setFilenamePrefix(filenamePrefix).build();
+    }
+
+    public Write<T> withCSVFormat(CSVFormat format) {
+      return toBuilder().setCSVFormat(format).build();
+    }
+
+    public Write<T> withCompression(Compression compression) {
+      return toBuilder().setCompression(compression).build();
+    }
+
+    public Write<T> withNumShards(Integer numShards) {
+      return toBuilder().setNumShards(numShards).build();
+    }
+
+    abstract @Nullable String getFilenamePrefix();
+
+    abstract CSVFormat getCSVFormat();
+
+    abstract @Nullable String getPreamble();
+
+    abstract @Nullable Compression getCompression();
+
+    abstract @Nullable Integer getNumShards();
+
+    abstract @Nullable String getFilenameSuffix();
+
+    abstract @Nullable ResourceId getTempDirectory();
+
+    abstract @Nullable String getHeader();
+    
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+
+      abstract Builder<T> setFilenamePrefix(String value);
+
+      abstract Builder<T> setCSVFormat(CSVFormat value);
       abstract Optional<CSVFormat> getCSVFormat();
 
-      abstract Builder<T> setElementClass(Class<T> value);
+      abstract Builder<T> setPreamble(String value);
 
-      abstract Sink<T> autoBuild();
+      abstract Builder<T> setCompression(Compression value);
 
-      final Sink<T> build() {
+      abstract Builder<T> setNumShards(Integer value);
+      
+      abstract Builder<T> setFilenameSuffix(String value);
+      
+      abstract Builder<T> setTempDirectory(ResourceId value);
 
+      abstract Builder<T> setHeader(String value);
+
+      abstract Write<T> autoBuild();
+
+      final Write<T> build() {
         if (!getCSVFormat().isPresent()) {
           setCSVFormat(CSVFormat.DEFAULT);
         }
@@ -133,12 +204,91 @@ public class CsvIO {
         return autoBuild();
       }
     }
-  }
 
-  public static class Write<T> extends PTransform<PCollection<T>, PDone> implements HasDisplayData {
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      if (getFilenamePrefix() != null) {
+        builder.add(DisplayData.item("filenamePrefix", getFilenamePrefix()));
+      }
+      if (getCSVFormat() != null) {
+        builder.add(DisplayData.item("csvFormat", getCSVFormat().toString()));
+      }
+      if (getPreamble() != null) {
+        builder.add(DisplayData.item("preamble", getPreamble()));
+      }
+      if (getCompression() != null) {
+        builder.add(DisplayData.item("compression", DisplayData.Type.JAVA_CLASS, getCompression()));
+      }
+      if (getNumShards() != null) {
+        builder.add(DisplayData.item("numShards", getNumShards()));
+      }
+      if (getFilenameSuffix() != null) {
+        builder.add(DisplayData.item("filenameSuffix", getFilenameSuffix()));
+      }
+      if (getTempDirectory() != null) {
+        builder.add(DisplayData.item("tempDirectory", DisplayData.Type.JAVA_CLASS, getTempDirectory()));
+      }
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
-      return null;
+      if (!input.hasSchema()) {
+        throw new IllegalArgumentException(String.format("%s requires an input Schema", Write.class.getName()));
+      }
+
+      Schema schema = input.getSchema();
+      CsvUtils.validateSchemaAndHeader(getOrBuildHeader(schema), schema, getCSVFormat());
+
+      SerializableFunction<T, Row> toRowFn = input.getToRowFunction();
+      PCollection<Row> rows = input.apply(MapElements.into(rows()).via(toRowFn)).setRowSchema(schema);
+      rows.apply(
+          "writeRowsToCsv",
+          buildFileIOWrite().via(buildSink(schema))
+      );
+      return PDone.in(input.getPipeline());
+    }
+
+    String getOrBuildHeader(Schema schema) {
+      if (getHeader() != null) {
+        return getHeader();
+      }
+      return CsvUtils.buildHeaderFrom(schema.sorted(), getCSVFormat());
+    }
+
+    Sink<Row> buildSink(Schema schema) {
+      return Sink.<Row>builder()
+          .setHeader(CsvUtils.buildHeaderFrom(schema, getCSVFormat()))
+          .setFormatFunction(CsvUtils.getRowToCsvStringFunction(schema, getCSVFormat()))
+          .build();
+    }
+
+    FileIO.Write<Void, Row> buildFileIOWrite() {
+      checkArgument(getFilenamePrefix() != null, "to() is required");
+
+      ResourceId prefix =
+          FileSystems.matchNewResource(getFilenamePrefix(), false /* isDirectory */);
+
+      FileIO.Write<Void, Row> write = FileIO.<Row>write().to(prefix.getCurrentDirectory().toString())
+          .withPrefix(Objects.requireNonNull(prefix.getFilename()));
+
+      if (getCompression() != null) {
+        write = write.withCompression(getCompression());
+      }
+
+      if (getNumShards() != null) {
+        write = write.withNumShards(getNumShards());
+      }
+
+      if (getFilenameSuffix() != null) {
+        write = write.withSuffix(getFilenameSuffix());
+      }
+
+      if (getTempDirectory() != null) {
+        write = write.withTempDirectory(
+            Objects.requireNonNull(getTempDirectory().getFilename()));
+      }
+
+      return write;
     }
   }
 }

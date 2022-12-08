@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -43,24 +47,6 @@ public final class CsvUtils {
     return new CsvStringToRowFn(payloadSerializer);
   }
 
-  /**
-   * Returns a {@link SimpleFunction} that converts a CSV byte[] record to a {@param T} user type.
-   */
-  public static <T> SimpleFunction<byte[], T> getCsvBytesToUserTypeFunction(
-      Class<T> userType, Schema beamSchema, @Nullable CSVFormat format) {
-    CsvPayloadSerializer payloadSerializer = new CsvPayloadSerializer(beamSchema, format);
-    return new CsvBytesToUserTypeFn<>(payloadSerializer, TypeDescriptor.of(userType));
-  }
-
-  /**
-   * Returns a {@link SimpleFunction} that converts a CSV String record to a {@param T} user type.
-   */
-  public static <T> SimpleFunction<String, T> getCsvStringToUserTypeFunction(
-      Class<T> userType, Schema beamSchema, @Nullable CSVFormat format) {
-    CsvPayloadSerializer payloadSerializer = new CsvPayloadSerializer(beamSchema, format);
-    return new CsvStringToUserTypeFn<>(payloadSerializer, TypeDescriptor.of(userType));
-  }
-
   /** Returns a {@link SimpleFunction} that converts a {@link Row} to a CSV byte[] record. */
   public static SimpleFunction<Row, byte[]> getRowToCsvBytesFunction(
       Schema beamSchema, @Nullable CSVFormat format) {
@@ -75,22 +61,36 @@ public final class CsvUtils {
     return new RowToCsvStringFn(payloadSerializer);
   }
 
-  /**
-   * Returns a {@link SimpleFunction} that converts a {@param T} user type to a CSV byte[] record.
-   */
-  public static <T> SimpleFunction<T, byte[]> getUserTypeToBytesFunction(
-      Class<T> userType, Schema beamSchema, @Nullable CSVFormat format) {
-    CsvPayloadSerializer payloadSerializer = new CsvPayloadSerializer(beamSchema, format);
-    return new UserTypeToCsvBytesFn<>(payloadSerializer, TypeDescriptor.of(userType));
+  static String buildHeaderFrom(Schema schema, CSVFormat csvFormat) {
+    StringBuilder builder = new StringBuilder();
+    try {
+      boolean newRecord = true;
+      for (int i = 0; i < schema.getFieldCount(); i++) {
+        String name = schema.getField(i).getName();
+        csvFormat.print(name, builder, newRecord);
+        newRecord = false;
+      }
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
+    return builder.toString();
   }
 
-  /**
-   * Returns a {@link SimpleFunction} that converts a {@param T} user type to a CSV String record.
-   */
-  public static <T> SimpleFunction<T, String> getUserTypeToStringFunction(
-      Class<T> userType, Schema beamSchema, @Nullable CSVFormat format) {
-    CsvPayloadSerializer payloadSerializer = new CsvPayloadSerializer(beamSchema, format);
-    return new UserTypeToCsvStringFn<>(payloadSerializer, TypeDescriptor.of(userType));
+  static void validateSchemaAndHeader(String header, Schema schema, CSVFormat csvFormat) {
+    StringReader reader = new StringReader(header);
+    try {
+      List<String> headerNames = csvFormat.parse(reader).getHeaderNames();
+      if (headerNames.isEmpty()) {
+        throw new IllegalArgumentException(String.format("failed to parse header names from %s", header));
+      }
+      for (String name : headerNames) {
+        if (!schema.hasField(name)) {
+          throw new IllegalArgumentException(String.format("column: %s does not match name in schema: %s", name, schema));
+        }
+      }
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   /** A {@link CsvToRowFn} extension for CSV byte[] records. */
@@ -141,60 +141,6 @@ public final class CsvUtils {
     }
   }
 
-  /** A {@link CsvToUserTypeFn} extension for CSV byte[] records. */
-  static class CsvBytesToUserTypeFn<UserT> extends CsvToUserTypeFn<byte[], UserT> {
-
-    CsvBytesToUserTypeFn(
-        CsvPayloadSerializer payloadSerializer, TypeDescriptor<UserT> typeDescriptor) {
-      super(payloadSerializer, typeDescriptor);
-    }
-
-    @Override
-    byte[] toBytes(byte[] input) {
-      return input;
-    }
-  }
-
-  /** A {@link CsvToUserTypeFn} extension for CSV String records. */
-  static class CsvStringToUserTypeFn<UserT> extends CsvToUserTypeFn<String, UserT> {
-
-    CsvStringToUserTypeFn(
-        CsvPayloadSerializer payloadSerializer, TypeDescriptor<UserT> typeDescriptor) {
-      super(payloadSerializer, typeDescriptor);
-    }
-
-    @Override
-    byte[] toBytes(String input) {
-      return input.getBytes(StandardCharsets.UTF_8);
-    }
-  }
-
-  /** A {@link UserTypeToCSVFn} extension for CSV byte[] records. */
-  static class UserTypeToCsvBytesFn<UserT> extends UserTypeToCSVFn<UserT, byte[]> {
-    UserTypeToCsvBytesFn(
-        CsvPayloadSerializer payloadSerializer, TypeDescriptor<UserT> typeDescriptor) {
-      super(payloadSerializer, typeDescriptor);
-    }
-
-    @Override
-    byte[] fromBytes(byte[] input) {
-      return input;
-    }
-  }
-
-  /** A {@link UserTypeToCSVFn} extension for CSV String records. */
-  static class UserTypeToCsvStringFn<UserT> extends UserTypeToCSVFn<UserT, String> {
-    UserTypeToCsvStringFn(
-        CsvPayloadSerializer payloadSerializer, TypeDescriptor<UserT> typeDescriptor) {
-      super(payloadSerializer, typeDescriptor);
-    }
-
-    @Override
-    String fromBytes(byte[] input) {
-      return new String(input, StandardCharsets.UTF_8);
-    }
-  }
-
   /** Converts a CSV {@param CsvT} record to a Beam {@link Row}. */
   abstract static class CsvToRowFn<CsvT> extends SimpleFunction<CsvT, Row> {
     private final CsvPayloadSerializer payloadSerializer;
@@ -225,50 +171,6 @@ public final class CsvUtils {
     @Override
     public CsvT apply(Row input) {
       byte[] bytes = payloadSerializer.serialize(input);
-      return fromBytes(bytes);
-    }
-  }
-
-  /** Converts a CSV {@param CsvT} record to a {@param UserT} user type. */
-  abstract static class CsvToUserTypeFn<CsvT, UserT> extends SimpleFunction<CsvT, UserT> {
-    private static final DefaultSchemaProvider DEFAULT_SCHEMA_PROVIDER =
-        new DefaultSchemaProvider();
-    private final CsvPayloadSerializer payloadSerializer;
-    private final TypeDescriptor<UserT> typeDescriptor;
-
-    CsvToUserTypeFn(CsvPayloadSerializer payloadSerializer, TypeDescriptor<UserT> typeDescriptor) {
-      this.payloadSerializer = payloadSerializer;
-      this.typeDescriptor = typeDescriptor;
-    }
-
-    abstract byte[] toBytes(CsvT input);
-
-    @Override
-    public UserT apply(CsvT input) {
-      byte[] bytes = toBytes(input);
-      Row row = payloadSerializer.deserialize(bytes);
-      return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(typeDescriptor).apply(row);
-    }
-  }
-
-  /** Converts a {@param UserT} user type to a {@param CsvT} CSV record. */
-  abstract static class UserTypeToCSVFn<UserT, CsvT> extends SimpleFunction<UserT, CsvT> {
-    private static final DefaultSchemaProvider DEFAULT_SCHEMA_PROVIDER =
-        new DefaultSchemaProvider();
-    private final CsvPayloadSerializer payloadSerializer;
-    private final TypeDescriptor<UserT> typeDescriptor;
-
-    UserTypeToCSVFn(CsvPayloadSerializer payloadSerializer, TypeDescriptor<UserT> typeDescriptor) {
-      this.payloadSerializer = payloadSerializer;
-      this.typeDescriptor = typeDescriptor;
-    }
-
-    abstract CsvT fromBytes(byte[] input);
-
-    @Override
-    public CsvT apply(UserT input) {
-      Row row = DEFAULT_SCHEMA_PROVIDER.toRowFunction(typeDescriptor).apply(input);
-      byte[] bytes = payloadSerializer.serialize(row);
       return fromBytes(bytes);
     }
   }

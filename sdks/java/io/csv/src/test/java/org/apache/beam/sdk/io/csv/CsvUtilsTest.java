@@ -25,8 +25,8 @@ import static org.junit.Assert.assertThrows;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import org.apache.beam.sdk.io.csv.CsvIOTestHelpers.AllDataTypes;
 import org.apache.beam.sdk.values.Row;
+import org.apache.commons.csv.CSVFormat;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,19 +38,6 @@ public class CsvUtilsTest {
 
   private final Row row =
       rowOf(
-          true,
-          (byte) 0,
-          Instant.ofEpochMilli(1670358365856L).toDateTime(),
-          BigDecimal.valueOf(1L),
-          3.12345,
-          4.1f,
-          (short) 5,
-          2,
-          7L,
-          "asdfjkl;");
-
-  private final AllDataTypes allDataTypes =
-      AllDataTypes.of(
           true,
           (byte) 0,
           Instant.ofEpochMilli(1670358365856L).toDateTime(),
@@ -94,39 +81,8 @@ public class CsvUtilsTest {
   }
 
   @Test
-  public void getCsvBytesToUserTypeFunction() {
-    // TODO(https://github.com/apache/beam/issues/24552)
-    assertThrows(
-        UnsupportedOperationException.class,
-        () ->
-            CsvUtils.getCsvBytesToUserTypeFunction(AllDataTypes.class, ALL_DATA_TYPES_SCHEMA, null)
-                .apply(new byte[] {}));
-  }
-
-  @Test
-  public void getCsvStringToUserTypeFunction() {
-    // TODO(https://github.com/apache/beam/issues/24552)
-    assertThrows(
-        UnsupportedOperationException.class,
-        () ->
-            CsvUtils.getCsvStringToUserTypeFunction(AllDataTypes.class, ALL_DATA_TYPES_SCHEMA, null)
-                .apply(""));
-  }
-
-  @Test
-  public void getUserTypeToCsvBytesFunction() {
-    assertArrayEquals(
-        "asdfjkl;,true,0,2022-12-06T20:26:05.856Z,1,3.12345,4.1,5,2,7"
-            .getBytes(StandardCharsets.UTF_8),
-        CsvUtils.getUserTypeToBytesFunction(AllDataTypes.class, ALL_DATA_TYPES_SCHEMA, null)
-            .apply(allDataTypes));
-  }
-
-  @Test
-  public void getUserTypeToCsvStringFunction() {
-    assertEquals(
-        "asdfjkl;,true,0,2022-12-06T20:26:05.856Z,1,3.12345,4.1,5,2,7",
-        CsvUtils.getUserTypeToStringFunction(AllDataTypes.class, ALL_DATA_TYPES_SCHEMA, null)
-            .apply(allDataTypes));
+  public void buildHeaderFrom() {
+    assertEquals("string,aBoolean,aByte,dateTime,decimal,aDouble,aFloat,aShort,anInt,aLong", CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.DEFAULT));
+    assertEquals("\"string\",\"aBoolean\",\"aByte\",\"dateTime\",\"decimal\",\"aDouble\",\"aFloat\",\"aShort\",\"anInt\",\"aLong\"", CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.POSTGRESQL_CSV));
   }
 }
