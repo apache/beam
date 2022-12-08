@@ -19,6 +19,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -29,6 +30,7 @@ import '../models/example_base.dart';
 import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/examples_loading_descriptor.dart';
+import '../models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 import '../models/intents.dart';
 import '../models/outputs.dart';
 import '../models/sdk.dart';
@@ -43,7 +45,7 @@ import '../util/pipeline_options.dart';
 import 'example_loaders/examples_loader.dart';
 import 'snippet_editing_controller.dart';
 
-const kTitleLength = 15;
+const kTitleLength = 25;
 const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
 const kTitle = 'Catalog';
@@ -89,6 +91,7 @@ class PlaygroundController with ChangeNotifier {
 
     final result = SnippetEditingController(sdk: sdk);
     _snippetEditingControllers[sdk] = result;
+    result.addListener(notifyListeners);
 
     if (loadDefaultIfNot) {
       // TODO(alexeyinkin): Show loading indicator if loading.
@@ -378,11 +381,12 @@ class PlaygroundController with ChangeNotifier {
   }
 
   void filterOutput(OutputType type) {
-    var output = result?.output ?? '';
-    var log = result?.log ?? '';
+    final output = result?.output ?? '';
+    final log = result?.log ?? '';
 
     switch (type) {
       case OutputType.all:
+      case OutputType.graph:
         setOutputResult(log + output);
         break;
       case OutputType.log:
@@ -391,22 +395,38 @@ class PlaygroundController with ChangeNotifier {
       case OutputType.output:
         setOutputResult(output);
         break;
-      default:
-        setOutputResult(log + output);
-        break;
     }
   }
 
-  Future<String> saveSnippet() {
+  Future<UserSharedExampleLoadingDescriptor> saveSnippet() async {
     final controller = requireSnippetEditingController();
+    final code = controller.codeController.fullText;
+    final name = 'examples.userSharedName'.tr();
 
-    return exampleCache.saveSnippet(
+    final snippetId = await exampleCache.saveSnippet(
       files: [
-        SharedFile(code: controller.codeController.fullText, isMain: true),
+        SharedFile(code: code, isMain: true, name: name),
       ],
       sdk: controller.sdk,
       pipelineOptions: controller.pipelineOptions,
     );
+
+    final sharedExample = Example(
+      source: code,
+      name: name,
+      sdk: controller.sdk,
+      type: ExampleType.example,
+      path: snippetId,
+    );
+
+    final descriptor = UserSharedExampleLoadingDescriptor(
+      sdk: sharedExample.sdk,
+      snippetId: snippetId,
+    );
+
+    controller.setExample(sharedExample, descriptor: descriptor);
+
+    return descriptor;
   }
 
   /// Creates an [ExamplesLoadingDescriptor] that can recover
@@ -418,6 +438,7 @@ class PlaygroundController with ChangeNotifier {
             (controller) => controller.getLoadingDescriptor(),
           )
           .toList(growable: false),
+      initialSdk: _sdk,
     );
   }
 

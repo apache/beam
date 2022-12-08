@@ -18,10 +18,10 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:flutter/foundation.dart';
-import 'package:playground/controllers/factories.dart';
-import 'package:playground/modules/examples/models/example_loading_descriptors/no_url_example_loading_descriptor.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../controllers/factories.dart';
+import '../../modules/examples/models/example_loading_descriptors/no_url_example_loading_descriptor.dart';
 import 'path.dart';
 
 const _cutUrlDescriptors = {
@@ -44,16 +44,16 @@ class StandalonePlaygroundNotifier extends ChangeNotifier
 
   @override
   PagePath get path {
-    return StandalonePlaygroundPath(
-      descriptor: playgroundController.getLoadingDescriptor(),
-      exampleDescriptor: _getExampleLoadingDescriptor(),
+    return StandalonePlaygroundSingleFirstPath(
+      multipleDescriptor: playgroundController.getLoadingDescriptor(),
+      descriptor: _getExampleLoadingDescriptor(),
     );
   }
 
-  ExampleLoadingDescriptor? _getExampleLoadingDescriptor() {
+  ExampleLoadingDescriptor _getExampleLoadingDescriptor() {
     final snippetController = playgroundController.snippetEditingController;
     if (snippetController == null) {
-      return null;
+      return const NoUrlExampleLoadingDescriptor();
     }
 
     final descriptor = snippetController.getLoadingDescriptor();

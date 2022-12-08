@@ -27,7 +27,7 @@ import 'example_item_actions.dart';
 class ExpansionPanelItem extends StatelessWidget {
   final ExampleBase example;
   final VoidCallback onSelected;
-  final ExampleBase selectedExample;
+  final ExampleBase? selectedExample;
 
   const ExpansionPanelItem({
     Key? key,
@@ -75,7 +75,7 @@ class ExpansionPanelItem extends StatelessWidget {
                   // Wrapped with Row for better user interaction and positioning
                   Text(
                     example.name,
-                    style: example.path == selectedExample.path
+                    style: example.path == selectedExample?.path
                         ? const TextStyle(fontWeight: FontWeight.bold)
                         : const TextStyle(),
                   ),

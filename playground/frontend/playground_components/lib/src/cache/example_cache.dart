@@ -27,7 +27,6 @@ import '../exceptions/snippet_saving_exception.dart';
 import '../models/category_with_examples.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
-import '../models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 import '../models/loading_status.dart';
 import '../models/sdk.dart';
 import '../repositories/example_repository.dart';

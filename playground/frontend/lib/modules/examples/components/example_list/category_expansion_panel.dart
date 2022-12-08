@@ -20,15 +20,16 @@ import 'dart:math' as math;
 
 import 'package:expansion_widget/expansion_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/components/example_list/expansion_panel_item.dart';
 import 'package:playground_components/playground_components.dart';
+
+import '../../../../constants/sizes.dart';
+import 'expansion_panel_item.dart';
 
 class CategoryExpansionPanel extends StatelessWidget {
   final String categoryName;
   final List<ExampleBase> examples;
   final VoidCallback onSelected;
-  final ExampleBase selectedExample;
+  final ExampleBase? selectedExample;
 
   const CategoryExpansionPanel({
     required this.categoryName,
@@ -40,7 +41,7 @@ class CategoryExpansionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExpansionWidget(
-      initiallyExpanded: examples.any((e) => e.path == selectedExample.path),
+      initiallyExpanded: examples.any((e) => e.path == selectedExample?.path),
       maintainState: true,
       titleBuilder: (animationValue, _, isExpanded, toggleFunction) => InkWell(
         onTap: () => toggleFunction(animated: true),

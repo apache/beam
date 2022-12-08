@@ -18,10 +18,7 @@
 
 import 'package:playground_components/playground_components.dart';
 
-const kExampleParam = 'example';
-const kExamplesParam = 'examples';
-const kIsEditableParam = 'editable';
-const kSdkParam = 'sdk';
+const kDescriptorParam = 'descriptor';
 const kContextLine = 'line';
 
 const kQuickStartCategoryName = 'quick start';

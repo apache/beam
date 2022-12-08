@@ -65,6 +65,19 @@ const exampleWithAllAdditionsMock = Example(
   complexity: Complexity.basic,
 );
 
+const exampleGoPipelineOptions = Example(
+  description: 'description',
+  graph: 'test outputs',
+  logs: 'test outputs',
+  name: 'Test example',
+  outputs: 'test outputs',
+  path: 'SDK_PYTHON/Category/Name',
+  pipelineOptions: 'pipeline options',
+  sdk: Sdk.go,
+  source: 'test outputs',
+  type: ExampleType.example,
+);
+
 const exampleMockGo = Example(
   sdk: Sdk.go,
   source: 'ex1',

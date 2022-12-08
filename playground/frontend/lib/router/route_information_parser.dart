@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+// ignore_for_file: avoid_renaming_method_parameters
+// ignore_for_file: unnecessary_null_in_if_null_operators
+
 import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
 
@@ -24,9 +27,21 @@ import '../pages/standalone_playground/path.dart';
 
 class PlaygroundRouteInformationParser extends PageStackRouteInformationParser {
   @override
-  // ignore: avoid_renaming_method_parameters
   Future<PagePath> parsePagePath(RouteInformation ri) async {
-    return EmbeddedPlaygroundPath.tryParse(ri) ??
-        StandalonePlaygroundPath.parse(ri);
+    final uri = Uri.parse(ri.location ?? '');
+
+    // null is for better formatting below.
+    return null ??
+
+        // Embedded:
+        EmbeddedPlaygroundMultiplePath.tryParse(uri) ??
+        EmbeddedPlaygroundSingleFirstPath.tryParse(uri) ??
+        EmbeddedPlaygroundEmptyPath.tryParse(uri) ??
+
+        // Standalone:
+        StandalonePlaygroundMultiplePath.tryParse(uri) ??
+        StandalonePlaygroundSingleFirstPath.tryParse(uri) ??
+        StandalonePlaygroundWaitPath.tryParse(uri) ??
+        StandalonePlaygroundDefaultPath.parse(uri);
   }
 }

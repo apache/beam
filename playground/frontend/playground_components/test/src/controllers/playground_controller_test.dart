@@ -189,6 +189,7 @@ Future<void> main() async {
             standardDescriptor2,
             standardGoDescriptor,
           ],
+          initialSdk: Sdk.python,
         ),
       );
     });

@@ -18,25 +18,51 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:flutter/foundation.dart';
-import 'package:playground/controllers/factories.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../controllers/factories.dart';
+import '../../modules/examples/models/example_loading_descriptors/no_url_example_loading_descriptor.dart';
 import 'path.dart';
+
+const _cutUrlDescriptors = {
+  ContentExampleLoadingDescriptor,
+};
 
 class EmbeddedPlaygroundNotifier extends ChangeNotifier
     with PageStateMixin<void> {
   final PlaygroundController playgroundController;
   final bool isEditable;
 
-  @override
-  final PagePath path;
-
   EmbeddedPlaygroundNotifier({
     required ExamplesLoadingDescriptor initialDescriptor,
     required this.isEditable,
-  })  : path = EmbeddedPlaygroundPath(
-          descriptor: initialDescriptor,
-          isEditable: isEditable,
-        ),
-        playgroundController = createPlaygroundController(initialDescriptor);
+  }) : playgroundController = createPlaygroundController(initialDescriptor) {
+    playgroundController.addListener(_onPlaygroundControllerChanged);
+  }
+
+  void _onPlaygroundControllerChanged() {
+    emitPathChanged();
+  }
+
+  @override
+  PagePath get path {
+    return EmbeddedPlaygroundSingleFirstPath(
+      multipleDescriptor: playgroundController.getLoadingDescriptor(),
+      isEditable: isEditable,
+      descriptor: _getExampleLoadingDescriptor(),
+    );
+  }
+
+  ExampleLoadingDescriptor _getExampleLoadingDescriptor() {
+    final snippetController = playgroundController.snippetEditingController;
+    if (snippetController == null) {
+      return const NoUrlExampleLoadingDescriptor();
+    }
+
+    final descriptor = snippetController.getLoadingDescriptor();
+
+    return _cutUrlDescriptors.contains(descriptor.runtimeType)
+        ? const NoUrlExampleLoadingDescriptor()
+        : descriptor;
+  }
 }

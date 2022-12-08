@@ -20,6 +20,7 @@ import 'package:app_state/app_state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../constants/params.dart';
 import '../../modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
 import 'screen.dart';
 import 'state.dart';
@@ -38,11 +39,19 @@ class StandalonePlaygroundPage
         );
 
   /// Called when re-creating the page at a navigation intent.
-  // ignore: avoid_unused_constructor_parameters
-  StandalonePlaygroundPage.fromStateMap(Map map)
-      : this(
-          descriptor: ExamplesLoadingDescriptorFactory.fromMap(
-            map['descriptor'] ?? {},
-          ),
-        );
+  factory StandalonePlaygroundPage.fromStateMap(Map map) {
+    return StandalonePlaygroundPage(
+      descriptor: _descriptorFromMap(map[kDescriptorParam]),
+    );
+  }
+
+  static ExamplesLoadingDescriptor _descriptorFromMap(Map? map) {
+    if (map == null) {
+      return ExamplesLoadingDescriptor.empty;
+    }
+
+    return ExamplesLoadingDescriptorFactory.fromMap(map).copyWithMissingLazy(
+      ExamplesLoadingDescriptorFactory.defaultLazyLoadDescriptors,
+    );
+  }
 }

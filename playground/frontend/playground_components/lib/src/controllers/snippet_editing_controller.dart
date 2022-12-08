@@ -35,6 +35,7 @@ class SnippetEditingController extends ChangeNotifier {
   Example? _selectedExample;
   ExampleLoadingDescriptor? _descriptor;
   String _pipelineOptions = '';
+  bool _isChanged = false;
 
   SnippetEditingController({
     required this.sdk,
@@ -43,22 +44,40 @@ class SnippetEditingController extends ChangeNotifier {
           namedSectionParser: const BracketsStartEndNamedSectionParser(),
           webSpaceFix: false,
         ) {
+    codeController.addListener(_onCodeControllerChanged);
     _symbolsNotifier.addListener(_onSymbolsNotifierChanged);
     _onSymbolsNotifierChanged();
   }
 
+  void _onCodeControllerChanged() {
+    if (!_isChanged) {
+      if (_isCodeChanged()) {
+        _isChanged = true;
+        notifyListeners();
+      }
+    } else {
+      _updateIsChanged();
+      if (!_isChanged) {
+        notifyListeners();
+      }
+    }
+  }
+
   void setExample(
     Example example, {
-    required ExampleLoadingDescriptor? descriptor,
+    ExampleLoadingDescriptor? descriptor,
   }) {
     _descriptor = descriptor;
     _selectedExample = example;
     _pipelineOptions = example.pipelineOptions;
-
-    setSource(example.source);
+    _isChanged = false;
 
     final viewOptions = example.viewOptions;
+
+    codeController.removeListener(_onCodeControllerChanged);
+    setSource(example.source);
     _applyViewOptions(viewOptions);
+    codeController.addListener(_onCodeControllerChanged);
 
     notifyListeners();
   }
@@ -83,15 +102,33 @@ class SnippetEditingController extends ChangeNotifier {
 
   Example? get selectedExample => _selectedExample;
 
+  ExampleLoadingDescriptor? get descriptor => _descriptor;
+
   set pipelineOptions(String value) {
+    if (value == _pipelineOptions) {
+      return;
+    }
     _pipelineOptions = value;
-    notifyListeners();
+
+    if (!_isChanged) {
+      if (_arePipelineOptionsChanged()) {
+        _isChanged = true;
+        notifyListeners();
+      }
+    } else {
+      _updateIsChanged();
+      if (!_isChanged) {
+        notifyListeners();
+      }
+    }
   }
 
   String get pipelineOptions => _pipelineOptions;
 
-  bool get isChanged {
-    return _isCodeChanged() || _arePipelineOptionsChanged();
+  bool get isChanged => _isChanged;
+
+  void _updateIsChanged() {
+    _isChanged = _isCodeChanged() || _arePipelineOptionsChanged();
   }
 
   bool _isCodeChanged() {

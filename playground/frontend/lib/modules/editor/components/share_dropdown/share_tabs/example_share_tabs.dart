@@ -18,23 +18,37 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/modules/editor/components/share_dropdown/link_text_field.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_tab_body.dart';
-import 'package:playground/utils/share_code_utils.dart';
+import 'package:playground_components/playground_components.dart';
+
+import '../../../../../pages/embedded_playground/path.dart';
+import '../../../../../pages/standalone_playground/path.dart';
+import '../../../../../utils/share_code_utils.dart';
+import '../link_text_field.dart';
+import '../share_tab_body.dart';
 
 class ExampleShareTabs extends StatelessWidget {
-  final String examplePath;
+  final ExampleLoadingDescriptor descriptor;
+  final Sdk sdk;
   final TabController tabController;
 
   const ExampleShareTabs({
-    super.key,
-    required this.examplePath,
+    required this.descriptor,
+    required this.sdk,
     required this.tabController,
   });
 
   @override
   Widget build(BuildContext context) {
     final appLocale = AppLocalizations.of(context)!;
+
+    final standaloneUri = StandalonePlaygroundSinglePath(
+      descriptor: descriptor,
+    ).getUriAtBase(Uri.base);
+
+    final embeddedUri = EmbeddedPlaygroundSinglePath(
+      descriptor: descriptor,
+      isEditable: true,
+    ).getUriAtBase(Uri.base);
 
     return TabBarView(
       controller: tabController,
@@ -44,10 +58,7 @@ class ExampleShareTabs extends StatelessWidget {
           children: [
             Text(appLocale.linkReady),
             LinkTextField(
-              text: ShareCodeUtils.examplePathToPlaygroundUrl(
-                examplePath: examplePath,
-                view: PlaygroundView.standalone,
-              ).toString(),
+              text: standaloneUri.toString(),
             ),
           ],
         ),
@@ -55,8 +66,8 @@ class ExampleShareTabs extends StatelessWidget {
           children: [
             Text(appLocale.iframeCodeReady),
             LinkTextField(
-              text: ShareCodeUtils.examplePathToIframeCode(
-                examplePath: examplePath,
+              text: ShareCodeUtils.iframe(
+                src: embeddedUri,
               ),
             ),
           ],

@@ -19,27 +19,31 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_tabs/example_share_tabs.dart';
 import 'package:playground_components/playground_components.dart';
+
+import 'example_share_tabs.dart';
 
 class SnippetSaveAndShareTabs extends StatefulWidget {
   final VoidCallback onError;
   final PlaygroundController playgroundController;
+  final Sdk sdk;
   final TabController tabController;
 
   const SnippetSaveAndShareTabs({
     super.key,
     required this.onError,
     required this.playgroundController,
+    required this.sdk,
     required this.tabController,
   });
 
   @override
-  State<SnippetSaveAndShareTabs> createState() => _SnippetSaveAndShareTabsState();
+  State<SnippetSaveAndShareTabs> createState() =>
+      _SnippetSaveAndShareTabsState();
 }
 
 class _SnippetSaveAndShareTabsState extends State<SnippetSaveAndShareTabs> {
-  Future<String>? _future;
+  Future<ExampleLoadingDescriptor>? _future;
 
   @override
   void initState() {
@@ -62,12 +66,15 @@ class _SnippetSaveAndShareTabsState extends State<SnippetSaveAndShareTabs> {
     return FutureBuilder(
       future: _future,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        final descriptor = snapshot.data;
+
+        if (descriptor == null) {
           return const LoadingIndicator();
         }
 
         return ExampleShareTabs(
-          examplePath: snapshot.data.toString(),
+          descriptor: descriptor,
+          sdk: widget.sdk,
           tabController: widget.tabController,
         );
       },

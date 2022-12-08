@@ -47,7 +47,6 @@ class StandalonePlaygroundScreen extends StatelessWidget {
     final snippetController =
         notifier.playgroundController.snippetEditingController;
 
-    //print('Building PlaygroundPage $n');
     return CloseListener(
       child: PlaygroundPageProviders(
         playgroundController: notifier.playgroundController,

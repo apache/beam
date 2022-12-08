@@ -201,10 +201,10 @@ class MockExampleCache extends _i1.Mock implements _i10.ExampleCache {
         returnValue: Future<_i4.Example>.value(_FakeExample_2()),
       ) as _i7.Future<_i4.Example>);
   @override
-  void changeSelectorVisibility() => super.noSuchMethod(
+  void setSelectorOpened(bool? value) => super.noSuchMethod(
         Invocation.method(
-          #changeSelectorVisibility,
-          [],
+          #setSelectorOpened,
+          [value],
         ),
         returnValueForMissingStub: null,
       );

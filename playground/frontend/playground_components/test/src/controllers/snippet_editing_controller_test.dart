@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// ignore_for_file: avoid_redundant_argument_values
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/src/controllers/snippet_editing_controller.dart';
 import 'package:playground_components/src/enums/complexity.dart';
@@ -28,82 +30,122 @@ import '../common/examples.dart';
 
 void main() async {
   await PlaygroundComponents.ensureInitialized();
-  group(
-    'Snippet editing controller',
-    () {
-      test(
-        'Returns given descriptor if code has not been changed',
-        () {
-          final controller = SnippetEditingController(sdk: Sdk.python);
-          controller.setExample(
-            exampleMock1,
-            descriptor: standardDescriptor1,
-          );
 
-          final descriptor = controller.getLoadingDescriptor();
+  int notified = 0;
+  late SnippetEditingController controller;
 
-          expect(descriptor, standardDescriptor1);
-        },
-      );
+  setUp((){
+    notified = 0;
+    controller = SnippetEditingController(sdk: Sdk.python);
+    controller.addListener(() => notified++);
+  });
 
-      test(
-        'Returns content descriptor if code has been changed',
-        () {
-          final controller = SnippetEditingController(sdk: Sdk.python);
-          controller.setExample(
-            exampleMock1,
-            descriptor: standardDescriptor1,
-          );
+  group('SnippetEditingController.', () {
+    group('Changes.', (){
+      test('Unchanged initially', (){
+        expect(controller.isChanged, false);
+      });
 
-          controller.codeController.value = const TextEditingValue(text: 'ex4');
-          final descriptor = controller.getLoadingDescriptor();
+      test('Unchanged after setting an example', () {
+        controller.setExample(exampleMock1);
 
-          const expected = ContentExampleLoadingDescriptor(
-            content: 'ex4',
-            sdk: Sdk.python,
-            name: 'Example X1',
-            complexity: Complexity.basic,
-          );
+        expect(controller.isChanged, false);
+        expect(notified, 1);
+      });
 
-          expect(descriptor, expected);
-        },
-      );
+      test('Changes when changing code, notifies once', () {
+        controller.setExample(exampleMock1);
+        controller.codeController.text = exampleMock1.source;
 
-      test(
-        'Returns content descriptor if descriptor has not been set',
-        () {
-          final controller = SnippetEditingController(sdk: Sdk.python);
-          controller.setExample(exampleMock1, descriptor: null);
+        expect(controller.isChanged, false);
+        expect(notified, 1);
 
-          controller.setExample(exampleMock2, descriptor: null);
-          final descriptor = controller.getLoadingDescriptor();
+        controller.codeController.text = 'changed';
 
-          const expected = ContentExampleLoadingDescriptor(
-            content: 'ex2',
-            sdk: Sdk.python,
-            name: 'Kata',
-            complexity: Complexity.basic,
-          );
+        expect(controller.isChanged, true);
+        expect(notified, 2);
 
-          expect(descriptor, expected);
-        },
-      );
+        controller.codeController.text = 'changed2';
 
-      test(
-        'Returns configured descriptor if example has been changed',
-        () {
-          final controller = SnippetEditingController(sdk: Sdk.python);
-          controller.setExample(
-            exampleMock1,
-            descriptor: standardDescriptor1,
-          );
+        expect(controller.isChanged, true);
+        expect(notified, 2);
 
-          controller.setExample(exampleMock2, descriptor: null);
-          final descriptor = controller.getLoadingDescriptor();
+        controller.codeController.text = exampleMock1.source;
 
-          expect(descriptor, contentDescriptor2);
-        },
-      );
-    },
-  );
+        expect(controller.isChanged, false);
+        expect(notified, 3);
+      });
+
+      test('Changes when changing pipelineOptions, notifies once', () {
+        controller.setExample(exampleGoPipelineOptions);
+        controller.pipelineOptions = exampleGoPipelineOptions.pipelineOptions;
+
+        expect(controller.isChanged, false);
+        expect(notified, 1);
+
+        controller.pipelineOptions = 'changed';
+
+        expect(controller.isChanged, true);
+        expect(notified, 2);
+
+        controller.pipelineOptions = 'changed2';
+
+        expect(controller.isChanged, true);
+        expect(notified, 2);
+
+        controller.pipelineOptions = exampleGoPipelineOptions.pipelineOptions;
+
+        expect(controller.isChanged, false);
+        expect(notified, 3);
+      });
+    });
+
+    group('Descriptors.', () {
+      test('Returns the original descriptor if unchanged', () {
+        controller.setExample(
+          exampleMock1,
+          descriptor: standardDescriptor1,
+        );
+
+        final descriptor = controller.getLoadingDescriptor();
+
+        expect(descriptor, standardDescriptor1);
+      });
+
+      test('Returns a ContentExampleLoadingDescriptor if changed', () {
+        controller.setExample(
+          exampleMock1,
+          descriptor: standardDescriptor1,
+        );
+
+        controller.codeController.value = const TextEditingValue(text: 'ex4');
+        final descriptor = controller.getLoadingDescriptor();
+
+        const expected = ContentExampleLoadingDescriptor(
+          content: 'ex4',
+          sdk: Sdk.python,
+          name: 'Example X1',
+          complexity: Complexity.basic,
+        );
+
+        expect(descriptor, expected);
+      });
+
+      test('Returns a ContentExampleLoadingDescriptor if no descriptor', () {
+        controller.setExample(exampleMock1, descriptor: null);
+
+        controller.setExample(exampleMock2, descriptor: null);
+        final descriptor = controller.getLoadingDescriptor();
+
+        const expected = ContentExampleLoadingDescriptor(
+          complexity: Complexity.basic,
+          content: 'ex2',
+          name: 'Kata',
+          sdk: Sdk.python,
+        );
+
+        expect(descriptor, expected);
+      });
+    });
+  });
 }

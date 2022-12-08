@@ -53,6 +53,11 @@ class ExamplesLoadingDescriptor with EquatableMixin {
     this.initialSdk,
   });
 
+  /// A descriptor to load nothing.
+  static const empty = ExamplesLoadingDescriptor(
+    descriptors: [],
+  );
+
   @override
   String toString() {
     final buffer = StringBuffer();

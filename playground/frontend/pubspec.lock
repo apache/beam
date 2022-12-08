@@ -35,7 +35,7 @@ packages:
       name: app_state
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.8.2"
+    version: "0.8.3"
   archive:
     dependency: transitive
     description:

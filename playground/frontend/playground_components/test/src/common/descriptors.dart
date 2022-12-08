@@ -26,22 +26,10 @@ final standardDescriptor1 = StandardExampleLoadingDescriptor(
   path: exampleMock1.path,
   sdk: exampleMock1.sdk,
 );
-final contentDescriptor1 = ContentExampleLoadingDescriptor(
-  content: exampleMock1.source,
-  sdk: exampleMock1.sdk,
-  name: exampleMock1.name,
-  complexity: exampleMock1.complexity,
-);
 
 final standardDescriptor2 = StandardExampleLoadingDescriptor(
   path: exampleMock2.path,
   sdk: exampleMock2.sdk,
-);
-final contentDescriptor2 = ContentExampleLoadingDescriptor(
-  content: exampleMock2.source,
-  sdk: exampleMock2.sdk,
-  name: exampleMock2.name,
-  complexity: exampleMock2.complexity,
 );
 
 final standardGoDescriptor = StandardExampleLoadingDescriptor(

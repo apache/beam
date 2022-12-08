@@ -41,7 +41,10 @@ class SetContentMessage extends AbstractMessage with EquatableMixin {
     }
 
     return SetContentMessage(
-      descriptor: ExamplesLoadingDescriptorFactory.fromMap(map['descriptor']),
+      descriptor: ExamplesLoadingDescriptorFactory.fromMap(map['descriptor'])
+          .copyWithMissingLazy(
+        ExamplesLoadingDescriptorFactory.defaultLazyLoadDescriptors,
+      ),
     );
   }
 

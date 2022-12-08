@@ -16,19 +16,19 @@
  * limitations under the License.
  */
 
-import 'package:playground_components/playground_components.dart';
+extension BoolExtension on bool {
+  String toIntString() {
+    return this ? '1' : '0';
+  }
 
-/// An [ExampleLoadingDescriptor] to produce a blank URL when
-/// pushed to the address bar.
-class NoUrlExampleLoadingDescriptor extends ExampleLoadingDescriptor {
-  const NoUrlExampleLoadingDescriptor();
+  static bool? tryParseIntString(Object? str) {
+    switch (str) {
+      case '0':
+        return false;
+      case '1':
+        return true;
+    }
 
-  @override
-  List<Object?> get props => const [];
-
-  @override
-  bool get canBePassedInUrl => false;
-
-  @override
-  Map<String, dynamic> toJson() => {};
+    return null;
+  }
 }

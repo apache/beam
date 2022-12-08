@@ -25,7 +25,7 @@ import '../examples_components.dart';
 
 class ExampleList extends StatefulWidget {
   final VoidCallback onSelected;
-  final ExampleBase selectedExample;
+  final ExampleBase? selectedExample;
 
   const ExampleList({
     required this.onSelected,
