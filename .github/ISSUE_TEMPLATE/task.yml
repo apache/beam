@@ -42,7 +42,7 @@ body:
       label: Issue Priority
       description: What priority is this task? See https://beam.apache.org/contribute/issue-priorities for the meaning and expectations around issue priorities.
       options:
-        - "Priority: 3 (nice-to-have improvement)
+        - "Priority: 3 (nice-to-have improvement)"
         - "Priority: 2 (default / most normal work should be filed as P2)"
         - "Priority: 1 (urgent / mostly reserved for critical bugs)"
     validations:
