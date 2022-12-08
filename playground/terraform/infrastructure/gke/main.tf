@@ -28,8 +28,8 @@ resource "google_container_cluster" "playground-gke" {
   node_config {
     machine_type    = var.machine_type
     service_account = var.service_account_email
-    min_count       = var.min_count
-    max_count       = var.max_count
+    min_count       = 1
+    max_count       = 2
     auto_repair     = true
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
