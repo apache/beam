@@ -25,10 +25,6 @@ module "infrastructure" {
   network_region                = var.region
   redis_region                  = var.region
   location                      = var.location
-  #GCS
-  bucket_examples_name          = var.bucket_examples_name
-  bucket_examples_location      = var.bucket_examples_location
-  bucket_examples_storage_class = var.bucket_examples_storage_class
   #Artifact Registry
   repository_id                 = var.repository_id
   repository_location           = var.region
