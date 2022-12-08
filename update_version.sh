@@ -70,7 +70,7 @@ done
 
 if [[ -z $TARGET_VERSION ]] ; then
   # obtain the current version
-  LAST_VERSION=$(grep "project.version = '" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy | egrep -o "\d+\.\d+\.\d+\.\d+")
+  LAST_VERSION=$(grep "project.version = '" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy | egrep -o "\d+\.\d+\.\d+")
   # bump up one version
   TARGET_VERSION=$(awk -F. '{$NF++; print}' OFS=. <<< $LAST_VERSION)
   echo "Updating from $LAST_VERSION to $TARGET_VERSION"
