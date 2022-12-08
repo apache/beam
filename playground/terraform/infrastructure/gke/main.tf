@@ -30,6 +30,7 @@ resource "google_container_cluster" "playground-gke" {
 resource "google_container_node_pool" "playground-node-pool" {
   name       = "playground-node-pool"
   cluster    = google_container_cluster.playground-gke.name
+  location   = google_container_cluster.playground-gke.location
   autoscaling {
     min_node_count = var.min_count
     max_node_count = var.max_count
