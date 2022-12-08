@@ -26,50 +26,35 @@ rules:
 - valueFor: 'Priority'
   contains: '3'
   addLabels: ['P3']
-- valueFor: 'Component'
-  contains: 'Java'
+- contains: '[x] Component: Java'
   addLabels: ['java']
-- valueFor: 'Component'
-  contains: 'Python'
+- contains: '[x] Component: Python'
   addLabels: ['python']
-- valueFor: 'Component'
-  contains: 'Go'
+- contains: '[x] Component: Go'
   addLabels: ['go']
-- valueFor: 'Component'
-  contains: 'Typescript'
+- contains: '[x] Component: Typescript'
   addLabels: ['typescript']
-- valueFor: 'Component'
-  contains: 'IO'
+- contains: '[x] Component: IO'
   addLabels: ['io']
-- valueFor: 'Component'
-  contains: 'examples'
+- contains: '[x] Component: Beam examples'
   addLabels: ['examples']
-- valueFor: 'Component'
-  contains: 'playground'
+- contains: '[x] Component: Beam playground'
   addLabels: ['playground']
-- valueFor: 'Component'
-  contains: 'katas'
+- contains: '[x] Component: katas'
   addLabels: ['katas']
-- valueFor: 'Component'
-  contains: 'Website'
+- contains: '[x] Component: Website'
   addLabels: ['website']
-- valueFor: 'Component'
-  contains: 'Spark'
+- contains: '[x] Component: Spark'
   addLabels: ['spark']
-- valueFor: 'Component'
-  contains: 'Flink'
+- contains: '[x] Component: Flink'
   addLabels: ['flink']
-- valueFor: 'Component'
-  contains: 'Samza'
+- contains: '[x] Component: Samza'
   addLabels: ['samza']
-- valueFor: 'Component'
-  contains: 'Twister2'
+- contains: '[x] Component: Twister2'
   addLabels: ['twister2']
-- valueFor: 'Component'
-  contains: 'Jet'
+- contains: '[x] Component: Hazelcast'
   addLabels: ['jet']
-- valueFor: 'Component'
-  contains: 'Dataflow'
+- contains: '[x] Component: Google Cloud Dataflow Runner'
   addLabels: ['dataflow']
 - valueFor: 'Failure'
   contains: 'Test is flaky'
