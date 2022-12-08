@@ -49,7 +49,8 @@ body:
   - type: dropdown
     id: component
     attributes:
-      description: Which language, SDK, or feature is related to your report? (check all that apply)
+      label: Issue Components
+      description: Which languages, SDKs, or features are related to your report? (check all that apply)
       options:
        - Component: Python SDK
        - Component: Java SDK
