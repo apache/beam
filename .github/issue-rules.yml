@@ -35,40 +35,40 @@ rules:
 - valueFor: 'Component'
   contains: 'Go'
   addLabels: ['go']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'Typescript'
   addLabels: ['typescript']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'IO'
   addLabels: ['io']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'examples'
   addLabels: ['examples']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'playground'
   addLabels: ['playground']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'katas'
   addLabels: ['katas']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'Website'
   addLabels: ['website']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'Spark'
   addLabels: ['spark']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'Flink'
   addLabels: ['flink']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'Samza'
   addLabels: ['samza']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'Twister2'
   addLabels: ['twister2']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'Jet'
   addLabels: ['jet']
-- valueFor: 'Component'
+- valueFor: '[x] Component'
   contains: 'Dataflow'
   addLabels: ['dataflow']
 - valueFor: 'Failure'
