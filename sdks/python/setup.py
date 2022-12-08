@@ -180,15 +180,17 @@ if __name__ == '__main__':
   generate_protos_first()
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
-  if sys.platform == 'darwin' and (
-          sys.version_info.major == 3 and sys.version_info.minor == 10):
-    # TODO (https://github.com/apache/beam/issues/23585): Protobuf wheels
-    # for version 3.19.5, 3.19.6 and 3.20.x on Python 3.10 and MacOS are
-    # rolled back due to some errors on MacOS. So, for Python 3.10 on MacOS
-    # restrict the protobuf with tight upper bound(3.19.4)
-    protobuf_dependency = ['protobuf>3.12.2,<3.19.5']
-  else:
-    protobuf_dependency = ['protobuf>3.12.2,<4']
+  # if sys.platform == 'darwin' and (
+  #         sys.version_info.major == 3 and sys.version_info.minor == 10):
+  #   # TODO (https://github.com/apache/beam/issues/23585): Protobuf wheels
+  #   # for version 3.19.5, 3.19.6 and 3.20.x on Python 3.10 and MacOS are
+  #   # rolled back due to some errors on MacOS. So, for Python 3.10 on MacOS
+  #   # restrict the protobuf with tight upper bound(3.19.4)
+  #   protobuf_dependency = ['protobuf>3.12.2,<3.19.5']
+  # else:
+  #   protobuf_dependency = ['protobuf>3.12.2,<4']
+  
+  protobuf_dependency = ['protobuf>=4.21.1,<=4.21.11']
 
   setuptools.setup(
       name=PACKAGE_NAME,
