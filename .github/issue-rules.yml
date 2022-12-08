@@ -36,9 +36,9 @@ rules:
   addLabels: ['typescript']
 - contains: '[x] Component: IO'
   addLabels: ['io']
-- contains: '[x] Component: examples'
+- contains: '[x] Component: Beam examples'
   addLabels: ['examples']
-- contains: '[x] Component: playground'
+- contains: '[x] Component: Beam playground'
   addLabels: ['playground']
 - contains: '[x] Component: katas'
   addLabels: ['katas']
@@ -52,9 +52,9 @@ rules:
   addLabels: ['samza']
 - contains: '[x] Component: Twister2'
   addLabels: ['twister2']
-- contains: '[x] Component: Jet'
-  addLabels: ['jet']
-- contains: '[x] Component: Dataflow'
+- contains: '[x] Component: Hazlecast'
+  addLabels: ['hazlecast']
+- contains: '[x] Component: Google Cloud Dataflow Runner'
   addLabels: ['dataflow']
 - valueFor: 'Failure'
   contains: 'Test is flaky'
