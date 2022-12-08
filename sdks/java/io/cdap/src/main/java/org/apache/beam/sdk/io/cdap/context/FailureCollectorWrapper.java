@@ -22,7 +22,6 @@ import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -47,18 +46,19 @@ public class FailureCollectorWrapper implements FailureCollector {
 
     // We skip schema field validation errors because they are CDAP oriented and don't affect
     // anything in our case
-    for (Iterator<ValidationFailure> failureIterator = failuresCollection.iterator();
-        failureIterator.hasNext(); ) {
-      List<ValidationFailure.Cause> causes = failureIterator.next().getCauses();
+    List<ValidationFailure> schemaValidationFailures = new ArrayList<>();
+    for (ValidationFailure failure : failuresCollection) {
+      List<ValidationFailure.Cause> causes = failure.getCauses();
       if (causes != null) {
         for (ValidationFailure.Cause cause : causes) {
           String inputField = cause.getAttribute(CauseAttributes.INPUT_SCHEMA_FIELD);
           if (BatchContextImpl.DEFAULT_SCHEMA_FIELD_NAME.equals(inputField)) {
-            failureIterator.remove();
+            schemaValidationFailures.add(failure);
           }
         }
       }
     }
+    failuresCollection.removeAll(schemaValidationFailures);
     if (failuresCollection.isEmpty()) {
       return new ValidationException(this.failuresCollection);
     }
