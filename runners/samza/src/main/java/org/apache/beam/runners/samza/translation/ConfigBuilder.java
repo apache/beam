@@ -52,6 +52,7 @@ import org.apache.samza.job.yarn.YarnJobFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
 import org.apache.samza.runtime.RemoteApplicationRunner;
 import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
+import org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory;
 import org.apache.samza.zk.ZkJobCoordinatorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -306,9 +307,7 @@ public class ConfigBuilder {
   static Map<String, String> createRocksDBStoreConfig(SamzaPipelineOptions options) {
     final ImmutableMap.Builder<String, String> configBuilder =
         ImmutableMap.<String, String>builder()
-            .put(
-                BEAM_STORE_FACTORY,
-                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
+            .put(BEAM_STORE_FACTORY, RocksDbKeyValueStorageEngineFactory.class.getName())
             .put("stores.beamStore.rocksdb.compression", "lz4");
 
     if (options.getStateDurable()) {

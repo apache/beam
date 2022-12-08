@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
@@ -34,6 +35,7 @@ import org.apache.beam.runners.samza.translation.PortableTranslationContext;
 import org.apache.beam.runners.samza.translation.SamzaPipelineTranslator;
 import org.apache.beam.runners.samza.translation.SamzaPortablePipelineTranslator;
 import org.apache.beam.runners.samza.translation.SamzaTransformOverrides;
+import org.apache.beam.runners.samza.translation.StateIdParser;
 import org.apache.beam.runners.samza.translation.TranslationContext;
 import org.apache.beam.runners.samza.util.PipelineJsonRenderer;
 import org.apache.beam.sdk.Pipeline;
@@ -146,9 +148,11 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     LOG.info("Beam pipeline JSON graph:\n{}", jsonGraph);
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
+    final Set<String> nonUniqueStateIds = StateIdParser.scan(pipeline);
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
 
-    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    SamzaPipelineTranslator.createConfig(
+        pipeline, options, idMap, nonUniqueStateIds, configBuilder);
     configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
     configBuilder.put(BEAM_JSON_GRAPH, jsonGraph);
 
@@ -168,7 +172,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
           appDescriptor.withMetricsReporterFactories(reporterFactories);
 
           SamzaPipelineTranslator.translate(
-              pipeline, new TranslationContext(appDescriptor, idMap, options));
+              pipeline, new TranslationContext(appDescriptor, idMap, nonUniqueStateIds, options));
         };
 
     // perform a final round of validation for the pipeline options now that all configs are

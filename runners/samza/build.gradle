@@ -171,10 +171,6 @@ tasks.register("validatesRunner", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedUnbounded'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded'
   }
-  filter {
-    // Re-enable the test after Samza runner supports same state id across DoFn(s).
-    excludeTest('ParDoTest$StateTests', 'testValueStateSameId')
-  }
 }
 
 // Generates :runners:samza:runQuickstartJavaSamza
