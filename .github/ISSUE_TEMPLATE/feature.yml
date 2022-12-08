@@ -50,7 +50,7 @@ body:
     id: component
     attributes:
       label: Issue Components
-      description: Which language, SDK, or feature is related to your report? (check all that apply)
+      description: Which languages, SDKs, or features are related to your report? (check all that apply)
       options:
        - label: "Component: Python SDK"
        - label: "Component: Java SDK"
