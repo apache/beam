@@ -24,13 +24,23 @@ resource "google_container_cluster" "playground-gke" {
   initial_node_count         = var.min_count
   network                    = var.network
   subnetwork                 = var.subnetwork
-  horizontal_pod_autoscaling = true
+  remove_default_node_pool = true
+}
+
+resource "google_container_node_pool" "playground-node-pool" {
+  name       = "playground-node-pool"
+  cluster    = google_container_cluster.playground-gke.name
+  autoscaling {
+    min_node_count = var.min_count
+    max_node_count = var.max_count
+   }
+  node_count = 2 
+  management {
+    auto_repair  = "true"
+   }
   node_config {
     machine_type    = var.machine_type
     service_account = var.service_account_email
-    min_count       = 1
-    max_count       = 2
-    auto_repair     = true
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
@@ -38,6 +48,5 @@ resource "google_container_cluster" "playground-gke" {
       component = "beam-playground"
     }
     tags = ["beam-playground"]
-
-  }
+   }
 }
