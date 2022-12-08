@@ -16,28 +16,35 @@
  * limitations under the License.
  */
 
-import 'package:json_annotation/json_annotation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:playground_components/playground_components.dart';
 
-part 'unit_content.g.dart';
+import 'code_builder.dart';
 
-@JsonSerializable(createToJson: false)
-class UnitContentModel {
-  final String id;
-  final String title;
-  final String description;
-  final String? taskSnippetId;
-  final String? solutionSnippetId;
-  final List<String>? hints;
+class TobMarkdown extends StatelessWidget {
+  final EdgeInsets padding;
+  final String data;
+  final bool shrinkWrap;
 
-  const UnitContentModel({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.taskSnippetId,
-    required this.solutionSnippetId,
-    required this.hints,
+  const TobMarkdown({
+    required this.padding,
+    required this.data,
+    this.shrinkWrap = true,
   });
 
-  factory UnitContentModel.fromJson(Map<String, dynamic> json) =>
-      _$UnitContentModelFromJson(json);
+  @override
+  Widget build(BuildContext context) {
+    return Markdown(
+      data: data,
+      builders: {
+        'code': MarkdownCodeBuilder(),
+      },
+      padding: padding,
+      selectable: true,
+      shrinkWrap: shrinkWrap,
+      styleSheet:
+          Theme.of(context).extension<BeamThemeExtension>()!.markdownStyle,
+    );
+  }
 }
