@@ -55,27 +55,27 @@ body:
       options:
         - "Priority: 2 (backlog / disabled test but we think the product is healthy)"
         - "Priority: 1 (unhealthy code / failing or flaky postcommit so we cannot be sure the product is healthy)"
-        - "Priority: 0 (outage / failing precommit test impacting development)
+        - "Priority: 0 (outage / failing precommit test impacting development)"
     validations:
       required: true
-  - type: dropdown
+  - type: checkboxes
     id: component
     attributes:
       label: Issue Components
       description: Which languages, SDKs, or features are related to your report? (check all that apply)
       options:
-       - Component: Python
-       - Component: Java
-       - Component: Go
-       - Component: Typescript
-       - Component: IO connector
-       - Component: Beam examples
-       - Component: Beam playground
-       - Component: Beam katas
-       - Component: Website
-       - Component: Spark Runner
-       - Component: Flink Runner
-       - Component: Samza Runner
-       - Component: Twister2 Runner
-       - Component: Hazelcast Jet Runner
-       - Component: Google Cloud Dataflow Runner
+       - label: "Component: Python"
+       - label: "Component: Java"
+       - label: "Component: Go"
+       - label: "Component: Typescript"
+       - label: "Component: IO connector"
+       - label: "Component: Beam examples"
+       - label: "Component: Beam playground"
+       - label: "Component: Beam katas"
+       - label: "Component: Website"
+       - label: "Component: Spark Runner"
+       - label: "Component: Flink Runner"
+       - label: "Component: Samza Runner"
+       - label: "Component: Twister2 Runner"
+       - label: "Component: Hazelcast Jet Runner"
+       - label: "Component: Google Cloud Dataflow Runner"
