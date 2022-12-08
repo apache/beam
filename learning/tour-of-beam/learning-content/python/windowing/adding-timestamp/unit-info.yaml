@@ -17,7 +17,6 @@
 # under the License.
 #
 
-sdk: Java
-content:
-  - introduction
-  - windowing
+id: adding-timestamp
+name: Windowing with timestamp
+taskName: adding-timestamp

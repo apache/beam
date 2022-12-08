@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-sdk: Java
+id: windowing
+name: Windowing
+complexity: MEDIUM
 content:
-  - introduction
-  - windowing
+- adding-timestamp
+- fixed-time-window
+
