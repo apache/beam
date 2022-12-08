@@ -53,7 +53,7 @@ rules:
 - contains: '[x] Component: Twister2'
   addLabels: ['twister2']
 - contains: '[x] Component: Hazelcast'
-  addLabels: ['hazelcast']
+  addLabels: ['jet']
 - contains: '[x] Component: Google Cloud Dataflow Runner'
   addLabels: ['dataflow']
 - valueFor: 'Failure'
