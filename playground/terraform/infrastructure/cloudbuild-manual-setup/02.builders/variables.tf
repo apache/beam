@@ -37,12 +37,6 @@ variable "gke_trigger_name" {
   default     = "playground-to-gke-trigger"
 }
 
-variable "examples_ci_trigger_name" {
-  type        = string
-  description = "The name of the trigger that will run CI scripts to test Playground"
-  default     = "playground-examples-ci-trigger"
-}
-
 variable "examples_cd_trigger_name" {
   type        = string
   description = "The name of the trigger that will run CD scripts to deploy Playground examples"
