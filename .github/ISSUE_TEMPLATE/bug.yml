@@ -52,24 +52,24 @@ body:
         - "Priority: 0 (outage / urgent vulnerability)"
     validations:
       required: true
-  - type: dropdown
+  - type: checkboxes
     id: component
     attributes:
       label: Issue Components
       description: Which languages, SDKs, or features are related to your report? (check all that apply)
       options:
-       - Component: Python SDK
-       - Component: Java SDK
-       - Component: Go SDK
-       - Component: Typescript SDK
-       - Component: IO connector
-       - Component: Beam examples
-       - Component: Beam playground
-       - Component: Beam katas
-       - Component: Website
-       - Component: Spark Runner
-       - Component: Flink Runner
-       - Component: Samza Runner
-       - Component: Twister2 Runner
-       - Component: Hazelcast Jet Runner
-       - Component: Google Cloud Dataflow Runner
+       - "Component: Python SDK"
+       - "Component: Java SDK"
+       - "Component: Go SDK"
+       - "Component: Typescript SDK"
+       - "Component: IO connector"
+       - "Component: Beam examples"
+       - "Component: Beam playground"
+       - "Component: Beam katas"
+       - "Component: Website"
+       - "Component: Spark Runner"
+       - "Component: Flink Runner"
+       - "Component: Samza Runner"
+       - "Component: Twister2 Runner"
+       - "Component: Hazelcast Jet Runner"
+       - "Component: Google Cloud Dataflow Runner"
