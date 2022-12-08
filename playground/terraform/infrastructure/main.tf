@@ -33,20 +33,8 @@ module "network" {
   subnetwork_name = var.subnetwork_name
 }
 
-module "buckets" {
-  depends_on    = [module.setup, module.api_enable]
-  source        = "./buckets"
-  project_id    = var.project_id
-  #  terraform_bucket_name     = var.bucket_terraform_state_name
-  #  terraform_storage_class   = var.bucket_terraform_state_storage_class
-  #  terraform_bucket_location = var.bucket_terraform_state_location
-  name          = var.bucket_examples_name
-  storage_class = var.bucket_examples_storage_class
-  location      = var.bucket_examples_location
-}
-
 module "artifact_registry" {
-  depends_on = [module.setup, module.buckets, module.api_enable, module.ip_address]
+  depends_on = [module.setup, module.api_enable, module.ip_address]
   source     = "./artifact_registry"
   project_id = var.project_id
   id         = var.repository_id
