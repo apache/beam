@@ -74,7 +74,9 @@ module "gke" {
   project_id            = var.project_id
   service_account_email = module.setup.service_account_email
   machine_type      = var.gke_machine_type
-  node_count        = var.gke_node_count
+  node_count        = var.min_count
+  min_count         = var.min_count
+  max_count         = var.max_count
   name              = var.gke_name
   location          = var.location
   subnetwork        = module.network.playground_subnetwork_id

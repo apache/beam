@@ -18,16 +18,19 @@
 #
 
 resource "google_container_cluster" "playground-gke" {
-  name               = var.name
-  project            = var.project_id
-  location           = var.location
-  initial_node_count = var.node_count
-  network            = var.network
-  subnetwork         = var.subnetwork
+  name                       = var.name
+  project                    = var.project_id
+  location                   = var.location
+  initial_node_count         = var.min_count
+  network                    = var.network
+  subnetwork                 = var.subnetwork
+  horizontal_pod_autoscaling = true
   node_config {
     machine_type    = var.machine_type
     service_account = var.service_account_email
-
+    min_count       = var.min_count
+    max_count       = var.max_count
+    auto_repair     = true
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]

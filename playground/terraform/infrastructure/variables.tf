@@ -45,20 +45,20 @@ variable "service_account" {
 
 #GCS
 
-variable "bucket_examples_name" {
-  description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-examples"
-}
+# variable "bucket_examples_name" {
+#  description = "Name of Bucket to Store Playground Examples"
+#  default     = "playground-examples"
+# }
 
-variable "bucket_examples_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
+# variable "bucket_examples_location" {
+#  description = "Location of Playground Examples Bucket"
+#  default     = "US"
+# }
 
-variable "bucket_examples_storage_class" {
-  description = "Examples Bucket Storage Class"
-  default     = "STANDARD"
-}
+# variable "bucket_examples_storage_class" {
+#  description = "Examples Bucket Storage Class"
+#  default     = "STANDARD"
+# }
 
 variable "bucket_terraform_state_name" {
   description = "Name of Bucket to Store Terraform States"
@@ -153,10 +153,10 @@ variable "gke_machine_type" {
   default     = "e2-standard-4"
 }
 
-variable "gke_node_count" {
-  description = "Node pool size"
-  default     = 1
-}
+# variable "gke_node_count" {
+#  description = "Node pool size"
+#  default     = 1
+# }
 
 variable "gke_name" {
   description = "Name of GKE cluster"
@@ -169,4 +169,14 @@ variable "gke_location" {
 
 variable "location" {
   description = "Location of GKE cluster"
+}
+
+variable "min_count" {
+  description = "Min cluster node count"
+  default     = 2
+}
+
+variable "max_count" {
+  description = "Max cluster node count"
+  default     = 6
 }
