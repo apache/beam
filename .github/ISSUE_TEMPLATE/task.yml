@@ -47,24 +47,24 @@ body:
         - "Priority: 1 (urgent / mostly reserved for critical bugs)"
     validations:
       required: true
-  - type: dropdown
+  - type: checkboxes
     id: component
     attributes:
       label: Issue Components
       description: Which languages, SDKs, or features are related to your report? (check all that apply)
       options:
-       - Component: Python SDK
-       - Component: Java SDK
-       - Component: Go SDK
-       - Component: Typescript SDK
-       - Component: IO connector
-       - Component: Beam examples
-       - Component: Beam playground
-       - Component: Beam katas
-       - Component: Website
-       - Component: Spark Runner
-       - Component: Flink Runner
-       - Component: Samza Runner
-       - Component: Twister2 Runner
-       - Component: Hazelcast Jet Runner
-       - Component: Google Cloud Dataflow Runner
+       - label: "Component: Python SDK"
+       - label: "Component: Java SDK"
+       - label: "Component: Go SDK"
+       - label: "Component: Typescript SDK"
+       - label: "Component: IO connector"
+       - label: "Component: Beam examples"
+       - label: "Component: Beam playground"
+       - label: "Component: Beam katas"
+       - label: "Component: Website"
+       - label: "Component: Spark Runner"
+       - label: "Component: Flink Runner"
+       - label: "Component: Samza Runner"
+       - label: "Component: Twister2 Runner"
+       - label: "Component: Hazelcast Jet Runner"
+       - label: "Component: Google Cloud Dataflow Runner"
