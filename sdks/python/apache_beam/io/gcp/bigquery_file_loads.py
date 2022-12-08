@@ -522,7 +522,7 @@ class TriggerCopyJobs(beam.DoFn):
       self.process_one(element_list, job_name_prefix)
     else:
       for element in element_list:
-        self.process_one(element)
+        self.process_one(element, job_name_prefix)
 
   def process_one(self, element, job_name_prefix):
     destination, job_reference = element
