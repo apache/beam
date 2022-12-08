@@ -138,6 +138,7 @@ tasks.register("extractBeamSymbols") {
   dependsOn("ensureSymbolsDirectoryExists")
   dependsOn("extractBeamSymbolsGo")
   dependsOn("extractBeamSymbolsPython")
+  dependsOn("tools:extract_symbols_java:buildJava")
 
   group = "build"
   description = "Build Beam symbols dictionaries"
