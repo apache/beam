@@ -519,7 +519,7 @@ class TriggerCopyJobs(beam.DoFn):
       self, element_list, job_name_prefix=None, unused_schema_mod_jobs=None):
     if isinstance(element_list, tuple):
       # Allow this for streaming update compatibility while fixing BEAM-24535.
-      self.process_one(element_list)
+      self.process_one(element_list, job_name_prefix)
     else:
       for element in element_list:
         self.process_one(element)
