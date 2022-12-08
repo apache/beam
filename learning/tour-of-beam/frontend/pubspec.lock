@@ -799,6 +799,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "3.1.0"
+  rate_limiter:
+    dependency: "direct main"
+    description:
+      name: rate_limiter
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.1"
   rxdart:
     dependency: transitive
     description:

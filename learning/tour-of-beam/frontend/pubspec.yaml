@@ -46,6 +46,7 @@ dependencies:
   markdown: ^6.0.1
   playground_components: { path: ../../../playground/frontend/playground_components }
   provider: ^6.0.3
+  rate_limiter: ^0.1.1
   shared_preferences: ^2.0.15
   url_launcher: ^6.1.5
   url_strategy: ^0.2.0

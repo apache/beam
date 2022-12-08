@@ -20,8 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../cache/unit_progress.dart';
 import '../../../models/unit.dart';
+import '../controllers/completion.dart';
 import '../controllers/content_tree.dart';
 import 'completeness_indicator.dart';
 
@@ -36,7 +36,8 @@ class UnitWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
+    final unitsCompletionController =
+        GetIt.instance.get<UnitsCompletionController>();
 
     return AnimatedBuilder(
       animation: contentTreeController,
@@ -54,9 +55,10 @@ class UnitWidget extends StatelessWidget {
             child: Row(
               children: [
                 AnimatedBuilder(
-                  animation: unitProgressCache,
+                  animation: unitsCompletionController,
                   builder: (context, child) => CompletenessIndicator(
-                    isCompleted: unitProgressCache.isUnitCompleted(unit.id),
+                    isCompleted:
+                        unitsCompletionController.isUnitCompleted(unit.id),
                     isSelected: isSelected,
                   ),
                 ),

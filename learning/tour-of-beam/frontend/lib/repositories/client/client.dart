@@ -31,4 +31,6 @@ abstract class TobClient {
   Future<GetUserProgressResponse?> getUserProgress(String sdkId);
 
   Future<void> postUnitComplete(String sdkId, String id);
+
+  Future<void> postUserCode(String sdkId, String unitId, String code);
 }

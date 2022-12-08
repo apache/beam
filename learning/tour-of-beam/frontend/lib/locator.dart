@@ -24,6 +24,7 @@ import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
 import 'cache/unit_progress.dart';
+import 'pages/tour/controllers/completion.dart';
 import 'pages/welcome/page.dart';
 import 'repositories/client/client.dart';
 import 'repositories/client/cloud_functions_client.dart';
@@ -48,7 +49,13 @@ void _initializeCaches() {
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
   GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(UnitContentCache(client: client));
-  GetIt.instance.registerSingleton(UnitProgressCache(client: client));
+  final cache = UnitsProgressCache(client: client);
+  GetIt.instance.registerSingleton(cache);
+  GetIt.instance.registerSingleton(
+    UnitsCompletionController(
+      unitsProgressCache: cache,
+    ),
+  );
 }
 
 void _initializeState() {

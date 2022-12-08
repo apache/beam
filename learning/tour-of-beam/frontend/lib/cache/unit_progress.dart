@@ -20,84 +20,44 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
-import '../auth/notifier.dart';
-import '../enums/unit_completion.dart';
+import '../models/unit_progress.dart';
 import '../repositories/models/get_user_progress_response.dart';
 import '../state.dart';
 import 'cache.dart';
 
-class UnitProgressCache extends Cache {
-  UnitProgressCache({required super.client});
+class UnitsProgressCache extends Cache {
+  UnitsProgressCache({required super.client});
 
-  final _completedUnitIds = <String>{};
-  final _updatingUnitIds = <String>{};
+  var _unitsProgress = <UnitProgressModel>[];
   Future<GetUserProgressResponse?>? _future;
 
-  Set<String> getUpdatingUnitIds() => _updatingUnitIds;
-
-  void addUpdatingUnitId(String unitId) {
-    _updatingUnitIds.add(unitId);
-    notifyListeners();
-  }
-
-  void clearUpdatingUnitId(String unitId) {
-    _updatingUnitIds.remove(unitId);
-    notifyListeners();
-  }
-
-  bool canCompleteUnit(String? unitId) {
-    if (unitId == null) {
-      return false;
-    }
-    return _getUnitCompletion(unitId) == UnitCompletion.uncompleted;
-  }
-
-  UnitCompletion _getUnitCompletion(String unitId) {
-    final authNotifier = GetIt.instance.get<AuthNotifier>();
-    if (!authNotifier.isAuthenticated) {
-      return UnitCompletion.unauthenticated;
-    }
-    if (_updatingUnitIds.contains(unitId)) {
-      return UnitCompletion.updating;
-    }
-    if (isUnitCompleted(unitId)) {
-      return UnitCompletion.completed;
-    }
-    return UnitCompletion.uncompleted;
-  }
-
-  bool isUnitCompleted(String? unitId) {
-    return getCompletedUnits().contains(unitId);
-  }
-
-  Future<void> updateCompletedUnits() async {
+  Future<void> updateUnitsProgress() async {
     final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
     if (sdkId != null) {
-      await _loadCompletedUnits(sdkId);
+      await _loadUnitsProgress(sdkId);
     }
   }
 
-  Set<String> getCompletedUnits() {
+  List<UnitProgressModel> getUnitsProgress() {
     if (_future == null) {
-      unawaited(updateCompletedUnits());
+      unawaited(updateUnitsProgress());
     }
 
-    return _completedUnitIds;
+    return _unitsProgress;
   }
 
-  Future<void> _loadCompletedUnits(String sdkId) async {
+  Future<void> _loadUnitsProgress(String sdkId) async {
     _future = client.getUserProgress(sdkId);
     final result = await _future;
 
-    _completedUnitIds.clear();
     if (result != null) {
-      for (final unitProgress in result.units) {
-        if (unitProgress.isCompleted) {
-          _completedUnitIds.add(unitProgress.id);
-        }
-      }
+      _unitsProgress = result.units;
+    } else {
+      _unitsProgress = [];
     }
-
+    print([
+      'loaded units progress',
+    ]);
     notifyListeners();
   }
 }
