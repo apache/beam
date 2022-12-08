@@ -37,8 +37,7 @@ public interface MongoDBResourceManager {
    *
    * <p>Note: Implementations may do database creation here, if one does not already exist.
    *
-   * @param collectionName Collection of BigtableResourceManagerCluster objects to associate with
-   *     the given Bigtable instance.
+   * @param collectionName Collection name to associate with the given MongoDB instance.
    * @return A boolean indicating whether the resource was created.
    * @throws MongoDBResourceManagerException if there is an error creating the collection in
    *     MongoDB.

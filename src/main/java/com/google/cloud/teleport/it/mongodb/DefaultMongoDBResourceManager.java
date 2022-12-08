@@ -18,7 +18,6 @@ package com.google.cloud.teleport.it.mongodb;
 import static com.google.cloud.teleport.it.mongodb.MongoDBResourceManagerUtils.checkValidCollectionName;
 import static com.google.cloud.teleport.it.mongodb.MongoDBResourceManagerUtils.generateDatabaseName;
 
-import com.google.cloud.teleport.it.bigtable.DefaultBigtableResourceManager;
 import com.google.cloud.teleport.it.testcontainers.TestContainerResourceManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -50,7 +49,7 @@ import org.testcontainers.utility.DockerImageName;
 public class DefaultMongoDBResourceManager extends TestContainerResourceManager<GenericContainer<?>>
     implements MongoDBResourceManager {
 
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultBigtableResourceManager.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultMongoDBResourceManager.class);
 
   private static final String DEFAULT_MONGODB_CONTAINER_NAME = "mongo";
 
