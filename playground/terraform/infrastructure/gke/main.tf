@@ -38,6 +38,7 @@ resource "google_container_node_pool" "playground-node-pool" {
   node_count = 2 
   management {
     auto_repair  = "true"
+    auto_upgrade = "true"
    }
   node_config {
     machine_type    = var.machine_type
