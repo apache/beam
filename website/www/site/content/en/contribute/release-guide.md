@@ -282,7 +282,7 @@ After cutting the branch, you should manually update `CHANGES.md` on `master` by
   Next, fill the required parameters: 'Beam version of current release' and
   'Next release version'.
   Click the 'Run workflow' button.
-  
+
   ```
 
 ### Start a snapshot build
@@ -334,13 +334,13 @@ There are 2 ways to perform this verification, either running the GitHub Action(
 * **GitHub Action:** [verify_release_build](https://github.com/apache/beam/actions/workflows/verify_release_build.yml)
 
 * **Usage**
-  1. 
+  1.
      ```
        Navigate to the link above. Once there, click the 'Run workflow' dropdown.
        Next, fill the required parameters: 'RELEASE_VER' and 'COMMENT_TRIGGER_PHRASES'
        Click the 'Run workflow' button.
      ```
-     
+
 * **Tasks performed by the GitHub Action**
   1. Create a test PR against release branch;
   1. Triggers PostCommit jobs listed [here](https://github.com/apache/beam/blob/master/scripts/ci/release/test/resources/mass_comment.txt)
@@ -616,7 +616,7 @@ See the source of the script for more details, or to run commands manually in ca
 
      ```
        Navigate to the link above. Once there, click the 'Run workflow' dropdown.
-       Next, fill the required parameters: 'RELEASE', 'RC_NUMBER' and 'DEPLOY' to 'yes'. 
+       Next, fill the required parameters: 'RELEASE', 'RC_NUMBER' and 'DEPLOY' to 'yes'.
        Click the 'Run workflow' button.
      ```
 
