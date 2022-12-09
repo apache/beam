@@ -73,14 +73,12 @@ public class KafkaWordCountAvro {
     p.apply(
             KafkaIO.<Long, String>read()
                 .withBootstrapServers(
-                    "kafka_server:9092") // The argument is predefined to a correct value. Do not
-                // change it manually.
+                    "kafka_server:9092") // The argument is a predefined placeholder, don't change
                 .withTopicPartitions(
                     Collections.singletonList(
                         new TopicPartition(
                             "dataset",
-                            0))) // The argument is predefined to a correct value. Do not change it
-                // manually.
+                            0))) // The argument is a predefined placeholder, don't change
                 .withKeyDeserializer(LongDeserializer.class)
                 .withValueDeserializer(StringDeserializer.class)
                 .withConsumerConfigUpdates(consumerConfig)
