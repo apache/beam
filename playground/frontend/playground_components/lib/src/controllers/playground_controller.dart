@@ -74,6 +74,7 @@ class PlaygroundController with ChangeNotifier {
     CodeRepository? codeRepository,
   }) : _codeRepository = codeRepository {
     examplesLoader.setPlaygroundController(this);
+    _getOrCreateSnippetEditingController(Sdk.go, loadDefaultIfNot: false);
   }
 
   SnippetEditingController _getOrCreateSnippetEditingController(

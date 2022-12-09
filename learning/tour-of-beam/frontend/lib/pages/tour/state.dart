@@ -22,6 +22,7 @@ import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:rate_limiter/rate_limiter.dart';
 
 import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
@@ -29,9 +30,11 @@ import '../../cache/unit_progress.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
-import '../../solution.dart';
+import '../../repositories/client/client.dart';
 import '../../state.dart';
+import 'controllers/completion.dart';
 import 'controllers/content_tree.dart';
+import 'controllers/snippets.dart';
 import 'controllers/unit.dart';
 import 'path.dart';
 
@@ -39,11 +42,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
   UnitController? currentUnitController;
+  final UnitSnippetsController unitSnippetsController;
   final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _authNotifier = GetIt.instance.get<AuthNotifier>();
-  final _solutionNotifier = GetIt.instance.get<SolutionNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
-  final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
+  final _unitProgressCache = GetIt.instance.get<UnitsProgressCache>();
   UnitContentModel? _currentUnitContent;
 
   TourNotifier({
@@ -53,13 +56,51 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
           initialSdkId: initialSdkId,
           initialTreeIds: initialTreeIds,
         ),
+        unitSnippetsController = UnitSnippetsController(),
         playgroundController = _createPlaygroundController(initialSdkId) {
     contentTreeController.addListener(_onUnitChanged);
-    _solutionNotifier.addListener(_onSolutionToggled);
     _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onUnitProgressChanged);
+
+    final saveDebounce = debounce(
+      _save,
+      const Duration(seconds: 2),
+    );
+
+    playgroundController.setSdk(Sdk.parseOrCreate(_appNotifier.sdkId!));
+    playgroundController.snippetEditingController?.codeController.addListener(
+      () async {
+        if (_authNotifier.isAuthenticated &&
+            (playgroundController.snippetEditingController?.isChanged ??
+                false)) {
+          print([
+            'changed',
+          ]);
+          saveDebounce();
+        }
+      },
+    );
+
     _onUnitChanged();
+  }
+
+  Future<void> _save() async {
+    print([
+      'save',
+    ]);
+    final client = GetIt.instance.get<TobClient>();
+
+    await client.postUserCode(
+      currentUnitController!.sdkId,
+      currentUnitController!.unitId,
+      playgroundController.snippetEditingController!.codeController.rawText,
+    );
+
+    // final snippetId =
+    //     _unitProgressCache.unitUserSnippets[currentUnitController!.unitId]!;
+
+    // await _setPlaygroundSnippet(snippetId);
   }
 
   @override
@@ -70,6 +111,25 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   String? get currentUnitId => currentUnitController?.unitId;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
+  bool get currentUnitHasSolution =>
+      currentUnitContent?.solutionSnippetId != null;
+  bool showSolution = false;
+
+  void toggleShowSolution() {
+    if (currentUnitHasSolution) {
+      showSolution = !showSolution;
+
+      final snippetId = showSolution
+          ? _currentUnitContent?.solutionSnippetId
+          : _currentUnitContent?.taskSnippetId;
+      if (snippetId != null) {
+        // TODO(nausharipov): store/recover
+        unawaited(_setPlaygroundSnippet(snippetId));
+      }
+
+      notifyListeners();
+    }
+  }
 
   void _createCurrentUnitController(String sdkId, String unitId) {
     currentUnitController = UnitController(
@@ -79,7 +139,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _onUnitProgressChanged() async {
-    await _unitProgressCache.updateCompletedUnits();
+    await _unitProgressCache.updateUnitsProgress();
+    await _setCurrentSnippet(currentUnitContent!);
   }
 
   void _onAppNotifierChanged() {
@@ -88,6 +149,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
       contentTreeController.sdkId = sdkId;
       _onUnitProgressChanged();
+      _setCurrentSnippet(currentUnitContent!);
     }
   }
 
@@ -108,16 +170,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  void _onSolutionToggled() {
-    final snippetId = _solutionNotifier.showSolution
-        ? _currentUnitContent?.solutionSnippetId
-        : _currentUnitContent?.taskSnippetId;
-    if (snippetId != null) {
-      unawaited(_setPlaygroundSnippet(snippetId));
-    }
-    notifyListeners();
-  }
-
   Future<void> _setCurrentUnitContent(UnitContentModel? content) async {
     if (content == _currentUnitContent) {
       return;
@@ -128,11 +180,25 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (content == null) {
       return;
     }
-    final taskSnippetId = content.taskSnippetId;
-    await _setPlaygroundSnippet(taskSnippetId);
+    await _setCurrentSnippet(content);
+  }
+
+  Future<void> _setCurrentSnippet(UnitContentModel unit) async {
+    await _unitProgressCache.updateUnitsProgress();
+    print([
+      'set current snippet',
+      unit.id,
+    ]);
+    final snippetId =
+        unitSnippetsController.getUnitSnippets()[unit.id] ?? unit.taskSnippetId;
+    await _setPlaygroundSnippet(snippetId);
   }
 
   Future<void> _setPlaygroundSnippet(String? snippetId) async {
+    print([
+      'sps',
+      snippetId,
+    ]);
     if (snippetId == null) {
       await _emptyPlayground();
       return;
@@ -203,9 +269,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   void dispose() {
     _unitContentCache.removeListener(_onUnitChanged);
     contentTreeController.removeListener(_onUnitChanged);
-    _solutionNotifier.removeListener(_onSolutionToggled);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onUnitProgressChanged);
     super.dispose();
   }
 }
+
+/// load the default snippet
+/// show user snippet if there is one
+/// user changes code
+/// save code after 5 sec of inaction

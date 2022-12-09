@@ -19,29 +19,28 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get_it/get_it.dart';
 
 import '../../../assets/assets.gen.dart';
-import '../../../solution.dart';
+import '../state.dart';
 
 class SolutionButton extends StatelessWidget {
-  const SolutionButton();
+  final TourNotifier tourNotifier;
+
+  const SolutionButton({
+    required this.tourNotifier,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final solutionNotifier = GetIt.instance.get<SolutionNotifier>();
-
     return AnimatedBuilder(
-      animation: solutionNotifier,
+      animation: tourNotifier,
       builder: (context, child) => TextButton.icon(
         style: ButtonStyle(
           backgroundColor: MaterialStateProperty.all(
-            solutionNotifier.showSolution
-                ? Theme.of(context).splashColor
-                : null,
+            tourNotifier.showSolution ? Theme.of(context).splashColor : null,
           ),
         ),
-        onPressed: solutionNotifier.toggleShowSolution,
+        onPressed: tourNotifier.toggleShowSolution,
         icon: SvgPicture.asset(Assets.svg.solution),
         label: const Text('ui.solution').tr(),
       ),

@@ -21,6 +21,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../../cache/unit_progress.dart';
 import '../../../repositories/client/client.dart';
+import 'completion.dart';
 
 class UnitController extends ChangeNotifier {
   final String unitId;
@@ -33,13 +34,15 @@ class UnitController extends ChangeNotifier {
 
   Future<void> completeUnit() async {
     final client = GetIt.instance.get<TobClient>();
-    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
+    final unitsCompletionController =
+        GetIt.instance.get<UnitsCompletionController>();
+    final unitProgressCache = GetIt.instance.get<UnitsProgressCache>();
     try {
-      unitProgressCache.addUpdatingUnitId(unitId);
+      unitsCompletionController.addUpdatingUnitId(unitId);
       await client.postUnitComplete(sdkId, unitId);
     } finally {
-      await unitProgressCache.updateCompletedUnits();
-      unitProgressCache.clearUpdatingUnitId(unitId);
+      await unitProgressCache.updateUnitsProgress();
+      unitsCompletionController.clearUpdatingUnitId(unitId);
     }
   }
 }

@@ -55,7 +55,10 @@ class UnitContentWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: _Content(unitContent: currentUnitContent),
+                child: _Content(
+                  tourNotifier: tourNotifier,
+                  unitContent: currentUnitContent,
+                ),
               ),
               _ContentFooter(tourNotifier),
             ],
@@ -67,10 +70,12 @@ class UnitContentWidget extends StatelessWidget {
 }
 
 class _Content extends StatelessWidget {
+  final TourNotifier tourNotifier;
   final UnitContentModel? unitContent;
 
   const _Content({
     required this.unitContent,
+    required this.tourNotifier,
   });
 
   @override
@@ -81,6 +86,7 @@ class _Content extends StatelessWidget {
       return Container();
     } else if (content.hints != null) {
       return _ChallengeContent(
+        tourNotifier: tourNotifier,
         unitContent: content,
       );
     }
@@ -123,10 +129,12 @@ class _Title extends StatelessWidget {
 }
 
 class _ChallengeContent extends StatelessWidget {
+  final TourNotifier tourNotifier;
   final UnitContentModel unitContent;
 
   const _ChallengeContent({
     required this.unitContent,
+    required this.tourNotifier,
   });
 
   @override
@@ -139,7 +147,10 @@ class _ChallengeContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Title(title: unitContent.title),
-            _ChallengeButtons(unitContent: unitContent),
+            _ChallengeButtons(
+              unitContent: unitContent,
+              tourNotifier: tourNotifier,
+            ),
           ],
         ),
         TobMarkdown(
@@ -152,10 +163,12 @@ class _ChallengeContent extends StatelessWidget {
 }
 
 class _ChallengeButtons extends StatelessWidget {
+  final TourNotifier tourNotifier;
   final UnitContentModel unitContent;
 
   const _ChallengeButtons({
     required this.unitContent,
+    required this.tourNotifier,
   });
 
   static const _buttonPadding = EdgeInsets.only(
@@ -166,7 +179,6 @@ class _ChallengeButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hints = unitContent.hints;
-    final solution = unitContent.solutionSnippetId;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -178,10 +190,10 @@ class _ChallengeButtons extends StatelessWidget {
               hints: hints,
             ),
           ),
-        if (solution != null)
-          const Padding(
+        if (tourNotifier.currentUnitHasSolution)
+          Padding(
             padding: _buttonPadding,
-            child: SolutionButton(),
+            child: SolutionButton(tourNotifier: tourNotifier),
           ),
       ],
     );
