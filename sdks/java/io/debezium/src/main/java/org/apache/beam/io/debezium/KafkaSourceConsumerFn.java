@@ -25,6 +25,7 @@ import io.debezium.relational.history.DatabaseHistoryException;
 import io.debezium.relational.history.HistoryRecord;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -127,6 +128,27 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     return SerializableCoder.of(OffsetHolder.class);
   }
 
+  protected SourceRecord getOneRecord(Map<String, String> configuration) {
+    try {
+      SourceConnector connector = connectorClass.getDeclaredConstructor().newInstance();
+      connector.start(configuration);
+
+      SourceTask task = (SourceTask) connector.taskClass().getDeclaredConstructor().newInstance();
+      task.initialize(new BeamSourceTaskContext(null));
+      task.start(connector.taskConfigs(1).get(0));
+      List<SourceRecord> records = task.poll();
+      task.stop();
+      connector.stop();
+      return records.get(0);
+    } catch (NoSuchMethodException
+        | InterruptedException
+        | InvocationTargetException
+        | IllegalAccessException
+        | InstantiationException e) {
+      throw new RuntimeException("AI DIOS!");
+    }
+  }
+
   /**
    * Process the retrieved element. Currently it just logs the retrieved record as JSON.
    *
@@ -188,10 +210,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
         task.commit();
       }
     } catch (Exception ex) {
-      LOG.error(
-          "-------- Error on consumer: {}. with stacktrace: {}",
-          ex.getMessage(),
-          ex.getStackTrace());
+      throw new RuntimeException("Error occurred when consuming changes from Database. ", ex);
     } finally {
       restrictionTrackers.remove(this.getHashCode());
 

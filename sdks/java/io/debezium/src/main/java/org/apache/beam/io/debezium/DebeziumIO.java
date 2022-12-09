@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.kafka.connect.source.SourceConnector;
+import org.apache.kafka.connect.source.SourceRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -200,6 +202,25 @@ public class DebeziumIO {
      */
     public Read<T> withMaxNumberOfRecords(Integer maxNumberOfRecords) {
       return toBuilder().setMaxNumberOfRecords(maxNumberOfRecords).build();
+    }
+
+    protected Schema getRecordSchema() {
+      SourceRecord sampledRecord =
+          new KafkaSourceConsumerFn<>(
+                  getConnectorConfiguration().getConnectorClass().get(),
+                  getFormatFunction(),
+                  getMaxNumberOfRecords())
+              .getOneRecord(getConnectorConfiguration().getConfigurationMap());
+      Schema keySchema =
+          sampledRecord.keySchema() != null
+              ? KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.keySchema())
+              : Schema.builder().build();
+      Schema valueSchema =
+          KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.valueSchema());
+      return Schema.builder()
+          .addNullableField("key", Schema.FieldType.row(keySchema))
+          .addRowField("value", valueSchema)
+          .build();
     }
 
     @Override
