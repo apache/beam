@@ -224,9 +224,14 @@ class Stager(object):
               'The file %s cannot be found. It was specified in the '
               '--requirements_file command line option.' %
               setup_options.requirements_file)
+        extra_packages, thinned_requirements_file = (
+            Stager._extract_local_packages(setup_options.requirements_file))
+        if extra_packages:
+          setup_options.extra_packages = (
+              setup_options.extra_packages or []) + extra_packages
         resources.append(
             Stager._create_file_stage_to_artifact(
-                setup_options.requirements_file, REQUIREMENTS_FILE))
+                thinned_requirements_file, REQUIREMENTS_FILE))
         # Populate cache with packages from the requirement file option and
         # stage the files in the cache.
         if not use_beam_default_container:
@@ -368,14 +373,6 @@ class Stager(object):
         resources.append(
             Stager._create_file_stage_to_artifact(
                 pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
-
-    worker_options = options.view_as(WorkerOptions)
-    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
-    if dataflow_worker_jar is not None:
-      jar_staged_filename = 'dataflow-worker.jar'
-      resources.append(
-          Stager._create_file_stage_to_artifact(
-              dataflow_worker_jar, jar_staged_filename))
 
     return resources
 
@@ -684,6 +681,25 @@ class Stager(object):
     return tmp_requirements_filename
 
   @staticmethod
+  def _extract_local_packages(requirements_file):
+    local_deps = []
+    pypi_deps = []
+    with open(requirements_file, 'r') as fin:
+      for line in fin:
+        dep = line.strip()
+        if os.path.exists(dep):
+          local_deps.append(dep)
+        else:
+          pypi_deps.append(dep)
+    if local_deps:
+      with tempfile.NamedTemporaryFile(suffix='-requirements.txt',
+                                       delete=False) as fout:
+        fout.write('\n'.join(pypi_deps).encode('utf-8'))
+        return local_deps, fout.name
+    else:
+      return [], requirements_file
+
+  @staticmethod
   def _get_platform_for_default_sdk_container():
     """
     Get the platform for apache beam SDK container based on Pip version.
@@ -699,6 +715,8 @@ class Stager(object):
     # Base image
     pip_version = pkg_resources.get_distribution('pip').version
     if parse_version(pip_version) >= parse_version('19.3'):
+      # pip can only recognize manylinux2014_x86_64 wheels
+      # from version 19.3.
       return 'manylinux2014_x86_64'
     else:
       return 'manylinux2010_x86_64'
@@ -830,13 +848,15 @@ class Stager(object):
       try:
         abi_suffix = 'm' if sys.version_info < (3, 8) else ''
         # Stage binary distribution of the SDK, for now on a best-effort basis.
+        platform_tag = Stager._get_platform_for_default_sdk_container()
         sdk_local_file = Stager._download_pypi_sdk_package(
             temp_dir,
             fetch_binary=True,
             language_version_tag='%d%d' %
             (sys.version_info[0], sys.version_info[1]),
             abi_tag='cp%d%d%s' %
-            (sys.version_info[0], sys.version_info[1], abi_suffix))
+            (sys.version_info[0], sys.version_info[1], abi_suffix),
+            platform_tag=platform_tag)
         sdk_binary_staged_name = Stager.\
             _desired_sdk_filename_in_staging_location(sdk_local_file)
         _LOGGER.info(
@@ -873,10 +893,10 @@ class Stager(object):
   def _download_pypi_sdk_package(
       temp_dir,
       fetch_binary=False,
-      language_version_tag='27',
+      language_version_tag='39',
       language_implementation_tag='cp',
-      abi_tag='cp27mu',
-      platform_tag='manylinux1_x86_64'):
+      abi_tag='cp39',
+      platform_tag='manylinux2014_x86_64'):
     """Downloads SDK package from PyPI and returns path to local path."""
     package_name = Stager.get_sdk_package_name()
     try:
@@ -911,7 +931,10 @@ class Stager(object):
           '--platform',
           platform_tag
       ])
-      # Example wheel: apache_beam-2.4.0-cp27-cp27mu-manylinux1_x86_64.whl
+      # Example wheel: with manylinux14 tag.
+      # apache_beam-2.43.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl # pylint: disable=line-too-long
+      if platform_tag == 'manylinux2014_x86_64':
+        platform_tag = 'manylinux_2_17_x86_64.' + platform_tag
       expected_files = [
           os.path.join(
               temp_dir,
@@ -921,8 +944,9 @@ class Stager(object):
                   language_implementation_tag,
                   language_version_tag,
                   abi_tag,
-                  platform_tag))
+                  platform_tag)),
       ]
+
     else:
       _LOGGER.info('Downloading source distribution of the SDK from PyPi')
       cmd_args.extend(['--no-binary', ':all:'])

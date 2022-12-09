@@ -15,16 +15,16 @@
   <ul>
     {{ range $lang := .Params }}
       {{ if eq $lang "java" }}
-        <li data-type="language-java" class="active">Java SDK</li>
+        <li data-value="java" class="active">Java SDK</li>
       {{ end }}
       {{ if eq $lang "py" }}
-        <li data-type="language-py">Python SDK</li>
+        <li data-value="py">Python SDK</li>
       {{ end }}
       {{ if eq $lang "go" }}
-        <li data-type="language-go">Go SDK</li>
+        <li data-value="go">Go SDK</li>
       {{ end }}
       {{ if eq $lang "typescript" }}
-        <li data-type="language-typescript">Typescript SDK</li>
+        <li data-value="typescript">TypeScript SDK</li>
       {{ end }}
     {{ end }}
   </ul>

@@ -16,17 +16,20 @@
  * limitations under the License.
  */
 
+import '../../enums/complexity.dart';
 import '../../models/sdk.dart';
 import 'shared_file.dart';
 
 class GetSnippetResponse {
+  final Complexity? complexity;
   final List<SharedFile> files;
-  final Sdk sdk;
   final String pipelineOptions;
+  final Sdk sdk;
 
   const GetSnippetResponse({
+    required this.complexity,
     required this.files,
-    required this.sdk,
     required this.pipelineOptions,
+    required this.sdk,
   });
 }

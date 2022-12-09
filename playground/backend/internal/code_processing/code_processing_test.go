@@ -302,7 +302,7 @@ func Test_Process(t *testing.T) {
 					cacheService.SetValue(ctx, pipelineId, cache.Canceled, true)
 				}(tt.args.ctx, tt.args.pipelineId)
 			}
-			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions)
+			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions, nil, nil)
 
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if !reflect.DeepEqual(status, tt.expectedStatus) {
@@ -723,7 +723,7 @@ func Benchmark_ProcessJava(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "", nil, nil)
 	}
 }
 
@@ -753,7 +753,7 @@ func Benchmark_ProcessPython(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, pipelineOptions)
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, pipelineOptions, nil, nil)
 	}
 }
 
@@ -783,7 +783,7 @@ func Benchmark_ProcessGo(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "", nil, nil)
 	}
 }
 
@@ -984,7 +984,7 @@ func Test_prepareStep(t *testing.T) {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			_ = lc.CreateSourceCodeFile(tt.code)
-			prepareStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel)
+			prepareStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel, nil)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if status != tt.expectedStatus {
 				t.Errorf("prepareStep: got status = %v, want %v", status, tt.expectedStatus)

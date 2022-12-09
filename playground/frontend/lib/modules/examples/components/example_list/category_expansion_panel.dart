@@ -26,7 +26,7 @@ import 'package:playground_components/playground_components.dart';
 
 class CategoryExpansionPanel extends StatelessWidget {
   final String categoryName;
-  final List examples;
+  final List<ExampleBase> examples;
   final ExampleBase selectedExample;
   final AnimationController animationController;
   final OverlayEntry? dropdown;
@@ -43,7 +43,7 @@ class CategoryExpansionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExpansionWidget(
-      initiallyExpanded: examples.contains(selectedExample),
+      initiallyExpanded: examples.any((e) => e.path == selectedExample.path),
       maintainState: true,
       titleBuilder: (animationValue, _, isExpanded, toggleFunction) => InkWell(
         onTap: () => toggleFunction(animated: true),

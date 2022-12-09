@@ -15,7 +15,10 @@
 
 package bigqueryio
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestNewQualifiedTableName(t *testing.T) {
 	tests := []struct {
@@ -35,4 +38,41 @@ func TestNewQualifiedTableName(t *testing.T) {
 			t.Errorf("NewQualifiedTableName(%v) = %v, want %v", test.Name, actual, test.Exp)
 		}
 	}
+}
+
+func Test_constructSelectStatement(t *testing.T) {
+	t.Run("Statement with columns inferred from struct fields", func(t *testing.T) {
+		typ := reflect.TypeOf(struct {
+			Col1 string `bigquery:"col1"`
+			Col2 string `bigquery:"col2,nullable"`
+			Col3 string `bigquery:",nullable"`
+			Col4 string
+			Col5 string `other:"col5"`
+			Col6 string `bigquery:"-"`
+			col7 string
+		}{})
+		tagKey := "bigquery"
+		table := "test_table"
+		want := "SELECT col1, col2, Col3, Col4, Col5 FROM [test_table]"
+
+		if got := constructSelectStatement(typ, tagKey, table); got != want {
+			t.Errorf("constructSelectStatement() = %v, want %v", got, want)
+		}
+	})
+}
+
+func Test_constructSelectStatementPanic(t *testing.T) {
+	t.Run("Panic for no columns", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("constructSelectStatement() does not panic")
+			}
+		}()
+
+		typ := reflect.TypeOf(struct{}{})
+		tagKey := "bigquery"
+		table := "test_table"
+
+		constructSelectStatement(typ, tagKey, table)
+	})
 }

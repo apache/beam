@@ -172,15 +172,15 @@ task samzaValidatesRunner() {
 
 def createSparkRunnerTestTask(String workerType) {
   def taskName = "sparkCompatibilityMatrix${workerType}"
-  // `project(':runners:spark:2:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
-  def jobServerJar = "${rootDir}/runners/spark/2/job-server/build/libs/beam-runners-spark-job-server-${version}.jar"
+  // `project(':runners:spark:3:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
+  def jobServerJar = "${rootDir}/runners/spark/3/job-server/build/libs/beam-runners-spark-3-job-server-${version}.jar"
   def options = "--spark_job_server_jar=${jobServerJar} --environment_type=${workerType}"
   if (workerType == 'PROCESS') {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
   def task = toxTask(taskName, 'spark-runner-test', options)
   task.configure {
-    dependsOn ':runners:spark:2:job-server:shadowJar'
+    dependsOn ':runners:spark:3:job-server:shadowJar'
     if (workerType == 'DOCKER') {
       dependsOn pythonContainerTask
     } else if (workerType == 'PROCESS') {
@@ -208,7 +208,7 @@ project.tasks.register("preCommitPy${pythonVersionSuffix}") {
 project.tasks.register("postCommitPy${pythonVersionSuffix}") {
   dependsOn = ['setupVirtualenv',
                "postCommitPy${pythonVersionSuffix}IT",
-               ':runners:spark:2:job-server:shadowJar',
+               ':runners:spark:3:job-server:shadowJar',
                'portableLocalRunnerJuliaSetWithSetupPy',
                'portableWordCountSparkRunnerBatch',
                'portableLocalRunnerTestWithRequirementsFile']
@@ -230,6 +230,11 @@ project.tasks.register("flinkExamples") {
             "--environment_type=LOOPBACK",
             "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
             "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+            '--sdk_harness_log_level_overrides=' +
+                // suppress info level flink.runtime log flood
+                '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
+                // suppress full __metricscontainers log printed in FlinkPipelineRunner.createPortablePipelineResult
+                '\\"org.apache.beam.runners.flink.FlinkPipelineRunner\\":\\"WARN\\"}'
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
@@ -248,13 +253,13 @@ project.tasks.register("sparkExamples") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
-          ':runners:spark:2:job-server:shadowJar'
+          ':runners:spark:3:job-server:shadowJar'
   ]
   doLast {
     def testOpts = [
             "--log-cli-level=INFO",
     ]
-    def jobServerJar = "${rootDir}/runners/spark/2/job-server/build/libs/beam-runners-spark-job-server-${version}.jar"
+    def jobServerJar = "${rootDir}/runners/spark/3/job-server/build/libs/beam-runners-spark-3-job-server-${version}.jar"
     def pipelineOpts = [
             "--runner=SparkRunner",
             "--project=apache-beam-testing",
@@ -304,6 +309,13 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
         "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        '--sdk_harness_log_level_overrides=' +
+            // suppress info level flink.runtime log flood
+            '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
+            // suppress full __metricscontainers log printed in FlinkPipelineRunner.createPortablePipelineResult
+            '\\"org.apache.beam.runners.flink.FlinkPipelineRunner\\":\\"WARN\\",' +
+            // suppress metric name collision warning logs
+            '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
@@ -343,6 +355,13 @@ project.tasks.register("xlangSpannerIOIT") {
         "--environment_type=LOOPBACK",
         "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
         "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        '--sdk_harness_log_level_overrides=' +
+            // suppress info level flink.runtime log flood
+            '{\\"org.apache.flink.runtime\\":\\"WARN\\",' +
+            // suppress full __metricscontainers log printed in FlinkPipelineRunner.createPortablePipelineResult
+            '\\"org.apache.beam.runners.flink.FlinkPipelineRunner\\":\\"WARN\\",' +
+            // suppress metric name collision warning logs
+            '\\"org.apache.flink.runtime.metrics.groups\\":\\"ERROR\\"}'
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
@@ -381,7 +400,7 @@ def addTestJavaJarCreator(String runner, Task jobServerJarTask) {
 
 // TODO(BEAM-11333) Update and test multiple Flink versions.
 addTestJavaJarCreator("FlinkRunner", tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:shadowJar"))
-addTestJavaJarCreator("SparkRunner", tasks.getByPath(":runners:spark:2:job-server:shadowJar"))
+addTestJavaJarCreator("SparkRunner", tasks.getByPath(":runners:spark:3:job-server:shadowJar"))
 
 def addTestFlinkUberJar(boolean saveMainSession) {
   project.tasks.register("testUberJarFlinkRunner${saveMainSession ? 'SaveMainSession' : ''}") {
