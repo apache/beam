@@ -16,8 +16,6 @@
 package environment
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/logger"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +26,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/logger"
 )
 
 const (
@@ -60,12 +61,12 @@ const (
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
 	defaultNumOfParallelJobs      = 20
-	bucketNameKey                 = "BUCKET_NAME"
-	defaultBucketName             = "playground-precompiled-objects"
 	SDKConfigPathKey              = "SDK_CONFIG"
 	defaultSDKConfigPath          = "../sdks.yaml"
 	propertyPathKey               = "PROPERTY_PATH"
 	defaultPropertyPath           = "."
+	cacheRequestTimeoutKey        = "CACHE_REQUEST_TIMEOUT"
+	defaultCacheRequestTimeout    = time.Second * 5
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -100,34 +101,19 @@ func NewEnvironment(networkEnvs NetworkEnvs, beamEnvs BeamEnvs, appEnvs Applicat
 //	- cache address: localhost:6379
 // If os environment variables don't contain a value for app working dir - returns error.
 func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
-	pipelineExecuteTimeout := defaultPipelineExecuteTimeout
-	cacheExpirationTime := defaultCacheKeyExpirationTime
+	pipelineExecuteTimeout := getEnvAsDuration(pipelineExecuteTimeoutKey, defaultPipelineExecuteTimeout, "couldn't convert provided pipeline execute timeout. Using default %s\n")
+	cacheExpirationTime := getEnvAsDuration(cacheKeyExpirationTimeKey, defaultCacheKeyExpirationTime, "couldn't convert provided cache expiration time. Using default %s\n")
 	cacheType := getEnv(cacheTypeKey, defaultCacheType)
 	cacheAddress := getEnv(cacheAddressKey, defaultCacheAddress)
 	launchSite := getEnv(launchSiteKey, defaultLaunchSite)
 	projectId := os.Getenv(projectIdKey)
 	pipelinesFolder := getEnv(pipelinesFolderKey, defaultPipelinesFolder)
-	bucketName := getEnv(bucketNameKey, defaultBucketName)
 	sdkConfigPath := getEnv(SDKConfigPathKey, defaultSDKConfigPath)
 	propertyPath := getEnv(propertyPathKey, defaultPropertyPath)
-
-	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
-		if converted, err := time.ParseDuration(value); err == nil {
-			cacheExpirationTime = converted
-		} else {
-			log.Printf("couldn't convert provided cache expiration time. Using default %s\n", defaultCacheKeyExpirationTime)
-		}
-	}
-	if value, present := os.LookupEnv(pipelineExecuteTimeoutKey); present {
-		if converted, err := time.ParseDuration(value); err == nil {
-			pipelineExecuteTimeout = converted
-		} else {
-			log.Printf("couldn't convert provided pipeline execute timeout. Using default %s\n", defaultPipelineExecuteTimeout)
-		}
-	}
+	cacheRequestTimeout := getEnvAsDuration(cacheRequestTimeoutKey, defaultCacheRequestTimeout, "couldn't convert provided cache request timeout. Using default %s\n")
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, bucketName, sdkConfigPath, propertyPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout, cacheRequestTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
@@ -258,6 +244,18 @@ func getEnvAsInt(key string, defaultValue int) int {
 			} else {
 				return convertedValue
 			}
+		}
+	}
+	return defaultValue
+}
+
+// getEnvAsDuration returns an environment variable or default value as duration
+func getEnvAsDuration(key string, defaultValue time.Duration, errMsg string) time.Duration {
+	if value, present := os.LookupEnv(key); present {
+		if converted, err := time.ParseDuration(value); err == nil {
+			return converted
+		} else {
+			log.Printf(errMsg, defaultValue)
 		}
 	}
 	return defaultValue

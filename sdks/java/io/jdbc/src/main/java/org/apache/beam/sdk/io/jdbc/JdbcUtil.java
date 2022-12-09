@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
@@ -39,13 +42,16 @@ import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.ReadableDateTime;
@@ -53,9 +59,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class JdbcUtil {
 
   /** Generates an insert statement based on {@link Schema.Field}. * */
@@ -170,27 +173,29 @@ class JdbcUtil {
         return (element, ps, i, fieldWithIndex) -> {
           Collection<Object> value = element.getArray(fieldWithIndex.getIndex());
           if (value == null) {
-            ps.setArray(i + 1, null);
+            setArrayNull(ps, i);
           } else {
+            Schema.FieldType collectionElementType =
+                Preconditions.checkArgumentNotNull(fieldType.getCollectionElementType());
             ps.setArray(
                 i + 1,
                 ps.getConnection()
-                    .createArrayOf(
-                        fieldType.getCollectionElementType().getTypeName().name(),
-                        value.toArray()));
+                    .createArrayOf(collectionElementType.getTypeName().name(), value.toArray()));
           }
         };
       case LOGICAL_TYPE:
         {
-          if (Objects.equals(
-              fieldType.getLogicalType(), LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
+          Schema.LogicalType<?, ?> logicalType = checkArgumentNotNull(fieldType.getLogicalType());
+          if (Objects.equals(logicalType, LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
             return (element, ps, i, fieldWithIndex) ->
                 ps.setObject(
                     i + 1, element.getLogicalTypeValue(fieldWithIndex.getIndex(), UUID.class));
           }
 
-          String logicalTypeName = fieldType.getLogicalType().getIdentifier();
+          String logicalTypeName = logicalType.getIdentifier();
 
+          // Special case of Timestamp and Numeric which are logical types in Portable framework
+          // but have their own fieldType in Java.
           if (logicalTypeName.equals(MicrosInstant.IDENTIFIER)) {
             // Process timestamp of MicrosInstant kind, which should only be passed from other type
             // systems such as SQL and other Beam SDKs.
@@ -200,63 +205,66 @@ class JdbcUtil {
                   element.getLogicalTypeValue(fieldWithIndex.getIndex(), java.time.Instant.class);
               ps.setTimestamp(i + 1, value == null ? null : new Timestamp(value.toEpochMilli()));
             };
-          }
-
-          JDBCType jdbcType = JDBCType.valueOf(logicalTypeName);
-          switch (jdbcType) {
-            case DATE:
-              return (element, ps, i, fieldWithIndex) -> {
-                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
-                ps.setDate(
-                    i + 1,
-                    value == null
-                        ? null
-                        : new Date(
-                            getDateOrTimeOnly(value.toDateTime(), true).getTime().getTime()));
-              };
-            case TIME:
-              return (element, ps, i, fieldWithIndex) -> {
-                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
-                ps.setTime(
-                    i + 1,
-                    value == null
-                        ? null
-                        : new Time(
-                            getDateOrTimeOnly(
-                                    element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
-                                    false)
-                                .getTime()
-                                .getTime()));
-              };
-            case TIMESTAMP_WITH_TIMEZONE:
-              return (element, ps, i, fieldWithIndex) -> {
-                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
-                if (value == null) {
-                  ps.setTimestamp(i + 1, null);
-                } else {
-                  Calendar calendar = withTimestampAndTimezone(value.toDateTime());
-                  ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
-                }
-              };
-            case OTHER:
-              return (element, ps, i, fieldWithIndex) ->
-                  ps.setObject(
-                      i + 1, element.getValue(fieldWithIndex.getIndex()), java.sql.Types.OTHER);
-            default:
-              return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
+          } else if (logicalTypeName.equals(FixedPrecisionNumeric.IDENTIFIER)) {
+            return (element, ps, i, fieldWithIndex) -> {
+              ps.setBigDecimal(i + 1, element.getDecimal(fieldWithIndex.getIndex()));
+            };
+          } else if (logicalTypeName.equals("DATE")) {
+            return (element, ps, i, fieldWithIndex) -> {
+              ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+              ps.setDate(
+                  i + 1,
+                  value == null
+                      ? null
+                      : new Date(getDateOrTimeOnly(value.toDateTime(), true).getTime().getTime()));
+            };
+          } else if (logicalTypeName.equals("TIME")) {
+            return (element, ps, i, fieldWithIndex) -> {
+              ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+              ps.setTime(
+                  i + 1,
+                  value == null
+                      ? null
+                      : new Time(getDateOrTimeOnly(value.toDateTime(), false).getTime().getTime()));
+            };
+          } else if (logicalTypeName.equals("TIMESTAMP_WITH_TIMEZONE")) {
+            return (element, ps, i, fieldWithIndex) -> {
+              ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+              if (value == null) {
+                ps.setTimestamp(i + 1, null);
+              } else {
+                Calendar calendar = withTimestampAndTimezone(value.toDateTime());
+                ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
+              }
+            };
+          } else if (logicalTypeName.equals("OTHER")) {
+            return (element, ps, i, fieldWithIndex) ->
+                ps.setObject(
+                    i + 1, element.getValue(fieldWithIndex.getIndex()), java.sql.Types.OTHER);
+          } else {
+            // generic beam logic type (such as portable logical types)
+            return getPreparedStatementSetCaller(logicalType.getBaseType());
           }
         }
       default:
         {
-          if (typeNamePsSetCallerMap.containsKey(fieldType.getTypeName())) {
-            return typeNamePsSetCallerMap.get(fieldType.getTypeName());
+          JdbcIO.PreparedStatementSetCaller pssc =
+              typeNamePsSetCallerMap.get(fieldType.getTypeName());
+          if (pssc != null) {
+            return pssc;
           } else {
             throw new RuntimeException(
                 fieldType.getTypeName().name()
-                    + " in schema is not supported while writing. Please provide statement and preparedStatementSetter");
+                    + " in schema is not supported while writing. Please provide statement and"
+                    + " preparedStatementSetter");
           }
         }
     }
+  }
+
+  @SuppressWarnings("nullness") // ps.setArray not annotated to allow a null
+  private static void setArrayNull(PreparedStatement ps, int i) throws SQLException {
+    ps.setArray(i + 1, null);
   }
 
   static void setNullToPreparedStatement(PreparedStatement ps, int i) throws SQLException {
@@ -307,15 +315,21 @@ class JdbcUtil {
 
   private static void validateLogicalTypeLength(Schema.Field field, Integer length) {
     try {
-      if (field.getType().getTypeName().isLogicalType()
-          && field.getType().getLogicalType().getArgument() != null) {
-        int maxLimit = (Integer) field.getType().getLogicalType().getArgument();
-        if (length > maxLimit) {
-          throw new RuntimeException(
-              String.format(
-                  "Length of Schema.Field[%s] data exceeds database column capacity",
-                  field.getName()));
-        }
+      if (!field.getType().getTypeName().isLogicalType()) {
+        return;
+      }
+
+      Integer maxLimit =
+          (Integer) checkArgumentNotNull(field.getType().getLogicalType()).getArgument();
+      if (maxLimit == null) {
+        return;
+      }
+
+      if (length > maxLimit) {
+        throw new RuntimeException(
+            String.format(
+                "Length of Schema.Field[%s] data exceeds database column capacity",
+                field.getName()));
       }
     } catch (NumberFormatException e) {
       // if argument is not set or not integer then do nothing and proceed with the insertion
@@ -364,7 +378,8 @@ class JdbcUtil {
   interface JdbcReadWithPartitionsHelper<PartitionT>
       extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
           RowMapper<KV<Long, KV<PartitionT, PartitionT>>> {
-    static <T> JdbcReadWithPartitionsHelper<T> getPartitionsHelper(TypeDescriptor<T> type) {
+    static <T> @Nullable JdbcReadWithPartitionsHelper<T> getPartitionsHelper(
+        TypeDescriptor<T> type) {
       // This cast is unchecked, thus this is a small type-checking risk. We just need
       // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
       // in type from their Key and their Value.
@@ -395,7 +410,8 @@ class JdbcUtil {
       T lowerBound = c.element().getValue().getKey();
       T upperBound = c.element().getValue().getValue();
       JdbcReadWithPartitionsHelper<T> helper =
-          JdbcReadWithPartitionsHelper.getPartitionsHelper(partitioningColumnType);
+          checkStateNotNull(
+              JdbcReadWithPartitionsHelper.getPartitionsHelper(partitioningColumnType));
       List<KV<T, T>> ranges =
           Lists.newArrayList(helper.calculateRanges(lowerBound, upperBound, c.element().getKey()));
       LOG.warn("Total of {} ranges: {}", ranges.size(), ranges);
@@ -492,14 +508,14 @@ class JdbcUtil {
                 return KV.of(
                     resultSet.getLong(3),
                     KV.of(
-                        new DateTime(resultSet.getTimestamp(1)),
-                        new DateTime(resultSet.getTimestamp(2))));
+                        new DateTime(checkArgumentNotNull(resultSet.getTimestamp(1))),
+                        new DateTime(checkArgumentNotNull(resultSet.getTimestamp(2)))));
               } else {
                 return KV.of(
                     0L,
                     KV.of(
-                        new DateTime(resultSet.getTimestamp(1)),
-                        new DateTime(resultSet.getTimestamp(2))));
+                        new DateTime(checkArgumentNotNull(resultSet.getTimestamp(1))),
+                        new DateTime(checkArgumentNotNull(resultSet.getTimestamp(2)))));
               }
             }
           });

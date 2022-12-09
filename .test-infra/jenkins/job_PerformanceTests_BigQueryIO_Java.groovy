@@ -24,9 +24,9 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def jobConfigs = [
   [
-    title        : 'BigQueryIO Streaming Performance Test Java 10 GB',
+    title        : 'BigQueryIO Performance Test Streaming Java 10 GB',
     triggerPhrase: 'Run BigQueryIO Streaming Performance Test Java',
-    name         : 'beam_BiqQueryIO_Streaming_Performance_Test_Java',
+    name         : 'beam_PerformanceTests_BiqQueryIO_Streaming_Java',
     itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
     properties: [
       project               : 'apache-beam-testing',
@@ -34,6 +34,7 @@ def jobConfigs = [
       tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
       writeMethod           : 'STREAMING_INSERTS',
       writeFormat           : 'JSON',
+      pipelineTimeout       : '1200',
       testBigQueryDataset   : 'beam_performance',
       testBigQueryTable     : 'bqio_write_10GB_java_stream_' + now,
       metricsBigQueryDataset: 'beam_performance',
@@ -53,9 +54,9 @@ def jobConfigs = [
     ]
   ],
   [
-    title        : 'BigQueryIO Batch Performance Test Java 10 GB JSON',
+    title        : 'BigQueryIO Performance Test Batch Java 10 GB JSON',
     triggerPhrase: 'Run BigQueryIO Batch Performance Test Java Json',
-    name         : 'beam_BiqQueryIO_Batch_Performance_Test_Java_Json',
+    name         : 'beam_PerformanceTests_BiqQueryIO_Batch_Java_Json',
     itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
     properties: [
       project               : 'apache-beam-testing',
@@ -82,9 +83,9 @@ def jobConfigs = [
     ]
   ],
   [
-    title        : 'BigQueryIO Batch Performance Test Java 10 GB AVRO',
+    title        : 'BigQueryIO Performance Test Batch Java 10 GB AVRO',
     triggerPhrase: 'Run BigQueryIO Batch Performance Test Java Avro',
-    name         : 'beam_BiqQueryIO_Batch_Performance_Test_Java_Avro',
+    name         : 'beam_PerformanceTests_BiqQueryIO_Batch_Java_Avro',
     itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
     properties: [
       project               : 'apache-beam-testing',

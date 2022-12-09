@@ -57,8 +57,8 @@ public class CreateTableHelpers {
     checkArgument(
         tableDestination.getTableSpec() != null,
         "DynamicDestinations.getTable() must return a TableDestination "
-            + "with a non-null table spec, but %s returned %s for destination %s,"
-            + "which has a null table spec",
+            + "with a non-null table spec, but %s "
+            + "has a null table spec",
         tableDestination);
     boolean destinationCoderSupportsClustering =
         !(tableDestinationCoder instanceof TableDestinationCoderV2);
@@ -68,7 +68,8 @@ public class CreateTableHelpers {
             + " if a destination coder is supplied that supports clustering, but %s is configured"
             + " to use TableDestinationCoderV2. Set withClustering() on BigQueryIO.write() and, "
             + " if you provided a custom DynamicDestinations instance, override"
-            + " getDestinationCoder() to return TableDestinationCoderV3.");
+            + " getDestinationCoder() to return TableDestinationCoderV3.",
+        tableDestination);
     TableReference tableReference = tableDestination.getTableReference().clone();
     if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
       tableReference.setProjectId(

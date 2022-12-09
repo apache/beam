@@ -115,8 +115,7 @@ def pformat_namedtuple(schema: NamedTuple) -> str:
   return '{}({})'.format(
       schema.__name__,
       ', '.join([
-          '{}: {}'.format(k, v.__name__ if hasattr(v, '__name__') else repr(v))
-          for k,
+          '{}: {}'.format(k, repr(v)) for k,
           v in schema.__annotations__.items()
       ]))
 

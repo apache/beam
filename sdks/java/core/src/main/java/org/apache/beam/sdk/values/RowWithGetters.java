@@ -40,6 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the appropriate fields from the POJO.
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings("rawtypes")
 public class RowWithGetters extends Row {
   private final Object getterTarget;
   private final List<FieldValueGetter> getters;

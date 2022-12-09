@@ -30,6 +30,7 @@ Common conventions:
 The following table lists all supported operators from highest to
 lowest precedence. Precedence determines the order in which operators will be evaluated within a statement.
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
   <thead>
@@ -211,6 +212,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
   </tbody>
 </table>
 {{< /table >}}
+</div>
 
 Operators with the same precedence are left associative. This means that those
 operators are grouped together starting from the left and moving right. For
@@ -247,6 +249,7 @@ is recommended over:
 
 ## Element access operators
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -277,6 +280,7 @@ e.g.expression.fieldname1.fieldname2...</td>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 ## Arithmetic operators
 
@@ -379,6 +383,7 @@ Result types for Unary Minus:
 
 All logical operators allow only BOOL input.
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -410,6 +415,7 @@ is TRUE. Returns <code>NULL</code> otherwise.</td>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 ## Comparison operators
 
@@ -440,6 +446,7 @@ The following rules apply when comparing these data types:
 +  `NULL`: The convention holds here: any operation with a `NULL` input returns
    `NULL`.
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -514,6 +521,7 @@ most common. X is evaluated only once.</td>
 </tbody>
 </table>
 {{< /table >}}
+</div>
 
 When testing values that have a STRUCT data type for
 equality, it's possible that one or more fields are `NULL`. In such cases:
@@ -561,6 +569,7 @@ IS operators return TRUE or FALSE for the condition they are testing. They never
 return `NULL`, even for `NULL` inputs. If NOT is present, the output BOOL value
 is inverted.
 
+<div class="table-container-wrapper">
 {{< table >}}
 <table>
 <thead>
@@ -596,3 +605,4 @@ otherwise.</td>
 </tbody>
 </table>
 {{< /table >}}
+</div>

@@ -53,7 +53,7 @@ public class MetricsEnvironment {
   private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
-  @SuppressWarnings("type.argument.type.incompatible") // object guaranteed to be non-null
+  @SuppressWarnings("type.argument") // object guaranteed to be non-null
   private static final ThreadLocal<@NonNull MetricsContainerHolder> CONTAINER_FOR_THREAD =
       ThreadLocal.withInitial(MetricsContainerHolder::new);
 

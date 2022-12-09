@@ -25,10 +25,13 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.ReferencePluginConfig;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.beam.sdk.io.cdap.batch.EmployeeBatchSink;
+import org.apache.beam.sdk.io.cdap.batch.EmployeeBatchSource;
 
 /**
  * {@link io.cdap.cdap.api.plugin.PluginConfig} for {@link EmployeeBatchSource} and {@link
- * EmployeeBatchSink} CDAP plugins. Used to test {@link CdapIO#read()} and {@link CdapIO#write()}.
+ * EmployeeBatchSink} CDAP plugins. Used to test {@link org.apache.beam.sdk.io.cdap.CdapIO#read()}
+ * and {@link org.apache.beam.sdk.io.cdap.CdapIO#write()}.
  */
 public class EmployeeConfig extends ReferencePluginConfig {
 

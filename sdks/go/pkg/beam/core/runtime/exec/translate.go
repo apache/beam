@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -95,9 +96,65 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			b.units = b.units[:len(b.units)-1]
 		}
 
+		mayFixDataSourceCoder(u)
 		b.units = append(b.units, u)
 	}
 	return b.build()
+}
+
+// mayFixDataSourceCoder checks the node downstream of the DataSource and if applicable, changes
+// a KV<k, Iter<V>> coder to a CoGBK<k, v>. This requires knowledge of the downstream node because
+// coder interpretation is ambiguous to received types in DoFns, and we can only interpret it right
+// at execution time with knowledge of both.
+func mayFixDataSourceCoder(u *DataSource) {
+	if !coder.IsKV(coder.SkipW(u.Coder)) {
+		return // If it's not a KV, there's nothing to do here.
+	}
+	if coder.SkipW(u.Coder).Components[1].Kind != coder.Iterable {
+		return // If the V is not an iterable, we don't care.
+	}
+	out := u.Out
+	if mp, ok := out.(*Multiplex); ok {
+		// Here we trust that the Multiplex Outs are all the same signature, since we've validated
+		// that at construction time.
+		out = mp.Out[0]
+	}
+
+	switch n := out.(type) {
+	// These nodes always expect CoGBK behavior.
+	case *Expand, *MergeAccumulators, *ReshuffleOutput, *Combine:
+		u.Coder = convertToCoGBK(u.Coder)
+		return
+	case *ParDo:
+		// So we now know we have a KV<k, Iter<V>>. So we need to validate whether the DoFn has an
+		// iter function in the value slot. If it does, we need to use a CoGBK coder.
+		sig := n.Fn.ProcessElementFn()
+		// Get all valid inputs and side inputs.
+		in := sig.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter)
+
+		if len(in) < 2 {
+			return // Somehow there's only a single value, so we're done. (Defense against generic KVs)
+		}
+		// It's an iterator, so we can assume it's a GBK, due to previous pre-conditions.
+		if sig.Param[in[1]].Kind == funcx.FnIter {
+			u.Coder = convertToCoGBK(u.Coder)
+			return
+		}
+	}
+}
+
+func convertToCoGBK(oc *coder.Coder) *coder.Coder {
+	ocnw := coder.SkipW(oc)
+	// Validate that all values from the coder are iterables.
+	comps := make([]*coder.Coder, 0, len(ocnw.Components))
+	comps = append(comps, ocnw.Components[0])
+	for _, c := range ocnw.Components[1:] {
+		if c.Kind != coder.Iterable {
+			panic(fmt.Sprintf("want all values to be iterables: %v", oc))
+		}
+		comps = append(comps, c.Components[0])
+	}
+	return coder.NewW(coder.NewCoGBK(comps), oc.Window)
 }
 
 type builder struct {
@@ -704,6 +761,17 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			return nil, err
 		}
 		u = &WindowInto{UID: b.idgen.New(), Fn: wfn, Out: out[0]}
+
+	case graphx.URNMapWindows:
+		var fn pipepb.FunctionSpec
+		if err := proto.Unmarshal(payload, &fn); err != nil {
+			return nil, errors.Wrapf(err, "invalid SideInput payload for %v", transform)
+		}
+		mapper, err := unmarshalAndMakeWindowMapping(&fn)
+		if err != nil {
+			return nil, err
+		}
+		u = &MapWindows{UID: b.idgen.New(), Fn: mapper, Out: out[0]}
 
 	case graphx.URNFlatten:
 		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}

@@ -16,6 +16,8 @@
 package storage
 
 import (
+	"time"
+
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"cloud.google.com/go/datastore"
 )
@@ -33,22 +35,26 @@ const (
 	TbLearningPathKind   = "tb_learning_path"
 	TbLearningModuleKind = "tb_learning_module"
 	TbLearningNodeKind   = "tb_learning_node"
+	TbUserKind           = "tb_user"
+	TbUserProgressKind   = "tb_user_progress"
 
 	PgSnippetsKind = "pg_snippets"
 	PgSdksKind     = "pg_sdks"
+
+	OriginTbExamples = "TB_EXAMPLES"
 )
 
 // tb_learning_path.
 type TbLearningPath struct {
-	Key  *datastore.Key `datastore:"__key__"`
-	Name string         `datastore:"name"`
+	Key   *datastore.Key `datastore:"__key__"`
+	Title string         `datastore:"title"`
 }
 
 // tb_learning_module.
 type TbLearningModule struct {
 	Key        *datastore.Key `datastore:"__key__"`
 	Id         string         `datastore:"id"`
-	Name       string         `datastore:"name"`
+	Title      string         `datastore:"title"`
 	Complexity string         `datastore:"complexity"`
 
 	// internal, only db
@@ -57,14 +63,15 @@ type TbLearningModule struct {
 
 // tb_learning_node.group.
 type TbLearningGroup struct {
-	Name string `datastore:"name"`
+	Id    string `datastore:"id"`
+	Title string `datastore:"title"`
 }
 
 // tb_learning_node.unit
 // Learning Unit content.
 type TbLearningUnit struct {
 	Id          string   `datastore:"id"`
-	Name        string   `datastore:"name"`
+	Title       string   `datastore:"title"`
 	Description string   `datastore:"description,noindex"`
 	Hints       []string `datastore:"hints,noindex"`
 
@@ -78,8 +85,8 @@ type TbLearningNode struct {
 	Type tob.NodeType `datastore:"type"`
 	// common fields, duplicate same fields from the nested entities
 	// (needed to allow projection when getting the content tree)
-	Id   string `datastore:"id"`
-	Name string `datastore:"name"`
+	Id    string `datastore:"id"`
+	Title string `datastore:"title"`
 
 	// type-specific nested info
 	Unit  *TbLearningUnit  `datastore:"unit,noindex"`
@@ -90,6 +97,22 @@ type TbLearningNode struct {
 	Key   *datastore.Key `datastore:"__key__"`
 	Order int            `datastore:"order"`
 	Level int            `datastore:"level"`
+}
+
+type TbUser struct {
+	Key         *datastore.Key `datastore:"__key__"`
+	UID         string         `datastore:"uid"`
+	LastVisitAt time.Time      `datastore:"lastVisitAt"`
+}
+
+type TbUnitProgress struct {
+	Key *datastore.Key `datastore:"__key__"`
+	Sdk *datastore.Key `datastore:"sdk"`
+
+	UnitID         string `datastore:"unitId"`
+	IsCompleted    bool   `datastore:"isCompleted"`
+	SnippetId      string `datastore:"snippetId"`
+	PersistenceKey string `datastore:"persistenceKey,noindex"`
 }
 
 type PgSnippets struct {

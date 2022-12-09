@@ -19,7 +19,10 @@ Configuration for CI/CD steps
 
 import os
 from dataclasses import dataclass
+from enum import Enum
 from typing import Literal
+
+from dataclasses_json import dataclass_json
 
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
     STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
@@ -72,6 +75,10 @@ class TagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
     context_line: int = "context_line"
+    complexity: str = "complexity"
+    tags: str = "tags"
+    emulators: str = "emulators"
+    datasets: str = "datasets"
 
 
 @dataclass(frozen=True)
@@ -94,16 +101,52 @@ class PrecompiledExampleType:
 class OptionalTagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
+    emulators: str = "emulators"
+    datasets: str = "datasets"
 
 
 @dataclass(frozen=True)
 class DatastoreProps:
     NAMESPACE = "Playground"
     KEY_NAME_DELIMITER = "_"
-    ORIGIN_PROPERTY_VALUE = "PG_EXAMPLES"
     EXAMPLE_KIND = "pg_examples"
     SNIPPET_KIND = "pg_snippets"
     SCHEMA_KIND = "pg_schema_versions"
     PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
-    FILED_KIND = "pg_files"
+    FILES_KIND = "pg_files"
     SDK_KIND = "pg_sdks"
+    DATASET_KIND = "pg_datasets"
+
+
+@dataclass(frozen=True)
+class RepoProps:
+    REPO_DATASETS_PATH = "../backend/datasets"
+
+class Origin(str, Enum):
+    PG_EXAMPLES = 'PG_EXAMPLES'
+    PG_USER = 'PG_USER'
+    TB_EXAMPLES = 'TB_EXAMPLES'
+    TB_USER = 'TB_USER'
+
+
+@dataclass_json
+@dataclass
+class Dataset:
+    format: str
+    location: str
+    name: str = ""
+    path: str = ""
+
+
+@dataclass_json
+@dataclass
+class Topic:
+    id: str
+    dataset: str
+
+
+@dataclass_json
+@dataclass
+class Emulator:
+    topic: Topic
+    name: str = ""

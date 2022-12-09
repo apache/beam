@@ -68,6 +68,7 @@ public class KafkaCommitOffset<K, V>
       consumerFactoryFn = readSourceDescriptors.getConsumerFactoryFn();
     }
 
+    @RequiresStableInput
     @ProcessElement
     public void processElement(@Element KV<KafkaSourceDescriptor, Long> element) {
       Map<String, Object> updatedConsumerConfig =

@@ -183,7 +183,7 @@ public class FhirIOPatientEverything
             GetPatientEverythingFn.class, BASE_METRIC_PREFIX + "get_patient_everything_latency_ms");
     private static final Logger LOG = LoggerFactory.getLogger(GetPatientEverythingFn.class);
 
-    @SuppressWarnings("initialization.fields.uninitialized")
+    @SuppressWarnings("initialization.field.uninitialized")
     private HealthcareApiClient client;
 
     /**

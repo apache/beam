@@ -433,7 +433,7 @@ public class Group {
      * aggregateField and aggregateFields. This transform will have an unknown schema that will be
      * determined by the output types of all the composed combiners.
      */
-    public static CombineFieldsGlobally create() {
+    public static CombineFieldsGlobally<?> create() {
       return new CombineFieldsGlobally<>(SchemaAggregateFn.create());
     }
 

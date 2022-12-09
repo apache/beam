@@ -27,6 +27,11 @@ package main
 //   categories:
 //     - IO
 //     - Side Input
+//   complexity: ADVANCED
+//   tags:
+//     - pipeline
+//     - random
+//     - numbers
 
 import (
 	"context"
@@ -57,7 +62,7 @@ func init() {
 // is encoded in the shape of the pipeline, which will produce a single
 // element of that value. The shape is as follows:
 //
-//     0 -> \x.x+1 -> \x.x+1 -> (N times) -> \x.min(x, 6)
+//	0 -> \x.x+1 -> \x.x+1 -> (N times) -> \x.min(x, 6)
 //
 // The single output will be a number between 1 and 6.
 func roll(ctx context.Context, s beam.Scope) beam.PCollection {

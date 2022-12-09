@@ -52,7 +52,10 @@ class MockCluster:
 
 class MockFileSystem:
   def _list(self, dir=None):
-    return [MockProperty('path', 'test-path/dataproc-startup-script_output')]
+    return [
+        MockProperty(
+            'path', 'test-path/dataproc-initialization-script-0_output')
+    ]
 
   def open(self, dir=None):
     return MockFileIO('test-line Found Web Interface test-master-url' \
@@ -75,8 +78,10 @@ class DataprocClusterManagerTest(unittest.TestCase):
         'apache_beam.runners.interactive.interactive_environment.current_env')
     self.m_env = self.patcher.start()
     self.m_env().clusters = ib.Clusters()
+    self.m_env().options.cache_root = 'gs://fake'
 
   def tearDown(self):
+    self.m_env().options.cache_root = None
     self.patcher.stop()
 
   @patch(

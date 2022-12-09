@@ -34,15 +34,15 @@ import (
 func TestDataSource_PerElement(t *testing.T) {
 	tests := []struct {
 		name     string
-		expected []interface{}
+		expected []any
 		Coder    *coder.Coder
-		driver   func(*coder.Coder, io.WriteCloser, []interface{})
+		driver   func(*coder.Coder, io.WriteCloser, []any)
 	}{
 		{
 			name:     "perElement",
-			expected: []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			expected: []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder:    coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, pw io.WriteCloser, expected []interface{}) {
+			driver: func(c *coder.Coder, pw io.WriteCloser, expected []any) {
 				wc := MakeWindowEncoder(c.Window)
 				ec := MakeElementEncoder(coder.SkipW(c))
 				for _, v := range expected {
@@ -89,16 +89,16 @@ func TestDataSource_Iterators(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		keys, vals []interface{}
+		keys, vals []any
 		Coder      *coder.Coder
-		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []interface{})
+		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []any)
 	}{
 		{
 			name:  "beam:coder:iterable:v1-singleChunk",
-			keys:  []interface{}{int64(42), int64(53)},
-			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			keys:  []any{int64(42), int64(53)},
+			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -113,10 +113,10 @@ func TestDataSource_Iterators(t *testing.T) {
 		},
 		{
 			name:  "beam:coder:iterable:v1-multiChunk",
-			keys:  []interface{}{int64(42), int64(53)},
-			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			keys:  []any{int64(42), int64(53)},
+			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -134,10 +134,10 @@ func TestDataSource_Iterators(t *testing.T) {
 		},
 		{
 			name:  "beam:coder:state_backed_iterable:v1",
-			keys:  []interface{}{int64(42), int64(53)},
-			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			keys:  []any{int64(42), int64(53)},
+			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -232,7 +232,7 @@ func TestDataSource_Iterators(t *testing.T) {
 }
 
 func TestDataSource_Split(t *testing.T) {
-	elements := []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)}
+	elements := []any{int64(1), int64(2), int64(3), int64(4), int64(5)}
 	initSourceTest := func(name string) (*DataSource, *CaptureNode, io.ReadCloser) {
 		out := &CaptureNode{UID: 1}
 		c := coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow())
@@ -245,7 +245,7 @@ func TestDataSource_Split(t *testing.T) {
 		}
 		pr, pw := io.Pipe()
 
-		go func(c *coder.Coder, pw io.WriteCloser, elements []interface{}) {
+		go func(c *coder.Coder, pw io.WriteCloser, elements []any) {
 			wc := MakeWindowEncoder(c.Window)
 			ec := MakeElementEncoder(coder.SkipW(c))
 			for _, v := range elements {
@@ -259,7 +259,7 @@ func TestDataSource_Split(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		expected []interface{}
+		expected []any
 		splitIdx int64
 	}{
 		{splitIdx: 1},
@@ -303,7 +303,7 @@ func TestDataSource_Split(t *testing.T) {
 			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
 			// SDK never splits on 0, so check that every test.
-			splitRes, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}})
+			splitRes, err := p.Split(ctx, SplitPoints{Splits: []int64{0, test.splitIdx}})
 			if err != nil {
 				t.Fatalf("error in Split: %v", err)
 			}
@@ -325,7 +325,7 @@ func TestDataSource_Split(t *testing.T) {
 		// Check splitting *while* elements are in process.
 		tests := []struct {
 			name     string
-			expected []interface{}
+			expected []any
 			splitIdx int64
 		}{
 			{splitIdx: 1},
@@ -373,7 +373,7 @@ func TestDataSource_Split(t *testing.T) {
 					<-blockedCh
 					// Validate that we do not split on the element we're blocking on index.
 					// The first valid split is at test.splitIdx.
-					if splitRes, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, -1, 0); err != nil {
+					if splitRes, err := source.Split(context.Background(), []int64{0, 1, 2, 3, 4, 5}, -1, 0); err != nil {
 						t.Errorf("error in Split: %v", err)
 					} else {
 						if got, want := splitRes.RI, test.splitIdx; got != want {
@@ -406,7 +406,7 @@ func TestDataSource_Split(t *testing.T) {
 			frac     float64
 			bufSize  int64
 			splitIdx int64
-			expected []interface{}
+			expected []any
 		}{
 			// splitIdx defaults to the max int64, so if bufSize is respected
 			// the closest splitPt is 3, otherwise it'll be 5000.
@@ -439,7 +439,7 @@ func TestDataSource_Split(t *testing.T) {
 
 		// SDK never splits on 0, so check that every test.
 		sp := SplitPoints{Splits: test.splitPts, Frac: test.frac, BufSize: test.bufSize}
-		splitRes, err := p.Split(sp)
+		splitRes, err := p.Split(ctx, sp)
 		if err != nil {
 			t.Fatalf("error in Split: %v", err)
 		}
@@ -505,7 +505,7 @@ func TestDataSource_Split(t *testing.T) {
 					<-blockedCh
 					// Validate that we either do or do not perform a sub-element split with the
 					// given fraction.
-					if splitRes, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, test.fraction, int64(len(elements))); err != nil {
+					if splitRes, err := source.Split(context.Background(), []int64{0, 1, 2, 3, 4, 5}, test.fraction, int64(len(elements))); err != nil {
 						t.Errorf("error in Split: %v", err)
 					} else {
 						// For sub-element splits, check sub-element split only results.
@@ -566,8 +566,8 @@ func TestDataSource_Split(t *testing.T) {
 		dc := DataContext{Data: &TestDataManager{R: pr}}
 		ctx := context.Background()
 
-		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
-			t.Fatal("plan uninitialized, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(before active) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		for i, root := range p.units {
 			if err := root.Up(ctx); err != nil {
@@ -575,30 +575,30 @@ func TestDataSource_Split(t *testing.T) {
 			}
 		}
 		p.status = Active
-		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
-			t.Fatal("plan not started, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(active, not started) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
-		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
-			t.Fatal("plan started, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(active) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		runOnRoots(ctx, t, p, "Process", Root.Process)
-		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
-			t.Fatal("plan in progress, expected error when unable to get a desired split, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(active, unable to get desired split) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
-		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
-			t.Fatal("plan finished, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(finished) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		validateSource(t, out, source, makeValues(elements...))
 	})
 
 	t.Run("sanity_errors", func(t *testing.T) {
 		var source *DataSource
-		if _, err := source.Split([]int64{0}, -1, 0); err == nil {
+		if _, err := source.Split(context.Background(), []int64{0}, -1, 0); err == nil {
 			t.Fatal("expected error splitting nil *DataSource")
 		}
-		if _, err := source.Split(nil, -1, 0); err == nil {
+		if _, err := source.Split(context.Background(), nil, -1, 0); err == nil {
 			t.Fatal("expected error splitting nil desired splits")
 		}
 	})
@@ -610,7 +610,7 @@ const testInputId = "input_id"
 // TestSplittableUnit is an implementation of the SplittableUnit interface
 // for DataSource tests.
 type TestSplittableUnit struct {
-	elm interface{} // The element to split.
+	elm any // The element to split.
 }
 
 // Split checks the input fraction for correctness, but otherwise always returns

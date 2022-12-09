@@ -80,7 +80,7 @@ class AnnotateImage(PTransform):
       metadata=None):
     """
     Args:
-      features: (List[``vision.types.Feature.enums.Feature``]) Required.
+      features: (List[``vision.Feature``]) Required.
         The Vision API features to detect
       retry: (google.api_core.retry.Retry) Optional.
         A retry object used to retry requests.
@@ -107,9 +107,9 @@ class AnnotateImage(PTransform):
 
           image_contexts =
             [(''gs://cloud-samples-data/vision/ocr/sign.jpg'', Union[dict,
-            ``vision.types.ImageContext()``]),
+            ``vision.ImageContext()``]),
             (''gs://cloud-samples-data/vision/ocr/sign.jpg'', Union[dict,
-            ``vision.types.ImageContext()``]),]
+            ``vision.ImageContext()``]),]
 
           context_side_input =
             (
@@ -152,9 +152,8 @@ class AnnotateImage(PTransform):
                 client_options=self.client_options,
                 metadata=self.metadata)))
 
-  @typehints.with_input_types(
-      Union[str, bytes], Optional[vision.types.ImageContext])
-  @typehints.with_output_types(List[vision.types.AnnotateImageRequest])
+  @typehints.with_input_types(Union[str, bytes], Optional[vision.ImageContext])
+  @typehints.with_output_types(List[vision.AnnotateImageRequest])
   def _create_image_annotation_pairs(self, element, context_side_input):
     if context_side_input:  # If we have a side input image context, use that
       image_context = context_side_input.get(element)
@@ -162,13 +161,18 @@ class AnnotateImage(PTransform):
       image_context = None
 
     if isinstance(element, str):
-      image = vision.types.Image(
-          source=vision.types.ImageSource(image_uri=element))
-    else:  # Typehint checks only allows str or bytes
-      image = vision.types.Image(content=element)
 
-    request = vision.types.AnnotateImageRequest(
-        image=image, features=self.features, image_context=image_context)
+      image = vision.Image(
+          {'source': vision.ImageSource({'image_uri': element})})
+
+    else:  # Typehint checks only allows str or bytes
+      image = vision.Image(content=element)
+
+    request = vision.AnnotateImageRequest({
+        'image': image,
+        'features': self.features,
+        'image_context': image_context
+    })
     yield request
 
 
@@ -181,7 +185,7 @@ class AnnotateImageWithContext(AnnotateImage):
   Element is a tuple of::
 
     (Union[str, bytes],
-    Optional[``vision.types.ImageContext``])
+    Optional[``vision.ImageContext``])
 
   where the former is either an URI (e.g. a GCS URI) or bytes
   base64-encoded image data.
@@ -197,7 +201,7 @@ class AnnotateImageWithContext(AnnotateImage):
       metadata=None):
     """
     Args:
-      features: (List[``vision.types.Feature.enums.Feature``]) Required.
+      features: (List[``vision.Feature``]) Required.
         The Vision API features to detect
       retry: (google.api_core.retry.Retry) Optional.
         A retry object used to retry requests.
@@ -244,25 +248,28 @@ class AnnotateImageWithContext(AnnotateImage):
                 metadata=self.metadata)))
 
   @typehints.with_input_types(
-      Tuple[Union[str, bytes], Optional[vision.types.ImageContext]])
-  @typehints.with_output_types(List[vision.types.AnnotateImageRequest])
+      Tuple[Union[str, bytes], Optional[vision.ImageContext]])
+  @typehints.with_output_types(List[vision.AnnotateImageRequest])
   def _create_image_annotation_pairs(self, element, **kwargs):
     element, image_context = element  # Unpack (image, image_context) tuple
     if isinstance(element, str):
-      image = vision.types.Image(
-          source=vision.types.ImageSource(image_uri=element))
+      image = vision.Image(
+          {'source': vision.ImageSource({'image_uri': element})})
     else:  # Typehint checks only allows str or bytes
-      image = vision.types.Image(content=element)
+      image = vision.Image({"content": element})
 
-    request = vision.types.AnnotateImageRequest(
-        image=image, features=self.features, image_context=image_context)
+    request = vision.AnnotateImageRequest({
+        'image': image,
+        'features': self.features,
+        'image_context': image_context
+    })
     yield request
 
 
-@typehints.with_input_types(List[vision.types.AnnotateImageRequest])
+@typehints.with_input_types(List[vision.AnnotateImageRequest])
 class _ImageAnnotateFn(DoFn):
   """A DoFn that sends each input element to the GCP Vision API.
-  Returns ``google.cloud.vision.types.BatchAnnotateImagesResponse``.
+  Returns ``google.cloud.vision.BatchAnnotateImagesResponse``.
   """
   def __init__(self, features, retry, timeout, client_options, metadata):
     super().__init__()
