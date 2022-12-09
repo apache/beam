@@ -136,11 +136,6 @@ variable "gke_machine_type" {
   default     = "e2-standard-4"
 }
 
-# variable "gke_node_count" {
-#  description = "Node pool size"
-#  default     = 1
-# }
-
 variable "gke_name" {
   description = "Name of GKE cluster"
   default     = "playground-examples"
