@@ -40,7 +40,7 @@ spec:
          - name: CACHE_ADDRESS
            value: {{ .Values.redis_ip }}
          - name: NUM_PARALLEL_JOBS
-           value: "5"
+           value: "10"
        livenessProbe:
          httpGet:
            path: /liveness
