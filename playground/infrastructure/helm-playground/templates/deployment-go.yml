@@ -44,15 +44,15 @@ spec:
        livenessProbe:
          httpGet:
            path: /liveness
-           port: {{ .Value.healthcheck.port }}
-         initialDelaySeconds: {{ .Value.healthcheck.livInitialDelaySeconds }}
-         periodSeconds: {{ .Value.healthcheck.livPeriodSeconds }}
+           port: {{ .Values.healthcheck.port }}
+         initialDelaySeconds: {{ .Values.healthcheck.livInitialDelaySeconds }}
+         periodSeconds: {{ .Values.healthcheck.livPeriodSeconds }}
        readinessProbe:
          httpGet:
            path: /readiness
-           port: {{ .Value.healthcheck.port }}
-         initialDelaySeconds: {{ .Value.healthcheck.readInitialDelaySeconds }}
-         periodSeconds: {{ .Value.healthcheck.readPeriodSeconds }}
+           port: {{ .Values.healthcheck.port }}
+         initialDelaySeconds: {{ .Values.healthcheck.readInitialDelaySeconds }}
+         periodSeconds: {{ .Values.healthcheck.readPeriodSeconds }}
        resources:
          requests:
            memory: "1000Mi"
