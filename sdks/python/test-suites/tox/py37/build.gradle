@@ -31,10 +31,10 @@ def posargs = project.findProperty("posargs")
 task lint {}
 check.dependsOn lint
 
-toxTask "lintPy37", "py37-lint", posargs
+toxTask "lintPy37", "py37-lint", "${posargs}"
 lint.dependsOn lintPy37
 
-toxTask "mypyPy37", "py37-mypy", posargs
+toxTask "mypyPy37", "py37-mypy", "${posargs}"
 lint.dependsOn mypyPy37
 
 apply from: "../common.gradle"
