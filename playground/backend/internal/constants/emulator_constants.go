@@ -15,29 +15,8 @@
 
 package constants
 
-//Cloud Datastore constants
+//Emulator constants
 const (
-	Namespace             = "Playground"
-	DatastoreNamespaceKey = "DATASTORE_NAMESPACE"
-	IDDelimiter           = "_"
-	CloudPathDelimiter    = "/"
-	UserSnippetOrigin     = "PG_USER"
-	ExampleOrigin         = "PG_EXAMPLES"
-	TbUserSnippetOrigin   = "TB_USER"
-
-	SnippetKind  = "pg_snippets"
-	SchemaKind   = "pg_schema_versions"
-	SdkKind      = "pg_sdks"
-	FileKind     = "pg_files"
-	ExampleKind  = "pg_examples"
-	PCObjectKind = "pg_pc_objects"
-	DatasetKind  = "pg_datasets"
-
-	PCOutputType = "OUTPUT"
-	PCLogType    = "LOG"
-	PCGraphType  = "GRAPH"
-
-	EmulatorHostKey   = "DATASTORE_EMULATOR_HOST"
-	EmulatorHostValue = "127.0.0.1:8888"
-	EmulatorProjectId = "test"
+	TopicNameKey       = "topic"
+	BootstrapServerKey = "bootstrapServer"
 )
