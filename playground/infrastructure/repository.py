@@ -13,20 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ALLOWED_LIST contains all hosts that are allowed to make requests
-# from Beam Playground
-ALLOWED_LIST = [
-    "localhost",
-    "127.0.0.1",
-    "logging.googleapis.com",
-    "datastore.googleapis.com",
-    "oauth2.googleapis.com",
-    "storage.googleapis.com"
-]
+"""
+Module contains methods to work with repository
+"""
+import logging
+import os
+from typing import List
 
-# ALLOWED_BUCKET_LIST contains all public Google Cloud Storage buckets
-# that are allowed to make requests from Beam Playground
-ALLOWED_BUCKET_LIST = [
-    "dataflow-samples",
-    "beam-samples"
-]
+from config import RepoProps
+
+from helper import Example
+
+
+def set_dataset_path_for_examples(examples: List[Example]):
+    for example in examples:
+        for dataset in example.datasets:
+            file_name = f"{dataset.name}.{dataset.format}"
+            dataset_path = os.path.join(RepoProps.REPO_DATASETS_PATH, file_name)
+            if not os.path.isfile(dataset_path):
+                logging.error("File not found at the specified path: %s", dataset_path)
+                raise FileNotFoundError
+            dataset.path = file_name
