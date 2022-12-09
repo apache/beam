@@ -31,9 +31,10 @@ public class TransformHandler implements NodeHandler {
   public void internalVisit(JsonNode node, StructuredPipelineDescription description)
       throws Exception {
     String name = node.get("name").asText();
-    if (name != null) {
-      System.out.println("Registering PTransform with name '" + name + "'");
-      description.registerNodeHandler(new PTransformHandler(name));
+    if(name == null || "".equals(name)) throw new Exception("Transform tag not specified");
+    if(node.has("java")) {
+      System.out.println("Configuring Java Class Transform");
     }
+
   }
 }

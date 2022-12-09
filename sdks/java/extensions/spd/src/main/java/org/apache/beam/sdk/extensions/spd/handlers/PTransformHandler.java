@@ -19,13 +19,20 @@ package org.apache.beam.sdk.extensions.spd.handlers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.beam.sdk.extensions.spd.NodeHandler;
+import org.apache.beam.sdk.extensions.spd.SchemaTransformFactory;
 import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 
-public class PTransformHandler implements NodeHandler {
+public class PTransformHandler implements NodeHandler, SchemaTransformFactory {
   private String name;
+  private Schema config;
 
-  public PTransformHandler(String name) {
+  public PTransformHandler(String name,Schema config) {
     this.name = name;
+    this.config = config;
   }
 
   @Override
@@ -35,5 +42,17 @@ public class PTransformHandler implements NodeHandler {
 
   @Override
   public void internalVisit(JsonNode node, StructuredPipelineDescription description)
-      throws Exception {}
+      throws Exception {
+
+  }
+
+  @Override
+  public Schema getConfigurationSchema() {
+    return config;
+  }
+
+  @Override
+  public PTransform<PCollection<Row>, PCollection<Row>> createTransform(Row config) {
+    return null;
+  }
 }
