@@ -536,8 +536,9 @@ class TopCombineFn(core.CombineFn):
     else:
       assert not holds_comparables
 
-    if heap:
-      heap.sort(reverse=True)
+    if not heap: heap = []
+
+    heap.sort(reverse=True)
 
     return [
         comparable.value if holds_comparables else comparable
