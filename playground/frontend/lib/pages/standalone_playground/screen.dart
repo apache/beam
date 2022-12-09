@@ -44,9 +44,6 @@ class StandalonePlaygroundScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final snippetController =
-        notifier.playgroundController.snippetEditingController;
-
     return CloseListener(
       child: PlaygroundPageProviders(
         playgroundController: notifier.playgroundController,
@@ -57,59 +54,64 @@ class StandalonePlaygroundScreen extends StatelessWidget {
           ],
           child: AnimatedBuilder(
             animation: notifier.playgroundController,
-            builder: (context, child) => Scaffold(
-              appBar: AppBar(
-                automaticallyImplyLeading: false,
-                title: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: kXlSpacing,
-                  children: [
-                    const Logo(),
-                    AnimatedBuilder(
-                      animation: notifier.playgroundController.exampleCache,
-                      builder: (context, child) => ExampleSelector(
-                        isSelectorOpened: notifier
-                            .playgroundController.exampleCache.isSelectorOpened,
-                        playgroundController: notifier.playgroundController,
+            builder: (context, child) {
+              final snippetController =
+                  notifier.playgroundController.snippetEditingController;
+
+              return Scaffold(
+                appBar: AppBar(
+                  automaticallyImplyLeading: false,
+                  title: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: kXlSpacing,
+                    children: [
+                      const Logo(),
+                      AnimatedBuilder(
+                        animation: notifier.playgroundController.exampleCache,
+                        builder: (context, child) => ExampleSelector(
+                          isSelectorOpened: notifier.playgroundController
+                              .exampleCache.isSelectorOpened,
+                          playgroundController: notifier.playgroundController,
+                        ),
                       ),
-                    ),
-                    SDKSelector(
-                      value: notifier.playgroundController.sdk,
-                      onChanged: (newSdk) {
-                        AnalyticsService.get(context).trackSelectSdk(
-                            notifier.playgroundController.sdk, newSdk);
-                        notifier.playgroundController.setSdk(newSdk);
-                      },
-                    ),
-                    if (snippetController != null)
-                      PipelineOptionsDropdown(
-                        pipelineOptions: snippetController.pipelineOptions,
-                        setPipelineOptions:
-                            notifier.playgroundController.setPipelineOptions,
+                      SDKSelector(
+                        value: notifier.playgroundController.sdk,
+                        onChanged: (newSdk) {
+                          AnalyticsService.get(context).trackSelectSdk(
+                              notifier.playgroundController.sdk, newSdk);
+                          notifier.playgroundController.setSdk(newSdk);
+                        },
                       ),
-                    const NewExampleAction(),
-                    const ResetAction(),
-                  ],
-                ),
-                actions: [
-                  const ToggleThemeButton(),
-                  MoreActions(
-                    playgroundController: notifier.playgroundController,
+                      if (snippetController != null)
+                        PipelineOptionsDropdown(
+                          pipelineOptions: snippetController.pipelineOptions,
+                          setPipelineOptions:
+                              notifier.playgroundController.setPipelineOptions,
+                        ),
+                      const NewExampleAction(),
+                      const ResetAction(),
+                    ],
                   ),
-                ],
-              ),
-              body: ToastListenerWidget(
-                child: Column(
-                  children: [
-                    const Expanded(child: PlaygroundPageBody()),
-                    Semantics(
-                      container: true,
-                      child: const PlaygroundPageFooter(),
+                  actions: [
+                    const ToggleThemeButton(),
+                    MoreActions(
+                      playgroundController: notifier.playgroundController,
                     ),
                   ],
                 ),
-              ),
-            ),
+                body: ToastListenerWidget(
+                  child: Column(
+                    children: [
+                      const Expanded(child: PlaygroundPageBody()),
+                      Semantics(
+                        container: true,
+                        child: const PlaygroundPageFooter(),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
