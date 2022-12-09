@@ -36,7 +36,7 @@ class Toast with EquatableMixin {
 
   @override
   List<Object> get props => [
-    description,
+        description,
         title,
         type,
       ];

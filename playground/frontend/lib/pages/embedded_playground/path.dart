@@ -70,7 +70,7 @@ class EmbeddedPlaygroundMultiplePath extends PagePath {
   String get location {
     final params = descriptor.toJson();
 
-    if (isEditable) {
+    if (!isEditable) {
       params[EmbeddedPlaygroundPage.isEditableParam] = isEditable.toIntString();
     }
 
@@ -100,7 +100,7 @@ class EmbeddedPlaygroundSinglePath extends PagePath {
   String get location {
     final params = descriptor.toJson();
 
-    if (isEditable) {
+    if (!isEditable) {
       params[EmbeddedPlaygroundPage.isEditableParam] = isEditable.toIntString();
     }
 

@@ -38,9 +38,6 @@ class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       ];
 
   @override
-  bool get canBePassedInUrl => true;
-
-  @override
   Map<String, dynamic> toJson() => {
         'path': path,
         'sdk': sdk.id,

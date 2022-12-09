@@ -27,8 +27,5 @@ class NoUrlExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   List<Object?> get props => const [];
 
   @override
-  bool get canBePassedInUrl => false;
-
-  @override
   Map<String, dynamic> toJson() => {};
 }

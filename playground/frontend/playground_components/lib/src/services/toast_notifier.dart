@@ -43,7 +43,7 @@ class ToastNotifier {
     );
   }
 
-  void dispose() {
-    unawaited(_controller.close());
+  Future<void> dispose() async {
+    await _controller.close();
   }
 }

@@ -30,7 +30,7 @@ class PlaygroundRouteInformationParser extends PageStackRouteInformationParser {
   Future<PagePath> parsePagePath(RouteInformation ri) async {
     final uri = Uri.parse(ri.location ?? '');
 
-    // null is for better formatting below.
+    // null is for better auto-formatting below.
     return null ??
 
         // Embedded:

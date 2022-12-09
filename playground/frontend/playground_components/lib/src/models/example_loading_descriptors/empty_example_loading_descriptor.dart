@@ -32,9 +32,6 @@ class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   List<Object> get props => [sdk.id];
 
   @override
-  bool get canBePassedInUrl => true;
-
-  @override
   Map<String, dynamic> toJson() => {
         _key: true,
         'sdk': sdk.id,

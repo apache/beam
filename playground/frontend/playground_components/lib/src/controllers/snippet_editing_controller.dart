@@ -42,7 +42,6 @@ class SnippetEditingController extends ChangeNotifier {
   }) : codeController = CodeController(
           language: sdk.highlightMode,
           namedSectionParser: const BracketsStartEndNamedSectionParser(),
-          webSpaceFix: false,
         ) {
     codeController.addListener(_onCodeControllerChanged);
     _symbolsNotifier.addListener(_onSymbolsNotifierChanged);

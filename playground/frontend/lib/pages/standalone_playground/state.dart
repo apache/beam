@@ -45,8 +45,8 @@ class StandalonePlaygroundNotifier extends ChangeNotifier
   @override
   PagePath get path {
     return StandalonePlaygroundSingleFirstPath(
-      multipleDescriptor: playgroundController.getLoadingDescriptor(),
       descriptor: _getExampleLoadingDescriptor(),
+      multipleDescriptor: playgroundController.getLoadingDescriptor(),
     );
   }
 

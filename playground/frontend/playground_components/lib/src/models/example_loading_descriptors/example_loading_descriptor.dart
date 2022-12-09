@@ -28,6 +28,4 @@ abstract class ExampleLoadingDescriptor with EquatableMixin {
   final ExampleViewOptions viewOptions;
 
   Map<String, dynamic> toJson();
-
-  bool get canBePassedInUrl;
 }

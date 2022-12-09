@@ -34,24 +34,25 @@ class TestExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   List<Object?> get props => [sdk, succeed];
 
   @override
-  bool get canBePassedInUrl => true;
-
-  @override
   Map<String, dynamic> toJson() => throw UnimplementedError();
 }
 
 class TestExampleLoader extends ExampleLoader {
+  @override
   final TestExampleLoadingDescriptor descriptor;
+
   final Example? example;
 
   TestExampleLoader(this.descriptor)
-      : example = descriptor.sdk == null ? null : Example(
-          source: descriptor.sdk!.id,
-          name: descriptor.sdk!.id,
-          sdk: descriptor.sdk!,
-          type: ExampleType.example,
-          path: descriptor.sdk!.id,
-        );
+      : example = descriptor.sdk == null
+            ? null
+            : Example(
+                name: descriptor.sdk!.id,
+                path: descriptor.sdk!.id,
+                sdk: descriptor.sdk!,
+                source: descriptor.sdk!.id,
+                type: ExampleType.example,
+              );
 
   @override
   Sdk? get sdk => descriptor.sdk;

@@ -47,9 +47,9 @@ class EmbeddedPlaygroundNotifier extends ChangeNotifier
   @override
   PagePath get path {
     return EmbeddedPlaygroundSingleFirstPath(
-      multipleDescriptor: playgroundController.getLoadingDescriptor(),
-      isEditable: isEditable,
       descriptor: _getExampleLoadingDescriptor(),
+      isEditable: isEditable,
+      multipleDescriptor: playgroundController.getLoadingDescriptor(),
     );
   }
 

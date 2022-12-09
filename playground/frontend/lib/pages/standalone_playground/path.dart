@@ -133,6 +133,9 @@ class StandalonePlaygroundSingleFirstPath
 }
 
 /// A path to not load anything and show infinite loading.
+///
+/// Can be used for a page that is about to receive a JavaScript message
+/// to load its content.
 class StandalonePlaygroundWaitPath extends PagePath {
   static const _location = '/wait';
 

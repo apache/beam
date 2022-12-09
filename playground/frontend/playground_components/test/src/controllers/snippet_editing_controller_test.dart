@@ -44,6 +44,7 @@ void main() async {
     group('Changes.', (){
       test('Unchanged initially', (){
         expect(controller.isChanged, false);
+        expect(notified, 0);
       });
 
       test('Unchanged after setting an example', () {

@@ -33,6 +33,7 @@ void main() {
     });
 
     test('Empty instant descriptors -> null', () {
+      // ignore: use_named_constants
       const descriptor = ExamplesLoadingDescriptor(
         descriptors: [],
       );
@@ -114,9 +115,9 @@ void main() {
           descriptors: const [_d1],
           initialSdk: Sdk.python,
           lazyLoadDescriptors: {
-            Sdk.scio: const [_d2],
-            Sdk.python: const [_unparsed],
-            Sdk.go: const [_d2],
+            Sdk.scio: const [_d2], //         Original, not overwritten.
+            Sdk.python: const [_unparsed], // Original.
+            Sdk.go: const [_d2], //           Added.
           },
         ),
       );
