@@ -21,10 +21,12 @@
 #   context_line: 30
 #   categories:
 #     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - nunbers
 
 import apache_beam as beam
-
-from log_elements import LogElements
 
 
 class AverageFn(beam.CombineFn):
@@ -49,5 +51,4 @@ with beam.Pipeline() as p:
 
   (p | beam.Create([10, 20, 50, 70, 90])
      | beam.CombineGlobally(AverageFn())
-     | LogElements())
-
+     | beam.LogElements())

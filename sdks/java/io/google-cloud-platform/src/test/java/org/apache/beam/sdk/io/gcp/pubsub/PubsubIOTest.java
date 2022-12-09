@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.util.Clock;
 import com.google.protobuf.ByteString;
@@ -37,10 +38,12 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.naming.SizeLimitExceededException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.AvroSchema;
@@ -74,7 +77,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -666,5 +671,88 @@ public class PubsubIOTest {
     List<String> outputs = ImmutableList.of("foo", "bar");
     PAssert.that(read).containsInAnyOrder(outputs);
     readPipeline.run();
+  }
+
+  @Test
+  public void testValidatePubsubMessageSizeOnlyPayload() throws SizeLimitExceededException {
+    byte[] data = new byte[1024];
+    PubsubMessage message = new PubsubMessage(data, null);
+
+    int messageSize = PubsubIO.validateAndGetPubsubMessageSize(message);
+
+    assertEquals(data.length, messageSize);
+  }
+
+  @Test
+  public void testValidatePubsubMessageSizePayloadAndAttributes()
+      throws SizeLimitExceededException {
+    byte[] data = new byte[1024];
+    String attributeKey = "key";
+    String attributeValue = "value";
+    Map<String, String> attributes = ImmutableMap.of(attributeKey, attributeValue);
+    PubsubMessage message = new PubsubMessage(data, attributes);
+
+    int messageSize = PubsubIO.validateAndGetPubsubMessageSize(message);
+
+    assertEquals(
+        data.length
+            + 6 // PUBSUB_MESSAGE_ATTRIBUTE_ENCODE_ADDITIONAL_BYTES
+            + attributeKey.getBytes(StandardCharsets.UTF_8).length
+            + attributeValue.getBytes(StandardCharsets.UTF_8).length,
+        messageSize);
+  }
+
+  @Test
+  public void testValidatePubsubMessageSizePayloadTooLarge() {
+    byte[] data = new byte[(10 << 20) + 1];
+    PubsubMessage message = new PubsubMessage(data, null);
+
+    assertThrows(
+        SizeLimitExceededException.class, () -> PubsubIO.validateAndGetPubsubMessageSize(message));
+  }
+
+  @Test
+  public void testValidatePubsubMessageSizePayloadPlusAttributesTooLarge() {
+    byte[] data = new byte[(10 << 20)];
+    String attributeKey = "key";
+    String attributeValue = "value";
+    Map<String, String> attributes = ImmutableMap.of(attributeKey, attributeValue);
+    PubsubMessage message = new PubsubMessage(data, attributes);
+
+    assertThrows(
+        SizeLimitExceededException.class, () -> PubsubIO.validateAndGetPubsubMessageSize(message));
+  }
+
+  @Test
+  public void testValidatePubsubMessageSizeAttributeKeyTooLarge() {
+    byte[] data = new byte[1024];
+    String attributeKey = RandomStringUtils.randomAscii(257);
+    String attributeValue = "value";
+    Map<String, String> attributes = ImmutableMap.of(attributeKey, attributeValue);
+    PubsubMessage message = new PubsubMessage(data, attributes);
+
+    assertThrows(
+        SizeLimitExceededException.class, () -> PubsubIO.validateAndGetPubsubMessageSize(message));
+  }
+
+  @Test
+  public void testValidatePubsubMessageSizeAttributeValueTooLarge() {
+    byte[] data = new byte[1024];
+    String attributeKey = "key";
+    String attributeValue = RandomStringUtils.randomAscii(1025);
+    Map<String, String> attributes = ImmutableMap.of(attributeKey, attributeValue);
+    PubsubMessage message = new PubsubMessage(data, attributes);
+
+    assertThrows(
+        SizeLimitExceededException.class, () -> PubsubIO.validateAndGetPubsubMessageSize(message));
+  }
+
+  @Test
+  public void testValidatePubsubMessagePayloadTooLarge() {
+    byte[] data = new byte[(10 << 20) + 1];
+    PubsubMessage message = new PubsubMessage(data, null);
+
+    assertThrows(
+        SizeLimitExceededException.class, () -> PubsubIO.validateAndGetPubsubMessageSize(message));
   }
 }

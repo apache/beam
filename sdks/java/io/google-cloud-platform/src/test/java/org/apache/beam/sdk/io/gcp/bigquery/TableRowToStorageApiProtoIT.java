@@ -169,6 +169,9 @@ public class TableRowToStorageApiProtoIT {
           .set("bigNumericValue", "23334.4")
           .set("arrayValue", REPEATED_BYTES);
 
+  @SuppressWarnings({
+    "FloatingPointLiteralPrecision" // https://github.com/apache/beam/issues/23666
+  })
   private static final TableRow BASE_TABLE_ROW_FLOATS =
       new TableRow()
           .set("stringValue", "string")
@@ -334,7 +337,8 @@ public class TableRowToStorageApiProtoIT {
     runPipeline(tableSpec, Collections.singleton(BASE_TABLE_ROW));
 
     List<TableRow> actualTableRows =
-        BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true);
+        BQ_CLIENT.queryUnflattened(
+            String.format("SELECT * FROM %s", tableSpec), PROJECT, true, true);
 
     assertEquals(1, actualTableRows.size());
     assertEquals(BASE_TABLE_ROW_EXPECTED, actualTableRows.get(0));
@@ -359,7 +363,8 @@ public class TableRowToStorageApiProtoIT {
     runPipeline(tableSpec, Collections.singleton(tableRow));
 
     List<TableRow> actualTableRows =
-        BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true);
+        BQ_CLIENT.queryUnflattened(
+            String.format("SELECT * FROM %s", tableSpec), PROJECT, true, true);
 
     assertEquals(1, actualTableRows.size());
     assertEquals(BASE_TABLE_ROW_EXPECTED, actualTableRows.get(0).get("nestedValue1"));
@@ -388,7 +393,7 @@ public class TableRowToStorageApiProtoIT {
                     .setTableId(table)
                     .setDatasetId(BIG_QUERY_DATASET_ID)
                     .setProjectId(PROJECT)));
-    return PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + table;
+    return PROJECT + "." + BIG_QUERY_DATASET_ID + "." + table;
   }
 
   private static void runPipeline(String tableSpec, Iterable<TableRow> tableRows) {

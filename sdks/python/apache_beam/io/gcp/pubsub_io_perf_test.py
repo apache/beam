@@ -34,7 +34,6 @@ python -m apache_beam.io.gcp.pubsub_io_perf_test \
     --publish_to_big_query=<OPTIONAL><true/false>
     --metrics_dataset=<OPTIONAL>
     --metrics_table=<OPTIONAL>
-    --dataflow_worker_jar=<OPTIONAL>
     --input_options='{
       \"num_records\": <SIZE_OF_INPUT>
       \"key_size\": 1
@@ -208,10 +207,10 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
     self.pipeline = TestPipeline(options=PipelineOptions(args))
 
   def cleanup(self):
-    self.sub_client.delete_subscription(self.read_sub_name)
-    self.sub_client.delete_subscription(self.read_matcher_sub_name)
-    self.pub_client.delete_topic(self.topic_name)
-    self.pub_client.delete_topic(self.matcher_topic_name)
+    self.sub_client.delete_subscription(subscription=self.read_sub_name)
+    self.sub_client.delete_subscription(subscription=self.read_matcher_sub_name)
+    self.pub_client.delete_topic(topic=self.topic_name)
+    self.pub_client.delete_topic(topic=self.matcher_topic_name)
 
 
 if __name__ == '__main__':

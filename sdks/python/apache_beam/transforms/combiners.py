@@ -47,7 +47,22 @@ from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
 __all__ = [
-    'Count', 'Mean', 'Sample', 'Top', 'ToDict', 'ToList', 'ToSet', 'Latest'
+    'Count',
+    'Mean',
+    'Sample',
+    'Top',
+    'ToDict',
+    'ToList',
+    'ToSet',
+    'Latest',
+    'CountCombineFn',
+    'MeanCombineFn',
+    'SampleCombineFn',
+    'TopCombineFn',
+    'ToDictCombineFn',
+    'ToListCombineFn',
+    'ToSetCombineFn',
+    'LatestCombineFn',
 ]
 
 # Type variables

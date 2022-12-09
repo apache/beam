@@ -63,7 +63,7 @@ understand an important set of core concepts:
 The following sections cover these concepts in more detail and provide links to
 additional documentation.
 
-### Pipeline
+## Pipeline
 
 A Beam pipeline is a graph (specifically, a
 [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph))
@@ -93,9 +93,9 @@ For more information about pipelines, see the following pages:
  * [Beam Programming Guide: Overview](/documentation/programming-guide/#overview)
  * [Beam Programming Guide: Creating a pipeline](/documentation/programming-guide/#creating-a-pipeline)
  * [Design your pipeline](/documentation/pipelines/design-your-pipeline)
- * [Create your pipeline](/documentation/pipeline/create-your-pipeline)
+ * [Create your pipeline](/documentation/pipelines/create-your-pipeline)
 
-### PCollection
+## PCollection
 
 A `PCollection` is an unordered bag of elements. Each `PCollection` is a
 potentially distributed, homogeneous data set or data stream, and is owned by
@@ -197,7 +197,7 @@ For more information about PCollections, see the following page:
 
  * [Beam Programming Guide: PCollections](/documentation/programming-guide/#pcollections)
 
-### PTransform
+## PTransform
 
 A `PTransform` (or transform) represents a data processing operation, or a step,
 in your pipeline. A transform is usually applied to one or more input
@@ -236,7 +236,7 @@ For more information about transforms, see the following pages:
  * Beam transform catalog ([Java](/documentation/transforms/java/overview/),
    [Python](/documentation/transforms/python/overview/))
 
-### Aggregation
+## Aggregation
 
 Aggregation is computing a value from multiple (1 or more) input elements. In
 Beam, the primary computational pattern for aggregation is to group all elements
@@ -261,7 +261,7 @@ as summation, called a `CombineFn`, in which the output is significantly smaller
 than the input. In this case the aggregation is called `CombinePerKey`.
 
 In a real application, you might have millions of keys and/or windows; that is
-why this is still an "embarassingly parallel" computational pattern. In those
+why this is still an "embarrassingly parallel" computational pattern. In those
 cases where you have fewer keys, you can add parallelism by adding a
 supplementary key, splitting each of your problem's natural keys into many
 sub-keys. After these sub-keys are aggregated, the results can be further
@@ -286,7 +286,7 @@ pages:
    ([Java](/documentation/transforms/java/overview/#aggregation),
    [Python](/documentation/transforms/python/overview/#aggregation))
 
-### User-defined function (UDF)
+## User-defined function (UDF)
 
 Some Beam operations allow you to run user-defined code as a way to configure
 the transform. For example, when using `ParDo`, user-defined code specifies what
@@ -332,7 +332,7 @@ For more information about user-defined functions, see the following pages:
  * [Beam Programming Guide: Coder](/documentation/programming-guide/#data-encoding-and-type-safety)
  * [Beam Programming Guide: Side inputs](/documentation/programming-guide/#side-inputs)
 
-### Schema
+## Schema
 
 A schema is a language-independent type definition for a `PCollection`. The
 schema for a `PCollection` defines elements of that `PCollection` as an ordered
@@ -359,7 +359,7 @@ For more information about schemas, see the following pages:
  * [Beam Programming Guide: Schemas](/documentation/programming-guide/#schemas)
  * [Schema Patterns](/documentation/patterns/schema/)
 
-### Runner
+## Runner
 
 A Beam runner runs a Beam pipeline on a specific platform. Most runners are
 translators or adapters to massively parallel big data processing systems, such
@@ -377,7 +377,7 @@ For more information about runners, see the following pages:
  * [Choosing a Runner](/documentation/#choosing-a-runner)
  * [Beam Capability Matrix](/documentation/runners/capability-matrix/)
 
-### Window
+## Window
 
 Windowing subdivides a `PCollection` into _windows_ according to the timestamps
 of its individual elements. Windows enable grouping operations over unbounded
@@ -423,7 +423,7 @@ For more information about windows, see the following page:
  * [Beam Programming Guide: Windowing](/documentation/programming-guide/#windowing)
  * [Beam Programming Guide: WindowFn](/documentation/programming-guide/#setting-your-pcollections-windowing-function)
 
-### Watermark
+## Watermark
 
 In any data processing system, there is a certain amount of lag between the time
 a data event occurs (the “event time”, determined by the timestamp on the data
@@ -456,7 +456,7 @@ For more information about watermarks, see the following page:
 
  * [Beam Programming Guide: Watermarks and late data](/documentation/programming-guide/#watermarks-and-late-data)
 
-### Trigger
+## Trigger
 
 When collecting and grouping data into windows, Beam uses _triggers_ to
 determine when to emit the aggregated results of each window (referred to as a
@@ -496,7 +496,7 @@ For more information about triggers, see the following page:
 
  * [Beam Programming Guide: Triggers](/documentation/programming-guide/#triggers)
 
-### State and timers
+## State and timers
 
 Beam’s windowing and triggers provide an abstraction for grouping and
 aggregating unbounded input data based on timestamps. However, there are
@@ -570,7 +570,7 @@ For more information about state and timers, see the following pages:
  * [Stateful processing with Apache Beam](/blog/stateful-processing/)
  * [Timely (and Stateful) Processing with Apache Beam](/blog/timely-processing/)
 
-### Splittable DoFn
+## Splittable DoFn
 
 Splittable `DoFn` (SDF) is a generalization of `DoFn` that lets you process
 elements in a non-monolithic way. Splittable `DoFn` makes it easier to create
@@ -609,9 +609,9 @@ For more information about Splittable `DoFn`, see the following pages:
  * [Splittable DoFns](/documentation/programming-guide/#splittable-dofns)
  * [Splittable DoFn in Apache Beam is Ready to Use](/blog/splittable-do-fn-is-available/)
 
-### What's next
+## What's next
 
-Take a look at our [other documention](/documentation/) such as the Beam
+Take a look at our [other documentation](/documentation/) such as the Beam
 programming guide, pipeline execution information, and transform reference
 catalogs.
 

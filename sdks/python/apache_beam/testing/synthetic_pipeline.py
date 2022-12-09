@@ -22,7 +22,7 @@ Exact shape of the pipeline and the behaviour of sources and steps can be
 controlled through arguments. Please see function 'parse_args()' for more
 details about the arguments.
 
-Shape of the pipeline is primariy controlled through two arguments. Argument
+Shape of the pipeline is primarily controlled through two arguments. Argument
 'steps' can be used to define a list of steps as a JSON string. Argument
 'barrier' describes how these steps are separated from each other. Argument
 'barrier' can be use to build a pipeline as a series of steps or a tree of
