@@ -42,6 +42,10 @@ jobs:
         uses: ./.github/actions/setup-self-hosted-action
         with:
           requires-go-18: false
+      - name: Set up service account
+        uses: ./.github/actions/activate-service-account
+        with:
+          GCP_SERVICE_ACCOUNT: ${{secrets.GCP_SELF_HOSTED_SA_KEY}}
       - name: Run :sdks:python:test-suites:portable:flinkExamplesPostCommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
