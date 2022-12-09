@@ -468,9 +468,9 @@ public class CommonCoderTest {
       case LOGICAL_TYPE:
         // Logical types are represented as their representation types in YAML. Parse as the
         // representation type, then convert to the base type.
-        return fieldType
-            .getLogicalType()
-            .toInputType(parseField(value, fieldType.getLogicalType().getBaseType()));
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
+        return logicalType.toInputType(parseField(value, fieldType.getLogicalType().getBaseType()));
       default:
         throw new IllegalArgumentException("Unsupported type name: " + fieldType.getTypeName());
     }

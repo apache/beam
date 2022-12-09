@@ -37,14 +37,29 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.joda.time.Duration;
 
 @AutoService(SchemaTransformProvider.class)
 public class KafkaReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<KafkaReadSchemaTransformConfiguration> {
+
+  final Boolean isTest;
+  final Integer testTimeoutSecs;
+
+  public KafkaReadSchemaTransformProvider() {
+    this(false, 0);
+  }
+
+  @VisibleForTesting
+  KafkaReadSchemaTransformProvider(Boolean isTest, Integer testTimeoutSecs) {
+    this.isTest = isTest;
+    this.testTimeoutSecs = testTimeoutSecs;
+  }
 
   @Override
   protected Class<KafkaReadSchemaTransformConfiguration> configurationClass() {
@@ -53,7 +68,7 @@ public class KafkaReadSchemaTransformProvider
 
   @Override
   protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
-    return new KafkaReadSchemaTransform(configuration);
+    return new KafkaReadSchemaTransform(configuration, isTest, testTimeoutSecs);
   }
 
   @Override
@@ -68,15 +83,22 @@ public class KafkaReadSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Lists.newArrayList("OUTPUT");
+    return Lists.newArrayList("output");
   }
 
   private static class KafkaReadSchemaTransform implements SchemaTransform {
     private final KafkaReadSchemaTransformConfiguration configuration;
+    private final Boolean isTest;
+    private final Integer testTimeoutSeconds;
 
-    KafkaReadSchemaTransform(KafkaReadSchemaTransformConfiguration configuration) {
+    KafkaReadSchemaTransform(
+        KafkaReadSchemaTransformConfiguration configuration,
+        Boolean isTest,
+        Integer testTimeoutSeconds) {
       configuration.validate();
       this.configuration = configuration;
+      this.isTest = isTest;
+      this.testTimeoutSeconds = testTimeoutSeconds;
     }
 
     @Override
@@ -116,9 +138,12 @@ public class KafkaReadSchemaTransformProvider
                             autoOffsetReset))
                     .withTopic(configuration.getTopic())
                     .withBootstrapServers(configuration.getBootstrapServers());
+            if (isTest) {
+              kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(testTimeoutSeconds));
+            }
 
             return PCollectionRowTuple.of(
-                "OUTPUT",
+                "output",
                 input
                     .getPipeline()
                     .apply(kafkaRead.withoutMetadata())
@@ -157,6 +182,9 @@ public class KafkaReadSchemaTransformProvider
                     .withValueDeserializer(
                         ConfluentSchemaRegistryDeserializerProvider.of(
                             confluentSchemaRegUrl, confluentSchemaRegSubject));
+            if (isTest) {
+              kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(testTimeoutSeconds));
+            }
 
             PCollection<GenericRecord> kafkaValues =
                 input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
@@ -164,7 +192,7 @@ public class KafkaReadSchemaTransformProvider
             assert kafkaValues.getCoder().getClass() == AvroCoder.class;
             AvroCoder<GenericRecord> coder = (AvroCoder<GenericRecord>) kafkaValues.getCoder();
             kafkaValues = kafkaValues.setCoder(AvroUtils.schemaCoder(coder.getSchema()));
-            return PCollectionRowTuple.of("OUTPUT", kafkaValues.apply(Convert.toRows()));
+            return PCollectionRowTuple.of("output", kafkaValues.apply(Convert.toRows()));
           }
         };
       }
