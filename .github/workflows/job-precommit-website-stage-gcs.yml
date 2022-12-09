@@ -37,6 +37,14 @@ jobs:
     name: Run Website Stage in GCS
     runs-on: [self-hosted, ubuntu-20.04]
     steps:
+      - name: Checking out composite to setup service account
+        uses: actions/checkout@v3
+        with:
+          ref: master
+      - name: Setup service account
+        uses: ./.github/actions/activate-service-account
+        with:
+          GCP_SERVICE_ACCOUNT: ${{secrets.GCP_SELF_HOSTED_SA_KEY}}
       - name: Checkout code
         uses: actions/checkout@v3
         with:
