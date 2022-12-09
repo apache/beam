@@ -20,7 +20,8 @@
 //
 // 1. From a command line, navigate to the top-level beam/ directory and run
 // the Flink job server:
-//    ./gradlew :runners:flink:1.13:job-server:runShadow -Djob-host=localhost -Dflink-master=local
+//
+//	./gradlew :runners:flink:1.13:job-server:runShadow -Djob-host=localhost -Dflink-master=local
 //
 // 2. The job server is ready to receive jobs once it outputs a log like the
 // following: `JobService started on localhost:8099`. Take note of the endpoint
@@ -29,7 +30,8 @@
 // 3. While the job server is running in one command line window, create a
 // second one in the same directory and run this example with the following
 // command, using the endpoint you noted from step 2:
-//    go run sdks/go/examples/stringsplit/stringsplit.go --runner=universal --endpoint=localhost:8099
+//
+//	go run sdks/go/examples/stringsplit/stringsplit.go --runner=universal --endpoint=localhost:8099
 //
 // 4. Once the pipeline is complete, the job server can be closed with ctrl+C.
 // To check the output of the pipeline, search the job server logs for the
@@ -44,6 +46,11 @@ package main
 //   categories:
 //     - Debugging
 //     - Flatten
+//   complexity: MEDIUM
+//   tags:
+//     - pipeline
+//     - split
+//     - runner
 
 import (
 	"context"

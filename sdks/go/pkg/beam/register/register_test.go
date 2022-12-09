@@ -21,13 +21,10 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
@@ -47,7 +44,7 @@ func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 	emit := func(a0 int) {
 		val = a0
 	}
-	if got, want := pe.Call([]interface{}{"hello", emit})[0].(int), 5; got != want {
+	if got, want := pe.Call([]any{"hello", emit})[0].(int), 5; got != want {
 		t.Errorf("Wrapped ProcessElement call: got %v, want %v", got, want)
 	}
 	if got, want := val, 5; got != want {
@@ -61,7 +58,7 @@ func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 	emit = func(a0 int) {
 		val = a0
 	}
-	sb.Call([]interface{}{context.Background(), emit})
+	sb.Call([]any{context.Background(), emit})
 	if got, want := val, 2; got != want {
 		t.Errorf("Wrapped StartBundle call emit result: got %v, want %v", got, want)
 	}
@@ -73,7 +70,7 @@ func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 	emit = func(a0 int) {
 		val = a0
 	}
-	if got := fb.Call([]interface{}{context.Background(), emit})[0]; got != nil {
+	if got := fb.Call([]any{context.Background(), emit})[0]; got != nil {
 		t.Errorf("Wrapped FinishBundle call: got %v, want nil", got)
 	}
 	if got, want := val, 2; got != want {
@@ -83,14 +80,14 @@ func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(CompleteDoFn2x1{}), no registered entry found for Setup")
 	}
-	if got := su.Call([]interface{}{context.Background()})[0]; got != nil {
+	if got := su.Call([]any{context.Background()})[0]; got != nil {
 		t.Errorf("Wrapped FinishBundle call: got %v, want nil", got)
 	}
 	td, ok := m["Teardown"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(CompleteDoFn2x1{}), no registered entry found for Teardown")
 	}
-	if got := td.Call([]interface{}{})[0]; got != nil {
+	if got := td.Call([]any{})[0]; got != nil {
 		t.Errorf("Wrapped Teardown call: got %v, want nil", got)
 	}
 }
@@ -111,7 +108,7 @@ func TestRegister_PartialDoFn_WrapsStruct(t *testing.T) {
 	emit := func(a0 int) {
 		val = a0
 	}
-	pe.Call([]interface{}{emit})
+	pe.Call([]any{emit})
 	if got, want := val, 5; got != want {
 		t.Errorf("Wrapped ProcessElement call emit result: got %v, want %v", got, want)
 	}
@@ -123,7 +120,7 @@ func TestRegister_PartialDoFn_WrapsStruct(t *testing.T) {
 	emit = func(a0 int) {
 		val = a0
 	}
-	sb.Call([]interface{}{context.Background(), emit})
+	sb.Call([]any{context.Background(), emit})
 	if got, want := val, 2; got != want {
 		t.Errorf("Wrapped StartBundle call emit result: got %v, want %v", got, want)
 	}
@@ -141,7 +138,7 @@ func TestRegister_ProcessElementDoFn_WrapsStruct(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(ProcessElementDoFn0x1{}), no registered entry found for ProcessElement")
 	}
-	if got, want := pe.Call([]interface{}{})[0].(int), 5; got != want {
+	if got, want := pe.Call([]any{})[0].(int), 5; got != want {
 		t.Errorf("Wrapped ProcessElement call: got %v, want %v", got, want)
 	}
 }
@@ -174,28 +171,28 @@ func TestCombiner_CompleteCombiner3(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for CreateAccumulator")
 	}
-	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+	if got, want := ca.Call([]any{})[0].(int), 0; got != want {
 		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
 	}
 	ai, ok := m["AddInput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for AddInput")
 	}
-	if got, want := ai.Call([]interface{}{2, CustomType{val: 3}})[0].(int), 5; got != want {
+	if got, want := ai.Call([]any{2, CustomType{val: 3}})[0].(int), 5; got != want {
 		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
 	}
 	ma, ok := m["MergeAccumulators"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+	if got, want := ma.Call([]any{2, 4})[0].(int), 6; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 	eo, ok := m["ExtractOutput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := eo.Call([]interface{}{2})[0].(CustomType2).val2, 2; got != want {
+	if got, want := eo.Call([]any{2})[0].(CustomType2).val2, 2; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 }
@@ -229,28 +226,28 @@ func TestCombiner_CompleteCombiner2(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for CreateAccumulator")
 	}
-	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+	if got, want := ca.Call([]any{})[0].(int), 0; got != want {
 		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
 	}
 	ai, ok := m["AddInput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for AddInput")
 	}
-	if got, want := ai.Call([]interface{}{2, CustomType{val: 3}})[0].(int), 5; got != want {
+	if got, want := ai.Call([]any{2, CustomType{val: 3}})[0].(int), 5; got != want {
 		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
 	}
 	ma, ok := m["MergeAccumulators"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+	if got, want := ma.Call([]any{2, 4})[0].(int), 6; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 	eo, ok := m["ExtractOutput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := eo.Call([]interface{}{2})[0].(CustomType).val, 2; got != want {
+	if got, want := eo.Call([]any{2})[0].(CustomType).val, 2; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 }
@@ -267,28 +264,28 @@ func TestCombiner_CompleteCombiner1(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for CreateAccumulator")
 	}
-	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+	if got, want := ca.Call([]any{})[0].(int), 0; got != want {
 		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
 	}
 	ai, ok := m["AddInput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for AddInput")
 	}
-	if got, want := ai.Call([]interface{}{2, 3})[0].(int), 5; got != want {
+	if got, want := ai.Call([]any{2, 3})[0].(int), 5; got != want {
 		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
 	}
 	ma, ok := m["MergeAccumulators"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+	if got, want := ma.Call([]any{2, 4})[0].(int), 6; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 	eo, ok := m["ExtractOutput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := eo.Call([]interface{}{2})[0].(int), 2; got != want {
+	if got, want := eo.Call([]any{2})[0].(int), 2; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 }
@@ -305,235 +302,22 @@ func TestCombiner_PartialCombiner2(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found for CreateAccumulator")
 	}
-	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+	if got, want := ca.Call([]any{})[0].(int), 0; got != want {
 		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
 	}
 	ai, ok := m["AddInput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found for AddInput")
 	}
-	if got, want := ai.Call([]interface{}{2, CustomType{val: 3}})[0].(int), 5; got != want {
+	if got, want := ai.Call([]any{2, CustomType{val: 3}})[0].(int), 5; got != want {
 		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
 	}
 	ma, ok := m["MergeAccumulators"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+	if got, want := ma.Call([]any{2, 4})[0].(int), 6; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
-	}
-}
-
-func TestEmitter1(t *testing.T) {
-	Emitter1[int]()
-	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(int))(nil)).Elem()) {
-		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(int))(nil)).Elem()) = false, want true")
-	}
-}
-
-func TestEmitter2(t *testing.T) {
-	Emitter2[int, string]()
-	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(int, string))(nil)).Elem()) {
-		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(int, string))(nil)).Elem()) = false, want true")
-	}
-}
-
-func TestEmitter2_WithTimestamp(t *testing.T) {
-	Emitter2[typex.EventTime, string]()
-	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, string))(nil)).Elem()) {
-		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, string))(nil)).Elem()) = false, want true")
-	}
-}
-
-func TestEmitter3(t *testing.T) {
-	Emitter3[typex.EventTime, int, string]()
-	if !exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, int, string))(nil)).Elem()) {
-		t.Fatalf("exec.IsEmitterRegistered(reflect.TypeOf((*func(typex.EventTime, int, string))(nil)).Elem()) = false, want true")
-	}
-}
-
-func TestEmit1(t *testing.T) {
-	e := &emit1[int]{n: &elementProcessor{}}
-	e.Init(context.Background(), []typex.Window{}, mtime.ZeroTimestamp)
-	fn := e.Value().(func(int))
-	fn(3)
-	if got, want := e.n.(*elementProcessor).inFV.Elm, 3; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Elm=%v, want %v", got, want)
-	}
-	if got := e.n.(*elementProcessor).inFV.Elm2; got != nil {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Elm2=%v, want nil", got)
-	}
-	if got, want := e.n.(*elementProcessor).inFV.Timestamp, mtime.ZeroTimestamp; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Timestamp=%v, want %v", got, want)
-	}
-}
-
-func TestEmit2(t *testing.T) {
-	e := &emit2[int, string]{n: &elementProcessor{}}
-	e.Init(context.Background(), []typex.Window{}, mtime.ZeroTimestamp)
-	fn := e.Value().(func(int, string))
-	fn(3, "hello")
-	if got, want := e.n.(*elementProcessor).inFV.Elm, 3; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Elm=%v, want %v", got, want)
-	}
-	if got, want := e.n.(*elementProcessor).inFV.Elm2, "hello"; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Elm2=%v, want %v", got, want)
-	}
-	if got, want := e.n.(*elementProcessor).inFV.Timestamp, mtime.ZeroTimestamp; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Timestamp=%v, want %v", got, want)
-	}
-}
-
-func TestEmit1WithTimestamp(t *testing.T) {
-	e := &emit1WithTimestamp[int]{n: &elementProcessor{}}
-	e.Init(context.Background(), []typex.Window{}, mtime.ZeroTimestamp)
-	fn := e.Value().(func(typex.EventTime, int))
-	fn(mtime.MaxTimestamp, 3)
-	if got, want := e.n.(*elementProcessor).inFV.Elm, 3; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Elm=%v, want %v", got, want)
-	}
-	if got := e.n.(*elementProcessor).inFV.Elm2; got != nil {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Elm2=%v, want nil", got)
-	}
-	if got, want := e.n.(*elementProcessor).inFV.Timestamp, mtime.MaxTimestamp; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Timestamp=%v, want %v", got, want)
-	}
-}
-
-func TestEmit2WithTimestamp(t *testing.T) {
-	e := &emit2WithTimestamp[int, string]{n: &elementProcessor{}}
-	e.Init(context.Background(), []typex.Window{}, mtime.ZeroTimestamp)
-	fn := e.Value().(func(typex.EventTime, int, string))
-	fn(mtime.MaxTimestamp, 3, "hello")
-	if got, want := e.n.(*elementProcessor).inFV.Elm, 3; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Elm=%v, want %v", got, want)
-	}
-	if got, want := e.n.(*elementProcessor).inFV.Elm2, "hello"; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Elm2=%v, want %v", got, want)
-	}
-	if got, want := e.n.(*elementProcessor).inFV.Timestamp, mtime.MaxTimestamp; got != want {
-		t.Errorf("e.Value.(func(int))(3).n.inFV.Timestamp=%v, want %v", got, want)
-	}
-}
-
-func TestIter1(t *testing.T) {
-	Iter1[int]()
-	if !exec.IsInputRegistered(reflect.TypeOf((*func(*int) bool)(nil)).Elem()) {
-		t.Fatalf("exec.IsInputRegistered(reflect.TypeOf(((*func(*int) bool)(nil)).Elem()) = false, want true")
-	}
-}
-
-func TestIter2(t *testing.T) {
-	Iter2[int, string]()
-	if !exec.IsInputRegistered(reflect.TypeOf((*func(*int, *string) bool)(nil)).Elem()) {
-		t.Fatalf("exec.IsInputRegistered(reflect.TypeOf((*func(*int, *string) bool)(nil)).Elem()) = false, want true")
-	}
-}
-
-func TestIter1_Struct(t *testing.T) {
-	values := []exec.FullValue{exec.FullValue{
-		Windows:   window.SingleGlobalWindow,
-		Timestamp: mtime.ZeroTimestamp,
-		Elm:       "one",
-	}, exec.FullValue{
-		Windows:   window.SingleGlobalWindow,
-		Timestamp: mtime.ZeroTimestamp,
-		Elm:       "two",
-	}, exec.FullValue{
-		Windows:   window.SingleGlobalWindow,
-		Timestamp: mtime.ZeroTimestamp,
-		Elm:       "three",
-	}}
-
-	i := iter1[string]{s: &exec.FixedReStream{Buf: values}}
-
-	i.Init()
-	fn := i.Value().(func(value *string) bool)
-
-	var s string
-	if ok := fn(&s); !ok {
-		t.Fatalf("First i.Value()(&s)=false, want true")
-	}
-	if got, want := s, "one"; got != want {
-		t.Fatalf("First iter value = %v, want %v", got, want)
-	}
-	if ok := fn(&s); !ok {
-		t.Fatalf("Second i.Value()(&s)=false, want true")
-	}
-	if got, want := s, "two"; got != want {
-		t.Fatalf("Second iter value = %v, want %v", got, want)
-	}
-	if ok := fn(&s); !ok {
-		t.Fatalf("Third i.Value()(&s)=false, want true")
-	}
-	if got, want := s, "three"; got != want {
-		t.Fatalf("Third iter value = %v, want %v", got, want)
-	}
-	if ok := fn(&s); ok {
-		t.Fatalf("Fourth i.Value()(&s)=true, want false")
-	}
-	if err := i.Reset(); err != nil {
-		t.Fatalf("i.Reset()=%v, want nil", err)
-	}
-}
-
-func TestIter2_Struct(t *testing.T) {
-	values := []exec.FullValue{exec.FullValue{
-		Windows:   window.SingleGlobalWindow,
-		Timestamp: mtime.ZeroTimestamp,
-		Elm:       1,
-		Elm2:      "one",
-	}, exec.FullValue{
-		Windows:   window.SingleGlobalWindow,
-		Timestamp: mtime.ZeroTimestamp,
-		Elm:       2,
-		Elm2:      "two",
-	}, exec.FullValue{
-		Windows:   window.SingleGlobalWindow,
-		Timestamp: mtime.ZeroTimestamp,
-		Elm:       3,
-		Elm2:      "three",
-	}}
-
-	i := iter2[int, string]{s: &exec.FixedReStream{Buf: values}}
-
-	i.Init()
-	fn := i.Value().(func(key *int, value *string) bool)
-
-	var s string
-	var key int
-	if ok := fn(&key, &s); !ok {
-		t.Fatalf("First i.Value()(&s)=false, want true")
-	}
-	if got, want := key, 1; got != want {
-		t.Fatalf("First iter key = %v, want %v", got, want)
-	}
-	if got, want := s, "one"; got != want {
-		t.Fatalf("First iter value = %v, want %v", got, want)
-	}
-	if ok := fn(&key, &s); !ok {
-		t.Fatalf("Second i.Value()(&s)=false, want true")
-	}
-	if got, want := key, 2; got != want {
-		t.Fatalf("Second iter key = %v, want %v", got, want)
-	}
-	if got, want := s, "two"; got != want {
-		t.Fatalf("Second iter value = %v, want %v", got, want)
-	}
-	if ok := fn(&key, &s); !ok {
-		t.Fatalf("Third i.Value()(&s)=false, want true")
-	}
-	if got, want := key, 3; got != want {
-		t.Fatalf("Third iter key = %v, want %v", got, want)
-	}
-	if got, want := s, "three"; got != want {
-		t.Fatalf("Third iter value = %v, want %v", got, want)
-	}
-	if ok := fn(&key, &s); ok {
-		t.Fatalf("Fourth i.Value()(&s)=true, want false")
-	}
-	if err := i.Reset(); err != nil {
-		t.Fatalf("i.Reset()=%v, want nil", err)
 	}
 }
 
@@ -735,12 +519,12 @@ func (c *callerCustomTypeГint) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerCustomTypeГint) Call(args []interface{}) []interface{} {
+func (c *callerCustomTypeГint) Call(args []any) []any {
 	out0 := c.fn(args[0].(CustomType))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *callerCustomTypeГint) Call1x1(arg0 interface{}) interface{} {
+func (c *callerCustomTypeГint) Call1x1(arg0 any) any {
 	return c.fn(arg0.(CustomType))
 }
 
@@ -756,26 +540,26 @@ func (c *callerCustomType2CustomType2ГCustomType2) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerCustomType2CustomType2ГCustomType2) Call(args []interface{}) []interface{} {
+func (c *callerCustomType2CustomType2ГCustomType2) Call(args []any) []any {
 	out0 := c.fn(args[0].(CustomType2), args[0].(CustomType2))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *callerCustomType2CustomType2ГCustomType2) Call2x1(arg0, arg1 interface{}) interface{} {
+func (c *callerCustomType2CustomType2ГCustomType2) Call2x1(arg0, arg1 any) any {
 	return c.fn(arg0.(CustomType2), arg1.(CustomType2))
 }
 
-func funcMakerCustomTypeГint(fn interface{}) reflectx.Func {
+func funcMakerCustomTypeГint(fn any) reflectx.Func {
 	f := fn.(func(CustomType) int)
 	return &callerCustomTypeГint{fn: f}
 }
 
-func funcMakerCustomType2CustomType2ГCustomType2(fn interface{}) reflectx.Func {
+func funcMakerCustomType2CustomType2ГCustomType2(fn any) reflectx.Func {
 	f := fn.(func(CustomType2, CustomType2) CustomType2)
 	return &callerCustomType2CustomType2ГCustomType2{fn: f}
 }
 
-func wrapMakerFoo(fn interface{}) map[string]reflectx.Func {
+func wrapMakerFoo(fn any) map[string]reflectx.Func {
 	dfn := fn.(*Foo)
 	return map[string]reflectx.Func{
 		"ProcessElement": reflectx.MakeFunc(func(a0 CustomType) int { return dfn.ProcessElement(a0) }),
@@ -848,13 +632,13 @@ func BenchmarkMethodCalls(b *testing.B) {
 
 	var aFunc reflectx.Func
 	var aFn *graph.Fn
-	var aME interface{}
+	var aME any
 	var aFnCall int
 	var aFnCall2 CustomType2
 	var aFunc1x1 reflectx.Func1x1
 	var aFunc2x1 reflectx.Func2x1
-	funcIn := []interface{}{CustomType{val: 4}}
-	funcIn2 := []interface{}{CustomType2{val2: 4}, CustomType2{val2: 3}}
+	funcIn := []any{CustomType{val: 4}}
+	funcIn2 := []any{CustomType2{val2: 4}, CustomType2{val2: 3}}
 
 	// We need to do this registration just to get it to not panic when encoding the multi-edge with no additional optimization.
 	// This is currently required of users anyways

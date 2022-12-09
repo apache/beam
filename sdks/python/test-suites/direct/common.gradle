@@ -162,6 +162,8 @@ tasks.register("directRunnerIT") {
         "apache_beam/io/gcp/bigquery_test.py::BigQueryStreamingInsertTransformIntegrationTests::test_multiple_destinations_transform",
         "apache_beam/io/gcp/bigquery_test.py::PubSubBigQueryIT",
         "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming",
+        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_dynamic_destinations",
+        "apache_beam/io/gcp/bigquery_file_loads_test.py::BigQueryFileLoadsIT::test_bqfl_streaming_with_copy_jobs",
     ]
     def streamingTestOpts = basicTestOpts + ["${tests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
@@ -182,6 +184,15 @@ tasks.register("hdfsIntegrationTest") {
     exec {
       executable 'sh'
       args '-c', "${rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:${pythonContainerVersion}"
+    }
+  }
+}
+
+tasks.register("azureIntegrationTest") {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${rootDir}/sdks/python/apache_beam/io/azure/integration_test/azure_integration_test.sh python:${pythonContainerVersion}"
     }
   }
 }
@@ -213,6 +224,7 @@ task torchInferenceTest {
     }
 
 }
+
 // Scikit-learn RunInference IT tests
 task sklearnInferenceTest {
   dependsOn 'installGcpTest'
@@ -233,10 +245,38 @@ task sklearnInferenceTest {
     }
 }
 
+// TensorFlow Extended (TFX) RunInference IT tests
+task tfxInferenceTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/examples/inference/tfx_bsl/requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "uses_tensorflow and it_postcommit" ,
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 // Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'torchInferenceTest',
-  'sklearnInferenceTest'
+  'sklearnInferenceTest',
+  'tfxInferenceTest'
   ]
 }

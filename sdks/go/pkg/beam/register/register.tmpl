@@ -1,12 +1,12 @@
 {{define "BuildWrapper_StartFinishBundle"}}
 {{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "startBundle")}}{{$lowerName = "startBundle"}}{{$upperName = "StartBundle"}}{{end}}{{if (eq .func "finishBundle")}}{{$lowerName = "finishBundle"}}{{$upperName = "FinishBundle"}}{{end}}{{$startFinishBundleMaxIn := .startFinishBundleMaxIn}}{{$processElementMaxIn := .processElementMaxIn}}
 {{range $funcIn := upto $startFinishBundleMaxIn}}{{range $funcOut := upto 2}}
-func register{{$upperName}}{{$funcIn}}x{{$funcOut}}FuncAndMakeStructWrapper{{(genericTypingRepresentation $funcIn $funcOut true)}}() func(interface{}) reflectx.Func {
-    reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $funcIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $funcOut}} R0{{end}})(nil)).Elem(), func(fn interface{}) reflectx.Func {
+func register{{$upperName}}{{$funcIn}}x{{$funcOut}}FuncAndMakeStructWrapper{{(genericTypingRepresentation $funcIn $funcOut true)}}() func(any) reflectx.Func {
+    reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $funcIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $funcOut}} R0{{end}})(nil)).Elem(), func(fn any) reflectx.Func {
         return &caller{{$funcIn}}x{{$funcOut}}{{(genericTypingRepresentation $funcIn $funcOut false)}}{fn: fn.(func({{range $in := upto $funcIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $funcOut}} R0{{end}})}
     })
 
-    return func(fn interface{}) reflectx.Func {
+    return func(fn any) reflectx.Func {
         return reflectx.MakeFunc(func({{range $in := upto $funcIn}}{{if $in}}, {{end}}a{{$in}} I{{$in}}{{end}}){{if $funcOut}} R0{{end}} {
             {{if $funcOut}}return {{end}}fn.({{$lowerName}}{{$funcIn}}x{{$funcOut}}{{(genericTypingRepresentation $funcIn $funcOut false)}}).{{$upperName}}({{range $in := upto $funcIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
         })
@@ -14,7 +14,7 @@ func register{{$upperName}}{{$funcIn}}x{{$funcOut}}FuncAndMakeStructWrapper{{(ge
 }
 {{end}}{{end}}
 {{$numParams := $processElementMaxIn}}
-func build{{$upperName}}Wrapper{{(genericTypingRepresentation $numParams 0 true)}}(doFn interface{}) func(interface{}) reflectx.Func {
+func build{{$upperName}}Wrapper{{(genericTypingRepresentation $numParams 0 true)}}(doFn any) func(any) reflectx.Func {
     {{$lowerName}}In := -1
 	{{$lowerName}}Out := -1
 	{{$lowerName}}Method := reflect.ValueOf(doFn).MethodByName("{{$upperName}}")
@@ -43,51 +43,51 @@ func build{{$upperName}}Wrapper{{(genericTypingRepresentation $numParams 0 true)
 }
 {{end}}{{define "BuildWrapper_SetupTeardown"}}
 {{$lowerName := "unknown"}}{{$upperName := "unknown"}}{{if (eq .func "setup")}}{{$lowerName = "setup"}}{{$upperName = "Setup"}}{{end}}{{if (eq .func "teardown")}}{{$lowerName = "teardown"}}{{$upperName = "Teardown"}}{{end}}
-func build{{$upperName}}Wrapper(doFn interface{}) func(interface{}) reflectx.Func {
+func build{{$upperName}}Wrapper(doFn any) func(any) reflectx.Func {
     if _, ok := doFn.({{$lowerName}}0x0); ok {
-        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
+        {{$lowerName}}Caller := func(fn any) reflectx.Func {
             f := fn.(func())
             return &caller0x0{fn: f}
         }
         reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), {{$lowerName}}Caller)
 
-        return func(fn interface{}) reflectx.Func {
+        return func(fn any) reflectx.Func {
             return reflectx.MakeFunc(func() {
                 fn.({{$lowerName}}0x0).{{$upperName}}()
             })
         }
     } else if _, ok := doFn.({{$lowerName}}1x0); ok {
-        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
+        {{$lowerName}}Caller := func(fn any) reflectx.Func {
             f := fn.(func(context.Context))
             return &caller1x0[context.Context]{fn: f}
         }
         reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context))(nil)).Elem(), {{$lowerName}}Caller)
 
-        return func(fn interface{}) reflectx.Func {
+        return func(fn any) reflectx.Func {
             return reflectx.MakeFunc(func(a0 context.Context) {
                 fn.({{$lowerName}}1x0).{{$upperName}}(a0)
             })
         }
     } else if _, ok := doFn.({{$lowerName}}0x1); ok {
-        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
+        {{$lowerName}}Caller := func(fn any) reflectx.Func {
             f := fn.(func() error)
             return &caller0x1[error]{fn: f}
         }
         reflectx.RegisterFunc(reflect.TypeOf((*func() error)(nil)).Elem(), {{$lowerName}}Caller)
 
-        return func(fn interface{}) reflectx.Func {
+        return func(fn any) reflectx.Func {
             return reflectx.MakeFunc(func() error {
                 return fn.({{$lowerName}}0x1).{{$upperName}}()
             })
         }
     } else if _, ok := doFn.({{$lowerName}}1x1); ok {
-        {{$lowerName}}Caller := func(fn interface{}) reflectx.Func {
+        {{$lowerName}}Caller := func(fn any) reflectx.Func {
             f := fn.(func(context.Context) error)
             return &caller1x1[context.Context, error]{fn: f}
         }
         reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context) error)(nil)).Elem(), {{$lowerName}}Caller)
 
-        return func(fn interface{}) reflectx.Func {
+        return func(fn any) reflectx.Func {
             return reflectx.MakeFunc(func(a0 context.Context) error {
                 return fn.({{$lowerName}}1x1).{{$upperName}}(a0)
             })
@@ -146,22 +146,22 @@ func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepre
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call(args []interface{}) []interface{} {
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call(args []any) []any {
     {{if $processElementOut}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}out{{$out}}{{end}} := {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}args[{{$in}}].(I{{$in}}){{end}})
-	return []interface{}{ {{if $processElementOut}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}out{{$out}}{{end}}{{end}} }
+	return []any{ {{if $processElementOut}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}out{{$out}}{{end}}{{end}} }
 }
 
-func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call{{$processElementIn}}x{{$processElementOut}}({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}} interface{}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}interface{}{{end}}){{end}} {
+func (c *caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) Call{{$processElementIn}}x{{$processElementOut}}({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}} any{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}any{{end}}){{end}} {
     {{if $processElementOut}}return {{end}}c.fn({{range $in := upto $processElementIn}}{{if $in}}, {{end}}arg{{$in}}.(I{{$in}}){{end}})
 }
 
 func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFuncs{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}) {
-    processElementCaller := func(fn interface{}) reflectx.Func {
+    processElementCaller := func(fn any) reflectx.Func {
 		f := fn.(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}})
 		return &caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}{fn: f}
 	}
 	reflectx.RegisterFunc(reflect.TypeOf((*func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}})(nil)).Elem(), processElementCaller)
-    processElementWrapper := func(fn interface{}) reflectx.Func {
+    processElementWrapper := func(fn any) reflectx.Func {
         return reflectx.MakeFunc(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}} I{{$in}}{{end}}){{if $processElementOut}} ({{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}){{end}} {
             {{if $processElementOut}}return {{end}}fn.(genericDoFn{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}).ProcessElement({{range $in := upto $processElementIn}}{{if $in}}, {{end}}a{{$in}}{{end}})
         })
@@ -171,7 +171,7 @@ func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFu
     setupWrapper := buildSetupWrapper(doFn)
     teardownWrapper := buildTeardownWrapper(doFn)
 
-    wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+    wrapperFn := func(fn any) map[string]reflectx.Func {
         m := map[string]reflectx.Func{}
         if processElementWrapper != nil {
             m["ProcessElement"] = processElementWrapper(fn)
@@ -206,7 +206,7 @@ func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFu
 {{end}}func Function{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut true)}}(doFn func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}) {{if (gt $processElementOut 1)}}({{end}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}{{if (gt $processElementOut 1)}}){{end}}) {
     runtime.RegisterFunction(doFn)
     registerMethodTypes(reflect.TypeOf(doFn))
-    caller := func(fn interface{}) reflectx.Func {
+    caller := func(fn any) reflectx.Func {
         f := fn.(func({{range $in := upto $processElementIn}}{{if $in}}, {{end}}I{{$in}}{{end}}) {{if (gt $processElementOut 1)}}({{end}}{{range $out := upto $processElementOut}}{{if $out}}, {{end}}R{{$out}}{{end}}{{if (gt $processElementOut 1)}}){{end}})
         return &caller{{$processElementIn}}x{{$processElementOut}}{{(genericTypingRepresentation $processElementIn $processElementOut false)}}{fn: f}
     }
@@ -299,30 +299,30 @@ type extractOutput1x2[T1, T2 any] interface {
 {{else}}// Combiner3 should be used when your accumulator, input, and output are 3 distinct types.
 // It can be called with register.Combiner3[T1, T2, T3](&CustomCombiner{})
 // where T1 is the type of the accumulator, T2 is the type of the input, and T3 is the type of the output.
-{{end}}{{end}}func Combiner{{$genericParams}}[{{range $paramNum := upto $genericParams}}{{if $paramNum}}, {{end}}T{{$paramNum}}{{end}} any](accum interface{}) {
+{{end}}{{end}}func Combiner{{$genericParams}}[{{range $paramNum := upto $genericParams}}{{if $paramNum}}, {{end}}T{{$paramNum}}{{end}} any](accum any) {
     registerCombinerTypes(accum)
     accumVal := reflect.ValueOf(accum)
-    var mergeAccumulatorsWrapper func(fn interface{}) reflectx.Func
+    var mergeAccumulatorsWrapper func(fn any) reflectx.Func
     if _, ok := accum.(mergeAccumulators2x2[T0]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0, T0) (T0, error))
             return &caller2x2[T0, T0, T0, error]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
 
-        mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+        mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
 				return fn.(mergeAccumulators2x2[T0]).MergeAccumulators(a0, a1)
 			})
 		}
     } else if _, ok := accum.(mergeAccumulators2x1[T0]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0, T0) T0)
             return &caller2x1[T0, T0, T0]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
 
-        mergeAccumulatorsWrapper = func(fn interface{}) reflectx.Func {
+        mergeAccumulatorsWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
 				return fn.(mergeAccumulators2x1[T0]).MergeAccumulators(a0, a1)
 			})
@@ -333,27 +333,27 @@ type extractOutput1x2[T1, T2 any] interface {
         panic(fmt.Sprintf("Failed to optimize MergeAccumulators for combiner %v. Failed to infer types", accum))
     }
 
-    var createAccumulatorWrapper func(fn interface{}) reflectx.Func
+    var createAccumulatorWrapper func(fn any) reflectx.Func
     if _, ok := accum.(createAccumulator0x2[T0]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func() (T0, error))
             return &caller0x2[T0, error]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func() (T0, error))(nil)).Elem(), caller)
 
-        createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+        createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() (T0, error) {
 				return fn.(createAccumulator0x2[T0]).CreateAccumulator()
 			})
 		}
     } else if _, ok := accum.(createAccumulator0x1[T0]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func() T0)
             return &caller0x1[T0]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func() T0)(nil)).Elem(), caller)
 
-        createAccumulatorWrapper = func(fn interface{}) reflectx.Func {
+        createAccumulatorWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func() T0 {
 				return fn.(createAccumulator0x1[T0]).CreateAccumulator()
 			})
@@ -363,75 +363,75 @@ type extractOutput1x2[T1, T2 any] interface {
         panic(fmt.Sprintf("Failed to optimize CreateAccumulator for combiner %v. Failed to infer types", accum))
     }
 
-    var addInputWrapper func(fn interface{}) reflectx.Func
+    var addInputWrapper func(fn any) reflectx.Func
     if _, ok := accum.(addInput2x2[T0, T0]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0, T0) (T0, error))
             return &caller2x2[T0, T0, T0, error]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) (T0, error))(nil)).Elem(), caller)
 
-        addInputWrapper = func(fn interface{}) reflectx.Func {
+        addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) (T0, error) {
 				return fn.(addInput2x2[T0, T0]).AddInput(a0, a1)
 			})
 		}
     } else if _, ok := accum.(addInput2x1[T0, T0]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0, T0) T0)
             return &caller2x1[T0, T0, T0]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T0) T0)(nil)).Elem(), caller)
 
-        addInputWrapper = func(fn interface{}) reflectx.Func {
+        addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T0) T0 {
 				return fn.(addInput2x1[T0, T0]).AddInput(a0, a1)
 			})
 		}
     } {{if (gt $genericParams 1)}} else if _, ok := accum.(addInput2x2[T0, T1]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0, T1) (T0, error))
             return &caller2x2[T0, T1, T0, error]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) (T0, error))(nil)).Elem(), caller)
 
-        addInputWrapper = func(fn interface{}) reflectx.Func {
+        addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T1) (T0, error) {
 				return fn.(addInput2x2[T0, T1]).AddInput(a0, a1)
 			})
 		}
     } else if _, ok := accum.(addInput2x1[T0, T1]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0, T1) T0)
             return &caller2x1[T0, T1, T0]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T1) T0)(nil)).Elem(), caller)
 
-        addInputWrapper = func(fn interface{}) reflectx.Func {
+        addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T1) T0 {
 				return fn.(addInput2x1[T0, T1]).AddInput(a0, a1)
 			})
 		}
     } {{end}}{{if (gt $genericParams 2)}} else if _, ok := accum.(addInput2x2[T0, T2]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0, T2) (T0, error))
             return &caller2x2[T0, T2, T0, error]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T2) (T0, error))(nil)).Elem(), caller)
 
-        addInputWrapper = func(fn interface{}) reflectx.Func {
+        addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T2) (T0, error) {
 				return fn.(addInput2x2[T0, T2]).AddInput(a0, a1)
 			})
 		}
     } else if _, ok := accum.(addInput2x1[T0, T2]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0, T2) T0)
             return &caller2x1[T0, T2, T0]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0, T2) T0)(nil)).Elem(), caller)
 
-        addInputWrapper = func(fn interface{}) reflectx.Func {
+        addInputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0, a1 T2) T0 {
 				return fn.(addInput2x1[T0, T2]).AddInput(a0, a1)
 			})
@@ -442,75 +442,75 @@ type extractOutput1x2[T1, T2 any] interface {
         panic(fmt.Sprintf("Failed to optimize AddInput for combiner %v. Failed to infer types", accum))
     }
 
-    var extractOutputWrapper func(fn interface{}) reflectx.Func
+    var extractOutputWrapper func(fn any) reflectx.Func
     if _, ok := accum.(extractOutput1x2[T0, T0]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0) (T0, error))
             return &caller1x2[T0, T0, error]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T0, error))(nil)).Elem(), caller)
 
-        extractOutputWrapper = func(fn interface{}) reflectx.Func {
+        extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) (T0, error) {
 				return fn.(extractOutput1x2[T0, T0]).ExtractOutput(a0)
 			})
 		}
     } else if _, ok := accum.(extractOutput1x1[T0, T0]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0) T0)
             return &caller1x1[T0, T0]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T0)(nil)).Elem(), caller)
 
-        extractOutputWrapper = func(fn interface{}) reflectx.Func {
+        extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T0 {
 				return fn.(extractOutput1x1[T0, T0]).ExtractOutput(a0)
 			})
 		}
     } {{if (gt $genericParams 1)}} else if _, ok := accum.(extractOutput1x2[T0, T1]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0) (T1, error))
             return &caller1x2[T0, T1, error]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T1, error))(nil)).Elem(), caller)
 
-        extractOutputWrapper = func(fn interface{}) reflectx.Func {
+        extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) (T1, error) {
 				return fn.(extractOutput1x2[T0, T1]).ExtractOutput(a0)
 			})
 		}
     } else if _, ok := accum.(extractOutput1x1[T0, T1]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0) T1)
             return &caller1x1[T0, T1]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T1)(nil)).Elem(), caller)
 
-        extractOutputWrapper = func(fn interface{}) reflectx.Func {
+        extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T1 {
 				return fn.(extractOutput1x1[T0, T1]).ExtractOutput(a0)
 			})
 		}
     } {{end}}{{if (gt $genericParams 2)}} else if _, ok := accum.(extractOutput1x2[T0, T2]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0) (T2, error))
             return &caller1x2[T0, T2, error]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) (T2, error))(nil)).Elem(), caller)
 
-        extractOutputWrapper = func(fn interface{}) reflectx.Func {
+        extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) (T2, error) {
 				return fn.(extractOutput1x2[T0, T2]).ExtractOutput(a0)
 			})
 		}
     } else if _, ok := accum.(extractOutput1x1[T0, T2]); ok {
-        caller := func(fn interface{}) reflectx.Func {
+        caller := func(fn any) reflectx.Func {
             f := fn.(func(T0) T2)
             return &caller1x1[T0, T2]{fn: f}
         }
 		reflectx.RegisterFunc(reflect.TypeOf((*func(T0) T2)(nil)).Elem(), caller)
 
-        extractOutputWrapper = func(fn interface{}) reflectx.Func {
+        extractOutputWrapper = func(fn any) reflectx.Func {
 			return reflectx.MakeFunc(func(a0 T0) T2 {
 				return fn.(extractOutput1x1[T0, T2]).ExtractOutput(a0)
 			})
@@ -521,7 +521,7 @@ type extractOutput1x2[T1, T2 any] interface {
         panic(fmt.Sprintf("Failed to optimize ExtractOutput for combiner %v. Failed to infer types", accum))
     }
 
-	wrapperFn := func(fn interface{}) map[string]reflectx.Func {
+	wrapperFn := func(fn any) map[string]reflectx.Func {
 		m := map[string]reflectx.Func{}
 		if mergeAccumulatorsWrapper != nil {
 			m["MergeAccumulators"] = mergeAccumulatorsWrapper(fn)
@@ -541,7 +541,7 @@ type extractOutput1x2[T1, T2 any] interface {
 	reflectx.RegisterStructWrapper(reflect.TypeOf(accum).Elem(), wrapperFn)
 }{{end}}
 
-func registerCombinerTypes(accum interface{}) {
+func registerCombinerTypes(accum any) {
     // Register the combiner
     runtime.RegisterType(reflect.TypeOf(accum).Elem())
     schema.RegisterType(reflect.TypeOf(accum).Elem())
@@ -558,7 +558,7 @@ func registerCombinerTypes(accum interface{}) {
     }
 }
 
-func registerDoFnTypes(doFn interface{}) {
+func registerDoFnTypes(doFn any) {
    // Register the doFn
    runtime.RegisterType(reflect.TypeOf(doFn).Elem())
    schema.RegisterType(reflect.TypeOf(doFn).Elem())

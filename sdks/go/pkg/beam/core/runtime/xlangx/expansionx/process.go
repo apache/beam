@@ -29,7 +29,7 @@ import (
 // start up a Beam Expansion Service JAR and maintain a handle on the
 // process running the service to enable shutdown as well.
 type ExpansionServiceRunner struct {
-	jarPath        string
+	execPath       string
 	servicePort    string
 	serviceCommand *exec.Cmd
 }
@@ -55,11 +55,26 @@ func NewExpansionServiceRunner(jarPath, servicePort string) (*ExpansionServiceRu
 		servicePort = fmt.Sprintf("%d", port)
 	}
 	serviceCommand := exec.Command("java", "-jar", jarPath, servicePort)
-	return &ExpansionServiceRunner{jarPath: jarPath, servicePort: servicePort, serviceCommand: serviceCommand}, nil
+	return &ExpansionServiceRunner{execPath: jarPath, servicePort: servicePort, serviceCommand: serviceCommand}, nil
+}
+
+// NewPyExpansionServiceRunner builds an ExpansionServiceRunner struct for a given python module and
+// Beam version and returns a pointer to it. Passing an empty string as servicePort will request an
+// open port to be assigned to the service.
+func NewPyExpansionServiceRunner(pythonExec, module, servicePort string) (*ExpansionServiceRunner, error) {
+	if servicePort == "" {
+		port, err := findOpenPort()
+		if err != nil {
+			return nil, fmt.Errorf("failed to find open port for service, got %v", err)
+		}
+		servicePort = fmt.Sprintf("%d", port)
+	}
+	serviceCommand := exec.Command(pythonExec, "-m", module, "-p", servicePort, "--fully_qualified_name_glob=*")
+	return &ExpansionServiceRunner{execPath: pythonExec, servicePort: servicePort, serviceCommand: serviceCommand}, nil
 }
 
 func (e *ExpansionServiceRunner) String() string {
-	return fmt.Sprintf("JAR: %v, Port: %v, Process: %v", e.jarPath, e.servicePort, e.serviceCommand.Process)
+	return fmt.Sprintf("Exec Path: %v, Port: %v, Process: %v", e.execPath, e.servicePort, e.serviceCommand.Process)
 }
 
 // Endpoint returns the formatted endpoint the ExpansionServiceRunner is set to start the expansion

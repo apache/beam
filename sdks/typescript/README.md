@@ -38,6 +38,66 @@ to running on production runners such as Dataflow and Flink.
 The target audience should hopefully not be put off by running other-language
 code encapsulated in docker images.
 
+## Getting started
+
+To install and test the Typescript SDK from source, you will need `npm` and
+`python`. Other requirements can be installed by `npm` later on.
+
+(**Note** that Python is a requirement as it is used to orchestrate Beam
+functionality.)
+
+1. First you must clone the Beam repository and go to the `typescript` directory.
+```
+git checkout https://github.com/apache/beam
+cd beam/sdks/typescript/
+```
+
+2. Execute a local install of the necessary packages:
+
+```
+npm install
+```
+
+3. Then run `./build.sh` to transpile Typescript files into JS files.
+
+### Development workflows
+
+All of the development workflows (build, test, lint, clean, etc) are defined in
+`package.json` and can be run with `npm` commands (e.g. `npm run build`).
+
+### Running a pipeline
+
+The `wordcount.ts` file defines a parameterizable pipeline that can be run
+against different runners. You can run it from the transpiled `.js` file
+like so:
+
+```
+node dist/src/apache_beam/examples/wordcount.js ${PARAMETERS}
+```
+
+To run locally:
+
+```
+node dist/src/apache_beam/examples/wordcount.js --runner=direct
+```
+
+To run against Flink, where the local infrastructure is automatically
+downloaded and set up:
+
+```
+node dist/src/apache_beam/examples/wordcount.js --runner=flink
+```
+
+To run on Dataflow:
+
+```
+node dist/src/apache_beam/examples/wordcount.js \
+    --runner=dataflow \
+    --project=${PROJECT_ID} \
+    --tempLocation=gs://${GCS_BUCKET}/wordcount-js/temp --region=${REGION}
+```
+
+
 ## API
 
 We generally try to apply the concepts from the Beam API in a TypeScript

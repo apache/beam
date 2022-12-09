@@ -49,9 +49,8 @@ var (
 //
 // Example use:
 //
-//    col := beam.Create(s, 1, 11, 7, 5, 10)
-//    top2 := stats.Largest(s, col, 2, less)  // PCollection<[]int> with [11, 10] as the only element.
-//
+//	col := beam.Create(s, 1, 11, 7, 5, 10)
+//	top2 := stats.Largest(s, col, 2, less)  // PCollection<[]int> with [11, 10] as the only element.
 func Largest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.Largest(%v)", n))
 
@@ -79,9 +78,8 @@ func LargestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) 
 //
 // Example use:
 //
-//    col := beam.Create(s, 1, 11, 7, 5, 10)
-//    bottom2 := stats.Smallest(s, col, 2, less)  // PCollection<[]int> with [1, 5] as the only element.
-//
+//	col := beam.Create(s, 1, 11, 7, 5, 10)
+//	bottom2 := stats.Smallest(s, col, 2, less)  // PCollection<[]int> with [1, 5] as the only element.
 func Smallest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.Smallest(%v)", n))
 

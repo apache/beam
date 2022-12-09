@@ -224,12 +224,10 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
     final BigDecimal workRemaining = end.subtract(current).max(BigDecimal.ONE);
 
     LOG.debug(
-        "Reported progress - current:"
-            + current.doubleValue()
-            + " end:"
-            + end.doubleValue()
-            + " workRemaining:"
-            + workRemaining.doubleValue());
+        "Reported progress current: {}, end: {}, workRemaining: {}",
+        current.doubleValue(),
+        end.doubleValue(),
+        workRemaining.doubleValue());
 
     return Progress.from(current.doubleValue(), workRemaining.doubleValue());
   }

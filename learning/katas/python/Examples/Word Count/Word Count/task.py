@@ -21,10 +21,15 @@
 #   context_line: 29
 #   categories:
 #     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - count
+#     - map
+#     - combine
+#     - string
+#     - number
 
 import apache_beam as beam
-
-from log_elements import LogElements
 
 lines = [
     "apple orange grape banana apple banana",
@@ -34,10 +39,7 @@ lines = [
 with beam.Pipeline() as p:
 
   (p | beam.Create(lines)
-
      | beam.FlatMap(lambda sentence: sentence.split())
      | beam.combiners.Count.PerElement()
      | beam.MapTuple(lambda k, v: k + ":" + str(v))
-
-     | LogElements())
-
+     | beam.LogElements())

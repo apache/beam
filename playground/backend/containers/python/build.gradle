@@ -69,12 +69,12 @@ docker {
                   project.docker_image_default_repo_root)
   files "./build/"
   tags containerImageTags()
-  buildArgs(['BASE_IMAGE': project.rootProject.hasProperty(["base-image"]) ?
-                           project.rootProject["base-image"] :
-                           "apache/beam_python3.7_sdk" ])
   buildArgs(['GO_BASE_IMAGE': project.rootProject.hasProperty(["go-base-image"]) ?
                              project.rootProject["go-base-image"] :
-                             "golang:1.18-bullseye" ])
+                             "golang:1.18-bullseye",
+             'SDK_TAG': project.rootProject.hasProperty(["sdk-tag"]) ?
+                             project.rootProject["sdk-tag"] : project.rootProject.sdk_version
+   ])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

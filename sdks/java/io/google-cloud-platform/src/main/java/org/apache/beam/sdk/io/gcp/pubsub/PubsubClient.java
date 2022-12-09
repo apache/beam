@@ -50,6 +50,13 @@ public abstract class PubsubClient implements Closeable {
      * message metadata.
      */
     PubsubClient newClient(
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
+        PubsubOptions options,
+        @Nullable String rootUrlOverride)
+        throws IOException;
+
+    PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException;
 
@@ -317,6 +324,9 @@ public abstract class PubsubClient implements Closeable {
           PubsubMessage.newBuilder().setData(ByteString.copyFrom(message.getPayload()));
       if (message.getAttributeMap() != null) {
         builder.putAllAttributes(message.getAttributeMap());
+      }
+      if (message.getOrderingKey() != null) {
+        builder.setOrderingKey(message.getOrderingKey());
       }
       return of(builder.build(), timestampMsSinceEpoch, recordId);
     }

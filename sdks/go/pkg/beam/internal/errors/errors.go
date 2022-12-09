@@ -30,7 +30,7 @@ func New(message string) error {
 
 // Errorf returns an error with a message formatted according to the format
 // specifier.
-func Errorf(format string, args ...interface{}) error {
+func Errorf(format string, args ...any) error {
 	return fmt.Errorf(format, args...)
 }
 
@@ -48,7 +48,7 @@ func Wrap(err error, message string) error {
 
 // Wrapf returns a new error annotating err with a new message according to
 // the format specifier.
-func Wrapf(err error, format string, args ...interface{}) error {
+func Wrapf(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -73,7 +73,7 @@ func WithContext(err error, context string) error {
 
 // WithContextf returns a new error adding additional context to err according
 // to the format specifier.
-func WithContextf(err error, format string, args ...interface{}) error {
+func WithContextf(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -101,7 +101,7 @@ func SetTopLevelMsg(err error, top string) error {
 // according to the format specifier. The top level message is the first error
 // message that gets printed when Error() is called on the returned error or
 // any error wrapping it.
-func SetTopLevelMsgf(err error, format string, args ...interface{}) error {
+func SetTopLevelMsgf(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -125,12 +125,12 @@ func getTop(e error) string {
 // The presence or lack of certain fields implicitly indicates some details
 // about the error.
 //
-// * If no cause is present it indicates that this instance is the original
-//   error, and the message is assumed to be present.
-// * If both message and context are present, the context describes this error,
-//   not the cause of this error.
-// * top is always propogated up from the cause. If it's empty that means that
-//   it was never set on any error in the sequence.
+//   - If no cause is present it indicates that this instance is the original
+//     error, and the message is assumed to be present.
+//   - If both message and context are present, the context describes this error,
+//     not the cause of this error.
+//   - top is always propogated up from the cause. If it's empty that means that
+//     it was never set on any error in the sequence.
 type beamError struct {
 	cause   error  // The error being wrapped. If nil then this is the first error.
 	context string // Adds additional context to this error and any following.

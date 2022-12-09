@@ -26,6 +26,10 @@
 #   context_line: 42
 #   categories:
 #     - Filtering
+#   complexity: MEDIUM
+#   tags:
+#     - filter
+#     - test
 
 import logging
 import time

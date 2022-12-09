@@ -53,12 +53,17 @@ class RunButton extends StatelessWidget {
       child: ShortcutTooltip(
         shortcut: playgroundController.runShortcut,
         child: ElevatedButton.icon(
+          style: const ButtonStyle(
+            padding: MaterialStatePropertyAll(EdgeInsets.zero),
+          ),
           icon: isRunning
               ? SizedBox(
                   width: BeamIconSizes.small,
                   height: BeamIconSizes.small,
                   child: CircularProgressIndicator(
-                    color: Theme.of(context).extension<BeamThemeExtension>()!.primaryBackgroundTextColor,
+                    color: Theme.of(context)
+                        .extension<BeamThemeExtension>()!
+                        .primaryBackgroundTextColor,
                   ),
                 )
               : const Icon(Icons.play_arrow),
@@ -67,7 +72,8 @@ class RunButton extends StatelessWidget {
               builder: (context, AsyncSnapshot<int> state) {
                 final seconds = (state.data ?? 0) / kMsToSec;
                 final runText = 'widgets.runOrCancelButton.titles.run'.tr();
-                final cancelText = 'widgets.runOrCancelButton.titles.cancel'.tr();
+                final cancelText =
+                    'widgets.runOrCancelButton.titles.cancel'.tr();
                 final buttonText = isRunning ? cancelText : runText;
                 if (seconds > 0) {
                   return Text(

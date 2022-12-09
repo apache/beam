@@ -23,7 +23,7 @@
 # 2) A list of dependencies from base_image_requirements_manual.txt, which we
 # maintain manually.
 
-# It is recommended to run this script via gralde commands such as:
+# It is recommended to run this script via gradle commands such as:
 # ./gradlew :sdks:python:container:generatePythonRequirementsAll
 # ./gradlew :sdks:python:container:py38:generatePythonRequirements
 

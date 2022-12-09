@@ -22,8 +22,8 @@ ENV PATH="/usr/src/tensorrt/bin:${PATH}"
 
 WORKDIR /workspace
 
-RUN pip install --no-cache-dir apache-beam[gcp]==2.40.0
-COPY --from=apache/beam_python3.8_sdk:2.40.0 /opt/apache/beam /opt/apache/beam
+RUN pip install --no-cache-dir apache-beam[gcp]==2.42.0
+COPY --from=apache/beam_python3.8_sdk:2.42.0 /opt/apache/beam /opt/apache/beam
 
 RUN pip install --upgrade pip \
     && pip install torch>=1.7.1 \

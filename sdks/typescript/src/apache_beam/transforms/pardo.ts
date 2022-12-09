@@ -59,6 +59,9 @@ export function parDo<
   doFn: DoFn<InputT, OutputT, ContextT>,
   context: ContextT = undefined!
 ): PTransform<PCollection<InputT>, PCollection<OutputT>> {
+  if (extractContext(doFn)) {
+    context = { ...extractContext(doFn), ...context };
+  }
   function expandInternal(
     input: PCollection<InputT>,
     pipeline: Pipeline,
@@ -226,25 +229,68 @@ export function partition<T>(
   };
 }
 
-/*
- * This is the root class of special parameters that can be provided in the
- * context of a map or DoFn.process method.  At runtime, one can invoke the
- * special `lookup` method to retrieve the relevant value associated with the
- * currently-being-processed element.
+/**
+ * Used to declare the need for parameters such as counters, windowing context,
+ * state, etc. that do not have to be provided externally (such as side inputs).
+ *
+ * This can be useful to bind the context of a parallel operation outside of
+ * its application (such as map or pardo).
  */
-export class ParDoParam<T> {
+export function withContext<
+  ContextT,
+  T extends
+    | DoFn<unknown, unknown, ContextT>
+    | ((input: unknown, context: ContextT) => unknown)
+>(fn: T, contextSpec: ContextT): T {
+  const untypedFn = fn as any;
+  untypedFn.beamPardoContextSpec = {
+    ...untypedFn.beamPardoContextSpec,
+    ...contextSpec,
+  };
+  return fn;
+}
+
+export function extractContext(fn) {
+  return fn.beamPardoContextSpec;
+}
+
+/**
+ * This is the root class of special parameters that can be provided in the
+ * context of a map or DoFn.process method.
+ */
+export class ParDoParam {
   // Provided externally.
-  private provider: ParamProvider | undefined;
+  protected provider: ParamProvider | undefined;
 
   constructor(readonly parDoParamName: string) {}
+}
 
+/**
+ * At runtime, one can invoke the special `lookup` method to retrieve the
+ * relevant value associated with the currently-being-processed element.
+ */
+export class ParDoLookupParam<T> extends ParDoParam {
   // TODO: Nameing "get" seems to be special.
   lookup(): T {
     if (this.provider === undefined) {
       throw new Error("Cannot be called outside of a DoFn's process method.");
     }
 
-    return this.provider.provide(this);
+    return this.provider.lookup(this);
+  }
+}
+
+/**
+ * At runtime, one can invoke the special `update` method to update the
+ * relevant value associated with the currently-being-processed element.
+ */
+export class ParDoUpdateParam<T> extends ParDoParam {
+  update(value: T): void {
+    if (this.provider === undefined) {
+      throw new Error("Cannot be called outside of a DoFn's process method.");
+    }
+
+    this.provider.update(this, value);
   }
 }
 
@@ -253,20 +299,21 @@ export class ParDoParam<T> {
  * at runtime.
  */
 export interface ParamProvider {
-  provide<T>(param: ParDoParam<T>): T;
+  lookup<T>(param: ParDoLookupParam<T>): T;
+  update<T>(param: ParDoUpdateParam<T>, value: T): void;
 }
 
-export function windowParam(): ParDoParam<Window> {
-  return new ParDoParam<Window>("window");
+export function windowParam(): ParDoLookupParam<Window> {
+  return new ParDoLookupParam<Window>("window");
 }
 
-export function timestampParam(): ParDoParam<Instant> {
-  return new ParDoParam<Instant>("timestamp");
+export function timestampParam(): ParDoLookupParam<Instant> {
+  return new ParDoLookupParam<Instant>("timestamp");
 }
 
 // TODO: Naming. Should this be PaneParam?
-export function paneInfoParam(): ParDoParam<PaneInfo> {
-  return new ParDoParam<PaneInfo>("paneinfo");
+export function paneInfoParam(): ParDoLookupParam<PaneInfo> {
+  return new ParDoLookupParam<PaneInfo>("paneinfo");
 }
 
 interface SideInputAccessor<PCollT, AccessorT, ValueT> {
@@ -284,7 +331,7 @@ export class SideInputParam<
   PCollT,
   AccessorT,
   ValueT
-> extends ParDoParam<ValueT> {
+> extends ParDoLookupParam<ValueT> {
   // Populated by user.
   pcoll: PCollection<PCollT>;
   // Typically populated by subclass.
@@ -348,8 +395,32 @@ export function singletonSideInput<T>(
 
 // TODO: (Extension) Map side inputs.
 
+export class Metric<T> extends ParDoUpdateParam<T> {
+  constructor(readonly metricType: string, readonly name: string) {
+    super("metric");
+  }
+}
+
+// Subclass to add the increment() method.
+export class Counter extends Metric<number> {
+  constructor(name: string) {
+    super("beam:metric:user:sum_int64:v1", name);
+  }
+  increment(value: number = 1) {
+    this.update(value);
+  }
+}
+
+export function counter(name: string): Counter {
+  return new Counter(name);
+}
+
+export function distribution(name: string): Metric<number> {
+  return new Metric("beam:metric:user:distribution_int64:v1", name);
+}
+
 // TODO: (Extension) Add providers for state, timers,
-// restriction trackers, counters, etc.
+// restriction trackers, etc.
 
 import { requireForSerialization } from "../serialization";
 requireForSerialization("apache-beam/transforms/pardo", exports);

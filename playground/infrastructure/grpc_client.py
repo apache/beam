@@ -17,9 +17,12 @@
 Module contains the client to communicate with GRPC test Playground server
 """
 import logging
+import os
 import uuid
+from typing import List
 
 import grpc
+import sonora.aio
 
 from api.v1 import api_pb2_grpc, api_pb2
 from config import Config
@@ -28,12 +31,26 @@ from config import Config
 class GRPCClient:
     """GRPCClient is gRPC client for sending a request to the backend."""
 
-    def __init__(self):
-        self._channel = grpc.aio.insecure_channel(Config.SERVER_ADDRESS)
+    def __init__(self, timeout=10, wait_for_ready=True):
+        use_webgrpc = os.getenv("BEAM_USE_WEBGRPC", False)
+        if use_webgrpc:
+            self._channel = sonora.aio.insecure_web_channel(Config.SERVER_ADDRESS)
+        else:
+            self._channel = grpc.aio.insecure_channel(Config.SERVER_ADDRESS)
+
         self._stub = api_pb2_grpc.PlaygroundServiceStub(self._channel)
 
-    async def run_code(
-          self, code: str, sdk: api_pb2.Sdk, pipeline_options: str) -> str:
+        self._kwargs = dict(timeout=timeout)
+        if wait_for_ready and not use_webgrpc:
+            self._kwargs["wait_for_ready"] = True
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self._channel.__aexit__(exc_type, exc_val, exc_tb)
+
+    async def run_code(self, code: str, sdk: api_pb2.Sdk, pipeline_options: str, datasets: List[api_pb2.Dataset]) -> str:
         """
         Run example by his code and SDK
 
@@ -41,6 +58,7 @@ class GRPCClient:
             code: code of the example.
             sdk: SDK of the example.
             pipeline_options: pipeline options of the example.
+            datasets: datasets of the example.
 
         Returns:
             pipeline_uuid: uuid of the pipeline
@@ -51,8 +69,8 @@ class GRPCClient:
             raise Exception(
                 f'Incorrect sdk: must be from this pool: {", ".join(sdks)}')
         request = api_pb2.RunCodeRequest(
-            code=code, sdk=sdk, pipeline_options=pipeline_options)
-        response = await self._stub.RunCode(request)
+            code=code, sdk=sdk, pipeline_options=pipeline_options, datasets=datasets)
+        response = await self._stub.RunCode(request, **self._kwargs)
         return response.pipeline_uuid
 
     async def check_status(self, pipeline_uuid: str) -> api_pb2.Status:
@@ -67,7 +85,7 @@ class GRPCClient:
         """
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.CheckStatusRequest(pipeline_uuid=pipeline_uuid)
-        response = await self._stub.CheckStatus(request)
+        response = await self._stub.CheckStatus(request, **self._kwargs)
         return response.status
 
     async def get_run_error(self, pipeline_uuid: str) -> str:
@@ -82,7 +100,7 @@ class GRPCClient:
         """
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.GetRunErrorRequest(pipeline_uuid=pipeline_uuid)
-        response = await self._stub.GetRunError(request)
+        response = await self._stub.GetRunError(request, **self._kwargs)
         return response.output
 
     async def get_run_output(self, pipeline_uuid: str) -> str:
@@ -97,7 +115,7 @@ class GRPCClient:
         """
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.GetRunOutputRequest(pipeline_uuid=pipeline_uuid)
-        response = await self._stub.GetRunOutput(request)
+        response = await self._stub.GetRunOutput(request, **self._kwargs)
         return response.output
 
     async def get_log(self, pipeline_uuid: str) -> str:
@@ -112,7 +130,8 @@ class GRPCClient:
         """
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.GetLogsRequest(pipeline_uuid=pipeline_uuid)
-        response = await self._stub.GetLogs(request)
+        response = await self._stub.GetLogs(request, **self._kwargs)
+
         return response.output
 
     async def get_compile_output(self, pipeline_uuid: str) -> str:
@@ -127,7 +146,8 @@ class GRPCClient:
         """
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.GetCompileOutputRequest(pipeline_uuid=pipeline_uuid)
-        response = await self._stub.GetCompileOutput(request)
+        response = await self._stub.GetCompileOutput(request, **self._kwargs)
+
         return response.output
 
     async def get_graph(self, pipeline_uuid: str, example_filepath: str) -> str:
@@ -144,7 +164,7 @@ class GRPCClient:
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.GetGraphRequest(pipeline_uuid=pipeline_uuid)
         try:
-            response = await self._stub.GetGraph(request)
+            response = await self._stub.GetGraph(request, **self._kwargs)
             if response.graph == "":
                 logging.warning("Graph for %s wasn't generated", example_filepath)
             return response.graph

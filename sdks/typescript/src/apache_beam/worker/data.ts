@@ -73,7 +73,7 @@ export class MultiplexingDataChannel {
       }
     });
     this.dataChannel.on("error", (err) => {
-      console.log("Data channel error", err);
+      console.error("Data channel error", err);
     });
   }
 

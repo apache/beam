@@ -23,9 +23,11 @@ import logging
 from typing import List
 
 from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA
+from config import Origin
 from datastore_client import DatastoreClient
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
+from repository import set_dataset_path_for_examples
 
 
 class CDHelper:
@@ -34,8 +36,14 @@ class CDHelper:
 
     It is used to save beam examples/katas/tests and their output on the GCD.
     """
+    _sdk: Sdk
+    _origin: Origin
 
-    def save_examples(self, examples: List[Example], sdk: Sdk):
+    def __init__(self, sdk: Sdk, origin: Origin):
+        self._sdk = sdk
+        self._origin = origin
+
+    def save_examples(self, examples: List[Example]):
         """
         Save beam examples and their output in the Google Cloud Datastore.
 
@@ -43,23 +51,23 @@ class CDHelper:
         """
         single_file_examples = list(filter(
             lambda example: example.tag.multifile is False, examples))
+        set_dataset_path_for_examples(single_file_examples)
         logging.info("Start of executing only single-file Playground examples ...")
         asyncio.run(self._get_outputs(single_file_examples))
         logging.info("Finish of executing single-file Playground examples")
 
         logging.info("Start of sending Playground examples to the Cloud Datastore ...")
-        self._save_to_datastore(single_file_examples, sdk)
+        self._save_to_datastore(single_file_examples)
         logging.info("Finish of sending Playground examples to the Cloud Datastore")
 
-    def _save_to_datastore(self, examples: List[Example], sdk: Sdk):
+    def _save_to_datastore(self, examples: List[Example]):
         """
         Save beam examples to the Google Cloud Datastore
         :param examples: beam examples from the repository
-        :param sdk: specific sdk that needs to filter examples
         """
         datastore_client = DatastoreClient()
         datastore_client.save_catalogs()
-        datastore_client.save_to_cloud_datastore(examples, sdk)
+        datastore_client.save_to_cloud_datastore(examples, self._sdk, self._origin)
 
     async def _get_outputs(self, examples: List[Example]):
         """
@@ -71,28 +79,21 @@ class CDHelper:
         Args:
             examples: beam examples that should be run
         """
-        await get_statuses(
-            examples)  # run examples code and wait until all are executed
-        client = GRPCClient()
-        tasks = [client.get_run_output(example.pipeline_id) for example in examples]
-        outputs = await asyncio.gather(*tasks)
 
-        tasks = [client.get_log(example.pipeline_id) for example in examples]
-        logs = await asyncio.gather(*tasks)
+        async def _populate_fields(example: Example):
+            try:
+                example.compile_output = await client.get_compile_output(example.pipeline_id)
+                example.output = await client.get_run_output(example.pipeline_id)
+                example.logs = await client.get_log(example.pipeline_id)
+                if example.sdk in [SDK_JAVA, SDK_PYTHON]:
+                    example.graph = await client.get_graph(example.pipeline_id, example.filepath)
+            except Exception as e:
+                logging.error(example.link)
+                logging.error(example.compile_output)
+                raise RuntimeError(f"error in {example.name}") from e
 
-        if len(examples) > 0 and (examples[0].sdk is SDK_PYTHON or
-                                  examples[0].sdk is SDK_JAVA):
-            tasks = [
-                client.get_graph(example.pipeline_id, example.filepath)
-                for example in examples
-            ]
-            graphs = await asyncio.gather(*tasks)
-
-            for graph, example in zip(graphs, examples):
-                example.graph = graph
-
-        for output, example in zip(outputs, examples):
-            example.output = output
-
-        for log, example in zip(logs, examples):
-            example.logs = log
+        async with GRPCClient() as client:
+            await get_statuses(client,
+                               examples)  # run examples code and wait until all are executed
+            tasks = [_populate_fields(example) for example in examples]
+            await asyncio.gather(*tasks)

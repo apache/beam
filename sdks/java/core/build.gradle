@@ -33,7 +33,6 @@ applyJavaNature(
     relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
   },
-  disableLintWarnings: ['rawtypes'], // Avro-generated test code has rawtype errorss
 )
 applyAvroNature()
 applyAntlrNature()
@@ -91,10 +90,20 @@ dependencies {
   shadow library.java.avro
   shadow library.java.snappy_java
   shadow library.java.joda_time
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  provided library.java.json_org
+  // com.github.everit JSON schema validation library is used for json-schema.org validation.
+  // to avoid forcing the library onto users, we ask users to provide it rather than include
+  // it by default.
+  // It is only used for optional functionality in JsonUtils schema parsing and conversion.
+  provided library.java.everit_json_schema
+  shadowTest library.java.everit_json_schema
   provided library.java.junit
   provided library.java.hamcrest
   provided 'io.airlift:aircompressor:0.18'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
+  provided library.java.zstd_jni
   permitUnusedDeclared 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
@@ -107,4 +116,8 @@ dependencies {
   shadowTest library.java.zstd_jni
   shadowTest library.java.jamm
   testRuntimeOnly library.java.slf4j_jdk14
+}
+
+project.tasks.compileTestJava {
+  options.compilerArgs += ['-Xlint:-rawtypes'] // generated avro uses rawtypes without suppression
 }

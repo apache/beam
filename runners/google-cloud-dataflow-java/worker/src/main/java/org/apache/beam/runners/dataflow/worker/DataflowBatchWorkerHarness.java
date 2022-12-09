@@ -141,7 +141,7 @@ public class DataflowBatchWorkerHarness {
         LOG.debug("{} processing one WorkItem.", success ? "Finished" : "Failed");
         return success;
       } catch (IOException e) { // If there is a problem getting work.
-        LOG.debug("There was a problem getting work.", e);
+        LOG.info("There was a problem getting work.", e);
         return false;
       } catch (Exception e) { // These exceptions are caused by bugs within the SDK
         LOG.error("There was an unhandled error caused by the Dataflow SDK.", e);
