@@ -16,13 +16,18 @@ package main
 // * No hidden fields
 // * Internal enumerations: sdk, node.type to string params
 
-type sdkListResponse struct {
-	Names []string
+type SdkItem struct {
+	Id    string `json:"id"`
+	Title string `json:"title"`
+}
+
+type SdkList struct {
+	Sdks []SdkItem `json:"sdks"`
 }
 
 type Unit struct {
-	Id   string `json:"unitId"`
-	Name string `json:"name"`
+	Id    string `json:"id"`
+	Title string `json:"title"`
 
 	// optional
 	Description       string   `json:"description,omitempty"`
@@ -36,7 +41,7 @@ type Unit struct {
 }
 
 type Group struct {
-	Name  string `json:"name"`
+	Title string `json:"title"`
 	Nodes []Node `json:"nodes"`
 }
 
@@ -47,18 +52,37 @@ type Node struct {
 }
 
 type Module struct {
-	Id         string `json:"moduleId"`
-	Name       string `json:"name"`
+	Id         string `json:"id"`
+	Title      string `json:"title"`
 	Complexity string `json:"complexity"`
 	Nodes      []Node `json:"nodes"`
 }
 
 type ContentTree struct {
-	Sdk     string   `json:"sdk"`
+	Sdk     string   `json:"sdkId"`
 	Modules []Module `json:"modules"`
 }
 
 type ErrorResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"message,omitempty"`
+}
+
+type UnitProgress struct {
+	Id            string `json:"id"`
+	IsCompleted   bool   `json:"isCompleted"`
+	UserSnippetId string `json:"userSnippetId,omitempty"`
+}
+type SdkProgress struct {
+	Units []UnitProgress `json:"units"`
+}
+
+type UserCodeFile struct {
+	Name    string `json:"name"`
+	Content string `json:"content"`
+	IsMain  bool   `json:"isMain,omitempty"`
+}
+type UserCodeRequest struct {
+	Files           []UserCodeFile `json:"files"`
+	PipelineOptions string         `json:"pipelineOptions"`
 }

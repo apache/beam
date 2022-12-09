@@ -37,6 +37,10 @@ try:
   import torch
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
+  from apache_beam.ml.inference.pytorch_inference import default_keyed_tensor_inference_fn
+  from apache_beam.ml.inference.pytorch_inference import default_tensor_inference_fn
+  from apache_beam.ml.inference.pytorch_inference import make_keyed_tensor_model_fn
+  from apache_beam.ml.inference.pytorch_inference import make_tensor_model_fn
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
   from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
 except ImportError:
@@ -61,6 +65,13 @@ TWO_FEATURES_PREDICTIONS = [
         torch.Tensor(
             [f1 * 2.0 + f2 * 3 + 0.5
              for f1, f2 in TWO_FEATURES_EXAMPLES]).reshape(-1, 1))
+]
+
+TWO_FEATURES_DICT_OUT_PREDICTIONS = [
+    PredictionResult(
+        p.example, {
+            "output1": p.inference, "output2": p.inference
+        }) for p in TWO_FEATURES_PREDICTIONS
 ]
 
 KEYED_TORCH_EXAMPLES = [
@@ -90,16 +101,34 @@ KEYED_TORCH_PREDICTIONS = [
                       for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
 ]
 
+KEYED_TORCH_HELPER_PREDICTIONS = [
+    PredictionResult(ex, pred) for ex,
+    pred in zip(
+        KEYED_TORCH_EXAMPLES,
+        torch.Tensor([(example['k1'] * 2.0 + 0.5) +
+                      (example['k2'] * 2.0 + 0.5) + 0.5
+                      for example in KEYED_TORCH_EXAMPLES]).reshape(-1, 1))
+]
+
+KEYED_TORCH_DICT_OUT_PREDICTIONS = [
+    PredictionResult(
+        p.example, {
+            "output1": p.inference, "output2": p.inference
+        }) for p in KEYED_TORCH_PREDICTIONS
+]
+
 
 class TestPytorchModelHandlerForInferenceOnly(PytorchModelHandlerTensor):
-  def __init__(self, device):
+  def __init__(self, device, *, inference_fn=default_tensor_inference_fn):
     self._device = device
+    self._inference_fn = inference_fn
 
 
 class TestPytorchModelHandlerKeyedTensorForInferenceOnly(
     PytorchModelHandlerKeyedTensor):
-  def __init__(self, device):
+  def __init__(self, device, *, inference_fn=default_keyed_tensor_inference_fn):
     self._device = device
+    self._inference_fn = inference_fn
 
 
 def _compare_prediction_result(x, y):
@@ -109,7 +138,25 @@ def _compare_prediction_result(x, y):
         y in zip(x.example.values(), y.example.values()))
   else:
     example_equals = torch.equal(x.example, y.example)
-  return torch.equal(x.inference, y.inference) and example_equals
+  if not example_equals:
+    return False
+
+  if isinstance(x.inference, dict):
+    return all(
+        torch.equal(x, y) for x,
+        y in zip(x.inference.values(), y.inference.values()))
+
+  return torch.equal(x.inference, y.inference)
+
+
+def custom_tensor_inference_fn(batch, model, device, inference_args):
+  predictions = [
+      PredictionResult(ex, pred) for ex,
+      pred in zip(
+          batch,
+          torch.Tensor([item * 2.0 + 1.5 for item in batch]).reshape(-1, 1))
+  ]
+  return predictions
 
 
 class PytorchLinearRegression(torch.nn.Module):
@@ -120,6 +167,20 @@ class PytorchLinearRegression(torch.nn.Module):
   def forward(self, x):
     out = self.linear(x)
     return out
+
+  def generate(self, x):
+    out = self.linear(x) + 0.5
+    return out
+
+
+class PytorchLinearRegressionDict(torch.nn.Module):
+  def __init__(self, input_dim, output_dim):
+    super().__init__()
+    self.linear = torch.nn.Linear(input_dim, output_dim)
+
+  def forward(self, x):
+    out = self.linear(x)
+    return {'output1': out, 'output2': out}
 
 
 class PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs(torch.nn.Module):
@@ -186,6 +247,46 @@ class PytorchRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
       self.assertEqual(actual, expected)
 
+  def test_run_inference_multiple_tensor_features_dict_output(self):
+    model = PytorchLinearRegressionDict(input_dim=2, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'))
+    predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, model)
+    for actual, expected in zip(predictions, TWO_FEATURES_DICT_OUT_PREDICTIONS):
+      self.assertEqual(actual, expected)
+
+  def test_run_inference_custom(self):
+    examples = [
+        torch.from_numpy(np.array([1], dtype="float32")),
+        torch.from_numpy(np.array([5], dtype="float32")),
+        torch.from_numpy(np.array([-3], dtype="float32")),
+        torch.from_numpy(np.array([10.0], dtype="float32")),
+    ]
+    expected_predictions = [
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            examples,
+            torch.Tensor([example * 2.0 + 1.5
+                          for example in examples]).reshape(-1, 1))
+    ]
+
+    model = PytorchLinearRegression(input_dim=1, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'), inference_fn=custom_tensor_inference_fn)
+    predictions = inference_runner.run_inference(examples, model)
+    for actual, expected in zip(predictions, expected_predictions):
+      self.assertEqual(actual, expected)
+
   def test_run_inference_keyed(self):
     """
     This tests for inputs that are passed as a dictionary from key to tensor
@@ -222,6 +323,28 @@ class PytorchRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(predictions, KEYED_TORCH_PREDICTIONS):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
+  def test_run_inference_keyed_dict_output(self):
+    class PytorchLinearRegressionMultipleArgsDict(torch.nn.Module):
+      def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self.linear = torch.nn.Linear(input_dim, output_dim)
+
+      def forward(self, k1, k2):
+        out = self.linear(k1) + self.linear(k2)
+        return {'output1': out, 'output2': out}
+
+    model = PytorchLinearRegressionMultipleArgsDict(input_dim=1, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
+        torch.device('cpu'))
+    predictions = inference_runner.run_inference(KEYED_TORCH_EXAMPLES, model)
+    for actual, expected in zip(predictions, KEYED_TORCH_DICT_OUT_PREDICTIONS):
+      self.assertTrue(_compare_prediction_result(actual, expected))
+
   def test_inference_runner_inference_args(self):
     """
     This tests for non-batchable input arguments. Since we do the batching
@@ -248,6 +371,77 @@ class PytorchRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(predictions, KEYED_TORCH_PREDICTIONS):
       self.assertEqual(actual, expected)
 
+  def test_run_inference_helper(self):
+    examples = [
+        torch.from_numpy(np.array([1], dtype="float32")),
+        torch.from_numpy(np.array([5], dtype="float32")),
+        torch.from_numpy(np.array([-3], dtype="float32")),
+        torch.from_numpy(np.array([10.0], dtype="float32")),
+    ]
+    expected_predictions = [
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            examples,
+            torch.Tensor([example * 2.0 + 1.0
+                          for example in examples]).reshape(-1, 1))
+    ]
+
+    gen_fn = make_tensor_model_fn('generate')
+
+    model = PytorchLinearRegression(input_dim=1, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    inference_runner = TestPytorchModelHandlerForInferenceOnly(
+        torch.device('cpu'), inference_fn=gen_fn)
+    predictions = inference_runner.run_inference(examples, model)
+    for actual, expected in zip(predictions, expected_predictions):
+      self.assertEqual(actual, expected)
+
+  def test_run_inference_keyed_helper(self):
+    """
+    This tests for inputs that are passed as a dictionary from key to tensor
+    instead of a standard non-keyed tensor example.
+
+    Example:
+    Typical input format is
+    input = torch.tensor([1, 2, 3])
+
+    But Pytorch syntax allows inputs to have the form
+    input = {
+      'k1' : torch.tensor([1, 2, 3]),
+      'k2' : torch.tensor([4, 5, 6])
+    }
+    """
+    class PytorchLinearRegressionMultipleArgs(torch.nn.Module):
+      def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self.linear = torch.nn.Linear(input_dim, output_dim)
+
+      def forward(self, k1, k2):
+        out = self.linear(k1) + self.linear(k2)
+        return out
+
+      def generate(self, k1, k2):
+        out = self.linear(k1) + self.linear(k2) + 0.5
+        return out
+
+    model = PytorchLinearRegressionMultipleArgs(input_dim=1, output_dim=1)
+    model.load_state_dict(
+        OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
+                     ('linear.bias', torch.Tensor([0.5]))]))
+    model.eval()
+
+    gen_fn = make_keyed_tensor_model_fn('generate')
+
+    inference_runner = TestPytorchModelHandlerKeyedTensorForInferenceOnly(
+        torch.device('cpu'), inference_fn=gen_fn)
+    predictions = inference_runner.run_inference(KEYED_TORCH_EXAMPLES, model)
+    for actual, expected in zip(predictions, KEYED_TORCH_HELPER_PREDICTIONS):
+      self.assertTrue(_compare_prediction_result(actual, expected))
+
   def test_num_bytes(self):
     inference_runner = TestPytorchModelHandlerForInferenceOnly(
         torch.device('cpu'))
@@ -260,8 +454,7 @@ class PytorchRunInferenceTest(unittest.TestCase):
   def test_namespace(self):
     inference_runner = TestPytorchModelHandlerForInferenceOnly(
         torch.device('cpu'))
-    self.assertEqual(
-        'RunInferencePytorch', inference_runner.get_metrics_namespace())
+    self.assertEqual('BeamML_PyTorch', inference_runner.get_metrics_namespace())
 
 
 @pytest.mark.uses_pytorch

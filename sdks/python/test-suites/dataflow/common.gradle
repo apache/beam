@@ -43,9 +43,6 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
   task "preCommitIT${suffix}" {
     dependsOn 'installGcpTest'
     dependsOn ':sdks:python:sdist'
-    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-    def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
     doLast {
       // Basic integration tests to run in PreCommit
@@ -64,17 +61,14 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
       def argMap = [
               "test_opts"   : testOpts,
               "sdk_location": files(configurations.distTarBall.files).singleFile,
-              "worker_jar"  : dataflowWorkerJar,
               "suite"       : "preCommitIT-df${pythonSuffix}",
       ]
 
-      if (runnerV2) {
-        argMap.put("runner_v2", "true")
-        // KMS is not supported for streaming engine.
-        argMap.put("kms_key_name", "\"\"")
-      }
       if (streaming){
         argMap.put("streaming", "true")
+        argMap.put("runner_v2", "true")
+      } else if (runnerV2) {
+        argMap.put("runner_v2", "true")
       }
 
       def cmdArgs = mapToArgString(argMap)
@@ -104,16 +98,12 @@ task preCommitIT_V2{
 task postCommitIT {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
-        "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "it_postcommit"
     ]
@@ -148,16 +138,12 @@ task postCommitSickbay {
 task spannerioIT {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
-        "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "spannerio_it"
     ]
@@ -210,12 +196,9 @@ task examples {
 task validatesRunnerBatchTests {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
   def argMap = [
           "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
-          "worker_jar"  : dataflowWorkerJar,
           "sdk_location": files(configurations.distTarBall.files).singleFile,
           "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
           "collect": "it_validatesrunner and not no_sickbay_batch"
@@ -223,8 +206,10 @@ task validatesRunnerBatchTests {
 
   if (project.hasProperty('useRunnerV2')) {
     argMap.put("runner_v2", "true")
-    // KMS is not supported for streaming engine.
-    argMap.put("kms_key_name", "\"\"")
+  }
+
+  if (project.hasProperty('disableRunnerV2')) {
+    argMap.put("disable_runner_v2", "true")
   }
 
   doLast {
@@ -239,9 +224,6 @@ task validatesRunnerBatchTests {
 task validatesRunnerStreamingTests {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   // TODO(BEAM-3544,https://github.com/apache/beam/issues/19012): Disable tests with 'sickbay-streaming' tag.
   // Execute tests with xdists
@@ -250,15 +232,10 @@ task validatesRunnerStreamingTests {
                 "test_opts": basicPytestOpts + ["--numprocesses=8"],
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
-                "worker_jar": dataflowWorkerJar,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
-                "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist"
+                "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist",
+                "runner_v2": "true",
                 ]
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-      // KMS is not supported for streaming engine.
-      argMap.put("kms_key_name", "\"\"")
-    }
 
     def cmdArgs = mapToArgString(argMap)
     exec {
@@ -273,15 +250,10 @@ task validatesRunnerStreamingTests {
                 "test_opts": basicPytestOpts,
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
-                "worker_jar": dataflowWorkerJar,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
-                "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist"
+                "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist",
+                "runner_v2": "true",
                 ]
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-      // KMS is not supported for streaming engine.
-      argMap.put("kms_key_name", "\"\"")
-    }
 
     def cmdArgs = mapToArgString(argMap)
     exec {
@@ -363,4 +335,39 @@ task validatesContainer() {
               "${files(configurations.distTarBall.files).singleFile}"
     }
   }
+}
+
+def tensorRTTests = tasks.create("tensorRTtests") {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+ doLast {
+  def testOpts = basicPytestOpts
+  def argMap = [
+    "runner": "DataflowRunner",
+    "machine_type":"n1-standard-4",
+    "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest",
+    "sdk_location": files(configurations.distTarBall.files).singleFile,
+    "project": "apache-beam-testing",
+    "region": "us-central1",
+    "input": "gs://apache-beam-ml/testing/inputs/tensorrt_image_file_names.txt",
+    "output": "gs://apache-beam-ml/outputs/tensorrt_predictions.txt",
+    "engine_path":  "gs://apache-beam-ml/models/ssd_mobilenet_v2_320x320_coco17_tpu-8.trt",
+    "disk_size_gb": 75
+  ]
+  def cmdArgs = mapToArgString(argMap)
+  exec {
+    executable 'sh'
+    args '-c', ". ${envdir}/bin/activate && pip install pillow && python -m apache_beam.examples.inference.tensorrt_object_detection $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver' --experiment=no_use_multiple_sdk_containers"
+  }
+ }
+}
+
+// add all RunInference E2E tests that run on DataflowRunner
+// As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
+// contains Python 3.8.
+// TODO: https://github.com/apache/beam/issues/22651
+project.tasks.register("inferencePostCommitIT") {
+  dependsOn = [
+  'tensorRTtests',
+  ]
 }

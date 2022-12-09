@@ -30,7 +30,7 @@ class PytorchVisionBenchmarkTest(LoadTest):
   def __init__(self):
     # TODO (https://github.com/apache/beam/issues/23008)
     #  make get_namespace() method in RunInference static
-    self.metrics_namespace = 'RunInferencePytorch'
+    self.metrics_namespace = 'BeamML_PyTorch'
     super().__init__(metrics_namespace=self.metrics_namespace)
 
   def test(self):
@@ -54,12 +54,13 @@ class PytorchVisionBenchmarkTest(LoadTest):
 
     extra_opts = {}
     extra_opts['input'] = self.pipeline.get_option('input_file')
-
+    device = self.pipeline.get_option('device')
     self.result = pytorch_image_classification.run(
         self.pipeline.get_full_options_as_args(**extra_opts),
         model_class=model_class,
         model_params=model_params,
-        test_pipeline=self.pipeline)
+        test_pipeline=self.pipeline,
+        device=device)
 
 
 if __name__ == '__main__':

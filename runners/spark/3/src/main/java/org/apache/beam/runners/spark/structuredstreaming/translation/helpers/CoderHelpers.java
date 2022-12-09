@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.CoderUtils;
 
 /** Serialization utility class. */
 public final class CoderHelpers {
@@ -35,13 +34,11 @@ public final class CoderHelpers {
    * @return Byte array representing serialized object.
    */
   public static <T> byte[] toByteArray(T value, Coder<T> coder) {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
-      coder.encode(value, baos);
+      return CoderUtils.encodeToByteArray(coder, value);
     } catch (IOException e) {
       throw new IllegalStateException("Error encoding value: " + value, e);
     }
-    return baos.toByteArray();
   }
 
   /**
@@ -53,9 +50,8 @@ public final class CoderHelpers {
    * @return Deserialized object.
    */
   public static <T> T fromByteArray(byte[] serialized, Coder<T> coder) {
-    ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
     try {
-      return coder.decode(bais);
+      return CoderUtils.decodeFromByteArray(coder, serialized);
     } catch (IOException e) {
       throw new IllegalStateException("Error decoding bytes for coder: " + coder, e);
     }

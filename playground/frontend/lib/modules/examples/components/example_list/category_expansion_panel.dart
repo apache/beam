@@ -22,12 +22,12 @@ import 'package:expansion_widget/expansion_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/example_list/expansion_panel_item.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground_components/playground_components.dart';
 
 class CategoryExpansionPanel extends StatelessWidget {
   final String categoryName;
-  final List examples;
-  final ExampleModel selectedExample;
+  final List<ExampleBase> examples;
+  final ExampleBase selectedExample;
   final AnimationController animationController;
   final OverlayEntry? dropdown;
 
@@ -43,7 +43,7 @@ class CategoryExpansionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExpansionWidget(
-      initiallyExpanded: examples.contains(selectedExample),
+      initiallyExpanded: examples.any((e) => e.path == selectedExample.path),
       maintainState: true,
       titleBuilder: (animationValue, _, isExpanded, toggleFunction) => InkWell(
         onTap: () => toggleFunction(animated: true),

@@ -125,7 +125,7 @@ if [[ ! -z `which hub` ]]; then
   # The version change is needed for Dataflow python batch tests.
   # Without changing to dev version, the dataflow pipeline will fail because of non-existed worker containers.
   # Note that dataflow worker containers should be built after RC has been built.
-  sh "$SCRIPT_DIR"/set_version.sh "$RELEASE_VER" --git-add
+  bash "$SCRIPT_DIR"/set_version.sh "$RELEASE_VER" --git-add
   # In case the version string was not changed, append a newline to CHANGES.md
   echo "" >> CHANGES.md
   git add CHANGES.md

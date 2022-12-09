@@ -19,13 +19,13 @@
 import 'package:playground/modules/messages/handlers/abstract_message_handler.dart';
 import 'package:playground/modules/messages/models/abstract_message.dart';
 import 'package:playground/modules/messages/models/set_content_message.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 
 class SetContentMessageHandler extends AbstractMessageHandler {
-  final PlaygroundState playgroundState;
+  final PlaygroundController playgroundController;
 
   const SetContentMessageHandler({
-    required this.playgroundState,
+    required this.playgroundController,
   });
 
   @override
@@ -39,6 +39,6 @@ class SetContentMessageHandler extends AbstractMessageHandler {
   }
 
   void _handle(SetContentMessage message) {
-    playgroundState.examplesLoader.load(message.descriptor);
+    playgroundController.examplesLoader.load(message.descriptor);
   }
 }

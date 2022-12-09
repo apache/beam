@@ -179,7 +179,7 @@ When executing your pipeline with the Samza Runner, you can use the following pi
 </tr>
 <tr>
   <td><code>enableMetrics</code></td>
-  <td>Enable/disable Beam metrics in Samza Runne.</td>
+  <td>Enable/disable Beam metrics in Samza Runner.</td>
   <td><code>true</code></td>
 </tr>
 <tr>

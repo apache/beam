@@ -19,13 +19,13 @@
 import 'package:playground/modules/messages/handlers/abstract_message_handler.dart';
 import 'package:playground/modules/messages/models/abstract_message.dart';
 import 'package:playground/modules/messages/models/set_sdk_message.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 
 class SetSdkMessageHandler extends AbstractMessageHandler {
-  final PlaygroundState playgroundState;
+  final PlaygroundController playgroundController;
 
   const SetSdkMessageHandler({
-    required this.playgroundState,
+    required this.playgroundController,
   });
 
   @override
@@ -39,6 +39,6 @@ class SetSdkMessageHandler extends AbstractMessageHandler {
   }
 
   void _handle(SetSdkMessage message) {
-    playgroundState.setSdk(message.sdk);
+    playgroundController.setSdk(message.sdk);
   }
 }

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -37,9 +38,9 @@ public class CheckpointMarkImpl implements CheckpointMark {
 
   final Offset offset;
 
-  private final Optional<BlockingCommitter> committer;
+  private final Optional<Supplier<BlockingCommitter>> committer;
 
-  CheckpointMarkImpl(Offset offset, BlockingCommitter committer) {
+  CheckpointMarkImpl(Offset offset, Supplier<BlockingCommitter> committer) {
     this.offset = offset;
     this.committer = Optional.of(committer);
   }
@@ -68,7 +69,7 @@ public class CheckpointMarkImpl implements CheckpointMark {
   public void finalizeCheckpoint() {
     try {
       checkState(committer.isPresent());
-      committer.get().commitOffset(offset);
+      committer.get().get().commitOffset(offset);
     } catch (Exception e) {
       logger.warn("Failed to finalize checkpoint.", e);
     }

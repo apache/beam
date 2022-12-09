@@ -16,15 +16,22 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
 enum ExampleTokenType {
+  /// A URI to load the plain content from.
+  http,
+
   standard,
   userShared,
   ;
 
   static ExampleTokenType fromToken(String token) {
-    final sdk = SDK.tryParseExamplePath(token);
+    if (token.startsWith(RegExp('http(s)?://'))) {
+      return http;
+    }
+
+    final sdk = Sdk.tryParseExamplePath(token);
     if (sdk != null) {
       return standard;
     }

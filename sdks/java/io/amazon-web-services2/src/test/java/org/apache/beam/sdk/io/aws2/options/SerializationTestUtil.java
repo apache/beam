@@ -28,11 +28,22 @@ public class SerializationTestUtil {
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   public static <T> T serializeDeserialize(Class<T> clazz, T obj) {
+    return deserialize(serialize(obj), clazz);
+  }
+
+  public static <T> String serialize(T obj) {
     try {
-      String jsonString = MAPPER.writeValueAsString(obj);
+      return MAPPER.writeValueAsString(obj);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException("Failed to serialize " + obj.getClass().getSimpleName(), e);
+    }
+  }
+
+  public static <T> T deserialize(String jsonString, Class<T> clazz) {
+    try {
       return MAPPER.readValue(jsonString, clazz);
     } catch (JsonProcessingException e) {
-      throw new RuntimeException("Failed to serialize/deserialize " + clazz.getSimpleName(), e);
+      throw new RuntimeException("Failed to deserialize " + clazz.getSimpleName(), e);
     }
   }
 }

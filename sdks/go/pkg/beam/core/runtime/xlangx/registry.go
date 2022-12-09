@@ -36,8 +36,10 @@ var defaultReg = newRegistry()
 // replace calls to a Beam ExpansionService.
 //
 // Then, expansion addresses of the forms
-//   "<namespace>" or
-//   "<namespace>:<configuration>"
+//
+//	"<namespace>" or
+//	"<namespace>:<configuration>"
+//
 // can be used with beam.CrossLanguage. Any configuration after the separator is
 // provided to the HandlerFunc on call for the handler func to use at it's leisure.
 func RegisterHandler(namespace string, handler HandlerFunc) {
@@ -51,8 +53,9 @@ func RegisterHandler(namespace string, handler HandlerFunc) {
 // or be a namespaced handler registered with RegisterHandler.
 //
 // When the expansion address is for a handler, it may take the forms
-//  "<namespace>" or
-//  "<namespace>:<configuration>"
+//
+//	"<namespace>" or
+//	"<namespace>:<configuration>"
 func RegisterOverrideForUrn(urn, expansionAddr string) {
 	if err := defaultReg.RegisterOverrideForUrn(urn, expansionAddr); err != nil {
 		panic(err)
@@ -232,10 +235,13 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 	}
 	// Check this after hardoverrides and URN overrides so those can point to automated expansion
 	// themselves.
-	if ns == autoJavaNamespace {
+	switch ns {
+	case autoJavaNamespace:
 		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
 		// We strip it manually in the HandlerFunc.
 		return QueryAutomatedExpansionService, expansionAddr
+	case autoPythonNamespace:
+		return QueryPythonExpansionService, expansionAddr
 	}
 
 	// Now that overrides have been handled, we can look up if there's a handler, and return that.
@@ -254,6 +260,7 @@ const (
 	ClasspathSeparator    = ";"
 	hardOverrideNamespace = "hardoverride"
 	autoJavaNamespace     = "autojava"
+	autoPythonNamespace   = "autopython"
 )
 
 // Require takes an expansionAddr and requires cross language expansion
@@ -279,6 +286,15 @@ func AddClasspaths(classpaths []string) ExpansionServiceOption {
 	}
 }
 
+// AddExtraPackages is an expansion service option for xlangx.UseAutomatedPythonExpansionService
+// that accepts a extra packages slice and creates a tagged  expansion address string
+// suffixed with classpath separator and service module provided.
+func AddExtraPackages(packages []string) ExpansionServiceOption {
+	return func(expansionAddress *string) {
+		*expansionAddress += ClasspathSeparator + strings.Join(packages, " ")
+	}
+}
+
 // UseAutomatedJavaExpansionService takes a gradle target and creates a
 // tagged string to indicate that it should be used to start up an
 // automated expansion service for a cross-language expansion.
@@ -288,6 +304,22 @@ func AddClasspaths(classpaths []string) ExpansionServiceOption {
 // is provided.
 func UseAutomatedJavaExpansionService(gradleTarget string, opts ...ExpansionServiceOption) string {
 	expansionAddress := autoJavaNamespace + Separator + gradleTarget
+
+	for _, opt := range opts {
+		opt(&expansionAddress)
+	}
+	return expansionAddress
+}
+
+// UseAutomatedPythonExpansionService takes a expansion service module name and creates a
+// tagged string to indicate that it should be used to start up an
+// automated expansion service for a cross-language expansion.
+//
+// Intended for use by cross language wrappers to permit spinning
+// up an expansion service for a user if no expansion service address
+// is provided.
+func UseAutomatedPythonExpansionService(service string, opts ...ExpansionServiceOption) string {
+	expansionAddress := autoPythonNamespace + Separator + service
 
 	for _, opt := range opts {
 		opt(&expansionAddress)
@@ -322,4 +354,8 @@ func parseClasspath(expansionAddr string) (string, string) {
 		return expansionAddr, ""
 	}
 	return split[0], split[1]
+}
+
+func parseExtraPackages(expansionAddr string) (string, string) {
+	return parseClasspath(expansionAddr)
 }

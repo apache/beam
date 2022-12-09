@@ -61,6 +61,8 @@ class SchemaAggregateFn {
 
   /** Implementation of {@link #create}. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings("rawtypes")
   abstract static class Inner extends CombineFn<Row, Object[], Row> {
     // Represents an aggregation of one or more fields.
     static class FieldAggregation<FieldT, AccumT, OutputT> implements Serializable {
@@ -147,6 +149,8 @@ class SchemaAggregateFn {
     abstract Builder toBuilder();
 
     @AutoValue.Builder
+    @AutoValue.CopyAnnotations
+    @SuppressWarnings("rawtypes")
     abstract static class Builder {
       abstract Builder setInputSchema(@Nullable Schema inputSchema);
 

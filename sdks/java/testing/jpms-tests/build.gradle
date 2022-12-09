@@ -78,9 +78,6 @@ configurations {
   sparkRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
 }
 
-def spark_version = '3.1.1'
-def spark_scala_version = '2.12'
-
 dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
@@ -93,8 +90,6 @@ dependencies {
   flinkRunnerIntegrationTest project(":runners:flink:${project.ext.latestFlinkVersion}")
   dataflowRunnerIntegrationTest project(":runners:google-cloud-dataflow-java")
   sparkRunnerIntegrationTest project(":runners:spark:3")
-  sparkRunnerIntegrationTest "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
-  sparkRunnerIntegrationTest "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
 }
 
 /*

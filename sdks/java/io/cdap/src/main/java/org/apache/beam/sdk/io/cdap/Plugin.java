@@ -26,6 +26,7 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import io.cdap.cdap.etl.api.streaming.StreamingSource;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -37,6 +38,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.cdap.context.BatchContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSinkContextImpl;
 import org.apache.beam.sdk.io.cdap.context.BatchSourceContextImpl;
+import org.apache.beam.sdk.io.cdap.context.StreamingSourceContextImpl;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.slf4j.Logger;
@@ -49,6 +51,7 @@ public abstract class Plugin {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plugin.class);
   private static final String PREPARE_RUN_METHOD_NAME = "prepareRun";
+  private static final String GET_STREAM_METHOD_NAME = "getStream";
 
   protected @Nullable PluginConfig pluginConfig;
   protected @Nullable Configuration hadoopConfiguration;
@@ -61,10 +64,10 @@ public abstract class Plugin {
   public abstract Class<?> getPluginClass();
 
   /** Gets InputFormat or OutputFormat class for a plugin. */
-  public abstract Class<?> getFormatClass();
+  public @Nullable abstract Class<?> getFormatClass();
 
   /** Gets InputFormatProvider or OutputFormatProvider class for a plugin. */
-  public abstract Class<?> getFormatProviderClass();
+  public @Nullable abstract Class<?> getFormatProviderClass();
 
   /** Sets a plugin config. */
   public Plugin withConfig(PluginConfig pluginConfig) {
@@ -83,46 +86,57 @@ public abstract class Plugin {
    * validating connection to the CDAP sink/source and performing initial tuning.
    */
   public void prepareRun() {
-    PluginConfig pluginConfig = getPluginConfig();
-    checkStateNotNull(pluginConfig, "PluginConfig should be not null!");
-    if (cdapPluginObj == null) {
-      try {
-        Constructor<?> constructor =
-            getPluginClass().getDeclaredConstructor(pluginConfig.getClass());
-        constructor.setAccessible(true);
-        cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(pluginConfig);
-      } catch (Exception e) {
-        LOG.error("Can not instantiate CDAP plugin class", e);
-        throw new IllegalStateException("Can not call prepareRun");
-      }
+    if (isUnbounded()) {
+      // Not needed for unbounded plugins
+      return;
     }
+    if (cdapPluginObj == null) {
+      instantiateCdapPluginObj();
+    }
+    checkStateNotNull(cdapPluginObj, "Cdap Plugin object can't be null!");
     try {
       cdapPluginObj.prepareRun(getContext());
-      if (getPluginType().equals(PluginConstants.PluginType.SOURCE)) {
-        for (Map.Entry<String, String> entry :
-            getContext().getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
-          getHadoopConfiguration().set(entry.getKey(), entry.getValue());
-        }
-      } else {
-        for (Map.Entry<String, String> entry :
-            getContext().getOutputFormatProvider().getOutputFormatConfiguration().entrySet()) {
-          getHadoopConfiguration().set(entry.getKey(), entry.getValue());
-        }
-        getHadoopConfiguration().set(MRJobConfig.ID, String.valueOf(1));
-      }
     } catch (Exception e) {
       LOG.error("Error while prepareRun", e);
       throw new IllegalStateException("Error while prepareRun");
+    }
+    if (getPluginType().equals(PluginConstants.PluginType.SOURCE)) {
+      for (Map.Entry<String, String> entry :
+          getContext().getInputFormatProvider().getInputFormatConfiguration().entrySet()) {
+        getHadoopConfiguration().set(entry.getKey(), entry.getValue());
+      }
+    } else {
+      for (Map.Entry<String, String> entry :
+          getContext().getOutputFormatProvider().getOutputFormatConfiguration().entrySet()) {
+        getHadoopConfiguration().set(entry.getKey(), entry.getValue());
+      }
+      getHadoopConfiguration().set(MRJobConfig.ID, String.valueOf(1));
+    }
+  }
+
+  /** Creates an instance of {@link #cdapPluginObj} using {@link #pluginConfig}. */
+  private void instantiateCdapPluginObj() {
+    PluginConfig pluginConfig = getPluginConfig();
+    checkStateNotNull(pluginConfig, "PluginConfig should be not null!");
+    try {
+      Constructor<?> constructor = getPluginClass().getDeclaredConstructor(pluginConfig.getClass());
+      constructor.setAccessible(true);
+      cdapPluginObj = (SubmitterLifecycle) constructor.newInstance(pluginConfig);
+    } catch (Exception e) {
+      LOG.error("Can not instantiate CDAP plugin class", e);
+      throw new IllegalStateException("Can not call prepareRun");
     }
   }
 
   /** Sets a plugin Hadoop configuration. */
   public Plugin withHadoopConfiguration(Class<?> formatKeyClass, Class<?> formatValueClass) {
+    Class<?> formatClass = getFormatClass();
+    checkStateNotNull(formatClass, "Format class can't be null!");
     PluginConstants.Format formatType = getFormatType();
     PluginConstants.Hadoop hadoopType = getHadoopType();
 
     getHadoopConfiguration()
-        .setClass(hadoopType.getFormatClass(), getFormatClass(), formatType.getFormatClass());
+        .setClass(hadoopType.getFormatClass(), formatClass, formatType.getFormatClass());
     getHadoopConfiguration().setClass(hadoopType.getKeyClass(), formatKeyClass, Object.class);
     getHadoopConfiguration().setClass(hadoopType.getValueClass(), formatValueClass, Object.class);
 
@@ -163,7 +177,8 @@ public abstract class Plugin {
   /** Gets value of a plugin type. */
   public static PluginConstants.PluginType initPluginType(Class<?> pluginClass)
       throws IllegalArgumentException {
-    if (BatchSource.class.isAssignableFrom(pluginClass)) {
+    if (StreamingSource.class.isAssignableFrom(pluginClass)
+        || BatchSource.class.isAssignableFrom(pluginClass)) {
       return PluginConstants.PluginType.SOURCE;
     } else if (BatchSink.class.isAssignableFrom(pluginClass)) {
       return PluginConstants.PluginType.SINK;
@@ -188,6 +203,8 @@ public abstract class Plugin {
         } else if (contextClass.equals(BatchSinkContext.class)) {
           return new BatchSinkContextImpl();
         }
+      } else if (method.getName().equals(GET_STREAM_METHOD_NAME)) {
+        return new StreamingSourceContextImpl();
       }
     }
     throw new IllegalStateException("Cannot determine context class");
@@ -209,13 +226,22 @@ public abstract class Plugin {
     return isUnbounded;
   }
 
-  /** Creates a plugin instance. */
-  public static Plugin create(
+  /** Creates a batch plugin instance. */
+  public static Plugin createBatch(
       Class<?> newPluginClass, Class<?> newFormatClass, Class<?> newFormatProviderClass) {
     return builder()
         .setPluginClass(newPluginClass)
         .setFormatClass(newFormatClass)
         .setFormatProviderClass(newFormatProviderClass)
+        .setPluginType(Plugin.initPluginType(newPluginClass))
+        .setContext(Plugin.initContext(newPluginClass))
+        .build();
+  }
+
+  /** Creates a streaming plugin instance. */
+  public static Plugin createStreaming(Class<?> newPluginClass) {
+    return builder()
+        .setPluginClass(newPluginClass)
         .setPluginType(Plugin.initPluginType(newPluginClass))
         .setContext(Plugin.initContext(newPluginClass))
         .build();

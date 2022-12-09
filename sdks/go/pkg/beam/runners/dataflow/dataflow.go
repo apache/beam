@@ -205,7 +205,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, errors.WithContext(err, "creating environment for model pipeline")
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	model, err := graphx.Marshal(edges, &graphx.Options{
+		Environment:           environment,
+		PipelineResourceHints: jobopts.GetPipelineResourceHints(),
+	})
 	if err != nil {
 		return nil, errors.WithContext(err, "generating model pipeline")
 	}

@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
@@ -39,7 +41,6 @@ import org.joda.time.Duration;
 /** This {@link PTransform} manages loads into BigQuery using the Storage API. */
 public class StorageApiLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
-  static final int MAX_BATCH_SIZE_BYTES = 2 * 1024 * 1024;
   final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulRowsTag =
       new TupleTag<>("successfulRows");
   final TupleTag<BigQueryStorageApiInsertError> failedRowsTag = new TupleTag<>("failedRows");
@@ -101,7 +102,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
 
-    PCollectionTuple convertedRecords =
+    PCollectionTuple convertMessagesResult =
         inputInGlobalWindow
             .apply(
                 "CreateTables",
@@ -116,20 +117,23 @@ public class StorageApiLoads<DestinationT, ElementT>
                     successfulRowsTag,
                     BigQueryStorageApiInsertErrorCoder.of(),
                     successCoder));
-    convertedRecords
-        .get(successfulRowsTag)
-        .apply(
-            "StorageApiWriteInconsistent",
-            new StorageApiWriteRecordsInconsistent<>(dynamicDestinations, bqServices));
+    PCollectionTuple writeRecordsResult =
+        convertMessagesResult
+            .get(successfulRowsTag)
+            .apply(
+                "StorageApiWriteInconsistent",
+                new StorageApiWriteRecordsInconsistent<>(
+                    dynamicDestinations,
+                    bqServices,
+                    failedRowsTag,
+                    BigQueryStorageApiInsertErrorCoder.of()));
+
+    PCollection<BigQueryStorageApiInsertError> insertErrors =
+        PCollectionList.of(convertMessagesResult.get(failedRowsTag))
+            .and(writeRecordsResult.get(failedRowsTag))
+            .apply("flattenErrors", Flatten.pCollections());
     return WriteResult.in(
-        input.getPipeline(),
-        null,
-        null,
-        null,
-        null,
-        null,
-        failedRowsTag,
-        convertedRecords.get(failedRowsTag));
+        input.getPipeline(), null, null, null, null, null, failedRowsTag, insertErrors);
   }
 
   public WriteResult expandTriggered(
@@ -139,7 +143,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     // Handle triggered, low-latency loads into BigQuery.
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
-    PCollectionTuple result =
+    PCollectionTuple convertMessagesResult =
         inputInGlobalWindow
             .apply(
                 "CreateTables",
@@ -157,44 +161,54 @@ public class StorageApiLoads<DestinationT, ElementT>
 
     PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords;
 
+    int maxAppendBytes =
+        input
+            .getPipeline()
+            .getOptions()
+            .as(BigQueryOptions.class)
+            .getStorageApiAppendThresholdBytes();
     if (this.allowAutosharding) {
       groupedRecords =
-          result
+          convertMessagesResult
               .get(successfulRowsTag)
               .apply(
                   "GroupIntoBatches",
                   GroupIntoBatches.<DestinationT, StorageApiWritePayload>ofByteSize(
-                          MAX_BATCH_SIZE_BYTES,
+                          maxAppendBytes,
                           (StorageApiWritePayload e) -> (long) e.getPayload().length)
                       .withMaxBufferingDuration(triggeringFrequency)
                       .withShardedKey());
 
     } else {
       PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> shardedRecords =
-          createShardedKeyValuePairs(result)
+          createShardedKeyValuePairs(convertMessagesResult)
               .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), payloadCoder));
       groupedRecords =
           shardedRecords.apply(
               "GroupIntoBatches",
               GroupIntoBatches.<ShardedKey<DestinationT>, StorageApiWritePayload>ofByteSize(
-                      MAX_BATCH_SIZE_BYTES,
-                      (StorageApiWritePayload e) -> (long) e.getPayload().length)
+                      maxAppendBytes, (StorageApiWritePayload e) -> (long) e.getPayload().length)
                   .withMaxBufferingDuration(triggeringFrequency));
     }
-    groupedRecords.apply(
-        "StorageApiWriteSharded",
-        new StorageApiWritesShardedRecords<>(
-            dynamicDestinations, createDisposition, kmsKey, bqServices, destinationCoder));
+    PCollectionTuple writeRecordsResult =
+        groupedRecords.apply(
+            "StorageApiWriteSharded",
+            new StorageApiWritesShardedRecords<>(
+                dynamicDestinations,
+                createDisposition,
+                kmsKey,
+                bqServices,
+                destinationCoder,
+                BigQueryStorageApiInsertErrorCoder.of(),
+                failedRowsTag));
+
+    PCollection<BigQueryStorageApiInsertError> insertErrors =
+        PCollectionList.of(convertMessagesResult.get(failedRowsTag))
+            .and(writeRecordsResult.get(failedRowsTag))
+            .apply("flattenErrors", Flatten.pCollections());
 
     return WriteResult.in(
-        input.getPipeline(),
-        null,
-        null,
-        null,
-        null,
-        null,
-        failedRowsTag,
-        result.get(failedRowsTag));
+        input.getPipeline(), null, null, null, null, null, failedRowsTag, insertErrors);
   }
 
   private PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>>
@@ -232,7 +246,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));
-    PCollectionTuple convertedRecords =
+    PCollectionTuple convertMessagesResult =
         inputInGlobalWindow
             .apply(
                 "CreateTables",
@@ -247,20 +261,24 @@ public class StorageApiLoads<DestinationT, ElementT>
                     successfulRowsTag,
                     BigQueryStorageApiInsertErrorCoder.of(),
                     successCoder));
-    convertedRecords
-        .get(successfulRowsTag)
-        .apply(
-            "StorageApiWriteUnsharded",
-            new StorageApiWriteUnshardedRecords<>(dynamicDestinations, bqServices));
+
+    PCollectionTuple writeRecordsResult =
+        convertMessagesResult
+            .get(successfulRowsTag)
+            .apply(
+                "StorageApiWriteUnsharded",
+                new StorageApiWriteUnshardedRecords<>(
+                    dynamicDestinations,
+                    bqServices,
+                    failedRowsTag,
+                    BigQueryStorageApiInsertErrorCoder.of()));
+
+    PCollection<BigQueryStorageApiInsertError> insertErrors =
+        PCollectionList.of(convertMessagesResult.get(failedRowsTag))
+            .and(writeRecordsResult.get(failedRowsTag))
+            .apply("flattenErrors", Flatten.pCollections());
 
     return WriteResult.in(
-        input.getPipeline(),
-        null,
-        null,
-        null,
-        null,
-        null,
-        failedRowsTag,
-        convertedRecords.get(failedRowsTag));
+        input.getPipeline(), null, null, null, null, null, failedRowsTag, insertErrors);
   }
 }

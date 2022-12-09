@@ -17,23 +17,42 @@
 ###############################################################################
 
 FROM debian:11 as build
-ARG FLUTTER_VERSION=3.0.1-stable
+ARG FLUTTER_VERSION=3.3.2
+
+# ------------------------------------------------
+# Setting up.
+# ------------------------------------------------
 
 RUN apt-get update && apt-get install -y wget xz-utils git
-RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION.tar.xz &&\
-    tar -xf flutter_linux_$FLUTTER_VERSION.tar.xz &&\
+
+RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
+    tar -xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     mv flutter /opt/ &&\
     ln -s /opt/flutter/bin/flutter /usr/bin/flutter &&\
     ln -s /opt/flutter/bin/dart /usr/bin/dart &&\
     dart pub global activate protoc_plugin &&\
     ln -s /root/.pub-cache/bin/protoc-gen-dart /usr/bin/
 
-
 COPY . /app
 WORKDIR /app
-RUN cd /app && flutter build web -v
+
+# ------------------------------------------------
+# Building the application.
+# ------------------------------------------------
+
+RUN cd /app/playground_components &&\
+    flutter pub get -v
+
+RUN cd /app &&\
+    flutter pub get -v &&\
+    flutter build web -v
+
+# ------------------------------------------------
+# Getting the result into NGINX.
+# ------------------------------------------------
+
 FROM nginx:1.21.3
 COPY --from=build /app/nginx_default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build/web/ /usr/share/nginx/html
-RUN cp /usr/share/nginx/html/assets/assets/* /usr/share/nginx/html/assets/
+RUN cp -r /usr/share/nginx/html/assets/assets/* /usr/share/nginx/html/assets/
 RUN gzip -kr /usr/share/nginx/html/assets/*

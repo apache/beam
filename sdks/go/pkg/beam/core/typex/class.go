@@ -234,7 +234,7 @@ func IsUniversal(t reflect.Type) bool {
 // Composite marker types: KV, CoGBK or WindowedValue.
 func IsComposite(t reflect.Type) bool {
 	switch t {
-	case KVType, CoGBKType, WindowedValueType:
+	case KVType, CoGBKType, WindowedValueType, TimersType:
 		return true
 	default:
 		return false
