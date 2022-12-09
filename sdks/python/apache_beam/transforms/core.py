@@ -2747,10 +2747,10 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
 
-    if self.isinstance(pcoll.windowfn, SlidingWindows):
+    if isinstance(pcoll.windowing.windowfn, SlidingWindows):
       raise ValueError(
-          'CombinePerKey.with_hot_key_fanout does not yet work properly with SlidingWindows'
-      )
+          'CombinePerKey.with_hot_key_fanout does not yet work properly with '
+          'SlidingWindows. See: https://github.com/apache/beam/issues/20528')
 
     class SplitHotCold(DoFn):
       def start_bundle(self):
