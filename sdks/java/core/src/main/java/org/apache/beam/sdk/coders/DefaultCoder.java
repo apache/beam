@@ -51,10 +51,11 @@ import org.slf4j.LoggerFactory;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
 })
 public @interface DefaultCoder {
   @CheckForNull
+  @SuppressWarnings("rawtypes") // this is deliberate, as the user will pass FooCoder.class
   Class<? extends Coder> value();
 
   /**
@@ -92,6 +93,7 @@ public @interface DefaultCoder {
               String.format("Class %s does not have a @DefaultCoder annotation.", clazz.getName()));
         }
 
+        @SuppressWarnings("rawtypes") // this is deliberate, as the user will pass FooCoder.class
         Class<? extends Coder> defaultAnnotationValue = defaultAnnotation.value();
         if (defaultAnnotationValue == null) {
           throw new CannotProvideCoderException(

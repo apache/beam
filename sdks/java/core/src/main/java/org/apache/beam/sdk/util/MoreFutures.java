@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
-import edu.umd.cs.findbugs.annotations.SuppressWarnings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -177,7 +177,7 @@ public class MoreFutures {
    * <p>This is used, for example, in aggregating the results of many future values in {@link
    * #allAsList(Collection)}.
    */
-  @SuppressWarnings(
+  @SuppressFBWarnings(
       value = "NM_CLASS_NOT_EXCEPTION",
       justification = "The class does hold an exception; its name is accurate.")
   @AutoValue
@@ -195,12 +195,13 @@ public class MoreFutures {
 
     public abstract @Nullable Throwable getException();
 
+    @SuppressWarnings("argument") // checker infers a strange type for the null
     public static <T> ExceptionOrResult<T> exception(Throwable throwable) {
-      return new AutoValue_MoreFutures_ExceptionOrResult(IsException.EXCEPTION, null, throwable);
+      return new AutoValue_MoreFutures_ExceptionOrResult<>(IsException.EXCEPTION, null, throwable);
     }
 
     public static <T> ExceptionOrResult<T> result(T result) {
-      return new AutoValue_MoreFutures_ExceptionOrResult(IsException.EXCEPTION, result, null);
+      return new AutoValue_MoreFutures_ExceptionOrResult<>(IsException.EXCEPTION, result, null);
     }
   }
 
@@ -236,6 +237,7 @@ public class MoreFutures {
    */
   private static <T> CompletableFuture<? extends T>[] futuresToCompletableFutures(
       Collection<? extends CompletionStage<? extends T>> futures) {
+    @SuppressWarnings("rawtypes")
     CompletableFuture<? extends T>[] completableFutures = new CompletableFuture[futures.size()];
     int i = 0;
     for (CompletionStage<? extends T> future : futures) {

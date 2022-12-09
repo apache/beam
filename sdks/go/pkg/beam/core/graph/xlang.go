@@ -52,7 +52,7 @@ func init() {
 // unnecesary proto related imports into graph.
 type ExpandedTransform struct {
 	Components   any // *pipepb.Components
-	Transform    any //*pipepb.PTransform
+	Transform    any // *pipepb.PTransform
 	Requirements []string
 }
 
