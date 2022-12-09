@@ -43,8 +43,6 @@ variable "service_account" {
   default     = "service-account-playground"
 }
 
-#GCS
-
 variable "bucket_terraform_state_name" {
   description = "Name of Bucket to Store Terraform States"
   default     = "beam_playground_terraform"

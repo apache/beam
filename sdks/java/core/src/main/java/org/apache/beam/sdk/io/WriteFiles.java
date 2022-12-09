@@ -145,6 +145,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   // The record count and buffering duration to trigger flushing records to a tmp file. Mainly used
   // for writing unbounded data to avoid generating too many small files.
   private static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
+  private static final int FILE_TRIGGERING_BYTE_COUNT = 64 * 1024 * 1024; // 64MiB as of now
   private static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
       Duration.standardSeconds(5);
 
@@ -767,6 +768,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               .apply(
                   "ShardAndBatch",
                   GroupIntoBatches.<Integer, UserT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                      .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
                       .withMaxBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
                       .withShardedKey())
               .setCoder(

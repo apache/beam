@@ -30,6 +30,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation project(":sdks:java:io:parquet")
   testImplementation project(":sdks:java:expansion-service")
+  testRuntimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
   testRuntimeOnly library.java.hadoop_client
 }
 

@@ -251,6 +251,8 @@ type SplitPoints struct {
 
 // SplitResult contains the result of performing a split on a Plan.
 type SplitResult struct {
+	Unsuccessful bool // Indicates the split was unsuccessful.
+
 	// Indices are always included, for both channel and sub-element splits.
 	PI int64 // Primary index, last element of the primary.
 	RI int64 // Residual index, first element of the residual.
@@ -268,13 +270,14 @@ type SplitResult struct {
 // Split takes a set of potential split indexes, and if successful returns
 // the split result.
 // Returns an error when unable to split.
-func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
+func (p *Plan) Split(ctx context.Context, s SplitPoints) (SplitResult, error) {
+	// Can't split inactive plans.
+	if p.status != Active {
+		return SplitResult{Unsuccessful: true}, nil
+	}
 	// TODO: When bundles with multiple sources, are supported, perform splits
 	// on all sources.
-	if p.source != nil {
-		return p.source.Split(s.Splits, s.Frac, s.BufSize)
-	}
-	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+	return p.source.Split(ctx, s.Splits, s.Frac, s.BufSize)
 }
 
 // Checkpoint attempts to split an SDF if the DoFn self-checkpointed.

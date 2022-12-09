@@ -16,11 +16,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -59,7 +61,7 @@ func checkBadHttpCode(t *testing.T, err error, code int) {
 }
 
 func TestSaveGetProgress(t *testing.T) {
-	idToken := emulator.getIDToken()
+	idToken := emulator.getIDToken("a@b.c")
 
 	// postUnitCompleteURL
 	port := os.Getenv(PORT_POST_UNIT_COMPLETE)
@@ -134,6 +136,101 @@ func TestSaveGetProgress(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		assert.Equal(t, len(exp.Units), len(resp.Units))
+		assert.Equal(t, exp.Units[1].Id, resp.Units[1].Id)
+		// snippet_id is derived from random uid
+		exp.Units[1].UserSnippetId = resp.Units[1].UserSnippetId
 		assert.Equal(t, exp, resp)
+	})
+}
+
+func TestUserCode(t *testing.T) {
+	var snippetId1, snippetId2, snippetId3 string
+	idToken1 := emulator.getIDToken("a1@b.c")
+	idToken2 := emulator.getIDToken("a2@b.c")
+	req := makeUserCodeRequest()
+	originalCode := req.Files[0].Content
+
+	// postUserCodeURL
+	port := os.Getenv(PORT_POST_USER_CODE)
+	if port == "" {
+		t.Fatal(PORT_POST_USER_CODE, "env not set")
+	}
+	postUserCodeURL := "http://localhost:" + port
+
+	// getUserProgressURL
+	port = os.Getenv(PORT_GET_USER_PROGRESS)
+	if port == "" {
+		t.Fatal(PORT_GET_USER_PROGRESS, "env not set")
+	}
+	getUserProgressURL := "http://localhost:" + port
+
+	t.Run("save_code_user1_example1", func(t *testing.T) {
+		_, err := PostUserCode(postUserCodeURL, "python", "example1", idToken1, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("save_code_user2_example1", func(t *testing.T) {
+		_, err := PostUserCode(postUserCodeURL, "python", "example1", idToken2, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("check1", func(t *testing.T) {
+		resp, err := GetUserProgress(getUserProgressURL, "python", idToken1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "example1", resp.Units[0].Id)
+		snippetId1 = resp.Units[0].UserSnippetId
+	})
+	t.Run("check2", func(t *testing.T) {
+		resp, err := GetUserProgress(getUserProgressURL, "python", idToken2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "example1", resp.Units[0].Id)
+		snippetId2 = resp.Units[0].UserSnippetId
+		assert.NotEqual(t, snippetId1, snippetId2, "different users, same snippet ids")
+	})
+	t.Run("save_code_user1_updated", func(t *testing.T) {
+		// modify snippet code
+		req.Files[0].Content += "; sys.exit(1)"
+
+		_, err := PostUserCode(postUserCodeURL, "python", "example1", idToken1, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("check3", func(t *testing.T) {
+		resp, err := GetUserProgress(getUserProgressURL, "python", idToken1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, "example1", resp.Units[0].Id)
+		snippetId3 = resp.Units[0].UserSnippetId
+		assert.NotEqual(t, snippetId1, snippetId3, "updated code, same snippet ids")
+	})
+	t.Run("check_snippet1", func(t *testing.T) {
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		_, err := GetSnippet(ctx, snippetId1)
+		assert.NotNil(t, err, "previous snippet available")
+
+		resp, err := GetSnippet(ctx, snippetId3)
+		assert.Nil(t, err)
+		assert.Equal(t, req.Files[0].Content, resp.Files[0].Content)
+		assert.Equal(t, req.Files[0].IsMain, resp.Files[0].IsMain)
+		assert.Equal(t, req.Files[0].Name, resp.Files[0].Name)
+		assert.Equal(t, req.PipelineOptions, resp.PipelineOptions)
+	})
+	t.Run("check_snippet2", func(t *testing.T) {
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		resp, err := GetSnippet(ctx, snippetId2)
+		assert.Nil(t, err)
+		assert.Equal(t, originalCode, resp.Files[0].Content)
+		assert.Equal(t, req.Files[0].IsMain, resp.Files[0].IsMain)
+		assert.Equal(t, req.Files[0].Name, resp.Files[0].Name)
+		assert.Equal(t, req.PipelineOptions, resp.PipelineOptions)
 	})
 }

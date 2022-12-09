@@ -248,7 +248,7 @@ tasks {
 }
 
 /* set Docker Registry to params from Inf */
-task("setDockerRegistry") {
+tasks.register("setDockerRegistry") {
     group = "deploy"
     //get Docker Registry
     dependsOn(":playground:terraform:terraformInit")
@@ -265,13 +265,13 @@ task("setDockerRegistry") {
     }
 }
 
-task("readState") {
+tasks.register("readState") {
     group = "deploy"
     dependsOn(":playground:terraform:terraformInit")
     dependsOn(":playground:terraform:terraformRef")
 }
 
-task("pushBack") {
+tasks.register("pushBack") {
     group = "deploy"
     dependsOn(":playground:backend:containers:go:dockerTagsPush")
     dependsOn(":playground:backend:containers:java:dockerTagsPush")
@@ -280,12 +280,12 @@ task("pushBack") {
     dependsOn(":playground:backend:containers:router:dockerTagsPush")
 }
 
-task("pushFront") {
+tasks.register("pushFront") {
     group = "deploy"
     dependsOn(":playground:frontend:dockerTagsPush")
 }
 
-task("prepareConfig") {
+tasks.register("prepareConfig") {
     group = "deploy"
     doLast {
         var dns_name = ""
@@ -324,7 +324,7 @@ const String kApiScioClientURL =
     }
 }
 /* initialization infrastructure */
-task("InitInfrastructure") {
+tasks.register("InitInfrastructure") {
     group = "deploy"
     description = "initialization infrastructure"
     val init = tasks.getByName("terraformInit")
@@ -337,7 +337,7 @@ task("InitInfrastructure") {
     prepare.mustRunAfter(apply)
 }
 
-task ("indexcreate") {
+tasks.register("indexcreate") {
     group = "deploy"
     val indexpath = "../index.yaml"
     doLast{
@@ -349,7 +349,7 @@ task ("indexcreate") {
 }
 
 /* build, push, deploy Frontend app */
-task("deployFrontend") {
+tasks.register("deployFrontend") {
     group = "deploy"
     description = "deploy Frontend app"
     val read = tasks.getByName("readState")
@@ -364,7 +364,7 @@ task("deployFrontend") {
 }
 
 /* build, push, deploy Backend app */
-task("deployBackend") {
+tasks.register("deployBackend") {
     group = "deploy"
     description = "deploy Backend app"
     //TODO please add default tag from project_environment property
@@ -382,7 +382,7 @@ task("deployBackend") {
     dependsOn(deploy)
 }
 
-task("takeConfig") {
+tasks.register("takeConfig") {
   group = "deploy"
   doLast {
    var ipaddr = ""
@@ -464,6 +464,7 @@ dns_name: ${dns_name}
     """)
  }
 }
+
 helm {
     val playground by charts.creating {
         chartName.set("playground")
@@ -475,26 +476,23 @@ helm {
         }
     }
 }
-task ("gkebackend") {
+tasks.register("gkebackend") {
   group = "deploy"
   val init = tasks.getByName("terraformInit")
-  val apply = tasks.getByName("terraformApplyInf")
-  val indexcreate = tasks.getByName("indexcreate")
   val takeConfig = tasks.getByName("takeConfig")
+  val back = tasks.getByName("pushBack")
   val front = tasks.getByName("pushFront")
-  val push = tasks.getByName("pushBack")
+  val indexcreate = tasks.getByName("indexcreate")
   val helm = tasks.getByName("helmInstallPlayground")
   dependsOn(init)
-  dependsOn(apply)
   dependsOn(takeConfig)
-  dependsOn(push)
+  dependsOn(back)
   dependsOn(front)
   dependsOn(indexcreate)
   dependsOn(helm)
-  apply.mustRunAfter(init)
-  takeConfig.mustRunAfter(apply)
-  push.mustRunAfter(takeConfig)
-  front.mustRunAfter(push)
+  takeConfig.mustRunAfter(init)
+  back.mustRunAfter(takeConfig)
+  front.mustRunAfter(back)
   indexcreate.mustRunAfter(front)
   helm.mustRunAfter(indexcreate)
 }

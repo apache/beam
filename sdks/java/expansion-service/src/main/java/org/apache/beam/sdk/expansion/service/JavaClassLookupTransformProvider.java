@@ -70,7 +70,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <InputT> input {@link PInput} type of the transform
  * @param <OutputT> output {@link POutput} type of the transform
  */
-@SuppressWarnings({"argument.type.incompatible", "assignment.type.incompatible"})
 @SuppressFBWarnings("UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD")
 class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends POutput>
     implements TransformProvider<PInput, POutput> {
@@ -89,6 +88,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     this.allowList = allowList;
   }
 
+  @SuppressWarnings("argument")
   @Override
   public PTransform<PInput, POutput> getTransform(FunctionSpec spec) {
     JavaClassLookupPayload payload;
@@ -137,6 +137,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     }
   }
 
+  @SuppressWarnings("assignment")
   private PTransform<PInput, POutput> applyBuilderMethods(
       PTransform<PInput, POutput> transform,
       JavaClassLookupPayload payload,
@@ -328,6 +329,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     return true;
   }
 
+  @SuppressWarnings("argument")
   private @Nullable Object getDecodedValueFromRow(
       Class<?> type, Object valueFromRow, @Nullable Type genericType) {
     if (isPrimitiveOrWrapperOrString(type)) {
@@ -366,6 +368,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     throw new RuntimeException("Could not decode the value from Row " + valueFromRow);
   }
 
+  @SuppressWarnings("argument")
   private Object[] getParameterValues(
       java.lang.reflect.Parameter[] parameters, Row constrtuctorRow, Type[] genericTypes) {
     ArrayList<Object> parameterValues = new ArrayList<>();
@@ -380,6 +383,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     return parameterValues.toArray();
   }
 
+  @SuppressWarnings("argument")
   private Object[] getDecodedArrayValueFromRow(Class<?> arrayComponentType, Object valueFromRow) {
     List<Object> originalValues = (List<Object>) valueFromRow;
     List<Object> decodedValues = new ArrayList<>();

@@ -39,7 +39,7 @@ func TestReadValueState(t *testing.T) {
 		name    string
 		stateID string
 		coder   *coder.Coder
-		ret     interface{}
+		ret     any
 		err     bool
 	}{
 		{
@@ -82,8 +82,8 @@ func buildStateProvider() stateProvider {
 		elementKey:        []byte{1},
 		window:            []byte{1},
 		transactionsByKey: make(map[string][]state.Transaction),
-		initialValueByKey: make(map[string]interface{}),
-		initialBagByKey:   make(map[string][]interface{}),
+		initialValueByKey: make(map[string]any),
+		initialBagByKey:   make(map[string][]any),
 		readersByKey:      make(map[string]io.ReadCloser),
 		appendersByKey:    make(map[string]io.Writer),
 		clearersByKey:     make(map[string]io.Writer),

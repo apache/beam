@@ -21,9 +21,10 @@ import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.joda.time.Duration;
 
 /**
@@ -32,7 +33,7 @@ import org.joda.time.Duration;
  */
 // transient fields are un-initialized, because we start them during the first fetch call (with the
 // singleton pattern).
-@SuppressWarnings("initialization.fields.uninitialized")
+@SuppressWarnings("initialization.field.uninitialized")
 public class ActionFactory implements Serializable {
 
   private static final long serialVersionUID = -4060958761369602619L;
@@ -50,9 +51,10 @@ public class ActionFactory implements Serializable {
    *
    * @return singleton instance of the {@link DataChangeRecordAction}
    */
-  public synchronized DataChangeRecordAction dataChangeRecordAction() {
+  public synchronized DataChangeRecordAction dataChangeRecordAction(
+      ThroughputEstimator<DataChangeRecord> throughputEstimator) {
     if (dataChangeRecordActionInstance == null) {
-      dataChangeRecordActionInstance = new DataChangeRecordAction();
+      dataChangeRecordActionInstance = new DataChangeRecordAction(throughputEstimator);
     }
     return dataChangeRecordActionInstance;
   }
@@ -109,7 +111,6 @@ public class ActionFactory implements Serializable {
    * @param childPartitionsRecordAction action class to process {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord}s
    * @param metrics metrics gathering class
-   * @param throughputEstimator an estimator to calculate local throughput.
    * @return single instance of the {@link QueryChangeStreamAction}
    */
   public synchronized QueryChangeStreamAction queryChangeStreamAction(
@@ -120,8 +121,7 @@ public class ActionFactory implements Serializable {
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction,
-      ChangeStreamMetrics metrics,
-      ThroughputEstimator throughputEstimator) {
+      ChangeStreamMetrics metrics) {
     if (queryChangeStreamActionInstance == null) {
       queryChangeStreamActionInstance =
           new QueryChangeStreamAction(
@@ -132,8 +132,7 @@ public class ActionFactory implements Serializable {
               dataChangeRecordAction,
               heartbeatRecordAction,
               childPartitionsRecordAction,
-              metrics,
-              throughputEstimator);
+              metrics);
     }
     return queryChangeStreamActionInstance;
   }

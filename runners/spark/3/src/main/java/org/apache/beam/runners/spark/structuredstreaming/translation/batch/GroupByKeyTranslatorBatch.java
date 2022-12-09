@@ -110,9 +110,9 @@ class GroupByKeyTranslatorBatch<K, V>
 
   private boolean useCollectList = true;
 
-  public GroupByKeyTranslatorBatch() {}
+  GroupByKeyTranslatorBatch() {}
 
-  public GroupByKeyTranslatorBatch(boolean useCollectList) {
+  GroupByKeyTranslatorBatch(boolean useCollectList) {
     this.useCollectList = useCollectList;
   }
 
@@ -206,7 +206,7 @@ class GroupByKeyTranslatorBatch<K, V>
                       windowing,
                       (SerStateInternalsFactory) key -> InMemoryStateInternals.forKey(key),
                       SystemReduceFn.buffering(inputCoder.getValueCoder()),
-                      cxt.getSerializableOptions()),
+                      cxt.getOptionsSupplier()),
                   cxt.windowedEncoder(outputCoder));
     }
 

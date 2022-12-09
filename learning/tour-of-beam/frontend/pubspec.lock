@@ -156,7 +156,7 @@ packages:
     source: hosted
     version: "4.2.0"
   collection:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: collection
       url: "https://pub.dartlang.org"
@@ -278,7 +278,7 @@ packages:
       name: flutter_code_editor
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.1.4"
+    version: "0.1.8"
   flutter_driver:
     dependency: transitive
     description: flutter

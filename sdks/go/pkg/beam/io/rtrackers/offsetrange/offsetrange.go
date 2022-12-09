@@ -151,7 +151,7 @@ func NewTracker(rest Restriction) *Tracker {
 // The tracker stops with an error if a claim is attempted after the tracker has signalled to stop,
 // if a position is claimed before the start of the restriction, or if a position is claimed before
 // the latest successfully claimed.
-func (tracker *Tracker) TryClaim(rawPos interface{}) bool {
+func (tracker *Tracker) TryClaim(rawPos any) bool {
 	if tracker.stopped {
 		tracker.err = errors.New("cannot claim work after restriction tracker returns false")
 		return false
@@ -185,7 +185,7 @@ func (tracker *Tracker) GetError() error {
 
 // TrySplit splits at the nearest integer greater than the given fraction of the remainder. If the
 // fraction given is outside of the [0, 1] range, it is clamped to 0 or 1.
-func (tracker *Tracker) TrySplit(fraction float64) (primary, residual interface{}, err error) {
+func (tracker *Tracker) TrySplit(fraction float64) (primary, residual any, err error) {
 	if tracker.stopped || tracker.IsDone() {
 		return tracker.rest, nil, nil
 	}
@@ -220,7 +220,7 @@ func (tracker *Tracker) IsDone() bool {
 }
 
 // GetRestriction returns a copy of the tracker's underlying offsetrange.Restriction.
-func (tracker *Tracker) GetRestriction() interface{} {
+func (tracker *Tracker) GetRestriction() any {
 	return tracker.rest
 }
 
@@ -291,7 +291,7 @@ func max(x, y int64) int64 {
 
 // TrySplit splits at the nearest integer greater than the given fraction of the remainder. If the
 // fraction given is outside of the [0, 1] range, it is clamped to 0 or 1.
-func (tracker *GrowableTracker) TrySplit(fraction float64) (primary, residual interface{}, err error) {
+func (tracker *GrowableTracker) TrySplit(fraction float64) (primary, residual any, err error) {
 	if tracker.stopped || tracker.IsDone() {
 		return tracker.rest, nil, nil
 	}
