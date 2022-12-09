@@ -611,7 +611,7 @@ public class Schema implements Serializable {
 
     // For logical types, return the implementing class.
 
-    public abstract @Nullable LogicalType getLogicalType();
+    public abstract @Nullable LogicalType<?, ?> getLogicalType();
 
     // For container types (e.g. ARRAY or ITERABLE), returns the type of the contained element.
 
@@ -646,8 +646,8 @@ public class Schema implements Serializable {
     }
 
     /** Helper function for retrieving the concrete logical type subclass. */
-    public <LogicalTypeT extends LogicalType> LogicalTypeT getLogicalType(
-        Class<LogicalTypeT> logicalTypeClass) {
+    public <InputT, BaseT, LogicalTypeT extends LogicalType<InputT, BaseT>>
+        LogicalTypeT getLogicalType(Class<LogicalTypeT> logicalTypeClass) {
       return logicalTypeClass.cast(getLogicalType());
     }
 
@@ -662,7 +662,7 @@ public class Schema implements Serializable {
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
 
-      abstract Builder setLogicalType(LogicalType logicalType);
+      abstract Builder setLogicalType(LogicalType<?, ?> logicalType);
 
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
 
