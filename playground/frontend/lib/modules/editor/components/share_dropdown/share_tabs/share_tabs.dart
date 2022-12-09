@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tabs/example_share_tabs.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tabs/snippet_save_and_share_tabs.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 class ShareTabs extends StatelessWidget {
@@ -34,17 +34,17 @@ class ShareTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Theme.of(context).backgroundColor,
-      child: Consumer<PlaygroundState>(
-        builder: (context, playgroundState, _) {
-          if (playgroundState.isExampleChanged) {
+      child: Consumer<PlaygroundController>(
+        builder: (context, playgroundController, _) {
+          if (playgroundController.isExampleChanged) {
             return SnippetSaveAndShareTabs(
-              playgroundState: playgroundState,
+              playgroundController: playgroundController,
               tabController: tabController,
             );
           }
 
           return ExampleShareTabs(
-            examplePath: playgroundState.selectedExample!.path,
+            examplePath: playgroundController.selectedExample!.path,
             tabController: tabController,
           );
         },

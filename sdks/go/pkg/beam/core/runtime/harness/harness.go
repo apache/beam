@@ -38,6 +38,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/diagnostics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -102,9 +103,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	client := fnpb.NewBeamFnControlClient(conn)
 
 	lookupDesc := func(id bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error) {
-		pbd, err := client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
-		log.Debugf(ctx, "GPBD RESP [%v]: %v, err %v", id, pbd, err)
-		return pbd, err
+		return client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
 	}
 
 	stub, err := client.Control(ctx)
@@ -279,7 +278,9 @@ type awaitingFinalization struct {
 }
 
 type control struct {
-	lookupDesc  func(bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error)
+	lookupDesc     func(bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error)
+	bundleGetGroup singleflight.Group
+
 	descriptors map[bundleDescriptorID]*fnpb.ProcessBundleDescriptor // protected by mu
 	// plans that are candidates for execution.
 	plans map[bundleDescriptorID][]*exec.Plan // protected by mu
@@ -317,31 +318,37 @@ func (c *control) metStoreToString(statusInfo *strings.Builder) {
 func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 	c.mu.Lock()
 	plans, ok := c.plans[bdID]
-	var plan *exec.Plan
+	// If we have a spare plan for this bdID, we're done.
+	// Remove it from the cache, and return it.
 	if ok && len(plans) > 0 {
-		plan = plans[len(plans)-1]
+		plan := plans[len(plans)-1]
 		c.plans[bdID] = plans[:len(plans)-1]
-	} else {
-		desc, ok := c.descriptors[bdID]
-		if !ok {
-			c.mu.Unlock() // Unlock to make the lookup.
+		c.mu.Unlock()
+		return plan, nil
+	}
+	desc, ok := c.descriptors[bdID]
+	c.mu.Unlock() // Unlock to make the lookup or build the descriptor.
+	if !ok {
+		newDesc, err, _ := c.bundleGetGroup.Do(string(bdID), func() (any, error) {
 			newDesc, err := c.lookupDesc(bdID)
 			if err != nil {
 				return nil, errors.WithContextf(err, "execution plan for %v not found", bdID)
 			}
 			c.mu.Lock()
 			c.descriptors[bdID] = newDesc
-			desc = newDesc
-		}
-		newPlan, err := exec.UnmarshalPlan(desc)
-		if err != nil {
 			c.mu.Unlock()
-			return nil, errors.WithContextf(err, "invalid bundle desc: %v\n%v\n", bdID, desc.String())
+			return newDesc, nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		plan = newPlan
+		desc = newDesc.(*fnpb.ProcessBundleDescriptor)
 	}
-	c.mu.Unlock()
-	return plan, nil
+	newPlan, err := exec.UnmarshalPlan(desc)
+	if err != nil {
+		return nil, errors.WithContextf(err, "invalid bundle desc: %v\n%v\n", bdID, desc.String())
+	}
+	return newPlan, nil
 }
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
@@ -566,7 +573,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		if ds == nil {
 			return fail(ctx, instID, "failed to split: desired splits for root of %v was empty.", ref)
 		}
-		sr, err := plan.Split(exec.SplitPoints{
+		sr, err := plan.Split(ctx, exec.SplitPoints{
 			Splits:  ds.GetAllowedSplitPoints(),
 			Frac:    ds.GetFractionOfRemainder(),
 			BufSize: ds.GetEstimatedInputElements(),
@@ -574,6 +581,17 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		if err != nil {
 			return fail(ctx, instID, "unable to split %v: %v", ref, err)
+		}
+
+		// Unsuccessful splits without errors indicate we should return an empty response,
+		// as processing can confinue.
+		if sr.Unsuccessful {
+			return &fnpb.InstructionResponse{
+				InstructionId: string(instID),
+				Response: &fnpb.InstructionResponse_ProcessBundleSplit{
+					ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
+				},
+			}
 		}
 
 		var pRoots []*fnpb.BundleApplication
@@ -674,7 +692,7 @@ func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, re
 	return plan, store, nil
 }
 
-func fail(ctx context.Context, id instructionID, format string, args ...interface{}) *fnpb.InstructionResponse {
+func fail(ctx context.Context, id instructionID, format string, args ...any) *fnpb.InstructionResponse {
 	log.Output(ctx, log.SevError, 1, fmt.Sprintf(format, args...))
 	dummy := &fnpb.InstructionResponse_Register{Register: &fnpb.RegisterResponse{}}
 

@@ -26,11 +26,14 @@ import java.io.ByteArrayOutputStream;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+@RunWith(JUnit4.class)
 public class CheckpointMarkImplTest {
 
   private static final Offset OFFSET = Offset.of(42);
@@ -42,7 +45,7 @@ public class CheckpointMarkImplTest {
 
   @Before
   public void setUp() {
-    mark = new CheckpointMarkImpl(OFFSET, committer);
+    mark = new CheckpointMarkImpl(OFFSET, () -> committer);
   }
 
   @Test

@@ -98,14 +98,14 @@ func TestInvokes(t *testing.T) {
 			sdf  *graph.SplittableDoFn
 			elms *FullValue
 			rest *VetRestriction
-			want []interface{}
+			want []any
 		}{
 			{
 				name: "SingleElem",
 				sdf:  sdf,
 				elms: &FullValue{Elm: 1},
 				rest: &VetRestriction{ID: "Sdf"},
-				want: []interface{}{
+				want: []any{
 					&VetRestriction{ID: "Sdf.1", SplitRest: true, Val: 1},
 					&VetRestriction{ID: "Sdf.2", SplitRest: true, Val: 1},
 				},
@@ -114,7 +114,7 @@ func TestInvokes(t *testing.T) {
 				sdf:  kvsdf,
 				elms: &FullValue{Elm: 1, Elm2: 2},
 				rest: &VetRestriction{ID: "KvSdf"},
-				want: []interface{}{
+				want: []any{
 					&VetRestriction{ID: "KvSdf.1", SplitRest: true, Key: 1, Val: 2},
 					&VetRestriction{ID: "KvSdf.2", SplitRest: true, Key: 1, Val: 2},
 				},
@@ -314,7 +314,7 @@ func TestInvokes(t *testing.T) {
 			sdf  *graph.SplittableDoFn
 			elms *FullValue
 			rest *VetRestriction
-			want interface{}
+			want any
 		}{
 			{
 				name: "SingleElem",
@@ -374,7 +374,7 @@ func TestInvokes(t *testing.T) {
 			sdf  *graph.SplittableDoFn
 			elms *FullValue
 			rest *VetRestriction
-			want interface{}
+			want any
 		}{
 			{
 				name: "SingleElem",
@@ -449,7 +449,6 @@ func TestInvokes(t *testing.T) {
 // called with it. When using VetRestriction, the SDF methods it's used in
 // should pass it as a pointer so the method can make changes to the restriction
 // even if it doesn't output one directly (such as RestrictionSize).
-//
 type VetRestriction struct {
 	// An identifier to differentiate restrictions on the same elements. When
 	// split, a suffix in the form of ".#" is appended to this ID.
@@ -457,7 +456,7 @@ type VetRestriction struct {
 
 	// Key and Val just copy the last seen input element's key and value to
 	// confirm that the restriction saw the expected element.
-	Key, Val interface{}
+	Key, Val any
 
 	// Bounded just tells if the restriction is bounded or not
 	Bounded bool
@@ -477,12 +476,12 @@ type VetRTracker struct {
 	Rest *VetRestriction
 }
 
-func (rt *VetRTracker) TryClaim(interface{}) bool       { return false }
+func (rt *VetRTracker) TryClaim(any) bool               { return false }
 func (rt *VetRTracker) GetError() error                 { return nil }
 func (rt *VetRTracker) GetProgress() (float64, float64) { return 0, 0 }
 func (rt *VetRTracker) IsDone() bool                    { return true }
-func (rt *VetRTracker) GetRestriction() interface{}     { return nil }
-func (rt *VetRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
+func (rt *VetRTracker) GetRestriction() any             { return nil }
+func (rt *VetRTracker) TrySplit(_ float64) (any, any, error) {
 	return nil, nil, nil
 }
 func (rt *VetRTracker) IsBounded() bool { return rt.Rest.Bounded }

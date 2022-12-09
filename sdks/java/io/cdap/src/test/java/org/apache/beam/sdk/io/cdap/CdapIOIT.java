@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.cdap;
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import io.cdap.plugin.common.Constants;
@@ -147,11 +148,13 @@ public class CdapIOIT {
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(getExpectedHashForRowCount(numberOfRows));
 
     PipelineResult readResult = readPipeline.run();
-    readResult.waitUntilFinish();
+    PipelineResult.State readState = readResult.waitUntilFinish();
 
     if (!options.isWithTestcontainers()) {
       collectAndPublishMetrics(writeResult, readResult);
     }
+    // Fail the test if pipeline failed.
+    assertNotEquals(readState, PipelineResult.State.FAILED);
   }
 
   private CdapIO.Write<TestRowDBWritable, NullWritable> writeToDB(Map<String, Object> params) {
@@ -159,7 +162,8 @@ public class CdapIOIT {
 
     return CdapIO.<TestRowDBWritable, NullWritable>write()
         .withCdapPlugin(
-            Plugin.create(DBBatchSink.class, DBOutputFormat.class, DBOutputFormatProvider.class))
+            Plugin.createBatch(
+                DBBatchSink.class, DBOutputFormat.class, DBOutputFormatProvider.class))
         .withPluginConfig(pluginConfig)
         .withKeyClass(TestRowDBWritable.class)
         .withValueClass(NullWritable.class)
@@ -171,7 +175,8 @@ public class CdapIOIT {
 
     return CdapIO.<LongWritable, TestRowDBWritable>read()
         .withCdapPlugin(
-            Plugin.create(DBBatchSource.class, DBInputFormat.class, DBInputFormatProvider.class))
+            Plugin.createBatch(
+                DBBatchSource.class, DBInputFormat.class, DBInputFormatProvider.class))
         .withPluginConfig(pluginConfig)
         .withKeyClass(LongWritable.class)
         .withValueClass(TestRowDBWritable.class);

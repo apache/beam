@@ -24,7 +24,9 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
@@ -536,6 +538,161 @@ func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
 }
 
 // [END model_paneinfo]
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+// TODO(https://github.com/apache/beam/issues/22737): Update state_and_timers to a good example to demonstrate both state and timers.
+// Rename this to bag_state and update the bag state example in the programming guide at that point.
+// [START state_and_timers]
+
+// bagStateFn only emits words that haven't been seen
+type bagStateFn struct {
+	bag state.Bag[string]
+}
+
+func (s *bagStateFn) ProcessElement(p state.Provider, book string, word string, emitWords func(string)) error {
+	// Get all values we've written to this bag state in this window.
+	vals, ok, err := s.bag.Read(p)
+	if err != nil {
+		return err
+	}
+	if !ok || !contains(vals, word) {
+		emitWords(word)
+		s.bag.Add(p, word)
+	}
+
+	if len(vals) > 10000 {
+		// Example of clearing and starting again with an empty bag
+		s.bag.Clear(p)
+	}
+
+	return nil
+}
+
+// [END state_and_timers]
+
+// [START value_state]
+
+// valueStateFn keeps track of the number of elements seen.
+type valueStateFn struct {
+	val state.Value[int]
+}
+
+func (s *valueStateFn) ProcessElement(p state.Provider, book string, word string, emitWords func(string)) error {
+	// Get the value stored in our state
+	val, ok, err := s.val.Read(p)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		s.val.Write(p, 1)
+	} else {
+		s.val.Write(p, val+1)
+	}
+
+	if val > 10000 {
+		// Example of clearing and starting again with an empty bag
+		s.val.Clear(p)
+	}
+
+	return nil
+}
+
+// [END value_state]
+
+type MyCustomType struct{}
+
+func (m MyCustomType) Bytes() []byte {
+	return nil
+}
+
+func (m MyCustomType) FromBytes(_ []byte) MyCustomType {
+	return m
+}
+
+// [START value_state_coder]
+
+type valueStateDoFn struct {
+	val state.Value[MyCustomType]
+}
+
+func encode(m MyCustomType) []byte {
+	return m.Bytes()
+}
+
+func decode(b []byte) MyCustomType {
+	return MyCustomType{}.FromBytes(b)
+}
+
+func init() {
+	beam.RegisterCoder(reflect.TypeOf((*MyCustomType)(nil)).Elem(), encode, decode)
+}
+
+// [END value_state_coder]
+
+type combineFn struct{}
+
+// [START combining_state]
+
+// combiningStateFn keeps track of the number of elements seen.
+type combiningStateFn struct {
+	// types are the types of the accumulator, input, and output respectively
+	val state.Combining[int, int, int]
+}
+
+func (s *combiningStateFn) ProcessElement(p state.Provider, book string, word string, emitWords func(string)) error {
+	// Get the value stored in our state
+	val, _, err := s.val.Read(p)
+	if err != nil {
+		return err
+	}
+	s.val.Add(p, 1)
+
+	if val > 10000 {
+		// Example of clearing and starting again with an empty bag
+		s.val.Clear(p)
+	}
+
+	return nil
+}
+
+func main() {
+	// ...
+	// CombineFn param can be a simple fn like this or a structural CombineFn
+	cFn := state.MakeCombiningState[int, int, int]("stateKey", func(a, b int) int {
+		return a + b
+	})
+	// ...
+
+	// [END combining_state]
+
+	fmt.Print(cFn)
+}
+
+type statefulDoFn struct {
+	s state.Value[int]
+}
+
+func statefulPipeline() beam.PCollection {
+	var s beam.Scope
+	var elements beam.PCollection
+
+	// [START windowed_state]
+
+	items := beam.ParDo(s, statefulDoFn{}, elements)
+	out := beam.WindowInto(s, window.NewFixedWindows(24*time.Hour), items)
+
+	// [END windowed_state]
+
+	return out
+}
 
 func init() {
 	register.Function3x0(extractWordsFn)

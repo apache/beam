@@ -18,9 +18,9 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground/modules/messages/models/set_sdk_message.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
-const _sdk = SDK.python;
+const _sdk = Sdk.python;
 
 void main() {
   group('SetSdkMessage.tryParse', () {
@@ -49,7 +49,7 @@ void main() {
     test(
       'parses an SDK',
       () {
-        final map = {'type': SetSdkMessage.type, 'sdk': _sdk.name};
+        final map = {'type': SetSdkMessage.type, 'sdk': _sdk.id};
 
         final parsed = SetSdkMessage.tryParse(map);
 

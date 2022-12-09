@@ -95,15 +95,20 @@ execution engines and providing extensibility points for connecting to
 different technologies and user communities.
 '''
 
-REQUIRED_PIP_VERSION = '7.0.0'
-_PIP_VERSION = get_distribution('pip').version
-if parse_version(_PIP_VERSION) < parse_version(REQUIRED_PIP_VERSION):
-  warnings.warn(
-      "You are using version {0} of pip. " \
-      "However, version {1} is recommended.".format(
-          _PIP_VERSION, REQUIRED_PIP_VERSION
-      )
-  )
+RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
+try:
+  _PIP_VERSION = get_distribution('pip').version
+  if parse_version(_PIP_VERSION) < parse_version(RECOMMENDED_MIN_PIP_VERSION):
+    warnings.warn(
+        "You are using version {0} of pip. " \
+        "However, the recommended min version is {1}.".format(
+            _PIP_VERSION, RECOMMENDED_MIN_PIP_VERSION
+        )
+    )
+except DistributionNotFound:
+  # Do nothing if pip is not found. This can happen when using `Poetry` or
+  # `pipenv` package managers.
+  pass
 
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
@@ -121,7 +126,13 @@ except DistributionNotFound:
 
 try:
   # pylint: disable=wrong-import-position
-  from Cython.Build import cythonize
+  from Cython.Build import cythonize as cythonize0
+  def cythonize(*args, **kwargs):
+    import numpy
+    extensions = cythonize0(*args, **kwargs)
+    for e in extensions:
+      e.include_dirs.append(numpy.get_include())
+    return extensions
 except ImportError:
   cythonize = lambda *args, **kwargs: []
 
@@ -129,7 +140,7 @@ except ImportError:
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ''
 else:
-  pyarrow_dependency = 'pyarrow>=0.15.1,<8.0.0'
+  pyarrow_dependency = 'pyarrow>=0.15.1,<10.0.0'
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -156,7 +167,7 @@ def get_portability_package_data():
 
 python_requires = '>=3.7'
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+if sys.version_info.major == 3 and sys.version_info.minor >= 11:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
@@ -169,6 +180,16 @@ if __name__ == '__main__':
   generate_protos_first()
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
+  if sys.platform == 'darwin' and (
+          sys.version_info.major == 3 and sys.version_info.minor == 10):
+    # TODO (https://github.com/apache/beam/issues/23585): Protobuf wheels
+    # for version 3.19.5, 3.19.6 and 3.20.x on Python 3.10 and MacOS are
+    # rolled back due to some errors on MacOS. So, for Python 3.10 on MacOS
+    # restrict the protobuf with tight upper bound(3.19.4)
+    protobuf_dependency = ['protobuf>3.12.2,<3.19.5']
+  else:
+    protobuf_dependency = ['protobuf>3.12.2,<4']
+
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
@@ -206,9 +227,7 @@ if __name__ == '__main__':
           'apache_beam/utils/counters.py',
           'apache_beam/utils/windowed_value.py',
       ]),
-      install_requires=[
-        # Avro 1.9.2 for python3 was broken.
-        # The issue was fixed in version 1.9.2.1
+      install_requires= protobuf_dependency + [
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
@@ -217,15 +236,19 @@ if __name__ == '__main__':
         # dill on client and server, therefore list of allowed versions is very
         # narrow. See: https://github.com/uqfoundation/dill/issues/341.
         'dill>=0.3.1.1,<0.3.2',
-        'cloudpickle>=2.1.0,<3',
+        # It is prudent to use the same version of pickler at job submission
+        # and at runtime, therefore bounds need to be tight.
+        # To avoid depending on an old dependency, update the minor version on
+        # every Beam release, see: https://github.com/apache/beam/issues/23119
+        'cloudpickle~=2.2.0',
         'fastavro>=0.23.6,<2',
+        'fasteners>=0.3,<1.0',
         'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
         'httplib2>=0.8,<0.21.0',
         'numpy>=1.14.3,<1.23.0',
-        'objsize>=0.5.1,<1',
+        'objsize>=0.6.1,<0.7.0',
         'pymongo>=3.8.0,<4.0.0',
-        'protobuf>=3.12.2,<4',
         'proto-plus>=1.7.1,<2',
         'pydot>=1.2.0,<2',
         'python-dateutil>=2.8.0,<3',
@@ -249,6 +272,7 @@ if __name__ == '__main__':
           ],
           'test': [
             'freezegun>=0.3.12',
+            'hypothesis<7',
             'joblib>=1.0.1',
             'mock>=1.0.1,<3.0.0',
             'pandas<2.0.0',
@@ -269,9 +293,6 @@ if __name__ == '__main__':
           'gcp': [
             'cachetools>=3.1.0,<5',
             'google-apitools>=0.5.31,<0.5.32',
-            # Transitive dep. Required for google-cloud-spanner v1.
-            # See: https://github.com/apache/beam/issues/22454
-            'google-api-core!=2.8.2,<3',
             # NOTE: Maintainers, please do not require google-auth>=2.x.x
             # Until this issue is closed
             # https://github.com/googleapis/google-cloud-python/issues/10566
@@ -281,17 +302,16 @@ if __name__ == '__main__':
             'google-cloud-pubsub>=2.1.0,<3',
             'google-cloud-pubsublite>=1.2.0,<2',
             # GCP packages required by tests
-            'google-cloud-bigquery>=1.6.0,<3',
-            'google-cloud-bigquery-storage>=2.6.3,<2.14',
+            'google-cloud-bigquery>=1.6.0,<4',
+            'google-cloud-bigquery-storage>=2.6.3,<2.17',
             'google-cloud-core>=0.28.1,<3',
             'google-cloud-bigtable>=0.31.1,<2',
-            'google-cloud-spanner>=1.13.0,<2',
-            'grpcio-gcp>=0.2.2,<1',
+            'google-cloud-spanner>=3.0.0,<4',
             # GCP Packages required by ML functionality
             'google-cloud-dlp>=3.0.0,<4',
             'google-cloud-language>=1.3.0,<2',
             'google-cloud-videointelligence>=1.8.0,<2',
-            'google-cloud-vision>=0.38.0,<2',
+            'google-cloud-vision>=2,<4',
             'google-cloud-recommendations-ai>=0.1.0,<0.8.0'
           ],
           'interactive': [
@@ -301,7 +321,7 @@ if __name__ == '__main__':
             'ipython>=7,<8;python_version<="3.7"',
             'ipython>=8,<9;python_version>"3.7"',
             'ipykernel>=6,<7',
-            'ipywidgets>=7.6.5,<8',
+            'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
             'jupyter-client>=6.1.11,<6.1.13',
@@ -310,7 +330,7 @@ if __name__ == '__main__':
           'interactive_test': [
             # notebok utils
             'nbformat>=5.0.5,<6',
-            'nbconvert>=6.2.0,<7',
+            'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
             'chromedriver-binary>=100,<101',
@@ -321,8 +341,22 @@ if __name__ == '__main__':
           'azure': [
             'azure-storage-blob >=12.3.2',
             'azure-core >=1.7.0',
+            'azure-identity >=1.12.0',
           ],
-          'dataframe': ['pandas>=1.0,<1.5']
+        #(TODO): Some tests using Pandas implicitly calls inspect.stack()
+        # with python 3.10 leading to incorrect stacktrace.
+        # This can be removed once dill is updated to version > 0.3.5.1
+        # Issue: https://github.com/apache/beam/issues/23566
+        # Exclude 1.5.0 and 1.5.1 because of
+        # https://github.com/pandas-dev/pandas/issues/45725
+          'dataframe': [
+            'pandas>=1.0,<1.6,!=1.5.0,!=1.5.1;python_version<"3.10"',
+            'pandas>=1.4.3,<1.6,!=1.5.0,!=1.5.1;python_version>="3.10"'
+          ],
+          'dask': [
+            'dask >= 2022.6',
+            'distributed >= 2022.6',
+          ],
       },
       zip_safe=False,
       # PyPI package information.
@@ -333,6 +367,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
+          'Programming Language :: Python :: 3.10',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

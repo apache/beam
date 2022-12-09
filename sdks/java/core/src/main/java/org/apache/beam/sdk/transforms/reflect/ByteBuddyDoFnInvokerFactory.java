@@ -35,6 +35,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassInjector;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
@@ -519,11 +520,33 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     Class<? extends DoFnInvoker<?, ?>> res =
         (Class<? extends DoFnInvoker<?, ?>>)
             unloaded
-                .load(
-                    findClassLoader(fnClass.getClassLoader()),
-                    ClassLoadingStrategy.Default.INJECTION)
+                .load(findClassLoader(fnClass.getClassLoader()), getClassLoadingStrategy(fnClass))
                 .getLoaded();
     return res;
+  }
+
+  private static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(Class<?> targetClass) {
+    try {
+      ClassLoadingStrategy<ClassLoader> strategy;
+      if (ClassInjector.UsingLookup.isAvailable()) {
+        Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles");
+        Object lookup = methodHandles.getMethod("lookup").invoke(null);
+        Method privateLookupIn =
+            methodHandles.getMethod(
+                "privateLookupIn",
+                Class.class,
+                Class.forName("java.lang.invoke.MethodHandles$Lookup"));
+        Object privateLookup = privateLookupIn.invoke(null, targetClass, lookup);
+        strategy = ClassLoadingStrategy.UsingLookup.of(privateLookup);
+      } else if (ClassInjector.UsingReflection.isAvailable()) {
+        strategy = ClassLoadingStrategy.Default.INJECTION;
+      } else {
+        throw new IllegalStateException("No code generation strategy available");
+      }
+      return strategy;
+    } catch (ReflectiveOperationException e) {
+      throw new LinkageError(e.getMessage(), e);
+    }
   }
 
   private static Implementation getRestrictionCoderDelegation(

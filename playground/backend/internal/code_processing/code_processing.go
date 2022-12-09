@@ -30,6 +30,7 @@ import (
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/executors"
@@ -55,11 +56,11 @@ const (
 // - In case of run step is failed saves playground.Status_STATUS_RUN_ERROR as cache.Status and run logs as cache.RunError into cache.
 // - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
 // At the end of this method deletes all created folders.
-func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs, pipelineOptions string) {
+func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs, pipelineOptions string, mockCluster emulators.EmulatorMockCluster, prepareParams map[string]string) {
 	pipelineLifeCycleCtx, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
 		finishCtxFunc()
-		DeleteFolders(pipelineId, lc)
+		DeleteResources(pipelineId, lc, mockCluster)
 	}(lc)
 
 	cancelChannel := make(chan bool, 1)
@@ -73,7 +74,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	executor = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel)
+	executor = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel, prepareParams)
 	if executor == nil {
 		return
 	}
@@ -196,9 +197,9 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	return &executor
 }
 
-func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, pipelineLifeCycleCtx context.Context, validationResults *sync.Map, cancelChannel chan bool) *executors.Executor {
+func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, pipelineLifeCycleCtx context.Context, validationResults *sync.Map, cancelChannel chan bool, prepareParams map[string]string) *executors.Executor {
 	errorChannel, successChannel := createStatusChannels()
-	executorBuilder, err := builder.Preparer(paths, sdkEnv, validationResults)
+	executorBuilder, err := builder.Preparer(paths, sdkEnv, validationResults, prepareParams)
 	if err != nil {
 		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
 		return nil
@@ -419,11 +420,7 @@ func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheSer
 		select {
 		// waiting when graph file appears
 		case <-ticker.C:
-			_, err := os.Stat(graphFilePath)
-			if err != nil {
-				logger.Debugf("%s: Graph file not found. File reading will repeat in : %.2f sec", pipelineId, pauseDuration.Seconds())
-			}
-			if err == nil {
+			if _, err := os.Stat(graphFilePath); err == nil {
 				ticker.Stop()
 				graph, err := utils.ReadFile(pipelineId, graphFilePath)
 				if err != nil {
@@ -495,14 +492,18 @@ func writeLogsToCache(ctx context.Context, cacheService cache.Cache, logFilePath
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Logs, string(logs))
 }
 
-// DeleteFolders removes all prepared folders for received LifeCycle
-func DeleteFolders(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
-	logger.Infof("%s: DeleteFolders() ...\n", pipelineId)
+// DeleteResources removes all prepared resources for received LifeCycle
+func DeleteResources(pipelineId uuid.UUID, lc *fs_tool.LifeCycle, mockCluster emulators.EmulatorMockCluster) {
+	logger.Infof("%s: DeleteResources() ...\n", pipelineId)
 	if err := lc.DeleteFolders(); err != nil {
-		logger.Error("%s: DeleteFolders(): %s\n", pipelineId, err.Error())
+		logger.Error("%s: DeleteResources(): %s\n", pipelineId, err.Error())
 	}
-	logger.Infof("%s: DeleteFolders() complete\n", pipelineId)
+	if mockCluster != nil {
+		mockCluster.Stop()
+	}
+	logger.Infof("%s: DeleteResources() complete\n", pipelineId)
 	logger.Infof("%s: complete\n", pipelineId)
+
 }
 
 // finishByTimeout is used in case of runCode method finished by timeout

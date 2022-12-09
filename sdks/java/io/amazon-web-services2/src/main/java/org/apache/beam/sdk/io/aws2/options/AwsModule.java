@@ -49,6 +49,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -60,6 +61,7 @@ import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.profiles.ProfileFileSystemSetting;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
@@ -75,6 +77,7 @@ public class AwsModule extends SimpleModule {
   private static final String ACCESS_KEY_ID = "accessKeyId";
   private static final String SECRET_ACCESS_KEY = "secretAccessKey";
   private static final String SESSION_TOKEN = "sessionToken";
+  private static final String PROFILE_NAME = "profileName";
 
   public AwsModule() {
     super("AwsModule");
@@ -160,7 +163,9 @@ public class AwsModule extends SimpleModule {
       } else if (hasName(SystemPropertyCredentialsProvider.class, typeName)) {
         return SystemPropertyCredentialsProvider.create();
       } else if (hasName(ProfileCredentialsProvider.class, typeName)) {
-        return ProfileCredentialsProvider.create();
+        return json.has(PROFILE_NAME)
+            ? ProfileCredentialsProvider.create(getNotNull(json, PROFILE_NAME, typeName))
+            : ProfileCredentialsProvider.create();
       } else if (hasName(ContainerCredentialsProvider.class, typeName)) {
         return ContainerCredentialsProvider.builder().build();
       } else if (typeName.equals(StsAssumeRoleCredentialsProvider.class.getSimpleName())) {
@@ -195,7 +200,6 @@ public class AwsModule extends SimpleModule {
             DefaultCredentialsProvider.class,
             EnvironmentVariableCredentialsProvider.class,
             SystemPropertyCredentialsProvider.class,
-            ProfileCredentialsProvider.class,
             ContainerCredentialsProvider.class);
 
     @Override
@@ -228,6 +232,23 @@ public class AwsModule extends SimpleModule {
           jsonGenerator.writeStringField(ACCESS_KEY_ID, credentials.accessKeyId());
           jsonGenerator.writeStringField(SECRET_ACCESS_KEY, credentials.secretAccessKey());
         }
+      } else if (providerClass.equals(ProfileCredentialsProvider.class)) {
+        String profileName = (String) readField(credentialsProvider, PROFILE_NAME);
+        String envProfileName = ProfileFileSystemSetting.AWS_PROFILE.getStringValueOrThrow();
+        if (profileName != null && !profileName.equals(envProfileName)) {
+          jsonGenerator.writeStringField(PROFILE_NAME, profileName);
+        }
+        try {
+          Exception exception = (Exception) readField(credentialsProvider, "loadException");
+          if (exception != null) {
+            LoggerFactory.getLogger(AwsModule.class)
+                .warn("Serialized ProfileCredentialsProvider in faulty state.", exception);
+          }
+        } catch (RuntimeException e) {
+          LoggerFactory.getLogger(AwsModule.class)
+              .warn("Failed to check ProfileCredentialsProvider for loadException.", e);
+        }
+
       } else if (providerClass.equals(StsAssumeRoleCredentialsProvider.class)) {
         Supplier<AssumeRoleRequest> reqSupplier =
             (Supplier<AssumeRoleRequest>)

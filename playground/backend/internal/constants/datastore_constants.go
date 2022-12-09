@@ -23,6 +23,7 @@ const (
 	CloudPathDelimiter    = "/"
 	UserSnippetOrigin     = "PG_USER"
 	ExampleOrigin         = "PG_EXAMPLES"
+	TbUserSnippetOrigin   = "TB_USER"
 
 	SnippetKind  = "pg_snippets"
 	SchemaKind   = "pg_schema_versions"
@@ -30,6 +31,7 @@ const (
 	FileKind     = "pg_files"
 	ExampleKind  = "pg_examples"
 	PCObjectKind = "pg_pc_objects"
+	DatasetKind  = "pg_datasets"
 
 	PCOutputType = "OUTPUT"
 	PCLogType    = "LOG"

@@ -20,20 +20,20 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -41,10 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * only the components specific to batch: registry of batch {@link TransformTranslator} and registry
  * lookup code.
  */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
+@Internal
 public class PipelineTranslatorBatch extends PipelineTranslator {
 
   // --------------------------------------------------------------------------------------------
@@ -65,37 +62,31 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
 
   static {
     TRANSFORM_TRANSLATORS.put(Impulse.class, new ImpulseTranslatorBatch());
-    TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch());
-    TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch<>());
+    TRANSFORM_TRANSLATORS.put(Combine.Globally.class, new CombineGloballyTranslatorBatch<>());
+    TRANSFORM_TRANSLATORS.put(
+        Combine.GroupedValues.class, new CombineGroupedValuesTranslatorBatch<>());
+    TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch<>());
 
-    // TODO: Do we need to have a dedicated translator for {@code Reshuffle} if it's deprecated?
-    // TRANSFORM_TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch<>());
+    TRANSFORM_TRANSLATORS.put(
+        Reshuffle.ViaRandomKey.class, new ReshuffleTranslatorBatch.ViaRandomKey<>());
 
-    TRANSFORM_TRANSLATORS.put(Flatten.PCollections.class, new FlattenTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Flatten.PCollections.class, new FlattenTranslatorBatch<>());
 
-    TRANSFORM_TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch<>());
 
-    TRANSFORM_TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch());
+    TRANSFORM_TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch<>());
 
     TRANSFORM_TRANSLATORS.put(
-        SplittableParDo.PrimitiveBoundedRead.class, new ReadSourceTranslatorBatch());
-
-    TRANSFORM_TRANSLATORS.put(
-        View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());
+        SplittableParDo.PrimitiveBoundedRead.class, new ReadSourceTranslatorBatch<>());
   }
 
-  public PipelineTranslatorBatch(SparkStructuredStreamingPipelineOptions options) {
-    translationContext = new TranslationContext(options);
-  }
-
-  /** Returns a translator for the given node, if it is possible, otherwise null. */
+  /** Returns a {@link TransformTranslator} for the given {@link PTransform} if known. */
   @Override
-  protected TransformTranslator<?> getTransformTranslator(TransformHierarchy.Node node) {
-    @Nullable PTransform<?, ?> transform = node.getTransform();
-    // Root of the graph is null
-    if (transform == null) {
-      return null;
-    }
+  @Nullable
+  protected <InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>>
+      TransformTranslator<InT, OutT, TransformT> getTransformTranslator(TransformT transform) {
     return TRANSFORM_TRANSLATORS.get(transform.getClass());
   }
 }

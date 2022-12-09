@@ -229,7 +229,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
               .build());
       return true;
     } else {
-      LOG.info(String.format("Not updating schema for '%s' since it already has one.", resource));
+      LOG.info("Not updating schema for '{}' since it already has one.", resource);
       return false;
     }
   }

@@ -69,7 +69,9 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
       Structs.addString(
           base,
           SCHEMA,
-          JsonFormat.printer().print(SchemaTranslation.schemaToProto(target.getSchema(), true)));
+          JsonFormat.printer()
+              .omittingInsignificantWhitespace()
+              .print(SchemaTranslation.schemaToProto(target.getSchema(), true)));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

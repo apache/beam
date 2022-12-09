@@ -23,6 +23,9 @@ import java.io.Serializable;
 import java.util.HashMap;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
+import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
+import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
@@ -34,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * An implementation of {@link SchemaIOProvider} for reading and writing to BigQuery with {@link
@@ -90,6 +94,7 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
         .addNullableField("query", FieldType.STRING)
         .addNullableField("queryLocation", FieldType.STRING)
         .addNullableField("createDisposition", FieldType.STRING)
+        .addNullableField("useTestingBigQueryServices", FieldType.BOOLEAN)
         .build();
   }
 
@@ -194,7 +199,20 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
           BigQueryIO.Write<Row> write =
               BigQueryIO.<Row>write()
                   .useBeamSchema()
-                  .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API);
+                  .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
+                  .withTriggeringFrequency(Duration.standardSeconds(5))
+                  .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                  .withAutoSharding();
+
+          final Boolean useTestingBigQueryServices =
+              config.getBoolean("useTestingBigQueryServices");
+          if (useTestingBigQueryServices != null && useTestingBigQueryServices) {
+            FakeBigQueryServices fbqs =
+                new FakeBigQueryServices()
+                    .withDatasetService(new FakeDatasetService())
+                    .withJobService(new FakeJobService());
+            write = write.withTestServices(fbqs);
+          }
 
           String table = config.getString("table");
           if (table != null) {

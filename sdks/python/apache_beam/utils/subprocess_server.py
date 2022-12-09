@@ -325,7 +325,7 @@ class JavaJarServer(SubprocessServer):
           manifest.write(b'Manifest-Version: 1.0\n')
           manifest.write(main_class)
           manifest.write(
-              b'Class-Path: ' + ' '.join(classpath).encode('ascii') + b'\n')
+              b'Class-Path: ' + '\n  '.join(classpath).encode('ascii') + b'\n')
       os.rename(composite_jar + '.tmp', composite_jar)
     return composite_jar
 

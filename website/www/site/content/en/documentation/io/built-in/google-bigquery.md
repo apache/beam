@@ -253,7 +253,7 @@ them into JSON `TableRow` objects.
 
 {{< paragraph class="language-py" >}}
 To read from a BigQuery table using the Beam SDK for Python, apply a `ReadFromBigQuery`
-transfrom. `ReadFromBigQuery` returns a `PCollection` of dictionaries,
+transform. `ReadFromBigQuery` returns a `PCollection` of dictionaries,
 where each element in the `PCollection` represents a single row in the table.
 Integer values in the `TableRow` objects are encoded as strings to match
 BigQuery's exported JSON format.

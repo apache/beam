@@ -101,15 +101,15 @@ var (
 
 // ElementEncoder encapsulates being able to encode an element into a writer.
 type ElementEncoder interface {
-	Encode(element interface{}, w io.Writer) error
+	Encode(element any, w io.Writer) error
 }
 
 // ElementDecoder encapsulates being able to decode an element from a reader.
 type ElementDecoder interface {
-	Decode(r io.Reader) (interface{}, error)
+	Decode(r io.Reader) (any, error)
 }
 
-func validateEncoder(t reflect.Type, encode interface{}) error {
+func validateEncoder(t reflect.Type, encode any) error {
 	// Check if it uses the real type in question.
 	if err := funcx.Satisfy(encode, funcx.Replace(encodeSig, typex.TType, t)); err != nil {
 		return errors.WithContext(err, "validateEncoder: validating signature")
@@ -118,19 +118,19 @@ func validateEncoder(t reflect.Type, encode interface{}) error {
 	return nil
 }
 
-func validateDecoder(t reflect.Type, decode interface{}) error {
+func validateDecoder(t reflect.Type, decode any) error {
 	// Check if it uses the real type in question.
 	if err := funcx.Satisfy(decode, funcx.Replace(decodeSig, typex.TType, t)); err != nil {
 		return errors.WithContext(err, "validateDecoder: validating signature")
 	}
-	// TODO(lostluck): 2019.02.03 - Expand cases to avoid []byte -> interface{} conversion
+	// TODO(lostluck): 2019.02.03 - Expand cases to avoid []byte -> any conversion
 	// in exec, & a beam Decoder interface.
 	return nil
 }
 
 // NewCustomCoder creates a coder for the supplied parameters defining a
 // particular encoding strategy.
-func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*CustomCoder, error) {
+func NewCustomCoder(id string, t reflect.Type, encode, decode any) (*CustomCoder, error) {
 	if err := validateEncoder(t, encode); err != nil {
 		return nil, errors.WithContext(err, "NewCustomCoder")
 	}
@@ -177,6 +177,11 @@ const (
 	Iterable           Kind = "I"
 	KV                 Kind = "KV"
 	LP                 Kind = "LP" // Explicitly length prefixed, likely at the runner's direction.
+
+	// IW stands for IntervalWindow and uses the short name to avoid a collision with the
+	// WindowCoder kind. This Kind is used when the window is provided as a value instead
+	// of a window for the value.
+	IW Kind = "IW"
 
 	Window Kind = "window" // A debug wrapper around a window coder.
 
@@ -294,6 +299,11 @@ func NewString() *Coder {
 	return &Coder{Kind: String, T: typex.New(reflectx.String)}
 }
 
+// NewIntervalWindowCoder returns a new IntervalWindow coder using the built-in scheme.
+func NewIntervalWindowCoder() *Coder {
+	return &Coder{Kind: IW, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem())}
+}
+
 // IsW returns true iff the coder is for a WindowedValue.
 func IsW(c *Coder) bool {
 	return c.Kind == WindowedValue
@@ -347,17 +357,9 @@ func NewT(c *Coder, w *WindowCoder) *Coder {
 		panic("window must not be nil")
 	}
 
-	// TODO(https://github.com/apache/beam/issues/20510): Implement proper timer support.
 	return &Coder{
-		Kind: Timer,
-		T: typex.New(reflect.TypeOf((*struct {
-			Key                          []byte // elm type.
-			Tag                          string
-			Windows                      []byte // []typex.Window
-			Clear                        bool
-			FireTimestamp, HoldTimestamp int64
-			Span                         int
-		})(nil)).Elem()),
+		Kind:       Timer,
+		T:          typex.New(typex.TimersType),
 		Window:     w,
 		Components: []*Coder{c},
 	}

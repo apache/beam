@@ -22,6 +22,8 @@
 This module contains example pipelines that use the Beam RunInference
 API. <!---TODO: Add link to full documentation on Beam website when it's published.-->
 
+Some examples are also used in [our benchmarks](http://s.apache.org/beam-community-metrics/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1).
+
 ## Prerequisites
 
 You must have `apache-beam>=2.40.0` or greater installed in order to run these pipelines,
@@ -52,9 +54,24 @@ pip install transformers
 For installation of the `torch` dependency on a distributed runner such as Dataflow, refer to the
 [PyPI dependency instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
 
+
+### TensorRT dependencies
+
+The RunInference API supports TensorRT SDK for high-performance deep learning inference with NVIDIA GPUs.
+To use TensorRT locally, we suggest an environment with TensorRT >= 8.0.1. Install TensorRT as per the
+[TensorRT Install Guide](https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html). You
+will need to make sure the Python bindings for TensorRT are also installed correctly, these are available by installing the python3-libnvinfer and python3-libnvinfer-dev packages on your TensorRT download.
+
+If you would like to use Docker, you can use an NGC image like:
+```
+docker pull nvcr.io/nvidia/tensorrt:22.04-py3
+```
+as an existing container base to [build custom Apache Beam container](https://beam.apache.org/documentation/runtime/environments/#modify-existing-base-image).
+
+### Additional resources
 For more information, see the
 [Machine Learning](/documentation/sdks/python-machine-learning) and the
-[RunInference transform](/documentation/transforms/python/elementwise/runinference) documenation.
+[RunInference transform](/documentation/transforms/python/elementwise/runinference) documentation.
 
 ---
 ## Image classification
@@ -163,6 +180,52 @@ This writes the output to the `predictions.csv` with contents like:
 ...
 ```
 Each line has data separated by a semicolon ";". The first item is the file name. The second item is a list of predicted instances.
+
+---
+## Object Detection
+
+[`tensorrt_object_detection.py`](./tensorrt_object_detection.py) contains an implementation for a RunInference pipeline that performs object detection using [Tensorflow Object Detection's](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md) SSD MobileNet v2 320x320 architecture.
+
+The pipeline reads the images, performs basic preprocessing, passes them to the TensorRT implementation of RunInference, and then writes the predictions to a text file.
+
+### Dataset and model for image classification
+
+You will need to create or download images, and place them into your `IMAGES_DIR` directory. Popular dataset for such task is [COCO dataset](https://cocodataset.org/#home). COCO validation dataset can be obtained [here](http://images.cocodataset.org/zips/val2017.zip).
+- **Required**: A path to a file called `IMAGE_FILE_NAMES` that contains the absolute paths of each of the images in `IMAGES_DIR` on which you want to run image segmentation. Paths can be different types of URIs such as your local file system, a AWS S3 bucket or GCP Cloud Storage bucket. For example:
+```
+/absolute/path/to/000000000139.jpg
+/absolute/path/to/000000289594.jpg
+```
+- **Required**: A path to a file called `TRT_ENGINE` that contains the pre-built TensorRT engine from SSD MobileNet v2 320x320 model. You will need to [follow instructions](https://github.com/NVIDIA/TensorRT/tree/main/samples/python/tensorflow_object_detection_api) on how to download and convert this SSD model into TensorRT engine. At [Create ONNX Graph](https://github.com/NVIDIA/TensorRT/tree/main/samples/python/tensorflow_object_detection_api#create-onnx-graph) step, keep batch size at 1. As soon as you are done with [Build TensorRT Engine](https://github.com/NVIDIA/TensorRT/tree/main/samples/python/tensorflow_object_detection_api#build-tensorrt-engine) step. You can use resulted engine as `TRT_ENGINE` input. In addition, make sure that environment you use for TensorRT engine creation is the same environment you use to run TensorRT inference. It is related not only to TensorRT version, but also to a specific GPU used. Read more about it [here](https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#compatibility-serialized-engines).
+
+- **Required**: A path to a file called `OUTPUT`, to which the pipeline will write the predictions.
+- **Optional**: `IMAGES_DIR`, which is the path to the directory where images are stored. Not required if image names in the input file `IMAGE_FILE_NAMES` have absolute paths.
+
+### Running `tensorrt_object_detection.py`
+
+To run the image classification pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.tensorrt_object_detection \
+  --input IMAGE_FILE_NAMES \
+  --images_dir IMAGES_DIR \
+  --output OUTPUT \
+  --engine_path TRT_ENGINE
+```
+For example:
+```sh
+python -m apache_beam.examples.inference.tensorrt_object_detection \
+  --input image_file_names.txt \
+  --output predictions.csv \
+  --engine_path ssd_mobilenet_v2_320x320_coco17_tpu-8.trt
+```
+This writes the output to the `predictions.csv` with contents like:
+```
+/absolute/path/to/000000000139.jpg;[{'ymin': '217.31875205039978' 'xmin': '295.93122482299805' 'ymax': '315.90323209762573' 'xmax': '357.8959655761719' 'score': '0.72342616' 'class': 'chair'}  {'ymin': '166.81788557767868'.....
+
+/absolute/path/to/000000289594.jpg;[{'ymin': '227.25109100341797' 'xmin': '331.7402381300926'  'ymax': '476.88533782958984' 'xmax': '402.2928895354271' 'score': '0.77217317' 'class': 'person'} {'ymin': '231.8712615966797' 'xmin': '292.8590789437294'.....
+...
+```
+Each line has data separated by a semicolon ";". The first item is the file name. The second item is a list of dictionaries, where each dictionary corresponds with a single detection. A detection contains: box coordinates (ymin, xmin, ymax, xmax); score; and class.
 
 ---
 ## Language modeling

@@ -16,7 +16,9 @@
 package mapper
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"beam.apache.org/playground/backend/internal/db/dto"
 
@@ -43,22 +45,32 @@ func (pom *PrecompiledObjectMapper) ToObjectInfo(exampleDTO *dto.ExampleDTO) *dt
 		Multifile:       exampleDTO.HasMultiFiles(),
 		ContextLine:     exampleDTO.GetContextLine(),
 		DefaultExample:  exampleDTO.IsDefault(),
+		Sdk:             exampleDTO.GetSDK(),
+		Complexity:      exampleDTO.GetComplexity(),
+		Tags:            exampleDTO.Example.Tags,
+		Datasets:        exampleDTO.GetDatasets(),
 	}
 }
 
 func (pom *PrecompiledObjectMapper) ToArrayCategories(catalogDTO *dto.CatalogDTO) []*pb.Categories {
-	sdkToExample := catalogDTO.GetSdkCatalogAsMap()
+	sdkToDefaultExample := catalogDTO.GetSdkCatalogAsMap()
 	numberOfExamples := len(catalogDTO.Examples)
 	sdkToCategories := make(dto.SdkToCategories, 0)
+	datasetBySnippetIDMap := catalogDTO.DatasetBySnippetIDMap
 	for exampleIndx := 0; exampleIndx < numberOfExamples; exampleIndx++ {
 		example := catalogDTO.Examples[exampleIndx]
 		snippet := catalogDTO.Snippets[exampleIndx]
 		files := []*entity.FileEntity{catalogDTO.Files[exampleIndx]}
+		var datasetsDTO []*dto.DatasetDTO
+		if len(datasetBySnippetIDMap) != 0 {
+			datasetsDTO = datasetBySnippetIDMap[snippet.Key.Name]
+		}
 		objInfo := pom.ToObjectInfo(&dto.ExampleDTO{
 			Example:            example,
 			Snippet:            snippet,
 			Files:              files,
-			DefaultExampleName: sdkToExample[example.Sdk.Name],
+			DefaultExampleName: sdkToDefaultExample[example.Sdk.Name],
+			Datasets:           datasetsDTO,
 		})
 		for _, objCategory := range objInfo.Categories {
 			appendPrecompiledObject(*objInfo, &sdkToCategories, objCategory, example.Sdk.Name)
@@ -74,6 +86,93 @@ func (pom *PrecompiledObjectMapper) ToArrayCategories(catalogDTO *dto.CatalogDTO
 	}
 
 	return sdkCategories
+}
+
+func (pom *PrecompiledObjectMapper) ToDefaultPrecompiledObjects(defaultExamplesDTO *dto.DefaultExamplesDTO) map[pb.Sdk]*pb.PrecompiledObject {
+	result := make(map[pb.Sdk]*pb.PrecompiledObject)
+	for exampleIndx, example := range defaultExamplesDTO.Examples {
+		result[pb.Sdk(pb.Sdk_value[example.Sdk.Name])] = &pb.PrecompiledObject{
+			CloudPath:       getCloudPath(example),
+			Name:            example.Name,
+			Description:     example.Descr,
+			Type:            pb.PrecompiledObjectType(pb.PrecompiledObjectType_value[example.Type]),
+			PipelineOptions: defaultExamplesDTO.Snippets[exampleIndx].PipeOpts,
+			Link:            example.Path,
+			Multifile:       false,
+			ContextLine:     defaultExamplesDTO.Files[exampleIndx].CntxLine,
+			DefaultExample:  true,
+			Sdk:             pb.Sdk(pb.Sdk_value[example.Sdk.Name]),
+			Tags:            example.Tags,
+			Complexity:      pb.Complexity(pb.Complexity_value[defaultExamplesDTO.Snippets[exampleIndx].Complexity]),
+		}
+	}
+	return result
+}
+
+func (pom *PrecompiledObjectMapper) ToPrecompiledObj(exampleDTO *dto.ExampleDTO) *pb.PrecompiledObject {
+	return &pb.PrecompiledObject{
+		CloudPath:       getCloudPath(exampleDTO.Example),
+		Name:            exampleDTO.Example.Name,
+		Description:     exampleDTO.Example.Descr,
+		Type:            exampleDTO.GetType(),
+		PipelineOptions: exampleDTO.Snippet.PipeOpts,
+		Link:            exampleDTO.Example.Path,
+		Multifile:       exampleDTO.HasMultiFiles(),
+		ContextLine:     exampleDTO.GetContextLine(),
+		DefaultExample:  exampleDTO.IsDefault(),
+		Sdk:             exampleDTO.GetSDK(),
+		Complexity:      exampleDTO.GetComplexity(),
+		Tags:            exampleDTO.Example.Tags,
+		Datasets:        exampleDTO.GetDatasets(),
+	}
+}
+
+func (pom *PrecompiledObjectMapper) ToDatasetBySnippetIDMap(datasetEntities []*entity.DatasetEntity, snippets []*entity.SnippetEntity) (map[string][]*dto.DatasetDTO, error) {
+	result := make(map[string][]*dto.DatasetDTO)
+	datasetsMap := make(map[string]*entity.DatasetEntity)
+	for _, dataset := range datasetEntities {
+		datasetsMap[dataset.Key.Name] = dataset
+	}
+	for _, snippet := range snippets {
+		if len(snippet.Datasets) != 0 {
+			key := snippet.Key.Name
+			datasets, ok := result[key]
+			if !ok {
+				newDatasets := make([]*dto.DatasetDTO, 0)
+				datasetDto, err := toDatasetDTO(datasetsMap, snippet)
+				if err != nil {
+					return nil, err
+				}
+				newDatasets = append(newDatasets, datasetDto)
+				result[key] = newDatasets
+			} else {
+				datasetDto, err := toDatasetDTO(datasetsMap, snippet)
+				if err != nil {
+					return nil, err
+				}
+				datasets = append(datasets, datasetDto)
+			}
+		}
+	}
+	return result, nil
+}
+
+func toDatasetDTO(datasetsMap map[string]*entity.DatasetEntity, snippet *entity.SnippetEntity) (*dto.DatasetDTO, error) {
+	var configInterface map[string]interface{}
+	if err := json.Unmarshal([]byte(snippet.Datasets[0].Config), &configInterface); err != nil {
+		return nil, err
+	}
+	configString := make(map[string]string, len(configInterface))
+	for k, v := range configInterface {
+		strK := fmt.Sprintf("%v", k)
+		strV := fmt.Sprintf("%v", v)
+		configString[strK] = strV
+	}
+	return &dto.DatasetDTO{
+		Path:     datasetsMap[snippet.Datasets[0].Dataset.Name].Path,
+		Config:   configString,
+		Emulator: pb.EmulatorType(pb.EmulatorType_value[fmt.Sprintf("EMULATOR_TYPE_%s", strings.ToUpper(snippet.Datasets[0].Emulator))]),
+	}, nil
 }
 
 // appendPrecompiledObject add precompiled object to the common structure of precompiled objects
@@ -108,6 +207,10 @@ func putPrecompiledObjectsToCategory(categoryName string, precompiledObjects *dt
 			Multifile:       object.Multifile,
 			ContextLine:     object.ContextLine,
 			DefaultExample:  object.DefaultExample,
+			Sdk:             object.Sdk,
+			Complexity:      object.Complexity,
+			Tags:            object.Tags,
+			Datasets:        object.Datasets,
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)

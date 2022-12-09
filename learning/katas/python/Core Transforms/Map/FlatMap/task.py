@@ -22,14 +22,15 @@
 #   context_line: 30
 #   categories:
 #     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - strings
 
 import apache_beam as beam
-
-from log_elements import LogElements
 
 with beam.Pipeline() as p:
 
   (p | beam.Create(['Apache Beam', 'Unified Batch and Streaming'])
      | beam.FlatMap(lambda sentence: sentence.split())
-     | LogElements())
-
+     | beam.LogElements())

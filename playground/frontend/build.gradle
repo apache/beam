@@ -40,26 +40,36 @@ dependencies {
   dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
 }
 
-task removeBuild  {
-  group = "verification"
-  description = "remove build artifacts"
+task generate {
+  dependsOn("playground_components:generate")
+
+  dependsOn("generateCode")
+
+  group = "build"
+  description = "Generates all generated files."
+}
+
+task printPath {
   doLast {
     exec {
-      executable("rm")
-      args("-r", "build")
+      executable("printenv")
+      args("PATH")
     }
   }
 }
 
 task analyze  {
-  dependsOn("pubGet")
-  dependsOn("removeBuild")
+  dependsOn("playground_components:generateCode")
+  dependsOn("generateCode")
+
   group = "verification"
   description = "Analyze dart code"
+
   doLast {
     exec {
+      // Exact paths instead of '.' so it does not go into playground_components
       executable("dart")
-      args("analyze", ".")
+      args("analyze", "lib", "test")
     }
   }
 }
@@ -80,8 +90,9 @@ task format {
   description = "Idiomatically format Dart source code"
   doLast {
     exec {
+      // Exact paths instead of '.' so it does not go into playground_components
       executable("dart")
-      args("format", ".")
+      args("format", "lib", "test")
     }
   }
 }
@@ -98,9 +109,12 @@ task run {
 }
 
 task test {
-  dependsOn("pubGet")
+  dependsOn("playground_components:generateCode")
+  dependsOn("generateCode")
+
   group = "verification"
   description = "flutter test"
+
   doLast {
     exec {
       executable("flutter")
@@ -110,10 +124,68 @@ task test {
 }
 
 task precommit {
-  dependsOn(":playground:frontend:removeBuild")
-  dependsOn(":playground:frontend:pubGet")
-  dependsOn(":playground:frontend:analyze")
-  dependsOn(":playground:frontend:test")
+  dependsOn("playground_components:precommit")
+
+  dependsOn("analyze")
+  dependsOn("test")
+}
+
+task generateCode {
+  dependsOn("playground_components:generateCode")
+
+  dependsOn("cleanFlutter")
+  dependsOn("pubGet")
+
+  group = "build"
+  description = "Generate code"
+
+  doLast {
+    exec {
+      executable("flutter")
+      args("pub", "run", "build_runner", "build", "--delete-conflicting-outputs")
+    }
+  }
+}
+
+task cleanFlutter {
+  group = "build"
+  description = "Remove build artifacts"
+
+  doLast {
+    exec {
+      executable("flutter")
+      args("clean")
+    }
+  }
+}
+
+task cleanGenerated {
+  dependsOn("playground_components:cleanGenerated")
+
+  group = "build"
+  description = "Remove build artifacts"
+
+  doLast {
+    println("Deleting:")
+
+    deleteFilesByRegExp(".*\\.g\\.dart\$")
+    deleteFilesByRegExp(".*\\.gen\\.dart\$")
+    deleteFilesByRegExp(".*\\.mocks\\.dart\$")
+  }
+}
+
+ext.deleteFilesByRegExp = { re ->
+  // Prints file names.
+  exec {
+    executable("find")
+    args("assets", "lib", "test", "-regex", re)
+  }
+
+  // Actually deletes them.
+  exec {
+    executable("find")
+    args("assets", "lib", "test", "-regex", re, "-delete")
+  }
 }
 
 task copyDockerfileDependencies(type: Copy) {
@@ -143,7 +215,7 @@ docker {
   tags containerImageTags()
   buildArgs(['FLUTTER_VERSION': project.rootProject.hasProperty(["flutter-version"]) ?
                                 project.rootProject["flutter-version"] :
-                                "3.0.1-stable" ])
+                                "3.3.2" ])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

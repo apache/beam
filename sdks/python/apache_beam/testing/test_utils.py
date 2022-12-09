@@ -206,3 +206,20 @@ def create_pull_response(responses):
     res.received_messages.append(received_message)
 
   return res
+
+
+def create_file(path, contents):
+  """Create a file to use as input to test pipelines"""
+  with FileSystems.create(path) as f:
+    f.write(str.encode(contents, 'utf-8'))
+  return path
+
+
+def read_files_from_pattern(file_pattern):
+  """Reads the files that match a pattern"""
+  metadata_list = FileSystems.match([file_pattern])[0].metadata_list
+  output = []
+  for metadata in metadata_list:
+    with FileSystems.open(metadata.path) as f:
+      output.append(f.read().decode('utf-8').strip())
+  return '\n'.join(output)

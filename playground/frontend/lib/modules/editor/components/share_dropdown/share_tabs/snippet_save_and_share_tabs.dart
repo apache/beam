@@ -17,28 +17,26 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/components/loading_indicator/loading_indicator.dart';
-import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/editor/components/share_dropdown/share_tabs/example_share_tabs.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 
 class SnippetSaveAndShareTabs extends StatelessWidget {
-  final PlaygroundState playgroundState;
+  final PlaygroundController playgroundController;
   final TabController tabController;
 
   const SnippetSaveAndShareTabs({
     super.key,
-    required this.playgroundState,
+    required this.playgroundController,
     required this.tabController,
   });
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: playgroundState.getSnippetId(),
+      future: playgroundController.getSnippetId(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const LoadingIndicator(size: kLgLoadingIndicatorSize);
+          return const LoadingIndicator();
         }
 
         return ExampleShareTabs(
