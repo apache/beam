@@ -17,14 +17,12 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/modules/examples/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
-import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor.dart';
 import 'package:playground/modules/messages/models/set_content_message.dart';
 import 'package:playground/modules/messages/models/set_sdk_message.dart';
 import 'package:playground/modules/messages/parsers/messages_parser.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
-const _sdk = SDK.python;
+const _sdk = Sdk.python;
 
 void main() {
   group('MessageParser.parse returns null for invalid inputs', () {
@@ -96,7 +94,7 @@ void main() {
           parsed,
           const SetContentMessage(
             descriptor: ExamplesLoadingDescriptor(
-              descriptors: [EmptyExampleLoadingDescriptor(sdk: SDK.java)],
+              descriptors: [EmptyExampleLoadingDescriptor(sdk: Sdk.java)],
             ),
           ),
         );
@@ -106,7 +104,7 @@ void main() {
     test(
       'MessageParser.parse parses SetSdkMessage',
       () {
-        final value = {'type': SetSdkMessage.type, 'sdk': _sdk.name};
+        final value = {'type': SetSdkMessage.type, 'sdk': _sdk.id};
 
         final parsed = MessagesParser().tryParse(value);
 

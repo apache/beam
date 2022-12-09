@@ -17,72 +17,39 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import static org.apache.beam.runners.spark.structuredstreaming.Constants.BEAM_SOURCE_OPTION;
-import static org.apache.beam.runners.spark.structuredstreaming.Constants.DEFAULT_PARALLELISM;
-import static org.apache.beam.runners.spark.structuredstreaming.Constants.PIPELINE_OPTIONS;
-
 import java.io.IOException;
-import org.apache.beam.runners.core.construction.ReadTranslation;
-import org.apache.beam.runners.core.serialization.Base64Serializer;
-import org.apache.beam.runners.spark.structuredstreaming.translation.AbstractTranslationContext;
+import java.util.function.Supplier;
+import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.spark.structuredstreaming.io.BoundedDatasetFactory;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
+import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.SparkSession;
 
+/**
+ * Translator for a {@link SplittableParDo.PrimitiveBoundedRead} that creates a Dataset via an RDD
+ * to avoid an additional serialization roundtrip.
+ */
 class ReadSourceTranslatorBatch<T>
-    implements TransformTranslator<PTransform<PBegin, PCollection<T>>> {
+    extends TransformTranslator<PBegin, PCollection<T>, SplittableParDo.PrimitiveBoundedRead<T>> {
 
-  private static final String sourceProviderClass = DatasetSourceBatch.class.getCanonicalName();
-
-  @SuppressWarnings("unchecked")
   @Override
-  public void translateTransform(
-      PTransform<PBegin, PCollection<T>> transform, AbstractTranslationContext context) {
-    AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> rootTransform =
-        (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
-            context.getCurrentTransform();
+  public void translate(SplittableParDo.PrimitiveBoundedRead<T> transform, Context cxt)
+      throws IOException {
+    SparkSession session = cxt.getSparkSession();
+    BoundedSource<T> source = transform.getSource();
+    Supplier<PipelineOptions> options = cxt.getOptionsSupplier();
 
-    BoundedSource<T> source;
-    try {
-      source = ReadTranslation.boundedSourceFromTransform(rootTransform);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    SparkSession sparkSession = context.getSparkSession();
+    Encoder<WindowedValue<T>> encoder =
+        cxt.windowedEncoder(source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
 
-    String serializedSource = Base64Serializer.serializeUnchecked(source);
-    Dataset<Row> rowDataset =
-        sparkSession
-            .read()
-            .format(sourceProviderClass)
-            .option(BEAM_SOURCE_OPTION, serializedSource)
-            .option(
-                DEFAULT_PARALLELISM,
-                String.valueOf(context.getSparkSession().sparkContext().defaultParallelism()))
-            .option(PIPELINE_OPTIONS, context.getSerializableOptions().toString())
-            .load();
-
-    // extract windowedValue from Row
-    WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
-        WindowedValue.FullWindowedValueCoder.of(
-            source.getOutputCoder(), GlobalWindow.Coder.INSTANCE);
-
-    Dataset<WindowedValue<T>> dataset =
-        rowDataset.map(
-            RowHelpers.extractWindowedValueFromRowMapFunction(windowedValueCoder),
-            EncoderHelpers.fromBeamCoder(windowedValueCoder));
-
-    PCollection<T> output = (PCollection<T>) context.getOutput();
-    context.putDataset(output, dataset);
+    cxt.putDataset(
+        cxt.getOutput(),
+        BoundedDatasetFactory.createDatasetFromRDD(session, source, options, encoder));
   }
 }

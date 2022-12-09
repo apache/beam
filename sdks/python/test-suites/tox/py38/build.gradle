@@ -68,6 +68,14 @@ toxTask "testPy38pyarrow-7", "py38-pyarrow-7"
 test.dependsOn "testPy38pyarrow-7"
 preCommitPy38.dependsOn "testPy38pyarrow-7"
 
+toxTask "testPy38pyarrow-8", "py38-pyarrow-8"
+test.dependsOn "testPy38pyarrow-8"
+preCommitPy38.dependsOn "testPy38pyarrow-8"
+
+toxTask "testPy38pyarrow-9", "py38-pyarrow-9"
+test.dependsOn "testPy38pyarrow-9"
+preCommitPy38.dependsOn "testPy38pyarrow-9"
+
 // Create a test task for each minor version of pandas
 toxTask "testPy38pandas-11", "py38-pandas-11"
 test.dependsOn "testPy38pandas-11"
@@ -84,6 +92,10 @@ preCommitPy38.dependsOn "testPy38pandas-13"
 toxTask "testPy38pandas-14", "py38-pandas-14"
 test.dependsOn "testPy38pandas-14"
 preCommitPy38.dependsOn "testPy38pandas-14"
+
+toxTask "testPy38pandas-15", "py38-pandas-15"
+test.dependsOn "testPy38pandas-15"
+preCommitPy38.dependsOn "testPy38pandas-15"
 
 // Create a test task for each minor version of pytorch
 toxTask "testPy38pytorch-19", "py38-pytorch-19"

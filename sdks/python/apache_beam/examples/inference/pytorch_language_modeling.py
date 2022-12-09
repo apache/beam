@@ -45,48 +45,6 @@ from transformers import BertForMaskedLM
 from transformers import BertTokenizer
 
 
-# TODO(https://github.com/apache/beam/issues/21863): Remove once optional
-# batching flag added
-class HuggingFaceStripBatchingWrapper(BertForMaskedLM):
-  """Wrapper class to convert output from dict of lists to list of dicts
-
-  The `forward()` function in Hugging Face models doesn't return a
-  standard torch.Tensor output. Instead, it can return a dictionary of
-  different outputs. To work with current RunInference implementation which
-  returns a PredictionResult object for each example, we must override the
-  `forward()` function and convert the standard Hugging Face forward output
-  into the appropriate format of List[Dict[str, torch.Tensor]].
-
-  Before:
-  output = {
-    'logit': torch.FloatTensor of shape
-      (batch_size, sequence_length, config.vocab_size),
-    'hidden_states': tuple(torch.FloatTensor) of shape
-      (batch_size, sequence_length, hidden_size)
-  }
-  After:
-  output = [
-    {
-      'logit': torch.FloatTensor of shape
-        (sequence_length, config.vocab_size),
-      'hidden_states': tuple(torch.FloatTensor) of
-        shape (sequence_length, hidden_size)
-    },
-    {
-      'logit': torch.FloatTensor of shape
-        (sequence_length, config.vocab_size),
-      'hidden_states': tuple(torch.FloatTensor) of shape
-        (sequence_length, hidden_size)
-    },
-    ...
-  ]
-  where len(output) is batch_size
-  """
-  def forward(self, **kwargs):
-    output = super().forward(**kwargs)
-    return [dict(zip(output, v)) for v in zip(*output.values())]
-
-
 def add_mask_to_last_word(text: str) -> Tuple[str, str]:
   text_list = text.split()
   return text, ' '.join(text_list[:-2] + ['[MASK]', text_list[-1]])
@@ -187,7 +145,7 @@ def run(
   if not model_class:
     model_config = BertConfig.from_pretrained(
         known_args.bert_tokenizer, is_decoder=False, return_dict=True)
-    model_class = HuggingFaceStripBatchingWrapper
+    model_class = BertForMaskedLM
     model_params = {'config': model_config}
 
   # TODO: Remove once nested tensors https://github.com/pytorch/nestedtensor

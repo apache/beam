@@ -29,6 +29,10 @@ package org.apache.beam.examples.complete;
 //     - Combiners
 //     - Options
 //     - Windowing
+//   complexity: MEDIUM
+//   tags:
+//     - count
+//     - timestamp
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;

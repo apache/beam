@@ -49,7 +49,7 @@ public class InMemoryMetrics implements Sink {
     internalMetricRegistry = metricRegistry;
   }
 
-  @SuppressWarnings({"TypeParameterUnusedInFormals", "rawtypes"})
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "rawtypes"}) // because of getGauges
   public static <T> T valueOf(final String name) {
     // this might fail in case we have multiple aggregators with the same suffix after
     // the last dot, but it should be good enough for tests.

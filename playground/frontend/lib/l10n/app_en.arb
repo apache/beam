@@ -7,14 +7,6 @@
   "@darkMode": {
     "description": "Title for a theme switch"
   },
-  "newExample": "New Example",
-  "@newExample": {
-    "description": "Title for the New Example button"
-  },
-  "reset": "Reset",
-  "@reset": {
-    "description": "Title for the reset button"
-  },
   "run": "Run",
   "@run": {
     "description": "Title for the run button"
@@ -143,10 +135,6 @@
   "@reportIssue": {
     "description": "Title for the Report issue in GitHub button"
   },
-  "codeTextArea": "Code Text Area",
-  "@codeTextArea": {
-    "description": "Title for the Code text area semantics"
-  },
   "bottom": "Bottom",
   "@bottom": {
     "description": "Part of the output placements semantics label"
@@ -158,10 +146,6 @@
   "left": "Left",
   "@left": {
     "description": "Part of the output placements semantics label"
-  },
-  "clearOutput": "Clear Output",
-  "@clearOutput": {
-    "description": "Title for the Clear Output shortcut row"
   },
   "pipelineOptions": "Pipeline Options",
   "@pipelineOptions": {

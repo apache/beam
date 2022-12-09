@@ -17,15 +17,15 @@
 # under the License.
 #
 
-
 module "setup" {
   source             = "./setup"
   project_id         = var.project_id
   service_account_id = var.service_account_id
+  depends_on      = [module.api_enable]
 }
 
 module "network" {
-  depends_on      = [module.setup]
+  depends_on      = [module.setup, module.api_enable]
   source          = "./network"
   project_id      = var.project_id
   region          = var.network_region
@@ -33,20 +33,8 @@ module "network" {
   subnetwork_name = var.subnetwork_name
 }
 
-module "buckets" {
-  depends_on    = [module.setup]
-  source        = "./buckets"
-  project_id    = var.project_id
-  #  terraform_bucket_name     = var.bucket_terraform_state_name
-  #  terraform_storage_class   = var.bucket_terraform_state_storage_class
-  #  terraform_bucket_location = var.bucket_terraform_state_location
-  name          = var.bucket_examples_name
-  storage_class = var.bucket_examples_storage_class
-  location      = var.bucket_examples_location
-}
-
 module "artifact_registry" {
-  depends_on = [module.setup, module.buckets]
+  depends_on = [module.setup, module.api_enable, module.ip_address]
   source     = "./artifact_registry"
   project_id = var.project_id
   id         = var.repository_id
@@ -54,7 +42,7 @@ module "artifact_registry" {
 }
 
 module "memorystore" {
-  depends_on     = [module.setup, module.network]
+  depends_on     = [module.setup, module.network, module.api_enable, module.ip_address]
   source         = "./memorystore"
   project_id     = var.project_id
   redis_version  = var.redis_version
@@ -69,14 +57,31 @@ module "memorystore" {
 }
 
 module "gke" {
-  depends_on            = [module.setup, module.artifact_registry, module.memorystore, module.network]
+  depends_on            = [module.setup, module.artifact_registry, module.memorystore, module.network, module.api_enable, module.ip_address]
   source                = "./gke"
   project_id            = var.project_id
   service_account_email = module.setup.service_account_email
   machine_type      = var.gke_machine_type
   node_count        = var.gke_node_count
   name              = var.gke_name
-  location          = var.gke_location
+  location          = var.location
   subnetwork        = module.network.playground_subnetwork_id
   network           = module.network.playground_network_id
+}
+
+module "ip_address" {
+  source          = "./ip_address"
+  depends_on      = [module.setup, module.api_enable]
+}
+
+module "appengine" {
+ depends_on         = [module.setup, module.api_enable, module.ip_address]
+ source             = "./appengine"
+ project_id         = var.project_id
+ region             = var.region
+}
+
+module "api_enable" {
+  source            = "./api_enable"
+  project_id         = var.project_id
 }

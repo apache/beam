@@ -52,12 +52,31 @@ enum PrecompiledObjectType {
   PRECOMPILED_OBJECT_TYPE_UNIT_TEST = 3;
 }
 
+enum Complexity {
+  COMPLEXITY_UNSPECIFIED = 0;
+  COMPLEXITY_BASIC = 1;
+  COMPLEXITY_MEDIUM = 2;
+  COMPLEXITY_ADVANCED = 3;
+}
+
+enum EmulatorType {
+  EMULATOR_TYPE_UNSPECIFIED = 0;
+  EMULATOR_TYPE_KAFKA = 1;
+}
+
+message Dataset {
+  EmulatorType type = 1;
+  map<string, string> options = 2;
+  string dataset_path = 3;
+}
+
 // RunCodeRequest represents a code text and options of SDK which executes the code.
 message RunCodeRequest {
   string code = 1;
   Sdk sdk = 2;
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
+  repeated Dataset datasets = 4;
 }
 
 // RunCodeResponse contains information of the pipeline uuid.
@@ -166,6 +185,10 @@ message PrecompiledObject{
   bool multifile = 7;
   int32 context_line = 8;
   bool default_example = 9;
+  Sdk sdk = 10;
+  Complexity complexity = 11;
+  repeated string tags = 12;
+  repeated Dataset datasets = 13;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk
@@ -262,6 +285,8 @@ message SaveSnippetRequest {
   Sdk sdk = 2;
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
+  Complexity complexity = 4;
+  string persistence_key = 5;
 }
 
 // SaveSnippetResponse contains information of the generated ID.
@@ -280,6 +305,7 @@ message GetSnippetResponse {
   Sdk sdk = 2;
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
+  Complexity complexity = 4;
 }
 
 service PlaygroundService {
@@ -314,10 +340,10 @@ service PlaygroundService {
   // Cancel code processing
   rpc Cancel(CancelRequest) returns (CancelResponse);
 
-  // Get all precompiled objects from the cloud storage.
+  // Get all precompiled objects from the cloud datastore.
   rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
 
-  // Get precompiled object from the cloud storage.
+  // Get precompiled object from the cloud datastore.
   rpc GetPrecompiledObject(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectResponse);
 
   // Get the code of an PrecompiledObject.

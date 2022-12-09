@@ -22,12 +22,12 @@
 // Note: Before running this example, you must create a BigQuery dataset to
 // contain your output table as described here:
 //
-//   https://cloud.google.com/bigquery/docs/tables#create-table
+//	https://cloud.google.com/bigquery/docs/tables#create-table
 //
 // To execute this pipeline locally, specify the BigQuery table for the output
 // with the form:
 //
-//   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
+//	--output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
 //
 // The BigQuery input table defaults to clouddataflow-readonly:samples.weather_stations
 // and can be overridden with {@code --input}.

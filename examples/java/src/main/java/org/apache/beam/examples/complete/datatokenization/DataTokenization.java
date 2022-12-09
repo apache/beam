@@ -215,7 +215,7 @@ public class DataTokenization {
    * @param options The execution options.
    * @return The pipeline result.
    */
-  @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
+  @SuppressWarnings({"dereference.of.nullable", "argument"})
   public static PipelineResult run(DataTokenizationOptions options) {
     SchemasUtils schema = null;
     try {

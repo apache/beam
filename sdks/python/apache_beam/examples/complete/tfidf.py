@@ -24,13 +24,13 @@ http://en.wikipedia.org/wiki/Tf-idf
 # pytype: skip-file
 
 import argparse
-import glob
 import math
 import re
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.pvalue import AsSingleton
@@ -200,7 +200,9 @@ def run(argv=None, save_main_session=True):
   with beam.Pipeline(options=pipeline_options) as p:
 
     # Read documents specified by the uris command line option.
-    pcoll = read_documents(p, glob.glob(known_args.uris))
+    metadata_list = FileSystems.match([known_args.uris])[0].metadata_list
+    uris = [metadata.path for metadata in metadata_list]
+    pcoll = read_documents(p, uris)
     # Compute TF-IDF information for each word.
     output = pcoll | TfIdf()
     # Write the output using a "Write" transform that has side effects.

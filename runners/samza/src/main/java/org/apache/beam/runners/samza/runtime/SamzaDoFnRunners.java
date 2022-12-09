@@ -52,8 +52,6 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -90,14 +88,20 @@ public class SamzaDoFnRunners {
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<String, PCollectionView<?>> sideInputMapping) {
+      Map<String, PCollectionView<?>> sideInputMapping,
+      Map<String, String> stateIdToStoreIdMapping,
+      OpEmitter emitter,
+      FutureCollector futureCollector) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;
-    final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final SamzaStoreStateInternals.Factory<?> stateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalsFactory(
-            transformId, keyCoder, context.getTaskContext(), pipelineOptions, signature);
+            transformId,
+            keyCoder,
+            context.getTaskContext(),
+            pipelineOptions,
+            stateIdToStoreIdMapping);
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
@@ -133,6 +137,7 @@ public class SamzaDoFnRunners {
                 underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
             : underlyingRunner;
 
+    final DoFnRunner<InT, FnOutT> doFnRunnerWithStates;
     if (keyedInternals != null) {
       final DoFnRunner<InT, FnOutT> statefulDoFnRunner =
           DoFnRunners.defaultStatefulDoFnRunner(
@@ -144,10 +149,15 @@ public class SamzaDoFnRunners {
               new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, windowingStrategy),
               createStateCleaner(doFn, windowingStrategy, keyedInternals.stateInternals()));
 
-      return new DoFnRunnerWithKeyedInternals<>(statefulDoFnRunner, keyedInternals);
+      doFnRunnerWithStates = new DoFnRunnerWithKeyedInternals<>(statefulDoFnRunner, keyedInternals);
     } else {
-      return doFnRunnerWithMetrics;
+      doFnRunnerWithStates = doFnRunnerWithMetrics;
     }
+
+    return pipelineOptions.getNumThreadsForProcessElement() > 1
+        ? AsyncDoFnRunner.create(
+            doFnRunnerWithStates, emitter, futureCollector, keyedInternals != null, pipelineOptions)
+        : doFnRunnerWithStates;
   }
 
   /** Creates a {@link StepContext} that allows accessing state and timer internals. */

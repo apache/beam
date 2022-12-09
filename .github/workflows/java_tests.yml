@@ -190,8 +190,8 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
-      - name: Install Java
-        uses: actions/setup-java@v3
+      - name: Set Java Version
+        uses: actions/setup-java@v3.6.0
         with:
           distribution: 'zulu'
           java-version: '8'

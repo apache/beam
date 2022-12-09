@@ -18,7 +18,8 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
-import edu.umd.cs.findbugs.annotations.SuppressWarnings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -161,17 +162,13 @@ public class MoreFutures {
   /** Like {@link CompletableFuture#allOf} but returning the result of constituent futures. */
   public static <T> CompletionStage<List<T>> allAsList(
       Collection<? extends CompletionStage<? extends T>> futures) {
-
     // CompletableFuture.allOf completes exceptionally if any of the futures do.
     // We have to gather the results separately.
-    CompletionStage<Void> blockAndDiscard =
-        CompletableFuture.allOf(futuresToCompletableFutures(futures));
+    CompletableFuture<? extends T>[] f = futuresToCompletableFutures(futures);
+    CompletionStage<Void> blockAndDiscard = CompletableFuture.allOf(f);
 
     return blockAndDiscard.thenApply(
-        nothing ->
-            futures.stream()
-                .map(future -> future.toCompletableFuture().join())
-                .collect(Collectors.toList()));
+        nothing -> Arrays.stream(f).map(CompletableFuture::join).collect(Collectors.toList()));
   }
 
   /**
@@ -180,7 +177,7 @@ public class MoreFutures {
    * <p>This is used, for example, in aggregating the results of many future values in {@link
    * #allAsList(Collection)}.
    */
-  @SuppressWarnings(
+  @SuppressFBWarnings(
       value = "NM_CLASS_NOT_EXCEPTION",
       justification = "The class does hold an exception; its name is accurate.")
   @AutoValue
@@ -198,34 +195,35 @@ public class MoreFutures {
 
     public abstract @Nullable Throwable getException();
 
+    @SuppressWarnings("argument") // checker infers a strange type for the null
     public static <T> ExceptionOrResult<T> exception(Throwable throwable) {
-      return new AutoValue_MoreFutures_ExceptionOrResult(IsException.EXCEPTION, null, throwable);
+      return new AutoValue_MoreFutures_ExceptionOrResult<>(IsException.EXCEPTION, null, throwable);
     }
 
     public static <T> ExceptionOrResult<T> result(T result) {
-      return new AutoValue_MoreFutures_ExceptionOrResult(IsException.EXCEPTION, result, null);
+      return new AutoValue_MoreFutures_ExceptionOrResult<>(IsException.EXCEPTION, result, null);
     }
   }
 
-  /** Like {@link #allAsList} but return a list . */
+  /**
+   * Like {@link #allAsList} but return a list of {@link ExceptionOrResult} of constituent futures.
+   */
   public static <T> CompletionStage<List<ExceptionOrResult<T>>> allAsListWithExceptions(
       Collection<? extends CompletionStage<? extends T>> futures) {
-
     // CompletableFuture.allOf completes exceptionally if any of the futures do.
     // We have to gather the results separately.
-    CompletionStage<Void> blockAndDiscard =
-        CompletableFuture.allOf(futuresToCompletableFutures(futures))
-            .whenComplete((ignoredValues, arbitraryException) -> {});
+    CompletableFuture<? extends T>[] f = futuresToCompletableFutures(futures);
+    CompletionStage<Void> blockAndDiscard = CompletableFuture.allOf(f);
 
     return blockAndDiscard.thenApply(
         nothing ->
-            futures.stream()
+            Arrays.stream(f)
                 .map(
                     future -> {
                       // The limited scope of the exceptions wrapped allows CancellationException
                       // to still be thrown.
                       try {
-                        return ExceptionOrResult.<T>result(future.toCompletableFuture().join());
+                        return ExceptionOrResult.<T>result(future.join());
                       } catch (CompletionException exc) {
                         return ExceptionOrResult.<T>exception(exc);
                       }
@@ -239,6 +237,7 @@ public class MoreFutures {
    */
   private static <T> CompletableFuture<? extends T>[] futuresToCompletableFutures(
       Collection<? extends CompletionStage<? extends T>> futures) {
+    @SuppressWarnings("rawtypes")
     CompletableFuture<? extends T>[] completableFutures = new CompletableFuture[futures.size()];
     int i = 0;
     for (CompletionStage<? extends T> future : futures) {

@@ -36,6 +36,7 @@ var (
 
 	EventTimeType = reflect.TypeOf((*EventTime)(nil)).Elem()
 	WindowType    = reflect.TypeOf((*Window)(nil)).Elem()
+	TimersType    = reflect.TypeOf((*Timers)(nil)).Elem()
 	PaneInfoType  = reflect.TypeOf((*PaneInfo)(nil)).Elem()
 
 	KVType                 = reflect.TypeOf((*KV)(nil)).Elem()
@@ -48,13 +49,13 @@ var (
 // T, U, V, W, X, Y, Z are universal types. They play the role of generic
 // type variables in UserFn signatures, but are limited to top-level positions.
 
-type T interface{}
-type U interface{}
-type V interface{}
-type W interface{}
-type X interface{}
-type Y interface{}
-type Z interface{}
+type T any
+type U any
+type V any
+type W any
+type X any
+type Y any
+type Z any
 
 // EventTime is a timestamp that Beam understands as attached to an element.
 type EventTime = mtime.Time
@@ -73,19 +74,44 @@ type BundleFinalization interface {
 	RegisterCallback(time.Duration, func() error)
 }
 
+// PaneTiming defines the pane timing in byte.
 type PaneTiming byte
 
 const (
-	PaneEarly   PaneTiming = 0
-	PaneOnTime  PaneTiming = 1
-	PaneLate    PaneTiming = 2
+	// PaneEarly defines early pane timing.
+	PaneEarly PaneTiming = 0
+	// PaneOnTime defines on-time pane timing.
+	PaneOnTime PaneTiming = 1
+	// PaneLate defines late pane timing.
+	PaneLate PaneTiming = 2
+	// PaneUnknown defines unknown pane timing.
 	PaneUnknown PaneTiming = 3
 )
 
+// PaneInfo represents the output pane.
 type PaneInfo struct {
 	Timing                     PaneTiming
 	IsFirst, IsLast            bool
 	Index, NonSpeculativeIndex int64
+}
+
+// Timers is the actual type used for standard timer coder.
+type Timers struct {
+	Key                          []byte // elm type.
+	Tag                          string
+	Windows                      []byte // []typex.Window
+	Clear                        bool
+	FireTimestamp, HoldTimestamp mtime.Time
+	Pane                         PaneInfo
+}
+
+// TimerMap is a placeholder for timer details used in encoding/decoding.
+type TimerMap struct {
+	Key, Tag                     string
+	Windows                      []Window // []typex.Window
+	Clear                        bool
+	FireTimestamp, HoldTimestamp mtime.Time
+	Pane                         PaneInfo
 }
 
 // KV, Nullable, CoGBK, WindowedValue represent composite generic types. They are not used

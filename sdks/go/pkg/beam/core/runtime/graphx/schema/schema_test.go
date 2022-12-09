@@ -26,6 +26,7 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -792,6 +793,7 @@ func TestSchemaConversion(t *testing.T) {
 				// real embedded type.
 				if !hasEmbeddedField(test.rt) && !test.rt.AssignableTo(got) {
 					t.Errorf("%v not assignable to %v", test.rt, got)
+					t.Errorf("%v for schema %v", test.rt, prototext.Format(test.st))
 					if d := cmp.Diff(reflect.New(test.rt).Elem().Interface(), reflect.New(got).Elem().Interface()); d != "" {
 						t.Errorf("diff (-want, +got): %v", d)
 					}

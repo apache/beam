@@ -1,7 +1,7 @@
 ---
 title: "Beam visual pipeline development with Hop"
 name: "Neo4j"
-icon: /images/logos/powered-by/hop.svg
+icon: /images/logos/powered-by/hop.png
 category: study
 cardTitle: "Visual Apache Beam Pipeline Design and Orchestration with Apache Hop"
 cardDescription: "Apache Hop is an open source data orchestration and engineering platform that extends Apache Beam with visual pipeline lifecycle management. Neo4j’s Chief Solution Architect and Apache Hop’s co-founder, Matt Casters, sees Apache Beam as a driving force behind Hop."
@@ -26,7 +26,7 @@ limitations under the License.
 
 <div class="case-study-opinion">
     <div class="case-study-opinion-img">
-        <img src="/images/logos/powered-by/hop.svg"/>
+        <img class="case-study-opinion-img-center" src="/images/logos/powered-by/hop.png"/>
     </div>
     <blockquote class="case-study-quote-block">
       <p class="case-study-quote-text">

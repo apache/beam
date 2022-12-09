@@ -17,15 +17,193 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
-import java.io.Serializable;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.windowedValueEncoder;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+import org.apache.beam.runners.core.construction.TransformInputs;
+import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.TranslationState;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoder;
+import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.SparkSession;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import scala.Tuple2;
+import scala.reflect.ClassTag;
 
-/** Supports translation between a Beam transform, and Spark's operations on Datasets. */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
-public interface TransformTranslator<TransformT extends PTransform> extends Serializable {
+/**
+ * A {@link TransformTranslator} provides the capability to translate a specific primitive or
+ * composite {@link PTransform} into its Spark correspondence.
+ *
+ * <p>WARNING: {@link TransformTranslator TransformTranslators} should never be serializable! This
+ * could easily hide situations where unnecessary references leak into Spark closures.
+ */
+@Internal
+public abstract class TransformTranslator<
+    InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>> {
 
-  /** Base class for translators of {@link PTransform}. */
-  void translateTransform(TransformT transform, AbstractTranslationContext context);
+  protected abstract void translate(TransformT transform, Context cxt) throws IOException;
+
+  final void translate(
+      TransformT transform,
+      AppliedPTransform<InT, OutT, TransformT> appliedTransform,
+      TranslationState translationState)
+      throws IOException {
+    translate(transform, new Context(appliedTransform, translationState));
+  }
+
+  /**
+   * Checks if a composite / primitive transform can be translated. Composites that cannot be
+   * translated as is, will be exploded further for translation of their parts.
+   *
+   * <p>This returns {@code true} by default and should be overridden where necessary.
+   *
+   * @throws RuntimeException If a transform uses unsupported features, an exception shall be thrown
+   *     to give early feedback before any part of the pipeline is run.
+   */
+  protected boolean canTranslate(TransformT transform) {
+    return true;
+  }
+
+  /**
+   * Available mutable context to translate a {@link PTransform}. The context is backed by the
+   * shared {@link TranslationState} of the {@link PipelineTranslator}.
+   */
+  protected class Context implements TranslationState {
+    private final AppliedPTransform<InT, OutT, TransformT> transform;
+    private final TranslationState state;
+
+    private @MonotonicNonNull InT pIn = null;
+    private @MonotonicNonNull OutT pOut = null;
+
+    private Context(AppliedPTransform<InT, OutT, TransformT> transform, TranslationState state) {
+      this.transform = transform;
+      this.state = state;
+    }
+
+    public InT getInput() {
+      if (pIn == null) {
+        pIn = (InT) getOnlyElement(TransformInputs.nonAdditionalInputs(transform));
+      }
+      return pIn;
+    }
+
+    public Map<TupleTag<?>, PCollection<?>> getInputs() {
+      return transform.getInputs();
+    }
+
+    public Map<TupleTag<?>, PCollection<?>> getOutputs() {
+      return transform.getOutputs();
+    }
+
+    public OutT getOutput() {
+      if (pOut == null) {
+        pOut = (OutT) getOnlyElement(transform.getOutputs().values());
+      }
+      return pOut;
+    }
+
+    public <T> PCollection<T> getOutput(TupleTag<T> tag) {
+      PCollection<T> pc = (PCollection<T>) transform.getOutputs().get(tag);
+      if (pc == null) {
+        throw new IllegalStateException("No output for tag " + tag);
+      }
+      return pc;
+    }
+
+    public AppliedPTransform<InT, OutT, TransformT> getCurrentTransform() {
+      return transform;
+    }
+
+    @Override
+    public <T> Dataset<WindowedValue<T>> getDataset(PCollection<T> pCollection) {
+      return state.getDataset(pCollection);
+    }
+
+    @Override
+    public <T> Broadcast<SideInputValues<T>> getSideInputBroadcast(
+        PCollection<T> pCollection, SideInputValues.Loader<T> loader) {
+      return state.getSideInputBroadcast(pCollection, loader);
+    }
+
+    @Override
+    public <T> void putDataset(
+        PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache) {
+      state.putDataset(pCollection, dataset, cache);
+    }
+
+    @Override
+    public Supplier<PipelineOptions> getOptionsSupplier() {
+      return state.getOptionsSupplier();
+    }
+
+    @Override
+    public PipelineOptions getOptions() {
+      return state.getOptions();
+    }
+
+    public <T> Dataset<WindowedValue<T>> createDataset(
+        List<WindowedValue<T>> data, Encoder<WindowedValue<T>> enc) {
+      return data.isEmpty()
+          ? getSparkSession().emptyDataset(enc)
+          : getSparkSession().createDataset(data, enc);
+    }
+
+    public <T> Broadcast<T> broadcast(T value) {
+      return getSparkSession().sparkContext().broadcast(value, (ClassTag) ClassTag.AnyRef());
+    }
+
+    @Override
+    public SparkSession getSparkSession() {
+      return state.getSparkSession();
+    }
+
+    @Override
+    public <T> Encoder<T> encoderOf(Coder<T> coder, Factory<T> factory) {
+      return state.encoderOf(coder, factory);
+    }
+
+    public <T1, T2> Encoder<Tuple2<T1, T2>> tupleEncoder(Encoder<T1> e1, Encoder<T2> e2) {
+      return Encoders.tuple(e1, e2);
+    }
+
+    public <T> Encoder<WindowedValue<T>> windowedEncoder(Coder<T> coder) {
+      return windowedValueEncoder(encoderOf(coder), windowEncoder());
+    }
+
+    public <T> Encoder<WindowedValue<T>> windowedEncoder(Encoder<T> enc) {
+      return windowedValueEncoder(enc, windowEncoder());
+    }
+
+    public <T, W extends BoundedWindow> Encoder<WindowedValue<T>> windowedEncoder(
+        Coder<T> coder, Coder<W> windowCoder) {
+      return windowedValueEncoder(encoderOf(coder), encoderOf(windowCoder));
+    }
+
+    public Encoder<BoundedWindow> windowEncoder() {
+      checkState(!getInputs().isEmpty(), "Transform has no inputs, cannot get windowCoder!");
+      return encoderOf(windowCoder((PCollection) getInput()));
+    }
+  }
+
+  protected <T> Coder<BoundedWindow> windowCoder(PCollection<T> pc) {
+    return (Coder) pc.getWindowingStrategy().getWindowFn().windowCoder();
+  }
 }

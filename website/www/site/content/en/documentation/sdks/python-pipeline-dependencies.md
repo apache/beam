@@ -36,7 +36,7 @@ If your pipeline uses public packages from the [Python Package Index](https://py
 
     This command creates a `requirements.txt` file that lists all packages that are installed on your machine, regardless of where they were installed from.
 
-2. Edit the `requirements.txt` file and leave only the packages that were installed from PyPI and are used in the workflow source. Delete all packages that are not relevant to your code.
+2. Edit the `requirements.txt` file and delete all packages that are not relevant to your code.
 
 3. Run your pipeline with the following command-line option:
 
@@ -44,7 +44,6 @@ If your pipeline uses public packages from the [Python Package Index](https://py
 
     The runner will use the `requirements.txt` file to install your additional dependencies onto the remote workers.
 
-**Important:** Remote workers will install all packages listed in the `requirements.txt` file. Because of this, it's very important that you delete non-PyPI packages from the `requirements.txt` file, as stated in step 2. If you don't remove non-PyPI packages, the remote workers will fail when attempting to install packages from sources that are unknown to them.
 > **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all the dependencies required for the pipeline from a `--requirements_file`, where only top-level dependencies are mentioned.
 
 ## Custom Containers {#custom-containers}

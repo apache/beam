@@ -29,6 +29,8 @@ import { InstructionRequest, InstructionResponse } from "../proto/beam_fn_api";
 import {
   ProcessBundleDescriptor,
   ProcessBundleResponse,
+  ProcessBundleSplitRequest,
+  ProcessBundleSplitResponse,
 } from "../proto/beam_fn_api";
 import {
   BeamFnControlClient,
@@ -41,6 +43,8 @@ import {
 } from "../proto/beam_fn_api.grpc-server";
 
 import { MultiplexingDataChannel, IDataChannel } from "./data";
+import { loggingLocalStorage, LoggingStageInfo } from "./logging";
+import { MetricsContainer, MetricsShortIdCache } from "./metrics";
 import {
   MultiplexingStateChannel,
   CachingStateProvider,
@@ -52,6 +56,7 @@ import {
   Receiver,
   createOperator,
   OperatorContext,
+  DataSourceOperator,
 } from "./operators";
 
 export interface WorkerEndpoints {
@@ -67,8 +72,10 @@ export class Worker {
 
   processBundleDescriptors: Map<string, ProcessBundleDescriptor> = new Map();
   bundleProcessors: Map<string, BundleProcessor[]> = new Map();
+  activeBundleProcessors: Map<string, BundleProcessor> = new Map();
   dataChannels: Map<string, MultiplexingDataChannel> = new Map();
   stateChannels: Map<string, MultiplexingStateChannel> = new Map();
+  metricsShortIdCache = new MetricsShortIdCache();
 
   constructor(
     private id: string,
@@ -86,7 +93,7 @@ export class Worker {
     this.controlChannel = this.controlClient.control(metadata);
     this.controlChannel.on("data", this.handleRequest.bind(this));
     this.controlChannel.on("end", () => {
-      console.log("Control channel closed.");
+      console.warn("Control channel closed.");
       for (const dataChannel of this.dataChannels.values()) {
         try {
           // Best effort.
@@ -110,14 +117,28 @@ export class Worker {
   }
 
   async handleRequest(request) {
-    console.log(request);
-    if (request.request.oneofKind === "processBundle") {
-      await this.process(request);
-    } else {
-      console.log("Unknown instruction type: ", request);
-      this.controlChannel.write({
+    try {
+      console.log(request);
+      if (request.request.oneofKind === "processBundle") {
+        return this.process(request);
+      } else if (request.request.oneofKind === "processBundleProgress") {
+        return this.controlChannel.write(await this.progress(request));
+      } else if (request.request.oneofKind === "processBundleSplit") {
+        return this.controlChannel.write(await this.split(request));
+      } else {
+        console.error("Unknown instruction type: ", request);
+        return this.controlChannel.write({
+          instructionId: request.instructionId,
+          error: "Unknown instruction type: " + request.request.oneofKind,
+          response: {
+            oneofKind: undefined,
+          },
+        });
+      }
+    } catch (e) {
+      return this.controlChannel.write({
         instructionId: request.instructionId,
-        error: "Unknown instruction type: " + request.request.oneofKind,
+        error: "Error handling instruction: " + e + "\n" + e.stack,
         response: {
           oneofKind: undefined,
         },
@@ -125,8 +146,68 @@ export class Worker {
     }
   }
 
-  respond(response: InstructionResponse) {
-    this.controlChannel.write(response);
+  async respond(response: InstructionResponse) {
+    return this.controlChannel.write(response);
+  }
+
+  async progress(request): Promise<InstructionResponse> {
+    const processor = this.activeBundleProcessors.get(
+      request.request.processBundleProgress.instructionId
+    );
+    if (processor) {
+      const monitoringData = processor.monitoringData(this.metricsShortIdCache);
+      return {
+        instructionId: request.instructionId,
+        error: "",
+        response: {
+          oneofKind: "processBundleProgress",
+          processBundleProgress: {
+            monitoringInfos: Array.from(monitoringData.entries()).map(
+              ([id, payload]) =>
+                this.metricsShortIdCache.asMonitoringInfo(id, payload)
+            ),
+            monitoringData: Object.fromEntries(monitoringData.entries()),
+          },
+        },
+      };
+    } else {
+      return {
+        instructionId: request.instructionId,
+        error: "Unknown bundle: " + request.processBundleProgress.instructionId,
+        response: {
+          oneofKind: undefined,
+        },
+      };
+    }
+  }
+
+  async split(request): Promise<InstructionResponse> {
+    const processor = this.activeBundleProcessors.get(
+      request.request.processBundleSplit.instructionId
+    );
+    console.log(request.request.processBundleSplit, processor === undefined);
+    if (processor) {
+      return {
+        instructionId: request.instructionId,
+        error: "",
+        response: {
+          oneofKind: "processBundleSplit",
+          processBundleSplit: processor.split(
+            request.request.processBundleSplit
+          ),
+        },
+      };
+    } else {
+      return {
+        instructionId: request.instructionId,
+        error:
+          "Unknown process bundle: " +
+          request.request.processBundleSplit.instructionId,
+        response: {
+          oneofKind: undefined,
+        },
+      };
+    }
   }
 
   async process(request) {
@@ -154,7 +235,10 @@ export class Worker {
                 },
               });
             } else {
-              this.processBundleDescriptors.set(descriptorId, value);
+              this.processBundleDescriptors.set(
+                descriptorId,
+                maybeStripDataflowWindowedWrappings(value)
+              );
               this.process(request);
             }
           }
@@ -163,7 +247,9 @@ export class Worker {
       }
 
       const processor = this.aquireBundleProcessor(descriptorId);
+      this.activeBundleProcessors.set(request.instructionId, processor);
       await processor.process(request.instructionId);
+      const monitoringData = processor.monitoringData(this.metricsShortIdCache);
       await this.respond({
         instructionId: request.instructionId,
         error: "",
@@ -171,9 +257,12 @@ export class Worker {
           oneofKind: "processBundle",
           processBundle: {
             residualRoots: [],
-            monitoringInfos: [],
             requiresFinalization: false,
-            monitoringData: {},
+            monitoringInfos: Array.from(monitoringData.entries()).map(
+              ([id, payload]) =>
+                this.metricsShortIdCache.asMonitoringInfo(id, payload)
+            ),
+            monitoringData: Object.fromEntries(monitoringData.entries()),
           },
         },
       });
@@ -185,6 +274,8 @@ export class Worker {
         error: "" + error,
         response: { oneofKind: undefined },
       });
+    } finally {
+      this.activeBundleProcessors.delete(request.instructionId);
     }
   }
 
@@ -250,6 +341,8 @@ export class BundleProcessor {
   getStateChannel: ((string) => MultiplexingStateChannel) | StateProvider;
   currentBundleId?: string;
   stateProvider?: StateProvider;
+  loggingStageInfo: LoggingStageInfo = {};
+  metricsContainer: MetricsContainer;
 
   constructor(
     descriptor: ProcessBundleDescriptor,
@@ -260,6 +353,7 @@ export class BundleProcessor {
     this.descriptor = descriptor;
     this.getDataChannel = getDataChannel;
     this.getStateChannel = getStateChannel;
+    this.metricsContainer = new MetricsContainer();
 
     // TODO: (Perf) Consider defering this possibly expensive deserialization lazily to the worker thread.
     const this_ = this;
@@ -283,7 +377,11 @@ export class BundleProcessor {
       if (!this_.receivers.has(pcollectionId)) {
         this_.receivers.set(
           pcollectionId,
-          new Receiver((consumers.get(pcollectionId) || []).map(getOperator))
+          new Receiver(
+            (consumers.get(pcollectionId) || []).map(getOperator),
+            this_.loggingStageInfo,
+            this_.metricsContainer.elementCountMetric(pcollectionId)
+          )
         );
       }
       return this_.receivers.get(pcollectionId)!;
@@ -300,7 +398,9 @@ export class BundleProcessor {
               getReceiver,
               this_.getDataChannel,
               this_.getStateProvider.bind(this_),
-              this_.getBundleId.bind(this_)
+              this_.getBundleId.bind(this_),
+              this_.loggingStageInfo,
+              this_.metricsContainer
             )
           )
         );
@@ -347,20 +447,51 @@ export class BundleProcessor {
   // Put this on a worker thread...
   async process(instructionId: string) {
     console.debug("Processing ", this.descriptor.id, "for", instructionId);
+    this.metricsContainer.reset();
     this.currentBundleId = instructionId;
+    this.loggingStageInfo.instructionId = instructionId;
+    loggingLocalStorage.enterWith(this.loggingStageInfo);
     // We must await these in reverse topological order.
     for (const o of this.topologicallyOrderedOperators.slice().reverse()) {
+      this.loggingStageInfo.transformId = o.transformId;
       await o.startBundle();
     }
+    this.loggingStageInfo.transformId = undefined;
     // Now finish bundles all the bundles.
     // Note that process is not directly called on any operator here.
     // Instead, process is triggered by elements coming over the
     // data stream and/or operator start/finishBundle methods.
     for (const o of this.topologicallyOrderedOperators) {
+      this.loggingStageInfo.transformId = o.transformId;
       await o.finishBundle();
     }
+    this.loggingStageInfo.transformId = undefined;
+    this.loggingStageInfo.instructionId = undefined;
     this.currentBundleId = undefined;
     this.stateProvider = undefined;
+  }
+
+  split(splitRequest: ProcessBundleSplitRequest): ProcessBundleSplitResponse {
+    const root = this.topologicallyOrderedOperators[0] as DataSourceOperator;
+    for (const [target, desiredSplit] of Object.entries(
+      splitRequest.desiredSplits
+    )) {
+      if (target == root.transformId) {
+        const channelSplit = root.split(desiredSplit);
+        if (channelSplit) {
+          return {
+            primaryRoots: [],
+            residualRoots: [],
+            channelSplits: [channelSplit],
+          };
+        }
+      }
+    }
+    return ProcessBundleSplitResponse.create({});
+  }
+
+  monitoringData(shortIdCache: MetricsShortIdCache): Map<string, Uint8Array> {
+    return this.metricsContainer.monitoringData(shortIdCache);
   }
 }
 
@@ -376,4 +507,24 @@ function isPrimitive(transform: PTransform): boolean {
       Object.values(transform.outputs).some((pcoll) => !inputs.includes(pcoll))
     );
   }
+}
+
+function maybeStripDataflowWindowedWrappings(
+  descriptor: ProcessBundleDescriptor
+): ProcessBundleDescriptor {
+  for (const pcoll of Object.values(descriptor.pcollections)) {
+    const coder = descriptor.coders[pcoll.coderId];
+    if (
+      coder.spec?.urn == "beam:coder:windowed_value:v1" ||
+      coder.spec?.urn == "beam:coder:param_windowed_value:v1"
+    ) {
+      // Dataflow sets PCollection coder_id to a coder of WindowedValues rather
+      // than the coder of the element type alone.
+      // Until Dataflow is fixed, we must assume that the element type is not
+      // actually a windowed value, but that this wrapping was extraneously
+      // added.
+      pcoll.coderId = coder.componentCoderIds[0];
+    }
+  }
+  return descriptor;
 }
