@@ -24,7 +24,6 @@
 
 .case-study-list {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
   gap: 2%;
   margin-bottom: 16px;
@@ -112,6 +111,9 @@
   @media (max-width: $tablet) {
     width: 350px;
   }
+  @media (max-width: $ak-breakpoint-xs) {
+    width: 270px;
+  }
 
   .case-study-card-description {
     height: 185px;
@@ -156,6 +158,14 @@
     align-items: center;
     justify-content: space-between;
   }
+
+  .quote-block-wrapper {
+    padding-top: 15px;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
 }
 
 .case-study-row-button-container {
@@ -196,7 +206,7 @@ h2.case-study-h2 {
 }
 
 .case-study-quote-block {
-  padding: 0;
+  padding: 5px 0 50px 0;
   border-left: 0;
 
   .case-study-quote-text {

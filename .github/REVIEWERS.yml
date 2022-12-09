@@ -29,8 +29,8 @@ labels:
   - name: Python
     reviewers:
       - AnandInguva
-      - TheNeuralBit
-      - ryanthompson591
+      - damccorm
+      - jrmccluskey
       - tvalentyn
       - pabloem
     exclusionList: []

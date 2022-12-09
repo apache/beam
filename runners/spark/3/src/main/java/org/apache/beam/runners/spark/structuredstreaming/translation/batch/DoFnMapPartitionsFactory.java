@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.scalaIterator;
@@ -25,23 +24,21 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.L
 
 import java.io.Serializable;
 import java.util.ArrayDeque;
-import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.CachedSideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SideInputBroadcast;
-import org.apache.beam.runners.spark.structuredstreaming.translation.utils.CachedSideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun2;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -64,7 +61,7 @@ class DoFnMapPartitionsFactory<InT, OutT> implements Serializable {
 
   private final DoFn<InT, OutT> doFn;
   private final DoFnSchemaInformation doFnSchema;
-  private final SerializablePipelineOptions options;
+  private final Supplier<PipelineOptions> options;
 
   private final Coder<InT> coder;
   private final WindowingStrategy<?, ?> windowingStrategy;
@@ -73,19 +70,18 @@ class DoFnMapPartitionsFactory<InT, OutT> implements Serializable {
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
   private final Map<String, PCollectionView<?>> sideInputs;
-  private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputWindows;
-  private final SideInputBroadcast broadcastStateData;
+  private final SideInputReader sideInputReader;
 
   DoFnMapPartitionsFactory(
       String stepName,
       DoFn<InT, OutT> doFn,
       DoFnSchemaInformation doFnSchema,
-      SerializablePipelineOptions options,
+      Supplier<PipelineOptions> options,
       PCollection<InT> input,
       TupleTag<OutT> mainOutput,
       Map<TupleTag<?>, PCollection<?>> outputs,
       Map<String, PCollectionView<?>> sideInputs,
-      SideInputBroadcast broadcastStateData) {
+      SideInputReader sideInputReader) {
     this.stepName = stepName;
     this.doFn = doFn;
     this.doFnSchema = doFnSchema;
@@ -96,8 +92,7 @@ class DoFnMapPartitionsFactory<InT, OutT> implements Serializable {
     this.additionalOutputs = additionalOutputs(outputs, mainOutput);
     this.outputCoders = outputCoders(outputs);
     this.sideInputs = sideInputs;
-    this.sideInputWindows = sideInputWindows(sideInputs.values());
-    this.broadcastStateData = broadcastStateData;
+    this.sideInputReader = sideInputReader;
   }
 
   /** Create the {@link MapPartitionsFunction} using the provided output function. */
@@ -176,12 +171,10 @@ class DoFnMapPartitionsFactory<InT, OutT> implements Serializable {
             buffer.add(outputFn.apply(tag, output));
           }
         };
-    SideInputReader sideInputReader =
-        CachedSideInputReader.of(new SparkSideInputReader(sideInputWindows, broadcastStateData));
     return DoFnRunners.simpleRunner(
         options.get(),
         doFn,
-        sideInputReader,
+        CachedSideInputReader.of(sideInputReader, sideInputs.values()),
         outputManager,
         mainOutput,
         additionalOutputs,
@@ -195,19 +188,6 @@ class DoFnMapPartitionsFactory<InT, OutT> implements Serializable {
 
   private DoFnRunner<InT, OutT> metricsRunner(DoFnRunner<InT, OutT> runner) {
     return new DoFnRunnerWithMetrics<>(stepName, runner, MetricsAccumulator.getInstance());
-  }
-
-  private static Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputWindows(
-      Collection<PCollectionView<?>> views) {
-    return views.stream().collect(toMap(identity(), DoFnMapPartitionsFactory::windowingStrategy));
-  }
-
-  private static WindowingStrategy<?, ?> windowingStrategy(PCollectionView<?> view) {
-    PCollection<?> pc = view.getPCollection();
-    if (pc == null) {
-      throw new IllegalStateException("PCollection not available for " + view);
-    }
-    return pc.getWindowingStrategy();
   }
 
   private static List<TupleTag<?>> additionalOutputs(

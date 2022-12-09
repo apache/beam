@@ -33,6 +33,7 @@ applyJavaNature(
   classesTriggerCheckerBugs: [
     'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
     'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
+    'FetchAndFilterStreamingSideInputsOperation': 'https://github.com/typetools/checker-framework/issues/5436',
   ],
   enableSpotbugs: true,
   validateShadowJar: false,

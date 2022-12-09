@@ -24,10 +24,6 @@ import static java.util.UUID.randomUUID
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def final JOB_SPECIFIC_SWITCHES = [
-  '-PwithDataflowWorkerJar="true"'
-]
-
 def psio_test = [
   title          : 'PubsubIO Write Performance Test Python 2GB',
   test           : 'apache_beam.io.gcp.pubsub_io_perf_test',
@@ -58,7 +54,7 @@ def executeJob = { scope, testConfig ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner,
-      CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, JOB_SPECIFIC_SWITCHES)
+      CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -70,6 +66,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       executeJob(delegate, psio_test)
     }
 
-CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H H * * *', this) {
   executeJob(delegate, psio_test)
 }

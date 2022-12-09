@@ -37,11 +37,11 @@ import (
 //
 // Providers have three tasks with respect to a given supported logical type:
 //
-//   * Producing schema representative types for their logical types.
-//   * Producing schema encoders for values of that type, writing beam
-//   schema encoded bytes for a value, matching the schema representative type.
-//   * Producing schema decoders for values of that type, reading beam
-//   schema encoded bytes, and producing a value of that type.
+//   - Producing schema representative types for their logical types.
+//   - Producing schema encoders for values of that type, writing beam
+//     schema encoded bytes for a value, matching the schema representative type.
+//   - Producing schema decoders for values of that type, reading beam
+//     schema encoded bytes, and producing a value of that type.
 //
 // Representative Schema types must be structs with only exported fields.
 //

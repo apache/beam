@@ -33,7 +33,7 @@ String jobName = "beam_PerformanceTests_SparkReceiver_IO"
  */
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate, 'master', 120)
-  common.setAutoJob(delegate, 'H H/6 * * *')
+  common.setAutoJob(delegate, 'H H/12 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java SparkReceiverIO Performance Test',
@@ -54,7 +54,7 @@ job(jobName) {
     runner                        : 'DataflowRunner',
     sourceOptions                 : """
                                      {
-                                       "numRecords": "600000",
+                                       "numRecords": "5000000",
                                        "keySizeBytes": "1",
                                        "valueSizeBytes": "90"
                                      }
@@ -66,7 +66,7 @@ job(jobName) {
     influxHost                    : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     rabbitMqBootstrapServerAddress: "amqp://guest:guest@\$${rabbitMqHostName}:5672",
     streamName                    : 'rabbitMqTestStream',
-    readTimeout                   : '900',
+    readTimeout                   : '1800',
     numWorkers                    : '5',
     autoscalingAlgorithm          : 'NONE'
   ]
@@ -78,7 +78,7 @@ job(jobName) {
       switches("--info")
       switches("-DintegrationTestPipelineOptions=\'${common.joinOptionsWithNestedJsonValues(pipelineOptions)}\'")
       switches("-DintegrationTestRunner=dataflow")
-      tasks(":sdks:java:io:sparkreceiver:integrationTest --tests org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIOIT")
+      tasks(":sdks:java:io:sparkreceiver:2:integrationTest --tests org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIOIT")
     }
   }
 }

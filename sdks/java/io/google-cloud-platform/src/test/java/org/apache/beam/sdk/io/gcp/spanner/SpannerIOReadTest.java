@@ -61,7 +61,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -752,7 +751,6 @@ public class SpannerIOReadTest implements Serializable {
     assertEquals(count, getQueryRequestMetric(config, queryName, status));
   }
 
-  @NotNull
   private HashMap<String, String> getBaseMetricsLabels(SpannerConfig config) {
     HashMap<String, String> baseLabels = new HashMap<>();
     baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
