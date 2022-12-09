@@ -66,7 +66,7 @@ job(jobName) {
     influxHost                    : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     rabbitMqBootstrapServerAddress: "amqp://guest:guest@\$${rabbitMqHostName}:5672",
     streamName                    : 'rabbitMqTestStream',
-    readTimeout                   : '900',
+    readTimeout                   : '1800',
     numWorkers                    : '5',
     autoscalingAlgorithm          : 'NONE'
   ]

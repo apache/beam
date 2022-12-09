@@ -21,7 +21,10 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java_Debezium_IO_Direct',
-    gradleTask: ':sdks:java:io:debezium:integrationTest',
+    gradleTasks: [
+      ':sdks:java:io:debezium:build',
+      ':sdks:java:io:debezium:integrationTest',
+    ],
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PdisableCheckStyle=true'

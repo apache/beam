@@ -121,7 +121,6 @@ func RunAndValidate(t *testing.T, p *beam.Pipeline) beam.PipelineResult {
 //	func TestMain(m *testing.M) {
 //		ptest.Main(m)
 //	}
-//
 func Main(m *testing.M) {
 	MainWithDefault(m, "direct")
 }

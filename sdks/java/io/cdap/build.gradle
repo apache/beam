@@ -22,7 +22,6 @@ plugins {
 }
 
 applyJavaNature(
-        exportJavadoc: false,
         automaticModuleName: 'org.apache.beam.sdk.io.cdap',
 )
 provideIntegrationTestingDependencies()

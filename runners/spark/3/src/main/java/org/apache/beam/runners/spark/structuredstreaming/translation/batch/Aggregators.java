@@ -37,6 +37,7 @@ import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -58,7 +59,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.joda.time.Instant;
 
-public class Aggregators {
+@Internal
+class Aggregators {
 
   /**
    * Creates simple value {@link Aggregator} that is not window aware.
@@ -68,7 +70,7 @@ public class Aggregators {
    * @param <ResT> {@link CombineFn} / {@link Aggregator} result type
    * @param <InT> {@link Aggregator} input type
    */
-  public static <ValT, AccT, ResT, InT> Aggregator<InT, ?, ResT> value(
+  static <ValT, AccT, ResT, InT> Aggregator<InT, ?, ResT> value(
       CombineFn<ValT, AccT, ResT> fn,
       Fun1<InT, ValT> valueFn,
       Encoder<AccT> accEnc,
@@ -89,7 +91,7 @@ public class Aggregators {
    * @param <ResT> {@link CombineFn} / {@link Aggregator} result type
    * @param <InT> {@link Aggregator} input type
    */
-  public static <ValT, AccT, ResT, InT>
+  static <ValT, AccT, ResT, InT>
       Aggregator<WindowedValue<InT>, ?, Collection<WindowedValue<ResT>>> windowedValue(
           CombineFn<ValT, AccT, ResT> fn,
           Fun1<WindowedValue<InT>, ValT> valueFn,
