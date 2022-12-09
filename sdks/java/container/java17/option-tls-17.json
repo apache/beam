@@ -1,0 +1,10 @@
+{
+    "name": "tls",
+    "enabled": true,
+    "options": {
+      "properties": {
+        "java.security.properties": "/opt/apache/beam/options/jdk17-tls.properties"
+      }
+    }
+  }
+  

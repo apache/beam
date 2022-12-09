@@ -82,6 +82,11 @@ task copyJdkOptions(type: Copy) {
         from "option-jamm.json"
         into "build/target/options"
     }
+
+    into("build/target/options") {
+        from "jdk${imageJavaVersion}-tls.properties"
+        from "option-tls-${imageJavaVersion}.json"
+    }
 }
 
 task skipPullLicenses(type: Exec) {
