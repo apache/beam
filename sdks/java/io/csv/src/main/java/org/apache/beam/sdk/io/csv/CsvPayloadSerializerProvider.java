@@ -24,7 +24,6 @@ import java.util.Objects;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
 import org.apache.beam.sdk.values.Row;
@@ -33,6 +32,7 @@ import org.apache.commons.csv.CSVFormat;
 /** {@link PayloadSerializerProvider} implementation supporting CSV. */
 @AutoService(PayloadSerializerProvider.class)
 public class CsvPayloadSerializerProvider implements PayloadSerializerProvider {
+  static final String IDENTIFIER = "csv";
   public static final Field CSV_FORMAT_PARAMETER_FIELD =
       Field.nullable("csv_format", FieldType.logicalType(new CsvFormatLogicalType()));
   public static final Field SCHEMA_FIELDS_PARAMETER_FIELD =
@@ -42,17 +42,24 @@ public class CsvPayloadSerializerProvider implements PayloadSerializerProvider {
 
   @Override
   public String identifier() {
-    return "csv";
+    return IDENTIFIER;
   }
 
   /**
    * Validates {@link Map} of {@param params} against {@link
    * #CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA} and converts the {@param params} as a {@link Row}.
+   * The design goals of this method are to schematize {@link #getSerializer(Schema, Map)}'s params
+   * to improve error handling and developer expectations of the keys and value types.
    */
   static Row rowFrom(Map<String, Object> params) {
     return Row.withSchema(CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA).withFieldValues(params).build();
   }
 
+  /**
+   * Implementation of {@link PayloadSerializerProvider#getSerializer(Schema, Map)} method.
+   * Instantiates a {@link CsvPayloadSerializer}. See {@link
+   * #CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA} for {@param params}'s expected keys and value types.
+   */
   @Override
   public PayloadSerializer getSerializer(Schema schema, Map<String, Object> params) {
     Row paramsRow = rowFrom(params);
@@ -61,6 +68,9 @@ public class CsvPayloadSerializerProvider implements PayloadSerializerProvider {
     if (paramsRow.getValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName()) != null) {
       schemaFields =
           Objects.requireNonNull(paramsRow.getValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName()));
+    }
+    if (paramsRow.getValue(CSV_FORMAT_PARAMETER_FIELD.getName()) != null) {
+      csvFormat = Objects.requireNonNull(paramsRow.getValue(CSV_FORMAT_PARAMETER_FIELD.getName()));
     }
     return new CsvPayloadSerializer(schema, csvFormat, schemaFields);
   }

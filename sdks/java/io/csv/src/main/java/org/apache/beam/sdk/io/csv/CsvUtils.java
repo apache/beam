@@ -128,7 +128,8 @@ public final class CsvUtils {
       return;
     }
     if (columns.isEmpty()) {
-      throw new IllegalArgumentException("Columns is empty. An intent to not override columns, should assign null to the columns parameter.");
+      throw new IllegalArgumentException(
+          "Columns is empty. An intent to not override columns, should assign null to the columns parameter.");
     }
     List<String> mismatch = new ArrayList<>();
     for (String name : columns) {
@@ -138,8 +139,9 @@ public final class CsvUtils {
     }
     if (!mismatch.isEmpty()) {
       String mismatchString = String.join(", ", mismatch);
+      String schemaString = String.join(", ", schema.getFieldNames());
       throw new IllegalArgumentException(
-          String.format("schema missing columns: %s", mismatchString));
+          String.format("schema: [%s] missing columns: [%s]", schemaString, mismatchString));
     }
   }
 

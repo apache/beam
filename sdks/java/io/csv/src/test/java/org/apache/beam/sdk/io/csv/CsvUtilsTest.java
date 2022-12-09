@@ -25,6 +25,7 @@ import static org.junit.Assert.assertThrows;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 import org.joda.time.Instant;
@@ -68,7 +69,7 @@ public class CsvUtilsTest {
   @Test
   public void getRowToCsvBytesFunction() {
     assertArrayEquals(
-        "asdfjkl;,true,0,2022-12-06T20:26:05.856Z,1,3.12345,4.1,5,2,7"
+        "true,0,3.12345,4.1,7,5,2,2022-12-06T20:26:05.856Z,1,asdfjkl;"
             .getBytes(StandardCharsets.UTF_8),
         CsvUtils.getRowToCsvBytesFunction(row.getSchema(), null, null).apply(row));
   }
@@ -76,17 +77,35 @@ public class CsvUtilsTest {
   @Test
   public void getRowToCsvStringFunction() {
     assertEquals(
-        "asdfjkl;,true,0,2022-12-06T20:26:05.856Z,1,3.12345,4.1,5,2,7",
+        "true,0,3.12345,4.1,7,5,2,2022-12-06T20:26:05.856Z,1,asdfjkl;",
         CsvUtils.getRowToCsvStringFunction(row.getSchema(), null, null).apply(row));
   }
 
   @Test
-  public void buildHeaderFrom() {
+  public void buildHeaderFromDefaults() {
     assertEquals(
-        "string,aBoolean,aByte,dateTime,decimal,aDouble,aFloat,aShort,anInt,aLong",
+        "aBoolean,aByte,aDouble,aFloat,aLong,aShort,anInt,dateTime,decimal,string",
         CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.DEFAULT));
+  }
+
+  @Test
+  public void buildHeaderFromNonDefaultCSVFormat() {
     assertEquals(
-        "\"string\",\"aBoolean\",\"aByte\",\"dateTime\",\"decimal\",\"aDouble\",\"aFloat\",\"aShort\",\"anInt\",\"aLong\"",
+        "\"aBoolean\",\"aByte\",\"aDouble\",\"aFloat\",\"aLong\",\"aShort\",\"anInt\",\"dateTime\",\"decimal\",\"string\"",
         CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.POSTGRESQL_CSV));
+  }
+
+  @Test
+  public void buildHeaderFromListWithDefaultCSVFormat() {
+    assertEquals(
+        "col1,col2,col3",
+        CsvUtils.buildHeaderFrom(Arrays.asList("col1", "col2", "col3"), CSVFormat.DEFAULT));
+  }
+
+  @Test
+  public void buildHeaderFromListWithNonDefaultCSVFormat() {
+    assertEquals(
+        "col1\tcol2\tcol3",
+        CsvUtils.buildHeaderFrom(Arrays.asList("col1", "col2", "col3"), CSVFormat.TDF));
   }
 }

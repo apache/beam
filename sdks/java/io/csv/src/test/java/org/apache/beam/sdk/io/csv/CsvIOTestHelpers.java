@@ -25,7 +25,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvid
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.joda.time.ReadableDateTime;
+import org.joda.time.DateTime;
 
 class CsvIOTestHelpers {
   private static final DefaultSchemaProvider DEFAULT_SCHEMA_PROVIDER = new DefaultSchemaProvider();
@@ -35,7 +35,7 @@ class CsvIOTestHelpers {
   static Row rowOf(
       boolean aBoolean,
       byte aByte,
-      ReadableDateTime dateTime,
+      DateTime dateTime,
       BigDecimal decimal,
       double aDouble,
       float aFloat,
@@ -54,7 +54,7 @@ class CsvIOTestHelpers {
     static AllDataTypes of(
         boolean aBoolean,
         byte aByte,
-        ReadableDateTime dateTime,
+        DateTime dateTime,
         BigDecimal decimal,
         double aDouble,
         float aFloat,
@@ -68,7 +68,7 @@ class CsvIOTestHelpers {
 
     private final boolean aBoolean;
     private final byte aByte;
-    private final ReadableDateTime dateTime;
+    private final DateTime dateTime;
     private final BigDecimal decimal;
     private final double aDouble;
     private final float aFloat;
@@ -81,7 +81,7 @@ class CsvIOTestHelpers {
     AllDataTypes(
         boolean aBoolean,
         byte aByte,
-        ReadableDateTime dateTime,
+        DateTime dateTime,
         BigDecimal decimal,
         double aDouble,
         float aFloat,
@@ -115,7 +115,7 @@ class CsvIOTestHelpers {
       return aByte;
     }
 
-    public ReadableDateTime getDateTime() {
+    public DateTime getDateTime() {
       return dateTime;
     }
 
