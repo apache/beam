@@ -522,38 +522,38 @@ def validate_example_fields(example: Example):
     :param example: example from the repository
     """
     if example.filepath == "":
-        _log_and_rise_validation_err(f"Example doesn't have a file path field. Example: {example}")
+        _log_and_raise_validation_err(f"Example doesn't have a file path field. Example: {example}")
     if example.name == "":
-        _log_and_rise_validation_err(f"Example doesn't have a name field. Path: {example.filepath}")
+        _log_and_raise_validation_err(f"Example doesn't have a name field. Path: {example.filepath}")
     if example.sdk == SDK_UNSPECIFIED:
-        _log_and_rise_validation_err(f"Example doesn't have a sdk field. Path: {example.filepath}")
+        _log_and_raise_validation_err(f"Example doesn't have a sdk field. Path: {example.filepath}")
     if example.code == "":
-        _log_and_rise_validation_err(f"Example doesn't have a code field. Path: {example.filepath}")
+        _log_and_raise_validation_err(f"Example doesn't have a code field. Path: {example.filepath}")
     if example.link == "":
-        _log_and_rise_validation_err(f"Example doesn't have a link field. Path: {example.filepath}")
+        _log_and_raise_validation_err(f"Example doesn't have a link field. Path: {example.filepath}")
     if example.complexity == "":
-        _log_and_rise_validation_err(f"Example doesn't have a complexity field. Path: {example.filepath}")
+        _log_and_raise_validation_err(f"Example doesn't have a complexity field. Path: {example.filepath}")
     datasets = example.datasets
     emulators = example.emulators
 
     if datasets and not emulators:
-        _log_and_rise_validation_err(f"Example has a datasets field but an emulators field not found. Path: {example.filepath}")
+        _log_and_raise_validation_err(f"Example has a datasets field but an emulators field not found. Path: {example.filepath}")
     if emulators and not datasets:
-        _log_and_rise_validation_err(f"Example has an emulators field but a datasets field not found. Path: {example.filepath}")
+        _log_and_raise_validation_err(f"Example has an emulators field but a datasets field not found. Path: {example.filepath}")
 
     dataset_names = []
     for dataset in datasets:
         location = dataset.location
         dataset_format = dataset.format
         if not location or not dataset_format or location not in ["local"] or dataset_format not in ["json", "avro"]:
-            _log_and_rise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
+            _log_and_raise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
         dataset_names.append(dataset.name)
     for emulator in emulators:
         if not (emulator.name == "kafka" and emulator.topic.dataset in dataset_names):
-            _log_and_rise_validation_err(f"Example has invalid emulator value. Path: {example.filepath}")
+            _log_and_raise_validation_err(f"Example has invalid emulator value. Path: {example.filepath}")
 
 
-def _log_and_rise_validation_err(msg: str):
+def _log_and_raise_validation_err(msg: str):
     logging.error(msg)
     raise ValidationException(msg)
 
