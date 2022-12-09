@@ -24,11 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.util.HashIdGenerator;
+import org.apache.beam.runners.samza.util.StoreIdGenerator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -84,16 +86,19 @@ public class TranslationContext {
   private final Map<String, Table> registeredTables = new HashMap<>();
   private final SamzaPipelineOptions options;
   private final HashIdGenerator idGenerator = new HashIdGenerator();
+  private final StoreIdGenerator storeIdGenerator;
 
   private AppliedPTransform<?, ?, ?> currentTransform;
 
   public TranslationContext(
       StreamApplicationDescriptor appDescriptor,
       Map<PValue, String> idMap,
+      Set<String> nonUniqueStateIds,
       SamzaPipelineOptions options) {
     this.appDescriptor = appDescriptor;
     this.idMap = idMap;
     this.options = options;
+    this.storeIdGenerator = new StoreIdGenerator(nonUniqueStateIds);
   }
 
   public <OutT> void registerInputMessageStream(
@@ -109,6 +114,13 @@ public class TranslationContext {
    */
   public <OutT> void registerInputMessageStreams(
       PValue pvalue, List<? extends InputDescriptor<KV<?, OpMessage<OutT>>, ?>> inputDescriptors) {
+    registerInputMessageStreams(pvalue, inputDescriptors, this::registerMessageStream);
+  }
+
+  protected <KeyT, OutT> void registerInputMessageStreams(
+      KeyT key,
+      List<? extends InputDescriptor<KV<?, OpMessage<OutT>>, ?>> inputDescriptors,
+      BiConsumer<KeyT, MessageStream<OpMessage<OutT>>> registerFunction) {
     final Set<MessageStream<OpMessage<OutT>>> streamsToMerge = new HashSet<>();
     for (InputDescriptor<KV<?, OpMessage<OutT>>, ?> inputDescriptor : inputDescriptors) {
       final String streamId = inputDescriptor.getStreamId();
@@ -119,7 +131,7 @@ public class TranslationContext {
         LOG.info(
             String.format(
                 "Stream id %s has already been mapped to %s stream. Mapping %s to the same message stream.",
-                streamId, messageStream, pvalue));
+                streamId, messageStream, key));
         streamsToMerge.add(messageStream);
       } else {
         final MessageStream<OpMessage<OutT>> typedStream =
@@ -128,7 +140,8 @@ public class TranslationContext {
         streamsToMerge.add(typedStream);
       }
     }
-    registerMessageStream(pvalue, MessageStream.mergeAll(streamsToMerge));
+
+    registerFunction.accept(key, MessageStream.mergeAll(streamsToMerge));
   }
 
   public <OutT> void registerMessageStream(PValue pvalue, MessageStream<OpMessage<OutT>> stream) {
@@ -237,7 +250,11 @@ public class TranslationContext {
   }
 
   public String getTransformId() {
-    return idGenerator.getId(currentTransform.getFullName());
+    return idGenerator.getId(getTransformFullName());
+  }
+
+  public StoreIdGenerator getStoreIdGenerator() {
+    return storeIdGenerator;
   }
 
   /** The dummy stream created will only be used in Beam tests. */

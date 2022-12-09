@@ -16,24 +16,33 @@
 #  under the License.
 
 ui:
-  copyright: '© The Apache Software Foundation'
-  darkMode: 'Dark Mode'
-  lightMode: 'Light Mode'
-  privacyPolicy: 'Privacy Policy'
-  reportIssue: 'Report Issue in GitHub'
-  signIn: 'Sign in'
-  continueGitHub: 'Continue with GitHub'
-  continueGoogle: 'Continue with Google'
+  about: About Tour of Beam
+  builtWith: Built with Apache Beam
+  continueGitHub: Continue with GitHub
+  continueGoogle: Continue with Google
+  copyright: © The Apache Software Foundation
+  deleteAccount: Delete my account
+  privacyPolicy: Privacy Policy
+  reportIssue: Report Issue in GitHub
+  signIn: Sign in
+  signOut: Sign out
+  toWebsite: To Apache Beam website
+
 pages:
   welcome:
-    title: 'Welcome to the Tour of Beam!'
-    ifSaveProgress: 'Your journey is broken down into learning modules. If you would like to save your progress and track completed modules, please'
-    signIn: ' sign in.'
+    ifSaveProgress: Your journey is broken down into learning modules. If you would like to save your progress and track completed modules, please
     selectLanguage: 'Please select the default language (you may change the language at any time):'
-    startLearning: 'Start learning'
+    signIn: ' sign in.'
+    startTour: Start your tour
+    title: Welcome to the Tour of Beam!
+  tour:
+    completeUnit: Complete Unit
+    summaryTitle: Table of Contents
+
 dialogs:
   signInIf: If you would like to save your progress and track completed modules
+
 complexity:
-  basic: 'Basic level'
-  medium: 'Medium level'
-  advanced: 'Advanced level'
+  basic: Basic level
+  medium: Medium level
+  advanced: Advanced level

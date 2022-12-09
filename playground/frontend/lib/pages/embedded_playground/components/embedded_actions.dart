@@ -27,8 +27,8 @@ import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/params.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/messages/models/set_content_message.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:playground/utils/javascript_post_message.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 const kTryPlaygroundButtonWidth = 200.0;
@@ -44,29 +44,29 @@ class EmbeddedActions extends StatelessWidget {
       child: SizedBox(
         width: kTryPlaygroundButtonWidth,
         height: kTryPlaygroundButtonHeight,
-        child: Consumer<PlaygroundState>(
-          builder: (context, state, child) => ElevatedButton.icon(
+        child: Consumer<PlaygroundController>(
+          builder: (context, controller, child) => ElevatedButton.icon(
             icon: SvgPicture.asset(kLinkIconAsset),
             label: Text(AppLocalizations.of(context)!.tryInPlayground),
-            onPressed: () => _openStandalonePlayground(state),
+            onPressed: () => _openStandalonePlayground(controller),
           ),
         ),
       ),
     );
   }
 
-  void _openStandalonePlayground(PlaygroundState state) {
+  void _openStandalonePlayground(PlaygroundController controller) {
     // The empty list forces the parsing of EmptyExampleLoadingDescriptor
     // and prevents the glimpse of the default catalog example.
     final window = html.window.open(
-      '/?$kExamplesParam=[]&$kSdkParam=${state.sdk?.name}',
+      '/?$kExamplesParam=[]&$kSdkParam=${controller.sdk?.id}',
       '',
     );
 
     javaScriptPostMessageRepeated(
       window,
       SetContentMessage(
-        descriptor: state.getLoadingDescriptor(),
+        descriptor: controller.getLoadingDescriptor(),
       ),
     );
   }

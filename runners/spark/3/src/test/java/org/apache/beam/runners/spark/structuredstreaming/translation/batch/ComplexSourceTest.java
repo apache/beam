@@ -27,13 +27,15 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -46,15 +48,18 @@ public class ComplexSourceTest implements Serializable {
   private static File file;
   private static List<String> lines = createLines(30);
 
-  private static Pipeline pipeline;
+  @Rule public transient TestPipeline pipeline = TestPipeline.fromOptions(testOptions());
 
-  @BeforeClass
-  public static void beforeClass() throws IOException {
+  private static PipelineOptions testOptions() {
     SparkStructuredStreamingPipelineOptions options =
         PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setTestMode(true);
-    pipeline = Pipeline.create(options);
+    return options;
+  }
+
+  @BeforeClass
+  public static void beforeClass() throws IOException {
     file = createFile(lines);
   }
 

@@ -44,6 +44,8 @@ import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
@@ -51,6 +53,7 @@ import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
 
+@RunWith(JUnit4.class)
 public class UnboundedReaderImplTest {
 
   private static final Offset INITIAL_OFFSET = Offset.of(1);
@@ -100,7 +103,8 @@ public class UnboundedReaderImplTest {
   @Before
   public void setUp() {
     doReturn(INITIAL_OFFSET).when(subscriber).fetchOffset();
-    reader = new UnboundedReaderImpl(source, subscriber, backlogReader, committer, Offset.of(1));
+    reader =
+        new UnboundedReaderImpl(source, subscriber, backlogReader, () -> committer, Offset.of(1));
   }
 
   @Test
@@ -192,11 +196,9 @@ public class UnboundedReaderImplTest {
     startSubscriber();
     doThrow(new IllegalStateException("abc")).when(subscriber).awaitTerminated(1, TimeUnit.MINUTES);
     doThrow(new IllegalStateException("def")).when(backlogReader).close();
-    doThrow(new IllegalStateException("ghi")).when(committer).close();
     assertThrows(IOException.class, reader::close);
     verify(subscriber).stopAsync();
     verify(subscriber).awaitTerminated(1, TimeUnit.MINUTES);
-    verify(committer).close();
     verify(backlogReader).close();
   }
 }

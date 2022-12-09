@@ -49,11 +49,16 @@ import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -403,10 +408,10 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         }
         return toBeamRow((List<Object>) value, fieldType.getRowSchema(), verifyValues);
       case LOGICAL_TYPE:
-        String identifier = fieldType.getLogicalType().getIdentifier();
-        if (CharType.IDENTIFIER.equals(identifier)) {
-          return (String) value;
-        } else if (TimeWithLocalTzType.IDENTIFIER.equals(identifier)) {
+        LogicalType<?, ?> logicalType = fieldType.getLogicalType();
+        assert logicalType != null;
+        String identifier = logicalType.getIdentifier();
+        if (TimeWithLocalTzType.IDENTIFIER.equals(identifier)) {
           return Instant.ofEpochMilli(((Number) value).longValue());
         } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
           if (value instanceof Date) {
@@ -431,6 +436,9 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               LocalTime.ofNanoOfDay(
                   (((Number) value).longValue() % MILLIS_PER_DAY) * NANOS_PER_MILLISECOND));
         } else {
+          if (logicalType instanceof PassThroughLogicalType) {
+            return toBeamObject(value, logicalType.getBaseType(), verifyValues);
+          }
           throw new UnsupportedOperationException("Unable to convert logical type " + identifier);
         }
       default:
@@ -552,8 +560,12 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           break;
         case LOGICAL_TYPE:
           String identifier = fieldType.getLogicalType().getIdentifier();
-          if (CharType.IDENTIFIER.equals(identifier)) {
+          if (FixedString.IDENTIFIER.equals(identifier)
+              || VariableString.IDENTIFIER.equals(identifier)) {
             value = Expressions.call(expression, "getString", fieldName);
+          } else if (FixedBytes.IDENTIFIER.equals(identifier)
+              || VariableBytes.IDENTIFIER.equals(identifier)) {
+            value = Expressions.call(expression, "getBytes", fieldName);
           } else if (TimeWithLocalTzType.IDENTIFIER.equals(identifier)) {
             value = Expressions.call(expression, "getDateTime", fieldName);
           } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
@@ -629,8 +641,12 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           return nullOr(value, toCalciteRow(value, fieldType.getRowSchema()));
         case LOGICAL_TYPE:
           String identifier = fieldType.getLogicalType().getIdentifier();
-          if (CharType.IDENTIFIER.equals(identifier)) {
+          if (FixedString.IDENTIFIER.equals(identifier)
+              || VariableString.IDENTIFIER.equals(identifier)) {
             return Expressions.convert_(value, String.class);
+          } else if (FixedBytes.IDENTIFIER.equals(identifier)
+              || VariableBytes.IDENTIFIER.equals(identifier)) {
+            return Expressions.convert_(value, byte[].class);
           } else if (TimeWithLocalTzType.IDENTIFIER.equals(identifier)) {
             return nullOr(
                 value, Expressions.call(Expressions.convert_(value, DateTime.class), "getMillis"));

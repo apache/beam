@@ -216,9 +216,6 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		}
 
 		id := components[1]
-		kind := coder.KV
-		root := typex.KVType
-
 		elm, err := b.peek(id)
 		if err != nil {
 			return nil, err
@@ -226,15 +223,15 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 
 		switch elm.GetSpec().GetUrn() {
 		case urnIterableCoder, urnStateBackedIterableCoder:
-			id = elm.GetComponentCoderIds()[0]
-			kind = coder.CoGBK
-			root = typex.CoGBKType
+			iterElmID := elm.GetComponentCoderIds()[0]
 
 			// TODO(https://github.com/apache/beam/issues/18032): If CoGBK with > 1 input, handle as special GBK. We expect
 			// it to be encoded as CoGBK<K,LP<CoGBKList<V,W,..>>>. Remove this handling once
 			// CoGBK has a first-class representation.
 
-			if ids, ok := b.isCoGBKList(id); ok {
+			// If the value is an iterable, and a special CoGBK type, then expand it to the real
+			// CoGBK signature, instead of the special type.
+			if ids, ok := b.isCoGBKList(iterElmID); ok {
 				// CoGBK<K,V,W,..>
 
 				values, err := b.Coders(ids)
@@ -242,9 +239,11 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 					return nil, err
 				}
 
-				t := typex.New(root, append([]typex.FullType{key.T}, coder.Types(values)...)...)
-				return &coder.Coder{Kind: kind, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
+				t := typex.New(typex.CoGBKType, append([]typex.FullType{key.T}, coder.Types(values)...)...)
+				return &coder.Coder{Kind: coder.CoGBK, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
 			}
+			// It's valid to have a KV<k,Iter<v>> without being a CoGBK, and validating if we need to change to
+			// a CoGBK is done at the DataSource, since that's when we can check against the downstream nodes.
 		}
 
 		value, err := b.Coder(id)
@@ -252,8 +251,8 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 
-		t := typex.New(root, key.T, value.T)
-		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
+		t := typex.New(typex.KVType, key.T, value.T)
+		return &coder.Coder{Kind: coder.KV, T: t, Components: []*coder.Coder{key, value}}, nil
 
 	case urnLengthPrefixCoder:
 		if len(components) != 1 {
@@ -338,7 +337,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		}
 		return c, nil
 
-	case urnIterableCoder:
+	case urnIterableCoder, urnStateBackedIterableCoder:
 		if len(components) != 1 {
 			return nil, errors.Errorf("could not unmarshal iterable coder from %v, expected one component but got %d", c, len(components))
 		}
@@ -379,18 +378,14 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 		return coder.NewN(elm), nil
-
-		// Special handling for window coders so they can be treated as
-		// a general coder. Generally window coders are not used outside of
-		// specific contexts, but this enables improved testing.
-		// Window types are not permitted to be fulltypes, so
-		// we use assignably equivalent anonymous struct types.
 	case urnIntervalWindow:
-		w, err := b.WindowCoder(id)
-		if err != nil {
-			return nil, err
-		}
-		return &coder.Coder{Kind: coder.Window, T: typex.New(reflect.TypeOf((*struct{ Start, End int64 })(nil)).Elem()), Window: w}, nil
+		return coder.NewIntervalWindowCoder(), nil
+
+	// Special handling for the global window coder so it can be treated as
+	// a general coder. Generally window coders are not used outside of
+	// specific contexts, but this enables improved testing.
+	// Window types are not permitted to be fulltypes, so
+	// we use assignably equivalent anonymous struct types.
 	case urnGlobalWindow:
 		w, err := b.WindowCoder(id)
 		if err != nil {
@@ -529,6 +524,9 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 	case coder.String:
 		return b.internBuiltInCoder(urnStringCoder), nil
 
+	case coder.IW:
+		return b.internBuiltInCoder(urnIntervalWindow), nil
+
 	case coder.Row:
 		rt := c.T.Type()
 		s, err := schema.FromType(rt)
@@ -537,7 +535,28 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 		}
 		return b.internRowCoder(s), nil
 
-	// TODO(https://github.com/apache/beam/issues/20510): Handle coder.Timer support.
+	case coder.Timer:
+		comp := []string{}
+		ids, err := b.AddMulti(c.Components)
+		if err != nil {
+			return "", errors.SetTopLevelMsgf(err, "failed to marshal timer coder %v", c)
+		}
+		comp = append(comp, ids...)
+
+		id, err := b.AddWindowCoder(c.Window)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to marshal window coder %v", c)
+		}
+		comp = append(comp, id)
+
+		return b.internBuiltInCoder(urnTimerCoder, comp...), nil
+
+	case coder.Iterable:
+		comp, err := b.AddMulti(c.Components)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to marshal iterable coder %v", c)
+		}
+		return b.internBuiltInCoder(urnIterableCoder, comp...), nil
 
 	default:
 		err := errors.Errorf("unexpected coder kind: %v", c.Kind)

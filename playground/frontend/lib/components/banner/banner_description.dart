@@ -18,7 +18,6 @@
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover.dart';
@@ -61,10 +60,9 @@ class BannerDescription extends StatelessWidget {
                     RichText(
                       text: TextSpan(
                         children: [
-                          TextSpan(
+                          const TextSpan(
                             text: kBannerDescription1,
                             style: TextStyle(
-                              color: ThemeColors.of(context).textColor,
                               height: kDescriptionLineHeight,
                             ),
                           ),
@@ -76,10 +74,9 @@ class BannerDescription extends StatelessWidget {
                                 ..onTap = () async {
                                   launchUrl(Uri.parse(kBannerUrl));
                                 }),
-                          TextSpan(
+                          const TextSpan(
                             text: kHyperlinkText,
                             style: TextStyle(
-                              color: ThemeColors.of(context).textColor,
                               height: kDescriptionLineHeight,
                             ),
                           ),

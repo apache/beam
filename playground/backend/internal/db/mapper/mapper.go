@@ -30,4 +30,7 @@ type EntityMapper interface {
 type ResponseMapper interface {
 	ToArrayCategories(catalogDTO *dto.CatalogDTO) []*pb.Categories
 	ToObjectInfo(exampleDTO *dto.ExampleDTO) *dto.ObjectInfo
+	ToDefaultPrecompiledObjects(defaultExamplesDTO *dto.DefaultExamplesDTO) map[pb.Sdk]*pb.PrecompiledObject
+	ToPrecompiledObj(exampleDTO *dto.ExampleDTO) *pb.PrecompiledObject
+	ToDatasetBySnippetIDMap(datasets []*entity.DatasetEntity, snippets []*entity.SnippetEntity) (map[string][]*dto.DatasetDTO, error)
 }

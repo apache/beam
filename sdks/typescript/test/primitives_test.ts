@@ -29,17 +29,53 @@ import * as combiners from "../src/apache_beam/transforms/combiners";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
-import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
+import { loopbackRunner } from "../src/apache_beam/runners/runner";
 import { Pipeline } from "../src/apache_beam/internal/pipeline";
+import { GlobalWindow } from "../src/apache_beam/values";
+import { PaneInfoCoder } from "../src/apache_beam/coders/standard_coders";
 import * as testing from "../src/apache_beam/testing/assert";
 import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
 import { withName } from "../src/apache_beam/transforms";
+import * as service from "../src/apache_beam/utils/service";
+import { MultiPipelineRunner } from "../src/apache_beam/testing/multi_pipeline_runner";
 
-describe("primitives module", function () {
+let subprocessCache;
+before(async function () {
+  this.timeout(30000);
+  subprocessCache = service.SubprocessService.createCache();
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    // Start it up here so we don't timeout any individual test.
+    await loopbackRunner().run(function pipeline(root) {
+      root.apply(beam.impulse());
+    });
+  }
+});
+
+after(() => subprocessCache.stopAll());
+
+export function suite(runner: beam.Runner = new DirectRunner()) {
+  describe("testing.assertDeepEqual", function () {
+    // The tests below won't catch failures if this doesn't fail.
+    it("fails on bad assert", async function () {
+      // TODO: There's probably a more idiomatic way to test failures.
+      var seenError = false;
+      try {
+        await runner.run((root) => {
+          const pcolls = root
+            .apply(beam.create([1, 2, 3]))
+            .apply(testing.assertDeepEqual([1, 2]));
+        });
+      } catch (Error) {
+        seenError = true;
+      }
+      assert.equal(true, seenError);
+    });
+  });
+
   describe("runs basic transforms", function () {
     it("runs a map", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const pcolls = root
           .apply(beam.create([1, 2, 3]))
           .map((x) => x * x)
@@ -48,7 +84,7 @@ describe("primitives module", function () {
     });
 
     it("runs a flatmap", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const pcolls = root
           .apply(beam.create(["a b", "c"]))
           .flatMap((s) => s.split(/ +/))
@@ -57,7 +93,7 @@ describe("primitives module", function () {
     });
 
     it("runs a Splitter", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const pcolls = root
           .apply(beam.create([{ a: 1 }, { b: 10 }, { a: 2, b: 20 }]))
           .apply(beam.split(["a", "b"], { exclusive: false }));
@@ -67,7 +103,7 @@ describe("primitives module", function () {
     });
 
     it("runs a map with context", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         root
           .apply(beam.create([1, 2, 3]))
           .map((a: number, b: number) => a + b, 100)
@@ -75,8 +111,39 @@ describe("primitives module", function () {
       });
     });
 
+    it("runs a map with counters", async function () {
+      const result = await runner.run((root) => {
+        root
+          .apply(beam.create([1, 2, 3]))
+          .map(
+            withName(
+              "mapWithCounter",
+              pardo.withContext(
+                (x: number, context) => {
+                  context.myCounter.increment(x);
+                  context.myDist.update(x);
+                  return x * x;
+                },
+                {
+                  myCounter: pardo.counter("myCounter"),
+                  myDist: pardo.distribution("myDist"),
+                }
+              )
+            )
+          )
+          .apply(testing.assertDeepEqual([1, 4, 9]));
+      });
+      assert.deepEqual((await result.counters()).myCounter, 1 + 2 + 3);
+      assert.deepEqual((await result.distributions()).myDist, {
+        count: 3,
+        sum: 6,
+        min: 1,
+        max: 3,
+      });
+    });
+
     it("runs a map with singleton side input", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const input = root.apply(beam.create([1, 2, 1]));
         const sideInput = root.apply(
           beam.withName("createSide", beam.create([4]))
@@ -90,7 +157,7 @@ describe("primitives module", function () {
     });
 
     it("runs a map with a side input sharing input root", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         const input = root.apply(beam.create([1, 2, 1]));
         // TODO: Can this type be inferred?
         const sideInput: beam.PCollection<{ sum: number }> = input.apply(
@@ -105,7 +172,7 @@ describe("primitives module", function () {
     });
 
     it("runs a map with window-sensitive context", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         root
           .apply(beam.create([1, 2, 3, 4, 5, 10, 11, 12]))
           .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
@@ -114,19 +181,21 @@ describe("primitives module", function () {
           .map(
             withName(
               "MapWithContext",
-              // This is the function to apply.
-              (kv, context) => {
-                return {
-                  key: kv.key,
-                  value: kv.value,
-                  window_start_ms: context.window.lookup().start.low,
-                  a: context.other,
-                };
-              }
-            ),
-            // This is the context to pass as the second argument.
-            // At each element, window.get() will return the associated window.
-            { window: pardo.windowParam(), other: "A" }
+              pardo.withContext(
+                // This is the function to apply.
+                (kv, context) => {
+                  return {
+                    key: kv.key,
+                    value: kv.value,
+                    window_start_ms: context.window.lookup().start.low,
+                    a: context.other,
+                  };
+                },
+                // This is the context to pass as the second argument.
+                // At each element, window.get() will return the associated window.
+                { window: pardo.windowParam(), other: "A" }
+              )
+            )
           )
           .apply(
             testing.assertDeepEqual([
@@ -138,7 +207,7 @@ describe("primitives module", function () {
     });
 
     it("runs a WindowInto", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         root
           .apply(beam.create(["apple", "apricot", "banana"]))
           .apply(beam.windowInto(windowings.globalWindows()))
@@ -153,7 +222,7 @@ describe("primitives module", function () {
     });
 
     it("runs a WindowInto IntervalWindow", async function () {
-      await new DirectRunner().run((root) => {
+      await runner.run((root) => {
         root
           .apply(beam.create([1, 2, 3, 4, 5, 10, 11, 12]))
           .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
@@ -214,4 +283,126 @@ describe("primitives module", function () {
       );
     });
   });
+}
+
+describe("primitives module", function () {
+  describe("direct runner", suite.bind(this));
+
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    describe("portable runner @ulr", () => {
+      suite.bind(this)(loopbackRunner());
+    });
+  } else {
+    it("Portable tests not run because BEAM_SERVICE_OVERRIDES not set.", function () {
+      this.skip();
+    });
+  }
+
+  describe("multi-pipeline @dataflow", async () => {
+    if (process.env.GCP_PROJECT_ID) {
+      if (!process.env.BEAM_SERVICE_OVERRIDES) {
+        throw new Error("Please specify BEAM_SERVICE_OVERRIDES env var.");
+      }
+      if (!process.env.GCP_TESTING_BUCKET) {
+        throw new Error("Please specify GCP_REGION env var.");
+      }
+      if (!process.env.GCP_REGION) {
+        throw new Error("Please specify GCP_TESTING_BUCKET env var.");
+      }
+      const runner = new MultiPipelineRunner(
+        require("../src/apache_beam/runners/dataflow").dataflowRunner({
+          project: process.env.GCP_PROJECT_ID,
+          tempLocation: process.env.GCP_TESTING_BUCKET,
+          region: process.env.GCP_REGION,
+        })
+      );
+
+      beforeEach(function () {
+        if (
+          this.test!.title.includes("fails") ||
+          this.test!.title.includes("counter")
+        ) {
+          this.skip();
+        }
+        runner.setNextTestName(this.test!.title.match(/([^"]+)"$/)![1]);
+      });
+
+      after(async function () {
+        this.timeout(10 * 60 * 1000 /* 10 min */);
+        console.log(await runner.reallyRunPipelines());
+      });
+
+      suite.bind(this)(runner);
+    } else {
+      it("Dataflow tests not run because GCP_PROJECT_ID not set.", function () {
+        this.skip();
+      });
+    }
+  });
+});
+
+describe("liquid sharding @ulr", function () {
+  if (process.env.BEAM_SERVICE_OVERRIDES) {
+    it("handles splitting", async function () {
+      // This pipeline will process a number of "slow" elements, asking the
+      // ULR to split the "toSplit" bundle at various points. We then verify
+      // that the bundle was indeed split and all expected elements made it
+      // through.
+      const runner = loopbackRunner({
+        directTestSplits: JSON.stringify({
+          toSplit: {
+            // Split 0.1, 0.15, etc. seconds into processing the bundle.
+            timings: [0.1, 0.15, 0.2, 0.25],
+            fractions: [0.5, 0.5, 0.5, 0.5],
+          },
+        }),
+      });
+      const numElements = 20;
+      const elements = [...Array(numElements).keys()].map((x) => "" + x);
+      await runner.run((root) => {
+        const pcolls = root
+          .apply(beam.create(elements))
+          .map((x) => {
+            // Synchronous sleep.
+            Atomics.wait(
+              new Int32Array(new SharedArrayBuffer(4)),
+              0,
+              0,
+              // Processing all elements spread out over 1000 ms, plus overhead.
+              1000 / numElements
+            );
+            return x;
+          })
+          .apply(
+            withName(
+              "toSplit",
+              beam.parDo({
+                process: (element) => [element],
+                finishBundle: () => [
+                  {
+                    value: "endOfBundle",
+                    windows: [new GlobalWindow()],
+                    pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
+                    timestamp: new GlobalWindow().maxTimestamp(),
+                  },
+                ],
+              })
+            )
+          )
+          .apply(
+            // More than one "endOfBundle" output because we split.
+            // (We in fact should have split this first bundle multiple times,
+            // but all the remainders get processed in a (single) second bundle.
+            // Importantly, however, we verify that regardless of where the
+            // splits occurred (if you print them, they're in an interesting
+            // order), all elements are accounted for.)
+            testing.assertDeepEqual(
+              elements.concat(["endOfBundle", "endOfBundle"])
+            )
+          );
+      });
+      // The pipeline should run fast, but give plenty of time for the service
+      // to start up in case the test machine is loaded.
+    }).timeout(30000);
+  }
 });

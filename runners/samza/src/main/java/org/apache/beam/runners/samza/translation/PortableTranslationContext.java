@@ -18,26 +18,20 @@
 package org.apache.beam.runners.samza.translation;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.OpMessage;
-import org.apache.beam.runners.samza.util.HashIdGenerator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.application.descriptors.StreamApplicationDescriptor;
 import org.apache.samza.operators.KV;
 import org.apache.samza.operators.MessageStream;
-import org.apache.samza.operators.OutputStream;
 import org.apache.samza.system.descriptors.InputDescriptor;
-import org.apache.samza.system.descriptors.OutputDescriptor;
-import org.apache.samza.table.Table;
-import org.apache.samza.table.descriptors.TableDescriptor;
 
 /**
  * Helper that keeps the mapping from BEAM PCollection id to Samza {@link MessageStream}. It also
@@ -48,26 +42,16 @@ import org.apache.samza.table.descriptors.TableDescriptor;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class PortableTranslationContext {
+public class PortableTranslationContext extends TranslationContext {
   private final Map<String, MessageStream<?>> messageStreams = new HashMap<>();
-  private final StreamApplicationDescriptor appDescriptor;
   private final JobInfo jobInfo;
-  private final SamzaPipelineOptions options;
-  private final Set<String> registeredInputStreams = new HashSet<>();
-  private final Map<String, Table> registeredTables = new HashMap<>();
-  private final HashIdGenerator idGenerator = new HashIdGenerator();
 
   private PipelineNode.PTransformNode currentTransform;
 
   public PortableTranslationContext(
       StreamApplicationDescriptor appDescriptor, SamzaPipelineOptions options, JobInfo jobInfo) {
+    super(appDescriptor, Collections.emptyMap(), Collections.emptySet(), options);
     this.jobInfo = jobInfo;
-    this.appDescriptor = appDescriptor;
-    this.options = options;
-  }
-
-  public SamzaPipelineOptions getSamzaPipelineOptions() {
-    return this.options;
   }
 
   public <T> List<MessageStream<OpMessage<T>>> getAllInputMessageStreams(
@@ -106,45 +90,28 @@ public class PortableTranslationContext {
     messageStreams.put(id, stream);
   }
 
-  /** Get output stream by output descriptor. */
-  public <OutT> OutputStream<OutT> getOutputStream(OutputDescriptor<OutT, ?> outputDescriptor) {
-    return appDescriptor.getOutputStream(outputDescriptor);
-  }
-
   /** Register an input stream with certain config id. */
   public <T> void registerInputMessageStream(
       String id, InputDescriptor<KV<?, OpMessage<T>>, ?> inputDescriptor) {
-    // we want to register it with the Samza graph only once per i/o stream
-    final String streamId = inputDescriptor.getStreamId();
-    if (registeredInputStreams.contains(streamId)) {
-      return;
-    }
-    final MessageStream<OpMessage<T>> stream =
-        appDescriptor.getInputStream(inputDescriptor).map(org.apache.samza.operators.KV::getValue);
-
-    registerMessageStream(id, stream);
-    registeredInputStreams.add(streamId);
+    registerInputMessageStreams(id, Collections.singletonList(inputDescriptor));
   }
 
-  @SuppressWarnings("unchecked")
-  public <K, V> Table<KV<K, V>> getTable(TableDescriptor<K, V, ?> tableDesc) {
-    return registeredTables.computeIfAbsent(
-        tableDesc.getTableId(), id -> appDescriptor.getTable(tableDesc));
+  public <T> void registerInputMessageStreams(
+      String id, List<? extends InputDescriptor<KV<?, OpMessage<T>>, ?>> inputDescriptors) {
+    registerInputMessageStreams(id, inputDescriptors, this::registerMessageStream);
   }
 
   public void setCurrentTransform(PipelineNode.PTransformNode currentTransform) {
     this.currentTransform = currentTransform;
   }
 
+  @Override
   public void clearCurrentTransform() {
     this.currentTransform = null;
   }
 
+  @Override
   public String getTransformFullName() {
     return currentTransform.getTransform().getUniqueName();
-  }
-
-  public String getTransformId() {
-    return idGenerator.getId(currentTransform.getTransform().getUniqueName());
   }
 }

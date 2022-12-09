@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.pipeline import PTransformOverride
 
@@ -31,13 +29,7 @@ class CreatePTransformOverride(PTransformOverride):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import Create
-    from apache_beam.runners.dataflow.internal import apiclient
-
-    if isinstance(applied_ptransform.transform, Create):
-      return not apiclient._use_fnapi(
-          applied_ptransform.outputs[None].pipeline._options)
-    else:
-      return False
+    return isinstance(applied_ptransform.transform, Create)
 
   def get_replacement_transform_for_applied_ptransform(
       self, applied_ptransform):
@@ -85,42 +77,6 @@ class ReadPTransformOverride(PTransformOverride):
 
     return Read(transform.source).with_output_types(
         transform.get_type_hints().simple_output_type('Read'))
-
-
-class JrhReadPTransformOverride(PTransformOverride):
-  """A ``PTransformOverride`` for ``Read(BoundedSource)``"""
-  def matches(self, applied_ptransform):
-    from apache_beam.io import Read
-    from apache_beam.io.iobase import BoundedSource
-    return (
-        isinstance(applied_ptransform.transform, Read) and
-        isinstance(applied_ptransform.transform.source, BoundedSource))
-
-  def get_replacement_transform_for_applied_ptransform(
-      self, applied_ptransform):
-    from apache_beam.io import Read
-    from apache_beam.transforms import core
-    from apache_beam.transforms import util
-    # Make this a local to narrow what's captured in the closure.
-    source = applied_ptransform.transform.source
-
-    class JrhRead(core.PTransform):
-      def expand(self, pbegin):
-        return (
-            pbegin
-            | core.Impulse()
-            | 'Split' >> core.FlatMap(
-                lambda _: source.split(
-                    Read.get_desired_chunk_size(source.estimate_size())))
-            | util.Reshuffle()
-            | 'ReadSplits' >> core.FlatMap(
-                lambda split: split.source.read(
-                    split.source.get_range_tracker(
-                        split.start_position, split.stop_position))))
-
-    return JrhRead().with_output_types(
-        applied_ptransform.transform.get_type_hints().simple_output_type(
-            'Read'))
 
 
 class CombineValuesPTransformOverride(PTransformOverride):
@@ -196,140 +152,6 @@ class NativeReadPTransformOverride(PTransformOverride):
         ptransform.source.coder.to_type_hint())
 
 
-class WriteToBigQueryPTransformOverride(PTransformOverride):
-  def __init__(self, pipeline, options):
-    super().__init__()
-    self.options = options
-    self.outputs = []
-
-    self._check_bq_outputs(pipeline)
-
-  def _check_bq_outputs(self, pipeline):
-    """Checks that there are no consumers if the transform will be replaced.
-
-    The WriteToBigQuery replacement is the native BigQuerySink which has an
-    output of a PDone. The original transform, however, returns a dict. The user
-    may be inadvertantly using the dict output which will have no side-effects
-    or fail pipeline construction esoterically. This checks the outputs and
-    gives a user-friendsly error.
-    """
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position, unused-import
-    from apache_beam.pipeline import PipelineVisitor
-    from apache_beam.io import WriteToBigQuery
-
-    # First, retrieve all the outpts from all the WriteToBigQuery transforms
-    # that will be replaced. Later, we will use these to make sure no one
-    # consumes these.
-    class GetWriteToBqOutputsVisitor(PipelineVisitor):
-      def __init__(self, matches):
-        self.matches = matches
-        self.outputs = set()
-
-      def enter_composite_transform(self, transform_node):
-        # Only add outputs that are going to be replaced.
-        if self.matches(transform_node):
-          self.outputs.update(set(transform_node.outputs.values()))
-
-    outputs_visitor = GetWriteToBqOutputsVisitor(self.matches)
-    pipeline.visit(outputs_visitor)
-
-    # Finally, verify that there are no consumers to the previously found
-    # outputs.
-    class VerifyWriteToBqOutputsVisitor(PipelineVisitor):
-      def __init__(self, outputs):
-        self.outputs = outputs
-
-      def enter_composite_transform(self, transform_node):
-        self.visit_transform(transform_node)
-
-      def visit_transform(self, transform_node):
-        # Internal consumers of the outputs we're overriding are expected.
-        # We only error out on non-internal consumers.
-        if ('BigQueryBatchFileLoads' not in transform_node.full_label and
-            [o for o in self.outputs if o in transform_node.inputs]):
-          raise ValueError(
-              'WriteToBigQuery was being replaced with the native '
-              'BigQuerySink, but the transform "{}" has an input which will be '
-              'replaced with a PDone. To fix, please remove all transforms '
-              'that read from any WriteToBigQuery transforms.'.format(
-                  transform_node.full_label))
-
-    pipeline.visit(VerifyWriteToBqOutputsVisitor(outputs_visitor.outputs))
-
-  def matches(self, applied_ptransform):
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam import io
-    transform = applied_ptransform.transform
-    if (not isinstance(transform, io.WriteToBigQuery) or
-        getattr(transform, 'override', False)):
-      return False
-
-    experiments = self.options.view_as(DebugOptions).experiments or []
-    if 'use_legacy_bq_sink' not in experiments:
-      return False
-
-    if transform.schema == io.gcp.bigquery.SCHEMA_AUTODETECT:
-      raise RuntimeError(
-          'Schema auto-detection is not supported on the native sink')
-
-    # The replacement is only valid for Batch.
-    standard_options = self.options.view_as(StandardOptions)
-    if standard_options.streaming:
-      if transform.write_disposition == io.BigQueryDisposition.WRITE_TRUNCATE:
-        raise RuntimeError('Can not use write truncation mode in streaming')
-      return False
-
-    self.outputs = list(applied_ptransform.outputs.keys())
-    return True
-
-  def get_replacement_transform(self, ptransform):
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam import io
-
-    class WriteToBigQuery(io.WriteToBigQuery):
-      override = True
-
-      def __init__(self, transform, outputs):
-        self.transform = transform
-        self.outputs = outputs
-
-      def __getattr__(self, name):
-        """Returns the given attribute from the parent.
-
-        This allows this transform to act like a WriteToBigQuery transform
-        without having to construct a new WriteToBigQuery transform.
-        """
-        return self.transform.__getattribute__(name)
-
-      def expand(self, pcoll):
-        from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
-        import json
-
-        schema = None
-        if self.schema:
-          schema = parse_table_schema_from_json(json.dumps(self.schema))
-
-        out = pcoll | io.Write(
-            io.BigQuerySink(
-                self.table_reference.tableId,
-                self.table_reference.datasetId,
-                self.table_reference.projectId,
-                schema,
-                self.create_disposition,
-                self.write_disposition,
-                kms_key=self.kms_key))
-
-        # The WriteToBigQuery can have different outputs depending on if it's
-        # Batch or Streaming. This retrieved the output keys from the node and
-        # is replacing them here to be consistent.
-        return {key: out for key in self.outputs}
-
-    return WriteToBigQuery(ptransform, self.outputs)
-
-
 class GroupIntoBatchesWithShardedKeyPTransformOverride(PTransformOverride):
   """A ``PTransformOverride`` for ``GroupIntoBatches.WithShardedKey``.
 
@@ -356,21 +178,6 @@ class GroupIntoBatchesWithShardedKeyPTransformOverride(PTransformOverride):
     standard_options = self.options.view_as(StandardOptions)
     if not standard_options.streaming:
       return False
-    google_cloud_options = self.options.view_as(GoogleCloudOptions)
-    if not google_cloud_options.enable_streaming_engine:
-      raise ValueError(
-          'Runner determined sharding not available in Dataflow for '
-          'GroupIntoBatches for non-Streaming-Engine jobs. In order to use '
-          'runner determined sharding, please use '
-          '--streaming --enable_streaming_engine --experiments=use_runner_v2')
-
-    from apache_beam.runners.dataflow.internal import apiclient
-    if not apiclient._use_unified_worker(self.options):
-      raise ValueError(
-          'Runner determined sharding not available in Dataflow for '
-          'GroupIntoBatches for jobs not using Runner V2. In order to use '
-          'runner determined sharding, please use '
-          '--streaming --enable_streaming_engine --experiments=use_runner_v2')
 
     self.dataflow_runner.add_pcoll_with_auto_sharding(applied_ptransform)
     return True

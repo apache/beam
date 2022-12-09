@@ -86,14 +86,15 @@ public class SparkRunnerDebuggerTest {
         "sparkContext.<readFrom(org.apache.beam.sdk.transforms.Create$Values$CreateSource)>()\n"
             + "_.mapPartitions("
             + "new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Count$PerElement$1())\n"
             + "_.combineByKey(..., new org.apache.beam.sdk.transforms.Count$CountFn(), ...)\n"
             + "_.groupByKey()\n"
             + "_.map(new org.apache.beam.sdk.transforms.Sum$SumLongFn())\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.mapPartitions("
+            + "new org.apache.beam.runners.spark.SparkRunnerDebuggerTest$PlusOne())\n"
             + "sparkContext.union(...)\n"
             + "_.mapPartitions("
-            + "new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "new org.apache.beam.runners.spark.examples.WordCount$FormatAsTextFn())\n"
             + "_.<org.apache.beam.sdk.io.TextIO$Write>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =
@@ -109,7 +110,7 @@ public class SparkRunnerDebuggerTest {
   public void debugStreamingPipeline() {
     PipelineOptions options = contextRule.configure(PipelineOptionsFactory.create());
     options.setRunner(SparkRunnerDebugger.class);
-    options.as(TestSparkPipelineOptions.class).setForceStreaming(true);
+    options.as(TestSparkPipelineOptions.class).setStreaming(true);
     Pipeline pipeline = Pipeline.create(options);
 
     KafkaIO.Read<String, String> read =
@@ -142,11 +143,11 @@ public class SparkRunnerDebuggerTest {
             + "_.map(new org.apache.beam.sdk.transforms.windowing.FixedWindows())\n"
             + "_.mapPartitions(new org.apache.beam.runners.spark."
             + "SparkRunnerDebuggerTest$FormatKVFn())\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$1())\n"
             + "_.groupByKey()\n"
             + "_.map(new org.apache.beam.sdk.transforms.Combine$IterableCombineFn())\n"
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$3())\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.WithKeys$1())\n"
             + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =

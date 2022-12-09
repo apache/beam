@@ -116,6 +116,8 @@ message Type {
 
         STATEPROVIDER = 24;
 
+        TIMERPROVIDER = 25;
+
         T = 15;
         U = 16;
         V = 17;

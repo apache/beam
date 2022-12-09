@@ -25,12 +25,17 @@ import shutil
 import sys
 import tempfile
 import unittest
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Sequence
 
 import joblib
 import numpy
 import pandas
 from sklearn import linear_model
 from sklearn import svm
+from sklearn.base import BaseEstimator
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
@@ -50,6 +55,10 @@ from apache_beam.testing.util import equal_to
 
 def _compare_prediction_result(a, b):
   example_equal = numpy.array_equal(a.example, b.example)
+  if isinstance(a.inference, dict):
+    return all(
+        x == y for x, y in zip(a.inference.values(),
+                               b.inference.values())) and example_equal
   return a.inference == b.inference and example_equal
 
 
@@ -63,6 +72,10 @@ def _compare_dataframe_predictions(a_in, b_in):
     a = a_in
     b = b_in
   example_equal = pandas.DataFrame.equals(a.example, b.example)
+  if isinstance(a.inference, dict):
+    return all(
+        math.floor(a) == math.floor(b) for a,
+        b in zip(a.inference.values(), b.inference.values())) and example_equal
   inference_equal = math.floor(a.inference) == math.floor(b.inference)
   return inference_equal and example_equal and keys_equal
 
@@ -74,6 +87,26 @@ class FakeModel:
   def predict(self, input_vector: numpy.ndarray):
     self.total_predict_calls += 1
     return numpy.sum(input_vector, axis=1)
+
+
+class FakeNumpyModelDictOut:
+  def __init__(self):
+    self.total_predict_calls = 0
+
+  def predict(self, input_vector: numpy.ndarray):
+    self.total_predict_calls += 1
+    out = numpy.sum(input_vector, axis=1)
+    return {"out1": out, "out2": out}
+
+
+class FakePandasModelDictOut:
+  def __init__(self):
+    self.total_predict_calls = 0
+
+  def predict(self, df: pandas.DataFrame):
+    self.total_predict_calls += 1
+    out = df.loc[:, 'number_2']
+    return {"out1": out, "out2": out}
 
 
 def build_model():
@@ -122,6 +155,27 @@ def convert_inference_to_floor(prediction_result):
   return math.floor(prediction_result.inference)
 
 
+def alternate_numpy_inference_fn(
+    model: BaseEstimator,
+    batch: Sequence[numpy.ndarray],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+  return [0]
+
+
+def alternate_pandas_inference_fn(
+    model: BaseEstimator,
+    batch: Sequence[pandas.DataFrame],
+    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+  # vectorize data for better performance
+  vectorized_batch = pandas.concat(batch, axis=0)
+  predictions = model.predict(vectorized_batch)
+  splits = [
+      vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
+  ]
+  predictions = predictions - 1
+  return predictions, splits
+
+
 class SkLearnRunInferenceTest(unittest.TestCase):
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
@@ -139,6 +193,43 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         PredictionResult(numpy.array([1, 2, 3]), 6),
         PredictionResult(numpy.array([4, 5, 6]), 15),
         PredictionResult(numpy.array([7, 8, 9]), 24)
+    ]
+    inferences = inference_runner.run_inference(batched_examples, fake_model)
+    for actual, expected in zip(inferences, expected_predictions):
+      self.assertTrue(_compare_prediction_result(actual, expected))
+
+  def test_custom_inference_fn(self):
+    fake_model = FakeModel()
+    inference_runner = SklearnModelHandlerNumpy(
+        model_uri='unused', inference_fn=alternate_numpy_inference_fn)
+    batched_examples = [
+        numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
+    ]
+    expected_predictions = [
+        PredictionResult(numpy.array([1, 2, 3]), 0),
+        PredictionResult(numpy.array([4, 5, 6]), 0),
+        PredictionResult(numpy.array([7, 8, 9]), 0)
+    ]
+    inferences = inference_runner.run_inference(batched_examples, fake_model)
+    for actual, expected in zip(inferences, expected_predictions):
+      self.assertTrue(_compare_prediction_result(actual, expected))
+
+  def test_predict_output_dict(self):
+    fake_model = FakeNumpyModelDictOut()
+    inference_runner = SklearnModelHandlerNumpy(model_uri='unused')
+    batched_examples = [
+        numpy.array([1, 2, 3]), numpy.array([4, 5, 6]), numpy.array([7, 8, 9])
+    ]
+    expected_predictions = [
+        PredictionResult(numpy.array([1, 2, 3]), {
+            "out1": 6, "out2": 6
+        }),
+        PredictionResult(numpy.array([4, 5, 6]), {
+            "out1": 15, "out2": 15
+        }),
+        PredictionResult(numpy.array([7, 8, 9]), {
+            "out1": 24, "out2": 24
+        })
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
@@ -243,6 +334,60 @@ class SkLearnRunInferenceTest(unittest.TestCase):
           PredictionResult(splits[2], 1),
           PredictionResult(splits[3], 1),
           PredictionResult(splits[4], 2),
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
+
+  def test_pipeline_pandas_custom_inference(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(build_pandas_pipeline(), file)
+    with TestPipeline() as pipeline:
+      dataframe = pandas_dataframe()
+      splits = [dataframe.loc[[i]] for i in dataframe.index]
+      pcoll = pipeline | 'start' >> beam.Create(splits)
+      actual = pcoll | RunInference(
+          SklearnModelHandlerPandas(
+              model_uri=temp_file_name,
+              inference_fn=alternate_pandas_inference_fn))
+
+      expected = [
+          PredictionResult(splits[0], 4),
+          PredictionResult(splits[1], 7),
+          PredictionResult(splits[2], 0),
+          PredictionResult(splits[3], 0),
+          PredictionResult(splits[4], 1),
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
+
+  def test_pipeline_pandas_dict_out(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(FakePandasModelDictOut(), file)
+    with TestPipeline() as pipeline:
+      dataframe = pandas_dataframe()
+      splits = [dataframe.loc[[i]] for i in dataframe.index]
+      pcoll = pipeline | 'start' >> beam.Create(splits)
+      actual = pcoll | RunInference(
+          SklearnModelHandlerPandas(model_uri=temp_file_name))
+
+      expected = [
+          PredictionResult(splits[0], {
+              'out1': 5, 'out2': 5
+          }),
+          PredictionResult(splits[1], {
+              'out1': 8, 'out2': 8
+          }),
+          PredictionResult(splits[2], {
+              'out1': 1, 'out2': 1
+          }),
+          PredictionResult(splits[3], {
+              'out1': 1, 'out2': 1
+          }),
+          PredictionResult(splits[4], {
+              'out1': 4, 'out2': 4
+          }),
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))

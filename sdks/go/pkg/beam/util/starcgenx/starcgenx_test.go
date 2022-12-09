@@ -154,7 +154,7 @@ package pardo
 // advised for use outside this test.
 type dummy struct{}
 
-func (dummy) RegisterDoFn(interface{}) {}
+func (dummy) RegisterDoFn(any) {}
 
 // Should include MyIdent and MyOtherDoFn and not MyDropVal
 func init() {
@@ -198,7 +198,7 @@ func included(k map[string]int, v *int) [4]*int {
 }
 
 type myType struct{}
-type myInterface interface{}
+type myInterface any
 
 func users(k *myType, v [2]myInterface) {
 }
@@ -212,7 +212,7 @@ func included(k map[string]int, v *int) []*int {
 }
 
 type myType struct{}
-type myInterface interface{}
+type myInterface any
 
 func users(k *myType, v []myInterface) {
 }

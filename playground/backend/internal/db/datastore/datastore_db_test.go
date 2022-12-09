@@ -26,6 +26,7 @@ import (
 	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
 	"beam.apache.org/playground/backend/internal/utils"
 )
@@ -49,6 +50,9 @@ func setup() {
 	}
 	ctx = context.Background()
 	ctx = context.WithValue(ctx, constants.DatastoreNamespaceKey, "datastore")
+
+	logger.SetupLogger(ctx, "local", "some_google_project_id")
+
 	var err error
 	datastoreDb, err = New(ctx, mapper.NewPrecompiledObjectMapper(), constants.EmulatorProjectId)
 	if err != nil {
@@ -59,6 +63,29 @@ func setup() {
 func teardown() {
 	if err := datastoreDb.Client.Close(); err != nil {
 		panic(err)
+	}
+}
+
+func makeMockSnippet(origin, persistenceCode string) *entity.Snippet {
+	nowDate := time.Now()
+	return &entity.Snippet{
+		IDMeta: &entity.IDMeta{
+			Salt:     "MOCK_SALT",
+			IdLength: 11,
+		},
+		Snippet: &entity.SnippetEntity{
+			Created:        nowDate,
+			Sdk:            utils.GetSdkKey(ctx, pb.Sdk_SDK_GO.String()),
+			PipeOpts:       "MOCK_OPTIONS",
+			Origin:         origin,
+			NumberOfFiles:  1,
+			PersistenceKey: persistenceCode,
+		},
+		Files: []*entity.FileEntity{{
+			Name:    "MOCK_NAME",
+			Content: "MOCK_CONTENT",
+			IsMain:  false,
+		}},
 	}
 }
 
@@ -75,24 +102,8 @@ func TestDatastore_PutSnippet(t *testing.T) {
 		cleanData func()
 	}{
 		{
-			name: "PutSnippet() in the usual case",
-			args: args{ctx: ctx, id: "MOCK_ID", snip: &entity.Snippet{
-				IDMeta: &entity.IDMeta{
-					Salt:     "MOCK_SALT",
-					IdLength: 11,
-				},
-				Snippet: &entity.SnippetEntity{
-					Sdk:           utils.GetSdkKey(ctx, pb.Sdk_SDK_GO.String()),
-					PipeOpts:      "MOCK_OPTIONS",
-					Origin:        constants.UserSnippetOrigin,
-					NumberOfFiles: 1,
-				},
-				Files: []*entity.FileEntity{{
-					Name:    "MOCK_NAME",
-					Content: "MOCK_CONTENT",
-					IsMain:  false,
-				}},
-			}},
+			name:    "PutSnippet() in the usual case",
+			args:    args{ctx: ctx, id: "MOCK_ID", snip: makeMockSnippet(constants.UserSnippetOrigin, "")},
 			wantErr: false,
 			cleanData: func() {
 				test_cleaner.CleanFiles(ctx, t, "MOCK_ID", 1)
@@ -113,7 +124,6 @@ func TestDatastore_PutSnippet(t *testing.T) {
 }
 
 func TestDatastore_GetSnippet(t *testing.T) {
-	nowDate := time.Now()
 	type args struct {
 		ctx context.Context
 		id  string
@@ -135,24 +145,7 @@ func TestDatastore_GetSnippet(t *testing.T) {
 		{
 			name: "GetSnippet() in the usual case",
 			prepare: func() {
-				_ = datastoreDb.PutSnippet(ctx, "MOCK_ID", &entity.Snippet{
-					IDMeta: &entity.IDMeta{
-						Salt:     "MOCK_SALT",
-						IdLength: 11,
-					},
-					Snippet: &entity.SnippetEntity{
-						Sdk:           utils.GetSdkKey(ctx, pb.Sdk_SDK_GO.String()),
-						PipeOpts:      "MOCK_OPTIONS",
-						Created:       nowDate,
-						Origin:        constants.UserSnippetOrigin,
-						NumberOfFiles: 1,
-					},
-					Files: []*entity.FileEntity{{
-						Name:    "MOCK_NAME",
-						Content: "MOCK_CONTENT",
-						IsMain:  false,
-					}},
-				})
+				_ = datastoreDb.PutSnippet(ctx, "MOCK_ID", makeMockSnippet(constants.UserSnippetOrigin, ""))
 			},
 			args:    args{ctx: ctx, id: "MOCK_ID"},
 			wantErr: false,
@@ -182,6 +175,42 @@ func TestDatastore_GetSnippet(t *testing.T) {
 			tt.cleanData()
 		})
 	}
+}
+
+func TestDatastore_SnippetWithPersistenceCode(t *testing.T) {
+	snip := makeMockSnippet(constants.TbUserSnippetOrigin, "MOCK_PERSISTENCE_CODE")
+	t.Log("PutSnippet, insert 1st version")
+	err := datastoreDb.PutSnippet(ctx, "MOCK_ID_1", snip)
+	if err != nil {
+		t.Error("PutSnippet() method failed")
+	}
+	t.Log("GetSnippet by 1st snippet_id")
+	_, err = datastoreDb.GetSnippet(ctx, "MOCK_ID_1")
+	if err != nil {
+		t.Errorf("GetSnippet() error = %v", err)
+	}
+
+	t.Log("PutSnippet: insert 2nd version")
+	err = datastoreDb.PutSnippet(ctx, "MOCK_ID_2", snip)
+	if err != nil {
+		t.Error("PutSnippet() method failed")
+	}
+
+	t.Log("GetSnippet 1st version: not found")
+	_, err = datastoreDb.GetSnippet(ctx, "MOCK_ID_1")
+	if err == nil {
+		t.Error("1st snippet not deleted")
+	}
+
+	t.Log("GetSnippet 2nd version")
+	_, err = datastoreDb.GetSnippet(ctx, "MOCK_ID_2")
+	if err != nil {
+		t.Errorf("get 2nd snippet: %v", err)
+	}
+
+	t.Log("cleanup 2nd version only")
+	test_cleaner.CleanFiles(ctx, t, "MOCK_ID_2", 1)
+	test_cleaner.CleanSnippet(ctx, t, "MOCK_ID_2")
 }
 
 func TestDatastore_PutSDKs(t *testing.T) {
@@ -371,9 +400,10 @@ func TestDatastore_GetCatalog(t *testing.T) {
 		{
 			name: "Getting catalog in the usual case",
 			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
 				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				saveSnippet("SDK_JAVA_MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
-				savePCObjs("SDK_JAVA_MOCK_EXAMPLE")
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
 			},
 			args: args{
 				ctx: ctx,
@@ -390,10 +420,11 @@ func TestDatastore_GetCatalog(t *testing.T) {
 			},
 			wantErr: false,
 			cleanData: func() {
-				test_cleaner.CleanPCObjs(ctx, t, "SDK_JAVA_MOCK_EXAMPLE")
-				test_cleaner.CleanFiles(ctx, t, "SDK_JAVA_MOCK_EXAMPLE", 1)
-				test_cleaner.CleanSnippet(ctx, t, "SDK_JAVA_MOCK_EXAMPLE")
-				test_cleaner.CleanExample(ctx, t, "SDK_JAVA_MOCK_EXAMPLE")
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
 			},
 		},
 	}
@@ -422,10 +453,351 @@ func TestDatastore_GetCatalog(t *testing.T) {
 					actualPCObj.PipelineOptions != "MOCK_OPTIONS" ||
 					actualPCObj.Description != "MOCK_DESCR" ||
 					actualPCObj.Link != "MOCK_PATH" ||
-					actualPCObj.ContextLine != 32 {
+					actualPCObj.ContextLine != 32 ||
+					actualPCObj.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
 					t.Error("GetCatalog() unexpected result: wrong precompiled obj")
 				}
 				tt.cleanData()
+			}
+		})
+	}
+}
+
+func TestDatastore_GetDefaultExamples(t *testing.T) {
+	type args struct {
+		ctx  context.Context
+		sdks []*entity.SDKEntity
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		wantErr bool
+		clean   func()
+	}{
+		{
+			name: "Getting default examples in the usual case",
+			prepare: func() {
+				for sdk := range pb.Sdk_value {
+					exampleId := utils.GetIDWithDelimiter(sdk, "MOCK_DEFAULT_EXAMPLE")
+					saveExample("MOCK_DEFAULT_EXAMPLE", sdk)
+					saveSnippet(exampleId, sdk)
+					savePCObjs(exampleId)
+				}
+			},
+			args: args{
+				ctx:  ctx,
+				sdks: getSDKs(),
+			},
+			wantErr: false,
+			clean: func() {
+				for sdk := range pb.Sdk_value {
+					exampleId := utils.GetIDWithDelimiter(sdk, "MOCK_DEFAULT_EXAMPLE")
+					test_cleaner.CleanPCObjs(ctx, t, exampleId)
+					test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+					test_cleaner.CleanSnippet(ctx, t, exampleId)
+					test_cleaner.CleanExample(ctx, t, exampleId)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			defaultExamples, err := datastoreDb.GetDefaultExamples(tt.args.ctx, tt.args.sdks)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetDefaultExamples() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if len(defaultExamples) < 4 {
+					t.Errorf("GetDefaultExamples() unexpected result: the length of example should be at least 4")
+				}
+				for _, example := range defaultExamples {
+					if example.DefaultExample != true ||
+						example.Name != "MOCK_DEFAULT_EXAMPLE" ||
+						example.ContextLine != 32 ||
+						example.Multifile != false ||
+						example.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+						example.PipelineOptions != "MOCK_OPTIONS" ||
+						example.Description != "MOCK_DESCR" ||
+						example.Link != "MOCK_PATH" ||
+						example.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
+						t.Errorf("GetDefaultExamples() unexpected result: wrong precompiled obj")
+					}
+				}
+				tt.clean()
+			}
+		})
+	}
+}
+
+func TestDatastore_GetExample(t *testing.T) {
+	type args struct {
+		ctx       context.Context
+		exampleId string
+		sdks      []*entity.SDKEntity
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		wantErr bool
+		clean   func()
+	}{
+		{
+			name: "Getting an example in the usual case",
+			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
+			},
+			args: args{
+				ctx:       ctx,
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
+				sdks:      getSDKs(),
+			},
+			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			example, err := datastoreDb.GetExample(tt.args.ctx, tt.args.exampleId, tt.args.sdks)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetExample() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if example.DefaultExample != false ||
+					example.Name != "MOCK_EXAMPLE" ||
+					example.Multifile != false ||
+					example.ContextLine != 32 ||
+					example.Description != "MOCK_DESCR" ||
+					example.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+					example.Link != "MOCK_PATH" ||
+					example.PipelineOptions != "MOCK_OPTIONS" ||
+					example.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_EXAMPLE" ||
+					example.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
+					t.Errorf("GetExample() unexpected result: wrong precompiled obj")
+				}
+				tt.clean()
+			}
+		})
+	}
+}
+
+func TestDatastore_GetExampleCode(t *testing.T) {
+	type args struct {
+		ctx       context.Context
+		exampleId string
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		wantErr bool
+		clean   func()
+	}{
+		{
+			name: "Getting an example code in the usual case",
+			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
+			},
+			args: args{
+				ctx:       ctx,
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
+			},
+			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			code, err := datastoreDb.GetExampleCode(tt.args.ctx, tt.args.exampleId)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetExampleCode() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if code != "MOCK_CONTENT" {
+					t.Errorf("GetExampleCode() unexpected result: wrong precompiled obj")
+				}
+				tt.clean()
+			}
+		})
+	}
+}
+
+func TestDatastore_GetExampleOutput(t *testing.T) {
+	type args struct {
+		ctx       context.Context
+		exampleId string
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		wantErr bool
+		clean   func()
+	}{
+		{
+			name: "Getting an example output in the usual case",
+			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
+			},
+			args: args{
+				ctx:       ctx,
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
+			},
+			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			output, err := datastoreDb.GetExampleOutput(tt.args.ctx, tt.args.exampleId)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetExampleOutput() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if output != "MOCK_CONTENT_OUTPUT" {
+					t.Errorf("GetExampleOutput() unexpected result: wrong precompiled obj")
+				}
+				tt.clean()
+			}
+		})
+	}
+}
+
+func TestDatastore_GetExampleLogs(t *testing.T) {
+	type args struct {
+		ctx       context.Context
+		exampleId string
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		wantErr bool
+		clean   func()
+	}{
+		{
+			name: "Getting an example logs in the usual case",
+			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
+			},
+			args: args{
+				ctx:       ctx,
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
+			},
+			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			output, err := datastoreDb.GetExampleLogs(tt.args.ctx, tt.args.exampleId)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetExampleLogs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if output != "MOCK_CONTENT_LOG" {
+					t.Errorf("GetExampleLogs() unexpected result: wrong precompiled obj")
+				}
+				tt.clean()
+			}
+		})
+	}
+}
+
+func TestDatastore_GetExampleGraph(t *testing.T) {
+	type args struct {
+		ctx       context.Context
+		exampleId string
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		wantErr bool
+		clean   func()
+	}{
+		{
+			name: "Getting an example graph in the usual case",
+			prepare: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				saveExample("MOCK_EXAMPLE", pb.Sdk_SDK_JAVA.String())
+				saveSnippet(exampleId, pb.Sdk_SDK_JAVA.String())
+				savePCObjs(exampleId)
+			},
+			args: args{
+				ctx:       ctx,
+				exampleId: utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE"),
+			},
+			wantErr: false,
+			clean: func() {
+				exampleId := utils.GetIDWithDelimiter(pb.Sdk_SDK_JAVA.String(), "MOCK_EXAMPLE")
+				test_cleaner.CleanPCObjs(ctx, t, exampleId)
+				test_cleaner.CleanFiles(ctx, t, exampleId, 1)
+				test_cleaner.CleanSnippet(ctx, t, exampleId)
+				test_cleaner.CleanExample(ctx, t, exampleId)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			output, err := datastoreDb.GetExampleGraph(tt.args.ctx, tt.args.exampleId)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetExampleGraph() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil {
+				if output != "MOCK_CONTENT_GRAPH" {
+					t.Errorf("GetExampleGraph() unexpected result: wrong precompiled obj")
+				}
+				tt.clean()
 			}
 		})
 	}
@@ -448,25 +820,25 @@ func TestDatastore_DeleteUnusedSnippets(t *testing.T) {
 			args: args{ctx: ctx, dayDiff: 10},
 			prepare: func() {
 				//last visit date is now - 7 days
-				putSnippet("MOCK_ID0", "PG_USER", now.Add(-time.Hour*24*7), 2)
+				putSnippet("MOCK_ID0", constants.UserSnippetOrigin, now.Add(-time.Hour*24*7), 2)
 				//last visit date is now - 10 days
-				putSnippet("MOCK_ID1", "PG_USER", now.Add(-time.Hour*24*10), 4)
+				putSnippet("MOCK_ID1", constants.UserSnippetOrigin, now.Add(-time.Hour*24*10), 4)
 				//last visit date is now - 15 days
-				putSnippet("MOCK_ID2", "PG_USER", now.Add(-time.Hour*24*15), 8)
+				putSnippet("MOCK_ID2", constants.UserSnippetOrigin, now.Add(-time.Hour*24*15), 8)
 				//last visit date is now
-				putSnippet("MOCK_ID3", "PG_USER", now, 1)
+				putSnippet("MOCK_ID3", constants.UserSnippetOrigin, now, 1)
 				//last visit date is now + 2 days
-				putSnippet("MOCK_ID4", "PG_USER", now.Add(time.Hour*24*2), 2)
+				putSnippet("MOCK_ID4", constants.UserSnippetOrigin, now.Add(time.Hour*24*2), 2)
 				//last visit date is now + 10 days
-				putSnippet("MOCK_ID5", "PG_USER", now.Add(time.Hour*24*10), 2)
+				putSnippet("MOCK_ID5", constants.UserSnippetOrigin, now.Add(time.Hour*24*10), 2)
 				//last visit date is now - 18 days
-				putSnippet("MOCK_ID6", "PG_USER", now.Add(-time.Hour*24*18), 3)
+				putSnippet("MOCK_ID6", constants.UserSnippetOrigin, now.Add(-time.Hour*24*18), 3)
 				//last visit date is now - 18 days and origin != PG_USER
-				putSnippet("MOCK_ID7", "PG_EXAMPLES", now.Add(-time.Hour*24*18), 2)
+				putSnippet("MOCK_ID7", constants.ExampleOrigin, now.Add(-time.Hour*24*18), 2)
 				//last visit date is now - 9 days
-				putSnippet("MOCK_ID8", "PG_USER", now.Add(-time.Hour*24*9), 2)
+				putSnippet("MOCK_ID8", constants.UserSnippetOrigin, now.Add(-time.Hour*24*9), 2)
 				//last visit date is now - 11 days
-				putSnippet("MOCK_ID9", "PG_USER", now.Add(-time.Hour*24*11), 2)
+				putSnippet("MOCK_ID9", constants.UserSnippetOrigin, now.Add(-time.Hour*24*11), 2)
 			},
 			wantErr: false,
 		},
@@ -566,15 +938,14 @@ func TestNew(t *testing.T) {
 
 func saveExample(name, sdk string) {
 	_, _ = datastoreDb.Client.Put(ctx, utils.GetExampleKey(ctx, sdk, name), &entity.ExampleEntity{
-		Name:       name,
-		Sdk:        utils.GetSdkKey(ctx, sdk),
-		Descr:      "MOCK_DESCR",
-		Cats:       []string{"MOCK_CATEGORY"},
-		Complexity: "MEDIUM",
-		Path:       "MOCK_PATH",
-		Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
-		Origin:     constants.ExampleOrigin,
-		SchVer:     utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
+		Name:   name,
+		Sdk:    utils.GetSdkKey(ctx, sdk),
+		Descr:  "MOCK_DESCR",
+		Cats:   []string{"MOCK_CATEGORY"},
+		Path:   "MOCK_PATH",
+		Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+		Origin: constants.ExampleOrigin,
+		SchVer: utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	})
 }
 
@@ -589,6 +960,7 @@ func saveSnippet(snipId, sdk string) {
 			PipeOpts:      "MOCK_OPTIONS",
 			Origin:        constants.ExampleOrigin,
 			NumberOfFiles: 1,
+			Complexity:    pb.Complexity_COMPLEXITY_MEDIUM.String(),
 		},
 		Files: []*entity.FileEntity{{
 			Name:     "MOCK_NAME",

@@ -24,7 +24,7 @@ import 'package:playground/modules/editor/components/pipeline_options_dropdown/p
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_input.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_separator.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_form.dart';
-import 'package:playground/modules/editor/parsers/run_options_parser.dart';
+import 'package:playground_components/playground_components.dart';
 
 const kOptionsTabIndex = 0;
 const kRawTabIndex = 1;

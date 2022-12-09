@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
@@ -87,6 +88,99 @@ func TestUnmarshalReshuffleCoders(t *testing.T) {
 	want := coder.NewKV([]*coder.Coder{coder.NewString(), coder.NewBytes()})
 	if !want.Equals(got) {
 		t.Errorf("got %v, want != %v", got, want)
+	}
+}
+
+func TestMayFixDataSourceCoder(t *testing.T) {
+	knownStart := coder.NewW(
+		coder.NewKV([]*coder.Coder{coder.NewBytes(), coder.NewI(coder.NewString())}),
+		coder.NewGlobalWindow())
+	knownWant := coder.NewW(
+		coder.NewCoGBK([]*coder.Coder{coder.NewBytes(), coder.NewString()}),
+		coder.NewGlobalWindow())
+
+	makeParDo := func(t *testing.T, fn any) *ParDo {
+		t.Helper()
+		dfn, err := graph.NewDoFn(fn)
+		if err != nil {
+			t.Fatalf("couldn't construct ParDo with Sig: %T %v", fn, err)
+		}
+		return &ParDo{Fn: dfn}
+	}
+
+	tests := []struct {
+		name        string
+		start, want *coder.Coder
+		out         Node
+	}{
+		{
+			name:  "bytes",
+			start: coder.NewBytes(),
+		}, {
+			name:  "W<bytes>",
+			start: coder.NewW(coder.NewBytes(), coder.NewGlobalWindow()),
+		}, {
+			name: "W<KV<bytes,bool>",
+			start: coder.NewW(
+				coder.NewKV([]*coder.Coder{coder.NewBytes(), coder.NewBool()}),
+				coder.NewGlobalWindow()),
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_nil",
+			start: knownStart,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Expand",
+			out:   &Expand{},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Combine",
+			out:   &Combine{},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_ReshuffleOutput",
+			out:   &ReshuffleOutput{},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_MergeAccumulators",
+			out:   &MergeAccumulators{},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Multiplex_Expand",
+			out:   &Multiplex{Out: []Node{&Expand{}}},
+			start: knownStart,
+			want:  knownWant,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Multiplex_ParDo_KV",
+			out:   &Multiplex{Out: []Node{makeParDo(t, func([]byte, []string) {})}},
+			start: knownStart,
+		}, {
+			name:  "W<KV<bytes,Iterable<string>>_Multiplex_ParDo_GBK",
+			out:   &Multiplex{Out: []Node{makeParDo(t, func([]byte, func(*string) bool) {})}},
+			start: knownStart,
+			want:  knownWant,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// If want is nil, we expect no changes.
+			if test.want == nil {
+				test.want = test.start
+			}
+
+			u := &DataSource{
+				Coder: test.start,
+				Out:   test.out,
+			}
+			mayFixDataSourceCoder(u)
+			if !test.want.Equals(u.Coder) {
+				t.Errorf("mayFixDataSourceCoder(Datasource[Coder: %v, Out: %T]), got %v, want %v", test.start, test.out, u.Coder, test.want)
+			}
+
+		})
 	}
 }
 

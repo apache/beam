@@ -83,7 +83,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
     _LOGGER.info("Dummy Data: Adding dummy data...")
     instance = cls._SPANNER_INSTANCE
     database = instance.database(cls.TEST_DATABASE)
-    data = cls._data = [(x + 1, uuid.uuid4().hex) for x in range(200)]
+    data = cls._data = [[x + 1, uuid.uuid4().hex] for x in range(200)]
     with database.batch() as batch:
       batch.insert(table='Users', columns=('UserId', 'Key'), values=data)
 
@@ -115,7 +115,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           self.TEST_DATABASE,
           table="Users",
           columns=["UserId", "Key"])
-    assert_that(r, equal_to(self._data))
+      assert_that(r, equal_to(self._data))
 
   @pytest.mark.spannerio_it
   def test_read_via_sql(self):
@@ -126,7 +126,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           self.instance,
           self.TEST_DATABASE,
           sql="select * from Users")
-    assert_that(r, equal_to(self._data))
+      assert_that(r, equal_to(self._data))
 
   @pytest.mark.spannerio_it
   def test_transaction_table_metrics_ok_call(self):
@@ -146,8 +146,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           table="Users",
           columns=["UserId", "Key"],
           transaction=transaction)
-
-    assert_that(r, equal_to(self._data))
+      assert_that(r, equal_to(self._data))
     self.verify_table_read_call_metric(
         self.project, self.TEST_DATABASE, 'Users', 'ok', 1)
 
@@ -196,7 +195,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           query_name='query-1',
           transaction=transaction)
 
-    assert_that(r, equal_to(self._data))
+      assert_that(r, equal_to(self._data))
     self.verify_sql_read_call_metric(
         self.project, self.TEST_DATABASE, 'query-1', 'ok', 1)
 
@@ -241,7 +240,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           table="Users",
           columns=["UserId", "Key"])
 
-    assert_that(r, equal_to(self._data))
+      assert_that(r, equal_to(self._data))
     self.verify_table_read_call_metric(
         self.project, self.TEST_DATABASE, 'Users', 'ok', 1)
 
@@ -282,7 +281,7 @@ class SpannerReadIntegrationTest(unittest.TestCase):
           sql="select * from Users",
           query_name='query-1')
 
-    assert_that(r, equal_to(self._data))
+      assert_that(r, equal_to(self._data))
     self.verify_sql_read_call_metric(
         self.project, self.TEST_DATABASE, 'query-1', 'ok', 1)
 

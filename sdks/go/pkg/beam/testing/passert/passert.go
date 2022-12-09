@@ -124,13 +124,13 @@ func index(enc beam.ElementEncoder, iter func(*beam.T) bool) (map[string]indexEn
 }
 
 // True asserts that all elements satisfy the given predicate.
-func True(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func True(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	fail(s, filter.Exclude(s, col, fn), "predicate(%v) = false, want true")
 	return col
 }
 
 // False asserts that the given predicate does not satisfy any element in the condition.
-func False(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func False(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	fail(s, filter.Include(s, col, fn), "predicate(%v) = true, want false")
 	return col
 }

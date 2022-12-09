@@ -21,44 +21,134 @@
 
 ## About
 
-Beam Playground is an interactive environment to try out Beam transforms and examples. The vision for the Playground is to be a web application where users can try out Beam without having to install/initialize a Beam environment.
+Beam Playground is an interactive environment to try out Beam transforms and examples.
+The vision for the Playground is to be a web application where users can try out Beam
+without having to install/initialize a Beam environment.
 
 ## Getting Started
+
+### Copy the configuration file
+
+After checkout, run:
+
+```bash
+cp playground/frontend/lib/config.example.dart playground/frontend/lib/config.g.dart
+```
+
+This is a temporarily required step. See more: https://github.com/apache/beam/issues/24200
 
 ### Run
 
 See [playground/README.md](../README.md) for details on requirements and setup.
 
-The following command is used to build and serve the website locally:
+The following command is used to build and serve the frontend app locally:
 
-`$ flutter run`
+```bash
+flutter run -d chrome
+```
 
 ### Build
 
 Run the following command to generate a release build:
 
-`$ flutter build web`
+```bash
+flutter build web
+```
 
-### Tests
+This produces `build/web` directory with static files. Deploy them to your web server.
 
-Playground tests may be run using next commands:
+### Docker
 
-`$ flutter pub run build_runner build`
+The app is deployed to production as a Docker container.
+You can also run it in Docker locally. This is useful if:
 
-`$ flutter test`
+1. You do not have Flutter and do not want to install it.
+2. You want to mimic the release environment in the closest way possible.
+
+To run the frontend app with Docker, run this in the frontend directory:
+
+```bash
+docker build -t playground-frontend .
+docker run -p 1234:8080 playground-frontend
+```
+
+The container sets up NGINX on port 8080.
+This example exposes it as port 1234 on the host,
+and the app can be accessed at http://localhost:1234
+
+## Code Generation
+
+This project relies on generated code for some functionality:
+deserializers, test mocks, constants for asset files,
+extracted Beam symbols for the editor, etc.
+
+All generated files are version-controlled, so after checkout the project is immediately runnable.
+However, after changes you may need to re-run code generation.
+
+### Standard Dart Code Generator
+
+Most of the generated files are produced by running the standard Dart code generator.
+This only requires Flutter, but must be called on multiple locations.
+For convenience, run this single command:
+
+```bash
+./gradlew :playground:frontend:generateCode
+```
+
+### Generating Beam Symbols Dictionaries
+
+Requirements:
+
+- Python 3.8+ with packages: `ast`, `pyyaml`.
+
+Other SDKs will add more requirements as we add extraction scripts for them.
+
+To generate all project's generated files including symbol dictionaries, run:
+
+```bash
+./gradlew :playground:frontend:generate
+```
+
+### Deleting Generated Files
+
+For consistency, it is recommended that you delete and re-generate all files before committing
+if you have all required tools on your machine. To delete all generated files, run:
+
+```bash
+./gradlew :playground:frontend:cleanGenerated
+```
+
+## Validation
+
+### Pre-commit Checks
+
+To run all pre-commit checks, execute this in the beam root:
+
+```bash
+./gradlew :playground:frontend:precommit
+```
+
+This includes:
+
+- Tests.
+- Linter.
 
 ### Code style
 
-Dart code should follow next [code style](https://dart-lang.github.io/linter/lints/index.html). Code
-may be analyzed using this command:
-
-`$ flutter analyze`
-
 Code can be automatically reformatted using:
 
-`$ flutter format ./lib`
+```bash
+flutter format ./lib
+```
 
-### Localization
+## Localization
+
+The project is in the process of migrating from
+[the built-in Flutter localization](https://docs.flutter.dev/development/accessibility-and-localization/internationalization)
+to [easy_localization](https://pub.dev/packages/easy_localization).
+It temporarily uses both ways.
+
+### Flutter Built-in Localization
 
 To add a new localization, follow next steps:
 
@@ -68,13 +158,27 @@ To add a new localization, follow next steps:
 
 3. Run the following command to generate a build and localization files:
 
-`$ flutter build web`
+```bash
+flutter build web
+```
+
+### easy_localization
+
+To add a new localization (using `fr` as an example):
+
+1. Create `playground_components/assets/translations/fr.yaml`.
+   Fill it with content copied from an existing translation file in another language.
+
+2. Create `assets/translations/fr.yaml`.
+   Fill it with content copied from an existing translation file in another language.
+
+3. Add the locale to the list in `lib/l10n/l10n.dart`.
 
 ### Configuration
 
 The app could be configured using gradle task (e.g. api url)
 
-```
+```bash
 cd beam
 ./gradlew :playground:frontend:createConfig
 ```

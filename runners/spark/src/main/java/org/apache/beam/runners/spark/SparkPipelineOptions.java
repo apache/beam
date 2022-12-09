@@ -34,12 +34,6 @@ public interface SparkPipelineOptions extends SparkCommonPipelineOptions {
 
   void setBatchIntervalMillis(Long batchInterval);
 
-  @Description("Batch default storage level")
-  @Default.String("MEMORY_ONLY")
-  String getStorageLevel();
-
-  void setStorageLevel(String storageLevel);
-
   @Description("Minimum time to spend on read, for each micro-batch.")
   @Default.Long(200)
   Long getMinReadTimeMillis();

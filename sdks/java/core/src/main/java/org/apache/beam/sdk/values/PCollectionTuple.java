@@ -306,7 +306,7 @@ public class PCollectionTuple implements PInput, POutput {
       // erasure as the correct type. When a transform adds
       // elements to `outputCollection` they will be of type T.
       @SuppressWarnings("unchecked")
-      PCollection outputCollection =
+      PCollection<?> outputCollection =
           PCollection.createPrimitiveOutputInternal(
                   pipeline, windowingStrategy, isBounded, (Coder) coders.get(outputTag))
               .setTypeDescriptor(outputTag.getTypeDescriptor());

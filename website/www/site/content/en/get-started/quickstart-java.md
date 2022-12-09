@@ -1,5 +1,5 @@
 ---
-title: "Beam Quickstart for Java"
+title: "WordCount quickstart for Java"
 aliases:
   - /get-started/quickstart/
   - /use/quickstart/
@@ -19,7 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam Java SDK quickstart
+# WordCount quickstart for Java
 
 This quickstart shows you how to set up a Java development environment and run
 an [example pipeline](/get-started/wordcount-example) written with the

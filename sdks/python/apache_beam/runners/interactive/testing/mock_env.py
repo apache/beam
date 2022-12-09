@@ -21,6 +21,7 @@ test.
 
 import unittest
 import uuid
+from typing import Type
 from unittest.mock import patch
 
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -29,7 +30,7 @@ from apache_beam.runners.interactive.interactive_environment import InteractiveE
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 
 
-def isolated_env(cls: unittest.TestCase):
+def isolated_env(cls: Type[unittest.TestCase]):
   """A class decorator for unittest.TestCase to set up an isolated test
   environment for Interactive Beam."""
   class IsolatedInteractiveEnvironmentTest(cls):
