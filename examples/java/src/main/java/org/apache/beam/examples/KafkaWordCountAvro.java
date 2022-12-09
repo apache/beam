@@ -74,13 +74,15 @@ public class KafkaWordCountAvro {
             KafkaIO.<Long, String>read()
                 .withBootstrapServers(
                     "kafka_server:9092") // The argument is hardcoded to a predefined value. Do not
-                // change it manually. It's replaced to the correct Kafka cluster address when code starts in backend.
+                // change it manually. It's replaced to the correct Kafka cluster address when code
+                // starts in backend.
                 .withTopicPartitions(
                     Collections.singletonList(
                         new TopicPartition(
                             "dataset",
                             0))) // The argument is hardcoded to a predefined value. Do not
-                // change it manually. It's replaced to the correct topic name when code starts in backend.
+                // change it manually. It's replaced to the correct topic name when code starts in
+                // backend.
                 .withKeyDeserializer(LongDeserializer.class)
                 .withValueDeserializer(StringDeserializer.class)
                 .withConsumerConfigUpdates(consumerConfig)
