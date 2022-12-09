@@ -17,5 +17,6 @@ runs:
        gcloud auth activate-service-account --key-file="/tmp/gcp_access.json" --no-user-output-enabled
        gcloud auth configure-docker -q --no-user-output-enabled >& /dev/null
     - name: Removing Keyfile
+      if: ${{ always() }}
       shell: bash
       run: rm -f /tmp/gcp_access.json
