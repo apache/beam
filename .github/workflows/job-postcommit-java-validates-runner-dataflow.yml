@@ -56,6 +56,14 @@ jobs:
           - java: "8" # Execution with JDK8 is performed in another workflow: .github/workflows/job-postcommit-java-validates-runner-dataflow-jdk-8.yml
                       # because the setups for JDK11/17 and JDK8 comprise different steps and arguments.
     steps:
+      - name: Checking out composite
+        uses: actions/checkout@v3
+        with:
+          ref: master
+      - name: Activating Service Account
+        uses: ./.github/actions/activate-service-account
+        with:      
+          GCP_SERVICE_ACCOUNT: ${{secrets.GCP_SELF_HOSTED_SA_KEY}}
       - name: Checkout code
         uses: actions/checkout@v3
         with:
