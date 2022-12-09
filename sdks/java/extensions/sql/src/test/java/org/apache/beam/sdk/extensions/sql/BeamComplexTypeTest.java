@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -25,11 +26,16 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -82,36 +88,66 @@ public class BeamComplexTypeTest {
           .addArrayField("field3", FieldType.INT64)
           .build();
 
+  private static final Schema rowWithLogicalTypeSchema =
+      Schema.builder()
+          .addLogicalTypeField("field1", FixedString.of(10))
+          .addLogicalTypeField("field2", VariableString.of(10))
+          .addLogicalTypeField("field3", FixedBytes.of(10))
+          .addLogicalTypeField("field4", VariableBytes.of(10))
+          .build();
+
   private static final ReadOnlyTableProvider readOnlyTableProvider =
       new ReadOnlyTableProvider(
           "test_provider",
-          ImmutableMap.of(
-              "arrayWithRowTestTable",
-              TestBoundedTable.of(FieldType.array(FieldType.row(innerRowSchema)), "col")
-                  .addRows(
-                      Arrays.asList(Row.withSchema(innerRowSchema).addValues("str", 1L).build())),
-              "nestedArrayTestTable",
-              TestBoundedTable.of(FieldType.array(FieldType.array(FieldType.INT64)), "col")
-                  .addRows(Arrays.asList(Arrays.asList(1L, 2L, 3L), Arrays.asList(4L, 5L))),
-              "nestedRowTestTable",
-              TestBoundedTable.of(Schema.FieldType.row(nestedRowSchema), "col")
-                  .addRows(
-                      Row.withSchema(nestedRowSchema)
-                          .addValues(
-                              "str",
-                              Row.withSchema(innerRowSchema).addValues("inner_str_one", 1L).build(),
-                              2L,
-                              Row.withSchema(innerRowSchema).addValues("inner_str_two", 3L).build())
-                          .build()),
-              "basicRowTestTable",
-              TestBoundedTable.of(Schema.FieldType.row(innerRowSchema), "col")
-                  .addRows(Row.withSchema(innerRowSchema).addValues("innerStr", 1L).build()),
-              "rowWithArrayTestTable",
-              TestBoundedTable.of(Schema.FieldType.row(rowWithArraySchema), "col")
-                  .addRows(
-                      Row.withSchema(rowWithArraySchema)
-                          .addValues("str", 4L, Arrays.asList(5L, 6L))
-                          .build())));
+          ImmutableMap.<String, BeamSqlTable>builder()
+              .put(
+                  "arrayWithRowTestTable",
+                  TestBoundedTable.of(FieldType.array(FieldType.row(innerRowSchema)), "col")
+                      .addRows(
+                          Arrays.asList(
+                              Row.withSchema(innerRowSchema).addValues("str", 1L).build())))
+              .put(
+                  "nestedArrayTestTable",
+                  TestBoundedTable.of(FieldType.array(FieldType.array(FieldType.INT64)), "col")
+                      .addRows(Arrays.asList(Arrays.asList(1L, 2L, 3L), Arrays.asList(4L, 5L))))
+              .put(
+                  "nestedRowTestTable",
+                  TestBoundedTable.of(FieldType.row(nestedRowSchema), "col")
+                      .addRows(
+                          Row.withSchema(nestedRowSchema)
+                              .addValues(
+                                  "str",
+                                  Row.withSchema(innerRowSchema)
+                                      .addValues("inner_str_one", 1L)
+                                      .build(),
+                                  2L,
+                                  Row.withSchema(innerRowSchema)
+                                      .addValues("inner_str_two", 3L)
+                                      .build())
+                              .build()))
+              .put(
+                  "basicRowTestTable",
+                  TestBoundedTable.of(FieldType.row(innerRowSchema), "col")
+                      .addRows(Row.withSchema(innerRowSchema).addValues("innerStr", 1L).build()))
+              .put(
+                  "rowWithArrayTestTable",
+                  TestBoundedTable.of(FieldType.row(rowWithArraySchema), "col")
+                      .addRows(
+                          Row.withSchema(rowWithArraySchema)
+                              .addValues("str", 4L, Arrays.asList(5L, 6L))
+                              .build()))
+              .put(
+                  "rowWithLogicalTypeSchema",
+                  TestBoundedTable.of(FieldType.row(rowWithLogicalTypeSchema), "col")
+                      .addRows(
+                          Row.withSchema(rowWithLogicalTypeSchema)
+                              .addValues(
+                                  "1234567890",
+                                  "1",
+                                  "1234567890".getBytes(StandardCharsets.UTF_8),
+                                  "1".getBytes(StandardCharsets.UTF_8))
+                              .build()))
+              .build());
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -208,6 +244,23 @@ public class BeamComplexTypeTest {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("int64").build()).addValue(6L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testRowWithLogicalTypeSchema() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(readOnlyTableProvider);
+    PCollection<Row> stream =
+        BeamSqlRelUtils.toPCollection(
+            pipeline,
+            sqlEnv.parseQuery(
+                "SELECT rowWithLogicalTypeSchema.col.field1, rowWithLogicalTypeSchema.col.field4 FROM rowWithLogicalTypeSchema"));
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder().addStringField("field1").addByteArrayField("field2").build())
+                .addValues("1234567890", "1".getBytes(StandardCharsets.UTF_8))
+                .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 

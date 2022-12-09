@@ -65,6 +65,11 @@ package main
 //     - Combiners
 //     - Options
 //     - Quickstart
+//   complexity: MEDIUM
+//   tags:
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"

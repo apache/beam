@@ -25,3 +25,5 @@ pytest-mock==3.6.1
 PyYAML==6.0
 tqdm~=4.62.3
 google-cloud-datastore==2.7.1
+sonora==0.2.2
+dataclasses-json==0.5.7

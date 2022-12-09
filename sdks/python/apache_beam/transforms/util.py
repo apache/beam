@@ -83,6 +83,7 @@ __all__ = [
     'Distinct',
     'Keys',
     'KvSwap',
+    'LogElements',
     'Regex',
     'Reify',
     'RemoveDuplicates',
@@ -198,8 +199,7 @@ class CoGroupByKey(PTransform):
       input_value_types.append(value_type)
     output_key_type = typehints.Union[tuple(input_key_types)]
     iterable_input_value_types = tuple(
-        # TODO: Change List[t] to Iterable[t]
-        typehints.List[t] for t in input_value_types)
+        typehints.Iterable[t] for t in input_value_types)
 
     output_value_type = typehints.Dict[
         str, typehints.Union[iterable_input_value_types or [typehints.Any]]]
@@ -317,7 +317,8 @@ class _BatchSizeEstimator(object):
       target_batch_duration_secs=1,
       variance=0.25,
       clock=time.time,
-      ignore_first_n_seen_per_batch_size=0):
+      ignore_first_n_seen_per_batch_size=0,
+      record_metrics=True):
     if min_batch_size > max_batch_size:
       raise ValueError(
           "Minimum (%s) must not be greater than maximum (%s)" %
@@ -350,11 +351,15 @@ class _BatchSizeEstimator(object):
         ignore_first_n_seen_per_batch_size)
     self._batch_size_num_seen = {}
     self._replay_last_batch_size = None
+    self._record_metrics = record_metrics
 
-    self._size_distribution = Metrics.distribution(
-        'BatchElements', 'batch_size')
-    self._time_distribution = Metrics.distribution(
-        'BatchElements', 'msec_per_batch')
+    if record_metrics:
+      self._size_distribution = Metrics.distribution(
+          'BatchElements', 'batch_size')
+      self._time_distribution = Metrics.distribution(
+          'BatchElements', 'msec_per_batch')
+    else:
+      self._size_distribution = self._time_distribution = None
     # Beam distributions only accept integer values, so we use this to
     # accumulate under-reported values until they add up to whole milliseconds.
     # (Milliseconds are chosen because that's conventionally used elsewhere in
@@ -375,8 +380,9 @@ class _BatchSizeEstimator(object):
     yield
     elapsed = self._clock() - start
     elapsed_msec = 1e3 * elapsed + self._remainder_msecs
-    self._size_distribution.update(batch_size)
-    self._time_distribution.update(int(elapsed_msec))
+    if self._record_metrics:
+      self._size_distribution.update(batch_size)
+      self._time_distribution.update(int(elapsed_msec))
     self._remainder_msecs = elapsed_msec - int(elapsed_msec)
     # If we ignore the next timing, replay the batch size to get accurate
     # timing.
@@ -642,6 +648,8 @@ class BatchElements(PTransform):
         linear interpolation
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
+    record_metrics: (optional) whether or not to record beam metrics on
+        distributions of the batch size. Defaults to True.
   """
   def __init__(
       self,
@@ -652,14 +660,16 @@ class BatchElements(PTransform):
       *,
       element_size_fn=lambda x: 1,
       variance=0.25,
-      clock=time.time):
+      clock=time.time,
+      record_metrics=True):
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         target_batch_overhead=target_batch_overhead,
         target_batch_duration_secs=target_batch_duration_secs,
         variance=variance,
-        clock=clock)
+        clock=clock,
+        record_metrics=record_metrics)
     self._element_size_fn = element_size_fn
 
   def expand(self, pcoll):
@@ -1104,6 +1114,49 @@ class ToString(object):
 
   # An alias for Iterables.
   Kvs = Iterables
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class LogElements(PTransform):
+  """
+  PTransform for printing the elements of a PCollection.
+  """
+  class _LoggingFn(DoFn):
+    def __init__(self, prefix='', with_timestamp=False, with_window=False):
+      super().__init__()
+      self.prefix = prefix
+      self.with_timestamp = with_timestamp
+      self.with_window = with_window
+
+    def process(
+        self,
+        element,
+        timestamp=DoFn.TimestampParam,
+        window=DoFn.WindowParam,
+        **kwargs):
+      log_line = self.prefix + str(element)
+
+      if self.with_timestamp:
+        log_line += ', timestamp=' + repr(timestamp.to_rfc3339())
+
+      if self.with_window:
+        log_line += ', window(start=' + window.start.to_rfc3339()
+        log_line += ', end=' + window.end.to_rfc3339() + ')'
+
+      print(log_line)
+      yield element
+
+  def __init__(
+      self, label=None, prefix='', with_timestamp=False, with_window=False):
+    super().__init__(label)
+    self.prefix = prefix
+    self.with_timestamp = with_timestamp
+    self.with_window = with_window
+
+  def expand(self, input):
+    return input | ParDo(
+        self._LoggingFn(self.prefix, self.with_timestamp, self.with_window))
 
 
 class Reify(object):

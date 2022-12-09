@@ -150,7 +150,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // happens inside the "Mapper" or "Reducer" class of a MapReduce-style
 // algorithm.
 //
-// DoFns
+// # DoFns
 //
 // The function to use to process each element is specified by a DoFn, either as
 // single function or as a struct with methods, notably ProcessElement. The
@@ -163,23 +163,23 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // direct runner). For each bundle of input elements processing proceeds as
 // follows:
 //
-//  * If a struct, a fresh instance of the argument DoFn is created on a
-//    worker from json serialization, and the Setup method is called on this
-//    instance, if present. A runner may reuse DoFn instances for multiple
-//    bundles. A DoFn that has terminated abnormally (by returning an error)
-//    will never be reused.
-//  * The DoFn's StartBundle method, if provided, is called to initialize it.
-//  * The DoFn's ProcessElement method is called on each of the input elements
-//    in the bundle.
-//  * The DoFn's FinishBundle method, if provided, is called to complete its
-//    work. After FinishBundle is called, the framework will not again invoke
-//    ProcessElement or FinishBundle until a new call to StartBundle has
-//    occurred.
-//  * If any of Setup, StartBundle, ProcessElement or FinishBundle methods
-//    return an error, the Teardown method, if provided, will be called on the
-//    DoFn instance.
-//  * If a runner will no longer use a DoFn, the Teardown method, if provided,
-//    will be called on the discarded instance.
+//   - If a struct, a fresh instance of the argument DoFn is created on a
+//     worker from json serialization, and the Setup method is called on this
+//     instance, if present. A runner may reuse DoFn instances for multiple
+//     bundles. A DoFn that has terminated abnormally (by returning an error)
+//     will never be reused.
+//   - The DoFn's StartBundle method, if provided, is called to initialize it.
+//   - The DoFn's ProcessElement method is called on each of the input elements
+//     in the bundle.
+//   - The DoFn's FinishBundle method, if provided, is called to complete its
+//     work. After FinishBundle is called, the framework will not again invoke
+//     ProcessElement or FinishBundle until a new call to StartBundle has
+//     occurred.
+//   - If any of Setup, StartBundle, ProcessElement or FinishBundle methods
+//     return an error, the Teardown method, if provided, will be called on the
+//     DoFn instance.
+//   - If a runner will no longer use a DoFn, the Teardown method, if provided,
+//     will be called on the discarded instance.
 //
 // Each of the calls to any of the DoFn's processing methods can produce zero
 // or more output elements. All of the of output elements from all of the DoFn
@@ -187,11 +187,10 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 //
 // For example:
 //
-//    words := beam.ParDo(s, &Foo{...}, ...)
-//    lengths := beam.ParDo(s, func (word string) int) {
-//          return len(word)
-//    }, words)
-//
+//	words := beam.ParDo(s, &Foo{...}, ...)
+//	lengths := beam.ParDo(s, func (word string) int) {
+//	      return len(word)
+//	}, words)
 //
 // Each output element has the same timestamp and is in the same windows as its
 // corresponding input element. The timestamp can be accessed and/or emitted by
@@ -199,7 +198,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // used as the DoFn name. Function literals do not have stable names and should
 // thus not be used in production code.
 //
-// Side Inputs
+// # Side Inputs
 //
 // While a ParDo processes elements from a single "main input" PCollection, it
 // can take additional "side input" PCollections. These SideInput along with
@@ -208,56 +207,55 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // options, and their contents accessible to each of the DoFn operations. For
 // example:
 //
-//     words := ...
-//     cufoff := ...  // Singleton PCollection<int>
-//     smallWords := beam.ParDo(s, func (word string, cutoff int, emit func(string)) {
-//           if len(word) < cutoff {
-//                emit(word)
-//           }
-//     }, words, beam.SideInput{Input: cutoff})
+//	words := ...
+//	cufoff := ...  // Singleton PCollection<int>
+//	smallWords := beam.ParDo(s, func (word string, cutoff int, emit func(string)) {
+//	      if len(word) < cutoff {
+//	           emit(word)
+//	      }
+//	}, words, beam.SideInput{Input: cutoff})
 //
-// Additional Outputs
+// # Additional Outputs
 //
 // Optionally, a ParDo transform can produce zero or multiple output
 // PCollections. Note the use of ParDo2 to specfic 2 outputs. For example:
 //
-//     words := ...
-//     cufoff := ...  // Singleton PCollection<int>
-//     small, big := beam.ParDo2(s, func (word string, cutoff int, small, big func(string)) {
-//           if len(word) < cutoff {
-//                small(word)
-//           } else {
-//                big(word)
-//           }
-//     }, words, beam.SideInput{Input: cutoff})
-//
+//	words := ...
+//	cufoff := ...  // Singleton PCollection<int>
+//	small, big := beam.ParDo2(s, func (word string, cutoff int, small, big func(string)) {
+//	      if len(word) < cutoff {
+//	           small(word)
+//	      } else {
+//	           big(word)
+//	      }
+//	}, words, beam.SideInput{Input: cutoff})
 //
 // By default, the Coders for the elements of each output PCollections is
 // inferred from the concrete type.
 //
-// No Global Shared State
+// # No Global Shared State
 //
 // There are three main ways to initialize the state of a DoFn instance
 // processing a bundle:
 //
-//  * Define public instance variable state. This state will be automatically
-//    JSON serialized and then deserialized in the DoFn instances created for
-//    bundles. This method is good for state known when the original DoFn is
-//    created in the main program, if it's not overly large. This is not
-//    suitable for any state which must only be used for a single bundle, as
-//    DoFn's may be used to process multiple bundles.
+//   - Define public instance variable state. This state will be automatically
+//     JSON serialized and then deserialized in the DoFn instances created for
+//     bundles. This method is good for state known when the original DoFn is
+//     created in the main program, if it's not overly large. This is not
+//     suitable for any state which must only be used for a single bundle, as
+//     DoFn's may be used to process multiple bundles.
 //
-//  * Compute the state as a singleton PCollection and pass it in as a side
-//    input to the DoFn. This is good if the state needs to be computed by the
-//    pipeline, or if the state is very large and so is best read from file(s)
-//    rather than sent as part of the DoFn's serialized state.
+//   - Compute the state as a singleton PCollection and pass it in as a side
+//     input to the DoFn. This is good if the state needs to be computed by the
+//     pipeline, or if the state is very large and so is best read from file(s)
+//     rather than sent as part of the DoFn's serialized state.
 //
-//  * Initialize the state in each DoFn instance, in a StartBundle method.
-//    This is good if the initialization doesn't depend on any information
-//    known only by the main program or computed by earlier pipeline
-//    operations, but is the same for all instances of this DoFn for all
-//    program executions, say setting up empty caches or initializing constant
-//    data.
+//   - Initialize the state in each DoFn instance, in a StartBundle method.
+//     This is good if the initialization doesn't depend on any information
+//     known only by the main program or computed by earlier pipeline
+//     operations, but is the same for all instances of this DoFn for all
+//     program executions, say setting up empty caches or initializing constant
+//     data.
 //
 // ParDo operations are intended to be able to run in parallel across multiple
 // worker machines. This precludes easy sharing and updating mutable state
@@ -291,7 +289,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // currently being processed. See the `RTracker` interface in core/sdf/sdf.go
 // for more details.
 //
-// Splitting
+// # Splitting
 //
 // Splitting means taking one restriction and splitting into two or more that
 // cover the entire input space of the original one. In other words, processing
@@ -310,12 +308,12 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // only occur on element boundaries, but for splittable DoFns this split
 // can land within a restriction and will require splitting that restriction.
 //
-// * Note: The Go SDK currently does not support dynamic splitting for SDFs,
-//   only initial splitting. Only initially split restrictions can be
-//   distributed by liquid sharding. Stragglers will not be split during
-//   execution with dynamic splitting.
+//   - Note: The Go SDK currently does not support dynamic splitting for SDFs,
+//     only initial splitting. Only initially split restrictions can be
+//     distributed by liquid sharding. Stragglers will not be split during
+//     execution with dynamic splitting.
 //
-// Splittable DoFn Methods
+// # Splittable DoFn Methods
 //
 // Making a splittable DoFn requires the following methods to be implemented on
 // a DoFn in addition to the usual DoFn requirements. In the following
@@ -324,36 +322,38 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // user-defined restriction, and can be any type as long as it is consistent
 // throughout all the splittable DoFn methods:
 //
-// * `CreateInitialRestriction(element) restriction`
+//   - `CreateInitialRestriction(element) restriction`
 //     CreateInitialRestriction creates an initial restriction encompassing an
 //     entire element. The restriction created stays associated with the element
 //     it describes.
-// * `SplitRestriction(elem, restriction) []restriction`
+//   - `SplitRestriction(elem, restriction) []restriction`
 //     SplitRestriction takes an element and its initial restriction, and
 //     optionally performs an initial split on it, returning a slice of all the
 //     split restrictions. If no splits are desired, the method returns a slice
 //     containing only the original restriction. This method will always be
 //     called on each newly created restriction before they are processed.
-// * `RestrictionSize(elem, restriction) float64`
+//   - `RestrictionSize(elem, restriction) float64`
 //     RestrictionSize returns a cheap size estimation for a restriction. This
 //     size is an abstract non-negative scalar value that represents how much
 //     work a restriction takes compared to other restrictions in the same DoFn.
 //     For example, a size of 200 represents twice as much work as a size of
 //     100, but the numbers do not represent anything on their own. Size is
-//     used by runners to estimate work for dynamic work rebalancing.
-// * `CreateTracker(restriction) restrictionTracker`
+//     used by runners to estimate work for dynamic work rebalancing. Must be
+//     thread safe. Will be invoked concurrently during bundle processing due to
+//     runner initiated splitting and progress estimation.
+//   - `CreateTracker(restriction) restrictionTracker`
 //     CreateTracker creates and returns a restriction tracker (a concrete type
 //     implementing the `sdf.RTracker` interface) given a restriction. The
 //     restriction tracker is used to track progress processing a restriction,
 //     and to allow for dynamic splits. This method is called on each
 //     restriction right before processing begins.
-// * `ProcessElement(sdf.RTracker, element, func emit(output))`
+//   - `ProcessElement(sdf.RTracker, element, func emit(output))`
 //     For splittable DoFns, ProcessElement requires a restriction tracker
 //     before inputs, and generally requires emits to be used for outputs, since
 //     restrictions will generally produce multiple outputs. For more details
 //     on processing restrictions in a splittable DoFn, see `sdf.RTracker`.
 //
-// Fault Tolerance
+// # Fault Tolerance
 //
 // In a distributed system, things can fail: machines can crash, machines can
 // be unable to communicate across the network, etc. While individual failures
@@ -374,7 +374,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // difficult to achieve, so it is advisable to strive to keep DoFns as pure
 // functions as much as possible.
 //
-// Optimization
+// # Optimization
 //
 // Beam runners may choose to apply optimizations to a pipeline before it is
 // executed. A key optimization, fusion, relates to ParDo operations. If one

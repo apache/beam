@@ -78,7 +78,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
   PCollection<String> words = ...;
 
   // The ParDo will filter words whose length is below a cutoff and add them to
-  // the main ouput PCollection<String>.
+  // the main output PCollection<String>.
   // If a word is above the cutoff, the ParDo will add the word length to an
   // output PCollection<Integer>.
   // If a word starts with the string "MARKER", the ParDo will add that word to an

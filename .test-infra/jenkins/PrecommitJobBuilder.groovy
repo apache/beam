@@ -26,8 +26,11 @@ class PrecommitJobBuilder {
   /** Base name for each post-commit suite job, i.e. 'Go'. */
   String nameBase
 
-  /**  The Gradle task to execute. */
-  String gradleTask
+  /**  DEPRECATED: The Gradle task to execute. */
+  String gradleTask = null
+
+  /**  The Gradle tasks to execute. */
+  List<String> gradleTasks = []
 
   /** If defined, set of additional switches to pass to Gradle. */
   List<String> gradleSwitches = []
@@ -116,7 +119,7 @@ class PrecommitJobBuilder {
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(gradleTask)
+          tasks(gradleTasks.join(' ') + (gradleTask ?: ""))
           gradleSwitches.each { switches(it) }
           commonJobProperties.setGradleSwitches(delegate)
         }

@@ -109,6 +109,7 @@ class TextSource extends FileBasedSource<String> {
     private volatile @Nullable String currentValue;
     private int bufferLength = 0; // the number of bytes of real data in the buffer
     private int bufferPosn = 0; // the current position in the buffer
+    private boolean skipLineFeedAtStart; // skip an LF if at the start of the next buffer
 
     private TextBasedReader(TextSource source, byte[] delimiter) {
       super(source);
@@ -249,17 +250,16 @@ class TextSource extends FileBasedSource<String> {
       assert !eof;
 
       int newlineLength = 0; // length of terminating newline
-      boolean prevCharCR = false; // true of prev char was CR
+      boolean prevCharCR = false; // true if prev char was CR
       long bytesConsumed = 0;
+      EOF:
       for (; ; ) {
         int startPosn = bufferPosn; // starting from where we left off the last time
 
-        // Read the next chunk from the file
-        if (bufferPosn == bufferLength) {
+        // Read the next chunk from the file, ensure that we read at least one byte
+        // or reach EOF.
+        while (bufferPosn == bufferLength) {
           startPosn = bufferPosn = 0;
-          if (prevCharCR) {
-            ++bytesConsumed; // account for CR from previous read
-          }
           byteBuffer.clear();
           bufferLength = inChannel.read(byteBuffer);
 
@@ -273,8 +273,16 @@ class TextSource extends FileBasedSource<String> {
             }
 
             currentValue = str.toString(StandardCharsets.UTF_8.name());
-            break;
+            break EOF;
           }
+        }
+
+        // Consume any LF after CR if it is the first character of the next buffer
+        if (skipLineFeedAtStart && buffer[bufferPosn] == LF) {
+          ++bytesConsumed;
+          ++startPosn;
+          ++bufferPosn;
+          skipLineFeedAtStart = false;
         }
 
         // Search for the newline
@@ -291,20 +299,23 @@ class TextSource extends FileBasedSource<String> {
           prevCharCR = (buffer[bufferPosn] == CR);
         }
 
-        int readLength = bufferPosn - startPosn;
-        if (prevCharCR && newlineLength == 0) {
-          --readLength; // CR at the end of the buffer
-        }
-        bytesConsumed += readLength;
-
-        if (newlineLength == 0) {
-          // Append the prefix of the value to str until we find a newline
-          str.write(buffer, startPosn, readLength);
+        // CR at the end of the buffer
+        if (newlineLength == 0 && prevCharCR) {
+          skipLineFeedAtStart = true;
+          newlineLength = 1;
         } else {
-          int appendLength = readLength - newlineLength;
+          skipLineFeedAtStart = false;
+        }
 
-          // Optimize for the common case where the string is wholly contained within the buffer
+        int readLength = bufferPosn - startPosn;
+        bytesConsumed += readLength;
+        int appendLength = readLength - newlineLength;
+        if (newlineLength == 0) {
+          // Append the prefix of the value to str skipping the partial delimiter
+          str.write(buffer, startPosn, appendLength);
+        } else {
           if (str.size() == 0) {
+            // Optimize for the common case where the string is wholly contained within the buffer
             currentValue = new String(buffer, startPosn, appendLength, StandardCharsets.UTF_8);
           } else {
             str.write(buffer, startPosn, appendLength);
@@ -313,6 +324,7 @@ class TextSource extends FileBasedSource<String> {
           break;
         }
       }
+
       startOfNextRecord = startOfRecord + bytesConsumed;
       str.reset();
       return true;
@@ -331,11 +343,13 @@ class TextSource extends FileBasedSource<String> {
 
       long bytesConsumed = 0;
       int delPosn = 0;
+      EOF:
       for (; ; ) {
         int startPosn = bufferPosn; // starting from where we left off the last time
 
-        // Read the next chunk from the file
-        if (bufferPosn >= bufferLength) {
+        // Read the next chunk from the file, ensure that we read at least one byte
+        // or reach EOF.
+        while (bufferPosn >= bufferLength) {
           startPosn = bufferPosn = 0;
           byteBuffer.clear();
           bufferLength = inChannel.read(byteBuffer);
@@ -355,17 +369,17 @@ class TextSource extends FileBasedSource<String> {
             }
 
             currentValue = str.toString(StandardCharsets.UTF_8.name());
-            break; // EOF
+            break EOF;
           }
         }
 
+        int prevDelPosn = delPosn;
         DELIMITER_MATCH:
         {
           if (delPosn > 0) {
             // slow-path: Handle the case where we only matched part of the delimiter, possibly
             // adding that to str fixing up any partially consumed delimiter if we don't match the
             // whole delimiter
-            int prevDelPosn = delPosn;
             for (; bufferPosn < bufferLength; ++bufferPosn) {
               if (buffer[bufferPosn] == delimiter[delPosn]) {
                 delPosn++;
@@ -399,7 +413,7 @@ class TextSource extends FileBasedSource<String> {
 
         int readLength = bufferPosn - startPosn;
         bytesConsumed += readLength;
-        int appendLength = readLength - delPosn;
+        int appendLength = readLength - (delPosn - prevDelPosn);
         if (delPosn < delimiter.length) {
           // Append the prefix of the value to str skipping the partial delimiter
           str.write(buffer, startPosn, appendLength);

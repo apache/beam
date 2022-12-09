@@ -20,9 +20,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/playground_components.dart';
+import '../assets/assets.gen.dart';
 import '../constants/sizes.dart';
-import '../generated/assets.gen.dart';
+import '../playground_components.dart';
 import '../theme/switch_notifier.dart';
 
 class ToggleThemeIconButton extends StatelessWidget {
@@ -30,16 +30,18 @@ class ToggleThemeIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeSwitchNotifier>(builder: (context, notifier, child) {
-      return IconButton(
-        iconSize: BeamIconSizes.large,
-        splashRadius: BeamIconSizes.largeSplashRadius,
-        icon: SvgPicture.asset(
-          Assets.buttons.themeMode,
-          package: PlaygroundComponents.packageName,
-        ),
-        onPressed: notifier.toggleTheme,
-      );
-    });
+    return Consumer<ThemeSwitchNotifier>(
+      builder: (context, notifier, child) {
+        return IconButton(
+          iconSize: BeamIconSizes.large,
+          splashRadius: BeamIconSizes.largeSplashRadius,
+          icon: SvgPicture.asset(
+            Assets.buttons.themeMode,
+            package: PlaygroundComponents.packageName,
+          ),
+          onPressed: notifier.toggleTheme,
+        );
+      },
+    );
   }
 }

@@ -14,7 +14,7 @@
   icon: icons/github-icon.svg
   url: https://github.com/apache/beam
 - name: pillars-linkedin-icon
-  icon: icons/linkedin-icon.svg
+  icon: icons/linkedin-icon.png
   url: https://www.linkedin.com/company/apache-beam/
 - name: pillars-youtube-icon
   icon: icons/youtube-icon.svg

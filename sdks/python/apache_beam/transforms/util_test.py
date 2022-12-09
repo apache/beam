@@ -26,14 +26,17 @@ import re
 import time
 import unittest
 import warnings
+from datetime import datetime
 
 import pytest
+import pytz
 
 import apache_beam as beam
 from apache_beam import GroupByKey
 from apache_beam import Map
 from apache_beam import WindowInto
 from apache_beam.coders import coders
+from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
@@ -187,13 +190,33 @@ class FakeClock(object):
 class BatchElementsTest(unittest.TestCase):
   def test_constant_batch(self):
     # Assumes a single bundle...
-    with TestPipeline() as p:
-      res = (
-          p
-          | beam.Create(range(35))
-          | util.BatchElements(min_batch_size=10, max_batch_size=10)
-          | beam.Map(len))
-      assert_that(res, equal_to([10, 10, 10, 5]))
+    p = TestPipeline()
+    output = (
+        p
+        | beam.Create(range(35))
+        | util.BatchElements(min_batch_size=10, max_batch_size=10)
+        | beam.Map(len))
+    assert_that(output, equal_to([10, 10, 10, 5]))
+    res = p.run()
+    res.wait_until_finish()
+    metrics = res.metrics()
+    results = metrics.query(MetricsFilter().with_name("batch_size"))
+    self.assertEqual(len(results["distributions"]), 1)
+
+  def test_constant_batch_no_metrics(self):
+    p = TestPipeline()
+    output = (
+        p
+        | beam.Create(range(35))
+        | util.BatchElements(
+            min_batch_size=10, max_batch_size=10, record_metrics=False)
+        | beam.Map(len))
+    assert_that(output, equal_to([10, 10, 10, 5]))
+    res = p.run()
+    res.wait_until_finish()
+    metrics = res.metrics()
+    results = metrics.query(MetricsFilter().with_name("batch_size"))
+    self.assertEqual(len(results["distributions"]), 0)
 
   def test_grows_to_max_batch(self):
     # Assumes a single bundle...
@@ -1061,6 +1084,46 @@ class ToStringTest(unittest.TestCase):
       result = (
           p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs(""))
       assert_that(result, equal_to(["one1", "two2"]))
+
+
+class LogElementsTest(unittest.TestCase):
+  @pytest.fixture(scope="function")
+  def _capture_stdout_log(request, capsys):
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create([
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 1, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+              TimestampedValue(
+                  "event",
+                  datetime(2022, 10, 2, 0, 0, 0, 0,
+                           tzinfo=pytz.UTC).timestamp()),
+          ])
+          | beam.WindowInto(FixedWindows(60))
+          | util.LogElements(
+              prefix='prefix_', with_window=True, with_timestamp=True))
+
+    request.captured_stdout = capsys.readouterr().out
+    return result
+
+  @pytest.mark.usefixtures("_capture_stdout_log")
+  def test_stdout_logs(self):
+    assert self.captured_stdout == \
+      ("prefix_event, timestamp='2022-10-01T00:00:00Z', "
+       "window(start=2022-10-01T00:00:00Z, end=2022-10-01T00:01:00Z)\n"
+       "prefix_event, timestamp='2022-10-02T00:00:00Z', "
+       "window(start=2022-10-02T00:00:00Z, end=2022-10-02T00:01:00Z)\n"), \
+      f'Received from stdout: {self.captured_stdout}'
+
+  def test_ptransform_output(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(['a', 'b', 'c'])
+          | util.LogElements(prefix='prefix_'))
+      assert_that(result, equal_to(['a', 'b', 'c']))
 
 
 class ReifyTest(unittest.TestCase):

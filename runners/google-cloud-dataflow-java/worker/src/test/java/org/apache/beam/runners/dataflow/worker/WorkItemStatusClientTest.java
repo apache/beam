@@ -296,6 +296,23 @@ public class WorkItemStatusClientTest {
   }
 
   @Test
+  public void reportAbort() throws Exception {
+    when(worker.extractMetricUpdates()).thenReturn(Collections.emptyList());
+    statusClient.setWorker(worker, executionContext);
+
+    when(workUnitClient.reportWorkItemStatus(isA(WorkItemStatus.class)))
+        .thenReturn(
+            new WorkItemServiceState()
+                .setCompleteWorkStatus(
+                    new Status()
+                        .setCode(com.google.rpc.Code.ABORTED_VALUE)
+                        .setMessage("Worker was asked to abort!")));
+    statusClient.reportUpdate(null, LEASE_DURATION);
+
+    statusClient.reportSuccess();
+  }
+
+  @Test
   public void populateMetricUpdatesNoStateSamplerInfo() throws Exception {
     // When executionContext.getExecutionStateTracker() returns null, we get no metric updates.
     WorkItemStatus status = new WorkItemStatus();
