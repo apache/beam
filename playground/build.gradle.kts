@@ -53,7 +53,7 @@ task("dockerComposeLocalUp") {
     doLast {
         exec {
             executable("docker-compose")
-            args("-f", "docker-compose.local.yml", "up", "-d")
+            args("-f", "docker-compose.local.yaml", "up", "-d")
         }
     }
 }
@@ -65,7 +65,7 @@ task("dockerComposeLocalDown") {
     doLast {
         exec {
             executable("docker-compose")
-            args("-f", "docker-compose.local.yml", "down")
+            args("-f", "docker-compose.local.yaml", "down")
         }
     }
 }
