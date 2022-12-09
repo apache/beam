@@ -35,9 +35,9 @@ package org.apache.beam.examples;
 //      kafka:
 //          topic:
 //              id: dataset
-//              dataset: dataset
+//              dataset: CountWords
 //   datasets:
-//      dataset:
+//      CountWords:
 //          location: local
 //          format: avro
 
@@ -61,7 +61,7 @@ import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 public class KafkaWordCountAvro {
-  static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
+  static final String TOKENIZER_PATTERN = "[^\\p{L}]+"; // Java pattern for letters
 
   public static void main(String[] args) {
     final PipelineOptions options = PipelineOptionsFactory.create();
@@ -73,12 +73,14 @@ public class KafkaWordCountAvro {
     p.apply(
             KafkaIO.<Long, String>read()
                 .withBootstrapServers(
-                    "kafka_server:9092") // The argument is a predefined placeholder, don't change
+                    "kafka_server:9092") // The argument is hardcoded to a predefined value. Do not
+                // change it manually. It's replaced to the correct Kafka cluster address when code starts in backend.
                 .withTopicPartitions(
                     Collections.singletonList(
                         new TopicPartition(
                             "dataset",
-                            0))) // The argument is a predefined placeholder, don't change
+                            0))) // The argument is hardcoded to a predefined value. Do not
+                // change it manually. It's replaced to the correct topic name when code starts in backend.
                 .withKeyDeserializer(LongDeserializer.class)
                 .withValueDeserializer(StringDeserializer.class)
                 .withConsumerConfigUpdates(consumerConfig)
