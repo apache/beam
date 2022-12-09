@@ -54,7 +54,7 @@ public class CsvUtilsTest {
     // TODO(https://github.com/apache/beam/issues/24552)
     assertThrows(
         UnsupportedOperationException.class,
-        () -> CsvUtils.getCsvBytesToRowFunction(row.getSchema(), null).apply(new byte[] {}));
+        () -> CsvUtils.getCsvBytesToRowFunction(row.getSchema(), null, null).apply(new byte[] {}));
   }
 
   @Test
@@ -62,7 +62,7 @@ public class CsvUtilsTest {
     // TODO(https://github.com/apache/beam/issues/24552)
     assertThrows(
         UnsupportedOperationException.class,
-        () -> CsvUtils.getCsvStringToRowFunction(row.getSchema(), null).apply(""));
+        () -> CsvUtils.getCsvStringToRowFunction(row.getSchema(), null, null).apply(""));
   }
 
   @Test
@@ -70,19 +70,23 @@ public class CsvUtilsTest {
     assertArrayEquals(
         "asdfjkl;,true,0,2022-12-06T20:26:05.856Z,1,3.12345,4.1,5,2,7"
             .getBytes(StandardCharsets.UTF_8),
-        CsvUtils.getRowToCsvBytesFunction(row.getSchema(), null).apply(row));
+        CsvUtils.getRowToCsvBytesFunction(row.getSchema(), null, null).apply(row));
   }
 
   @Test
   public void getRowToCsvStringFunction() {
     assertEquals(
         "asdfjkl;,true,0,2022-12-06T20:26:05.856Z,1,3.12345,4.1,5,2,7",
-        CsvUtils.getRowToCsvStringFunction(row.getSchema(), null).apply(row));
+        CsvUtils.getRowToCsvStringFunction(row.getSchema(), null, null).apply(row));
   }
 
   @Test
   public void buildHeaderFrom() {
-    assertEquals("string,aBoolean,aByte,dateTime,decimal,aDouble,aFloat,aShort,anInt,aLong", CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.DEFAULT));
-    assertEquals("\"string\",\"aBoolean\",\"aByte\",\"dateTime\",\"decimal\",\"aDouble\",\"aFloat\",\"aShort\",\"anInt\",\"aLong\"", CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.POSTGRESQL_CSV));
+    assertEquals(
+        "string,aBoolean,aByte,dateTime,decimal,aDouble,aFloat,aShort,anInt,aLong",
+        CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.DEFAULT));
+    assertEquals(
+        "\"string\",\"aBoolean\",\"aByte\",\"dateTime\",\"decimal\",\"aDouble\",\"aFloat\",\"aShort\",\"anInt\",\"aLong\"",
+        CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.POSTGRESQL_CSV));
   }
 }

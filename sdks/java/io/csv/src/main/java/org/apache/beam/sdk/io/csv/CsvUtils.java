@@ -18,55 +18,94 @@
 package org.apache.beam.sdk.io.csv;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities to convert between CSV records, Beam rows, and user types. */
 public final class CsvUtils {
 
-  /** Returns a {@link SimpleFunction} that converts a CSV byte[] record to a Beam {@link Row}. */
+  public static final Set<FieldType> VALID_FIELD_TYPE_SET =
+      ImmutableSet.of(
+          FieldType.BYTE,
+          FieldType.BOOLEAN,
+          FieldType.DATETIME,
+          FieldType.DECIMAL,
+          FieldType.DOUBLE,
+          FieldType.INT16,
+          FieldType.INT32,
+          FieldType.INT64,
+          FieldType.FLOAT,
+          FieldType.STRING);
+
+  /**
+   * Planned for: TODO(https://github.com/apache/beam/issues/24552) Returns a {@link SimpleFunction}
+   * that converts a CSV byte[] record to a Beam {@link Row}. Providing {@param schemaFields}
+   * determines the subset and order of {@param beamSchema} fields expected from the CSV byte[]
+   * record. Otherwise, the expected order derives from the {@link Schema#sorted()} field order.
+   */
   public static SimpleFunction<byte[], Row> getCsvBytesToRowFunction(
-      Schema beamSchema, @Nullable CSVFormat format) {
-    CsvPayloadSerializer payloadSerializer = new CsvPayloadSerializer(beamSchema, format);
+      Schema beamSchema, @Nullable CSVFormat format, @Nullable List<String> schemaFields) {
+    CsvPayloadSerializer payloadSerializer =
+        new CsvPayloadSerializer(beamSchema, format, schemaFields);
     return new CsvBytesToRowFn(payloadSerializer);
   }
 
-  /** Returns a {@link SimpleFunction} that converts a CSV String record to a Beam {@link Row}. */
+  /**
+   * Planned for: TODO(https://github.com/apache/beam/issues/24552) Returns a {@link SimpleFunction}
+   * that converts a CSV String record to a Beam {@link Row}. Providing {@param schemaFields}
+   * determines the subset and order of {@param beamSchema} fields expected from the CSV String
+   * record. Otherwise, the expected order derives from the {@link Schema#sorted()} field order.
+   */
   public static SimpleFunction<String, Row> getCsvStringToRowFunction(
-      Schema beamSchema, @Nullable CSVFormat format) {
-    CsvPayloadSerializer payloadSerializer = new CsvPayloadSerializer(beamSchema, format);
+      Schema beamSchema, @Nullable CSVFormat format, @Nullable List<String> schemaFields) {
+    CsvPayloadSerializer payloadSerializer =
+        new CsvPayloadSerializer(beamSchema, format, schemaFields);
     return new CsvStringToRowFn(payloadSerializer);
   }
 
-  /** Returns a {@link SimpleFunction} that converts a {@link Row} to a CSV byte[] record. */
+  /**
+   * Returns a {@link SimpleFunction} that converts a {@link Row} to a CSV byte[] record. Providing
+   * {@param schemaFields} determines the subset and order of {@param beamSchema} fields of the
+   * resulting CSV byte[] record. Otherwise, the order derives from the {@link Schema#sorted()}
+   * field order.
+   */
   public static SimpleFunction<Row, byte[]> getRowToCsvBytesFunction(
-      Schema beamSchema, @Nullable CSVFormat format) {
-    CsvPayloadSerializer payloadSerializer = new CsvPayloadSerializer(beamSchema, format);
+      Schema beamSchema, @Nullable CSVFormat format, @Nullable List<String> schemaFields) {
+    CsvPayloadSerializer payloadSerializer =
+        new CsvPayloadSerializer(beamSchema, format, schemaFields);
     return new RowToCsvBytesFn(payloadSerializer);
   }
 
-  /** Returns a {@link SimpleFunction} that converts a {@link Row} to a CSV String record. */
+  /**
+   * Returns a {@link SimpleFunction} that converts a {@link Row} to a CSV String record. Providing
+   * {@param schemaFields} determines the subset and order of {@param beamSchema} fields of the
+   * resulting CSV String record. Otherwise, the order derives from the {@link Schema#sorted()}
+   * field order.
+   */
   public static SimpleFunction<Row, String> getRowToCsvStringFunction(
-      Schema beamSchema, @Nullable CSVFormat format) {
-    CsvPayloadSerializer payloadSerializer = new CsvPayloadSerializer(beamSchema, format);
+      Schema beamSchema, @Nullable CSVFormat format, @Nullable List<String> schemaFields) {
+
+    CsvPayloadSerializer payloadSerializer =
+        new CsvPayloadSerializer(beamSchema, format, schemaFields);
     return new RowToCsvStringFn(payloadSerializer);
   }
 
-  static String buildHeaderFrom(Schema schema, CSVFormat csvFormat) {
+  /** Formats {@param columns} into a header String based on {@link CSVFormat}. */
+  static String buildHeaderFrom(List<String> columns, CSVFormat csvFormat) {
     StringBuilder builder = new StringBuilder();
     try {
       boolean newRecord = true;
-      for (int i = 0; i < schema.getFieldCount(); i++) {
-        String name = schema.getField(i).getName();
+      for (String name : columns) {
         csvFormat.print(name, builder, newRecord);
         newRecord = false;
       }
@@ -76,20 +115,52 @@ public final class CsvUtils {
     return builder.toString();
   }
 
-  static void validateSchemaAndHeader(String header, Schema schema, CSVFormat csvFormat) {
-    StringReader reader = new StringReader(header);
-    try {
-      List<String> headerNames = csvFormat.parse(reader).getHeaderNames();
-      if (headerNames.isEmpty()) {
-        throw new IllegalArgumentException(String.format("failed to parse header names from %s", header));
+  /**
+   * Formats {@link Schema#sorted()} list of fields into a header String based on {@link CSVFormat}.
+   */
+  static String buildHeaderFrom(Schema schema, CSVFormat csvFormat) {
+    return buildHeaderFrom(schema.sorted().getFieldNames(), csvFormat);
+  }
+
+  /** Checks {@param columns} against the {@param schema}. */
+  static void validateHeaderAgainstSchema(@Nullable List<String> columns, Schema schema) {
+    if (columns == null) {
+      return;
+    }
+    if (columns.isEmpty()) {
+      throw new IllegalArgumentException("Columns is empty. An intent to not override columns, should assign null to the columns parameter.");
+    }
+    List<String> mismatch = new ArrayList<>();
+    for (String name : columns) {
+      if (!schema.hasField(name)) {
+        mismatch.add(name);
       }
-      for (String name : headerNames) {
-        if (!schema.hasField(name)) {
-          throw new IllegalArgumentException(String.format("column: %s does not match name in schema: %s", name, schema));
-        }
+    }
+    if (!mismatch.isEmpty()) {
+      String mismatchString = String.join(", ", mismatch);
+      throw new IllegalArgumentException(
+          String.format("schema missing columns: %s", mismatchString));
+    }
+  }
+
+  /**
+   * Validates whether the {@param schema} is flat i.e. only contains {@link #VALID_FIELD_TYPE_SET}
+   * {@link FieldType}s.
+   */
+  static void validateSchema(Schema schema) {
+    if (schema.getFieldCount() == 0) {
+      throw new IllegalArgumentException("schema is empty");
+    }
+    List<String> invalidFields = new ArrayList<>();
+    for (Field field : schema.getFields()) {
+      if (!VALID_FIELD_TYPE_SET.contains(field.getType())) {
+        invalidFields.add(field.toString());
       }
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
+    }
+    if (!invalidFields.isEmpty()) {
+      String invalidFieldsMessage = String.join(", ", invalidFields);
+      throw new IllegalArgumentException(
+          String.format("CSV should only contain flat fields but found: %s", invalidFieldsMessage));
     }
   }
 

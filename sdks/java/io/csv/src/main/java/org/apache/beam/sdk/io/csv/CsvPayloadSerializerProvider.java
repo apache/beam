@@ -18,45 +18,50 @@
 package org.apache.beam.sdk.io.csv;
 
 import com.google.auto.service.AutoService;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 
 /** {@link PayloadSerializerProvider} implementation supporting CSV. */
 @AutoService(PayloadSerializerProvider.class)
 public class CsvPayloadSerializerProvider implements PayloadSerializerProvider {
-  public static final String CSV_FORMAT_PARAMETER_KEY = "csv_format";
-  private static final Set<String> ALLOWED_PARAMETERS = ImmutableSet.of(CSV_FORMAT_PARAMETER_KEY);
+  public static final Field CSV_FORMAT_PARAMETER_FIELD =
+      Field.nullable("csv_format", FieldType.logicalType(new CsvFormatLogicalType()));
+  public static final Field SCHEMA_FIELDS_PARAMETER_FIELD =
+      Field.nullable("schema_fields", FieldType.array(FieldType.STRING));
+  public static final Schema CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA =
+      Schema.of(CSV_FORMAT_PARAMETER_FIELD, SCHEMA_FIELDS_PARAMETER_FIELD);
 
   @Override
   public String identifier() {
     return "csv";
   }
 
+  /**
+   * Validates {@link Map} of {@param params} against {@link
+   * #CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA} and converts the {@param params} as a {@link Row}.
+   */
+  static Row rowFrom(Map<String, Object> params) {
+    return Row.withSchema(CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA).withFieldValues(params).build();
+  }
+
   @Override
   public PayloadSerializer getSerializer(Schema schema, Map<String, Object> params) {
-    Set<String> misMatchedParameters = new HashSet<>();
-    for (String param : params.keySet()) {
-      if (!ALLOWED_PARAMETERS.contains(param)) {
-        misMatchedParameters.add(param);
-      }
-    }
-    if (!misMatchedParameters.isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "illegal parameters for %s: %s",
-              CsvPayloadSerializerProvider.class.getName(),
-              String.join(",", misMatchedParameters)));
-    }
+    Row paramsRow = rowFrom(params);
     CSVFormat csvFormat = CSVFormat.DEFAULT;
-    if (params.containsKey(CSV_FORMAT_PARAMETER_KEY)) {
-      csvFormat = (CSVFormat) params.get(CSV_FORMAT_PARAMETER_KEY);
+    List<String> schemaFields = null;
+    if (paramsRow.getValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName()) != null) {
+      schemaFields =
+          Objects.requireNonNull(paramsRow.getValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName()));
     }
-    return new CsvPayloadSerializer(schema, csvFormat);
+    return new CsvPayloadSerializer(schema, csvFormat, schemaFields);
   }
 }

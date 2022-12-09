@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.csv;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.values.Row;
@@ -27,15 +28,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class CsvPayloadSerializer implements PayloadSerializer {
 
-  private final Schema schema;
   private final CSVFormat csvFormat;
+  private final List<String> schemaFields;
 
-  CsvPayloadSerializer(Schema schema, @Nullable CSVFormat csvFormat) {
-    this.schema = schema;
+  CsvPayloadSerializer(
+      Schema schema, @Nullable CSVFormat csvFormat, @Nullable List<String> schemaFields) {
+    CsvUtils.validateSchema(schema);
+    CsvUtils.validateHeaderAgainstSchema(schemaFields, schema);
     if (csvFormat == null) {
       csvFormat = CSVFormat.DEFAULT;
     }
     this.csvFormat = csvFormat;
+
+    if (schemaFields == null) {
+      schemaFields = schema.sorted().getFieldNames();
+    }
+    this.schemaFields = schemaFields;
   }
 
   CSVFormat getCsvFormat() {
@@ -47,8 +55,7 @@ public class CsvPayloadSerializer implements PayloadSerializer {
     StringBuilder builder = new StringBuilder();
     try {
       boolean newRecord = true;
-      for (int i = 0; i < schema.getFieldCount(); i++) {
-        String name = schema.getField(i).getName();
+      for (String name : schemaFields) {
         Object value = row.getValue(name);
         if (value == null) {
           value = "";

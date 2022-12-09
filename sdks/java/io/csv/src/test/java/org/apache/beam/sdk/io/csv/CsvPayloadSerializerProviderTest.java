@@ -17,15 +17,23 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static org.apache.beam.sdk.io.csv.CsvIOTestHelpers.ALL_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.csv.CsvPayloadSerializerProvider.CSV_FORMAT_PARAMETER_FIELD;
+import static org.apache.beam.sdk.io.csv.CsvPayloadSerializerProvider.CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA;
+import static org.apache.beam.sdk.io.csv.CsvPayloadSerializerProvider.SCHEMA_FIELDS_PARAMETER_FIELD;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVFormat.Predefined;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -38,44 +46,36 @@ public class CsvPayloadSerializerProviderTest {
   @Test
   public void getSerializerWithDefaultCsvFormat() {
     PayloadSerializer payloadSerializer =
-        PayloadSerializers.getSerializer(PAYLOAD_SERIALIZER_ID, Schema.of(), ImmutableMap.of());
+        PayloadSerializers.getSerializer(PAYLOAD_SERIALIZER_ID, ALL_DATA_TYPES_SCHEMA, ImmutableMap.of());
     assertTrue(payloadSerializer instanceof CsvPayloadSerializer);
     CsvPayloadSerializer csvPayloadSerializer = (CsvPayloadSerializer) payloadSerializer;
     assertEquals(CSVFormat.DEFAULT, csvPayloadSerializer.getCsvFormat());
   }
 
   @Test
-  public void getSerializerWithNonDefaultCsvFormat() {
-    PayloadSerializer payloadSerializer =
-        PayloadSerializers.getSerializer(
-            PAYLOAD_SERIALIZER_ID,
-            Schema.of(),
-            ImmutableMap.of(
-                CsvPayloadSerializerProvider.CSV_FORMAT_PARAMETER_KEY, CSVFormat.MONGODB_CSV));
-    assertTrue(payloadSerializer instanceof CsvPayloadSerializer);
-    CsvPayloadSerializer csvPayloadSerializer = (CsvPayloadSerializer) payloadSerializer;
-    assertEquals(CSVFormat.MONGODB_CSV, csvPayloadSerializer.getCsvFormat());
-  }
+  public void rowFrom() {
+    assertEquals(Row.withSchema(CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA).build(), CsvPayloadSerializerProvider.rowFrom(ImmutableMap.of()));
 
-  @Test
-  public void invalidPayloadSerializerParameter() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          PayloadSerializers.getSerializer(
-              PAYLOAD_SERIALIZER_ID, Schema.of(), ImmutableMap.of("badparam", ""));
-        });
-  }
+    assertEquals(Row.withSchema(CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA)
+        .withFieldValue(CSV_FORMAT_PARAMETER_FIELD.getName(), CSVFormat.MONGODB_CSV)
+        .withFieldValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName(), null)
+        .build(), CsvPayloadSerializerProvider.rowFrom(ImmutableMap.of(
+        CSV_FORMAT_PARAMETER_FIELD.getName(), CSVFormat.MONGODB_CSV
+    )));
 
-  @Test
-  public void invalidPayloadSerializerCsvFormatTypeParameter() {
-    assertThrows(
-        ClassCastException.class,
-        () -> {
-          PayloadSerializers.getSerializer(
-              PAYLOAD_SERIALIZER_ID,
-              Schema.of(),
-              ImmutableMap.of(CsvPayloadSerializerProvider.CSV_FORMAT_PARAMETER_KEY, ""));
-        });
+    assertEquals(Row.withSchema(CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA)
+        .withFieldValue(CSV_FORMAT_PARAMETER_FIELD.getName(), null)
+        .withFieldValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName(), Arrays.asList("string", "aDouble")).build(),
+        CsvPayloadSerializerProvider.rowFrom(ImmutableMap.of(
+            SCHEMA_FIELDS_PARAMETER_FIELD.getName(), Arrays.asList("string", "aDouble")
+        )));
+
+    assertEquals(Row.withSchema(CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA)
+            .withFieldValue(CSV_FORMAT_PARAMETER_FIELD.getName(), CSVFormat.INFORMIX_UNLOAD)
+            .withFieldValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName(), Arrays.asList("string", "aDouble")).build(),
+        CsvPayloadSerializerProvider.rowFrom(ImmutableMap.of(
+            CSV_FORMAT_PARAMETER_FIELD.getName(), CSVFormat.INFORMIX_UNLOAD,
+            SCHEMA_FIELDS_PARAMETER_FIELD.getName(), Arrays.asList("string", "aDouble")
+        )));
   }
 }

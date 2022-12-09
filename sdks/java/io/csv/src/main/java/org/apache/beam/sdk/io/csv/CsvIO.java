@@ -26,7 +26,6 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.io.StringReader;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
@@ -66,7 +65,7 @@ public class CsvIO {
 
   /** Implementation of {@link FileIO.Sink}. */
   @AutoValue
-  public static abstract class Sink<T> implements FileIO.Sink<T> {
+  public abstract static class Sink<T> implements FileIO.Sink<T> {
 
     public static <T> Builder<T> builder() {
       return new AutoValue_CsvIO_Sink.Builder<>();
@@ -102,7 +101,8 @@ public class CsvIO {
     @Override
     public void write(T element) throws IOException {
       if (writer == null) {
-        throw new IllegalStateException(String.format("%s writer is null", PrintWriter.class.getName()));
+        throw new IllegalStateException(
+            String.format("%s writer is null", PrintWriter.class.getName()));
       }
       String line = getFormatFunction().apply(element);
       writer.println(line);
@@ -111,7 +111,8 @@ public class CsvIO {
     @Override
     public void flush() throws IOException {
       if (writer == null) {
-        throw new IllegalStateException(String.format("%s writer is null", PrintWriter.class.getName()));
+        throw new IllegalStateException(
+            String.format("%s writer is null", PrintWriter.class.getName()));
       }
       writer.flush();
     }
@@ -138,7 +139,8 @@ public class CsvIO {
   }
 
   @AutoValue
-  public static abstract class Write<T> extends PTransform<PCollection<T>, PDone> implements HasDisplayData {
+  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone>
+      implements HasDisplayData {
 
     public Write<T> to(String filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
@@ -170,8 +172,8 @@ public class CsvIO {
 
     abstract @Nullable ResourceId getTempDirectory();
 
-    abstract @Nullable String getHeader();
-    
+    abstract @Nullable List<String> getSchemaFields();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -180,6 +182,7 @@ public class CsvIO {
       abstract Builder<T> setFilenamePrefix(String value);
 
       abstract Builder<T> setCSVFormat(CSVFormat value);
+
       abstract Optional<CSVFormat> getCSVFormat();
 
       abstract Builder<T> setPreamble(String value);
@@ -187,12 +190,12 @@ public class CsvIO {
       abstract Builder<T> setCompression(Compression value);
 
       abstract Builder<T> setNumShards(Integer value);
-      
+
       abstract Builder<T> setFilenameSuffix(String value);
-      
+
       abstract Builder<T> setTempDirectory(ResourceId value);
 
-      abstract Builder<T> setHeader(String value);
+      abstract Builder<T> setSchemaFields(List<String> value);
 
       abstract Write<T> autoBuild();
 
@@ -226,39 +229,43 @@ public class CsvIO {
         builder.add(DisplayData.item("filenameSuffix", getFilenameSuffix()));
       }
       if (getTempDirectory() != null) {
-        builder.add(DisplayData.item("tempDirectory", DisplayData.Type.JAVA_CLASS, getTempDirectory()));
+        builder.add(
+            DisplayData.item("tempDirectory", DisplayData.Type.JAVA_CLASS, getTempDirectory()));
       }
     }
 
     @Override
     public PDone expand(PCollection<T> input) {
       if (!input.hasSchema()) {
-        throw new IllegalArgumentException(String.format("%s requires an input Schema", Write.class.getName()));
+        throw new IllegalArgumentException(
+            String.format("%s requires an input Schema", Write.class.getName()));
       }
 
       Schema schema = input.getSchema();
-      CsvUtils.validateSchemaAndHeader(getOrBuildHeader(schema), schema, getCSVFormat());
-
       SerializableFunction<T, Row> toRowFn = input.getToRowFunction();
-      PCollection<Row> rows = input.apply(MapElements.into(rows()).via(toRowFn)).setRowSchema(schema);
-      rows.apply(
-          "writeRowsToCsv",
-          buildFileIOWrite().via(buildSink(schema))
-      );
+      PCollection<Row> rows =
+          input.apply(MapElements.into(rows()).via(toRowFn)).setRowSchema(schema);
+      rows.apply("writeRowsToCsv", buildFileIOWrite().via(buildSink(schema)));
       return PDone.in(input.getPipeline());
     }
 
-    String getOrBuildHeader(Schema schema) {
-      if (getHeader() != null) {
-        return getHeader();
+    String buildHeader(Schema schema) {
+      if (getSchemaFields() != null) {
+        return CsvUtils.buildHeaderFrom(getSchemaFields(), getCSVFormat());
       }
       return CsvUtils.buildHeaderFrom(schema.sorted(), getCSVFormat());
     }
 
     Sink<Row> buildSink(Schema schema) {
+      List<String> schemaFields = null;
+      String header = null;
+      if (getSchemaFields() != null) {
+        schemaFields = getSchemaFields();
+      }
       return Sink.<Row>builder()
-          .setHeader(CsvUtils.buildHeaderFrom(schema, getCSVFormat()))
-          .setFormatFunction(CsvUtils.getRowToCsvStringFunction(schema, getCSVFormat()))
+          .setHeader(buildHeader(schema))
+          .setFormatFunction(
+              CsvUtils.getRowToCsvStringFunction(schema, getCSVFormat(), schemaFields))
           .build();
     }
 
@@ -268,8 +275,10 @@ public class CsvIO {
       ResourceId prefix =
           FileSystems.matchNewResource(getFilenamePrefix(), false /* isDirectory */);
 
-      FileIO.Write<Void, Row> write = FileIO.<Row>write().to(prefix.getCurrentDirectory().toString())
-          .withPrefix(Objects.requireNonNull(prefix.getFilename()));
+      FileIO.Write<Void, Row> write =
+          FileIO.<Row>write()
+              .to(prefix.getCurrentDirectory().toString())
+              .withPrefix(Objects.requireNonNull(prefix.getFilename()));
 
       if (getCompression() != null) {
         write = write.withCompression(getCompression());
@@ -284,8 +293,7 @@ public class CsvIO {
       }
 
       if (getTempDirectory() != null) {
-        write = write.withTempDirectory(
-            Objects.requireNonNull(getTempDirectory().getFilename()));
+        write = write.withTempDirectory(Objects.requireNonNull(getTempDirectory().getFilename()));
       }
 
       return write;
