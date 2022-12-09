@@ -100,7 +100,9 @@ If you do not need particular runners, comment out:
 1. Dependencies on them in `/playground/build.gradle.kts` in `dockerComposeLocalUp` task.
 2. Their Docker image configurations in `/playground/docker-compose.local.yaml`.
 
-## Run the method to remove unused code snippets from the Cloud Datastore. Unused snippets are snippets that are out of date. If the last visited date property less or equals than the current date minus dayDiff parameter then a snippet is out of date
+## Removing old snippets
+
+Run the method to remove unused code snippets from the Cloud Datastore. Unused snippets are snippets that are out of date. If the last visited date property less or equals than the current date minus dayDiff parameter then a snippet is out of date
 
 ```
 cd beam
