@@ -43,7 +43,7 @@ permissions: read-all
 jobs:
   java-kafka-io:
     name: Run Java Kafka IO Direct
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 120
     steps:
       - name: Checkout code
