@@ -68,6 +68,14 @@ jobs:
           - java: "17"
     timeout-minutes: 120
     steps:
+      - name: Checking out composite
+        uses: actions/checkout@v3
+        with:
+          ref: master
+      - name: Using composite
+        uses: ./.github/actions/activate-service-account
+        with:      
+          GCP_SERVICE_ACCOUNT: ${{secrets.GCP_SELF_HOSTED_SA_KEY}}
       - name: Checkout code
         uses: actions/checkout@v3
         with:
