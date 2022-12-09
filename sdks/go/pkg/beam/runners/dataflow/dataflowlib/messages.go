@@ -46,20 +46,22 @@ type pipelineOptions struct {
 // blobs. We manually add them here for convenient and safer use.
 
 // userAgent models Job/Environment/UserAgent. Example value:
-//    "userAgent": {
-//        "name": "Apache Beam SDK for Python",
-//        "version": "0.6.0.dev"
-//    },
+//
+//	"userAgent": {
+//	    "name": "Apache Beam SDK for Python",
+//	    "version": "0.6.0.dev"
+//	},
 type userAgent struct {
 	Name    string `json:"name,omitempty"`
 	Version string `json:"version,omitempty"`
 }
 
 // version models Job/Environment/Version. Example value:
-//    "version": {
-//       "job_type": "PYTHON_BATCH",
-//       "major": "5"
-//    },
+//
+//	"version": {
+//	   "job_type": "PYTHON_BATCH",
+//	   "major": "5"
+//	},
 type version struct {
 	JobType string `json:"job_type,omitempty"`
 	Major   string `json:"major,omitempty"`

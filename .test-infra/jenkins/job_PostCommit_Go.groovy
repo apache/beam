@@ -30,7 +30,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go', 'Run Go PostCommit',
       commonJobProperties.setTopLevelMainJobProperties(
           delegate,
           'master',
-          150)
+          300) // increased to 5 hours.
 
       steps {
         gradle {

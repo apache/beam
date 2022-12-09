@@ -32,6 +32,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import decimal
 import enum
 import itertools
 import json
@@ -97,7 +98,7 @@ if TYPE_CHECKING or SLOW_STREAM:
     import cython
     is_compiled = cython.compiled
   except ImportError:
-    pass
+    globals()['cython'] = type('fake_cython', (), {'cast': lambda typ, x: x})
 
 else:
   # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -111,6 +112,7 @@ else:
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
   # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+  is_compiled = True
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -610,6 +612,12 @@ class BytesCoderImpl(CoderImpl):
   A coder for bytes/str objects."""
   def encode_to_stream(self, value, out, nested):
     # type: (bytes, create_OutputStream, bool) -> None
+
+    # value might be of type np.bytes if passed from encode_batch, and cython
+    # does not recognize it as bytes.
+    if is_compiled and isinstance(value, np.bytes_):
+      value = bytes(value)
+
     out.write(value, nested)
 
   def decode_from_stream(self, in_stream, nested):
@@ -1623,6 +1631,61 @@ class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
     return estimated_size
 
 
+row_coders_registered = False
+
+
+class RowColumnEncoder:
+  ROW_ENCODERS = {1: 12345}
+
+  @classmethod
+  def register(cls, field_type, coder_impl):
+    cls.ROW_ENCODERS[field_type, coder_impl] = cls
+
+  @classmethod
+  def create(cls, field_type, coder_impl, column):
+    global row_coders_registered
+    if not row_coders_registered:
+      try:
+        # pylint: disable=unused-import
+        from apache_beam.coders import coder_impl_row_encoders
+      except ImportError:
+        pass
+      row_coders_registered = True
+    return cls.ROW_ENCODERS.get((field_type, column.dtype),
+                                GenericRowColumnEncoder)(coder_impl, column)
+
+  def null_flags(self):
+    raise NotImplementedError(type(self))
+
+  def encode_to_stream(self, index, out):
+    raise NotImplementedError(type(self))
+
+  def decode_from_stream(self, index, in_stream):
+    raise NotImplementedError(type(self))
+
+  def finalize_write(self):
+    raise NotImplementedError(type(self))
+
+
+class GenericRowColumnEncoder(RowColumnEncoder):
+  def __init__(self, coder_impl, column):
+    self.coder_impl = coder_impl
+    self.column = column
+
+  def null_flags(self):
+    # pylint: disable=singleton-comparison
+    return self.column == None  # This is an array.
+
+  def encode_to_stream(self, index, out):
+    self.coder_impl.encode_to_stream(self.column[index], out, True)
+
+  def decode_from_stream(self, index, in_stream):
+    self.column[index] = self.coder_impl.decode_from_stream(in_stream, True)
+
+  def finalize_write(self):
+    pass
+
+
 class RowCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def __init__(self, schema, components):
@@ -1689,18 +1752,58 @@ class RowCoderImpl(StreamCoderImpl):
       component_coder = self.components[i]  # for typing
       component_coder.encode_to_stream(attr, out, True)
 
+  def _row_column_encoders(self, columns):
+    return [
+        RowColumnEncoder.create(
+            self.schema.fields[i].type.atomic_type,
+            self.components[i],
+            columns[name]) for i,
+        name in enumerate(self.field_names)
+    ]
+
+  def encode_batch_to_stream(self, columns: Dict[str, np.ndarray], out):
+    attrs = self._row_column_encoders(columns)
+    n = len(next(iter(columns.values())))
+    if self.has_nullable_fields:
+      null_flags_py = np.zeros((n, self.num_fields), dtype=np.uint8)
+      null_bits_len = (self.num_fields + 7) // 8
+      null_bits_py = np.zeros((n, null_bits_len), dtype=np.uint8)
+      for i, attr in enumerate(attrs):
+        attr_null_flags = attr.null_flags()
+        if attr_null_flags is not None and attr_null_flags.any():
+          null_flags_py[:, i] = attr_null_flags
+          null_bits_py[:, i // 8] |= attr_null_flags << np.uint8(i % 8)
+      has_null_bits = (null_bits_py.sum(axis=1) != 0).astype(np.uint8)
+      null_bits = null_bits_py
+      null_flags = null_flags_py
+    else:
+      has_null_bits = np.zeros((n, ), dtype=np.uint8)
+
+    for k in range(n):
+      out.write_var_int64(self.num_fields)
+      if has_null_bits[k]:
+        out.write_byte(null_bits_len)
+        for i in range(null_bits_len):
+          out.write_byte(null_bits[k, i])
+      else:
+        out.write_byte(0)
+      for i in range(self.num_fields):
+        if not self.encoding_positions_are_trivial:
+          i = self.encoding_positions_argsort[i]
+        if has_null_bits[k] and null_flags[k, i]:
+          if not self.field_nullable[i]:
+            raise ValueError(
+                "Attempted to encode null for non-nullable field \"{}\".".
+                format(self.schema.fields[i].name))
+        else:
+          cython.cast(RowColumnEncoder, attrs[i]).encode_to_stream(k, out)
+
   def decode_from_stream(self, in_stream, nested):
     nvals = in_stream.read_var_int64()
-    null_mask = in_stream.read_all(True)
-    if null_mask:
-      has_nulls = True
-      nulls = []
-      for i in range(nvals):
-        if i % 8 == 0:
-          running = 0 if i // 8 >= len(null_mask) else null_mask[i // 8]
-        nulls.append((running >> (i % 8)) & 0x01)
-    else:
-      has_nulls = False
+    null_mask_len = in_stream.read_var_int64()
+    if null_mask_len:
+      # pylint: disable=unused-variable
+      null_mask_c = null_mask_py = in_stream.read(null_mask_len)
 
     # Note that if this coder's schema has *fewer* attributes than the encoded
     # value, we just need to ignore the additional values, which will occur
@@ -1710,7 +1813,8 @@ class RowCoderImpl(StreamCoderImpl):
     for i in range(min(self.num_fields, nvals)):
       if not self.encoding_positions_are_trivial:
         i = self.encoding_positions_argsort[i]
-      if has_nulls and nulls[i]:
+      if (null_mask_len and i >> 3 < null_mask_len and
+          null_mask_c[i >> 3] & (0x01 << (i & 0x07))):
         item = None
       else:
         component_coder = self.components[i]  # for typing
@@ -1727,6 +1831,35 @@ class RowCoderImpl(StreamCoderImpl):
             sorted_components if self.encoding_positions_are_trivial else
             [sorted_components[i] for i in self.encoding_positions]))
 
+  def decode_batch_from_stream(self, dest: Dict[str, np.ndarray], in_stream):
+    attrs = self._row_column_encoders(dest)
+    n = len(next(iter(dest.values())))
+    for k in range(n):
+      if in_stream.size() == 0:
+        break
+      nvals = in_stream.read_var_int64()
+      null_mask_len = in_stream.read_var_int64()
+      if null_mask_len:
+        # pylint: disable=unused-variable
+        null_mask_c = null_mask = in_stream.read(null_mask_len)
+
+      for i in range(min(self.num_fields, nvals)):
+        if not self.encoding_positions_are_trivial:
+          i = self.encoding_positions_argsort[i]
+        if (null_mask_len and i >> 3 < null_mask_len and
+            null_mask_c[i >> 3] & (0x01 << (i & 0x07))):
+          continue
+        else:
+          cython.cast(RowColumnEncoder,
+                      attrs[i]).decode_from_stream(k, in_stream)
+    else:
+      # Loop variable will be n-1 on normal exit.
+      k = n
+
+    for attr in attrs:
+      attr.finalize_write()
+    return k
+
 
 class LogicalTypeCoderImpl(StreamCoderImpl):
   def __init__(self, logical_type, representation_coder):
@@ -1740,3 +1873,47 @@ class LogicalTypeCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_stream, nested):
     return self.logical_type.to_language_type(
         self.representation_coder.decode_from_stream(in_stream, nested))
+
+
+class BigIntegerCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  For interoperability with Java SDK, encoding needs to match that of the Java
+  SDK BigIntegerCoder."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (int, create_OutputStream, bool) -> None
+    if value < 0:
+      byte_length = ((value + 1).bit_length() + 8) // 8
+    else:
+      byte_length = (value.bit_length() + 8) // 8
+    encoded_value = value.to_bytes(
+        length=byte_length, byteorder='big', signed=True)
+    out.write(encoded_value, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> int
+    encoded_value = in_stream.read_all(nested)
+    return int.from_bytes(encoded_value, byteorder='big', signed=True)
+
+
+class DecimalCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  For interoperability with Java SDK, encoding needs to match that of the Java
+  SDK BigDecimalCoder."""
+
+  BIG_INT_CODER_IMPL = BigIntegerCoderImpl()
+
+  def encode_to_stream(self, value, out, nested):
+    # type: (decimal.Decimal, create_OutputStream, bool) -> None
+    scale = -value.as_tuple().exponent
+    int_value = int(value.scaleb(scale))
+    out.write_var_int64(scale)
+    self.BIG_INT_CODER_IMPL.encode_to_stream(int_value, out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> decimal.Decimal
+    scale = in_stream.read_var_int64()
+    int_value = self.BIG_INT_CODER_IMPL.decode_from_stream(in_stream, nested)
+    value = decimal.Decimal(int_value).scaleb(-scale)
+    return value

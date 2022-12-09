@@ -42,6 +42,7 @@ __all__ = [
     'TypeOptions',
     'DirectOptions',
     'GoogleCloudOptions',
+    'AzureOptions',
     'HadoopFileSystemOptions',
     'WorkerOptions',
     'DebugOptions',
@@ -131,6 +132,18 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     if message.startswith('ambiguous option: '):
       return
     super().error(message)
+
+
+class _DictUnionAction(argparse.Action):
+  """
+  argparse Action take union of json loads values. If a key is specified in more
+  than one of the values, the last value takes precedence.
+  """
+  def __call__(self, parser, namespace, values, option_string=None):
+    if not hasattr(namespace,
+                   self.dest) or getattr(namespace, self.dest) is None:
+      setattr(namespace, self.dest, {})
+    getattr(namespace, self.dest).update(values)
 
 
 class PipelineOptions(HasDisplayData):
@@ -631,6 +644,17 @@ class DirectOptions(PipelineOptions):
         dest='direct_embed_docker_python',
         help='DirectRunner uses the embedded Python environment when '
         'the default Python docker environment is specified.')
+    parser.add_argument(
+        '--direct_test_splits',
+        default={},
+        type=json.loads,
+        help='Split test configuration of the json form '
+        '{"step_name": {"timings": [...], "fractions": [...]}, ...} '
+        'where step_name is the name of a step controlling the stage to which '
+        'splits will be sent, timings is a list of floating-point times '
+        '(in seconds) at which the split requests will be sent, and '
+        'fractions is a corresponding list of floating points to use in the '
+        'split requests themselves.')
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -640,6 +664,15 @@ class GoogleCloudOptions(PipelineOptions):
   COMPUTE_API_SERVICE = 'compute.googleapis.com'
   STORAGE_API_SERVICE = 'storage.googleapis.com'
   DATAFLOW_ENDPOINT = 'https://dataflow.googleapis.com'
+  OAUTH_SCOPES = [
+      'https://www.googleapis.com/auth/bigquery',
+      'https://www.googleapis.com/auth/cloud-platform',
+      'https://www.googleapis.com/auth/devstorage.full_control',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/datastore',
+      'https://www.googleapis.com/auth/spanner.admin',
+      'https://www.googleapis.com/auth/spanner.data'
+  ]
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -773,6 +806,16 @@ class GoogleCloudOptions(PipelineOptions):
         'either a single service account as the impersonator, or a '
         'comma-separated list of service accounts to create an '
         'impersonation delegation chain.')
+    parser.add_argument(
+        '--gcp_oauth_scope',
+        '--gcp_oauth_scopes',
+        dest='gcp_oauth_scopes',
+        action='append',
+        default=cls.OAUTH_SCOPES,
+        help=(
+            'Controls the OAuth scopes that will be requested when creating '
+            'GCP credentials. Note: If set programmatically, must be set as a '
+            'list of strings'))
 
   def _create_default_gcs_bucket(self):
     try:
@@ -815,6 +858,34 @@ class GoogleCloudOptions(PipelineOptions):
       errors.extend(
           validator.validate_repeatable_argument_passed_as_list(
               self, 'dataflow_service_options'))
+
+    return errors
+
+
+class AzureOptions(PipelineOptions):
+  """Azure Blob Storage options."""
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--azure_connection_string',
+        default=None,
+        help='Connection string of the Azure Blob Storage Account.')
+    parser.add_argument(
+        '--blob_service_endpoint',
+        default=None,
+        help='URL of the Azure Blob Storage Account.')
+    parser.add_argument(
+        '--azure_managed_identity_client_id',
+        default=None,
+        help='Client ID of a user-assigned managed identity.')
+
+  def validate(self, validator):
+    errors = []
+    if self.azure_connection_string:
+      if self.blob_service_endpoint:
+        errors.append(
+            '--azure_connection_string and '
+            '--blob_service_endpoint are mutually exclusive.')
 
     return errors
 
@@ -979,7 +1050,8 @@ class WorkerOptions(PipelineOptions):
             'Default log level is INFO.'))
     parser.add_argument(
         '--sdk_harness_log_level_overrides',
-        action='append',
+        type=json.loads,
+        action=_DictUnionAction,
         default=None,
         help=(
             'Controls the log levels for specifically named loggers. The '
@@ -1007,13 +1079,6 @@ class WorkerOptions(PipelineOptions):
         dest='min_cpu_platform',
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.')
-    parser.add_argument(
-        '--dataflow_worker_jar',
-        dest='dataflow_worker_jar',
-        type=str,
-        help='Dataflow worker jar file. If specified, the jar file is staged '
-        'in GCS, then gets loaded by workers. End users usually '
-        'should not use this feature.')
 
   def validate(self, validator):
     errors = []
@@ -1421,6 +1486,20 @@ class FlinkRunnerOptions(PipelineOptions):
         ' directly, rather than starting up a job server.'
         ' Only applies when flink_master is set to a'
         ' cluster address.  Requires Python 3.6+.')
+    parser.add_argument(
+        '--parallelism',
+        type=int,
+        default=-1,
+        help='The degree of parallelism to be used when distributing'
+        ' operations onto workers. If the parallelism is not set, the'
+        ' configured Flink default is used, or 1 if none can be found.')
+    parser.add_argument(
+        '--max_parallelism',
+        type=int,
+        default=-1,
+        help='The pipeline wide maximum degree of parallelism to be used. The'
+        ' maximum parallelism specifies the upper limit for dynamic scaling'
+        ' and the number of key groups used for partitioned state.')
 
 
 class SparkRunnerOptions(PipelineOptions):
@@ -1451,9 +1530,10 @@ class SparkRunnerOptions(PipelineOptions):
         'For example, http://hostname:6066')
     parser.add_argument(
         '--spark_version',
-        default='2',
-        choices=['2', '3'],
-        help='Spark major version to use.')
+        default='3',
+        choices=['3', '2'],
+        help='Spark major version to use. '
+        'Note, Spark 2 support is deprecated')
 
 
 class TestOptions(PipelineOptions):

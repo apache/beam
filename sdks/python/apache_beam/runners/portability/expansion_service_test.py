@@ -376,6 +376,8 @@ def cleanup(unused_signum, unused_frame):
 
 
 def main(unused_argv):
+  # TODO: use the regular expansion service (expansion_service_main) instead of
+  # this custom service for testing.
   PyPIArtifactRegistry.register_artifact('beautifulsoup4', '>=4.9,<5.0')
   parser = argparse.ArgumentParser()
   parser.add_argument(
@@ -388,8 +390,14 @@ def main(unused_argv):
       options.fully_qualified_name_glob):
     server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     expansion_servicer = expansion_service.ExpansionServiceServicer(
-        PipelineOptions(
-            ["--experiments", "beam_fn_api", "--sdk_location", "container"]))
+        PipelineOptions([
+            "--experiments",
+            "beam_fn_api",
+            "--sdk_location",
+            "container",
+            "--pickle_library",
+            "cloudpickle"
+        ]))
     update_sklearn_model_dependency(expansion_servicer._default_environment)
     beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
         expansion_servicer, server)

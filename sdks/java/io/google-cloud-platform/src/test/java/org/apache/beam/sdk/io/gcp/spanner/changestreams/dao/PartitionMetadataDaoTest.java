@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
@@ -82,11 +83,13 @@ public class PartitionMetadataDaoTest {
   @Before
   public void setUp() {
     databaseClient = mock(DatabaseClient.class);
-    partitionMetadataDao = new PartitionMetadataDao(METADATA_TABLE_NAME, databaseClient);
+    partitionMetadataDao =
+        new PartitionMetadataDao(METADATA_TABLE_NAME, databaseClient, Dialect.GOOGLE_STANDARD_SQL);
     readWriteTransactionRunner = mock(TransactionRunner.class);
     transaction = mock(TransactionContext.class);
     inTransactionContext =
-        new PartitionMetadataDao.InTransactionContext(METADATA_TABLE_NAME, transaction);
+        new PartitionMetadataDao.InTransactionContext(
+            METADATA_TABLE_NAME, transaction, Dialect.GOOGLE_STANDARD_SQL);
   }
 
   @Test

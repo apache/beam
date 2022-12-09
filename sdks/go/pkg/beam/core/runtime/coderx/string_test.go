@@ -20,7 +20,7 @@ import (
 )
 
 func TestString(t *testing.T) {
-	tests := []interface{}{
+	tests := []any{
 		"",
 		"A novel set of characters",
 		"Hello, 世界",

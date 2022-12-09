@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // WindowInto places each element in one or more windows.
@@ -32,6 +33,7 @@ type WindowInto struct {
 	Out Node
 }
 
+// ID returns the UnitID for this unit.
 func (w *WindowInto) ID() UnitID {
 	return w.UID
 }
@@ -95,6 +97,61 @@ func (w *WindowInto) Down(ctx context.Context) error {
 
 func (w *WindowInto) String() string {
 	return fmt.Sprintf("WindowInto[%v]. Out:%v", w.Fn, w.Out.ID())
+}
+
+// MapWindows maps each element window from a main input window space
+// to window from a side input window space.
+type MapWindows struct {
+	UID UnitID
+	Fn  WindowMapper
+	Out Node
+}
+
+// ID returns the UnitID for this unit.
+func (m *MapWindows) ID() UnitID {
+	return m.UID
+}
+
+// Up does nothing
+func (m *MapWindows) Up(_ context.Context) error {
+	return nil
+}
+
+func (m *MapWindows) StartBundle(ctx context.Context, id string, data DataContext) error {
+	return m.Out.StartBundle(ctx, id, data)
+}
+
+func (m *MapWindows) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
+	w, ok := elm.Elm2.(window.IntervalWindow)
+	if !ok {
+		return errors.Errorf("not an IntervalWindow, got %T", elm.Elm2)
+	}
+	newW, err := m.Fn.MapWindow(w)
+	if err != nil {
+		return err
+	}
+	out := &FullValue{
+		Elm:       elm.Elm,
+		Elm2:      newW,
+		Timestamp: elm.Timestamp,
+		Windows:   elm.Windows,
+		Pane:      elm.Pane,
+	}
+	return m.Out.ProcessElement(ctx, out, values...)
+}
+
+// FinishBundle propagates finish bundle to downstream nodes.
+func (m *MapWindows) FinishBundle(ctx context.Context) error {
+	return m.Out.FinishBundle(ctx)
+}
+
+// Down does nothing.
+func (m *MapWindows) Down(_ context.Context) error {
+	return nil
+}
+
+func (m *MapWindows) String() string {
+	return fmt.Sprintf("MapWindows[%v]. Out:%v", m.Fn, m.Out.ID())
 }
 
 // WindowMapper defines an interface maps windows from a main input window space

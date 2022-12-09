@@ -51,12 +51,30 @@ configurations {
 def sparkTestProperties(overrides = [:]) {
   def defaults = ["--runner": "TestSparkRunner"]
   [
+      "log4j.configuration"         : "log4j-test.properties",
       "spark.sql.shuffle.partitions": "4",
       "spark.ui.enabled"            : "false",
       "spark.ui.showConsoleProgress": "false",
+      "spark.kryo.registrationRequired": "true", // be strict in tests
       "beamTestPipelineOptions"     :
           JsonOutput.toJson((defaults + overrides).collect { k, v -> "$k=$v" })
   ]
+}
+
+
+def sparkTestJvmArgs() {
+  // run tests with Java 17 using -PcompileAndRunTestsWithJava17 -Pjava17Home=???
+  if (project.hasProperty("compileAndRunTestsWithJava17")) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      // add-opens below required for Kryo FieldSerializer / SparkRunnerKryoRegistratorTest
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+    ]
+  } else {
+    return []
+  }
 }
 
 def hadoopVersions = [
@@ -106,12 +124,12 @@ if (copySourceBase) {
 
 test {
   systemProperties sparkTestProperties()
-  systemProperty "log4j.configuration", "log4j-test.properties"
   // Change log level to debug:
   // systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
   // Change log level to debug only for the package and nested packages:
   // systemProperty "org.slf4j.simpleLogger.log.org.apache.beam.runners.spark.stateful", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
+  jvmArgs += sparkTestJvmArgs()
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
@@ -152,15 +170,16 @@ dependencies {
   implementation project(":sdks:java:fn-execution")
   implementation library.java.vendored_grpc_1_48_1
   implementation library.java.vendored_guava_26_0_jre
-  implementation "io.dropwizard.metrics:metrics-core:3.1.5" // version used by Spark 2.4
   spark.components.each { component ->
     provided "$component:$spark_version"
   }
   permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
   if (project.property("spark_scala_version").equals("2.11")) {
+    implementation "io.dropwizard.metrics:metrics-core:3.1.5" // version used by Spark 2.4
     compileOnly "org.scala-lang:scala-library:2.11.12"
     runtimeOnly library.java.jackson_module_scala_2_11
   } else {
+    implementation "io.dropwizard.metrics:metrics-core:4.1.1" // version used by Spark 3.1
     compileOnly "org.scala-lang:scala-library:2.12.15"
     runtimeOnly library.java.jackson_module_scala_2_12
   }
@@ -183,6 +202,7 @@ dependencies {
   testImplementation library.java.kafka_clients
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
+  testImplementation "org.assertj:assertj-core:3.11.1"
   testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
@@ -205,6 +225,13 @@ configurations.all {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
   // Avoid any transitive usage of the old codahale group to make dependency resolution deterministic
   exclude group: "com.codahale.metrics", module: "metrics-core"
+  // Prevent conflict with kryo-shaded used by spark (from :sdks:java:core testRuntimeClasspath)
+  exclude group: "com.esotericsoftware.kryo", module: "kryo"
+}
+
+configurations.validatesRunner {
+  // Exclude to make sure log4j binding is used
+  exclude group: "org.slf4j", module: "slf4j-simple"
 }
 
 hadoopVersions.each { kv ->
@@ -220,6 +247,8 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
   // Disable gradle cache
   outputs.upToDateWhen { false }
   systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false"])
+  jvmArgs += sparkTestJvmArgs()
+  jvmArgs '-Xmx3g'
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(
@@ -253,28 +282,61 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
   }
-  jvmArgs '-Xmx3g'
 }
 
 def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
-  def pipelineOptions = JsonOutput.toJson([
-    "--runner=TestSparkRunner",
-    "--forceStreaming=true",
-    "--enableSparkMetricSinks=true",
-  ])
-  systemProperty "beamTestPipelineOptions", pipelineOptions
+  systemProperties sparkTestProperties(["--enableSparkMetricSinks": "true"])
+  jvmArgs += sparkTestJvmArgs()
 
   classpath = configurations.validatesRunner
-  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+  testClassesDirs += files(
+    project(":sdks:java:core").sourceSets.test.output.classesDirs,
+    project(":runners:core-java").sourceSets.test.output.classesDirs,
+  )
 
-  // Only one SparkContext may be running in a JVM (SPARK-2243)
-  forkEvery 1
   maxParallelForks 4
   useJUnit {
-    includeCategories 'org.apache.beam.runners.spark.StreamingTest'
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+
+    filter {
+      // UNBOUNDED View.CreatePCollectionView not supported
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
+    }
+
+    // TestStream using processing time is not supported in Spark
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+
+    // Exceeds Java heap space
+    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+
+    // State and Timers
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+
+    // Metrics
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
+    // SDF
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+    // Portability
+    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    // Ordering
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
   }
 }
 
@@ -283,6 +345,12 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   // Disable gradle cache
   outputs.upToDateWhen { false }
   systemProperties sparkTestProperties(["--runner":"SparkStructuredStreamingRunner", "--testMode":"true"])
+  // Register various other classes used in tests
+  systemProperty 'spark.kryo.classesToRegister',
+    'org.apache.beam.sdk.transforms.ViewTest$NonDeterministicStringCoder,' +
+    'org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RegularImmutableList'
+  jvmArgs += sparkTestJvmArgs()
+  jvmArgs '-Xmx7g' // Increase memory heap in order to avoid OOM errors
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(
@@ -292,8 +360,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
   maxParallelForks 4
-  // Increase memory heap in order to avoid OOM errors
-  jvmArgs '-Xmx7g'
+
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     // Should be run only in a properly configured SDK harness environment
@@ -347,9 +414,6 @@ tasks.register("validatesRunner") {
   //dependsOn validatesStructuredStreamingRunnerBatch
 }
 
-// Generates :runners:spark:*:runQuickstartJavaSpark task
-createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
-
 tasks.register("hadoopVersionsTest") {
   group = "Verification"
   dependsOn hadoopVersions.collect{k,v -> "hadoopVersion${k}Test"}
@@ -364,6 +428,8 @@ tasks.register("examplesIntegrationTest", Test) {
       "--tempRoot"    : "${tempLocation}",
       "--project"     : "${gcpProject}"
   ])
+  jvmArgs += sparkTestJvmArgs()
+  jvmArgs '-Xmx3g'
 
   include '**/*IT.class'
   maxParallelForks 4
@@ -376,7 +442,6 @@ tasks.register("examplesIntegrationTest", Test) {
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
     }
   }
-  jvmArgs '-Xmx3g'
 }
 
 hadoopVersions.each { kv ->
@@ -385,6 +450,7 @@ hadoopVersions.each { kv ->
     description = "Runs Spark tests with Hadoop version $kv.value"
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
     systemProperties sparkTestProperties()
+    jvmArgs += sparkTestJvmArgs()
 
     include "**/*Test.class"
     maxParallelForks 4

@@ -395,7 +395,9 @@ public abstract class Row implements Serializable {
     FieldType fieldType = getSchema().getField(idx).getType();
     if (fieldType.getTypeName().isLogicalType() && value != null) {
       while (fieldType.getTypeName().isLogicalType()) {
-        value = fieldType.getLogicalType().toBaseType(value);
+        Schema.LogicalType<Object, T> logicalType =
+            (Schema.LogicalType<Object, T>) fieldType.getLogicalType();
+        value = logicalType.toBaseType(value);
         fieldType = fieldType.getLogicalType().getBaseType();
       }
     }
@@ -461,10 +463,12 @@ public abstract class Row implements Serializable {
       if (a == null || b == null) {
         return a == b;
       } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
         return deepEquals(
-            SchemaUtils.toLogicalBaseType(fieldType.getLogicalType(), a),
-            SchemaUtils.toLogicalBaseType(fieldType.getLogicalType(), b),
-            fieldType.getLogicalType().getBaseType());
+            SchemaUtils.toLogicalBaseType(logicalType, a),
+            SchemaUtils.toLogicalBaseType(logicalType, b),
+            logicalType.getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.equals((byte[]) a, (byte[]) b);
       } else if (fieldType.getTypeName() == TypeName.ARRAY) {
