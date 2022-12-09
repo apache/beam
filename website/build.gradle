@@ -277,16 +277,16 @@ task preCommit {
 
 task commitWebsiteDocker {
     doLast {
-        def actor = System.getenv('ghprbPullAuthorLogin')
+        def actor = System.getenv('ghPullAuthorLogin')
         def email = System.getenv('ghEmail')
-        def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
-        String message = "Publishing website ${currentDate} at commit \$LATEST_COMMIT"
 
+
+       //TODO: Add validation that the build exists
+       //TODO: Erase testing remote
         exec {
             commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
             """
-                export LATEST_COMMIT=\$(git log --format="%h" -n 1) && \
-                git remote add website-publish git@github.com:roger-mike/beam.git
+                git remote add website-publish git@github.com:roger-mike/beam.git && \
                 git fetch --force origin +asf-site:asf-site && \
                 git stash && \
                 git checkout asf-site && \
@@ -311,19 +311,7 @@ task commitWebsiteDocker {
             """
         }
 
-        exec {
-            commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
-            """
-                if [[ \$(git status --porcelain | wc -l) > 0 ]];
-                then
-                    echo "Creating commit for changes"
-                    export ISCOMMITED=1
-                    git commit -am "${message}"
-                else
-                    echo "No changes to commit"
-                fi
-            """
-        }
+
 
     }
 }
@@ -402,25 +390,39 @@ task publishWebsite {
 
 
     // Because git.push() fails to authenticate, run git push directly.
-    //shell "git push ${gitboxUrl} asf-site"
+//     shell "git push ${gitboxUrl} asf-site"
   }
 }
 
 task publishWebsiteDocker {
   doLast {
-     exec {
+    def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
+    String message = "Publishing website ${currentDate} at commit \$LATEST_COMMIT"
+    def GITHUB_TOKEN = System.getenv("GITHUB_TOKEN")
+    def actor = System.getenv('ghPullAuthorLogin')
+    //TODO: Change repo to gitboxUrl
+    exec {
         commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
         """
-            echo ${gitboxUrl}
-            if [[ \$ISCOMMITED -eq 1 ]];
-            then
-                echo "Pushing changes"
-                git push website-publish asf-site
-            else
-                echo "No changes to push"
-            fi
+        export GITHUB_TOKEN=${GITHUB_TOKEN}
         """
-     }
+    }
+
+    exec {
+            commandLine 'docker', 'exec', "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+            """
+                export LATEST_COMMIT=\$(git log --format="%h" -n 1)
+                if [[ \$(git status --porcelain | wc -l) > 0 ]];
+                then
+                    echo "Creating commit for changes" && \
+                    git commit -am "${message}" && \
+                    echo "Pushing changes" && \
+                    git push https://${GITHUB_TOKEN}@github.com/${actor}/beam.git
+                else
+                    echo "No changes to commit/push"
+                fi
+            """
+        }
   }
 }
 

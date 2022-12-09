@@ -27,7 +27,7 @@ on:
   pull_request_target:
     branches: [ 'master', 'release-*']
     tags: 'v*'
-permissions: read-all
+permissions: write-all
 
 jobs:
   website-publish:
@@ -49,14 +49,19 @@ jobs:
         with:
           gradle-command: :website:clean
 
+      - name: Set git env var
+        run : |
+           ghEmail=actions@"$RUNNER_NAME".local
+           echo "ghEmail=${ghEmail}" >> $GITHUB_ENV
+
       - name: Run :website:publishWebsite
         uses: ./.github/actions/gradle-command-self-hosted-action
         env:
           ghprbPullId: ${{github.event.pull_request.number}}
-          ghprbPullAuthorLogin: ${{github.actor}}
+          ghPullAuthorLogin: ${{github.actor}}
           ghprbSourceBranch: ${{github.ref_name}}
           ghBranch: ${{github.head_ref}}
           repositoryUrl: ${{github.repository}}
-          ghEmail: ${{actions@"$RUNNER_NAME".local}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         with:
-          gradle-command: :website:publishWebsite
+          gradle-command: :website:publishWebsiteDocker

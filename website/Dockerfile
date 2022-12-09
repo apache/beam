@@ -69,4 +69,8 @@ RUN HUGOHOME="$(mktemp -d)" \
     && chmod +x /usr/local/bin/hugo \
     && rm -r "${HUGOHOME}"
 
+# TODO: Install SSH
+RUN apt-get update \
+    && apt-get install -y ssh-client
+
 WORKDIR /opt/
