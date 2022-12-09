@@ -79,3 +79,27 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
 
   service_account = data.google_service_account.cloudbuild_sa.id
 }
+
+resource "google_cloudbuild_trigger" "playground_examples_cd" {
+  name     = var.examples_cd_trigger_name
+  project  = var.project_id
+
+  description = "Runs CD pipeline steps for Playground Examples"
+
+  source_to_build {
+    uri       = "https://github.com/${var.github_repository_owner}/${var.github_repository_name}"
+    ref       = "refs/heads/${var.github_repository_branch}"
+    repo_type = "GITHUB"
+  }
+
+  git_file_source {
+    path      = "playground/infrastructure/cloudbuild/cloudbuild_examples_cd_steps.yaml"
+    repo_type = "GITHUB"
+  }
+
+  substitutions = {
+    _DNS_NAME : var.playground_dns_name
+  }
+
+  service_account = data.google_service_account.cloudbuild_sa.id
+}

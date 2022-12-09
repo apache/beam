@@ -71,7 +71,7 @@ terraform apply -var="project_id=$(gcloud config get-value project)"
 
 ## 2. Connect Apache Beam GitHub repository and GCP Cloud Build
 
-**Note:** Ensure correct `region` is set in [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page before proceeding further.
+**Note:** Cloud Build triggers are created in Global region. Ensure `global` region is set in [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page before proceeding further.
 
 Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/automating-builds/github/connect-repo-github) to connect Apache Beam GitHub repository and GCP Cloud Build.
 
@@ -79,6 +79,7 @@ Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/auto
 
 The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` provisions:
 - Cloud Build triggers to build and deploy Beam Playground
+- CB Trigger to deploy examples to Beam Playground using the script 
 
 #### To execute the module
 
@@ -91,9 +92,9 @@ terraform init -backend-config="bucket=$STATE_BUCKET"
 terraform apply -var="project_id=$(gcloud config get-value project)" -var="state_bucket=$STATE_BUCKET"
 ```
 
-## 4. Run Cloud Build `Playground-infrastructure-trigger` to deploy Playground infrastructure
+## 4. Run Cloud Build trigger `Playground-infrastructure-trigger` to deploy Playground infrastructure
 
-1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (In our example: us-central1).
+1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (In our example: `global`).
 2. Open Trigger: `Playground-infrastructure-trigger`.
 3. Scroll down to `Source` - `Repository` to ensure that Apache Beam GitHub repository is connected.
    - Click on drop-down menu and press `CONNECT NEW REPOSITORY` in case it was not automatically connected.
@@ -103,14 +104,22 @@ terraform apply -var="project_id=$(gcloud config get-value project)" -var="state
    [Playground deployment README](https://github.com/apache/beam/tree/master/playground/terraform#deploy-playground-infrastructure) and execute step #2:
    `Add following DNS A records for the discovered static IP address` expanding use of variable `DNS_NAME`.
 
-## 5. Run Cloud Build `Playground-to-gke-trigger` to deploy Playground to GKE
+## 5. Run Cloud Build trigger `Playground-to-gke-trigger` to deploy Playground to GKE
 
-1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (In our example: us-central1).
+1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (In our example: `global`).
 2. Open Trigger: `Playground-to-gke-trigger`.
 3.  Scroll down to `Source` - `Repository` to ensure that Apache Beam GitHub repository is connected.
     - Click on drop-down menu and press `CONNECT NEW REPOSITORY` in case it was not automatically connected.
 4. Click `Save` and Run the trigger `Playground-to-gke-trigger`.
 
-## 6. Validate Playground deployment
+## 6. Run Cloud Build trigger `Playground-examples-cd-trigger` to deploy examples to Playground
+
+1. Navigate to [GCP Console Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers) page. Choose the region (In our example: `global`).
+2. Open Trigger: `Playground-examples-cd-trigger`.
+3.  Scroll down to `Source` - `Repository` to ensure that Apache Beam GitHub repository is connected.
+    - Click on drop-down menu and press `CONNECT NEW REPOSITORY` in case it was not automatically connected.
+4. Click `Save` and Run the trigger `Playground-examples-cd-trigger`.
+
+## 7. Validate Playground deployment
 
 Once Playground has been deployed to GKE, please navigate to [Validation](https://github.com/apache/beam/tree/master/playground/terraform#validate-deployed-playground) to perform Playground deployment steps.
