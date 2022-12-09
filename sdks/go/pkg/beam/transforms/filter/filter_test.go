@@ -38,7 +38,7 @@ import (
 func TestInclude(t *testing.T) {
 	tests := []struct {
 		in  []int
-		fn  interface{}
+		fn  any
 		exp []int
 	}{
 		{
@@ -71,7 +71,7 @@ func TestInclude(t *testing.T) {
 func TestExclude(t *testing.T) {
 	tests := []struct {
 		in  []int
-		fn  interface{}
+		fn  any
 		exp []int
 	}{
 		{
