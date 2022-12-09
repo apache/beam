@@ -1,8 +1,8 @@
 name: "Activate Service Account"
-description: Setup a Service account with the key provided as an input
+description: Setup a Service account with the key provided in base64 as an input
 inputs:
   GCP_SERVICE_ACCOUNT:
-    description: Service account to activate 
+    description: Service account to activate in base64 format
     required: true
 
 runs:
