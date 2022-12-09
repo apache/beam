@@ -29,7 +29,11 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: ['sdks/java/io/neo4j/**']
+    paths: [
+        'sdks/java/core/src/main/**',
+        'sdks/java/testing/test-utils/**',
+        'sdks/java/io/common/**',
+        'sdks/java/io/neo4j/**']
 permissions: read-all
 
 jobs:
@@ -53,7 +57,7 @@ jobs:
       - name: Run :sdks:java:io:neo4j:integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:neo4j:integrationTest
+          gradle-command: :sdks:java:io:neo4j:build :sdks:java:io:neo4j:integrationTest
           arguments: "-PdisableSpotlessCheck=true -PdisableCheckStyle=true"
       - name: Run :sdks:java:io:neo4j:test
         uses: ./.github/actions/gradle-command-self-hosted-action

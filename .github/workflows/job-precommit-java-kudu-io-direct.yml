@@ -29,7 +29,10 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: ['sdks/java/io/kudu/**']
+    paths: [
+        'sdks/java/core/src/main/**',
+        'sdks/java/io/common/**',
+        'sdks/java/io/kudu/**']
 permissions: read-all
 
 jobs:
@@ -53,4 +56,4 @@ jobs:
       - name: Run :sdks:java:io:kudu:test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:kudu:test
+          gradle-command: :sdks:java:io:kudu:build :sdks:java:io:kudu:test

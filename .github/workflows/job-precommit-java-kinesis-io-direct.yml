@@ -29,7 +29,10 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: ['sdks/java/io/kinesis/**']
+    paths: [
+        'sdks/java/core/src/main/**',
+        'sdks/java/io/common/**',
+        'sdks/java/io/kinesis/**']
 permissions: read-all
 
 jobs:
@@ -50,6 +53,14 @@ jobs:
           requires-py-38: false
           requires-py-39: false
           requires-go-18: false
+      - name: Run :sdks:java:io:kinesis:build
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:io:kinesis:build
+      - name: Run :sdks:java:io:kinesis:expansion-service:build
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:io:kinesis:expansion-service:build
       - name: Run :sdks:java:io:kinesis:integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

@@ -29,7 +29,9 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: ['sdks/java/io/jms/**']
+    paths: [
+        'sdks/java/core/src/main/**',
+        'sdks/java/io/jms/**']
 permissions: read-all
 
 jobs:
@@ -53,4 +55,4 @@ jobs:
       - name: Run :sdks:java:io:jms:test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:jms:test
+          gradle-command: :sdks:java:io:jms:build :sdks:java:io:jms:test
