@@ -28,13 +28,13 @@
 //
 // New Concepts:
 //
-//   1. Using the richer struct DoFn form and accessing optional arguments.
-//   2. Logging using the Beam log package, even in a distributed environment
-//   3. Testing your Pipeline via passert
+//  1. Using the richer struct DoFn form and accessing optional arguments.
+//  2. Logging using the Beam log package, even in a distributed environment
+//  3. Testing your Pipeline via passert
 //
 // To change the runner, specify:
 //
-//     --runner=YOUR_SELECTED_RUNNER
+//	--runner=YOUR_SELECTED_RUNNER
 //
 // The input file defaults to a public data set containing the text of King
 // Lear, by William Shakespeare. You can override it and choose your own input
@@ -52,6 +52,11 @@ package main
 //     - Filtering
 //     - Debugging
 //     - Quickstart
+//   complexity: MEDIUM
+//   tags:
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"

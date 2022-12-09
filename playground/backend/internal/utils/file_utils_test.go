@@ -259,3 +259,51 @@ func TestIsFileMain(t *testing.T) {
 		})
 	}
 }
+
+func TestToSDKFromExt(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected pb.Sdk
+	}{
+		{
+			name:     "Transformation a java extension to a Java SDK",
+			input:    javaExt,
+			expected: pb.Sdk_SDK_JAVA,
+		},
+		{
+			name:     "Transformation a go extension to a GO SDK",
+			input:    goExt,
+			expected: pb.Sdk_SDK_GO,
+		},
+		{
+			name:     "Transformation a python extension to a Python SDK",
+			input:    pythonExt,
+			expected: pb.Sdk_SDK_PYTHON,
+		},
+		{
+			name:     "Transformation a scio extension to a SCIO SDK",
+			input:    scioExt,
+			expected: pb.Sdk_SDK_SCIO,
+		},
+		{
+			name:     "Transformation a random string",
+			input:    "MOCK",
+			expected: pb.Sdk_SDK_UNSPECIFIED,
+		},
+		{
+			name:     "Transformation a class extension to a Java SDK",
+			input:    classExt,
+			expected: pb.Sdk_SDK_JAVA,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(t.Name(), func(t *testing.T) {
+			actual := ToSDKFromExt(tt.input)
+			if actual != tt.expected {
+				t.Error("Unexpected result during transformation an extension to a SDK")
+			}
+		})
+	}
+}

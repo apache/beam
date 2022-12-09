@@ -25,9 +25,10 @@ from typing import List
 from api.v1.api_pb2 import STATUS_COMPILE_ERROR, STATUS_ERROR, STATUS_RUN_ERROR, \
     STATUS_RUN_TIMEOUT, \
     STATUS_VALIDATION_ERROR, STATUS_PREPARATION_ERROR
-from config import Config
+from config import Config, Origin
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
+from repository import set_dataset_path_for_examples
 
 
 class VerifyException(Exception):
@@ -45,7 +46,8 @@ class CIHelper:
 
     It is used to find and verify correctness if beam examples/katas/tests.
     """
-    async def verify_examples(self, examples: List[Example]):
+
+    async def verify_examples(self, examples: List[Example], origin: Origin):
         """
         Verify correctness of beam examples.
 
@@ -55,10 +57,12 @@ class CIHelper:
         """
         single_file_examples = list(filter(
             lambda example: example.tag.multifile is False, examples))
-        await get_statuses(single_file_examples)
-        await self._verify_examples(single_file_examples)
+        set_dataset_path_for_examples(single_file_examples)
+        async with GRPCClient() as client:
+            await get_statuses(client, single_file_examples)
+            await self._verify_examples(client, single_file_examples, origin)
 
-    async def _verify_examples(self, examples: List[Example]):
+    async def _verify_examples(self, client: any, examples: List[Example], origin: Origin):
         """
         Verify statuses of beam examples and the number of found default examples.
 
@@ -74,7 +78,6 @@ class CIHelper:
             examples: beam examples that should be verified
         """
         count_of_verified = 0
-        client = GRPCClient()
         verify_status_failed = False
         default_examples = []
 
@@ -112,19 +115,20 @@ class CIHelper:
             len(examples) - count_of_verified,
             len(examples))
 
-        if len(default_examples) == 0:
-            logging.error("Default example not found")
-            raise VerifyException(
-                "CI step failed due to finding an incorrect number "
-                "of default examples. Default example not found")
-        if len(default_examples) > 1:
-            logging.error("Many default examples found")
-            logging.error("Examples where the default_example field is true:")
-            for example in default_examples:
-                logging.error(example.filepath)
-            raise VerifyException(
-                "CI step failed due to finding an incorrect number "
-                "of default examples. Many default examples found")
+        if origin == Origin.PG_EXAMPLES:
+            if len(default_examples) == 0:
+                logging.error("Default example not found")
+                raise VerifyException(
+                    "CI step failed due to finding an incorrect number "
+                    "of default examples. Default example not found")
+            if len(default_examples) > 1:
+                logging.error("Many default examples found")
+                logging.error("Examples where the default_example field is true:")
+                for example in default_examples:
+                    logging.error(example.filepath)
+                raise VerifyException(
+                    "CI step failed due to finding an incorrect number "
+                    "of default examples. Many default examples found")
 
         if verify_status_failed:
             raise VerifyException("CI step failed due to errors in the examples")

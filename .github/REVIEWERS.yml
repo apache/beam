@@ -29,12 +29,10 @@ labels:
   - name: Python
     reviewers:
       - AnandInguva
-      - yeandy
-      - TheNeuralBit
-      - ryanthompson591
+      - damccorm
+      - jrmccluskey
       - tvalentyn
       - pabloem
-      - y1chi
     exclusionList: []
   - name: Java
     reviewers:

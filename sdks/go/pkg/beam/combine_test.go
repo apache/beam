@@ -22,6 +22,10 @@ package beam_test
 //   context_line: 34
 //   categories:
 //     - Combiners
+//   complexity: BASIC
+//   tags:
+//     - combine
+//     - test
 
 import (
 	"reflect"

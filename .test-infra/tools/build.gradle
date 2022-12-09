@@ -23,3 +23,7 @@ task cancelStaleDataflowJobs(type: Exec) {
 task removeStaleSDKContainerImages(type: Exec) {
   commandLine './stale_dataflow_prebuilt_image_cleaner.sh'
 }
+
+task cleanupOtherStaleResources(type: Exec) {
+  commandLine './stale_bq_datasets_cleaner.sh'
+}

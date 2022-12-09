@@ -55,6 +55,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
@@ -314,7 +315,10 @@ public class RetryHttpRequestInitializerTest {
                 transport,
                 Transport.getJsonFactory(),
                 new RetryHttpRequestInitializer(
-                    fakeClockAndSleeper, fakeClockAndSleeper, Collections.emptyList(), null))
+                    fakeClockAndSleeper::nanoTime,
+                    fakeClockAndSleeper::sleep,
+                    Collections.emptyList(),
+                    null))
             .build();
 
     Get getRequest = storage.objects().get("gs://fake", "file");

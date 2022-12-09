@@ -20,9 +20,14 @@ package org.apache.beam.runners.samza;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.samza.config.ConfigLoaderFactory;
 import org.apache.samza.config.loaders.PropertiesConfigLoaderFactory;
 import org.apache.samza.metrics.MetricsReporter;
@@ -129,4 +134,30 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   long getMaxBundleTimeMs();
 
   void setMaxBundleTimeMs(long maxBundleTimeMs);
+
+  @Description(
+      "The number of threads to run DoFn.processElements in parallel within a bundle. Used only in non-portable mode.")
+  @Default.Integer(1)
+  int getNumThreadsForProcessElement();
+
+  void setNumThreadsForProcessElement(int numThreads);
+
+  @JsonIgnore
+  @Description(
+      "The ExecutorService instance to run DoFN.processElements in parallel within a bundle. Used only in non-portable mode.")
+  @Default.InstanceFactory(ProcessElementExecutorServiceFactory.class)
+  @Hidden
+  ExecutorService getExecutorServiceForProcessElement();
+
+  void setExecutorServiceForProcessElement(ExecutorService executorService);
+
+  class ProcessElementExecutorServiceFactory implements DefaultValueFactory<ExecutorService> {
+
+    @Override
+    public ExecutorService create(PipelineOptions options) {
+      return Executors.newFixedThreadPool(
+          options.as(SamzaPipelineOptions.class).getNumThreadsForProcessElement(),
+          new ThreadFactoryBuilder().setNameFormat("Process Element Thread-%d").build());
+    }
+  }
 }

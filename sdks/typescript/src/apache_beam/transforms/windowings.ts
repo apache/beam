@@ -21,6 +21,7 @@ import Long from "long";
 import * as runnerApi from "../proto/beam_runner_api";
 import {
   FixedWindowsPayload,
+  SlidingWindowsPayload,
   SessionWindowsPayload,
 } from "../proto/standard_window_fns";
 import { WindowFn } from "./window";
@@ -32,6 +33,7 @@ import { GlobalWindow, Instant, IntervalWindow } from "../values";
 
 export function globalWindows(): WindowFn<GlobalWindow> {
   return {
+    beamName: "globalWindows()",
     assignWindows: (Instant) => [new GlobalWindow()],
     windowCoder: () => new GlobalWindowCoder(),
     isMerging: () => false,
@@ -52,6 +54,9 @@ export function fixedWindows(
   const offsetMillis = secsToMillisLong(offsetSeconds);
 
   return {
+    beamName: offsetSeconds.eq(0)
+      ? `fixedWindows(${sizeSeconds})`
+      : `fixedWindows(${sizeSeconds}, ${offsetSeconds})`,
     assignWindows: (t: Instant) => {
       const start = t.sub(t.sub(offsetMillis).mod(sizeMillis));
       return [new IntervalWindow(start, start.add(sizeMillis))];
@@ -71,10 +76,49 @@ export function fixedWindows(
   };
 }
 
+export function slidingWindows(
+  sizeSeconds: number | Long,
+  periodSeconds: number | Long,
+  offsetSeconds: Instant = Long.fromValue(0)
+): WindowFn<IntervalWindow> {
+  const sizeMillis = secsToMillisLong(sizeSeconds);
+  const periodMillis = secsToMillisLong(periodSeconds);
+  const offsetMillis = secsToMillisLong(offsetSeconds);
+
+  return {
+    beamName: offsetSeconds.eq(0)
+      ? `slidingWindows(${sizeSeconds}, ${periodSeconds})`
+      : `slidingWindows(${sizeSeconds}, ${periodSeconds}, ${offsetSeconds})`,
+    assignWindows: (t: Instant) => {
+      let start = t.sub(t.sub(offsetMillis).mod(periodMillis));
+      const windows: IntervalWindow[] = [];
+      while (t.compare(start.add(sizeMillis)) < 0) {
+        windows.push(new IntervalWindow(start, start.add(sizeMillis)));
+        start = start.sub(periodMillis);
+      }
+      return windows;
+    },
+
+    windowCoder: () => new IntervalWindowCoder(),
+    isMerging: () => false,
+    assignsToOneWindow: () => true,
+
+    toProto: () => ({
+      urn: "beam:window_fn:sliding_windows:v1",
+      payload: SlidingWindowsPayload.toBinary({
+        size: millisToProto(sizeMillis),
+        period: millisToProto(periodMillis),
+        offset: millisToProto(offsetMillis),
+      }),
+    }),
+  };
+}
+
 export function sessions(gapSeconds: number | Long): WindowFn<IntervalWindow> {
   const gapMillis = secsToMillisLong(gapSeconds);
 
   return {
+    beamName: `sessions(${gapSeconds})`,
     assignWindows: (t: Instant) => [new IntervalWindow(t, t.add(gapMillis))],
     windowCoder: () => new IntervalWindowCoder(),
     isMerging: () => true,
@@ -107,6 +151,10 @@ requireForSerialization("apache-beam/transforms/windowings", { millisToProto });
 requireForSerialization(
   "apache-beam/transforms/windowings",
   FixedWindowsPayload
+);
+requireForSerialization(
+  "apache-beam/transforms/windowings",
+  SlidingWindowsPayload
 );
 requireForSerialization(
   "apache-beam/transforms/windowings",

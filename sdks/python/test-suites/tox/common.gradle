@@ -28,6 +28,9 @@ test.dependsOn "testPy${pythonVersionSuffix}Cloud"
 toxTask "testPy${pythonVersionSuffix}Cython", "py${pythonVersionSuffix}-cython", posargs
 test.dependsOn "testPy${pythonVersionSuffix}Cython"
 
+toxTask "testPy${pythonVersionSuffix}Dask", "py${pythonVersionSuffix}-dask"
+test.dependsOn "testPy${pythonVersionSuffix}Dask"
+
 toxTask "testPy38CloudCoverage", "py38-cloudcoverage"
 test.dependsOn "testPy38CloudCoverage"
 

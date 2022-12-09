@@ -58,7 +58,7 @@ func pickSideFn(a, side int, small, big func(int)) {
 	}
 }
 
-func addDoFn(t *testing.T, g *graph.Graph, fn interface{}, scope *graph.Scope, inputs []*graph.Node, outputCoders []*coder.Coder, rc *coder.Coder) {
+func addDoFn(t *testing.T, g *graph.Graph, fn any, scope *graph.Scope, inputs []*graph.Node, outputCoders []*coder.Coder, rc *coder.Coder) {
 	t.Helper()
 	dofn, err := graph.NewDoFn(fn)
 	if err != nil {
@@ -196,13 +196,13 @@ func TestMarshal(t *testing.T) {
 type testRT struct {
 }
 
-func (rt *testRT) TryClaim(_ interface{}) bool     { return false }
+func (rt *testRT) TryClaim(_ any) bool             { return false }
 func (rt *testRT) GetError() error                 { return nil }
 func (rt *testRT) GetProgress() (float64, float64) { return 0, 0 }
 func (rt *testRT) IsDone() bool                    { return true }
-func (rt *testRT) GetRestriction() interface{}     { return nil }
+func (rt *testRT) GetRestriction() any             { return nil }
 func (rt *testRT) IsBounded() bool                 { return true }
-func (rt *testRT) TrySplit(_ float64) (interface{}, interface{}, error) {
+func (rt *testRT) TrySplit(_ float64) (any, any, error) {
 	return nil, nil, nil
 }
 

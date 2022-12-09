@@ -653,8 +653,11 @@ class WindmillStateInternals<K> implements StateInternals {
     static final String IDS_AVAILABLE_STR = "IdsAvailable";
     static final String DELETIONS_STR = "Deletions";
 
-    static final long MIN_ID = Long.MIN_VALUE;
-    static final long MAX_ID = Long.MAX_VALUE;
+    // Note that this previously was Long.MIN_VALUE but ids are unsigned when
+    // sending to windmill for Streaming Engine. For updated appliance
+    // pipelines with existing state, there may be negative ids.
+    static final long NEW_RANGE_MIN_ID = 0;
+    static final long NEW_RANGE_MAX_ID = Long.MAX_VALUE;
 
     // We track ids on five-minute boundaries.
     private static final Duration RESOLUTION = Duration.standardMinutes(5);
@@ -755,7 +758,9 @@ class WindmillStateInternals<K> implements StateInternals {
           availableIdsForTsRange =
               idsAvailable.computeIfAbsent(
                   currentTsRange,
-                  r -> TreeRangeSet.create(ImmutableList.of(Range.closedOpen(MIN_ID, MAX_ID))));
+                  r ->
+                      TreeRangeSet.create(
+                          ImmutableList.of(Range.closedOpen(NEW_RANGE_MIN_ID, NEW_RANGE_MAX_ID))));
           idRangeIter = availableIdsForTsRange.asRanges().iterator();
           currentIdRange = null;
           currentTsRangeDeletions = subRangeDeletions.get(currentTsRange);

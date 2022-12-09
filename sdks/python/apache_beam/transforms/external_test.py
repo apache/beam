@@ -44,6 +44,7 @@ from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
 from apache_beam.transforms.external import JavaExternalTransform
 from apache_beam.transforms.external import JavaJarExpansionService
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
+from apache_beam.transforms.external import SchemaTransformPayloadBuilder
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.utils import proto_utils
@@ -443,6 +444,35 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       expansion_service: dataclasses.InitVar[typehints.Optional[str]] = None
 
     return get_payload(DataclassTransform(**values))
+
+
+class SchemaTransformPayloadBuilderTest(unittest.TestCase):
+  def test_build_payload(self):
+    ComplexType = typing.NamedTuple(
+        "ComplexType", [
+            ("str_sub_field", str),
+            ("int_sub_field", int),
+        ])
+
+    payload_builder = SchemaTransformPayloadBuilder(
+        identifier='dummy_id',
+        str_field='aaa',
+        int_field=123,
+        object_field=ComplexType(str_sub_field="bbb", int_sub_field=456))
+    payload_bytes = payload_builder.payload()
+    payload_from_bytes = proto_utils.parse_Bytes(
+        payload_bytes, external_transforms_pb2.SchemaTransformPayload)
+
+    self.assertEqual('dummy_id', payload_from_bytes.identifier)
+
+    expected_coder = RowCoder(payload_from_bytes.configuration_schema)
+    schema_transform_config = expected_coder.decode(
+        payload_from_bytes.configuration_row)
+
+    self.assertEqual('aaa', schema_transform_config.str_field)
+    self.assertEqual(123, schema_transform_config.int_field)
+    self.assertEqual('bbb', schema_transform_config.object_field.str_sub_field)
+    self.assertEqual(456, schema_transform_config.object_field.int_sub_field)
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):

@@ -224,6 +224,11 @@ func main() {
 			}
 		}
 	}
+	// Automatically open modules for Java 11+
+	openModuleAgentJar := "/opt/apache/beam/jars/open-module-agent.jar"
+	if _, err := os.Stat(openModuleAgentJar); err == nil {
+		args = append(args, "-javaagent:" + openModuleAgentJar)
+	}
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
 	log.Printf("Executing: java %v", strings.Join(args, " "))
 
