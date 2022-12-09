@@ -17,74 +17,58 @@
 
 """Unbounded source and sink transforms for
    `Kafka <href="http://kafka.apache.org/>`_.
-
   These transforms are currently supported by Beam portable runners (for
   example, portable Flink and Spark) as well as Dataflow runner.
-
   **Setup**
-
   Transforms provided in this module are cross-language transforms
   implemented in the Beam Java SDK. During the pipeline construction, Python SDK
   will connect to a Java expansion service to expand these transforms.
   To facilitate this, a small amount of setup is needed before using these
   transforms in a Beam Python pipeline.
-
   There are several ways to setup cross-language Kafka transforms.
-
   * Option 1: use the default expansion service
   * Option 2: specify a custom expansion service
-
   See below for details regarding each of these options.
-
   *Option 1: Use the default expansion service*
-
   This is the recommended and easiest setup option for using Python Kafka
   transforms. This option is only available for Beam 2.22.0 and later.
-
   This option requires following pre-requisites before running the Beam
   pipeline.
-
   * Install Java runtime in the computer from where the pipeline is constructed
     and make sure that 'java' command is available.
-
   In this option, Python SDK will either download (for released Beam version) or
   build (when running from a Beam Git clone) an expansion service jar and use
   that to expand transforms. Currently Kafka transforms use the
   'beam-sdks-java-io-expansion-service' jar for this purpose.
-
   *Option 2: specify a custom expansion service*
-
   In this option, you startup your own expansion service and provide that as
   a parameter when using the transforms provided in this module.
-
   This option requires following pre-requisites before running the Beam
   pipeline.
-
   * Startup your own expansion service.
   * Update your pipeline to provide the expansion service address when
     initiating Kafka transforms provided in this module.
-
   Flink Users can use the built-in Expansion Service of the Flink Runner's
   Job Server. If you start Flink's Job Server, the expansion service will be
   started on port 8097. For a different address, please set the
   expansion_service parameter.
-
   **More information**
-
   For more information regarding cross-language transforms see:
   - https://beam.apache.org/roadmap/portability/
-
   For more information specific to Flink runner see:
   - https://beam.apache.org/documentation/runners/flink/
 """
 
 # pytype: skip-file
 
+import logging
 import typing
 
+from apache_beam import PTransform
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
+from apache_beam.transforms.external import SchemaAwareExternalTransform
 
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
@@ -106,22 +90,21 @@ class ReadFromKafka(ExternalTransform):
     An external PTransform which reads from Kafka and returns a KV pair for
     each item in the specified Kafka topics. If no Kafka Deserializer for
     key/value is provided, then the data will be returned as a raw byte array.
-
     Experimental; no backwards compatibility guarantees.
   """
 
   # Returns the key/value data as raw byte arrays
   byte_array_deserializer = (
-      'org.apache.kafka.common.serialization.ByteArrayDeserializer')
+    'org.apache.kafka.common.serialization.ByteArrayDeserializer')
 
   processing_time_policy = 'ProcessingTime'
   create_time_policy = 'CreateTime'
   log_append_time = 'LogAppendTime'
 
   URN_WITH_METADATA = (
-      'beam:transform:org.apache.beam:kafka_read_with_metadata:v1')
+    'beam:transform:org.apache.beam:kafka_read_with_metadata:v1')
   URN_WITHOUT_METADATA = (
-      'beam:transform:org.apache.beam:kafka_read_without_metadata:v1')
+    'beam:transform:org.apache.beam:kafka_read_without_metadata:v1')
 
   def __init__(
       self,
@@ -139,7 +122,6 @@ class ReadFromKafka(ExternalTransform):
   ):
     """
     Initializes a read operation from Kafka.
-
     :param consumer_config: A dictionary containing the consumer configuration.
     :param topics: A list of topic strings.
     :param key_deserializer: A fully-qualified Java class name of a Kafka
@@ -198,38 +180,36 @@ class ReadFromKafka(ExternalTransform):
 WriteToKafkaSchema = typing.NamedTuple(
     'WriteToKafkaSchema',
     [
-        ('producer_config', typing.Mapping[str, str]),
-        ('topic', str),
-        ('key_serializer', str),
-        ('value_serializer', str),
+      ('producer_config', typing.Mapping[str, str]),
+      ('topic', str),
+      ('key_serializer', str),
+      ('value_serializer', str),
     ])
 
 
-class WriteToKafka(ExternalTransform):
+class WriteToKafka(PTransform):
   """
     An external PTransform which writes KV data to a specified Kafka topic.
     If no Kafka Serializer for key/value is provided, then key/value are
     assumed to be byte arrays.
-
     Experimental; no backwards compatibility guarantees.
   """
 
   # Default serializer which passes raw bytes to Kafka
   byte_array_serializer = (
-      'org.apache.kafka.common.serialization.ByteArraySerializer')
+    'org.apache.kafka.common.serialization.ByteArraySerializer')
 
   URN = 'beam:transform:org.apache.beam:kafka_write:v1'
 
   def __init__(
       self,
-      producer_config,
+      bootstrap_servers,
       topic,
       key_serializer=byte_array_serializer,
       value_serializer=byte_array_serializer,
       expansion_service=None):
     """
     Initializes a write operation to Kafka.
-
     :param producer_config: A dictionary containing the producer configuration.
     :param topic: A Kafka topic name.
     :param key_deserializer: A fully-qualified Java class name of a Kafka
@@ -242,13 +222,41 @@ class WriteToKafka(ExternalTransform):
         Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super().__init__(
-        self.URN,
-        NamedTupleBasedPayloadBuilder(
-            WriteToKafkaSchema(
-                producer_config=producer_config,
-                topic=topic,
-                key_serializer=key_serializer,
-                value_serializer=value_serializer,
-            )),
-        expansion_service or default_io_expansion_service())
+    super().__init__();
+    self._kafka_schematransform_id = self._dynamically_descover_kafka_write_schematransform(
+        expansion_service=expansion_service)
+
+    logging.error('dynamically discovered Kafka write SchemaTransform: %s',
+                  self._kafka_schematransform_id)
+
+    self._bootstrap_servers = bootstrap_servers
+    self._topic = topic
+    self._key_serializer = key_serializer
+    self._value_serializer = value_serializer
+    self._expansion_service = expansion_service
+
+  def _dynamically_descover_kafka_write_schematransform(
+      self, expansion_service):
+    matches = SchemaAwareExternalTransform.discover(
+        expansion_service=expansion_service)
+    kafka_write_id = None
+    for match in matches:
+      id = match.identifier
+      logging.error('********* found match: %r', match)
+      if 'write' in id and 'kafka' in id:
+        if kafka_write_id:
+          raise ValueError('Found more than one match for the Kafka Write transform')
+        kafka_write_id = id
+
+    return kafka_write_id
+
+
+  def expand(self, input):
+    external_transform = SchemaAwareExternalTransform(
+        self._kafka_schematransform_id,
+        expansion_service=self._expansion_service,
+        bootstrapServers=self._bootstrap_servers,
+        topic=self._topic,
+        keySerializer=self._key_serializer,
+        valueSerializer=self._value_serializer)
+    return (input | external_transform)

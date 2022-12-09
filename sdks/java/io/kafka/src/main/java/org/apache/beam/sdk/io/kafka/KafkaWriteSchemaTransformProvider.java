@@ -17,150 +17,50 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import com.google.auto.value.AutoValue;
-import java.io.Serializable;
+import com.google.auto.service.AutoService;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.schemas.utils.JsonUtils;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
+@AutoService(SchemaTransformProvider.class)
 public class KafkaWriteSchemaTransformProvider
-    extends TypedSchemaTransformProvider<
-        KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration> {
-
-  public static final Set<String> SUPPORTED_FORMATS = Sets.newHashSet("JSON", "AVRO");
+    extends TypedSchemaTransformProvider<KafkaWriteSchemaTransformConfiguration> {
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<KafkaWriteSchemaTransformConfiguration>
-      configurationClass() {
+  protected Class<KafkaWriteSchemaTransformConfiguration> configurationClass() {
     return KafkaWriteSchemaTransformConfiguration.class;
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      KafkaWriteSchemaTransformConfiguration configuration) {
-    if (!SUPPORTED_FORMATS.contains(configuration.getFormat())) {
-      throw new IllegalArgumentException(
-          "Format "
-              + configuration.getFormat()
-              + " is not supported. "
-              + "Supported formats are: "
-              + String.join(", ", SUPPORTED_FORMATS));
-    }
+  protected SchemaTransform from(KafkaWriteSchemaTransformConfiguration configuration) {
     return new KafkaWriteSchemaTransform(configuration);
   }
 
-  static final class KafkaWriteSchemaTransform implements SchemaTransform, Serializable {
-    final KafkaWriteSchemaTransformConfiguration configuration;
-
-    KafkaWriteSchemaTransform(KafkaWriteSchemaTransformConfiguration configuration) {
-      this.configuration = configuration;
-    }
-
-    @Override
-    public @UnknownKeyFor @NonNull @Initialized PTransform<
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-        buildTransform() {
-      return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-          Schema inputSchema = input.get("input").getSchema();
-          final SerializableFunction<Row, byte[]> toBytesFn =
-              configuration.getFormat().equals("JSON")
-                  ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
-                  : AvroUtils.getRowToAvroBytesFunction(inputSchema);
-
-          final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
-          input
-              .get("input")
-              .apply(
-                  "Map Rows to Kafka Messages",
-                  MapElements.via(
-                      new SimpleFunction<Row, KV<byte[], byte[]>>(
-                          row -> KV.of(new byte[1], toBytesFn.apply(row))) {}))
-              .apply(
-                  KafkaIO.<byte[], byte[]>write()
-                      .withTopic(configuration.getTopic())
-                      .withBootstrapServers(configuration.getBootstrapServers())
-                      .withProducerConfigUpdates(
-                          configOverrides == null
-                              ? new HashMap<>()
-                              : new HashMap<String, Object>(configOverrides))
-                      .withKeySerializer(ByteArraySerializer.class)
-                      .withValueSerializer(ByteArraySerializer.class));
-          return PCollectionRowTuple.empty(input.getPipeline());
-        }
-      };
-    }
+  @Override
+  public Schema configurationSchema() {
+    return Schema.builder()
+        .addStringField("bootstrapServers")
+        .addStringField("topic")
+        .addStringField("keySerializer")
+        .addStringField("valueSerializer")
+        .build();
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:kafka_write:v1";
+  public String identifier() {
+    return "kafkaio:write";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
-    return Collections.singletonList("input");
+  public List<String> inputCollectionNames() {
+    return Collections.singletonList("wrong_tag");
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Collections.emptyList();
-  }
-
-  @AutoValue
-  @DefaultSchema(AutoValueSchema.class)
-  public abstract static class KafkaWriteSchemaTransformConfiguration implements Serializable {
-    public abstract String getFormat();
-
-    public abstract String getTopic();
-
-    public abstract String getBootstrapServers();
-
-    @Nullable
-    public abstract Map<String, String> getProducerConfigUpdates();
-
-    public static Builder builder() {
-      return new AutoValue_KafkaWriteSchemaTransformProvider_KafkaWriteSchemaTransformConfiguration
-          .Builder();
-    }
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setFormat(String format);
-
-      public abstract Builder setTopic(String topic);
-
-      public abstract Builder setBootstrapServers(String bootstrapServers);
-
-      public abstract Builder setProducerConfigUpdates(Map<String, String> producerConfigUpdates);
-
-      public abstract KafkaWriteSchemaTransformConfiguration build();
-    }
   }
 }

@@ -16,7 +16,6 @@
 #
 
 """An example that writes to and reads from Kafka.
-
  This example reads from the PubSub NYC Taxi stream described in
  https://github.com/googlecodelabs/cloud-dataflow-nyc-taxi-tycoon, writes to a
  given Kafka topic and reads back from the same Kafka topic.
@@ -29,10 +28,17 @@ import sys
 import typing
 
 import apache_beam as beam
+from apache_beam.coders import RowCoder
+from apache_beam.coders.typecoders import registry as coders_registry
 from apache_beam.io.kafka import ReadFromKafka
 from apache_beam.io.kafka import WriteToKafka
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+
+
+class KafkaWriteInput(typing.NamedTuple):
+  key: bytes
+  value: bytes
 
 
 def run(
@@ -82,33 +88,35 @@ def run(
     import ast
     ride = ast.literal_eval(ride_bytes.decode("UTF-8"))
     output = {
-        key: ride[key]
-        for key in ['latitude', 'longitude', 'passenger_count']
+      key: ride[key]
+      for key in ['latitude', 'longitude', 'passenger_count']
     }
     if hasattr(record, 'timestamp'):
       # timestamp is read from Kafka metadata
       output['timestamp'] = record.timestamp
     return output
 
+  coders_registry.register_coder(KafkaWriteInput, RowCoder)
+
   with beam.Pipeline(options=pipeline_options) as pipeline:
     _ = (
         pipeline
         | beam.io.ReadFromPubSub(
-            topic='projects/pubsub-public-data/topics/taxirides-realtime').
+        topic='projects/pubsub-public-data/topics/taxirides-realtime').
         with_output_types(bytes)
-        | beam.Map(lambda x: (b'', x)).with_output_types(
-            typing.Tuple[bytes, bytes])  # Kafka write transforms expects KVs.
+        | beam.Map(lambda x: KafkaWriteInput(key=b'', value=x)).with_output_types(KafkaWriteInput)
         | beam.WindowInto(beam.window.FixedWindows(window_size))
         | WriteToKafka(
-            producer_config={'bootstrap.servers': bootstrap_servers},
-            topic=topic))
+        expansion_service='localhost:12345',
+        bootstrap_servers=bootstrap_servers,
+        topic=topic))
 
     ride_col = (
         pipeline
         | ReadFromKafka(
-            consumer_config={'bootstrap.servers': bootstrap_servers},
-            topics=[topic],
-            with_metadata=with_metadata)
+        consumer_config={'bootstrap.servers': bootstrap_servers},
+        topics=[topic],
+        with_metadata=with_metadata)
         | beam.Map(lambda record: convert_kafka_record_to_dictionary(record)))
 
     if bq_dataset:
@@ -132,7 +140,7 @@ if __name__ == '__main__':
       dest='bootstrap_servers',
       required=True,
       help='Bootstrap servers for the Kafka cluster. Should be accessible by '
-      'the runner')
+           'the runner')
   parser.add_argument(
       '--topic',
       dest='topic',
@@ -148,8 +156,8 @@ if __name__ == '__main__':
       type=str,
       default='',
       help='BigQuery Dataset to write tables to. '
-      'If set, export data to a BigQuery table instead of just logging. '
-      'Must already exist.')
+           'If set, export data to a BigQuery table instead of just logging. '
+           'Must already exist.')
   parser.add_argument(
       '--bq_table_name',
       default='xlang_kafka_taxi',
