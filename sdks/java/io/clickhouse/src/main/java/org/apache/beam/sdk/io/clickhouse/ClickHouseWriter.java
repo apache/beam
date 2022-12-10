@@ -156,7 +156,6 @@ public class ClickHouseWriter {
         Object value = row.getValue(column.name());
 
         if (column.columnType().nullable()) {
-          // BinaryStreamUtils.writeNull(stream);
           writeNullableValue(stream, column.columnType(), value);
         } else {
           if (value == null) {
