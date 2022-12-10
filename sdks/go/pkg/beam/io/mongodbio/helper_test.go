@@ -25,7 +25,6 @@ func objectIDFromHex(t *testing.T, hex string) primitive.ObjectID {
 	t.Helper()
 
 	id, err := primitive.ObjectIDFromHex(hex)
-
 	if err != nil {
 		t.Fatalf("error parsing hex string to primitive.ObjectID: %v", err)
 	}
