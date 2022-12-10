@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.spd;
+package org.apache.beam.sdk.extensions.spd.description;
 
-import java.util.List;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-public class StructuredPipelineException extends Exception {
-  List<Exception> exceptions;
+@SuppressFBWarnings
+public class PackageImport {
 
-  public StructuredPipelineException(List<Exception> exceptionList) {
-    this.exceptions = exceptionList;
-  }
+  @Nullable public String local;
 
-  public List<Exception> getExceptions() {
-    return exceptions;
-  }
+  @Nullable public String git;
+
+  @Nullable public String revision;
+
+  @Nullable public String subdirectory;
 }

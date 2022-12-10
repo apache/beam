@@ -25,13 +25,18 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SPD"
 ext.summary = "Extension providing Structured Pipeline Descriptions for Beam"
 
+var jinjava_version = "2.6.0"
+
 dependencies {
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.auto_value_annotations
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.jackson_databind
+    implementation library.java.jackson_annotations
     implementation library.java.jackson_core
     implementation library.java.jackson_dataformat_yaml
+    implementation "com.hubspot.jinjava:jinjava:$jinjava_version"
+    implementation 'org.jetbrains:annotations:20.1.0'
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

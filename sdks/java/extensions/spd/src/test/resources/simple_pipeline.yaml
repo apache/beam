@@ -1,7 +1,0 @@
----
-pipeline:
-  - read:
-      from: "kafka"
-  - sql: "SELECT first_name, COUNT(*) FROM PCOLLECTION GROUP BY 1"
-  - write:
-      to: "stdout"

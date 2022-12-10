@@ -15,22 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.spd;
+package org.apache.beam.sdk.extensions.spd.description;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
+import java.util.Arrays;
+import java.util.List;
 
-public interface NodeHandler {
-  String tagName();
-
-  void internalVisit(JsonNode node, StructuredPipelineDescription description) throws Exception;
-
-  default void visit(JsonNode node, StructuredPipelineDescription description) throws Exception {
-    if (node.isArray()) {
-      for (int idx = 0; idx < node.size(); idx++) {
-        internalVisit(node.get(idx), description);
-      }
-    } else {
-      internalVisit(node, description);
-    }
-  }
+public class Packages {
+  @JsonSetter(nulls = Nulls.AS_EMPTY)
+  public List<PackageImport> packages = Arrays.asList();
 }

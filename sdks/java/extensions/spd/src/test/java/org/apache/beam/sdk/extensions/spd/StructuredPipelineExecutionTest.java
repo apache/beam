@@ -26,8 +26,5 @@ public class StructuredPipelineExecutionTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  public void testSimplePipeline() throws Exception {
-    StructuredPipelineDescription description = new StructuredPipelineDescription();
-    description.includeStdlib();
-  }
+  public void testSimplePipeline() throws Exception {}
 }

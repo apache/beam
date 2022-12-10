@@ -17,114 +17,104 @@
  */
 package org.apache.beam.sdk.extensions.spd;
 
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Reader;
-import java.util.ArrayList;
+import com.hubspot.jinjava.Jinjava;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.Iterator;
-import org.apache.beam.sdk.extensions.spd.handlers.IncludeHandler;
-import org.apache.beam.sdk.extensions.spd.handlers.TransformHandler;
+import org.apache.beam.sdk.extensions.spd.description.PackageImport;
+import org.apache.beam.sdk.extensions.spd.description.Packages;
+import org.apache.beam.sdk.extensions.spd.description.Project;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StructuredPipelineDescription {
-  private static ObjectMapper DEFAULT_MAPPER = new ObjectMapper(new YAMLFactory());
+  private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineDescription.class);
 
   private ObjectMapper mapper;
+  private Path path;
+  private Jinjava jinjava;
+  private HashMap<String, Object> bindings = new HashMap<String, Object>();
 
-  private ArrayList<ObjectNode> nodes;
-  private HashMap<String, NodeHandler> handlers;
+  @Nullable private Project project = null;
 
-  private void processNodes() throws Exception {
-    if (nodes.size() == 0) return;
-
-    boolean nextCycle = false;
-
-    do {
-      ArrayList<ObjectNode> working = nodes;
-      System.out.println("Processing " + working.size() + " nodes.");
-      ArrayList<Exception> exceptions = new ArrayList<>();
-      this.nodes = new ArrayList<ObjectNode>();
-      int processed = 0;
-      for (ObjectNode n : working) {
-        boolean foundTag = false;
-        for (HashMap.Entry<String, NodeHandler> e : handlers.entrySet()) {
-          if (n.has(e.getKey())) {
-            foundTag = true;
-            try {
-              e.getValue().visit(n.get(e.getKey()), this);
-              processed++;
-            } catch (Exception ex) {
-              exceptions.add(ex);
-            }
-          }
-          if (foundTag) break;
-        }
-        if (!foundTag) {
-          Iterator<String> fieldNames = n.fieldNames();
-          while (fieldNames.hasNext())
-            exceptions.add(
-                new Exception("Unable to find handle for tag '" + fieldNames.next() + "'"));
-        }
-      }
-
-      if (processed == 0 && nodes.size() > 0) throw new StructuredPipelineException(exceptions);
-
-      // If we have more nodes do another round
-      nextCycle = nodes.size() > 0;
-
-    } while (nextCycle);
+  public @Nullable String getName() {
+    return project == null ? "" : project.name;
   }
 
-  public StructuredPipelineDescription(ObjectMapper mapper) {
+  public @Nullable String getVersion() {
+    return project == null ? "" : project.version;
+  }
+
+  public static ObjectMapper defaultObjectMapper() {
+    return new ObjectMapper(new YAMLFactory());
+  }
+
+  public StructuredPipelineDescription(ObjectMapper mapper, Jinjava jinjava, Path path) {
     this.mapper = mapper;
-    this.nodes = new ArrayList<>();
-    this.handlers = new HashMap<String, NodeHandler>();
-    this.handlers.put("include", new IncludeHandler());
-    this.handlers.put("transform", new TransformHandler());
+    this.jinjava = jinjava;
+    this.path = path;
   }
 
-  public StructuredPipelineDescription() {
-    this(DEFAULT_MAPPER);
+  public StructuredPipelineDescription(Path path) {
+    this(defaultObjectMapper(), new Jinjava(), path);
   }
 
-  public void registerNodeHandler(NodeHandler handler) throws Exception {
-    String tagName = handler.tagName();
-    if (handlers.containsKey(tagName)) {
-      throw new Exception("Attempting to redefine tag named '" + tagName + "'");
+  private @Nullable Path yamlPath(Path base, String yamlName) throws Exception {
+    Path newPath = base.resolve(yamlName + File.separator + "yml");
+    if (!Files.exists(newPath)) {
+      newPath = base.resolve(yamlName + File.separator + "yaml");
     }
-    handlers.put(tagName, handler);
+    return Files.exists(newPath) ? newPath : null;
   }
 
-  public void addValues(JsonParser parser) throws IOException {
-    mapper
-        .readValues(parser, ObjectNode.class)
-        .forEachRemaining(
-            (o) -> {
-              nodes.add(o);
-            });
+  private void initialize() throws Exception {
+    bindings.clear();
+    bindings.putIfAbsent(
+        "tmpDir", Files.createTempDirectory("beamspd").toAbsolutePath().toString());
   }
 
-  public void addValues(InputStream in) throws IOException {
-    addValues(mapper.createParser(in));
-  }
+  private void importPackages(Path path, Project project) throws Exception {
+    Path packagePath = yamlPath(path, "packages");
+    if (packagePath == null) return;
 
-  public void addValues(Reader reader) throws IOException {
-    addValues(mapper.createParser(reader));
-  }
-
-  public void addValues(String values) throws IOException {
-    addValues(mapper.createParser(values));
-  }
-
-  public void includeStdlib() throws Exception {
-    InputStream in = ClassLoader.getSystemClassLoader().getResourceAsStream("stdlib.yaml");
-    if (in != null) {
-      addValues(mapper.createParser(in));
+    Packages packages = mapper.readValue(Files.newBufferedReader(packagePath), Packages.class);
+    for (PackageImport toImport : packages.packages) {
+      if (toImport.local != null && !"".equals(toImport.local)) {
+        Path localPath = Paths.get(jinjava.render(toImport.local, bindings));
+        if (Files.exists(localPath)) loadPackage(localPath);
+        else LOG.error("Package not found at '" + localPath.toAbsolutePath().toString() + "'");
+      } else if (toImport.git != null && !"".equals(toImport.git)) {
+        String tmpDir = jinjava.render(project.packagesInstallPath, bindings);
+        LOG.warn(
+            "Git imports currently unsupported. Skipping import of '"
+                + toImport.git
+                + "' to "
+                + tmpDir);
+      }
     }
-    processNodes();
+  }
+
+  private Project loadPackage(Path path) throws Exception {
+    Path projectPath = yamlPath(path, "spd_project");
+    if (projectPath == null)
+      throw new Exception("spd_project file not found at path " + path.toString());
+    Project project = mapper.readValue(Files.newBufferedReader(projectPath), Project.class);
+    importPackages(path, project);
+    return project;
+  }
+
+  public void load() throws Exception {
+    initialize();
+    project = loadPackage(path);
+  }
+
+  @Override
+  public String toString() {
+    return project == null ? "UNINITIALIZED_PROJECT" : "SPD:" + getName() + ":" + getVersion();
   }
 }
