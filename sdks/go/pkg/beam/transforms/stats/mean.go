@@ -69,7 +69,7 @@ func (f *meanFn) CreateAccumulator() meanAccum {
 
 func (f *meanFn) AddInput(a meanAccum, val beam.T) meanAccum {
 	a.Count++
-	a.Sum += reflect.ValueOf(val.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+	a.Sum += reflect.ValueOf(val.(any)).Convert(reflectx.Float64).Interface().(float64)
 	return a
 }
 

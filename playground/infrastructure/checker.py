@@ -17,7 +17,7 @@
 Module implements check to define if it is needed to run CI step for Beam
 Playground examples
 
-Returns exit code 1 if no examples found
+Returns exit code 11 if no examples found
 
 All paths are relative to BEAM_ROOT_DIR
 """
@@ -99,7 +99,7 @@ def main():
     if check_sdk_examples(args.paths, Sdk.Value(args.sdk), root_dir):
         return
 
-    sys.exit(1)
+    sys.exit(11)
 
 
 if __name__ == "__main__":
