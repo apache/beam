@@ -15,6 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.spd.models;
 
-/** A transform specification language inspired by dbt. */
-package org.apache.beam.sdk.extensions.spd;
+public interface StructuredModel {}

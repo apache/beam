@@ -15,6 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.spd.description;
 
-/** A transform specification language inspired by dbt. */
-package org.apache.beam.sdk.extensions.spd;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+@SuppressFBWarnings
+public class Column {
+
+  @Nullable
+  @JsonSetter(nulls = Nulls.FAIL)
+  public String name;
+
+  @Nullable public String description;
+
+  @Nullable
+  @JsonProperty("data_type")
+  public String type;
+}

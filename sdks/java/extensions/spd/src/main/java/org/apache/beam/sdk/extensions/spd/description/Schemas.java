@@ -15,6 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.spd.description;
 
-/** A transform specification language inspired by dbt. */
-package org.apache.beam.sdk.extensions.spd;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Arrays;
+import java.util.List;
+
+@SuppressFBWarnings
+public class Schemas {
+  public List<Source> sources = Arrays.asList();
+  public List<Model> models = Arrays.asList();
+}

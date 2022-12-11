@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.spd;
 
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,5 +29,10 @@ public class StructuredPipelineExecutionTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  public void testSimplePipeline() throws Exception {}
+  public void testSimplePipeline() throws Exception {
+    URL pipelineURL = ClassLoader.getSystemClassLoader().getResource("simple_pipeline");
+    Path pipelinePath = Paths.get(pipelineURL.toURI());
+    StructuredPipelineDescription spd = new StructuredPipelineDescription(pipelinePath);
+    spd.run(pipeline);
+  }
 }

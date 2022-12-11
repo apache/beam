@@ -15,6 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.spd.models;
 
-/** A transform specification language inspired by dbt. */
-package org.apache.beam.sdk.extensions.spd;
+public class SqlModel implements StructuredModel {
+
+  private String identifier;
+  private String name;
+  private String rawQuery;
+
+  public SqlModel(String identifier, String name, String rawQuery) {
+    this.identifier = identifier;
+    this.name = name;
+    this.rawQuery = rawQuery;
+  }
+
+  public String getRawQuery() {
+    return rawQuery;
+  }
+}

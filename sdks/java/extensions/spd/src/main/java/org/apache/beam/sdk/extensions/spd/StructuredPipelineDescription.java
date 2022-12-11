@@ -21,14 +21,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.hubspot.jinjava.Jinjava;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.spd.description.Model;
 import org.apache.beam.sdk.extensions.spd.description.PackageImport;
 import org.apache.beam.sdk.extensions.spd.description.Packages;
 import org.apache.beam.sdk.extensions.spd.description.Project;
+import org.apache.beam.sdk.extensions.spd.description.Schemas;
+import org.apache.beam.sdk.extensions.spd.models.SqlModel;
+import org.apache.beam.sdk.extensions.spd.models.StructuredModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +47,8 @@ public class StructuredPipelineDescription {
   private Path path;
   private Jinjava jinjava;
   private HashMap<String, Object> bindings = new HashMap<String, Object>();
+
+  private List<StructuredModel> models = new ArrayList<>();
 
   @Nullable private Project project = null;
 
@@ -65,9 +75,9 @@ public class StructuredPipelineDescription {
   }
 
   private @Nullable Path yamlPath(Path base, String yamlName) throws Exception {
-    Path newPath = base.resolve(yamlName + File.separator + "yml");
+    Path newPath = base.resolve(yamlName + ".yml");
     if (!Files.exists(newPath)) {
-      newPath = base.resolve(yamlName + File.separator + "yaml");
+      newPath = base.resolve(yamlName + ".yaml");
     }
     return Files.exists(newPath) ? newPath : null;
   }
@@ -80,14 +90,19 @@ public class StructuredPipelineDescription {
 
   private void importPackages(Path path, Project project) throws Exception {
     Path packagePath = yamlPath(path, "packages");
-    if (packagePath == null) return;
+    if (packagePath == null) {
+      return;
+    }
 
     Packages packages = mapper.readValue(Files.newBufferedReader(packagePath), Packages.class);
     for (PackageImport toImport : packages.packages) {
       if (toImport.local != null && !"".equals(toImport.local)) {
         Path localPath = Paths.get(jinjava.render(toImport.local, bindings));
-        if (Files.exists(localPath)) loadPackage(localPath);
-        else LOG.error("Package not found at '" + localPath.toAbsolutePath().toString() + "'");
+        if (Files.exists(localPath)) {
+          loadPackage(localPath, project);
+        } else {
+          LOG.error("Package not found at '" + localPath.toAbsolutePath().toString() + "'");
+        }
       } else if (toImport.git != null && !"".equals(toImport.git)) {
         String tmpDir = jinjava.render(project.packagesInstallPath, bindings);
         LOG.warn(
@@ -99,18 +114,89 @@ public class StructuredPipelineDescription {
     }
   }
 
-  private Project loadPackage(Path path) throws Exception {
+  private String computeIdentifier(String prefix, String name) {
+    return prefix + ("".equals(prefix) ? "" : "/") + name;
+  }
+
+  private void importSchemas(String prefix, Path modelPath, Project project) throws Exception {
+    LOG.info("Loading models in " + modelPath.toString() + " into '" + prefix + "'");
+    try (Stream<Path> files = Files.list(modelPath)) {
+      for (Path file : files.collect(Collectors.toList())) {
+        if (Files.isDirectory(file)) {
+          Path filename = file.getFileName();
+          if (filename != null) {
+            importSchemas(computeIdentifier(prefix, filename.toString()), file, project);
+          }
+        } else if (Files.isReadable(file) && (file.endsWith("yml") || file.endsWith("yaml"))) {
+
+          // Load up a yaml file containing models and sources (all schemas)
+          Schemas schemas = mapper.readValue(Files.newBufferedReader(file), Schemas.class);
+
+          // TODO: Create model objects for our sources
+
+          // Create model objects for our models
+          for (Model model : schemas.models) {
+            Path sqlFile = path.resolve(model.name + ".sql");
+            if (Files.exists(sqlFile)) {
+
+              this.models.add(
+                  new SqlModel(
+                      computeIdentifier(prefix, model.name),
+                      model.name,
+                      String.join("\n", Files.readAllLines(sqlFile))));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private void loadModels(Path path, Project project) throws Exception {
+    for (String modelPathName : project.modelPaths) {
+      Path modelsPath = path.resolve(modelPathName);
+      if (Files.exists(modelsPath)) {
+        importSchemas("", modelsPath, project);
+      }
+    }
+  }
+
+  private Project loadPackage(Path path, Project parent) throws Exception {
+    LOG.info("Loading package at path " + path.toString());
     Path projectPath = yamlPath(path, "spd_project");
-    if (projectPath == null)
+    if (projectPath == null) {
       throw new Exception("spd_project file not found at path " + path.toString());
+    }
     Project project = mapper.readValue(Files.newBufferedReader(projectPath), Project.class);
-    importPackages(path, project);
+    importPackages(path, parent);
+    loadModels(path, project);
+
     return project;
   }
 
   public void load() throws Exception {
+    if (project != null) {
+      return;
+    }
     initialize();
-    project = loadPackage(path);
+
+    Project emptyBase = new Project();
+    emptyBase.name = "_parent";
+    emptyBase.version = "0";
+    emptyBase.initializeEmpty(mapper);
+
+    project = loadPackage(path, emptyBase);
+  }
+
+  public void compile() throws Exception {
+    if (project == null) {
+      return;
+    }
+  }
+
+  public void run(Pipeline pipeline) throws Exception {
+    load();
+    compile();
+    pipeline.run();
   }
 
   @Override

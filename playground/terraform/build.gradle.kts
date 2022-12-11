@@ -476,6 +476,8 @@ helm {
         }
     }
 }
+
+/*
 tasks.register("gkebackend") {
   group = "deploy"
   val init = tasks.getByName("terraformInit")
@@ -496,3 +498,4 @@ tasks.register("gkebackend") {
   indexcreate.mustRunAfter(front)
   helm.mustRunAfter(indexcreate)
 }
+*/

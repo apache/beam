@@ -778,6 +778,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // Disabling checks since this property is only used for Jenkins tests
       // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
       options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+
       options.forkOptions.jvmArgs += [
         "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
         "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
@@ -788,7 +789,8 @@ class BeamModulePlugin implements Plugin<Project> {
         "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
         "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
         "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-        "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
+        "-J--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
       ]
     }
 
@@ -1265,6 +1267,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // Enable errorprone static analysis
+
       project.apply plugin: 'net.ltgt.errorprone'
 
       project.dependencies {
@@ -2364,7 +2367,7 @@ class BeamModulePlugin implements Plugin<Project> {
       } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
         javaContainerSuffix = 'java17'
       } else {
-        throw new GradleException("unsupported java version.")
+        throw new GradleException("unsupported java version "+JavaVersion.current())
       }
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'

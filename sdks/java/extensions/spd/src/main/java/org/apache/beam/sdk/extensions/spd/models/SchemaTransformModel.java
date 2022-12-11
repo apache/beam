@@ -15,6 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.spd.models;
 
-/** A transform specification language inspired by dbt. */
-package org.apache.beam.sdk.extensions.spd;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+@SuppressFBWarnings
+public class SchemaTransformModel implements StructuredModel {
+
+  private String urn;
+
+  SchemaTransformModel(String urn) {
+    this.urn = urn;
+  }
+
+  public String getUrn() {
+    return urn;
+  }
+}
