@@ -1,5 +1,9 @@
 package com.playground.extract_symbols;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.github.javaparser.ParseProblemException;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -10,7 +14,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashMap;
-import java.util.Map;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -21,7 +24,7 @@ public class Main {
     }
 
     private static HashMap<String, ClassInfo> collectClassInfo(String sdkPath) throws IOException {
-        var classInfoList = new HashMap<String, ClassInfo>();
+        var classInfoMap = new HashMap<String, ClassInfo>();
         var paths = new File(sdkPath).toPath().toAbsolutePath();
         Files.walk(paths).forEach(path -> {
             var stringPath = path.toString();
@@ -30,14 +33,14 @@ public class Main {
                 try {
                     var unit = StaticJavaParser.parse(path);
                     if (unit.getClassByName(fileName).isPresent()) {
-                        buildClass(classInfoList, unit.getClassByName(fileName).get());
+                        buildClass(classInfoMap, unit.getClassByName(fileName).get());
                     }
                 } catch (IOException | ParseProblemException ignored) {
                 }
             }
         });
 
-        return classInfoList;
+        return classInfoMap;
     }
 
     private static void buildClass(HashMap<String, ClassInfo> classInfoList, ClassOrInterfaceDeclaration cl) {
@@ -53,6 +56,7 @@ public class Main {
             classInfoList.put(cl.getNameAsString(), classInfo);
         }
 
+        classInfo.name = cl.getNameAsString();
         cl.findAll(MethodDeclaration.class).forEach(method -> {
             if (method.isPublic()) {
                 classInfo.publicMethods.add(method.getNameAsString());
@@ -65,29 +69,23 @@ public class Main {
         });
     }
 
-    private static String buildYamlString(HashMap<String, ClassInfo> classInfoList) {
-        final String[] resultList = new String[classInfoList.size()];
-        var i = 0;
-        for (Map.Entry<String, ClassInfo> entry : classInfoList.entrySet()) {
-            String name = entry.getKey();
-            ClassInfo classInfo = entry.getValue();
-            var yaml = toYaml(name, classInfo);
-            resultList[i] = yaml;
-            i++;
+    private static String buildYamlString(HashMap<String, ClassInfo> classInfoMap) throws JsonProcessingException {
+        ObjectMapper mapper = buildObjectMapper();
+        StringBuilder result = new StringBuilder();
+
+        for (var classInfo : classInfoMap.values()) {
+            result.append(mapper.writeValueAsString(classInfo).substring(4).replace("\"", ""));
         }
-        return String.join("\n", resultList);
+        return result.toString();
     }
 
-    private static String toYaml(String name, ClassInfo classInfo) {
-        var methods = classInfo.publicMethods;
-        var properties = classInfo.publicFields;
-
-        var methodsString = methods.isEmpty() ? "" : String.join("\n  - ", methods);
-        var propertiesString = properties.isEmpty() ? "" : String.join("\n  - ", properties);
-
-        var methodsListString = methodsString.isEmpty() ? "" : " \n  methods: \n  - " + methodsString;
-        var propertiesListString = propertiesString.isEmpty() ? "" : " \n  properties: \n  - " + propertiesString;
-
-        return String.format("%s: %s%s", name, methodsListString, propertiesListString);
+    private static ObjectMapper buildObjectMapper() {
+        var classInfoSerializer = new ClassInfoSerializer(ClassInfo.class);
+        var factory = new YAMLFactory();
+        var mapper = new ObjectMapper(factory);
+        var simpleModule = new SimpleModule("ClassInfoSerializer");
+        simpleModule.addSerializer(classInfoSerializer);
+        mapper.registerModule(simpleModule);
+        return mapper;
     }
 }
