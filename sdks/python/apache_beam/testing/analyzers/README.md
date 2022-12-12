@@ -19,9 +19,7 @@
 
 # Performance alerts for Beam Python performance and load tests
 
-
-##  Alerts 
-
+##  Alerts
 Performance regressions or improvements detected with the [Change Point Analysis](https://en.wikipedia.org/wiki/Change_detection) using [edivisive](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30)
 analyzer are automatically filed as Beam GitHub issues with a label `perf-alert`.
 
@@ -34,7 +32,7 @@ If a performance alert is created on a test, a GitHub issue will be created and 
 URL, issue number along with the change point value and timestamp are exported to BigQuery. This data will be used to analyze the next change point observed on the same test to
 update already created GitHub issue or ignore performance alert by not creating GitHub issue to avoid duplicate issue creation.
 
-##  Config file structure 
+##  Config file structure
 The config file defines the structure to run change point analysis on a given test. To add a test to the config file,
 please follow the below structure.
 
@@ -55,7 +53,7 @@ test_1:
   num_runs_in_change_point_window: 7
 ```
 
-**NOTE**: `test_name` should be in the format `apache_beam.foo.bar`. It should point to a single test target. 
+**NOTE**: `test_name` should be in the format `apache_beam.foo.bar`. It should point to a single test target.
 
 **Note**: If the source is **BigQuery**, the metrics_dataset, metrics_table, project and metric_name should match with the values defined for performance/load tests.
 The above example uses this [test configuration](https://github.com/apache/beam/blob/0a91d139dea4276dc46176c4cdcdfce210fc50c4/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L30)
@@ -74,7 +72,7 @@ Sometimes, the change point found might be way back in time and could be irrelev
 reported only when it was observed in the last 7 runs from the current run,
 setting `num_runs_in_change_point_window=7` will achieve it.
 
-##  Register a test for performance alerts 
+##  Register a test for performance alerts
 
 If a new test needs to be registered for the performance alerting tool, please add the required test parameters to the
 config file.

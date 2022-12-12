@@ -21,7 +21,6 @@
 # regressions for benchmark/load/performance test.
 
 import argparse
-
 import logging
 import os
 import uuid
@@ -34,11 +33,11 @@ from typing import Optional
 import pandas as pd
 
 from apache_beam.testing.analyzers import constants
+from apache_beam.testing.analyzers.perf_analysis_utils import GitHubIssueMetaData
 from apache_beam.testing.analyzers.perf_analysis_utils import create_performance_alert
 from apache_beam.testing.analyzers.perf_analysis_utils import fetch_metric_data
-from apache_beam.testing.analyzers.perf_analysis_utils import get_existing_issues_data
 from apache_beam.testing.analyzers.perf_analysis_utils import find_latest_change_point_index
-from apache_beam.testing.analyzers.perf_analysis_utils import GitHubIssueMetaData
+from apache_beam.testing.analyzers.perf_analysis_utils import get_existing_issues_data
 from apache_beam.testing.analyzers.perf_analysis_utils import is_change_point_in_valid_window
 from apache_beam.testing.analyzers.perf_analysis_utils import is_perf_alert
 from apache_beam.testing.analyzers.perf_analysis_utils import publish_issue_metadata_to_big_query

@@ -87,14 +87,14 @@ def create_issue(
       'labels': [_AWAITING_TRIAGE_LABEL, _PERF_ALERT_LABEL]
   }
   if labels:
-    data['labels'] += labels
+    data['labels'].extend(labels)
   response = requests.post(
       url=url, data=json.dumps(data), headers=_HEADERS).json()
   return response['number'], response['html_url']
 
 
 def comment_on_issue(issue_number: int,
-                     comment_description: str) -> Tuple[bool, Optional[str]]:
+                     comment_description: str) -> Tuple[bool, str]:
   """
   This method looks for an issue with provided issue_number. If an open
   issue is found, comment on the open issue with provided description else
@@ -128,7 +128,7 @@ def comment_on_issue(issue_number: int,
     response = requests.post(
         open_issue_response['comments_url'], json.dumps(data), headers=_HEADERS)
     return True, response.json()['html_url']
-  return False, None
+  return False, ''
 
 
 def add_awaiting_triage_label(issue_number: int):
