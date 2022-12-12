@@ -79,7 +79,7 @@ Follow [Connect to a GitHub repository](https://cloud.google.com/build/docs/auto
 
 The `playground/terraform/infrastructure/cloudbuild-manual-setup/02.builders` provisions:
 - Cloud Build triggers to build and deploy Beam Playground
-- CB Trigger to deploy examples to Beam Playground using the script 
+- CB Trigger to deploy examples to Beam Playground using the script
 
 #### To execute the module
 
