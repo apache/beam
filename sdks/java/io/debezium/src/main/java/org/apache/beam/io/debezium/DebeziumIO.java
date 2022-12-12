@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -142,6 +143,8 @@ public class DebeziumIO {
 
     abstract @Nullable Integer getMaxNumberOfRecords();
 
+    abstract @Nullable Integer getMaxTimeToRun();
+
     abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
@@ -155,6 +158,8 @@ public class DebeziumIO {
       abstract Builder<T> setFormatFunction(SourceRecordMapper<T> mapperFn);
 
       abstract Builder<T> setMaxNumberOfRecords(Integer maxNumberOfRecords);
+
+      abstract Builder<T> setMaxTimeToRun(Integer miliseconds);
 
       abstract Read<T> build();
     }
@@ -204,6 +209,17 @@ public class DebeziumIO {
       return toBuilder().setMaxNumberOfRecords(maxNumberOfRecords).build();
     }
 
+    /**
+     * Once the connector has run for the determined amount of time, it will stop. The value can be
+     * null (default) which means it will not stop. This parameter is mainly intended for testing.
+     *
+     * @param miliseconds The maximum number of miliseconds to run before stopping the connector.
+     * @return PTransform {@link #read}
+     */
+    public Read<T> withMaxTimeToRun(Integer miliseconds) {
+      return toBuilder().setMaxTimeToRun(miliseconds).build();
+    }
+
     protected Schema getRecordSchema() {
       SourceRecord sampledRecord =
           new KafkaSourceConsumerFn<>(
@@ -217,9 +233,17 @@ public class DebeziumIO {
               : Schema.builder().build();
       Schema valueSchema =
           KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.valueSchema());
+
       return Schema.builder()
-          .addNullableField("key", Schema.FieldType.row(keySchema))
-          .addRowField("value", valueSchema)
+          .addFields(valueSchema.getFields())
+          .setOptions(
+              Schema.Options.builder()
+                  .setOption(
+                      "primaryKeyColumns",
+                      Schema.FieldType.array(Schema.FieldType.STRING),
+                      keySchema.getFields().stream()
+                          .map(Schema.Field::getName)
+                          .collect(Collectors.toList())))
           .build();
     }
 
@@ -234,7 +258,8 @@ public class DebeziumIO {
                   new KafkaSourceConsumerFn<>(
                       getConnectorConfiguration().getConnectorClass().get(),
                       getFormatFunction(),
-                      getMaxNumberOfRecords())))
+                      getMaxNumberOfRecords(),
+                      getMaxTimeToRun())))
           .setCoder(getCoder());
     }
   }

@@ -78,20 +78,11 @@ public class KafkaConnectUtils {
     }
   }
 
-  public static SourceRecordMapper<Row> beamRowFromSourceRecordFn(Schema recordSchema) {
-    final Schema keySchema = recordSchema.getField("key").getType().getRowSchema();
-    final Schema valueSchema = recordSchema.getField("value").getType().getRowSchema();
-    if (keySchema == null || valueSchema == null) {
-      throw new IllegalArgumentException("Improper schema for Beam record " + recordSchema);
-    }
+  public static SourceRecordMapper<Row> beamRowFromSourceRecordFn(final Schema recordSchema) {
     return new SourceRecordMapper<Row>() {
       @Override
       public Row mapSourceRecord(SourceRecord sourceRecord) throws Exception {
-        return Row.withSchema(recordSchema)
-            .withFieldValue("key", beamRowFromKafkaStruct((Struct) sourceRecord.key(), keySchema))
-            .withFieldValue(
-                "value", beamRowFromKafkaStruct((Struct) sourceRecord.value(), valueSchema))
-            .build();
+        return beamRowFromKafkaStruct((Struct) sourceRecord.value(), recordSchema);
       }
 
       private Row beamRowFromKafkaStruct(Struct kafkaStruct, Schema beamSchema) {

@@ -17,13 +17,16 @@
  */
 package org.apache.beam.io.debezium;
 
-import static org.apache.beam.sdk.testing.SerializableMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 
 import io.debezium.connector.postgresql.PostgresConnector;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.jdbc.JdbcIO;
@@ -32,7 +35,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -83,8 +85,9 @@ public class DebeziumIOPostgresSqlConnectorIT {
   }
 
   @Test
-  public void testDebeziumSchemaTransformPostgresRead() {
-    long WRITE_SIZE = 1000L;
+  public void testDebeziumSchemaTransformPostgresRead() throws InterruptedException {
+    int WRITE_SIZE = 10000;
+    int TEST_TIME = WRITE_SIZE * 200;
     POSTGRES_SQL_CONTAINER.start();
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -96,17 +99,17 @@ public class DebeziumIOPostgresSqlConnectorIT {
                 .via(
                     num ->
                         Row.withSchema(TABLE_SCHEMA)
-                            .withFieldValue("id", Long.valueOf(num).intValue())
+                            .withFieldValue(
+                                "id",
+                                // We need this tricky conversion because the original "customers"
+                                // table already
+                                // contains rows 1001, 1002, 1003, 1004.
+                                num <= 1000
+                                    ? Long.valueOf(num).intValue()
+                                    : Long.valueOf(num).intValue() + 4)
                             .withFieldValue("first_name", Long.toString(num))
                             .withFieldValue("last_name", Long.toString(WRITE_SIZE - num))
                             .withFieldValue("email", Long.toString(num) + "@beamail.com")
-                            //                            .withFieldValue("name",
-                            // Long.toString(num))
-                            //                            .withFieldValue("age", num % 100)
-                            //                            .withFieldValue("temperature", num /
-                            // 100.0)
-                            //                            .withFieldValue("distance", num * 1000.0)
-                            //                            .withFieldValue("birthYear", num)
                             // TODO(pabloem): Add other data types
                             .build()))
         .setRowSchema(TABLE_SCHEMA)
@@ -120,7 +123,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
     PCollection<Row> result =
         PCollectionRowTuple.empty(readPipeline)
             .apply(
-                new DebeziumReadSchemaTransformProvider(true, 1004)
+                new DebeziumReadSchemaTransformProvider(true, WRITE_SIZE + 4, TEST_TIME)
                     .from(
                         DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration
                             .builder()
@@ -135,14 +138,24 @@ public class DebeziumIOPostgresSqlConnectorIT {
             .get("output");
 
     PAssert.that(result)
-        .satisfies(rows -> {
-          assert Lists.newArrayList(rows).size() == 1004;
-          return null;
-        });
+        .satisfies(
+            rows -> {
+              assertThat(
+                  Lists.newArrayList(rows).stream()
+                      .map(row -> row.getInt32("id"))
+                      .collect(Collectors.toList()),
+                  containsInAnyOrder(
+                      IntStream.range(0, WRITE_SIZE + 4).boxed().collect(Collectors.toList())));
+              assertThat(Lists.newArrayList(rows).size(), equalTo(WRITE_SIZE + 4));
+              return null;
+            });
+    Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());
+    Thread readThread = new Thread(() -> readPipeline.run().waitUntilFinish());
+    writeThread.start();
+    readThread.start();
 
-    PipelineResult writeResult = writePipeline.run();
-    readPipeline.run().waitUntilFinish();
-    writeResult.waitUntilFinish();
+    writeThread.join();
+    readThread.join();
   }
 
   /**

@@ -46,15 +46,17 @@ public class DebeziumReadSchemaTransformProvider
       LoggerFactory.getLogger(DebeziumReadSchemaTransformProvider.class);
   private final Boolean isTest;
   private final Integer testLimitRecords;
+  private final Integer testLimitMilliseconds;
 
   DebeziumReadSchemaTransformProvider() {
-    this(false, 0);
+    this(false, null, null);
   }
 
   @VisibleForTesting
-  DebeziumReadSchemaTransformProvider(Boolean isTest, Integer recordLimit) {
+  DebeziumReadSchemaTransformProvider(Boolean isTest, Integer recordLimit, Integer timeLimitMs) {
     this.isTest = isTest;
     this.testLimitRecords = recordLimit;
+    this.testLimitMilliseconds = timeLimitMs;
   }
 
   @Override
@@ -123,7 +125,10 @@ public class DebeziumReadSchemaTransformProvider
                 DebeziumIO.<Row>read().withConnectorConfiguration(connectorConfiguration);
 
             if (isTest) {
-              readTransform = readTransform.withMaxNumberOfRecords(testLimitRecords);
+              readTransform =
+                  readTransform
+                      .withMaxNumberOfRecords(testLimitRecords)
+                      .withMaxTimeToRun(testLimitMilliseconds);
             }
 
             // TODO(pabloem): Database connection issues can be debugged here.

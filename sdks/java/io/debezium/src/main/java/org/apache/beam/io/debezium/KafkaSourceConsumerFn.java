@@ -78,7 +78,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   private final Class<? extends SourceConnector> connectorClass;
   private final SourceRecordMapper<T> fn;
 
-  private long minutesToRun = -1;
+  private Integer milisecondsToRun = -1;
   private Integer maxRecords;
 
   private static DateTime startTime;
@@ -90,12 +90,17 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    *
    * @param connectorClass Supported Debezium connector class
    * @param fn a SourceRecordMapper
-   * @param minutesToRun Maximum time to run (in minutes)
+   * @param milisecondsToRun Maximum time to run (in milliseconds)
    */
-  KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, long minutesToRun) {
+  KafkaSourceConsumerFn(
+      Class<?> connectorClass,
+      SourceRecordMapper<T> fn,
+      Integer maxRecords,
+      Integer milisecondsToRun) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
-    this.minutesToRun = minutesToRun;
+    this.maxRecords = maxRecords;
+    this.milisecondsToRun = milisecondsToRun;
   }
 
   /**
@@ -114,7 +119,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   public OffsetHolder getInitialRestriction(@Element Map<String, String> unused)
       throws IOException {
     KafkaSourceConsumerFn.startTime = new DateTime();
-    return new OffsetHolder(null, null, null, this.maxRecords, this.minutesToRun);
+    return new OffsetHolder(null, null, null, this.maxRecords, this.milisecondsToRun);
   }
 
   @NewTracker
@@ -218,7 +223,12 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       task.stop();
     }
 
-    return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
+    long elapsedTime = System.currentTimeMillis() - KafkaSourceConsumerFn.startTime.getMillis();
+    if (milisecondsToRun != null && elapsedTime >= milisecondsToRun) {
+      return ProcessContinuation.stop();
+    } else {
+      return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
+    }
   }
 
   public String getHashCode() {
@@ -274,10 +284,10 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   }
 
   static class OffsetHolder implements Serializable {
-    public final @Nullable Map<String, ?> offset;
-    public final @Nullable List<?> history;
-    public final @Nullable Integer fetchedRecords;
-    public final @Nullable Integer maxRecords;
+    public @Nullable Map<String, ?> offset;
+    public @Nullable List<?> history;
+    public @Nullable Integer fetchedRecords;
+    public @Nullable Integer maxRecords;
     public final long minutesToRun;
 
     OffsetHolder(
@@ -339,13 +349,8 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
           "-------------- Time running: {} / {}",
           elapsedTime,
           (this.restriction.minutesToRun * MILLIS));
-      this.restriction =
-          new OffsetHolder(
-              position,
-              this.restriction.history,
-              fetchedRecords,
-              this.restriction.maxRecords,
-              this.restriction.minutesToRun);
+      this.restriction.offset = position;
+      this.restriction.fetchedRecords = fetchedRecords;
       LOG.debug("-------------- History: {}", this.restriction.history);
 
       if (this.restriction.maxRecords == null && this.restriction.minutesToRun == -1) {
@@ -375,7 +380,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
     @Override
     public IsBounded isBounded() {
-      return IsBounded.BOUNDED;
+      return IsBounded.UNBOUNDED;
     }
   }
 
