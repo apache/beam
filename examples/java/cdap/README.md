@@ -21,4 +21,7 @@ This directory contains set of [Apache Beam](https://beam.apache.org/) pipeline 
 from a [CDAP plugin](https://github.com/data-integrations) and write data into .txt file (and vice versa).
 
 Supported CDAP plugins:
-- [ServiceNow](https://github.com/data-integrations/servicenow-plugins)
+- [ServiceNow](https://github.com/data-integrations/servicenow-plugins). More info in the ServiceNow example [README](servicenow/src/main/java/org/apache/beam/examples/complete/cdap/servicenow/README.md).
+- [Salesforce](https://github.com/data-integrations/salesforce)
+- [Hubspot](https://github.com/data-integrations/hubspot)
+- [Zendesk](https://github.com/data-integrations/zendesk)
