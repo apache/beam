@@ -113,7 +113,6 @@ func addNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) 
 			}
 		}
 		coder.ComponentCoderIds = updatedComponentCoderIDs
-
 	}
 
 	sourceName := t.UniqueName
