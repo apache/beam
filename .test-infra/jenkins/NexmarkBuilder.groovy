@@ -185,6 +185,15 @@ class NexmarkBuilder {
     InfluxDBCredentialsHelper.useCredentials(context)
 
     for (int i = 0; i <= 12; i ++) {
+      if (
+      // https://github.com/apache/beam/issues/24678
+      i == 1 ||
+      // https://github.com/apache/beam/issues/24679
+      i == 4 || i == 6 || i == 9 ||
+      // https://github.com/apache/beam/issues/24680
+      i == 12) {
+        continue
+      }
       pythonTest(context, title, i, runner, sdk, options)
     }
   }
