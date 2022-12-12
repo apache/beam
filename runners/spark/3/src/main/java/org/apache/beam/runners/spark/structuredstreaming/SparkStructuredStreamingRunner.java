@@ -28,9 +28,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
-import org.apache.beam.runners.spark.structuredstreaming.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetricSource;
-import org.apache.beam.runners.spark.structuredstreaming.metrics.CompositeSource;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.structuredstreaming.translation.EvaluationContext;
@@ -152,12 +149,8 @@ public final class SparkStructuredStreamingRunner
     PipelineTranslator.detectStreamingMode(pipeline, options);
     checkArgument(!options.isStreaming(), "Streaming is not supported.");
 
-    // clear state of Aggregators, Metrics and Watermarks if exists.
-    AggregatorsAccumulator.clear();
-    MetricsAccumulator.clear();
-
     final SparkSession sparkSession = SparkSessionFactory.getOrCreateSession(options);
-    initAccumulators(sparkSession.sparkContext());
+    initMetrics(sparkSession.sparkContext());
 
     final Future<?> submissionFuture =
         runAsync(() -> translatePipeline(sparkSession, pipeline).evaluate());
@@ -204,24 +197,17 @@ public final class SparkStructuredStreamingRunner
 
   private void registerMetricsSource(String appName) {
     final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
-    final AggregatorMetricSource aggregatorMetricSource =
-        new AggregatorMetricSource(null, AggregatorsAccumulator.getInstance().value());
-    final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(null);
-    final CompositeSource compositeSource =
-        new CompositeSource(
-            appName + ".Beam",
-            metricsSource.metricRegistry(),
-            aggregatorMetricSource.metricRegistry());
+    final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(appName + ".Beam");
     // re-register the metrics in case of context re-use
-    metricsSystem.removeSource(compositeSource);
-    metricsSystem.registerSource(compositeSource);
+    metricsSystem.removeSource(metricsSource);
+    metricsSystem.registerSource(metricsSource);
   }
 
   /** Init Metrics/Aggregators accumulators. This method is idempotent. */
-  private static void initAccumulators(SparkContext sparkContext) {
-    // Init metrics accumulators
+  private static void initMetrics(SparkContext sparkContext) {
+    // Clear and init metrics accumulators
+    MetricsAccumulator.clear();
     MetricsAccumulator.init(sparkContext);
-    AggregatorsAccumulator.init(sparkContext);
   }
 
   private static Future<?> runAsync(Runnable task) {
