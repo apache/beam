@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.Watch.Growth.eitherOf;
 import static org.apache.beam.sdk.transforms.Watch.Growth.never;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.joda.time.Duration.standardSeconds;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
