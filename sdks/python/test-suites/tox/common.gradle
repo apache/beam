@@ -18,7 +18,7 @@
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 
-def posargs = project.findProperty("posargs")
+def posargs = project.findProperty("posargs") ?: ""
 
 toxTask "testPython${pythonVersionSuffix}", "py${pythonVersionSuffix}", "${posargs}"
 test.dependsOn "testPython${pythonVersionSuffix}"
