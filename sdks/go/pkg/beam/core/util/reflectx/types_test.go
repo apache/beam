@@ -23,7 +23,7 @@ import (
 func TestIsNumber(t *testing.T) {
 	i := 4
 	tests := []struct {
-		val interface{}
+		val any
 		out bool
 	}{
 		{
@@ -107,7 +107,7 @@ func TestIsNumber(t *testing.T) {
 func TestIsInteger(t *testing.T) {
 	i := 4
 	tests := []struct {
-		val interface{}
+		val any
 		out bool
 	}{
 		{
@@ -191,7 +191,7 @@ func TestIsInteger(t *testing.T) {
 func TestIsFloat(t *testing.T) {
 	i := 4
 	tests := []struct {
-		val interface{}
+		val any
 		out bool
 	}{
 		{
@@ -275,7 +275,7 @@ func TestIsFloat(t *testing.T) {
 func TestIsComplex(t *testing.T) {
 	i := 4
 	tests := []struct {
-		val interface{}
+		val any
 		out bool
 	}{
 		{
@@ -359,7 +359,7 @@ func TestIsComplex(t *testing.T) {
 func TestSkipPtr(t *testing.T) {
 	i := 4
 	tests := []struct {
-		val interface{}
+		val any
 		out reflect.Type
 	}{
 		{
@@ -395,7 +395,7 @@ func TestMakeSlice(t *testing.T) {
 	}
 }
 
-type typeWrapper interface{}
+type typeWrapper any
 
 func TestUnderlyingType(t *testing.T) {
 	wrapper := typeWrapper("test")

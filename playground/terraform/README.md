@@ -18,6 +18,7 @@
 -->
 # Playground deployment on GCP
 This guide shows you how to deploy full Playground environment on Google Cloud Platform (GCP) environment.
+Alternatively, you can automate Playground environment deployment with Cloud Build as described in [readme](infrastructure/cloudbuild-manual-setup/README.md).
 
 ## Prerequisites:
 
@@ -67,7 +68,6 @@ gke_name             = "playground-backend"  #Playground GKE Cluster name
 region               = "us-east1"            #Set the deployment region
 location             = "us-east1-b"          #Select the deployment location from available in the specified region
 state_bucket         = "bucket_name"         #GCS bucket name for Beam Playground temp files
-bucket_examples_name = "bucket_name-example" #GCS bucket name for Playground examples storage
 ```
 * `state.tfbackend` environment variables:
 ```

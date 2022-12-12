@@ -85,6 +85,9 @@ dependencies {
     // "kafka-clients" has to be provided since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
+  // everit_json is needed for Kafka Read SchemaTransform tests that rely on JSON-schema translation.
+  permitUnusedDeclared library.java.everit_json_schema
+  provided library.java.everit_json_schema
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":sdks:java:io:synthetic")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")

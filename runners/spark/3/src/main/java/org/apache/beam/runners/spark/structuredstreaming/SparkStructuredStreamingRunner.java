@@ -18,10 +18,13 @@
 package org.apache.beam.runners.spark.structuredstreaming;
 
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
@@ -36,13 +39,13 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.SparkSessio
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.SparkContext;
 import org.apache.spark.SparkEnv$;
@@ -81,6 +84,7 @@ import org.slf4j.LoggerFactory;
  * PipelineResult result = p.run();
  * }</pre>
  */
+@Experimental
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -145,29 +149,22 @@ public final class SparkStructuredStreamingRunner
             + " https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html\n"
             + " It is still experimental, its coverage of the Beam model is partial. ***");
 
+    PipelineTranslator.detectStreamingMode(pipeline, options);
+    checkArgument(!options.isStreaming(), "Streaming is not supported.");
+
     // clear state of Aggregators, Metrics and Watermarks if exists.
     AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
 
-    final EvaluationContext evaluationContext = translatePipeline(pipeline);
+    final SparkSession sparkSession = SparkSessionFactory.getOrCreateSession(options);
+    initAccumulators(sparkSession.sparkContext());
 
-    final ExecutorService executorService =
-        Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalSpark-thread").build());
     final Future<?> submissionFuture =
-        executorService.submit(
-            () -> {
-              // TODO initialise other services: checkpointing, metrics system, listeners, ...
-              evaluationContext.evaluate();
-            });
-    executorService.shutdown();
+        runAsync(() -> translatePipeline(sparkSession, pipeline).evaluate());
 
-    Runnable onTerminalState =
-        options.getUseActiveSparkSession()
-            ? () -> {}
-            : () -> evaluationContext.getSparkSession().stop();
-    SparkStructuredStreamingPipelineResult result =
-        new SparkStructuredStreamingPipelineResult(submissionFuture, onTerminalState);
+    final SparkStructuredStreamingPipelineResult result =
+        new SparkStructuredStreamingPipelineResult(
+            submissionFuture, stopSparkSession(sparkSession, options.getUseActiveSparkSession()));
 
     if (options.getEnableSparkMetricSinks()) {
       registerMetricsSource(options.getAppName());
@@ -185,11 +182,7 @@ public final class SparkStructuredStreamingRunner
     return result;
   }
 
-  private EvaluationContext translatePipeline(Pipeline pipeline) {
-    PipelineTranslator.detectStreamingMode(pipeline, options);
-    Preconditions.checkArgument(
-        !options.isStreaming(), "%s does not support streaming pipelines.", getClass().getName());
-
+  private EvaluationContext translatePipeline(SparkSession sparkSession, Pipeline pipeline) {
     // Default to using the primitive versions of Read.Bounded and Read.Unbounded for non-portable
     // execution.
     // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
@@ -204,9 +197,6 @@ public final class SparkStructuredStreamingRunner
 
     PipelineTranslator.replaceTransforms(pipeline, options);
     prepareFilesToStage(options);
-
-    final SparkSession sparkSession = SparkSessionFactory.getOrCreateSession(options);
-    initAccumulators(sparkSession.sparkContext());
 
     PipelineTranslator pipelineTranslator = new PipelineTranslatorBatch();
     return pipelineTranslator.translate(pipeline, sparkSession, options);
@@ -228,9 +218,25 @@ public final class SparkStructuredStreamingRunner
   }
 
   /** Init Metrics/Aggregators accumulators. This method is idempotent. */
-  public static void initAccumulators(SparkContext sparkContext) {
+  private static void initAccumulators(SparkContext sparkContext) {
     // Init metrics accumulators
     MetricsAccumulator.init(sparkContext);
     AggregatorsAccumulator.init(sparkContext);
+  }
+
+  private static Future<?> runAsync(Runnable task) {
+    ThreadFactory factory =
+        new ThreadFactoryBuilder()
+            .setDaemon(true)
+            .setNameFormat("SparkStructuredStreamingRunner-thread")
+            .build();
+    ExecutorService execService = Executors.newSingleThreadExecutor(factory);
+    Future<?> future = execService.submit(task);
+    execService.shutdown();
+    return future;
+  }
+
+  private static @Nullable Runnable stopSparkSession(SparkSession session, boolean isProvided) {
+    return !isProvided ? () -> session.stop() : null;
   }
 }

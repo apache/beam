@@ -606,6 +606,7 @@ TBLPROPERTIES '{"format: "Excel"}'
         the field delimeter, quote character, record separator, and other properties.
         See the following table:
 
+<div class="table-container-wrapper">
 {{< table class="table-bordered" >}}
 | Value for `format` | Field delimiter | Quote | Record separator | Ignore empty lines? | Allow missing column names? |
 |--------------------|-----------------|-------|------------------|---------------------|-----------------------------|
@@ -615,6 +616,7 @@ TBLPROPERTIES '{"format: "Excel"}'
 | `tdf`              | `\t`            | `"`   | `\r\n`           | Yes                 | No                          |
 | `mysql`            | `\t`            | none  | `\n`             | No                  | No                          |
 {{< /table >}}
+</div>
 
 ### Read Mode
 

@@ -48,7 +48,7 @@ public final class BufferingStreamObserver<T extends @NonNull Object> implements
     }
 
     @Override
-    @SuppressWarnings("return.type.incompatible")
+    @SuppressWarnings("return")
     public synchronized @NonNull Throwable getCause() {
       return super.getCause();
     }
@@ -61,7 +61,7 @@ public final class BufferingStreamObserver<T extends @NonNull Object> implements
   private final Future<?> queueDrainer;
   private final int bufferSize;
 
-  @SuppressWarnings("methodref.receiver.bound.invalid")
+  @SuppressWarnings("methodref.receiver.bound")
   public BufferingStreamObserver(
       Phaser phaser,
       CallStreamObserver<T> outboundObserver,
