@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheStats;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -116,7 +117,8 @@ public class CachedSideInputReader implements SideInputReader {
   }
 
   /** Caching a singleton value, ignoring any key. */
-  private static class SingletonCache<K, V> implements Cache<K, V> {
+  private static class SingletonCache<K extends @NonNull Object, V extends @NonNull Object>
+      implements Cache<K, V> {
     private @Nullable V value;
 
     @Override

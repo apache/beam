@@ -24,42 +24,65 @@ import (
 	"beam.apache.org/playground/backend/internal/db/dto"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 var pcObjMapper = NewPrecompiledObjectMapper()
 var pcObjMapperCtx = context.Background()
 
 func TestPrecompiledObjectMapper_ToObjectInfo(t *testing.T) {
-	actualResult := pcObjMapper.ToObjectInfo(getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()))
-	if actualResult.Multifile != false ||
-		actualResult.DefaultExample != false ||
-		actualResult.Name != "MOCK_NAME" ||
-		actualResult.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME" ||
-		actualResult.Description != "MOCK_DESCR" ||
-		actualResult.PipelineOptions != "MOCK_OPTIONS" ||
-		actualResult.Link != "MOCK_PATH" ||
-		actualResult.ContextLine != 32 ||
-		len(actualResult.Categories) != 3 ||
-		actualResult.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-		actualResult.Sdk != pb.Sdk_SDK_JAVA {
-		t.Error("ToObjectInfo() unexpected result")
+	expected := &dto.ObjectInfo{
+		Name:            "MOCK_NAME",
+		CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME",
+		Description:     "MOCK_DESCR",
+		Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+		Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+		Categories:      []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
+		PipelineOptions: "MOCK_OPTIONS",
+		Link:            "MOCK_PATH",
+		Multifile:       false,
+		DefaultExample:  false,
+		ContextLine:     32,
+		Sdk:             pb.Sdk_SDK_JAVA,
+		Datasets: []*pb.Dataset{
+			{
+				Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+				Options:     map[string]string{"Topic": "MOCK_TOPIC"},
+				DatasetPath: "MOCK_PATH_0",
+			},
+		},
 	}
+	actualResult := pcObjMapper.ToObjectInfo(
+		getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()),
+	)
+	assert.Equal(t, expected, actualResult)
 }
 
 func TestPrecompiledObjectMapper_ToPrecompiledObj(t *testing.T) {
-	actualResult := pcObjMapper.ToPrecompiledObj(getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()))
-	if actualResult.Multifile != false ||
-		actualResult.DefaultExample != false ||
-		actualResult.Name != "MOCK_NAME" ||
-		actualResult.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME" ||
-		actualResult.Description != "MOCK_DESCR" ||
-		actualResult.PipelineOptions != "MOCK_OPTIONS" ||
-		actualResult.Link != "MOCK_PATH" ||
-		actualResult.ContextLine != 32 ||
-		actualResult.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-		actualResult.Sdk != pb.Sdk_SDK_JAVA {
-		t.Error("ToPrecompiledObj() unexpected result")
+	expected := &pb.PrecompiledObject{
+		Name:            "MOCK_NAME",
+		CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME",
+		Description:     "MOCK_DESCR",
+		Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+		Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+		PipelineOptions: "MOCK_OPTIONS",
+		Link:            "MOCK_PATH",
+		Multifile:       false,
+		DefaultExample:  false,
+		ContextLine:     32,
+		Sdk:             pb.Sdk_SDK_JAVA,
+		Datasets: []*pb.Dataset{
+			{
+				Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+				Options:     map[string]string{"Topic": "MOCK_TOPIC"},
+				DatasetPath: "MOCK_PATH_0",
+			},
+		},
 	}
+	actualResult := pcObjMapper.ToPrecompiledObj(
+		getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()),
+	)
+	assert.Equal(t, expected, actualResult)
 }
 
 func TestPrecompiledObjectMapper_ToDefaultPrecompiledObjects(t *testing.T) {
@@ -226,6 +249,15 @@ func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 			IsMain:   true,
 		}},
 		DefaultExampleName: defaultName,
+		Datasets: []*dto.DatasetDTO{
+			{
+				Path: "MOCK_PATH_0",
+				Config: map[string]string{
+					"Topic": "MOCK_TOPIC",
+				},
+				Emulator: pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+			},
+		},
 	}
 }
 

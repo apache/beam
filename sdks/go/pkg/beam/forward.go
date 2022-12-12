@@ -62,7 +62,7 @@ func init() {
 // and is needed for functions -- such as custom coders -- serialized during unit
 // tests, where the underlying symbol table is not available. It should be called
 // in `init()` only.
-func RegisterFunction(fn interface{}) {
+func RegisterFunction(fn any) {
 	runtime.RegisterFunction(fn)
 }
 
@@ -84,7 +84,7 @@ func RegisterFunction(fn interface{}) {
 //		    beam.RegisterDoFn(FunctionalDoFn)
 //		    beam.RegisterDoFn(reflect.TypeOf((*StructuralDoFn)(nil)).Elem())
 //	   }
-func RegisterDoFn(dofn interface{}) {
+func RegisterDoFn(dofn any) {
 	genx.RegisterDoFn(dofn)
 }
 
@@ -128,7 +128,7 @@ func RegisterInit(hook func()) {
 //	func(reflect.Type, []byte) (T, error)
 //
 // where T is the matching user type.
-func RegisterCoder(t reflect.Type, encoder, decoder interface{}) {
+func RegisterCoder(t reflect.Type, encoder, decoder any) {
 	runtime.RegisterType(t)
 	runtime.RegisterFunction(encoder)
 	runtime.RegisterFunction(decoder)

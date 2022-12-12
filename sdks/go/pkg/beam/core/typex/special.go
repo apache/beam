@@ -74,15 +74,21 @@ type BundleFinalization interface {
 	RegisterCallback(time.Duration, func() error)
 }
 
+// PaneTiming defines the pane timing in byte.
 type PaneTiming byte
 
 const (
-	PaneEarly   PaneTiming = 0
-	PaneOnTime  PaneTiming = 1
-	PaneLate    PaneTiming = 2
+	// PaneEarly defines early pane timing.
+	PaneEarly PaneTiming = 0
+	// PaneOnTime defines on-time pane timing.
+	PaneOnTime PaneTiming = 1
+	// PaneLate defines late pane timing.
+	PaneLate PaneTiming = 2
+	// PaneUnknown defines unknown pane timing.
 	PaneUnknown PaneTiming = 3
 )
 
+// PaneInfo represents the output pane.
 type PaneInfo struct {
 	Timing                     PaneTiming
 	IsFirst, IsLast            bool

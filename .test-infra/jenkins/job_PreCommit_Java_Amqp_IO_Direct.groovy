@@ -16,5 +16,26 @@
  * limitations under the License.
  */
 
-/** Provides internal utilities for implementing Beam aggregators using Spark accumulators. */
-package org.apache.beam.runners.spark.aggregators;
+import PrecommitJobBuilder
+
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Java_Amqp_IO_Direct',
+    gradleTasks: [
+      ':sdks:java:io:amqp:build',
+    ],
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true'
+    ], // spotless checked in separate pre-commit
+    triggerPathPatterns: [
+      '^sdks/java/core/src/main/.*$',
+      '^sdks/java/io/amqp/.*$',
+    ],
+    timeoutMins: 60,
+    )
+builder.build {
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+}
