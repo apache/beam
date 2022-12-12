@@ -30,9 +30,9 @@ import (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*sklearnConfig)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*runInferenceConfig)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*argsStruct)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*sklearnKwargs)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*sklearn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*PredictionResult)(nil)).Elem())
 }
 
@@ -44,24 +44,23 @@ type PredictionResult struct {
 	Inference int32   `beam:"inference"`
 }
 
-type sklearnConfig struct {
-	kwargs        sklearnKwargs
+type runInferenceConfig struct {
 	args          argsStruct
 	expansionAddr string
 }
 
-type sklearnConfigOption func(*sklearnConfig)
+type runInferenceOption func(*runInferenceConfig)
 
-// WithArgs set arguments for the sklearn inference transform parameters
-func WithArgs(args []string) sklearnConfigOption {
-	return func(c *sklearnConfig) {
+// WithArgs set arguments for the RunInference transform parameters.
+func WithArgs(args []string) runInferenceOption {
+	return func(c *runInferenceConfig) {
 		c.args.args = append(c.args.args, args...)
 	}
 }
 
 // WithExpansionAddr provides URL for Python expansion service.
-func WithExpansionAddr(expansionAddr string) sklearnConfigOption {
-	return func(c *sklearnConfig) {
+func WithExpansionAddr(expansionAddr string) runInferenceOption {
+	return func(c *runInferenceConfig) {
 		c.expansionAddr = expansionAddr
 	}
 }
@@ -70,34 +69,56 @@ type argsStruct struct {
 	args []string
 }
 
-// sklearnKwargs defines acceptable keyword args for Sklearn Model Handler.
-type sklearnKwargs struct {
+// sklearn configures the parameters for the sklearn inference transform.
+type sklearn struct {
 	// ModelHandlerProvider defines the model handler to be used.
 	ModelHandlerProvider python.CallableSource `beam:"model_handler_provider"`
 	// ModelURI indicates the model path to be used for Sklearn Model Handler.
 	ModelURI string `beam:"model_uri"`
 }
 
-// Sklearn provides inference over a SklearnModelHandler.
-// ModelURI is the required parameter indicating the path to the sklearn model.
-// This wrapper doesn't work for keyed input PCollection.
-//
-// Example:
-//
-//		inputRow := [][]int64{{0, 0}, {1, 1}}
-//	    input := beam.CreateList(s, inputRow)
-//	    modelURI = gs://example.com/tmp/staged/sklearn_model
-//		predictions := inference.Sklearn(s, modelURI, input, inference.WithExpansionAddr(expansionAddr))
-func Sklearn(s beam.Scope, modelUri string, col beam.PCollection, opts ...sklearnConfigOption) beam.PCollection {
-	s.Scope("xlang.inference.Sklearn")
+// sklearnConfig could be used to configre other optional parameters in future if necessary.
+type sklearnConfig func(*sklearn)
 
-	cfg := sklearnConfig{}
+// SklearnModel configures the parameters required to perform RunInference transform
+// on Sklearn Model. It returns an sklearn object which should be used to call
+// RunInference transform.
+// ModelURI is the required parameter indicating the path to the sklearn model.
+//
+//	Example:
+//	  modelURI := "gs://storage/model"
+//	  model := inference.SklearnModel(modelURI)
+//	  prediction := model.RunInference(s, input, inference.WithExpansionAddr("localhost:9000"))
+func SklearnModel(modelURI string, opts ...sklearnConfig) sklearn {
+	sm := sklearn{
+		ModelHandlerProvider: python.CallableSource("apache_beam.ml.inference.sklearn_inference.SklearnModelHandlerNumpy"),
+		ModelURI:             modelURI,
+	}
+	for _, opt := range opts {
+		opt(&sm)
+	}
+	return sm
+}
+
+// RunInference transforms the input pcollection by calling RunInference in Python SDK
+// using Sklearn Model Handler with python expansion service.
+// ExpansionAddress can be provided by using inference.WithExpansionAddr(address).
+// NOTE: This wrapper doesn't work for keyed input PCollection.
+//
+//	  Example:
+//			inputRow := [][]int64{{0, 0}, {1, 1}}
+//		    input := beam.CreateList(s, inputRow)
+//		    modelURI = gs://example.com/tmp/staged/sklearn_model
+//	        model := inference.SklearnModel(modelURI)
+//	        prediction := model.RunInference(s, input, inference.WithExpansionAddr("localhost:9000"))
+func (sk sklearn) RunInference(s beam.Scope, col beam.PCollection, opts ...runInferenceOption) beam.PCollection {
+	s.Scope("xlang.inference.sklearn.RunInference")
+
+	cfg := runInferenceConfig{}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	cfg.kwargs.ModelHandlerProvider = python.CallableSource("apache_beam.ml.inference.sklearn_inference.SklearnModelHandlerNumpy")
-	cfg.kwargs.ModelURI = modelUri
-	return runInference[sklearnKwargs](s, col, cfg.args, cfg.kwargs, cfg.expansionAddr)
+	return runInference[sklearn](s, col, cfg.args, sk, cfg.expansionAddr)
 }
 
 func runInference[Kwargs any](s beam.Scope, col beam.PCollection, a argsStruct, k Kwargs, addr string) beam.PCollection {

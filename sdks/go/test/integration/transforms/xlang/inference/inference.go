@@ -39,7 +39,7 @@ func SklearnInference(expansionAddr string) *beam.Pipeline {
 			Inference: 1,
 		},
 	}
-	outCol := inference.Sklearn(s, "/tmp/staged/sklearn_model", input, inference.WithExpansionAddr(expansionAddr))
+	outCol := inference.SklearnModel("/tmp/staged/sklearn_model").RunInference(s, input, inference.WithExpansionAddr(expansionAddr))
 	passert.Equals(s, outCol, output[0], output[1])
 	return p
 }
