@@ -2430,8 +2430,8 @@ class CombineGlobally(PTransform):
     if self.fanout:
       combine_per_key = combine_per_key.with_hot_key_fanout(self.fanout)
 
-    def print_and_pass(phrase):
-      print(phrase)
+    def print_and_pass(title, phrase):
+      _LOGGER.warning("%r = %s", title, repr(phrase))
       return phrase
 
     combined = (
@@ -2440,8 +2440,8 @@ class CombineGlobally(PTransform):
             ParDo(_KeyWithNone()).with_output_types(
                 typehints.KV[None, pcoll.element_type]))
         | 'CombinePerKey' >> combine_per_key
-        | 'UnKey' >> Map(lambda k_v: k_v[1])
-        | Map(print_and_pass))
+        | Map(print_and_pass, "PerKeyOutput")
+        | 'UnKey' >> Map(lambda k_v: k_v[1]))
 
     if not self.has_defaults and not self.as_view:
       return combined
