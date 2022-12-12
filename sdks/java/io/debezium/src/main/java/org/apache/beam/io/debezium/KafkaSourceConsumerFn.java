@@ -275,7 +275,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     }
 
     long elapsedTime = System.currentTimeMillis() - KafkaSourceConsumerFn.startTime.getMillis();
-    if (milisecondsToRun != null && elapsedTime >= milisecondsToRun) {
+    if (milisecondsToRun != null && milisecondsToRun > 0 && elapsedTime >= milisecondsToRun) {
       return ProcessContinuation.stop();
     } else {
       return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));

@@ -80,8 +80,8 @@ public class DebeziumIOMySqlConnectorIT {
   public static DataSource getMysqlDatasource(Void unused) {
     HikariConfig hikariConfig = new HikariConfig();
     hikariConfig.setJdbcUrl(MY_SQL_CONTAINER.getJdbcUrl());
-    hikariConfig.setUsername(MY_SQL_CONTAINER.getUsername());
-    hikariConfig.setPassword(MY_SQL_CONTAINER.getPassword());
+    hikariConfig.setUsername("debezium");
+    hikariConfig.setPassword("dbz");
     hikariConfig.setDriverClassName(MY_SQL_CONTAINER.getDriverClassName());
     return new HikariDataSource(hikariConfig);
   }
