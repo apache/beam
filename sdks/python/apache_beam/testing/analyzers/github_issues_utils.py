@@ -51,7 +51,11 @@ _ISSUE_TITLE_TEMPLATE = """
 # TODO: Provide a better debugging tool for the user to visualize metrics.
 # For example, a link to dashboards or query to get recent data to analyze,etc.
 _ISSUE_DESCRIPTION_TEMPLATE = """
-  Performance change found in the test: `{}` for the metric: `{}`.
+  Performance change found in the
+  test: `{}` for the metric: `{}`.
+
+  For more information on how to triage the alerts, please look at
+   `Triage performance alert issues` section of the README.
 """
 _METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: `{}`"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'

@@ -16,7 +16,7 @@
 #
 
 test_1:
-  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks_16
+  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks_22
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
   project: apache-beam-testing
@@ -25,7 +25,7 @@ test_1:
     - run-inference
   # TODO: Remove before merging.
   min_runs_between_change_points: 5
-  num_runs_in_change_point_window: 14
+  num_runs_in_change_point_window: 30
 
 test_2:
   test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
