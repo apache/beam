@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.options;
+package org.apache.beam.examples.complete.cdap.servicenow.options;
 
+import org.apache.beam.examples.complete.cdap.options.BaseCdapOptions;
+import org.apache.beam.examples.complete.cdap.servicenow.CdapServiceNowToTxt;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
 /**
  * The {@link CdapServiceNowOptions} interface provides the custom execution options passed by the
- * executor at the command-line for {@link
- * org.apache.beam.examples.complete.cdap.CdapServiceNowToTxt} example.
+ * executor at the command-line for {@link CdapServiceNowToTxt} example.
  */
 public interface CdapServiceNowOptions extends BaseCdapOptions {
 

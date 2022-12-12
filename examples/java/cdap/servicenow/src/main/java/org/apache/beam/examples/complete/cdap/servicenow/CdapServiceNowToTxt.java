@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap;
+package org.apache.beam.examples.complete.cdap.servicenow;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapServiceNowOptions;
-import org.apache.beam.examples.complete.cdap.transforms.FormatInputTransform;
-import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
+import org.apache.beam.examples.complete.cdap.servicenow.options.CdapServiceNowOptions;
+import org.apache.beam.examples.complete.cdap.servicenow.transforms.FormatInputTransform;
+import org.apache.beam.examples.complete.cdap.servicenow.utils.PluginConfigOptionsConverter;
 import org.apache.beam.examples.complete.cdap.utils.StructuredRecordUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  *
  * This task allows to run the pipeline via the following command:
  * {@code
- * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.CdapServiceNowToTxt \
+ * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.servicenow.CdapServiceNowToTxt \
  *      -Dexec.args="--<argument>=<value> --<argument>=<value>"
  * }
  *

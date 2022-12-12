@@ -26,15 +26,13 @@ plugins {
 
 applyJavaNature(
         exportJavadoc: false,
-        automaticModuleName: 'org.apache.beam.examples.complete.cdap',
+        automaticModuleName: 'org.apache.beam.examples.complete.cdap.servicenow',
 )
-provideIntegrationTestingDependencies()
-enableJavaPerformanceTesting()
 
-description = "Apache Beam :: Examples :: Java :: CDAP "
+description = "Apache Beam :: Examples :: Java :: CDAP :: ServiceNow"
 ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for processing virtually any size data. This
-artifact includes CDAP Apache Beam Java SDK examples."""
+artifact includes CDAP ServiceNow Apache Beam Java SDK examples."""
 
 /** Define the list of runners which execute a precommit test.
  * Some runners are run from separate projects, see the preCommit task below
@@ -48,27 +46,25 @@ for (String runner : preCommitRunners) {
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":examples:java:cdap")
     implementation project(":sdks:java:io:cdap")
     implementation project(":sdks:java:io:hadoop-common")
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
     implementation library.java.cdap_etl_api
+    permitUnusedDeclared library.java.cdap_etl_api
     implementation library.java.cdap_hydrator_common
     implementation library.java.cdap_plugin_service_now
-    implementation library.java.google_code_gson
     implementation library.java.hadoop_common
     implementation library.java.slf4j_api
     implementation library.java.vendored_guava_26_0_jre
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation library.java.hamcrest
-    testImplementation library.java.junit
 
     // Add dependencies for the PreCommit configurations
     // For each runner a project level dependency on the examples project.
     for (String runner : preCommitRunners) {
-        delegate.add(runner + "PreCommit", project(":examples:java:cdap"))
-        delegate.add(runner + "PreCommit", project(path: ":examples:java:cdap", configuration: "testRuntimeMigration"))
+        delegate.add(runner + "PreCommit", project(":examples:java:cdap:servicenow"))
+        delegate.add(runner + "PreCommit", project(path: ":examples:java:cdap:servicenow", configuration: "testRuntimeMigration"))
     }
     directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
     flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")

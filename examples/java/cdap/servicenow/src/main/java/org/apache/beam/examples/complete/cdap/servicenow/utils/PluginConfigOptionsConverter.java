@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.utils;
+package org.apache.beam.examples.complete.cdap.servicenow.utils;
 
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.servicenow.source.util.ServiceNowConstants;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapServiceNowOptions;
+import org.apache.beam.examples.complete.cdap.servicenow.options.CdapServiceNowOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
