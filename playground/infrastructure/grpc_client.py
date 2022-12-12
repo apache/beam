@@ -50,7 +50,7 @@ class GRPCClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._channel.__aexit__(exc_type, exc_val, exc_tb)
 
-    async def run_code(self, code: str, sdk: api_pb2.Sdk, pipeline_options: str, datasets: List[api_pb2.Dataset]) -> str:
+    async def run_code(self, code: str, sdk: int, pipeline_options: str, datasets: List[api_pb2.Dataset]) -> str:
         """
         Run example by his code and SDK
 

@@ -26,8 +26,9 @@ from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA
 from config import Origin
 from datastore_client import DatastoreClient
 from grpc_client import GRPCClient
-from helper import Example, get_statuses
-from repository import set_dataset_path_for_examples
+from models import Example, SdkEnum
+from helper import get_statuses
+from repository import set_dataset_file_name
 
 
 class CDHelper:
@@ -36,10 +37,10 @@ class CDHelper:
 
     It is used to save beam examples/katas/tests and their output on the GCD.
     """
-    _sdk: Sdk
+    _sdk: SdkEnum
     _origin: Origin
 
-    def __init__(self, sdk: Sdk, origin: Origin):
+    def __init__(self, sdk: SdkEnum, origin: Origin):
         self._sdk = sdk
         self._origin = origin
 
@@ -51,7 +52,7 @@ class CDHelper:
         """
         single_file_examples = list(filter(
             lambda example: example.tag.multifile is False, examples))
-        set_dataset_path_for_examples(single_file_examples)
+        set_dataset_file_name(single_file_examples)
         logging.info("Start of executing only single-file Playground examples ...")
         asyncio.run(self._get_outputs(single_file_examples))
         logging.info("Finish of executing single-file Playground examples")
@@ -90,7 +91,7 @@ class CDHelper:
             except Exception as e:
                 logging.error(example.url_vcs)
                 logging.error(example.compile_output)
-                raise RuntimeError(f"error in {example.name}") from e
+                raise RuntimeError(f"error in {example.tag.name}") from e
 
         async with GRPCClient() as client:
             await get_statuses(client,

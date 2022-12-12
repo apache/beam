@@ -22,15 +22,15 @@ from typing import List
 
 from config import RepoProps
 
-from helper import Example
+from models import Example, DatasetLocation
 
 
-def set_dataset_path_for_examples(examples: List[Example]):
+def set_dataset_file_name(examples: List[Example]):
     for example in examples:
-        for dataset in example.datasets:
-            file_name = f"{dataset.name}.{dataset.format}"
-            dataset_path = os.path.join(RepoProps.REPO_DATASETS_PATH, file_name)
-            if not os.path.isfile(dataset_path):
-                logging.error("File not found at the specified path: %s", dataset_path)
-                raise FileNotFoundError
-            dataset.path = file_name
+        for dataset_id, dataset in example.tag.datasets.items():
+            dataset.file_name = f"{dataset_id}.{dataset.format}"
+            if dataset.location == DatasetLocation.LOCAL:
+                dataset_path = os.path.join(RepoProps.REPO_DATASETS_PATH, dataset.file_name)
+                if not os.path.isfile(dataset_path):
+                    logging.error("File not found at the specified path: %s", dataset_path)
+                    raise FileNotFoundError

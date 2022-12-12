@@ -15,8 +15,8 @@
 import mock
 import pytest
 
-from config import Dataset, RepoProps
-from repository import set_dataset_path_for_examples
+from models import Dataset, DatasetFormat, DatasetLocation
+from repository import set_dataset_file_name
 from test_utils import _get_examples
 
 """
@@ -27,27 +27,25 @@ Unit tests for the Cloud Storage client
 @mock.patch("os.path.isfile", return_value=True)
 def test_set_dataset_path_for_examples(mock_file_check):
     examples = _get_examples_with_datasets(3)
-    set_dataset_path_for_examples(examples)
+    set_dataset_file_name(examples)
     for example in examples:
-        assert example.datasets[0].path == "MOCK_NAME.MOCK_FORMAT"
+        assert len(example.tag.datasets) > 0
+        assert example.tag.datasets.popitem()[1].file_name == "MOCK_NAME.json"
 
 
 @mock.patch("os.path.isfile", return_value=False)
 def test_set_dataset_path_for_examples_when_path_is_invalid(mock_file_check):
     with pytest.raises(FileNotFoundError):
         examples = _get_examples_with_datasets(1)
-        set_dataset_path_for_examples(examples)
+        set_dataset_file_name(examples)
 
 
 def _get_examples_with_datasets(number_of_examples: int):
     examples = _get_examples(number_of_examples)
     for example in examples:
-        datasets = []
         dataset = Dataset(
-            format="MOCK_FORMAT",
-            location="MOCK_LOCATION",
-            name="MOCK_NAME"
+            format=DatasetFormat.JSON,
+            location=DatasetLocation.LOCAL,
         )
-        datasets.append(dataset)
-        example.datasets = datasets
+        example.tag.datasets["MOCK_NAME"] = dataset
     return examples

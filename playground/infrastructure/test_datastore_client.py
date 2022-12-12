@@ -18,10 +18,10 @@ from unittest.mock import MagicMock, ANY
 import mock
 import pytest
 from mock.mock import call
-from config import Origin
 
+from config import Origin
 from datastore_client import DatastoreClient, DatastoreException
-from api.v1.api_pb2 import SDK_JAVA
+from models import SdkEnum
 from test_utils import _get_examples
 
 """
@@ -44,7 +44,7 @@ def test_save_to_cloud_datastore_when_schema_version_not_found(
     ):
         examples = _get_examples(1)
         client = DatastoreClient()
-        client.save_to_cloud_datastore(examples, SDK_JAVA, Origin.PG_EXAMPLES)
+        client.save_to_cloud_datastore(examples, SdkEnum.JAVA, Origin.PG_EXAMPLES)
 
 
 def test_save_to_cloud_datastore_when_google_cloud_project_id_not_set():
@@ -88,7 +88,7 @@ def test_save_to_cloud_datastore_in_the_usual_case(
 
     examples = _get_examples(1)
     client = DatastoreClient()
-    client.save_to_cloud_datastore(examples, SDK_JAVA, origin)
+    client.save_to_cloud_datastore(examples, SdkEnum.JAVA, origin)
     mock_client.assert_called_once()
     mock_get_schema.assert_called_once()
     mock_get_examples.assert_called_once()

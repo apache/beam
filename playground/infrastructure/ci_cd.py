@@ -22,11 +22,12 @@ import logging
 import os
 from typing import List
 
+from models import SdkEnum, Example, StringToSdkEnum
 from config import Config, Origin
-from api.v1.api_pb2 import Sdk
+from api.v1 import api_pb2
 from cd_helper import CDHelper
 from ci_helper import CIHelper
-from helper import find_examples, get_supported_categories, Example, validate_examples_for_duplicates_by_name
+from helper import find_examples, load_supported_categories, validate_examples_for_duplicates_by_name
 from logger import setup_logger
 
 parser = argparse.ArgumentParser(
@@ -70,7 +71,7 @@ def _ci_step(examples: List[Example], origin: Origin):
     asyncio.run(ci_helper.verify_examples(examples, origin))
 
 
-def _cd_step(examples: List[Example], sdk: Sdk, origin: Origin):
+def _cd_step(examples: List[Example], sdk: SdkEnum, origin: Origin):
     """
     CD step to save all beam examples/tests/katas and their outputs on the GCD
     """
@@ -88,10 +89,10 @@ def _check_envs():
         )
 
 
-def _run_ci_cd(step: Config.CI_CD_LITERAL, sdk: Sdk, origin: Origin, subdirs: List[str]):
-    supported_categories = get_supported_categories(categories_file)
+def _run_ci_cd(step: Config.CI_CD_LITERAL, sdk: SdkEnum, origin: Origin, subdirs: List[str]):
+    load_supported_categories(categories_file)
     logging.info("Start of searching Playground examples ...")
-    examples = find_examples(root_dir, subdirs, supported_categories, sdk)
+    examples = find_examples(root_dir, subdirs, sdk)
     validate_examples_for_duplicates_by_name(examples)
     logging.info("Finish of searching Playground examples")
     logging.info("Number of found Playground examples: %s", len(examples))
@@ -111,4 +112,4 @@ if __name__ == "__main__":
     parser = parser.parse_args()
     _check_envs()
     setup_logger()
-    _run_ci_cd(parser.step, Sdk.Value(parser.sdk), parser.origin, parser.subdirs)
+    _run_ci_cd(parser.step, StringToSdkEnum(parser.sdk), parser.origin, parser.subdirs)

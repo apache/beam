@@ -57,7 +57,7 @@ class Config:
     ]
     BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
     BEAM_PLAYGROUND = "beam-playground"
-    PAUSE_DELAY = 10
+    PAUSE_DELAY = 1
     CI_STEP_NAME = "CI"
     CD_STEP_NAME = "CD"
     CI_CD_LITERAL = Literal["CI", "CD"]
@@ -99,15 +99,6 @@ class PrecompiledExampleType:
 
 
 @dataclass(frozen=True)
-class OptionalTagFields:
-    pipeline_options: str = "pipeline_options"
-    default_example: str = "default_example"
-    emulators: str = "emulators"
-    datasets: str = "datasets"
-    url_notebook: str = "url_notebook"
-
-
-@dataclass(frozen=True)
 class DatastoreProps:
     NAMESPACE = "Playground"
     KEY_NAME_DELIMITER = "_"
@@ -130,25 +121,3 @@ class Origin(str, Enum):
     TB_EXAMPLES = 'TB_EXAMPLES'
     TB_USER = 'TB_USER'
 
-
-@dataclass_json
-@dataclass
-class Dataset:
-    format: str
-    location: str
-    name: str = ""
-    path: str = ""
-
-
-@dataclass_json
-@dataclass
-class Topic:
-    id: str
-    dataset: str
-
-
-@dataclass_json
-@dataclass
-class Emulator:
-    topic: Topic
-    name: str = ""

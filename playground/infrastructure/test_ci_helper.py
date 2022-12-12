@@ -13,9 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import copy
-import uuid
-
 import mock
 import pytest
 
@@ -24,7 +21,6 @@ from api.v1.api_pb2 import SDK_JAVA, STATUS_FINISHED, STATUS_ERROR, \
     STATUS_COMPILE_ERROR, STATUS_RUN_ERROR
 from ci_helper import CIHelper, VerifyException
 from config import Origin
-from helper import Example, Tag
 
 
 @pytest.mark.asyncio
@@ -39,42 +35,11 @@ async def test_verify_examples(mock_get_statuses, mock_verify_examples):
 
 
 @pytest.mark.asyncio
-async def test__verify_examples():
+async def test__verify_examples(create_test_example):
     helper = CIHelper()
-    object_meta = {
-        "name": "name",
-        "description": "description",
-        "multifile": False,
-        "categories": ["category-1", "category-2"],
-        "pipeline_options": "--option option",
-        "default_example": False
-    }
-    object_meta_def_ex = copy.copy(object_meta)
-    object_meta_def_ex["default_example"] = True
-    pipeline_id = str(uuid.uuid4())
-    default_example = Example(
-        name="name",
-        complexity="MEDIUM",
-        pipeline_id=pipeline_id,
-        sdk=SDK_JAVA,
-        filepath="filepath",
-        code="code_of_example",
-        output="output_of_example",
-        status=STATUS_FINISHED,
-        tag=Tag(**object_meta_def_ex),
-        url_vcs="link")
-    finished_example = Example(
-        name="name",
-        complexity="MEDIUM",
-        pipeline_id=pipeline_id,
-        sdk=SDK_JAVA,
-        filepath="filepath",
-        code="code_of_example",
-        output="output_of_example",
-        status=STATUS_FINISHED,
-        tag=Tag(**object_meta),
-        url_vcs="link",
-        url_notebook="notebook_link")
+    default_example = create_test_example(tag_meta=dict(default_example=True))
+    finished_example = create_test_example(tag_meta=dict(default_example=True))
+    finished_example = create_test_example(status=STATUS_FINISHED)
     examples_without_def_ex = [
         finished_example,
         finished_example,
@@ -88,83 +53,12 @@ async def test__verify_examples():
         finished_example,
     ]
     examples_with_errors = [
-        Example(
-            name="name",
-            complexity="MEDIUM",
-            pipeline_id=pipeline_id,
-            sdk=SDK_JAVA,
-            filepath="filepath",
-            code="code_of_example",
-            output="output_of_example",
-            status=STATUS_VALIDATION_ERROR,
-            tag=Tag(**object_meta_def_ex),
-            url_vcs="link"),
-        Example(
-            name="name",
-            complexity="MEDIUM",
-            pipeline_id=pipeline_id,
-            sdk=SDK_JAVA,
-            filepath="filepath",
-            code="code_of_example",
-            output="output_of_example",
-            status=STATUS_ERROR,
-            tag=Tag(**object_meta),
-            url_vcs="link"),
-        Example(
-            name="name",
-            complexity="MEDIUM",
-            pipeline_id=pipeline_id,
-            sdk=SDK_JAVA,
-            filepath="filepath",
-            code="code_of_example",
-            output="output_of_example",
-            status=STATUS_COMPILE_ERROR,
-            tag=Tag(**object_meta),
-            url_vcs="link"),
-        Example(
-            name="name",
-            complexity="MEDIUM",
-            pipeline_id=pipeline_id,
-            sdk=SDK_JAVA,
-            filepath="filepath",
-            code="code_of_example",
-            output="output_of_example",
-            status=STATUS_PREPARATION_ERROR,
-            tag=Tag(**object_meta),
-            url_vcs="link"),
-        Example(
-            name="name",
-            complexity="MEDIUM",
-            pipeline_id=pipeline_id,
-            sdk=SDK_JAVA,
-            filepath="filepath",
-            code="code_of_example",
-            output="output_of_example",
-            status=STATUS_RUN_TIMEOUT,
-            tag=Tag(**object_meta),
-            url_vcs="link"),
-        Example(
-            name="name",
-            complexity="MEDIUM",
-            pipeline_id=pipeline_id,
-            sdk=SDK_JAVA,
-            filepath="filepath",
-            code="code_of_example",
-            output="output_of_example",
-            status=STATUS_VALIDATION_ERROR,
-            tag=Tag(**object_meta),
-            url_vcs="link"),
-        Example(
-            name="name",
-            complexity="MEDIUM",
-            pipeline_id=pipeline_id,
-            sdk=SDK_JAVA,
-            filepath="filepath",
-            code="code_of_example",
-            output="output_of_example",
-            status=STATUS_RUN_ERROR,
-            tag=Tag(**object_meta),
-            url_vcs="link"),
+        create_test_example(status=STATUS_VALIDATION_ERROR),
+        create_test_example(status=STATUS_ERROR),
+        create_test_example(status=STATUS_COMPILE_ERROR),
+        create_test_example(status=STATUS_PREPARATION_ERROR),
+        create_test_example(status=STATUS_RUN_TIMEOUT),
+        create_test_example(status=STATUS_RUN_ERROR),
     ]
     client = mock.AsyncMock()
     with pytest.raises(VerifyException):
