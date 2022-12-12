@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -141,7 +142,17 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       SourceTask task = (SourceTask) connector.taskClass().getDeclaredConstructor().newInstance();
       task.initialize(new BeamSourceTaskContext(null));
       task.start(connector.taskConfigs(1).get(0));
-      List<SourceRecord> records = task.poll();
+      List<SourceRecord> records = Lists.newArrayList();
+      int loops = 0;
+      while (records.size() == 0) {
+        if (loops > 3) {
+          throw new RuntimeException("could not fetch database schema");
+        }
+        records = task.poll();
+        // Waiting for the Database snapshot to finish.
+        Thread.sleep(2000);
+        loops += 1;
+      }
       task.stop();
       connector.stop();
       return records.get(0);
@@ -150,8 +161,16 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
         | InvocationTargetException
         | IllegalAccessException
         | InstantiationException e) {
-      throw new RuntimeException("AI DIOS!");
+      throw new RuntimeException("Unexpected exception fetching database schema.", e);
     }
+  }
+
+  void register(RestrictionTracker<OffsetHolder, Map<String, Object>> tracker) {
+    restrictionTrackers.put(this.getHashCode(), tracker);
+  }
+
+  void reset() {
+    restrictionTrackers.remove(this.getHashCode());
   }
 
   /**
@@ -172,7 +191,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     Map<String, String> configuration = new HashMap<>(element);
 
     // Adding the current restriction to the class object to be found by the database history
-    restrictionTrackers.put(this.getHashCode(), tracker);
+    register(tracker);
     configuration.put(BEAM_INSTANCE_PROPERTY, this.getHashCode());
 
     SourceConnector connector = connectorClass.getDeclaredConstructor().newInstance();
@@ -217,14 +236,14 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     } catch (Exception ex) {
       throw new RuntimeException("Error occurred when consuming changes from Database. ", ex);
     } finally {
-      restrictionTrackers.remove(this.getHashCode());
+      reset();
 
       LOG.debug("------- Stopping SourceTask");
       task.stop();
     }
 
     long elapsedTime = System.currentTimeMillis() - KafkaSourceConsumerFn.startTime.getMillis();
-    if (milisecondsToRun != null && elapsedTime >= milisecondsToRun) {
+    if (milisecondsToRun != null && milisecondsToRun > 0 && elapsedTime >= milisecondsToRun) {
       return ProcessContinuation.stop();
     } else {
       return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));

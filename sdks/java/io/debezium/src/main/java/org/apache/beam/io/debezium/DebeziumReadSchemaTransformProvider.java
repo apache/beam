@@ -49,7 +49,7 @@ public class DebeziumReadSchemaTransformProvider
   private final Integer testLimitMilliseconds;
 
   DebeziumReadSchemaTransformProvider() {
-    this(false, null, null);
+    this(false, -1, Integer.MAX_VALUE);
   }
 
   @VisibleForTesting
@@ -106,9 +106,16 @@ public class DebeziumReadSchemaTransformProvider
                 connectorConfiguration
                     .withConnectionProperty("table.include.list", configuration.getTable())
                     .withConnectionProperty("include.schema.changes", "false")
-                    .withConnectionProperty("database.server.name", "beam-pipeline-server")
-                    .withConnectionProperty("database.dbname", "inventory")
-                    .withConnectionProperty("database.include.list", "inventory");
+                    .withConnectionProperty("database.server.name", "beam-pipeline-server");
+            if (configuration.getDatabase().equals("POSTGRES")) {
+              LOG.info(
+                  "As Database is POSTGRES, we set the `database.dbname` property to {}.",
+                  configuration.getTable().substring(0, configuration.getTable().indexOf(".")));
+              connectorConfiguration =
+                  connectorConfiguration.withConnectionProperty(
+                      "database.dbname",
+                      configuration.getTable().substring(0, configuration.getTable().indexOf(".")));
+            }
 
             final List<String> debeziumConnectionProperties =
                 configuration.getDebeziumConnectionProperties();

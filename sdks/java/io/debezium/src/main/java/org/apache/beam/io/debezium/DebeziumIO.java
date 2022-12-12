@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -221,12 +222,21 @@ public class DebeziumIO {
     }
 
     protected Schema getRecordSchema() {
-      SourceRecord sampledRecord =
+      KafkaSourceConsumerFn<T> fn =
           new KafkaSourceConsumerFn<>(
-                  getConnectorConfiguration().getConnectorClass().get(),
-                  getFormatFunction(),
-                  getMaxNumberOfRecords())
-              .getOneRecord(getConnectorConfiguration().getConfigurationMap());
+              getConnectorConfiguration().getConnectorClass().get(),
+              getFormatFunction(),
+              getMaxNumberOfRecords());
+      fn.register(
+          new KafkaSourceConsumerFn.OffsetTracker(
+              new KafkaSourceConsumerFn.OffsetHolder(null, null, 0)));
+
+      Map<String, String> connectorConfig =
+          Maps.newHashMap(getConnectorConfiguration().getConfigurationMap());
+      connectorConfig.put("snapshot.mode", "schema_only");
+      SourceRecord sampledRecord =
+          fn.getOneRecord(getConnectorConfiguration().getConfigurationMap());
+      fn.reset();
       Schema keySchema =
           sampledRecord.keySchema() != null
               ? KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.keySchema())

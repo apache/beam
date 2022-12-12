@@ -17,17 +17,29 @@
  */
 package org.apache.beam.io.debezium;
 
+import static org.apache.beam.io.debezium.DebeziumIOPostgresSqlConnectorIT.TABLE_SCHEMA;
 import static org.apache.beam.sdk.testing.SerializableMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import io.debezium.connector.mysql.MySqlConnector;
 import java.time.Duration;
+import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.jdbc.JdbcIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,6 +68,82 @@ public class DebeziumIOMySqlConnectorIT {
                   .forPort(3306)
                   .forStatusCodeMatching(response -> response == 200)
                   .withStartupTimeout(Duration.ofMinutes(2)));
+
+  public static DataSource getMysqlDatasource(Void unused) {
+    HikariConfig hikariConfig = new HikariConfig();
+    hikariConfig.setJdbcUrl(MY_SQL_CONTAINER.getJdbcUrl());
+    hikariConfig.setUsername("debezium");
+    hikariConfig.setPassword("dbz");
+    hikariConfig.setDriverClassName(MY_SQL_CONTAINER.getDriverClassName());
+    return new HikariDataSource(hikariConfig);
+  }
+
+  @Test
+  public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
+    int writeSize = 500;
+    int testTime = writeSize * 200;
+    MY_SQL_CONTAINER.start();
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline writePipeline = Pipeline.create(options);
+    writePipeline
+        .apply(
+            GenerateSequence.from(0)
+                .to(writeSize)
+                .withRate(10, org.joda.time.Duration.standardSeconds(1)))
+        .apply(
+            MapElements.into(TypeDescriptors.rows())
+                .via(
+                    num ->
+                        Row.withSchema(TABLE_SCHEMA)
+                            .withFieldValue(
+                                "id",
+                                // We need this tricky conversion because the original "customers"
+                                // table already
+                                // contains rows 1001, 1002, 1003, 1004.
+                                num <= 1000
+                                    ? Long.valueOf(num).intValue()
+                                    : Long.valueOf(num).intValue() + 4)
+                            .withFieldValue("first_name", Long.toString(num))
+                            .withFieldValue("last_name", Long.toString(writeSize - num))
+                            .withFieldValue("email", Long.toString(num) + "@beamail.com")
+                            // TODO(pabloem): Add other data types
+                            .build()))
+        .setRowSchema(TABLE_SCHEMA)
+        .apply(
+            JdbcIO.<Row>write()
+                .withTable("inventory.customers")
+                .withDataSourceProviderFn(DebeziumIOMySqlConnectorIT::getMysqlDatasource));
+
+    Pipeline readPipeline = Pipeline.create(options);
+    PCollection<Row> result =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(
+                new DebeziumReadSchemaTransformProvider(true, writeSize + 4, testTime)
+                    .from(
+                        DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration
+                            .builder()
+                            .setDatabase("MYSQL")
+                            .setPassword(MY_SQL_CONTAINER.getPassword())
+                            .setUsername(MY_SQL_CONTAINER.getUsername())
+                            .setHost("localhost")
+                            .setTable("inventory.customers")
+                            .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
+                            .build())
+                    .buildTransform())
+            .get("output");
+
+    PAssert.that(result)
+        .satisfies(
+            rows -> {
+              assertThat(Lists.newArrayList(rows).size(), equalTo(writeSize + 4));
+              return null;
+            });
+    Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());
+    writeThread.start();
+    readPipeline.run().waitUntilFinish();
+    writeThread.join();
+  }
 
   /**
    * Debezium - MySQL connector Test.

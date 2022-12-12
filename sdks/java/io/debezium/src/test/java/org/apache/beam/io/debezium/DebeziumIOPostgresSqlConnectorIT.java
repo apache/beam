@@ -18,13 +18,10 @@
 package org.apache.beam.io.debezium;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 
 import io.debezium.connector.postgresql.PostgresConnector;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -86,14 +83,14 @@ public class DebeziumIOPostgresSqlConnectorIT {
 
   @Test
   public void testDebeziumSchemaTransformPostgresRead() throws InterruptedException {
-    int WRITE_SIZE = 10000;
-    int TEST_TIME = WRITE_SIZE * 200;
+    int writeSize = 5000;
+    int testTime = writeSize * 200;
     POSTGRES_SQL_CONTAINER.start();
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline writePipeline = Pipeline.create(options);
     writePipeline
-        .apply(GenerateSequence.from(0).to(WRITE_SIZE).withRate(10, Duration.standardSeconds(1)))
+        .apply(GenerateSequence.from(0).to(writeSize).withRate(10, Duration.standardSeconds(1)))
         .apply(
             MapElements.into(TypeDescriptors.rows())
                 .via(
@@ -108,7 +105,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
                                     ? Long.valueOf(num).intValue()
                                     : Long.valueOf(num).intValue() + 4)
                             .withFieldValue("first_name", Long.toString(num))
-                            .withFieldValue("last_name", Long.toString(WRITE_SIZE - num))
+                            .withFieldValue("last_name", Long.toString(writeSize - num))
                             .withFieldValue("email", Long.toString(num) + "@beamail.com")
                             // TODO(pabloem): Add other data types
                             .build()))
@@ -123,7 +120,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
     PCollection<Row> result =
         PCollectionRowTuple.empty(readPipeline)
             .apply(
-                new DebeziumReadSchemaTransformProvider(true, WRITE_SIZE + 4, TEST_TIME)
+                new DebeziumReadSchemaTransformProvider(true, writeSize + 4, testTime)
                     .from(
                         DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration
                             .builder()
@@ -140,22 +137,13 @@ public class DebeziumIOPostgresSqlConnectorIT {
     PAssert.that(result)
         .satisfies(
             rows -> {
-              assertThat(
-                  Lists.newArrayList(rows).stream()
-                      .map(row -> row.getInt32("id"))
-                      .collect(Collectors.toList()),
-                  containsInAnyOrder(
-                      IntStream.range(0, WRITE_SIZE + 4).boxed().collect(Collectors.toList())));
-              assertThat(Lists.newArrayList(rows).size(), equalTo(WRITE_SIZE + 4));
+              assertThat(Lists.newArrayList(rows).size(), equalTo(writeSize + 4));
               return null;
             });
     Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());
-    Thread readThread = new Thread(() -> readPipeline.run().waitUntilFinish());
     writeThread.start();
-    readThread.start();
-
+    readPipeline.run().waitUntilFinish();
     writeThread.join();
-    readThread.join();
   }
 
   /**
