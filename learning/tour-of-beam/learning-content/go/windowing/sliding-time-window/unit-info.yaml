@@ -16,12 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-id: windowing
-name: Windowing
-complexity: MEDIUM
-content:
-- adding-timestamp
-- fixed-time-window
-- sliding-time-window
-- global-window
-- session-window
+
+id: sliding-time-window
+name: Windowing with sliding time
+taskName: sliding-time-window

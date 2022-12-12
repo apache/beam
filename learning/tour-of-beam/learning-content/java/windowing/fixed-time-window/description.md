@@ -25,7 +25,7 @@ The simplest form of windowing is using fixed time windows: given a timestamped 
 A fixed time window represents a consistent duration, non overlapping time interval in the data stream. Consider windows with a 30-second duration: all the elements in your unbounded PCollection with timestamp values from 0:00:00 up to (but not including) 0:00:30 belong to the first window, elements with timestamp values from 0:00:30 up to (but not including) 0:01:00 belong to the second window, and so on.
 
 ```
-from apache_beam import window
-fixed_windowed_items = (
-    items | 'window' >> beam.WindowInto(window.FixedWindows(60)))
+PCollection<String> items = ...;
+    PCollection<String> fixedWindowedItems = items.apply(
+        Window.<String>into(FixedWindows.of(Duration.standardSeconds(60))));
 ```

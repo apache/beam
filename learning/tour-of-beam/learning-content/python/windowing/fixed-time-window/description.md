@@ -22,10 +22,10 @@ Some Beam transforms, such as `GroupByKey` and `Combine`, group multiple element
 
 The simplest form of windowing is using fixed time windows: given a timestamped `PCollection` which might be continuously updating, each window might capture (for example) all elements with timestamps that fall into a 30-second interval.
 
-A fixed time window represents a consistent duration, non overlapping time interval in the data stream. Consider windows with a 30-second duration: all the elements in your unbounded PCollection with timestamp values from 0:00:00 up to (but not including) 0:00:30 belong to the first window, elements with timestamp values from 0:00:30 up to (but not including) 0:01:00 belong to the second window, and so on.
+The following example code shows how to apply Window to divide a PCollection into fixed windows, each 60 seconds in length:
 
 ```
-PCollection<String> items = ...;
-   PCollection<String> fixedWindowedItems = items.apply(
-   Window.<String>into(FixedWindows.of(Duration.standardSeconds(60))));
+from apache_beam import window
+fixed_windowed_items = (
+    items | 'window' >> beam.WindowInto(window.FixedWindows(60)))
 ```

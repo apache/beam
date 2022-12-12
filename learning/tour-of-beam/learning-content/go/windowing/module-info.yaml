@@ -18,8 +18,11 @@
 #
 id: windowing
 name: Windowing
-complexity: MEDIUM
+complexity: ADVANCED
 content:
 - adding-timestamp
 - fixed-time-window
+- sliding-time-window
+- global-window
+- session-window
 
