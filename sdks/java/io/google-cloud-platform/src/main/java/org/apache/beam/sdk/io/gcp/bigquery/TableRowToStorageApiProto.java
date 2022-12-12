@@ -123,8 +123,6 @@ public class TableRowToStorageApiProto {
               + sourceValue.getClass().getName()
               + "). Reason: "
               + e);
-          + "Value: " + sourceValue + " (" + sourceValue.getClass().getName()
-          + "). Reason: " + e);
     }
 
     private static String getPrettyFieldName(SchemaInformation schema) {
