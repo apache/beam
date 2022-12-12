@@ -25,6 +25,10 @@ package org.apache.beam.sdk.transforms;
 //   categories:
 //     - Filtering
 //     - Core Transforms
+//   complexity: MEDIUM
+//   tags:
+//     - filter
+//     - test
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;

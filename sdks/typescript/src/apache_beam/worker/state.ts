@@ -66,7 +66,7 @@ export class CachingStateProvider implements StateProvider {
     }
     let result = this.underlying.getState(stateKey, decode);
     const this_ = this;
-    if (result.type == "promise") {
+    if (result.type === "promise") {
       result = {
         type: "promise",
         promise: result.promise.then((value) => {
@@ -172,7 +172,7 @@ export class MultiplexingStateChannel {
           return;
         }
         let getResponse: fnApi.StateGetResponse;
-        if (response.response.oneofKind == "get") {
+        if (response.response.oneofKind === "get") {
           getResponse = response.response.get;
         } else {
           reject("Expected get response " + response.response.oneofKind);
@@ -228,10 +228,10 @@ export class MultiplexingStateChannel {
 }
 
 export function Uint8ArrayConcat(chunks: Uint8Array[]) {
-  if (chunks.length == 1) {
+  if (chunks.length === 1) {
     // (Very) common case.
     return chunks[0];
-  } else if (chunks.length == 0) {
+  } else if (chunks.length === 0) {
     return new Uint8Array();
   } else {
     const fullData = new Uint8Array(

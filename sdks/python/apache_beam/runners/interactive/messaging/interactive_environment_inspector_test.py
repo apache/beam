@@ -183,6 +183,7 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
         actual_counts_with_window_info, expected_counts_with_window_info)
 
   def test_list_clusters(self):
+    self.current_env.options.cache_root = 'gs://fake'
     meta = ClusterMetadata(project_id='project')
     dcm = self.current_env.clusters.create(meta)
     p = beam.Pipeline()
@@ -200,6 +201,7 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
         }
     },
                      json.loads(self.current_env.inspector.list_clusters()))
+    self.current_env.options.cache_root = None
 
 
 if __name__ == '__main__':

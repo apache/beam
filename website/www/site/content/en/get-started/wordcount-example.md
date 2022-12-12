@@ -333,6 +333,10 @@ above section, [MinimalWordCount](#minimalwordcount-example).
 
 **To run this example in Java:**
 
+Set up your development environment and generate the Maven archetype as
+described in the [Java WordCount quickstart](/get-started/quickstart-java/).
+Then run the pipeline with one of the runners:
+
 {{< runner direct >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
@@ -504,7 +508,7 @@ test and can make the `ParDo` code more readable.
 When using `ParDo` transforms, you need to specify the processing operation that
 gets applied to each element in the input `PCollection`. This processing
 operation is either a named function or a struct with specially-named methods. You
-can use anomynous functions (but not closures). However, it's often a good
+can use anonymous functions (but not closures). However, it's often a good
 idea to define the `DoFn` at the global level, which makes it easier to unit
 test and can make the `ParDo` code more readable.
 {{< /paragraph >}}
@@ -899,12 +903,12 @@ or DEBUG significantly increases the amount of logs output.
 #### Apache Spark Runner
 
 > **Note:** This section is yet to be added. There is an open issue for this
-> ([BEAM-792](https://issues.apache.org/jira/browse/BEAM-792)).
+> ([Issue 18076](https://github.com/apache/beam/issues/18076)).
 
 #### Apache Flink Runner
 
 > **Note:** This section is yet to be added. There is an open issue for this
-> ([BEAM-791](https://issues.apache.org/jira/browse/BEAM-791)).
+> ([Issue 18075](https://github.com/apache/beam/issues/18075)).
 
 #### Apache Nemo Runner
 
@@ -1391,7 +1395,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 > **Note:** StreamingWordCount is not yet available for the Go SDK. There is an open issue for this
-([BEAM-4292](https://issues.apache.org/jira/browse/BEAM-4292)).
+([Issue 18879](https://github.com/apache/beam/issues/18879)).
 
 
 ### Reading an unbounded dataset

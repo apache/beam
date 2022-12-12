@@ -23,13 +23,19 @@ on:
 
 jobs:
   update-reviewers:
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      issues: read
+      statuses: read
     # Don't run on forks
     if: github.repository == 'apache/beam'
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - run: npm install
+      - uses: actions/checkout@v3
+      - run: npm ci
         working-directory: 'scripts/ci/pr-bot'
 
       # Runs a set of commands using the runners shell

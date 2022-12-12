@@ -8,6 +8,7 @@ cardDescription: "Ricardo, the largest online marketplace in Switzerland, uses A
 authorName: "Tobias Kaymak"
 authorPosition: Senior Data Engineer @ Ricardo
 authorImg: /images/tobias_kaymak_photo.png
+publishDate: 2021-12-01T01:36:00+00:00
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -240,6 +241,11 @@ to value.
 
 Apache Beam has been a technology that multiplied possibilities, allowing Ricardo to maximize technology benefits at all
 stages of their modernization and cloud journey.
+
+## Learn More
+
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/v-MclVrGJcQ" frameborder="0" allowfullscreen></iframe>
+<br><br>
 
 {{< case_study_feedback Ricardo >}}
 

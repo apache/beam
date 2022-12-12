@@ -30,5 +30,5 @@ Otherwise, improving examples and documentation for devs and users alike is ongo
 Contributions are welcome. Please contact the [dev list](mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F)
 for assistance in finding a place to help out.
 
- - JIRA: [sdk-go](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go)
+ - Issues: [sdk-go](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-go)
  - Contact: Robert Burke (@lostluck) [Email](mailto:lostluck@apache.org?subject=%5BGo%20SDK%20Roadmap%5D) - Please also cc the dev@beam.apache.org list. I strongly prefer public discussion of Go SDK matters.

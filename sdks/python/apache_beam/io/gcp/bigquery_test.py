@@ -44,6 +44,7 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
@@ -54,6 +55,7 @@ from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -183,120 +185,6 @@ class TestTableRowJsonCoder(unittest.TestCase):
 
   def test_invalid_json_neg_inf(self):
     self.json_compliance_exception(float('-inf'))
-
-
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class TestBigQuerySource(unittest.TestCase):
-  def test_display_data_item_on_validate_true(self):
-    source = beam.io.BigQuerySource(
-        'dataset.table', validate=True, use_dataflow_native_source=True)
-
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', True),
-        DisplayDataItemMatcher('table', 'dataset.table')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-  def test_table_reference_display_data(self):
-    source = beam.io.BigQuerySource(
-        'dataset.table', use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', False),
-        DisplayDataItemMatcher('table', 'dataset.table')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-    source = beam.io.BigQuerySource(
-        'project:dataset.table', use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', False),
-        DisplayDataItemMatcher('table', 'project:dataset.table')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-    source = beam.io.BigQuerySource(
-        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', False),
-        DisplayDataItemMatcher('table', 'xyz.com:project:dataset.table')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-  def test_parse_table_reference(self):
-    source = beam.io.BigQuerySource(
-        'dataset.table', use_dataflow_native_source=True)
-    self.assertEqual(source.table_reference.datasetId, 'dataset')
-    self.assertEqual(source.table_reference.tableId, 'table')
-
-    source = beam.io.BigQuerySource(
-        'project:dataset.table', use_dataflow_native_source=True)
-    self.assertEqual(source.table_reference.projectId, 'project')
-    self.assertEqual(source.table_reference.datasetId, 'dataset')
-    self.assertEqual(source.table_reference.tableId, 'table')
-
-    source = beam.io.BigQuerySource(
-        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
-    self.assertEqual(source.table_reference.projectId, 'xyz.com:project')
-    self.assertEqual(source.table_reference.datasetId, 'dataset')
-    self.assertEqual(source.table_reference.tableId, 'table')
-
-    source = beam.io.BigQuerySource(
-        query='my_query', use_dataflow_native_source=True)
-    self.assertEqual(source.query, 'my_query')
-    self.assertIsNone(source.table_reference)
-    self.assertTrue(source.use_legacy_sql)
-
-  def test_query_only_display_data(self):
-    source = beam.io.BigQuerySource(
-        query='my_query', use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', False),
-        DisplayDataItemMatcher('query', 'my_query')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-  def test_specify_query_sql_format(self):
-    source = beam.io.BigQuerySource(
-        query='my_query',
-        use_standard_sql=True,
-        use_dataflow_native_source=True)
-    self.assertEqual(source.query, 'my_query')
-    self.assertFalse(source.use_legacy_sql)
-
-  def test_specify_query_flattened_records(self):
-    source = beam.io.BigQuerySource(
-        query='my_query',
-        flatten_results=False,
-        use_dataflow_native_source=True)
-    self.assertFalse(source.flatten_results)
-
-  def test_specify_query_unflattened_records(self):
-    source = beam.io.BigQuerySource(
-        query='my_query', flatten_results=True, use_dataflow_native_source=True)
-    self.assertTrue(source.flatten_results)
-
-  def test_specify_query_without_table(self):
-    source = beam.io.BigQuerySource(
-        query='my_query', use_dataflow_native_source=True)
-    self.assertEqual(source.query, 'my_query')
-    self.assertIsNone(source.table_reference)
-
-  def test_date_partitioned_table_name(self):
-    source = beam.io.BigQuerySource(
-        'dataset.table$20030102',
-        validate=True,
-        use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', True),
-        DisplayDataItemMatcher('table', 'dataset.table$20030102')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -496,6 +384,100 @@ class TestReadFromBigQuery(unittest.TestCase):
     delete_table.assert_called_with(
         temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
 
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='accessDenied'),
+      param(
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
+          error_message='backendError'),
+  ])
+  def test_create_temp_dataset_exception(self, exception_type, error_message):
+
+    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                           'Insert'),\
+      mock.patch.object(BigQueryWrapper,
+                        'get_or_create_dataset') as mock_insert, \
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
+
+      mock_insert.side_effect = exception_type(error_message)
+
+      _ = p | ReadFromBigQuery(
+          project='apache-beam-testing',
+          query='SELECT * FROM `project.dataset.table`',
+          gcs_location='gs://temp_location')
+
+    mock_insert.assert_called()
+    self.assertIn(error_message, exc.exception.args[0])
+
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_message='invalidQuery'),
+      param(
+          exception_type=exceptions.NotFound if exceptions else None,
+          error_message='notFound'),
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='responseTooLarge')
+  ])
+  def test_query_job_exception(self, exception_type, error_message):
+
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
+                           'estimate_size') as mock_estimate,\
+      mock.patch.object(BigQueryWrapper,
+                        'get_query_location') as mock_query_location,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                        'Insert') as mock_query_job,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Get'), \
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc, \
+      beam.Pipeline() as p:
+
+      mock_estimate.return_value = None
+      mock_query_location.return_value = None
+      mock_query_job.side_effect = exception_type(error_message)
+
+      _ = p | ReadFromBigQuery(
+          query='SELECT * FROM `project.dataset.table`',
+          gcs_location='gs://temp_location')
+
+    mock_query_job.assert_called()
+    self.assertIn(error_message, exc.exception.args[0])
+
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.BadRequest if exceptions else None,
+          error_message='invalid'),
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='accessDenied')
+  ])
+  def test_read_export_exception(self, exception_type, error_message):
+
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
+                           'estimate_size') as mock_estimate,\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get'),\
+      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                        'Insert') as mock_query_job, \
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
+
+      mock_estimate.return_value = None
+      mock_query_job.side_effect = exception_type(error_message)
+
+      _ = p | ReadFromBigQuery(
+          project='apache-beam-testing',
+          method=ReadFromBigQuery.Method.EXPORT,
+          table='project:dataset.table',
+          gcs_location="gs://temp_location")
+
+    mock_query_job.assert_called()
+    self.assertIn(error_message, exc.exception.args[0])
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):
@@ -513,67 +495,19 @@ class TestBigQuerySink(unittest.TestCase):
     self.assertEqual(sink.table_reference.datasetId, 'dataset')
     self.assertEqual(sink.table_reference.tableId, 'table')
     result_schema = {
-        field.name: field.type
-        for field in sink.table_schema.fields
+        field['name']: field['type']
+        for field in sink.schema['fields']
     }
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
   def test_project_table_display_data(self):
-    sinkq = beam.io.BigQuerySink('PROJECT:dataset.table')
+    sinkq = beam.io.BigQuerySink('project:dataset.table')
     dd = DisplayData.create_from(sinkq)
     expected_items = [
-        DisplayDataItemMatcher('table', 'PROJECT:dataset.table'),
+        DisplayDataItemMatcher('table', 'project:dataset.table'),
         DisplayDataItemMatcher('validation', False)
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-  def test_simple_schema_as_json(self):
-    sink = beam.io.BigQuerySink(
-        'PROJECT:dataset.table', schema='s:STRING, n:INTEGER')
-    self.assertEqual(
-        json.dumps({
-            'fields': [{
-                'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'
-            }, {
-                'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'
-            }]
-        }),
-        sink.schema_as_json())
-
-  def test_nested_schema_as_json(self):
-    string_field = bigquery.TableFieldSchema(
-        name='s', type='STRING', mode='NULLABLE', description='s description')
-    number_field = bigquery.TableFieldSchema(
-        name='n', type='INTEGER', mode='REQUIRED', description='n description')
-    record_field = bigquery.TableFieldSchema(
-        name='r',
-        type='RECORD',
-        mode='REQUIRED',
-        description='r description',
-        fields=[string_field, number_field])
-    schema = bigquery.TableSchema(fields=[record_field])
-    sink = beam.io.BigQuerySink('dataset.table', schema=schema)
-    self.assertEqual({
-        'fields': [{
-            'name': 'r',
-            'type': 'RECORD',
-            'mode': 'REQUIRED',
-            'description': 'r description',
-            'fields': [{
-                'name': 's',
-                'type': 'STRING',
-                'mode': 'NULLABLE',
-                'description': 's description'
-            },
-                       {
-                           'name': 'n',
-                           'type': 'INTEGER',
-                           'mode': 'REQUIRED',
-                           'description': 'n description'
-                       }]
-        }]
-    },
-                     json.loads(sink.schema_as_json()))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -845,6 +779,112 @@ class TestWriteToBigQuery(unittest.TestCase):
               triggering_frequency=1,
               with_auto_sharding=True,
               test_client=client))
+
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.Forbidden if exceptions else None,
+          error_message='accessDenied'),
+      param(
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
+          error_message='backendError')
+  ])
+  def test_load_job_exception(self, exception_type, error_message):
+
+    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                     'Insert') as mock_load_job,\
+      mock.patch('apache_beam.io.gcp.internal.clients'
+                 '.storage.storage_v1_client.StorageV1.ObjectsService'),\
+      mock.patch('time.sleep'),\
+      self.assertRaises(Exception) as exc,\
+      beam.Pipeline() as p:
+
+      mock_load_job.side_effect = exception_type(error_message)
+
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              custom_gcs_temp_location="gs://temp_location",
+              method='FILE_LOADS'))
+
+    mock_load_job.assert_called()
+    self.assertIn(error_message, exc.exception.args[0])
+
+  @parameterized.expand([
+      param(
+          exception_type=exceptions.ServiceUnavailable if exceptions else None,
+          error_message='backendError'),
+      param(
+          exception_type=exceptions.InternalServerError if exceptions else None,
+          error_message='internalError'),
+  ])
+  def test_copy_load_job_exception(self, exception_type, error_message):
+
+    from apache_beam.io.gcp import bigquery_file_loads
+
+    old_max_file_size = bigquery_file_loads._DEFAULT_MAX_FILE_SIZE
+    old_max_partition_size = bigquery_file_loads._MAXIMUM_LOAD_SIZE
+    old_max_files_per_partition = bigquery_file_loads._MAXIMUM_SOURCE_URIS
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = 15
+    bigquery_file_loads._MAXIMUM_LOAD_SIZE = 30
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = 1
+
+    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
+                        'Insert') as mock_insert_copy_job, \
+      mock.patch.object(BigQueryWrapper,
+                        'perform_load_job') as mock_load_job, \
+      mock.patch.object(BigQueryWrapper,
+                        'wait_for_bq_job'), \
+      mock.patch('apache_beam.io.gcp.internal.clients'
+        '.storage.storage_v1_client.StorageV1.ObjectsService'), \
+      mock.patch('time.sleep'), \
+      self.assertRaises(Exception) as exc, \
+      beam.Pipeline() as p:
+
+      mock_insert_copy_job.side_effect = exception_type(error_message)
+
+      dummy_job_reference = beam.io.gcp.internal.clients.bigquery.JobReference()
+      dummy_job_reference.jobId = 'job_id'
+      dummy_job_reference.location = 'US'
+      dummy_job_reference.projectId = 'apache-beam-testing'
+
+      mock_load_job.return_value = dummy_job_reference
+
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }, {
+              'columnA': 'value2'
+          }, {
+              'columnA': 'value3'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              custom_gcs_temp_location="gs://temp_location",
+              method='FILE_LOADS'))
+
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = old_max_file_size
+    bigquery_file_loads._MAXIMUM_LOAD_SIZE = old_max_partition_size
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = old_max_files_per_partition
+
+    self.assertEqual(4, mock_insert_copy_job.call_count)
+    self.assertIn(error_message, exc.exception.args[0])
 
 
 @unittest.skipIf(
@@ -1120,7 +1160,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
@@ -1132,7 +1172,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
         kms_key=None,
         test_client=client)
 
-    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
+    fn.process(('project-id:dataset_id.table_id', {'month': 1}))
 
     # InsertRows not called as batch size is not hit yet
     self.assertFalse(client.insert_rows_json.called)
@@ -1141,7 +1181,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
@@ -1154,8 +1194,8 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
         test_client=client)
 
     fn.start_bundle()
-    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
-    fn.process(('project_id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
+    fn.process(('project-id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
+    fn.process(('project-id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
     # InsertRows called as batch size is hit
     self.assertTrue(client.insert_rows_json.called)
 
@@ -1163,7 +1203,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
@@ -1179,7 +1219,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     # Destination is a tuple of (destination, schema) to ensure the table is
     # created.
-    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
+    fn.process(('project-id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
 
     self.assertTrue(client.tables.Get.called)
     # InsertRows not called as batch size is not hit
@@ -1193,7 +1233,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.tabledata.InsertAll.return_value = \
       bigquery.TableDataInsertAllResponse(insertErrors=[])
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
@@ -1218,7 +1258,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+            projectId='project-id', datasetId='dataset_id', tableId='table_id'))
     client.insert_rows_json.return_value = []
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
@@ -1236,7 +1276,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     # Destination is a tuple of (destination, schema) to ensure the table is
     # created.
     fn.process((
-        'project_id:dataset_id.table_id',
+        'project-id:dataset_id.table_id',
         [({
             'month': 1
         }, 'insertid3'), ({

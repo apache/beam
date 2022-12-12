@@ -22,7 +22,7 @@ import org.apache.beam.sdk.coders.Coder;
 
 /** A registrar of {@link Coder} URNs to the associated {@link CoderTranslator}. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public interface CoderTranslatorRegistrar {
   /**

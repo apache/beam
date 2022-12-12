@@ -100,14 +100,14 @@ def loadTestConfigurations = { datasetName, mode ->
 
 def addStreamingOptions(test){
   test.pipelineOptions << [streaming: null,
-    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    experiments: "use_runner_v2, shuffle_mode=appliance"
+    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    experiments: "use_runner_v2,shuffle_mode=appliance"
   ]
 }
 
 def loadTestJob = { scope, triggeringContext, jobType ->
   scope.description("Runs Python Combine load tests on Dataflow runner in ${jobType} mode")
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 120)
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 720)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   for (testConfiguration in loadTestConfigurations(datasetName, jobType)) {

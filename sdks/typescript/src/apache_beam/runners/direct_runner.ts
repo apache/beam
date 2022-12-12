@@ -33,6 +33,7 @@ import { Runner, PipelineResult } from "./runner";
 import * as worker from "../worker/worker";
 import * as operators from "../worker/operators";
 import { createStateKey } from "../worker/pardo_context";
+import * as metrics from "../worker/metrics";
 import * as state from "../worker/state";
 import { parDo } from "../transforms/pardo";
 import {
@@ -67,8 +68,7 @@ export class DirectRunner extends Runner {
     return [...this.unsupportedFeaturesIter(pipeline, options)];
   }
 
-  *unsupportedFeaturesIter(pipeline, options: Object = {}) {
-    const proto: runnerApi.Pipeline = pipeline.proto;
+  *unsupportedFeaturesIter(proto: runnerApi.Pipeline, options: Object = {}) {
     for (const requirement of proto.requirements) {
       if (!SUPPORTED_REQUIREMENTS.includes(requirement)) {
         yield requirement;
@@ -78,7 +78,7 @@ export class DirectRunner extends Runner {
     for (const env of Object.values(proto.components!.environments)) {
       if (
         env.urn &&
-        env.urn != environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN
+        env.urn !== environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN
       ) {
         yield env.urn;
       }
@@ -96,18 +96,19 @@ export class DirectRunner extends Runner {
       ) {
         yield "MergeStatus=" + windowing.mergeStatus;
       }
+      if (windowing.outputTime !== runnerApi.OutputTime_Enum.END_OF_WINDOW) {
+        yield "OutputTime=" + windowing.outputTime;
+      }
     }
   }
 
-  async runPipeline(p): Promise<PipelineResult> {
-    // console.dir(p.proto, { depth: null });
-
+  async runPipeline(p: runnerApi.Pipeline): Promise<PipelineResult> {
     const stateProvider = new InMemoryStateProvider();
     const stateCacheRef = uuid.v4();
     DirectRunner.inMemoryStatesRefs.set(stateCacheRef, stateProvider);
 
     try {
-      const proto = rewriteSideInputs(p.proto, stateCacheRef);
+      const proto = rewriteSideInputs(p, stateCacheRef);
       const descriptor: ProcessBundleDescriptor = {
         id: "",
         transforms: proto.components!.transforms,
@@ -125,10 +126,18 @@ export class DirectRunner extends Runner {
       );
       await processor.process("bundle_id");
 
-      return {
-        waitUntilFinish: (duration?: number) =>
-          Promise.resolve(JobState_Enum.DONE),
-      };
+      return new (class DirectPipelineResult extends PipelineResult {
+        waitUntilFinish(duration?: number) {
+          return Promise.resolve(JobState_Enum.DONE);
+        }
+        async rawMetrics() {
+          const shortIdCache = new metrics.MetricsShortIdCache();
+          const monitoringData = processor.monitoringData(shortIdCache);
+          return Array.from(monitoringData.entries()).map(([id, payload]) =>
+            shortIdCache.asMonitoringInfo(id, payload)
+          );
+        }
+      })();
     } finally {
       DirectRunner.inMemoryStatesRefs.delete(stateCacheRef);
     }
@@ -140,7 +149,7 @@ class DirectImpulseOperator implements operators.IOperator {
   receiver: operators.Receiver;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -178,7 +187,7 @@ class DirectGbkOperator implements operators.IOperator {
   windowCoder: Coder<Window>;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -194,11 +203,17 @@ class DirectGbkOperator implements operators.IOperator {
     );
     const windowingStrategy =
       context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
-    // TODO: (Cleanup) Check or implement triggers, etc.
     if (
-      windowingStrategy.mergeStatus != runnerApi.MergeStatus_Enum.NON_MERGING
+      windowingStrategy.mergeStatus !== runnerApi.MergeStatus_Enum.NON_MERGING
     ) {
-      throw new Error("Non-merging WindowFn: " + windowingStrategy);
+      throw new Error("Unsupported non-merging WindowFn: " + windowingStrategy);
+    }
+    if (
+      windowingStrategy.outputTime !== runnerApi.OutputTime_Enum.END_OF_WINDOW
+    ) {
+      throw new Error(
+        "Unsupported windowing output time: " + windowingStrategy
+      );
     }
     this.windowCoder = context.pipelineContext.getCoder(
       windowingStrategy.windowCoderId
@@ -206,12 +221,11 @@ class DirectGbkOperator implements operators.IOperator {
   }
 
   process(wvalue: WindowedValue<any>) {
-    // TODO: (Cleanup) Assert non-merging, EOW timestamp, etc.
     for (const window of wvalue.windows) {
       const wkey =
-        encodeToBase64(window, this.windowCoder) +
+        operators.encodeToBase64(window, this.windowCoder) +
         " " +
-        encodeToBase64(wvalue.value.key, this.keyCoder);
+        operators.encodeToBase64(wvalue.value.key, this.keyCoder);
       if (!this.groups.has(wkey)) {
         this.groups.set(wkey, []);
       }
@@ -226,21 +240,23 @@ class DirectGbkOperator implements operators.IOperator {
 
   async finishBundle() {
     for (const [wkey, values] of this.groups) {
-      // const [encodedWindow, encodedKey] = wkey.split(" ");
       const parts = wkey.split(" ");
       const encodedWindow = parts[0];
       const encodedKey = parts[1];
-      const window = decodeFromBase64(encodedWindow, this.windowCoder);
+      const window = operators.decodeFromBase64(
+        encodedWindow,
+        this.windowCoder
+      );
       const maybePromise = this.receiver.receive({
         value: {
-          key: decodeFromBase64(encodedKey, this.keyCoder),
+          key: operators.decodeFromBase64(encodedKey, this.keyCoder),
           value: values,
         },
         windows: [window],
         timestamp: window.maxTimestamp(),
         pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
       });
-      if (maybePromise != operators.NonPromise) {
+      if (maybePromise !== operators.NonPromise) {
         await maybePromise;
       }
     }
@@ -304,8 +320,7 @@ function rewriteSideInputs(p: runnerApi.Pipeline, pipelineStateRef: string) {
   const transforms = p.components!.transforms;
   for (const [transformId, transform] of Object.entries(transforms)) {
     if (
-      transform.spec != undefined &&
-      transform.spec.urn == parDo.urn &&
+      transform.spec?.urn === parDo.urn &&
       Object.keys(transform.inputs).length > 1
     ) {
       const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
@@ -385,7 +400,7 @@ class CollectSideOperator implements operators.IOperator {
   elementCoder: Coder<unknown>;
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -448,7 +463,7 @@ class BufferOperator implements operators.IOperator {
   elements: WindowedValue<unknown>[];
 
   constructor(
-    transformId: string,
+    public transformId: string,
     transform: PTransform,
     context: operators.OperatorContext
   ) {
@@ -469,7 +484,7 @@ class BufferOperator implements operators.IOperator {
   async finishBundle() {
     for (const element of this.elements) {
       const maybePromise = this.receiver.receive(element);
-      if (maybePromise != operators.NonPromise) {
+      if (maybePromise !== operators.NonPromise) {
         await maybePromise;
       }
     }
@@ -507,19 +522,6 @@ class InMemoryStateProvider implements state.StateProvider {
 }
 
 /////
-
-export function encodeToBase64<T>(element: T, coder: Coder<T>): string {
-  const writer = new protobufjs.Writer();
-  coder.encode(element, writer, CoderContext.wholeStream);
-  return Buffer.from(writer.finish()).toString("base64");
-}
-
-export function decodeFromBase64<T>(s: string, coder: Coder<T>): T {
-  return coder.decode(
-    new protobufjs.Reader(Buffer.from(s, "base64")),
-    CoderContext.wholeStream
-  );
-}
 
 function onlyElement<T>(arg: T[]): T {
   if (arg.length > 1) {

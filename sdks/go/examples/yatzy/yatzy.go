@@ -27,18 +27,23 @@ package main
 //   categories:
 //     - IO
 //     - Side Input
+//   complexity: ADVANCED
+//   tags:
+//     - pipeline
+//     - random
+//     - numbers
 
 import (
 	"context"
 	"flag"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"sort"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
@@ -48,16 +53,16 @@ var (
 )
 
 func init() {
-	beam.RegisterFunction(incFn)
-	beam.RegisterFunction(evalFn)
-	beam.RegisterType(reflect.TypeOf((*minFn)(nil)).Elem())
+	register.Function1x1(incFn)
+	register.Function7x0(evalFn)
+	register.DoFn1x1[int, int](&minFn{})
 }
 
 // roll is a composite PTransform for a construction-time dice roll. The value
 // is encoded in the shape of the pipeline, which will produce a single
 // element of that value. The shape is as follows:
 //
-//     0 -> \x.x+1 -> \x.x+1 -> (N times) -> \x.min(x, 6)
+//	0 -> \x.x+1 -> \x.x+1 -> (N times) -> \x.min(x, 6)
 //
 // The single output will be a number between 1 and 6.
 func roll(ctx context.Context, s beam.Scope) beam.PCollection {

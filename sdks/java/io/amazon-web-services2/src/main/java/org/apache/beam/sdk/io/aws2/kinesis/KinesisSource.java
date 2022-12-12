@@ -37,7 +37,7 @@ import software.amazon.awssdk.services.kinesis.KinesisClient;
 
 /** Represents source for single stream in Kinesis. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoint> {
 

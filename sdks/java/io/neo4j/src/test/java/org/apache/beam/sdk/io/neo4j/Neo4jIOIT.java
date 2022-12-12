@@ -70,7 +70,7 @@ public class Neo4jIOIT {
         new Neo4jContainer<>(DockerImageName.parse("neo4j").withTag(Neo4jTestUtil.NEO4J_VERSION))
             .withStartupAttempts(1)
             .withAdminPassword(Neo4jTestUtil.NEO4J_PASSWORD)
-            .withEnv("NEO4J_dbms_default_listen_address", "0.0.0.0")
+            .withEnv("dbms_default_listen_address", "0.0.0.0")
             .withNetworkAliases(Neo4jTestUtil.NEO4J_NETWORK_ALIAS)
             .withSharedMemorySize(256 * 1024 * 1024L); // 256MB
 
@@ -88,7 +88,7 @@ public class Neo4jIOIT {
     Neo4jTestUtil.executeOnNeo4j(
         containerHostname,
         containerPort,
-        "CREATE CONSTRAINT something_id_unique ON (n:Something) ASSERT n.id IS UNIQUE",
+        "CREATE CONSTRAINT something_id_unique FOR (n:Something) REQUIRE n.id IS UNIQUE",
         true);
   }
 

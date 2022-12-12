@@ -111,6 +111,16 @@ public interface BigQueryServices extends Serializable {
 
   /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
   public interface DatasetService extends AutoCloseable {
+
+    // maps the values at
+    // https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/get#TableMetadataView
+    enum TableMetadataView {
+      TABLE_METADATA_VIEW_UNSPECIFIED,
+      BASIC,
+      STORAGE_STATS,
+      FULL;
+    };
+
     /**
      * Gets the specified {@link Table} resource by table ID.
      *
@@ -121,6 +131,10 @@ public interface BigQueryServices extends Serializable {
 
     @Nullable
     Table getTable(TableReference tableRef, List<String> selectedFields)
+        throws InterruptedException, IOException;
+
+    @Nullable
+    Table getTable(TableReference tableRef, List<String> selectedFields, TableMetadataView view)
         throws InterruptedException, IOException;
 
     /** Creates the specified table if it does not exist. */
@@ -194,8 +208,8 @@ public interface BigQueryServices extends Serializable {
      * Create an append client for a given Storage API write stream. The stream must be created
      * first.
      */
-    StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor)
-        throws Exception;
+    StreamAppendClient getStreamAppendClient(
+        String streamName, Descriptor descriptor, boolean useConnectionPool) throws Exception;
 
     /** Flush a given stream up to the given offset. The stream must have type BUFFERED. */
     ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset)

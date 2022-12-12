@@ -38,6 +38,9 @@
       padding-right: 120px
       @media (max-width: $ak-breakpoint-lg)
         display: flex
+      @media (max-width: $ak-breakpoint-xs)
+        flex-direction: column
+        padding-right: 0
 
   .footer__cols__col
     padding: 5px
@@ -48,6 +51,7 @@
       gap: 30px
       @media (max-width: $ak-breakpoint-lg)
         gap: 0
+        justify-content: center
 
     .footer__cols__col__title
       color: #fff

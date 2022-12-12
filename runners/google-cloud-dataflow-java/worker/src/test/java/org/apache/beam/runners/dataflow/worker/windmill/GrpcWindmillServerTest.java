@@ -62,13 +62,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.util.MutableHandlerRegistry;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -85,7 +85,7 @@ import org.slf4j.LoggerFactory;
 /** Unit tests for {@link GrpcWindmillServer}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GrpcWindmillServerTest {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);

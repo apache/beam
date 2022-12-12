@@ -61,7 +61,7 @@ Beam supports multiple language-specific SDKs for writing pipelines against the 
 
 Currently, this repository contains SDKs for Java, Python and Go.
 
-Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-ideas).
+Have ideas for new SDKs or DSLs? See the [sdk-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-ideas).
 
 ### Runners
 
@@ -74,7 +74,7 @@ Beam supports executing programs on multiple distributed processing backends thr
 - The `JetRunner` runs the pipeline on a Hazelcast Jet cluster. The code has been donated from [hazelcast/hazelcast-jet](https://github.com/hazelcast/hazelcast-jet) and is now part of Beam.
 - The `Twister2Runner` runs the pipeline on a Twister2 cluster. The code has been donated from [DSC-SPIDAL/twister2](https://github.com/DSC-SPIDAL/twister2) and is now part of Beam.
 
-Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-ideas).
+Have ideas for new Runners? See the [runner-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-ideas).
 
 ## Getting Started
 
@@ -88,7 +88,7 @@ To get involved in Apache Beam:
 * [Subscribe](mailto:user-subscribe@beam.apache.org) or [mail](mailto:user@beam.apache.org) the [user@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-user/) list.
 * [Subscribe](mailto:dev-subscribe@beam.apache.org) or [mail](mailto:dev@beam.apache.org) the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
 * [Join ASF Slack](https://s.apache.org/slack-invite) on [#beam channel](https://s.apache.org/beam-slack-channel)
-* Report issues on [JIRA](https://issues.apache.org/jira/browse/BEAM).
+* [Report an issue](https://github.com/apache/beam/issues/new/choose).
 
 Instructions for building and testing Beam itself
 are in the [contribution guide](https://beam.apache.org/contribute/).

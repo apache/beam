@@ -34,7 +34,6 @@ const kLinkIconAsset = 'link.svg';
 const kDragHorizontalIconAsset = 'drag_horizontal.svg';
 const kDragVerticalIconAsset = 'drag_vertical.svg';
 const kMultifileIconAsset = 'multifile.svg';
-const kSummitBannerAsset = 'summit_banner.svg';
 
 // notifications icons
 const kErrorNotificationIconAsset = 'error_notification.svg';

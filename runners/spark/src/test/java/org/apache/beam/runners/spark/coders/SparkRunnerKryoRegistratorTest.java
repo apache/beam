@@ -38,7 +38,7 @@ import org.junit.runner.RunWith;
  * tests requiring a different context have to be forked using separate test classes.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 @RunWith(Enclosed.class)
 public class SparkRunnerKryoRegistratorTest {

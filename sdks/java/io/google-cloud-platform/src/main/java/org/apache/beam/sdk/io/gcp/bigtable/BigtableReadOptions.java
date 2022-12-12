@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Configuration for which values to read from Bigtable. */
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 abstract class BigtableReadOptions implements Serializable {
 

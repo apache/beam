@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -76,9 +77,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of the elements of this {@link PCollection}
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PCollection<T> extends PValueBase implements PValue {
 
   /**
@@ -283,8 +281,7 @@ public class PCollection<T> extends PValueBase implements PValue {
    * @throws IllegalStateException if the {@link Coder} hasn't been set, and couldn't be inferred.
    */
   public Coder<T> getCoder() {
-    checkState(coderOrFailure.coder != null, coderOrFailure.failure);
-    return coderOrFailure.coder;
+    return Preconditions.checkStateNotNull(coderOrFailure.coder, coderOrFailure.failure);
   }
 
   /**

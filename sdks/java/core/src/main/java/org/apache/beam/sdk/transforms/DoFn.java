@@ -309,7 +309,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
    *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
    *     allowed lateness} of a downstream {@link PCollection} may be silently dropped. See
-   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *     https://github.com/apache/beam/issues/18065 for details on a replacement.
    */
   @Deprecated
   public Duration getAllowedTimestampSkew() {
@@ -859,8 +859,8 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       commits the output of this bundle. See <a
    *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
    *       Finalize Bundles</a> for further details.
-   *   <li>TODO(BEAM-1287): Add support for an {@link OutputReceiver} and {@link
-   *       MultiOutputReceiver} that can output to a window.
+   *   <li>TODO(https://github.com/apache/beam/issues/18203): Add support for an {@link
+   *       OutputReceiver} and {@link MultiOutputReceiver} that can output to a window.
    * </ul>
    *
    * <p>Note that {@link FinishBundle @FinishBundle} is invoked before the runner commits the output
@@ -1001,6 +1001,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       additional details such as the number of bytes for keys and values is known for the key
    *       range.
    * </ul>
+   *
+   * <p>Must be thread safe. Will be invoked concurrently during bundle processing due to runner
+   * initiated splitting and progress estimation.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)

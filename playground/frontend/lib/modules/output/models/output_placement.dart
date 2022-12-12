@@ -24,6 +24,13 @@ enum OutputPlacement {
   right,
   left,
   bottom,
+  ;
+
+  Axis get graphDirection {
+    return this == OutputPlacement.bottom
+        ? Axis.horizontal
+        : Axis.vertical;
+  }
 }
 
 extension OutputPlacementToIcon on OutputPlacement {

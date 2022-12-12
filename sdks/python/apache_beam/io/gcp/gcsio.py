@@ -38,6 +38,8 @@ import threading
 import time
 import traceback
 from itertools import islice
+from typing import Optional
+from typing import Union
 
 import apache_beam
 from apache_beam.internal.http_client import get_new_http
@@ -49,7 +51,9 @@ from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import monitoring_infos
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
+from apache_beam.utils.annotations import deprecated
 
 __all__ = ['GcsIO']
 
@@ -158,7 +162,12 @@ class GcsIOError(IOError, retry.PermanentException):
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(self, storage_client=None, pipeline_options=None):
+    # type: (Optional[storage.StorageV1], Optional[Union[dict, PipelineOptions]]) -> None
     if storage_client is None:
+      if not pipeline_options:
+        pipeline_options = PipelineOptions()
+      elif isinstance(pipeline_options, dict):
+        pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
       storage_client = storage.StorageV1(
           credentials=auth.get_service_credentials(pipeline_options),
           get_credentials=False,
@@ -561,10 +570,12 @@ class GcsIO(object):
         bucket=bucket, object=object_path)
     return self.client.objects.Get(request)
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  @deprecated(since='2.45.0', current='list_files')
   def list_prefix(self, path, with_metadata=False):
     """Lists files matching the prefix.
+
+    ``list_prefix`` has been deprecated. Use `list_files` instead, which returns
+    a generator of file information instead of a dict.
 
     Args:
       path: GCS file path pattern in the form gs://<bucket>/[name].
@@ -574,41 +585,68 @@ class GcsIO(object):
       If ``with_metadata`` is False: dict of file name -> size; if
         ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
     """
+    file_info = {}
+    for file_metadata in self.list_files(path, with_metadata):
+      file_info[file_metadata[0]] = file_metadata[1]
+
+    return file_info
+
+  def list_files(self, path, with_metadata=False):
+    """Lists files matching the prefix.
+
+    Args:
+      path: GCS file path pattern in the form gs://<bucket>/[name].
+      with_metadata: Experimental. Specify whether returns file metadata.
+
+    Returns:
+      If ``with_metadata`` is False: generator of tuple(file name, size); if
+      ``with_metadata`` is True: generator of
+      tuple(file name, tuple(size, timestamp)).
+    """
     bucket, prefix = parse_gcs_path(path, object_optional=True)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
-    file_info = {}
+    file_info = set()
     counter = 0
     start_time = time.time()
     if with_metadata:
-      _LOGGER.info("Starting the file information of the input")
+      _LOGGER.debug("Starting the file information of the input")
     else:
-      _LOGGER.info("Starting the size estimation of the input")
+      _LOGGER.debug("Starting the size estimation of the input")
     while True:
-      response = self.client.objects.List(request)
+      response = retry.with_exponential_backoff(
+          retry_filter=retry.retry_on_server_errors_and_timeout_filter)(
+              self.client.objects.List)(
+                  request)
+
       for item in response.items:
         file_name = 'gs://%s/%s' % (item.bucket, item.name)
-        if with_metadata:
-          file_info[file_name] = (
-              item.size, self._updated_to_seconds(item.updated))
-        else:
-          file_info[file_name] = item.size
-        counter += 1
-        if counter % 10000 == 0:
+        if file_name not in file_info:
+          file_info.add(file_name)
+          counter += 1
+          if counter % 10000 == 0:
+            if with_metadata:
+              _LOGGER.info(
+                  "Finished computing file information of: %s files",
+                  len(file_info))
+            else:
+              _LOGGER.info(
+                  "Finished computing size of: %s files", len(file_info))
+
           if with_metadata:
-            _LOGGER.info(
-                "Finished computing file information of: %s files",
-                len(file_info))
+            yield file_name, (item.size, self._updated_to_seconds(item.updated))
           else:
-            _LOGGER.info("Finished computing size of: %s files", len(file_info))
+            yield file_name, item.size
+
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
       else:
         break
-    _LOGGER.info(
+    _LOGGER.log(
+        # do not spam logs when list_prefix is likely used to check empty folder
+        logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)
-    return file_info
 
   @staticmethod
   def _updated_to_seconds(updated):
@@ -785,4 +823,7 @@ class GcsUploader(Uploader):
     self._upload_thread.join()
     # Check for exception since the last put() call.
     if self._upload_thread.last_error is not None:
-      raise self._upload_thread.last_error  # pylint: disable=raising-bad-type
+      raise type(self._upload_thread.last_error)(
+          "Error while uploading file %s: %s",
+          self._path,
+          self._upload_thread.last_error.message)  # pylint: disable=raising-bad-type

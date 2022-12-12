@@ -73,7 +73,7 @@ If you are merging a larger contribution, please make sure that the contributor
 has an ICLA on file with the Apache Secretary. You can view the list of
 committers [here](https://home.apache.org/phonebook.html?unix=committers), as
 well as [ICLA-signers who aren’t yet
-committers](http://home.apache.org/unlistedclas.html).
+committers](https://home.apache.org/unlistedclas.html).
 
 For smaller contributions, however, this is not required. In this case, we rely
 on [clause five](https://www.apache.org/licenses/LICENSE-2.0#contributions) of

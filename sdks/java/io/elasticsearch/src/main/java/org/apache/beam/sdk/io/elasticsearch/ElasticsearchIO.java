@@ -75,6 +75,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -85,7 +86,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
@@ -200,7 +200,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ElasticsearchIO {
 
@@ -601,6 +601,24 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("trustSelfSignedCerts", isTrustSelfSignedCerts()));
     }
 
+    private SSLContext getSSLContext() throws IOException {
+      if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
+        try {
+          KeyStore keyStore = KeyStore.getInstance("jks");
+          try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
+            String keystorePassword = getKeystorePassword();
+            keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
+          }
+          final TrustStrategy trustStrategy =
+              isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
+          return SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
+        } catch (Exception e) {
+          throw new IOException("Can't load the client certificate from the keystore", e);
+        }
+      }
+      return null;
+    }
+
     @VisibleForTesting
     RestClient createClient() throws IOException {
       HttpHost[] hosts = new HttpHost[getAddresses().size()];
@@ -611,14 +629,9 @@ public class ElasticsearchIO {
         i++;
       }
       RestClientBuilder restClientBuilder = RestClient.builder(hosts);
-      if (getUsername() != null) {
-        final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(
-            AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
-        restClientBuilder.setHttpClientConfigCallback(
-            httpAsyncClientBuilder ->
-                httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
-      }
+
+      final SSLContext sslContext = getSSLContext();
+
       if (getApiKey() != null) {
         restClientBuilder.setDefaultHeaders(
             new Header[] {new BasicHeader("Authorization", "ApiKey " + getApiKey())});
@@ -627,25 +640,22 @@ public class ElasticsearchIO {
         restClientBuilder.setDefaultHeaders(
             new Header[] {new BasicHeader("Authorization", "Bearer " + getBearerToken())});
       }
-      if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
-        try {
-          KeyStore keyStore = KeyStore.getInstance("jks");
-          try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
-            String keystorePassword = getKeystorePassword();
-            keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
-          }
-          final TrustStrategy trustStrategy =
-              isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
-          final SSLContext sslContext =
-              SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
-          final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
-          restClientBuilder.setHttpClientConfigCallback(
-              httpClientBuilder ->
-                  httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
-        } catch (Exception e) {
-          throw new IOException("Can't load the client certificate from the keystore", e);
-        }
-      }
+
+      restClientBuilder.setHttpClientConfigCallback(
+          httpClientBuilder -> {
+            if (getUsername() != null) {
+              final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+              credentialsProvider.setCredentials(
+                  AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
+              httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+            }
+            if (sslContext != null) {
+              final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
+              httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy);
+            }
+            return httpClientBuilder;
+          });
+
       restClientBuilder.setRequestConfigCallback(
           new RestClientBuilder.RequestConfigCallback() {
             @Override
@@ -863,9 +873,8 @@ public class ElasticsearchIO {
         return estimatedByteSize;
       }
       final ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
-      JsonNode statsJson = getStats(connectionConfiguration, false);
-      JsonNode indexStats =
-          statsJson.path("indices").path(connectionConfiguration.getIndex()).path("primaries");
+      JsonNode statsJson = getStats(connectionConfiguration);
+      JsonNode indexStats = statsJson.path("_all").path("primaries");
       long indexSize = indexStats.path("store").path("size_in_bytes").asLong();
       LOG.debug("estimate source byte size: total index size {}", indexSize);
 
@@ -917,9 +926,8 @@ public class ElasticsearchIO {
       // NB: Elasticsearch 5.x+ now provides the slice API.
       // (https://www.elastic.co/guide/en/elasticsearch/reference/5.0/search-request-scroll.html
       // #sliced-scroll)
-      JsonNode statsJson = getStats(connectionConfiguration, false);
-      JsonNode indexStats =
-          statsJson.path("indices").path(connectionConfiguration.getIndex()).path("primaries");
+      JsonNode statsJson = getStats(connectionConfiguration);
+      JsonNode indexStats = statsJson.path("_all").path("primaries");
       JsonNode store = indexStats.path("store");
       return store.path("size_in_bytes").asLong();
     }
@@ -946,12 +954,9 @@ public class ElasticsearchIO {
       return StringUtf8Coder.of();
     }
 
-    private static JsonNode getStats(
-        ConnectionConfiguration connectionConfiguration, boolean shardLevel) throws IOException {
+    private static JsonNode getStats(ConnectionConfiguration connectionConfiguration)
+        throws IOException {
       HashMap<String, String> params = new HashMap<>();
-      if (shardLevel) {
-        params.put("level", "shards");
-      }
       String endpoint = String.format("/%s/_stats", connectionConfiguration.getIndex());
       try (RestClient restClient = connectionConfiguration.createClient()) {
         Request request = new Request("GET", endpoint);
@@ -1710,8 +1715,8 @@ public class ElasticsearchIO {
 
     /**
      * Sets the input document i.e. desired document that will end up in Elasticsearch for this
-     * WriteSummary object. The inputDoc will be the a document that was part of the input
-     * PCollection to either {@link Write} or {@link DocToBulk}
+     * WriteSummary object. The inputDoc will be a document that was part of the input PCollection
+     * to either {@link Write} or {@link DocToBulk}
      *
      * @param inputDoc Serialized json input document destined to end up in Elasticsearch.
      * @return WriteSummary with inputDocument set.
@@ -2269,10 +2274,13 @@ public class ElasticsearchIO {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
 
-      WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
+      @SuppressWarnings("unchecked")
+      WindowFn<Document, ?> originalWindowFn =
+          (WindowFn<Document, ?>) input.getWindowingStrategy().getWindowFn();
 
       PCollection<Document> docResults;
-      PCollection<Document> globalDocs = input.apply(Window.into(new GlobalWindows()));
+      PCollection<Document> globalDocs =
+          input.apply("Window inputs globally", Window.into(new GlobalWindows()));
 
       if (getUseStatefulBatches()) {
         docResults =
@@ -2284,24 +2292,20 @@ public class ElasticsearchIO {
       }
 
       return docResults
-          .setWindowingStrategyInternal(originalStrategy)
+          // Restore windowing of input
+          .apply("Restore original windows", Window.into(originalWindowFn))
           .apply(
               ParDo.of(new ResultFilteringFn())
                   .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
     }
 
     private static class ResultFilteringFn extends DoFn<Document, Document> {
-      @Override
-      public Duration getAllowedTimestampSkew() {
-        return Duration.millis(Long.MAX_VALUE);
-      }
-
       @ProcessElement
       public void processElement(@Element Document doc, MultiOutputReceiver out) {
         if (doc.getHasError()) {
-          out.get(Write.FAILED_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
+          out.get(Write.FAILED_WRITES).output(doc);
         } else {
-          out.get(Write.SUCCESSFUL_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
+          out.get(Write.SUCCESSFUL_WRITES).output(doc);
         }
       }
     }
@@ -2350,6 +2354,11 @@ public class ElasticsearchIO {
 
       protected BulkIOBaseFn(BulkIO bulkSpec) {
         this.spec = bulkSpec;
+      }
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return Duration.millis(Long.MAX_VALUE);
       }
 
       @Setup
@@ -2451,7 +2460,7 @@ public class ElasticsearchIO {
           return new ArrayList<>();
         }
 
-        LOG.info(
+        LOG.debug(
             "ElasticsearchIO batch size: {}, batch size bytes: {}",
             batch.size(),
             currentBatchSizeBytes);

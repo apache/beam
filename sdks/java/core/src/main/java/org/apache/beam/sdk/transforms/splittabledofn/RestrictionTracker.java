@@ -33,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * known amount of completed and remaining work.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
   /**

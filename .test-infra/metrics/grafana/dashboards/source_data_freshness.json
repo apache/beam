@@ -104,7 +104,7 @@
           "hide": false,
           "metricColumn": "build_result",
           "rawQuery": true,
-          "rawSql": "WITH sources AS (\n  SELECT\n    'Jenkins' as source,\n    MAX(build_timestamp + make_interval(secs:= timing_executingtimemillis / 1000.0)) AS last_sync\n  FROM jenkins_builds\n  UNION SELECT\n    'JIRA' as source,\n    lastsynctime AS last_sync\n  FROM jira_issues_metadata\n  UNION SELECT\n    'GitHub' as source,\n    timestamp AS last_sync\n  FROM gh_sync_metadata\n)\nSELECT\n  current_timestamp AS time,\n  source,\n  EXTRACT(EPOCH FROM age(current_timestamp, last_sync)) / (60) AS value\nFROM sources",
+          "rawSql": "WITH sources AS (\n  SELECT\n    'Jenkins' as source,\n    MAX(build_timestamp + make_interval(secs:= timing_executingtimemillis / 1000.0)) AS last_sync\n  FROM jenkins_builds\n  UNION SELECT\n    'GitHub Issues' as source,\n    timestamp AS last_sync\n  FROM gh_sync_metadata\n  WHERE name = 'gh_issue_sync'\n  UNION SELECT\n    'GitHub Pull Requests' as source,\n    timestamp AS last_sync\n  FROM gh_sync_metadata\n  WHERE name = 'gh_pr_sync')\nSELECT\n  current_timestamp AS time,\n  source,\n  EXTRACT(EPOCH FROM age(current_timestamp, last_sync)) / (60) AS value\nFROM sources",
           "refId": "A",
           "select": [
             [

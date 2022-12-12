@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 
 /** Shared code for starting and serving an {@link InMemoryJobService}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class JobServerDriver implements Runnable {
 

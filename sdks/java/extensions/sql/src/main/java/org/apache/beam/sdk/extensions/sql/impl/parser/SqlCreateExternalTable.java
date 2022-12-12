@@ -43,7 +43,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
 
 /** Parse tree for {@code CREATE EXTERNAL TABLE} statement. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.ExecutableStatement {
   private final SqlIdentifier name;

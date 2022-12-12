@@ -64,7 +64,7 @@ public class FileSystemsTest {
 
   @Test
   public void testGetLocalFileSystem() throws Exception {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10740
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20484
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     assertTrue(
         FileSystems.getFileSystemInternal(toLocalResourceId("~/home/").getScheme())
@@ -163,6 +163,34 @@ public class FileSystemsTest {
     FileSystems.rename(
         toResourceIds(ImmutableList.of(existingPath, nonExistentPath), false /* isDirectory */),
         toResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */));
+  }
+
+  @Test
+  public void testCopySkipIfItExists() throws Exception {
+    Path srcPath1 = temporaryFolder.newFile().toPath();
+    Path srcPath2 = temporaryFolder.newFile().toPath();
+
+    Path destPath1 = srcPath1.resolveSibling("dest1");
+    Path destPath2 = srcPath2.resolveSibling("dest2");
+
+    createFileWithContent(srcPath1, "content1");
+    createFileWithContent(srcPath2, "content3");
+    createFileWithContent(destPath2, "content");
+
+    FileSystems.copy(
+        toResourceIds(ImmutableList.of(srcPath1, srcPath2), false /* isDirectory */),
+        toResourceIds(ImmutableList.of(destPath1, destPath2), false /* isDirectory */),
+        MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+
+    assertTrue(srcPath1.toFile().exists());
+    assertTrue(srcPath2.toFile().exists());
+    assertThat(
+        Files.readLines(destPath1.toFile(), StandardCharsets.UTF_8),
+        containsInAnyOrder("content1"));
+    // The file is overwritten because the content does not match.
+    assertThat(
+        Files.readLines(destPath2.toFile(), StandardCharsets.UTF_8),
+        containsInAnyOrder("content3"));
   }
 
   @Test

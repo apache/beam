@@ -3,6 +3,7 @@ title:  "Apache Beam 2.13.0"
 date:   2019-06-07 00:00:01 -0800
 categories:
   - blog
+  - release
 # Date above corrected but keep the old URL:
 aliases:
   - /blog/2019/05/22/beam-2.13.0.html

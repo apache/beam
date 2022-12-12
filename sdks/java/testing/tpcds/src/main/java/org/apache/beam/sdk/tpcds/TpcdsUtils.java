@@ -27,4 +27,16 @@ public class TpcdsUtils {
     /** Read events from Parquet files. */
     PARQUET
   }
+
+  /** How to determine resource names. */
+  public enum ResourceNameMode {
+    /** Names are used as provided. */
+    VERBATIM,
+    /** Names are suffixed with the query being run. */
+    QUERY,
+    /** Names are suffixed with the query being run and a random number. */
+    QUERY_AND_SALT,
+    /** Names are suffixed with the runner being used and a mode (streaming/batch). */
+    QUERY_RUNNER_AND_MODE
+  }
 }

@@ -272,7 +272,7 @@ class Recordings():
   following methods allow for introspection into that background recording job.
   """
   def describe(self, pipeline=None):
-    # type: (Optional[beam.Pipeline]) -> dict[str, Any]
+    # type: (Optional[beam.Pipeline]) -> dict[str, Any] # noqa: F821
 
     """Returns a description of all the recordings for the given pipeline.
 
@@ -342,8 +342,17 @@ class Recordings():
 
 
 class Clusters:
-  """An interface to manage clusters running workers that are connected with
-  the current interactive environment.
+  """An interface to control clusters implicitly created and managed by
+  the current interactive environment. This class is not needed and
+  should not be used otherwise.
+
+  Do not use it for clusters a user explicitly manages: e.g., if you have
+  a Flink cluster running somewhere and provides the flink master when
+  running a pipeline with the FlinkRunner, the cluster will not be tracked
+  or managed by Beam.
+  To reuse the same cluster for your pipelines, use the same pipeline
+  options: e.g., a pipeline option with the same flink master if you are
+  using FlinkRunner.
 
   This module is experimental. No backwards-compatibility guarantees.
 
@@ -405,8 +414,9 @@ class Clusters:
   # The minimum worker number to create a Dataproc cluster.
   DATAPROC_MINIMUM_WORKER_NUM = 2
 
-  # TODO(BEAM-14142): Fix the Dataproc image version after a released image
-  # contains all missing dependencies for Flink to run.
+  # TODO(https://github.com/apache/beam/issues/21527): Fix the Dataproc image
+  # version after a released image contains all missing dependencies for Flink
+  # to run.
   # DATAPROC_IMAGE_VERSION = '2.0.XX-debian10'
 
   def __init__(self) -> None:
@@ -682,7 +692,7 @@ def show(
     visualize_data=False,
     n='inf',
     duration='inf'):
-  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], bool, bool, Union[int, str], Union[int, str]) -> None
+  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], bool, bool, Union[int, str], Union[int, str]) -> None # noqa: F821
 
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.

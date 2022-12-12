@@ -33,7 +33,7 @@ import org.joda.time.Duration;
 @Description("[Internal] Options for configuring StreamingDataflowWorker.")
 @Hidden
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOptions {
   @Description("Stub for communicating with Windmill.")

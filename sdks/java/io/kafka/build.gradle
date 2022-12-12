@@ -43,6 +43,15 @@ def kafkaVersions = [
     '251': "2.5.1",
 ]
 
+def sdfKafkaVersions = [
+        '201',
+        '211',
+        '222',
+        '231',
+        '241',
+        '251'
+]
+
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 
 dependencies {
@@ -76,6 +85,9 @@ dependencies {
     // "kafka-clients" has to be provided since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
+  // everit_json is needed for Kafka Read SchemaTransform tests that rely on JSON-schema translation.
+  permitUnusedDeclared library.java.everit_json_schema
+  provided library.java.everit_json_schema
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":sdks:java:io:synthetic")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
@@ -135,7 +147,10 @@ kafkaVersions.each {kv ->
     include '**/KafkaIOIT.class'
 
     filter {
-      includeTestsMatching "*InBatch"
+      excludeTestsMatching "*InStreaming"
+      if (!(kv.key in sdfKafkaVersions)) excludeTestsMatching "*DynamicPartitions" //admin client create partitions does not exist in kafka 0.11.0.3 and kafka sdf does not appear to work for kafka versions <2.0.1
+      if (!(kv.key in sdfKafkaVersions)) excludeTestsMatching "*SDFResumesCorrectly" //Kafka SDF does not work for kafka versions <2.0.1
+      if (!(kv.key in sdfKafkaVersions)) excludeTestsMatching "*StopReadingFunction" //Kafka SDF does not work for kafka versions <2.0.1
     }
   }
 }

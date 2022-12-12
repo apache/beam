@@ -133,7 +133,7 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def assign(self, assign_context):
-    # type: (AssignContext) -> Iterable[BoundedWindow]
+    # type: (AssignContext) -> Iterable[BoundedWindow] # noqa: F821
 
     """Associates windows to an element.
 
@@ -356,6 +356,17 @@ class NonMergingWindowFn(WindowFn):
 class GlobalWindows(NonMergingWindowFn):
   """A windowing function that assigns everything to one global window."""
   @classmethod
+  def windowed_batch(
+      cls,
+      batch,  # type: Any
+      timestamp=MIN_TIMESTAMP,  # type: Timestamp
+      pane_info=windowed_value.PANE_INFO_UNKNOWN  # type: windowed_value.PaneInfo
+  ):
+    # type: (...) -> windowed_value.WindowedBatch
+    return windowed_value.HomogeneousWindowedBatch.of(
+        batch, timestamp, (GlobalWindow(), ), pane_info)
+
+  @classmethod
   def windowed_value(
       cls,
       value,  # type: Any
@@ -364,6 +375,10 @@ class GlobalWindows(NonMergingWindowFn):
   ):
     # type: (...) -> WindowedValue
     return WindowedValue(value, timestamp, (GlobalWindow(), ), pane_info)
+
+  @classmethod
+  def windowed_value_at_end_of_window(cls, value):
+    return cls.windowed_value(value, GlobalWindow().max_timestamp())
 
   def assign(self, assign_context):
     # type: (WindowFn.AssignContext) -> List[GlobalWindow]

@@ -43,8 +43,19 @@ import * as coders from "../coders/standard_coders";
 import * as internal from "./internal";
 import * as transform from "./transform";
 import { RowCoder } from "../coders/row_coder";
+import { Coder } from "../coders/coders";
 import * as artifacts from "../runners/artifacts";
 import * as service from "../utils/service";
+
+export interface RawExternalTransformOptions {
+  inferPValueType?: boolean;
+  requestedOutputCoders?: { [key: string]: Coder<unknown> };
+}
+
+const defaultRawExternalTransformOptions: RawExternalTransformOptions = {
+  inferPValueType: true,
+  requestedOutputCoders: {},
+};
 
 // TODO: (API) (Types) This class expects PCollections to already have the
 // correct Coders. It would be great if we could infer coders, or at least have
@@ -56,13 +67,13 @@ export function rawExternalTransform<
   urn: string,
   payload: Uint8Array | { [key: string]: any },
   serviceProviderOrAddress: string | (() => Promise<service.Service>),
-  inferPValueType: boolean = true
+  options: RawExternalTransformOptions = {}
 ): transform.AsyncPTransform<InputT, OutputT> {
   return new RawExternalTransform(
     urn,
     payload,
     serviceProviderOrAddress,
-    inferPValueType
+    options
   );
 }
 
@@ -77,15 +88,17 @@ class RawExternalTransform<
 
   private payload?: Uint8Array;
   private serviceProvider: () => Promise<service.Service>;
+  private options: RawExternalTransformOptions;
 
   constructor(
     private urn: string,
     payload: Uint8Array | { [key: string]: any },
     serviceProviderOrAddress: string | (() => Promise<service.Service>),
-    private inferPValueType: boolean = true
+    options: RawExternalTransformOptions
   ) {
     super("External(" + urn + ")");
-    if (payload == undefined) {
+    this.options = { ...defaultRawExternalTransformOptions, ...options };
+    if (payload === null || payload === undefined) {
       this.payload = undefined;
     } else if (payload instanceof Uint8Array) {
       this.payload = payload as Uint8Array;
@@ -93,7 +106,7 @@ class RawExternalTransform<
       this.payload = encodeSchemaPayload(payload);
     }
 
-    if (typeof serviceProviderOrAddress == "string") {
+    if (typeof serviceProviderOrAddress === "string") {
       this.serviceProvider = async () =>
         new service.ExternalService(serviceProviderOrAddress);
     } else {
@@ -101,7 +114,7 @@ class RawExternalTransform<
     }
   }
 
-  async asyncExpandInternal(
+  async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
@@ -130,6 +143,12 @@ class RawExternalTransform<
           spec: { urn: internal.impulse.urn, payload: new Uint8Array() },
           outputs: { main: pcId },
         });
+    }
+
+    for (const [output, coder] of Object.entries(
+      this.options.requestedOutputCoders!
+    )) {
+      request.outputCoderRequests[output] = pipeline.getCoderId(coder);
     }
 
     // Copy all the rest, as there may be opaque references.
@@ -185,7 +204,7 @@ class RawExternalTransform<
     // Don't even bother creating a connection if there are no dependencies.
     if (
       Object.values(components.environments).every(
-        (env) => env.dependencies.length == 0
+        (env) => env.dependencies.length === 0
       )
     ) {
       return components;
@@ -250,7 +269,7 @@ class RawExternalTransform<
     );
     if (newTags.length > 1) {
       throw new Error("Ambiguous renaming of tags.");
-    } else if (newTags.length == 1) {
+    } else if (newTags.length === 1) {
       const missingTags = difference(
         new Set(Object.keys(transformProto.inputs)),
         new Set(Object.keys(response.transform!.inputs))
@@ -276,7 +295,9 @@ class RawExternalTransform<
       t.inputs = Object.fromEntries(
         Object.entries(t.inputs).map(([k, v]) => [
           k,
-          renamedInputs[v] != undefined ? renamedInputs[v] : v,
+          renamedInputs[v] !== null && renamedInputs[v] !== undefined
+            ? renamedInputs[v]
+            : v,
         ])
       );
     }
@@ -323,11 +344,11 @@ class RawExternalTransform<
     // TypeScript types are not available at runtime. If I understand correctly, there is no plan to change that at the moment.
     // See: https://github.com/microsoft/TypeScript/issues/47658
     // See: https://github.com/microsoft/TypeScript/issues/3628
-    if (this.inferPValueType) {
+    if (this.options.inferPValueType) {
       const outputKeys = [...Object.keys(response.transform!.outputs)];
-      if (outputKeys.length == 0) {
+      if (outputKeys.length === 0) {
         return null!;
-      } else if (outputKeys.length == 1) {
+      } else if (outputKeys.length === 1) {
         return new PCollection(
           pipeline,
           response.transform!.outputs[outputKeys[0]]
@@ -351,6 +372,7 @@ function encodeSchemaPayload(
   if (!schema) {
     schema = RowCoder.inferSchemaOfJSON(payload);
   }
+
   new RowCoder(schema!).encode(payload, encoded, null!);
   return ExternalConfigurationPayload.toBinary({
     schema: schema,

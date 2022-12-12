@@ -32,7 +32,7 @@ import org.apache.flink.metrics.reporter.AbstractReporter;
  * "file" for this reporter in the "metrics.reporters" setting).
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FileReporter extends AbstractReporter {
   @Override

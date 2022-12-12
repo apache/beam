@@ -34,20 +34,26 @@ import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.Objects;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
@@ -181,7 +187,8 @@ public class SpannerWriteIT {
                 .withDatabaseId(databaseName));
 
     PCollectionView<Dialect> dialectView =
-        p.apply(Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+        p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
+            .apply("PG Dialect View", View.asSingleton());
     p.apply("PG init", GenerateSequence.from(0).to(numRecords))
         .apply("Generate PG mu", ParDo.of(new GenerateMutations(options.getTable())))
         .apply(
@@ -197,6 +204,40 @@ public class SpannerWriteIT {
     assertThat(result.getState(), is(PipelineResult.State.DONE));
     assertThat(countNumberOfRecords(databaseName), equalTo((long) numRecords));
     assertThat(countNumberOfRecords(pgDatabaseName), equalTo((long) numRecords));
+  }
+
+  @Test
+  public void testWriteViaSchemaTransform() throws Exception {
+    int numRecords = 100;
+    final Schema tableSchema =
+        Schema.builder().addInt64Field("Key").addStringField("Value").build();
+    PCollectionRowTuple.of(
+            "input",
+            p.apply("Init", GenerateSequence.from(0).to(numRecords))
+                .apply(
+                    MapElements.into(TypeDescriptors.rows())
+                        .via(
+                            seed ->
+                                Row.withSchema(tableSchema)
+                                    .addValue(seed)
+                                    .addValue(Objects.requireNonNull(seed).toString())
+                                    .build()))
+                .setRowSchema(tableSchema))
+        .apply(
+            new SpannerWriteSchemaTransformProvider()
+                .from(
+                    SpannerWriteSchemaTransformProvider.SpannerWriteSchemaTransformConfiguration
+                        .builder()
+                        .setDatabaseId(databaseName)
+                        .setInstanceId(options.getInstanceId())
+                        .setTableId(options.getTable())
+                        .build())
+                .buildTransform());
+
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
+    assertThat(result.getState(), is(PipelineResult.State.DONE));
+    assertThat(countNumberOfRecords(databaseName), equalTo((long) numRecords));
   }
 
   @Test
@@ -224,7 +265,8 @@ public class SpannerWriteIT {
                 .withDatabaseId(databaseName));
 
     PCollectionView<Dialect> dialectView =
-        p.apply(Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+        p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
+            .apply("PG Dialect View", View.asSingleton());
 
     SpannerWriteResult pgStepOne =
         p.apply("pg first step", GenerateSequence.from(0).to(numRecords))
@@ -269,7 +311,8 @@ public class SpannerWriteIT {
                 .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
 
     PCollectionView<Dialect> dialectView =
-        p.apply(Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+        p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
+            .apply("PG Dialect View", View.asSingleton());
     p.apply("pg init", GenerateSequence.from(0).to(2 * numRecords))
         .apply("Generate pg mu", ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(
@@ -312,7 +355,8 @@ public class SpannerWriteIT {
     int numRecords = 100;
 
     PCollectionView<Dialect> dialectView =
-        p.apply(Create.of(Dialect.POSTGRESQL)).apply(View.asSingleton());
+        p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
+            .apply("PG Dialect View", View.asSingleton());
     p.apply(GenerateSequence.from(0).to(2 * numRecords))
         .apply(ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(

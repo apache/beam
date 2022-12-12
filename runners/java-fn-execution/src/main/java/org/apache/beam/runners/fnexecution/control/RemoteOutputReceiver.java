@@ -28,7 +28,7 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
  */
 @AutoValue
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public abstract class RemoteOutputReceiver<T> {
   public static <T> RemoteOutputReceiver of(Coder<T> coder, FnDataReceiver<T> receiver) {

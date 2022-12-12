@@ -23,6 +23,7 @@ import com.google.auto.service.AutoService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -36,8 +37,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** This class knows all the translators from a primitive BEAM transform to a Samza operator. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaPipelineTranslator {
 
@@ -78,8 +79,9 @@ public class SamzaPipelineTranslator {
       Pipeline pipeline,
       SamzaPipelineOptions options,
       Map<PValue, String> idMap,
+      Set<String> nonUniqueStateIds,
       ConfigBuilder configBuilder) {
-    final ConfigContext ctx = new ConfigContext(idMap, options);
+    final ConfigContext ctx = new ConfigContext(idMap, nonUniqueStateIds, options);
 
     final TransformVisitorFn configFn =
         new TransformVisitorFn() {

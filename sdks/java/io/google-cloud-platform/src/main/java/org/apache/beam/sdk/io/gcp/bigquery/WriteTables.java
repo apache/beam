@@ -97,7 +97,7 @@ import org.slf4j.LoggerFactory;
 class WriteTables<DestinationT extends @NonNull Object>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, WritePartition.Result>>,
-        PCollection<KV<TableDestination, WriteTables.Result>>> {
+        PCollection<KV<DestinationT, WriteTables.Result>>> {
   @AutoValue
   abstract static class Result {
     abstract String getTableName();
@@ -135,7 +135,7 @@ class WriteTables<DestinationT extends @NonNull Object>
   private final Set<SchemaUpdateOption> schemaUpdateOptions;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
-  private final TupleTag<KV<TableDestination, WriteTables.Result>> mainOutputTag;
+  private final TupleTag<KV<DestinationT, WriteTables.Result>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
   private final @Nullable ValueProvider<String> loadJobProjectId;
   private final int maxRetryJobs;
@@ -148,8 +148,7 @@ class WriteTables<DestinationT extends @NonNull Object>
   private final @Nullable String tempDataset;
 
   private class WriteTablesDoFn
-      extends DoFn<
-          KV<ShardedKey<DestinationT>, WritePartition.Result>, KV<TableDestination, Result>> {
+      extends DoFn<KV<ShardedKey<DestinationT>, WritePartition.Result>, KV<DestinationT, Result>> {
 
     private Map<DestinationT, String> jsonSchemas = Maps.newHashMap();
 
@@ -160,6 +159,7 @@ class WriteTables<DestinationT extends @NonNull Object>
       final List<String> partitionFiles;
       final TableDestination tableDestination;
       final TableReference tableReference;
+      final DestinationT destinationT;
       final boolean isFirstPane;
 
       public PendingJobData(
@@ -168,12 +168,14 @@ class WriteTables<DestinationT extends @NonNull Object>
           List<String> partitionFiles,
           TableDestination tableDestination,
           TableReference tableReference,
+          DestinationT destinationT,
           boolean isFirstPane) {
         this.window = window;
         this.retryJob = retryJob;
         this.partitionFiles = partitionFiles;
         this.tableDestination = tableDestination;
         this.tableReference = tableReference;
+        this.destinationT = destinationT;
         this.isFirstPane = isFirstPane;
       }
     }
@@ -292,6 +294,7 @@ class WriteTables<DestinationT extends @NonNull Object>
               partitionFiles,
               tableDestination,
               tableReference,
+              destination,
               element.getValue().isFirstPane()));
     }
 
@@ -359,7 +362,7 @@ class WriteTables<DestinationT extends @NonNull Object>
                             pendingJob.isFirstPane);
                     c.output(
                         mainOutputTag,
-                        KV.of(pendingJob.tableDestination, result),
+                        KV.of(pendingJob.destinationT, result),
                         pendingJob.window.maxTimestamp(),
                         pendingJob.window);
                     for (String file : pendingJob.partitionFiles) {
@@ -423,7 +426,7 @@ class WriteTables<DestinationT extends @NonNull Object>
   }
 
   @Override
-  public PCollection<KV<TableDestination, Result>> expand(
+  public PCollection<KV<DestinationT, Result>> expand(
       PCollection<KV<ShardedKey<DestinationT>, WritePartition.Result>> input) {
     PCollectionTuple writeTablesOutputs =
         input.apply(

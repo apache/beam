@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
@@ -40,25 +42,52 @@ public class PythonService {
 
   private final String module;
   private final List<String> args;
+  private final List<String> extraPackages;
 
-  public PythonService(String module, List<String> args) {
+  public PythonService(String module, List<String> args, List<String> extraPackages) {
     this.module = module;
     this.args = args;
+    this.extraPackages = extraPackages;
+  }
+
+  public PythonService(String module, List<String> args) {
+    this(module, args, ImmutableList.of());
   }
 
   public PythonService(String module, String... args) {
     this(module, Arrays.asList(args));
   }
 
-  @SuppressWarnings("argument.type.incompatible")
+  /**
+   * Specifies that the given Python packages should be installed for this service environment.
+   *
+   * @param extraPackages a list of pip-installable package specifications, such as would be found
+   *     in a requirements file.
+   * @return a Python Service object that will ensure these dependencies are available.
+   */
+  public PythonService withExtraPackages(List<String> extraPackages) {
+    return new PythonService(
+        module,
+        args,
+        ImmutableList.<String>builder().addAll(this.extraPackages).addAll(extraPackages).build());
+  }
+
+  @SuppressWarnings("argument")
   public AutoCloseable start() throws IOException, InterruptedException {
     File bootstrapScript = File.createTempFile("bootstrap_beam_venv", ".py");
     bootstrapScript.deleteOnExit();
     try (FileOutputStream fout = new FileOutputStream(bootstrapScript.getAbsolutePath())) {
       ByteStreams.copy(getClass().getResourceAsStream("bootstrap_beam_venv.py"), fout);
     }
-    List<String> bootstrapCommand =
-        ImmutableList.of(whichPython(), bootstrapScript.getAbsolutePath());
+    List<String> bootstrapCommand = new ArrayList<>();
+    bootstrapCommand.add(whichPython());
+    bootstrapCommand.add(bootstrapScript.getAbsolutePath());
+    bootstrapCommand.add(
+        "--beam_version="
+            + getMatchingStablePythonSDKVersion(ReleaseInfo.getReleaseInfo().getSdkVersion()));
+    if (!extraPackages.isEmpty()) {
+      bootstrapCommand.add("--extra_packages=" + String.join(";", extraPackages));
+    }
     LOG.info("Running bootstrap command " + bootstrapCommand);
     Process bootstrap =
         new ProcessBuilder(bootstrapCommand).redirectError(ProcessBuilder.Redirect.INHERIT).start();
@@ -78,7 +107,7 @@ public class PythonService {
     int result = bootstrap.waitFor();
     if (result != 0) {
       throw new RuntimeException(
-          "Python boostrap failed with error " + result + ", " + lastNonEmptyLine);
+          "Python bootstrap failed with error " + result + ", " + lastNonEmptyLine);
     }
     String pythonExecutable = lastNonEmptyLine;
     List<String> command = new ArrayList<>();
@@ -105,6 +134,17 @@ public class PythonService {
       }
     }
     throw new RuntimeException("Unable to find a suitable Python executable.");
+  }
+
+  @VisibleForTesting
+  static String getMatchingStablePythonSDKVersion(String javaSDKVersion) {
+    if (javaSDKVersion == null) {
+      return "latest";
+    } else if (javaSDKVersion.endsWith(".dev")) {
+      return "latest";
+    } else {
+      return javaSDKVersion;
+    }
   }
 
   public static int findAvailablePort() throws IOException {

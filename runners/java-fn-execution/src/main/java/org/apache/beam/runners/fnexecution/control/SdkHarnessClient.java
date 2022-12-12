@@ -65,8 +65,8 @@ import org.slf4j.LoggerFactory;
  * CloseableFnDataReceiver}, which handle lower-level gRPC message wrangling.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SdkHarnessClient implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessClient.class);
@@ -512,9 +512,10 @@ public class SdkHarnessClient implements AutoCloseable {
               finalizationHandler.requestsFinalization(bundleId);
             }
           } else {
-            // TODO: [BEAM-3962] Handle aborting the bundle being processed.
+            // TODO: [https://github.com/apache/beam/issues/18756] Handle aborting the bundle being
+            // processed.
             throw new IllegalStateException(
-                "Processing bundle failed, TODO: [BEAM-3962] abort bundle.");
+                "Processing bundle failed, TODO: [https://github.com/apache/beam/issues/18756] abort bundle.");
           }
         } catch (Exception e) {
           if (exception == null) {
@@ -603,9 +604,8 @@ public class SdkHarnessClient implements AutoCloseable {
    *   <li>Remote references
    * </ul>
    *
-   * <p>Note that bundle processors are cached based upon the the {@link
-   * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
-   * may be returned.
+   * <p>Note that bundle processors are cached based upon the {@link ProcessBundleDescriptor#getId()
+   * process bundle descriptor id}. A previously created instance may be returned.
    */
   public BundleProcessor getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,
@@ -622,9 +622,8 @@ public class SdkHarnessClient implements AutoCloseable {
   /**
    * Provides {@link BundleProcessor} that is capable of processing bundles not containing timers.
    *
-   * <p>Note that bundle processors are cached based upon the the {@link
-   * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
-   * may be returned.
+   * <p>Note that bundle processors are cached based upon the {@link ProcessBundleDescriptor#getId()
+   * process bundle descriptor id}. A previously created instance may be returned.
    */
   public BundleProcessor getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,
@@ -649,9 +648,8 @@ public class SdkHarnessClient implements AutoCloseable {
    *   <li>Remote references
    * </ul>
    *
-   * <p>Note that bundle processors are cached based upon the the {@link
-   * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
-   * may be returned.
+   * <p>Note that bundle processors are cached based upon the {@link ProcessBundleDescriptor#getId()
+   * process bundle descriptor id}. A previously created instance may be returned.
    */
   public BundleProcessor getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,

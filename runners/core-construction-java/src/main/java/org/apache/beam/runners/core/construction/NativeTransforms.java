@@ -46,7 +46,7 @@ public class NativeTransforms {
    * Returns true if an only if the Runner understands this transform and can handle it directly.
    */
   public static boolean isNative(RunnerApi.PTransform pTransform) {
-    // TODO(BEAM-10109) Use default (context) classloader.
+    // TODO(https://github.com/apache/beam/issues/20192) Use default (context) classloader.
     Iterator<IsNativeTransform> matchers =
         ServiceLoader.load(IsNativeTransform.class, NativeTransforms.class.getClassLoader())
             .iterator();

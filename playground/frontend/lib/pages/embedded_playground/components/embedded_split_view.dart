@@ -38,7 +38,7 @@ class EmbeddedSplitView extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _EmbeddedSplitViewState createState() => _EmbeddedSplitViewState();
+  State<EmbeddedSplitView> createState() => _EmbeddedSplitViewState();
 }
 
 class _EmbeddedSplitViewState extends State<EmbeddedSplitView> {

@@ -19,14 +19,13 @@
 import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground_components/playground_components.dart';
 
 class DescriptionPopoverButton extends StatelessWidget {
   final BuildContext? parentContext;
-  final ExampleModel example;
+  final ExampleBase example;
   final Alignment followerAnchor;
   final Alignment targetAnchor;
   final void Function()? onOpen;
@@ -52,7 +51,7 @@ class DescriptionPopoverButton extends StatelessWidget {
         splashRadius: kIconButtonSplashRadius,
         icon: Icon(
           Icons.info_outline_rounded,
-          color: ThemeColors.of(context).grey1Color,
+          color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
         ),
         tooltip: appLocale.exampleDescription,
         onPressed: () {
@@ -69,7 +68,7 @@ class DescriptionPopoverButton extends StatelessWidget {
 
   void _showDescriptionPopover(
     BuildContext context,
-    ExampleModel example,
+    ExampleBase example,
     Alignment followerAnchor,
     Alignment targetAnchor,
   ) async {

@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * keeping.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ReferenceCountingExecutableStageContextFactory
     implements ExecutableStageContext.Factory {
@@ -158,7 +158,12 @@ public class ReferenceCountingExecutableStageContextFactory
     synchronized (this) {
       if (executor == null) {
         executor =
-            Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder().setDaemon(true).build());
+            Executors.newScheduledThreadPool(
+                1,
+                new ThreadFactoryBuilder()
+                    .setNameFormat("ScheduledExecutor-thread")
+                    .setDaemon(true)
+                    .build());
       }
       return executor;
     }

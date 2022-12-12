@@ -35,7 +35,7 @@ type RowEncoderBuilder struct {
 	RequireAllFieldsExported bool
 }
 
-type encoderProvider = func(reflect.Type) (func(interface{}, io.Writer) error, error)
+type encoderProvider = func(reflect.Type) (func(any, io.Writer) error, error)
 
 // Register accepts a provider for the given type to schema encode values of that type.
 //
@@ -45,7 +45,7 @@ type encoderProvider = func(reflect.Type) (func(interface{}, io.Writer) error, e
 //
 // TODO(BEAM-9615): Add final factory types. This interface is subject to change.
 // Currently f must be a function of the type func(reflect.Type) func(T, io.Writer) (error).
-func (b *RowEncoderBuilder) Register(rt reflect.Type, f interface{}) {
+func (b *RowEncoderBuilder) Register(rt reflect.Type, f any) {
 	fe, ok := f.(encoderProvider)
 	if !ok {
 		panic(fmt.Sprintf("%T isn't a supported encoder function type (passed with %v)", f, rt))
@@ -65,7 +65,7 @@ func (b *RowEncoderBuilder) Register(rt reflect.Type, f interface{}) {
 
 // Build constructs a Beam Schema coder for the given type, using any providers registered for
 // itself or it's fields.
-func (b *RowEncoderBuilder) Build(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func (b *RowEncoderBuilder) Build(rt reflect.Type) (func(any, io.Writer) error, error) {
 	if err := rowTypeValidation(rt, true); err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (b *RowEncoderBuilder) Build(rt reflect.Type) (func(interface{}, io.Writer)
 
 // customFunc returns nil if no custom func exists for this type.
 // If an error is returned, coder construction should be aborted.
-func (b *RowEncoderBuilder) customFunc(t reflect.Type) (func(interface{}, io.Writer) error, bool, error) {
+func (b *RowEncoderBuilder) customFunc(t reflect.Type) (func(any, io.Writer) error, bool, error) {
 	if fact, ok := b.allFuncs[t]; ok {
 		f, err := fact(t)
 
@@ -111,7 +111,7 @@ func (b *RowEncoderBuilder) customFunc(t reflect.Type) (func(interface{}, io.Wri
 }
 
 // encoderForType returns an encoder function for the struct or pointer to struct type.
-func (b *RowEncoderBuilder) encoderForType(t reflect.Type) (func(interface{}, io.Writer) error, error) {
+func (b *RowEncoderBuilder) encoderForType(t reflect.Type) (func(any, io.Writer) error, error) {
 	// Check if there are any providers registered for this type, or that this type adheres to any interfaces.
 	var isPtr bool
 	// Pointers become the value type for decomposition.
@@ -145,7 +145,7 @@ func (b *RowEncoderBuilder) encoderForType(t reflect.Type) (func(interface{}, io
 			if isPtr {
 				// We have the value version, but not a pointer version, so we jump through reflect to
 				// get the right type to pass in.
-				return func(v interface{}, w io.Writer) error {
+				return func(v any, w io.Writer) error {
 					return enc(reflect.ValueOf(v).Elem().Interface(), w)
 				}, nil
 			}
@@ -159,11 +159,11 @@ func (b *RowEncoderBuilder) encoderForType(t reflect.Type) (func(interface{}, io
 	}
 
 	if isPtr {
-		return func(v interface{}, w io.Writer) error {
+		return func(v any, w io.Writer) error {
 			return enc(reflect.ValueOf(v).Elem(), w)
 		}, nil
 	}
-	return func(v interface{}, w io.Writer) error {
+	return func(v any, w io.Writer) error {
 		return enc(reflect.ValueOf(v), w)
 	}, nil
 }
@@ -208,7 +208,11 @@ func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) (typeEnc
 		return typeEncoderFieldReflect{encode: func(rv reflect.Value, w io.Writer) error {
 			return EncodeVarUint64(rv.Uint(), w)
 		}}, nil
-	case reflect.Float32, reflect.Float64:
+	case reflect.Float32:
+		return typeEncoderFieldReflect{encode: func(rv reflect.Value, w io.Writer) error {
+			return EncodeSinglePrecisionFloat(float32(rv.Float()), w)
+		}}, nil
+	case reflect.Float64:
 		return typeEncoderFieldReflect{encode: func(rv reflect.Value, w io.Writer) error {
 			return EncodeDouble(rv.Float(), w)
 		}}, nil

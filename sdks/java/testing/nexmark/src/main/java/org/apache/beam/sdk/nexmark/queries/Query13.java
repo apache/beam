@@ -42,7 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
  * that runner reads from shuffle and connects with SDK to do CPU intensive computation.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Query13 extends NexmarkQueryTransform<Event> {
   private final NexmarkConfiguration configuration;

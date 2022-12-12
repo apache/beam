@@ -24,7 +24,7 @@ import org.apache.kudu.client.KuduException;
 
 /** An interface for real, mock, or fake implementations of Kudu services. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 interface KuduService<T> extends Serializable {
 

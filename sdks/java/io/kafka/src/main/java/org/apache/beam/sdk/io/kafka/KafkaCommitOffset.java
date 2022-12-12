@@ -46,8 +46,7 @@ import org.slf4j.LoggerFactory;
 
 /** A {@link PTransform} that commits offsets of {@link KafkaRecord}. */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class KafkaCommitOffset<K, V>
     extends PTransform<
@@ -69,6 +68,7 @@ public class KafkaCommitOffset<K, V>
       consumerFactoryFn = readSourceDescriptors.getConsumerFactoryFn();
     }
 
+    @RequiresStableInput
     @ProcessElement
     public void processElement(@Element KV<KafkaSourceDescriptor, Long> element) {
       Map<String, Object> updatedConsumerConfig =

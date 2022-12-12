@@ -32,7 +32,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Immutabl
  * org.apache.beam.sdk.extensions.sql.BeamSqlCli}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class InMemoryMetaStore implements MetaStore {
   private Map<String, Table> tables = new HashMap<>();

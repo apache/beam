@@ -54,6 +54,7 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -136,13 +137,43 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(res, equal_to([6, 12, 18]))
 
+  def test_batch_pardo_override_type_inference(self):
+    class ArrayMultiplyDoFnOverride(beam.DoFn):
+      def process_batch(self, batch, *unused_args,
+                        **unused_kwargs) -> Iterator[np.ndarray]:
+        assert isinstance(batch, np.ndarray)
+        yield batch * 2
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return input_type
+
+      def get_input_batch_type(self, input_element_type):
+        from apache_beam.typehints.batch import NumpyArray
+        return NumpyArray[input_element_type]
+
+      def get_output_batch_type(self, input_element_type):
+        return self.get_input_batch_type(input_element_type)
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFnOverride())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 18]))
+
+  @unittest.skip('https://github.com/apache/beam/issues/23944')
   def test_batch_pardo_trigger_flush(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest(
-          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes '
-          'in non-cython environments')
+          'https://github.com/apache/beam/issues/21643: FnRunnerTest with '
+          'non-trivial inputs flakes in non-cython environments')
 
     with self.create_pipeline() as p:
       res = (
@@ -162,7 +193,8 @@ class FnApiRunnerTest(unittest.TestCase):
     # - The output batch type of the producer
     # - The input batch type of the consumer
     with self.assertWarnsRegex(InefficientExecutionWarning,
-                               r'ListPlusOneDoFn.*NumpyArray.*List\[int64\]'):
+                               (r'ListPlusOneDoFn.*NumpyArray.*List\[<class '
+                                r'\'numpy.int64\'>\]')):
       with self.create_pipeline() as p:
         res = (
             p
@@ -293,13 +325,59 @@ class FnApiRunnerTest(unittest.TestCase):
                                  9*9                        # [ 9, 14)
                                  ]))
 
+  def test_batch_to_element_pardo(self):
+    class ArraySumDoFn(beam.DoFn):
+      @beam.DoFn.yields_elements
+      def process_batch(self, batch: np.ndarray, *unused_args,
+                        **unused_kwargs) -> Iterator[np.int64]:
+        yield batch.sum()
+
+      def infer_output_type(self, input_type):
+        assert input_type == np.int64
+        return np.int64
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array(range(100), dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.ParDo(ArraySumDoFn())
+          | beam.CombineGlobally(sum))
+
+      assert_that(res, equal_to([99 * 50 * 2]))
+
+  def test_element_to_batch_pardo(self):
+    class ArrayProduceDoFn(beam.DoFn):
+      @beam.DoFn.yields_batches
+      def process(self, element: np.int64, *unused_args,
+                  **unused_kwargs) -> Iterator[np.ndarray]:
+        yield np.array([element] * int(element))
+
+      # infer_output_type must be defined (when there's no process method),
+      # otherwise we don't know the input type is the same as output type.
+      def infer_output_type(self, input_type):
+        return np.int64
+
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create(np.array([1, 2, 3], dtype=np.int64)).with_output_types(
+              np.int64)
+          | beam.ParDo(ArrayProduceDoFn())
+          | beam.ParDo(ArrayMultiplyDoFn())
+          | beam.Map(lambda x: x * 3))
+
+      assert_that(res, equal_to([6, 12, 12, 18, 18, 18]))
+
+  @unittest.skip('https://github.com/apache/beam/issues/23944')
   def test_pardo_large_input(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
     except RuntimeError:
       self.skipTest(
-          'BEAM-14410: FnRunnerTest with non-trivial inputs flakes in '
-          'non-cython environments')
+          'https://github.com/apache/beam/issues/21643: FnRunnerTest with '
+          'non-trivial inputs flakes in non-cython environments')
     with self.create_pipeline() as p:
       res = (
           p
@@ -380,7 +458,16 @@ class FnApiRunnerTest(unittest.TestCase):
                 ExpectingSideInputsFn(f'Do{k}'),
                 *[beam.pvalue.AsList(inputs[s]) for s in range(1, k)]))
 
-  @unittest.skip('BEAM-13040')
+  def test_flatmap_numpy_array(self):
+    with self.create_pipeline() as p:
+      pc = (
+          p
+          | beam.Create([np.array(range(10))])
+          | beam.FlatMap(lambda arr: arr))
+
+      assert_that(pc, equal_to([np.int64(i) for i in range(10)]))
+
+  @unittest.skip('https://github.com/apache/beam/issues/21228')
   def test_pardo_side_input_sparse_dependencies(self):
     with self.create_pipeline() as p:
       inputs = []
@@ -1710,7 +1797,7 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -1740,7 +1827,7 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -1778,7 +1865,7 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3, is_drain=is_drain),
         options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests.
+    #TODO(https://github.com/apache/beam/issues/19936): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
@@ -2023,6 +2110,33 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         assert_that(flat, equal_to(expected))
         if expected_groups:
           assert_that(grouped, equal_to(expected_groups), label='CheckGrouped')
+
+  def test_time_based_split_manager(self):
+
+    elements = [str(x) for x in range(100)]
+
+    class BundleCountingDoFn(beam.DoFn):
+      def process(self, element):
+        time.sleep(0.005)
+        yield element
+
+      def finish_bundle(self):
+        yield window.GlobalWindows.windowed_value('endOfBundle')
+
+    with self.create_pipeline() as p:
+      p._options.view_as(DirectOptions).direct_test_splits = {
+          'SplitMarker': {
+              'timings': [0, .05], 'fractions': [0.5, 0.5]
+          }
+      }
+      assert_that(
+          p
+          | beam.Create(elements)
+          | 'SplitMarker' >> beam.ParDo(BundleCountingDoFn()),
+          # We split the first bundle twice (once at 50%, and again at 50% of
+          # what was left). All returned split remainders get processed
+          # (together) in a (single) subsequent bundle.
+          equal_to(elements + ['endOfBundle'] * 2))
 
   def verify_channel_split(self, split_result, last_primary, first_residual):
     self.assertEqual(1, len(split_result.channel_splits), split_result)

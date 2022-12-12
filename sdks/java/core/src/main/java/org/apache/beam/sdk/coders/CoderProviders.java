@@ -24,13 +24,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** Static utility methods for creating and working with {@link CoderProvider}s. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public final class CoderProviders {
   private CoderProviders() {} // Static utility class
 
@@ -68,7 +66,9 @@ public final class CoderProviders {
                 type, this.rawType));
       }
       try {
-        return (Coder) factoryMethod.invoke(null /* static */, componentCoders.toArray());
+        return (Coder<T>)
+            Preconditions.checkStateNotNull(
+                factoryMethod.invoke(this.rawType /* ignored */, componentCoders.toArray()));
       } catch (IllegalAccessException
           | IllegalArgumentException
           | InvocationTargetException
@@ -99,7 +99,7 @@ public final class CoderProviders {
      * Returns the static {@code of} constructor method on {@code coderClazz} if it exists. It is
      * assumed to have one {@link Coder} parameter for each type parameter of {@code coderClazz}.
      */
-    private Method getFactoryMethod(Class<?> coderClazz) {
+    private static Method getFactoryMethod(Class<?> coderClazz) {
       Method factoryMethodCandidate;
 
       // Find the static factory method of coderClazz named 'of' with

@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * UnboundedSource}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends Source<T> {
@@ -309,10 +309,9 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     @Override
     public Reader call() throws Exception {
       LOG.info(
-          "No cached reader found for split: ["
-              + source
-              + "]. Creating new reader at checkpoint mark "
-              + checkpointMark);
+          "No cached reader found for split: [{}]. Creating new reader at checkpoint mark {}",
+          source,
+          checkpointMark);
       return new Reader(source.createReader(options, checkpointMark));
     }
   }

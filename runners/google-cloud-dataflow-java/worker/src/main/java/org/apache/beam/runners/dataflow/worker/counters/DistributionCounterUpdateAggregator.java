@@ -25,7 +25,7 @@ import com.google.api.services.dataflow.model.DistributionUpdate;
 import java.util.List;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DistributionCounterUpdateAggregator implements CounterUpdateAggregator {
 

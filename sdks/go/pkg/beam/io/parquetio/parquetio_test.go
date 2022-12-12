@@ -69,7 +69,7 @@ func TestRead(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	var studentList = []interface{}{
+	var studentList = []any{
 		Student{
 			Name:    "StudentName",
 			Age:     20,

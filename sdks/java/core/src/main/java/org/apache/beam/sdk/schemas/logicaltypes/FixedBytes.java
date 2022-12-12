@@ -20,67 +20,68 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A LogicalType representing a fixed-size byte array. */
-@Experimental(Kind.SCHEMAS)
-public class FixedBytes implements LogicalType<byte[], byte[]> {
-  public static final String IDENTIFIER = "FixedBytes";
-  private final int byteArraySize;
+/** A LogicalType representing a fixed-length byte array. */
+public class FixedBytes extends PassThroughLogicalType<byte[]> {
+  public static final String IDENTIFIER =
+      SchemaApi.LogicalTypes.Enum.FIXED_BYTES
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
 
-  private FixedBytes(int byteArraySize) {
-    this.byteArraySize = byteArraySize;
+  private final @Nullable String name;
+  private final int byteArrayLength;
+
+  /**
+   * Return an instance of FixedBytes with specified byte array length.
+   *
+   * <p>The name, if set, refers to the TYPE name in the underlying database, for example, BINARY.
+   */
+  public static FixedBytes of(@Nullable String name, int byteArrayLength) {
+    return new FixedBytes(name, byteArrayLength);
   }
 
-  public static FixedBytes of(int byteArraySize) {
-    return new FixedBytes(byteArraySize);
+  /** Return an instance of FixedBytes with specified byte array length. */
+  public static FixedBytes of(int byteArrayLength) {
+    return of(null, byteArrayLength);
+  }
+
+  private FixedBytes(@Nullable String name, int byteArrayLength) {
+    super(IDENTIFIER, FieldType.INT32, byteArrayLength, FieldType.BYTES);
+    this.name = name;
+    this.byteArrayLength = byteArrayLength;
   }
 
   public int getLength() {
-    return byteArraySize;
+    return byteArrayLength;
   }
 
-  @Override
-  public String getIdentifier() {
-    return IDENTIFIER;
-  }
-
-  @Override
-  public FieldType getArgumentType() {
-    return FieldType.INT32;
-  }
-
-  @Override
-  public Integer getArgument() {
-    return byteArraySize;
-  }
-
-  @Override
-  public FieldType getBaseType() {
-    return FieldType.BYTES;
+  public @Nullable String getName() {
+    return name;
   }
 
   @Override
   public byte[] toBaseType(byte[] input) {
-    checkArgument(input.length == byteArraySize);
+    checkArgument(input.length == byteArrayLength);
     return input;
   }
 
   @Override
   public byte[] toInputType(byte[] base) {
-    checkArgument(base.length <= byteArraySize);
-    if (base.length == byteArraySize) {
+    checkArgument(base.length <= byteArrayLength);
+    if (base.length == byteArrayLength) {
       return base;
     } else {
-      return Arrays.copyOf(base, byteArraySize);
+      return Arrays.copyOf(base, byteArrayLength);
     }
   }
 
   @Override
   public String toString() {
-    return "FixedBytes: " + byteArraySize;
+    return "FixedBytes: " + byteArrayLength;
   }
 }

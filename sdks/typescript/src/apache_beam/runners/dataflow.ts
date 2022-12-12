@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Pipeline } from "../internal/pipeline";
+import { Pipeline } from "../proto/beam_runner_api";
 import { PipelineResult, Runner } from "./runner";
 import { PortableRunner } from "./portable_runner/runner";
 import { PythonService } from "../utils/service";
@@ -34,10 +34,10 @@ export function dataflowRunner(runnerOptions: {
     ): Promise<PipelineResult> {
       return new PortableRunner(
         runnerOptions as any,
-        new PythonService("apache_beam.runners.dataflow.dataflow_job_service", [
-          "--port",
-          "{{PORT}}",
-        ])
+        PythonService.forModule(
+          "apache_beam.runners.dataflow.dataflow_job_service",
+          ["--port", "{{PORT}}"]
+        )
       ).runPipeline(pipeline, options);
     }
   })();

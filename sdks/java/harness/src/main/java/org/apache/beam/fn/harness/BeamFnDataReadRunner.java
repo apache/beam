@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
@@ -41,12 +42,15 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +60,8 @@ import org.slf4j.LoggerFactory;
  * receivers in a specified output map.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamFnDataReadRunner<OutputT> {
 
@@ -86,13 +90,14 @@ public class BeamFnDataReadRunner<OutputT> {
 
       BeamFnDataReadRunner<OutputT> runner =
           new BeamFnDataReadRunner<>(
+              context.getShortIdMap(),
               context.getBundleCacheSupplier(),
               context.getPTransformId(),
               context.getPTransform(),
               context.getProcessBundleInstructionIdSupplier(),
               context.getCoders(),
               context.getBeamFnStateClient(),
-              context::addProgressRequestCallback,
+              context::addBundleProgressReporter,
               consumer);
       context.addIncomingDataEndpoint(
           runner.apiServiceDescriptor, runner.coder, runner::forwardElementToConsumer);
@@ -107,6 +112,7 @@ public class BeamFnDataReadRunner<OutputT> {
   private final FnDataReceiver<WindowedValue<OutputT>> consumer;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final Coder<WindowedValue<OutputT>> coder;
+  private final String dataChannelReadIndexShortId;
 
   private final Object splittingLock = new Object();
   // 0-based index of the current element being processed. -1 if we have yet to process an element.
@@ -116,13 +122,14 @@ public class BeamFnDataReadRunner<OutputT> {
   private long stopIndex;
 
   BeamFnDataReadRunner(
+      ShortIdMap shortIdMap,
       Supplier<Cache<?, ?>> cache,
       String pTransformId,
       RunnerApi.PTransform grpcReadNode,
       Supplier<String> processBundleInstructionIdSupplier,
       Map<String, RunnerApi.Coder> coders,
       BeamFnStateClient beamFnStateClient,
-      Consumer<PTransformRunnerFactory.ProgressRequestCallback> addProgressRequestCallback,
+      Consumer<BundleProgressReporter> addBundleProgressReporter,
       FnDataReceiver<WindowedValue<OutputT>> consumer)
       throws IOException {
     this.pTransformId = pTransformId;
@@ -155,17 +162,44 @@ public class BeamFnDataReadRunner<OutputT> {
                   }
                 });
 
-    addProgressRequestCallback.accept(
-        () -> {
-          synchronized (splittingLock) {
-            return ImmutableList.of(
-                new SimpleMonitoringInfoBuilder()
-                    .setUrn(MonitoringInfoConstants.Urns.DATA_CHANNEL_READ_INDEX)
-                    .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId)
-                    .setInt64SumValue(index)
-                    .build());
+    dataChannelReadIndexShortId =
+        shortIdMap.getOrCreateShortId(
+            new SimpleMonitoringInfoBuilder()
+                .setUrn(Urns.DATA_CHANNEL_READ_INDEX)
+                .setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE)
+                .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId)
+                .build());
+    addBundleProgressReporter.accept(
+        new BundleProgressReporter() {
+          @Override
+          public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
+            synchronized (splittingLock) {
+              monitoringData.put(
+                  dataChannelReadIndexShortId, MonitoringInfoEncodings.encodeInt64Counter(index));
+            }
+          }
+
+          @Override
+          public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
+            /**
+             * We report the data channel read index on bundle completion allowing runners to
+             * perform a sanity check to ensure that the index aligns with any splitting that had
+             * occurred preventing missing or duplicate processing of data.
+             *
+             * <p>We are guaranteed to have the latest version of index since {@link
+             * BeamFnDataReadRunner#blockTillReadFinishes} will have been invoked on the main bundle
+             * processing thread synchronizing on {@code splittingLock}.
+             */
+            monitoringData.put(
+                dataChannelReadIndexShortId, MonitoringInfoEncodings.encodeInt64Counter(index));
+          }
+
+          @Override
+          public void reset() {
+            // no-op
           }
         });
+
     clearSplitIndices();
   }
 

@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * Timestamp.MAX_VALUE - 1 nanosecond}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Timestamp>
     implements HasProgress {
@@ -224,12 +224,10 @@ public class TimestampRangeTracker extends RestrictionTracker<TimestampRange, Ti
     final BigDecimal workRemaining = end.subtract(current).max(BigDecimal.ONE);
 
     LOG.debug(
-        "Reported progress - current:"
-            + current.doubleValue()
-            + " end:"
-            + end.doubleValue()
-            + " workRemaining:"
-            + workRemaining.doubleValue());
+        "Reported progress current: {}, end: {}, workRemaining: {}",
+        current.doubleValue(),
+        end.doubleValue(),
+        workRemaining.doubleValue());
 
     return Progress.from(current.doubleValue(), workRemaining.doubleValue());
   }

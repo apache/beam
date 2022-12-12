@@ -212,7 +212,7 @@ class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
   def __getitem__(self, tag):
     if tag not in self._results_by_tag:
       raise KeyError(
-          'Tag %r is not a a defined output tag of %s.' % (tag, self._deferred))
+          'Tag %r is not a defined output tag of %s.' % (tag, self._deferred))
     return self._results_by_tag[tag].elements
 
 
@@ -744,7 +744,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     # typing: only ParDo supports extra_kwargs
     urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)  # type: ignore[call-arg]
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
-      # TODO(BEAM-3812): Remove this fallback.
+      # TODO(https://github.com/apache/beam/issues/18713): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,

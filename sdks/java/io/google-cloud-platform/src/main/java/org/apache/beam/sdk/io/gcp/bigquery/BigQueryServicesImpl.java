@@ -135,6 +135,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -145,7 +146,7 @@ import org.slf4j.LoggerFactory;
  * service.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10608)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20506)
   "keyfor"
 })
 class BigQueryServicesImpl implements BigQueryServices {
@@ -616,13 +617,24 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields)
         throws IOException, InterruptedException {
-      return getTable(tableRef, selectedFields, createDefaultBackoff(), Sleeper.DEFAULT);
+      return getTable(tableRef, selectedFields, TableMetadataView.STORAGE_STATS);
+    }
+
+    @Override
+    public @Nullable Table getTable(
+        TableReference tableRef, List<String> selectedFields, TableMetadataView view)
+        throws IOException, InterruptedException {
+      return getTable(tableRef, selectedFields, view, createDefaultBackoff(), Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
     @Nullable
     Table getTable(
-        TableReference ref, List<String> selectedFields, BackOff backoff, Sleeper sleeper)
+        TableReference ref,
+        List<String> selectedFields,
+        TableMetadataView view,
+        BackOff backoff,
+        Sleeper sleeper)
         throws IOException, InterruptedException {
       Tables.Get get =
           client
@@ -631,6 +643,9 @@ class BigQueryServicesImpl implements BigQueryServices {
               .setPrettyPrint(false);
       if (!selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
+      }
+      if (view != null) {
+        get.set("view", view.name());
       }
       try {
         return executeWithRetries(
@@ -1137,6 +1152,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                       sleeper)));
           strideIndices.add(strideIndex);
           retTotalDataSize += dataSize;
+          rows = new ArrayList<>();
         }
 
         try {
@@ -1155,9 +1171,9 @@ class BigQueryServicesImpl implements BigQueryServices {
               if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
                 allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
-                // TODO (BEAM-12139): Select the retry rows(using errorIndex) from the batch of rows
-                // which attempted insertion in this call. Not the entire set of rows in
-                // rowsToPublish.
+                // TODO (https://github.com/apache/beam/issues/20891): Select the retry rows(using
+                // errorIndex) from the batch of rows which attempted insertion in this call.
+                // Not the entire set of rows in rowsToPublish.
                 if (retryIds != null) {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
@@ -1190,8 +1206,14 @@ class BigQueryServicesImpl implements BigQueryServices {
         }
         rowsToPublish = retryRows;
         idsToPublish = retryIds;
+        // print first 5 failures
+        int numErrorToLog = Math.min(allErrors.size(), 5);
+        LOG.info(
+            "Retrying {} failed inserts to BigQuery. First {} fails: {}",
+            rowsToPublish.size(),
+            numErrorToLog,
+            allErrors.subList(0, numErrorToLog));
         allErrors.clear();
-        LOG.info("Retrying {} failed inserts to BigQuery", rowsToPublish.size());
       }
       if (successfulRows != null) {
         for (int i = 0; i < rowsToPublish.size(); i++) {
@@ -1286,8 +1308,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public StreamAppendClient getStreamAppendClient(String streamName, Descriptor descriptor)
-        throws Exception {
+    public StreamAppendClient getStreamAppendClient(
+        String streamName, Descriptor descriptor, boolean useConnectionPool) throws Exception {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
 
@@ -1303,6 +1325,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           StreamWriter.newBuilder(streamName)
               .setWriterSchema(protoSchema)
               .setChannelProvider(transportChannelProvider)
+              .setEnableConnectionPool(useConnectionPool)
               .setTraceId(
                   "Dataflow:"
                       + (bqIOMetadata.getBeamJobId() != null
@@ -1667,7 +1690,12 @@ class BigQueryServicesImpl implements BigQueryServices {
     BoundedExecutorService(ListeningExecutorService taskExecutor, int parallelism) {
       this.taskExecutor = taskExecutor;
       this.taskSubmitExecutor =
-          MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
+          MoreExecutors.listeningDecorator(
+              Executors.newSingleThreadExecutor(
+                  new ThreadFactoryBuilder()
+                      .setDaemon(true)
+                      .setNameFormat("BoundedBigQueryService-thread")
+                      .build()));
       this.semaphore = new Semaphore(parallelism);
     }
 

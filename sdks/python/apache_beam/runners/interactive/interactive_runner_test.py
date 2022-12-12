@@ -351,7 +351,9 @@ class InteractiveRunnerTest(unittest.TestCase):
     aggregate = lambda df: df.groupby(['name', 'height']).mean()
 
     deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
-    df_expected = aggregate(pd.DataFrame(data))
+    df_input = pd.DataFrame(data)
+    df_input.name = df_input.name.astype(pd.StringDtype())
+    df_expected = aggregate(df_input)
 
     # Watch the local scope for Interactive Beam so that values will be cached.
     ib.watch(locals())
@@ -378,7 +380,9 @@ class InteractiveRunnerTest(unittest.TestCase):
     aggregate = lambda df: df.groupby(['name', 'height']).mean()['age']
 
     deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
-    df_expected = aggregate(pd.DataFrame(data))
+    df_input = pd.DataFrame(data)
+    df_input.name = df_input.name.astype(pd.StringDtype())
+    df_expected = aggregate(df_input)
 
     # Watch the local scope for Interactive Beam so that values will be cached.
     ib.watch(locals())
@@ -492,6 +496,12 @@ class InteractiveRunnerTest(unittest.TestCase):
     '[interactive] dependency is not installed.')
 @isolated_env
 class ConfigForFlinkTest(unittest.TestCase):
+  def setUp(self):
+    self.current_env.options.cache_root = 'gs://fake'
+
+  def tearDown(self):
+    self.current_env.options.cache_root = None
+
   def test_create_a_new_cluster_for_a_new_pipeline(self):
     clusters = self.current_env.clusters
     runner = interactive_runner.InteractiveRunner(
@@ -630,6 +640,27 @@ class ConfigForFlinkTest(unittest.TestCase):
     # currently only 1: Cloud Dataproc.
     self.assertEqual(
         flink_options.flink_version, clusters.DATAPROC_FLINK_VERSION)
+
+  def test_strip_http_protocol_from_flink_master(self):
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    stripped = runner._strip_protocol_if_any('https://flink-master')
+
+    self.assertEqual('flink-master', stripped)
+
+  def test_no_strip_from_flink_master(self):
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    stripped = runner._strip_protocol_if_any('flink-master')
+
+    self.assertEqual('flink-master', stripped)
+
+  def test_no_strip_from_non_flink_master(self):
+    runner = interactive_runner.InteractiveRunner(
+        underlying_runner=FlinkRunner())
+    stripped = runner._strip_protocol_if_any(None)
+
+    self.assertIsNone(stripped)
 
 
 if __name__ == '__main__':

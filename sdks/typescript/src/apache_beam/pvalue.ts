@@ -26,7 +26,7 @@ import {
   extractName,
   withName,
 } from "./transforms/transform";
-import { parDo, DoFn } from "./transforms/pardo";
+import { parDo, DoFn, extractContext } from "./transforms/pardo";
 import * as runnerApi from "./proto/beam_runner_api";
 
 /**
@@ -47,13 +47,13 @@ export class Root {
     return this.pipeline.applyTransform(transform, this);
   }
 
-  async asyncApply<OutputT extends PValue<any>>(
+  async applyAsync<OutputT extends PValue<any>>(
     transform: AsyncPTransform<Root, OutputT>
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);
     }
-    return await this.pipeline.asyncApplyTransform(transform, this);
+    return await this.pipeline.applyAsyncTransform(transform, this);
   }
 }
 
@@ -68,7 +68,7 @@ export class PCollection<T> {
 
   constructor(pipeline: Pipeline, id: string | (() => string)) {
     this.pipeline = pipeline;
-    if (typeof id == "string") {
+    if (typeof id === "string") {
       this.id = id;
     } else {
       this.computeId = id;
@@ -76,7 +76,7 @@ export class PCollection<T> {
   }
 
   getId(): string {
-    if (this.id == undefined) {
+    if (this.id === null || this.id === undefined) {
       this.id = this.computeId();
     }
     return this.id;
@@ -91,13 +91,13 @@ export class PCollection<T> {
     return this.pipeline.applyTransform(transform, this);
   }
 
-  asyncApply<OutputT extends PValue<any>>(
+  applyAsync<OutputT extends PValue<any>>(
     transform: AsyncPTransform<PCollection<T>, OutputT>
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);
     }
-    return this.pipeline.asyncApplyTransform(transform, this);
+    return this.pipeline.applyAsyncTransform(transform, this);
   }
 
   map<OutputT, ContextT>(
@@ -106,6 +106,9 @@ export class PCollection<T> {
       | ((element: T, context: ContextT) => OutputT),
     context: ContextT = undefined!
   ): PCollection<OutputT> {
+    if (extractContext(fn)) {
+      context = { ...extractContext(fn), ...context };
+    }
     return this.apply(
       withName(
         "map(" + extractName(fn) + ")",
@@ -114,7 +117,7 @@ export class PCollection<T> {
             process: function* (element: T, context: ContextT) {
               // While it's legal to call a function with extra arguments which will
               // be ignored, this can have surprising behavior (e.g. for map(console.log))
-              yield context == undefined
+              yield context === null || context === undefined
                 ? (fn as (T) => OutputT)(element)
                 : fn(element, context);
             },
@@ -131,6 +134,9 @@ export class PCollection<T> {
       | ((element: T, context: ContextT) => Iterable<OutputT>),
     context: ContextT = undefined!
   ): PCollection<OutputT> {
+    if (extractContext(fn)) {
+      context = { ...extractContext(fn), ...context };
+    }
     return this.apply(
       withName(
         "flatMap(" + extractName(fn) + ")",
@@ -139,7 +145,7 @@ export class PCollection<T> {
             process: function (element: T, context: ContextT) {
               // While it's legal to call a function with extra arguments which will
               // be ignored, this can have surprising behavior (e.g. for map(console.log))
-              return context == undefined
+              return context === null || context === undefined
                 ? (fn as (T) => Iterable<OutputT>)(element)
                 : fn(element, context);
             },
@@ -176,7 +182,7 @@ export function flattenPValue<T>(
   prefix: string = ""
 ): { [key: string]: PCollection<T> } {
   const result: { [key: string]: PCollection<any> } = {};
-  if (pValue == null) {
+  if (pValue === null || pValue === undefined) {
     // pass
   } else if (pValue instanceof Root) {
     // pass
@@ -228,21 +234,21 @@ class PValueWrapper<T extends PValue<any>> {
     return this.pipeline(root).applyTransform(transform, this.pvalue);
   }
 
-  async asyncApply<O extends PValue<any>>(
+  async applyAsync<O extends PValue<any>>(
     transform: AsyncPTransform<T, O>,
     root: Root | null = null
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);
     }
-    return await this.pipeline(root).asyncApplyTransform(
+    return await this.pipeline(root).applyAsyncTransform(
       transform,
       this.pvalue
     );
   }
 
   private pipeline(root: Root | null = null) {
-    if (root == null) {
+    if (root === null || root === undefined) {
       const flat = flattenPValue(this.pvalue);
       return Object.values(flat)[0].pipeline;
     } else {
@@ -302,7 +308,7 @@ class AsyncPTransformClassFromCallable<
     this.expander = expander;
   }
 
-  async asyncExpandInternal(
+  async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
     transformProto: runnerApi.PTransform
@@ -312,4 +318,4 @@ class AsyncPTransformClassFromCallable<
 }
 
 import { requireForSerialization } from "./serialization";
-requireForSerialization("apache_beam.pvalue", exports);
+requireForSerialization("apache-beam/pvalue", exports);

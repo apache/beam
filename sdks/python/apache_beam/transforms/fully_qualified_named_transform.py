@@ -52,16 +52,37 @@ class FullyQualifiedNamedTransform(ptransform.PTransform):
     self._kwargs = kwargs
 
   def expand(self, pinput):
-    return pinput | self._resolve(self._constructor)(
-        *self._args, **self._kwargs)
+    if self._constructor in ('__callable__', '__constructor__'):
+      self._check_allowed(self._constructor)
+      if self._args:
+        source, *args = tuple(self._args)
+        kwargs = self._kwargs
+      else:
+        args = self._args
+        kwargs = dict(self._kwargs)
+        source = kwargs.pop('source')
+
+      if self._constructor == '__constructor__':
+        transform = source(*args, **kwargs)
+      else:
+        transform = ptransform._PTransformFnPTransform(source, *args, **kwargs)
+
+    else:
+      transform = self._resolve(self._constructor)(*self._args, **self._kwargs)
+
+    return pinput | transform
 
   @classmethod
-  def _resolve(cls, fully_qualified_name):
+  def _check_allowed(cls, fully_qualified_name):
     if not cls._FILTER_GLOB or not fnmatch.fnmatchcase(fully_qualified_name,
                                                        cls._FILTER_GLOB):
       raise ValueError(
           f'Fully qualifed name "{fully_qualified_name}" '
           f'not allowed by filter {cls._FILTER_GLOB}.')
+
+  @classmethod
+  def _resolve(cls, fully_qualified_name):
+    cls._check_allowed(fully_qualified_name)
     o = None
     path = ''
     for segment in fully_qualified_name.split('.'):

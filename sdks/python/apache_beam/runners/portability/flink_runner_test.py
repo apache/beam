@@ -32,12 +32,9 @@ import pytest
 import apache_beam as beam
 from apache_beam import Impulse
 from apache_beam import Map
-from apache_beam import Pipeline
-from apache_beam.coders import VarIntCoder
 from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.io.kafka import ReadFromKafka
 from apache_beam.io.kafka import WriteToKafka
-from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import PortableOptions
@@ -47,7 +44,6 @@ from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms import userstate
 from apache_beam.transforms.sql import SqlTransform
 
 # Run as
@@ -296,112 +292,24 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_metrics(self):
     super().test_metrics(check_gauge=False)
 
-  def test_flink_metrics(self):
-    """Run a simple DoFn that increments a counter and verifies state
-    caching metrics. Verifies that its expected value is written to a
-    temporary file by the FileReporter"""
-
-    counter_name = 'elem_counter'
-    state_spec = userstate.BagStateSpec('state', VarIntCoder())
-
-    class DoFn(beam.DoFn):
-      def __init__(self):
-        self.counter = Metrics.counter(self.__class__, counter_name)
-        _LOGGER.info('counter: %s' % self.counter.metric_name)
-
-      def process(self, kv, state=beam.DoFn.StateParam(state_spec)):
-        # Trigger materialization
-        list(state.read())
-        state.add(1)
-        self.counter.inc()
-
-    options = self.create_options()
-    # Test only supports parallelism of 1
-    options._all_options['parallelism'] = 1
-    # Create multiple bundles to test cache metrics
-    options._all_options['max_bundle_size'] = 10
-    options._all_options['max_bundle_time_millis'] = 95130590130
-    experiments = options.view_as(DebugOptions).experiments or []
-    experiments.append('state_cache_size=123')
-    options.view_as(DebugOptions).experiments = experiments
-    with Pipeline(self.get_runner(), options) as p:
-      # pylint: disable=expression-not-assigned
-      (
-          p
-          | "create" >> beam.Create(list(range(0, 110)))
-          | "mapper" >> beam.Map(lambda x: (x % 10, 'val'))
-          | "stateful" >> beam.ParDo(DoFn()))
-
-    lines_expected = {'counter: 110'}
-    if options.view_as(StandardOptions).streaming:
-      lines_expected.update([
-          # Gauges for the last finished bundle
-          'stateful.beam_metric:statecache:capacity: 123',
-          'stateful.beam_metric:statecache:size: 10',
-          'stateful.beam_metric:statecache:get: 20',
-          'stateful.beam_metric:statecache:miss: 0',
-          'stateful.beam_metric:statecache:hit: 20',
-          'stateful.beam_metric:statecache:put: 0',
-          'stateful.beam_metric:statecache:evict: 0',
-          # Counters
-          'stateful.beam_metric:statecache:get_total: 220',
-          'stateful.beam_metric:statecache:miss_total: 10',
-          'stateful.beam_metric:statecache:hit_total: 210',
-          'stateful.beam_metric:statecache:put_total: 10',
-          'stateful.beam_metric:statecache:evict_total: 0',
-      ])
-    else:
-      # Batch has a different processing model. All values for
-      # a key are processed at once.
-      lines_expected.update([
-          # Gauges
-          'stateful).beam_metric:statecache:capacity: 123',
-          # For the first key, the cache token will not be set yet.
-          # It's lazily initialized after first access in StateRequestHandlers
-          'stateful).beam_metric:statecache:size: 10',
-          # We have 11 here because there are 110 / 10 elements per key
-          'stateful).beam_metric:statecache:get: 12',
-          'stateful).beam_metric:statecache:miss: 1',
-          'stateful).beam_metric:statecache:hit: 11',
-          # State is flushed back once per key
-          'stateful).beam_metric:statecache:put: 1',
-          'stateful).beam_metric:statecache:evict: 0',
-          # Counters
-          'stateful).beam_metric:statecache:get_total: 120',
-          'stateful).beam_metric:statecache:miss_total: 10',
-          'stateful).beam_metric:statecache:hit_total: 110',
-          'stateful).beam_metric:statecache:put_total: 10',
-          'stateful).beam_metric:statecache:evict_total: 0',
-      ])
-    lines_actual = set()
-    with open(self.test_metrics_path, 'r') as f:
-      for line in f:
-        print(line, end='')
-        for metric_str in lines_expected:
-          metric_name = metric_str.split()[0]
-          if metric_str in line:
-            lines_actual.add(metric_str)
-          elif metric_name in line:
-            lines_actual.add(line)
-    self.assertSetEqual(lines_actual, lines_expected)
-
   def test_sdf_with_watermark_tracking(self):
     raise unittest.SkipTest("BEAM-2939")
 
   def test_callbacks_with_exception(self):
-    raise unittest.SkipTest("BEAM-11021")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19526")
 
   def test_register_finalizations(self):
-    raise unittest.SkipTest("BEAM-11021")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19526")
 
   def test_custom_merging_window(self):
-    raise unittest.SkipTest("BEAM-11004")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
 
   # Inherits all other tests.
 
 
 class FlinkRunnerTestOptimized(FlinkRunnerTest):
-  # TODO: Remove these tests after resolving BEAM-7248 and enabling
+  # TODO: Remove these tests after resolving
+  #  https://github.com/apache/beam/issues/19422 and enabling
   #  PortableRunnerOptimized
   def create_options(self):
     options = super().create_options()
@@ -411,16 +319,16 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
     return options
 
   def test_external_transform(self):
-    raise unittest.SkipTest("BEAM-7252")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19461")
 
   def test_expand_kafka_read(self):
-    raise unittest.SkipTest("BEAM-7252")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19461")
 
   def test_expand_kafka_write(self):
-    raise unittest.SkipTest("BEAM-7252")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19461")
 
   def test_sql(self):
-    raise unittest.SkipTest("BEAM-7252")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19461")
 
   def test_pack_combiners(self):
     # Stages produced by translations.pack_combiners are fused

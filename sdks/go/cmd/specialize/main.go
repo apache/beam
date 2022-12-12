@@ -23,7 +23,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -158,7 +157,7 @@ func main() {
 	if err := tmpl.Funcs(funcMap).Execute(&buf, top); err != nil {
 		log.Fatalf("specialization failed: %v", err)
 	}
-	if err := ioutil.WriteFile(*output, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(*output, buf.Bytes(), 0644); err != nil {
 		log.Fatalf("write failed: %v", err)
 	}
 }
@@ -196,7 +195,7 @@ func makeName(t string) string {
 
 // Useful template functions
 
-var funcMap template.FuncMap = map[string]interface{}{
+var funcMap template.FuncMap = map[string]any{
 	"join":                                   strings.Join,
 	"upto":                                   upto,
 	"mkargs":                                 mkargs,
@@ -254,8 +253,8 @@ func mult(i int, j int) int {
 	return i * j
 }
 
-func dict(values ...interface{}) map[string]interface{} {
-	dict := make(map[string]interface{}, len(values)/2)
+func dict(values ...any) map[string]any {
+	dict := make(map[string]any, len(values)/2)
 	if len(values)%2 != 0 {
 		panic("Invalid dictionary call")
 	}
@@ -303,7 +302,7 @@ func genericTypingRepresentation(in int, out int, includeType bool) string {
 	return typing
 }
 
-func possibleBundleLifecycleParameterCombos(numInInterface interface{}, processElementInInterface interface{}) [][]string {
+func possibleBundleLifecycleParameterCombos(numInInterface any, processElementInInterface any) [][]string {
 	numIn := numInInterface.(int)
 	processElementIn := processElementInInterface.(int)
 	orderedKnownParameterOptions := []string{"context.Context", "typex.PaneInfo", "[]typex.Window", "typex.EventTime", "typex.BundleFinalization"}

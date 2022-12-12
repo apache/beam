@@ -38,8 +38,8 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "keyfor",
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaPortablePipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPortablePipelineTranslator.class);
@@ -59,9 +59,7 @@ public class SamzaPortablePipelineTranslator {
   private SamzaPortablePipelineTranslator() {}
 
   public static void translate(RunnerApi.Pipeline pipeline, PortableTranslationContext ctx) {
-    QueryablePipeline queryablePipeline =
-        QueryablePipeline.forTransforms(
-            pipeline.getRootTransformIdsList(), pipeline.getComponents());
+    QueryablePipeline queryablePipeline = QueryablePipeline.forPipeline(pipeline);
 
     for (PipelineNode.PTransformNode transform :
         queryablePipeline.getTopologicallyOrderedTransforms()) {
@@ -78,9 +76,7 @@ public class SamzaPortablePipelineTranslator {
 
   public static void createConfig(
       RunnerApi.Pipeline pipeline, ConfigBuilder configBuilder, SamzaPipelineOptions options) {
-    QueryablePipeline queryablePipeline =
-        QueryablePipeline.forTransforms(
-            pipeline.getRootTransformIdsList(), pipeline.getComponents());
+    QueryablePipeline queryablePipeline = QueryablePipeline.forPipeline(pipeline);
     for (PipelineNode.PTransformNode transform :
         queryablePipeline.getTopologicallyOrderedTransforms()) {
       TransformTranslator<?> translator =
@@ -103,7 +99,7 @@ public class SamzaPortablePipelineTranslator {
     @Override
     public Map<String, TransformTranslator<?>> getTransformTranslators() {
       return ImmutableMap.<String, TransformTranslator<?>>builder()
-          // Re-enable after BEAM-12999 is completed
+          // Re-enable after https://github.com/apache/beam/issues/21188 is completed
           //          .put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslator<>())
           .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator<>())

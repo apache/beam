@@ -17,31 +17,45 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/models/selector_size_model.dart';
+import 'package:playground/utils/dropdown_utils.dart';
+import 'package:playground_components/playground_components.dart';
 
 const int kAnimationDurationInMilliseconds = 80;
 const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
 const Offset kAnimationEndOffset = Offset(0.0, 0.0);
-const double kAdditionalDyAlignment = 50.0;
+
+/// How to align the button and its dropdown.
+enum DropdownAlignment {
+  /// Align the left edges of the button and its dropdown.
+  left,
+
+  /// Align the right edges of the button and its dropdown.
+  right,
+}
 
 class AppDropdownButton extends StatefulWidget {
   final Widget buttonText;
-  final Function createDropdown;
+  final Widget Function(void Function()) createDropdown;
   final double height;
   final double width;
+  final Widget? leading;
+  final bool showArrow;
+  final DropdownAlignment dropdownAlign;
 
   const AppDropdownButton({
-    Key? key,
+    super.key,
     required this.buttonText,
     required this.createDropdown,
     required this.height,
     required this.width,
-  }) : super(key: key);
+    this.leading,
+    this.showArrow = true,
+    this.dropdownAlign = DropdownAlignment.left,
+  });
 
   @override
-  _AppDropdownButtonState createState() => _AppDropdownButtonState();
+  State<AppDropdownButton> createState() => _AppDropdownButtonState();
 }
 
 class _AppDropdownButtonState extends State<AppDropdownButton>
@@ -73,10 +87,12 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
+
     return Container(
       height: kContainerHeight,
       decoration: BoxDecoration(
-        color: ThemeColors.of(context).greyColor,
+        color: ext.fieldBackgroundColor,
         borderRadius: BorderRadius.circular(kSmBorderRadius),
       ),
       child: TextButton(
@@ -88,8 +104,13 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              if (widget.leading != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: kMdSpacing),
+                  child: widget.leading,
+                ),
               widget.buttonText,
-              const Icon(Icons.keyboard_arrow_down),
+              if (widget.showArrow) const Icon(Icons.keyboard_arrow_down),
             ],
           ),
         ),
@@ -98,7 +119,11 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
   }
 
   OverlayEntry createDropdown() {
-    SelectorPositionModel posModel = findSelectorPositionData();
+    final dropdownOffset = findDropdownOffset(
+      alignment: widget.dropdownAlign,
+      key: selectorKey,
+      widgetWidth: widget.width,
+    );
 
     return OverlayEntry(
       builder: (context) {
@@ -115,8 +140,8 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
               ),
             ),
             Positioned(
-              left: posModel.xAlignment,
-              top: posModel.yAlignment + kAdditionalDyAlignment,
+              left: dropdownOffset.dx,
+              top: dropdownOffset.dy,
               child: SlideTransition(
                 position: offsetAnimation,
                 child: Material(
@@ -138,16 +163,6 @@ class _AppDropdownButtonState extends State<AppDropdownButton>
         );
       },
     );
-  }
-
-  SelectorPositionModel findSelectorPositionData() {
-    RenderBox? rBox =
-        selectorKey.currentContext?.findRenderObject() as RenderBox;
-    SelectorPositionModel positionModel = SelectorPositionModel(
-      xAlignment: rBox.localToGlobal(Offset.zero).dx,
-      yAlignment: rBox.localToGlobal(Offset.zero).dy,
-    );
-    return positionModel;
   }
 
   void _close() {

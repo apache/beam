@@ -24,6 +24,10 @@ package org.apache.beam.sdk.testing;
 //   context_line: 87
 //   categories:
 //     - Streaming
+//   complexity: ADVANCED
+//   tags:
+//     - stream
+//     - test
 
 import static org.apache.beam.sdk.transforms.windowing.Window.into;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -85,7 +89,8 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStream}. */
 @RunWith(JUnit4.class)
-// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
+// released (2.11.0)
 @SuppressWarnings("unused")
 public class TestStreamTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
@@ -104,6 +109,9 @@ public class TestStreamTest implements Serializable {
             .advanceWatermarkTo(instant.plus(Duration.standardMinutes(6)))
             // These elements are late but within the allowed lateness
             .addElements(TimestampedValue.of(4L, instant), TimestampedValue.of(5L, instant))
+            .advanceWatermarkTo(instant.plus(Duration.standardMinutes(10)))
+            // FIXME: Without advancing the watermark once more the (lower) input watermark remains
+            // at 6 mins, but data in [0,5 min) won't be considered late until it passes 10 mins.
             .advanceWatermarkTo(instant.plus(Duration.standardMinutes(20)))
             // These elements are droppably late
             .addElements(
@@ -414,7 +422,12 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class, UsesTestStreamWithMultipleStages.class})
+  @Category({
+    ValidatesRunner.class,
+    UsesTestStream.class,
+    UsesTestStreamWithMultipleStages.class,
+    UsesStatefulParDo.class
+  })
   public void testMultiStage() throws Exception {
     TestStream<String> testStream =
         TestStream.create(StringUtf8Coder.of())

@@ -18,10 +18,9 @@
 
 import * as protobufjs from "protobufjs";
 
-import { PTransform, PCollection } from "../proto/beam_runner_api";
 import * as runnerApi from "../proto/beam_runner_api";
 import * as fnApi from "../proto/beam_fn_api";
-import { MultiplexingDataChannel, IDataChannel } from "./data";
+import { MetricsContainer, MetricSpec } from "./metrics";
 import { StateProvider } from "./state";
 
 import * as urns from "../internal/urns";
@@ -58,14 +57,15 @@ export class ParamProviderImpl implements ParamProvider {
   constructor(
     private transformId: string,
     private sideInputInfo: Map<string, SideInputInfo>,
-    private getStateProvider: () => StateProvider
+    private getStateProvider: () => StateProvider,
+    private metricsContainer: MetricsContainer
   ) {}
 
   // Avoid modifying the original object, as that could have surprising results
   // if they are widely shared.
   augmentContext(context: any) {
     this.prefetchCallbacks = [];
-    if (typeof context != "object") {
+    if (typeof context !== "object") {
       return context;
     }
 
@@ -73,13 +73,13 @@ export class ParamProviderImpl implements ParamProvider {
     for (const [name, value] of Object.entries(context)) {
       // Is this the best way to check post serialization?
       if (
-        typeof value == "object" &&
-        value != null &&
-        value["parDoParamName"] != undefined
+        typeof value === "object" &&
+        value !== null &&
+        value["parDoParamName"] !== undefined
       ) {
         result[name] = Object.create(value);
         result[name].provider = this;
-        if ((value as ParDoParam<unknown>).parDoParamName == "sideInput") {
+        if ((value as ParDoParam).parDoParamName === "sideInput") {
           this.prefetchCallbacks.push(
             this.prefetchSideInput(
               value as SideInputParam<unknown, unknown, unknown>
@@ -121,7 +121,7 @@ export class ParamProviderImpl implements ParamProvider {
         windowCoder
       );
       const lookupResult = stateProvider.getState(stateKey, decode);
-      if (lookupResult.type == "value") {
+      if (lookupResult.type === "value") {
         this_.sideInputValues.set(param.sideInputId, lookupResult.value);
         return operators.NonPromise;
       } else {
@@ -132,14 +132,16 @@ export class ParamProviderImpl implements ParamProvider {
     };
   }
 
-  update(wvalue: WindowedValue<unknown> | undefined): operators.ProcessResult {
+  setCurrentValue(
+    wvalue: WindowedValue<unknown> | undefined
+  ): operators.ProcessResult {
     this.wvalue = wvalue;
-    if (wvalue == undefined) {
+    if (wvalue === null || wvalue === undefined) {
       return operators.NonPromise;
     }
     // We have to prefetch all the side inputs.
     // TODO: (API) Let the user's process() await them.
-    if (this.prefetchCallbacks.length == 0) {
+    if (this.prefetchCallbacks.length === 0) {
       return operators.NonPromise;
     } else {
       const result = new operators.ProcessResultBuilder();
@@ -150,8 +152,8 @@ export class ParamProviderImpl implements ParamProvider {
     }
   }
 
-  provide(param) {
-    if (this.wvalue == undefined) {
+  lookup(param) {
+    if (this.wvalue === null || this.wvalue === undefined) {
       throw new Error(
         param.parDoParamName + " not defined outside of a process() call."
       );
@@ -170,6 +172,19 @@ export class ParamProviderImpl implements ParamProvider {
 
       case "sideInput":
         return this.sideInputValues.get(param.sideInputId) as any;
+
+      default:
+        throw new Error("Unknown context parameter: " + param.parDoParamName);
+    }
+  }
+
+  update(param, value) {
+    switch (param.parDoParamName) {
+      case "metric":
+        this.metricsContainer
+          .getMetric(this.transformId, undefined, param as MetricSpec)
+          .update(value);
+        break;
 
       default:
         throw new Error("Unknown context parameter: " + param.parDoParamName);

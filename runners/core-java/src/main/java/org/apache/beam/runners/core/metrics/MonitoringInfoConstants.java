@@ -35,11 +35,13 @@ public final class MonitoringInfoConstants {
   public static final class Urns {
     public static final String ELEMENT_COUNT = extractUrn(MonitoringInfoSpecs.Enum.ELEMENT_COUNT);
     public static final String START_BUNDLE_MSECS =
-        extractUrn(MonitoringInfoSpecs.Enum.START_BUNDLE_MSECS);
+        "beam:metric:pardo_execution_time:start_bundle_msecs:v1";
+
     public static final String PROCESS_BUNDLE_MSECS =
-        extractUrn(MonitoringInfoSpecs.Enum.PROCESS_BUNDLE_MSECS);
+        "beam:metric:pardo_execution_time:process_bundle_msecs:v1";
+
     public static final String FINISH_BUNDLE_MSECS =
-        extractUrn(MonitoringInfoSpecs.Enum.FINISH_BUNDLE_MSECS);
+        "beam:metric:pardo_execution_time:finish_bundle_msecs:v1";
     public static final String TOTAL_MSECS = extractUrn(MonitoringInfoSpecs.Enum.TOTAL_MSECS);
     public static final String USER_SUM_INT64 = extractUrn(MonitoringInfoSpecs.Enum.USER_SUM_INT64);
     public static final String USER_SUM_DOUBLE =
@@ -58,6 +60,18 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_COUNT);
     public static final String API_REQUEST_LATENCIES =
         extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_LATENCIES);
+
+    static {
+      // Validate that compile time constants match the values stored in the protos.
+      // Defining these as constants allows for usage in switch case statements and also
+      // ensures that protos don't get accidentally changed.
+      checkArgument(
+          START_BUNDLE_MSECS.equals(extractUrn(MonitoringInfoSpecs.Enum.START_BUNDLE_MSECS)));
+      checkArgument(
+          PROCESS_BUNDLE_MSECS.equals(extractUrn(MonitoringInfoSpecs.Enum.PROCESS_BUNDLE_MSECS)));
+      checkArgument(
+          FINISH_BUNDLE_MSECS.equals(extractUrn(MonitoringInfoSpecs.Enum.FINISH_BUNDLE_MSECS)));
+    }
   }
 
   /** Standardised MonitoringInfo labels that can be utilized by runners. */
@@ -91,11 +105,9 @@ public final class MonitoringInfoConstants {
     public static final String SPANNER_QUERY_NAME = "SPANNER_QUERY_NAME";
 
     static {
-      // Note: One benefit of defining these strings above, instead of pulling them in from
-      // the proto files, is to ensure that this code will crash if the strings in the proto
-      // file are changed, without modifying this file.
-      // Though, one should not change those strings either, as Runner Harnesss running old versions
-      // would not be able to understand the new label names./
+      // Validate that compile time constants match the values stored in the protos.
+      // Defining these as constants allows for usage in switch case statements and also
+      // ensures that protos don't get accidentally changed.
       checkArgument(PTRANSFORM.equals(extractLabel(MonitoringInfoLabels.TRANSFORM)));
       checkArgument(PCOLLECTION.equals(extractLabel(MonitoringInfoLabels.PCOLLECTION)));
       checkArgument(
@@ -150,6 +162,9 @@ public final class MonitoringInfoConstants {
     public static final String PROGRESS_TYPE = "beam:metrics:progress:v1";
 
     static {
+      // Validate that compile time constants match the values stored in the protos.
+      // Defining these as constants allows for usage in switch case statements and also
+      // ensures that protos don't get accidentally changed.
       checkArgument(SUM_INT64_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE)));
       checkArgument(SUM_DOUBLE_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SUM_DOUBLE_TYPE)));
       checkArgument(

@@ -59,7 +59,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
  * inefficient, and thus it can execute in either one.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DeduceFlattenLocationsFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {

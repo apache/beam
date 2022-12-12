@@ -119,7 +119,7 @@ import org.slf4j.LoggerFactory;
 @Experimental(Kind.SOURCE_SINK)
 @AutoValue
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public abstract class WriteFiles<UserT, DestinationT, OutputT>
@@ -145,6 +145,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   // The record count and buffering duration to trigger flushing records to a tmp file. Mainly used
   // for writing unbounded data to avoid generating too many small files.
   private static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
+  private static final int FILE_TRIGGERING_BYTE_COUNT = 64 * 1024 * 1024; // 64MiB as of now
   private static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
       Duration.standardSeconds(5);
 
@@ -345,7 +346,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           WriteFiles.class.getSimpleName());
       // Sharding used to be required due to https://issues.apache.org/jira/browse/BEAM-1438 and
       // similar behavior in other runners. Some runners may support runner determined sharding now.
-      // Check merging window here due to https://issues.apache.org/jira/browse/BEAM-12040.
+      // Check merging window here due to https://github.com/apache/beam/issues/20928.
       if (input.getWindowingStrategy().needsMerge()) {
         checkArgument(
             getComputeNumShards() != null || getNumShardsProvider() != null,
@@ -523,7 +524,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
       return PCollectionList.of(writtenBundleFiles)
           .and(writtenSpilledFiles)
           .apply(Flatten.pCollections())
@@ -744,7 +746,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // records buffered or they have been buffered for a certain time, controlled by
       // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
       //
-      // TODO(BEAM-12040): The implementation doesn't currently work with merging windows.
+      // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently
+      // work with merging windows.
       PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
           input
               .apply(
@@ -765,6 +768,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               .apply(
                   "ShardAndBatch",
                   GroupIntoBatches.<Integer, UserT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                      .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
                       .withMaxBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
                       .withShardedKey())
               .setCoder(
@@ -807,7 +811,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         public void process(ProcessContext c) {
                           c.output(c.element().withShard(UNKNOWN_SHARDNUM));
                         }
-                      }));
+                      }))
+              .setCoder(fileResultCoder);
 
       // Group temp file results by destinations again to gather all the results in the same window.
       // This is needed since we don't have shard idx associated with each temp file so have to rely
@@ -916,11 +921,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   private class WriteShardsIntoTempFilesFn
       extends DoFn<KV<ShardedKey<Integer>, Iterable<UserT>>, FileResult<DestinationT>> {
-    private transient @Nullable List<CompletionStage<Void>> closeFutures = null;
-    private transient @Nullable List<KV<Instant, FileResult<DestinationT>>> deferredOutput = null;
+    private transient List<CompletionStage<Void>> closeFutures = new ArrayList<>();
+    private transient List<KV<Instant, FileResult<DestinationT>>> deferredOutput =
+        new ArrayList<>();
 
-    @StartBundle
-    public void startBundle() {
+    // Ensure that transient fields are initialized.
+    private void readObject(java.io.ObjectInputStream in)
+        throws IOException, ClassNotFoundException {
+      in.defaultReadObject();
       closeFutures = new ArrayList<>();
       deferredOutput = new ArrayList<>();
     }
@@ -951,7 +959,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         writeOrClose(writer, getDynamicDestinations().formatRecord(input));
       }
 
-      // Close all writers.
+      // Ensure that we clean-up any prior writers that were being closed as part of this bundle
+      // before we return from this processElement call. This allows us to perform the writes/closes
+      // in parallel with the prior elements close calls and bounds the amount of data buffered to
+      // limit the number of OOMs.
+      CompletionStage<List<Void>> pastCloseFutures = MoreFutures.allAsList(closeFutures);
+      closeFutures.clear();
+
+      // Close all writers in the background
       for (Map.Entry<DestinationT, Writer<DestinationT, OutputT>> entry : writers.entrySet()) {
         int shard = c.element().getKey().getShardNumber();
         checkArgument(
@@ -965,6 +980,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey())));
         closeWriterInBackground(writer);
       }
+
+      // Block on completing the past closes before returning. We do so after starting the current
+      // closes in the background so that they can happen in parallel.
+      MoreFutures.get(pastCloseFutures);
     }
 
     private void closeWriterInBackground(Writer<DestinationT, OutputT> writer) {
@@ -993,8 +1012,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
         }
       } finally {
-        deferredOutput = null;
-        closeFutures = null;
+        deferredOutput.clear();
+        closeFutures.clear();
       }
     }
   }

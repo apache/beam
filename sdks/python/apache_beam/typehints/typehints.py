@@ -67,6 +67,8 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 import copy
 import logging
+import sys
+import types
 import typing
 from collections import abc
 
@@ -175,6 +177,35 @@ class TypeConstraint(object):
         visitor(t, visitor_arg)
 
 
+def visit_inner_types(type_constraint, visitor, visitor_arg):
+  """Visitor pattern to visit all inner types of a type constraint.
+
+  Args:
+    type_constraint: A type constraint or a type.
+    visitor: A callable invoked for all nodes in the type tree comprising a
+      composite type. The visitor will be called with the node visited and the
+      visitor argument specified here.
+    visitor_arg: Visitor callback second argument.
+
+  Note:
+    Raise and capture a StopIteration to terminate the visit, e.g.
+
+    ```
+    def visitor(type_constraint, visitor_arg):
+      if ...:
+        raise StopIteration
+
+    try:
+      visit_inner_types(type_constraint, visitor, visitor_arg)
+    except StopIteration:
+      pass
+    ```
+  """
+  if isinstance(type_constraint, TypeConstraint):
+    return type_constraint.visit(visitor, visitor_arg)
+  return visitor(type_constraint, visitor_arg)
+
+
 def match_type_variables(type_constraint, concrete_type):
   if isinstance(type_constraint, TypeConstraint):
     return type_constraint.match_type_variables(concrete_type)
@@ -258,8 +289,8 @@ class SequenceTypeConstraint(IndexableTypeConstraint):
             'instead received an instance of type %s.' % (
                 repr(self),
                 index,
-                _unified_repr(self._sequence_type),
-                _unified_repr(self.inner_type),
+                repr(self._sequence_type),
+                repr(self.inner_type),
                 elem.__class__.__name__))
       except CompositeTypeHintError as e:
         raise CompositeTypeHintError(
@@ -355,6 +386,9 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       not isinstance(type_param, tuple(possible_classes)) and
       type_param is not None and
       getattr(type_param, '__module__', None) != 'typing')
+  if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+    if isinstance(type_param, types.UnionType):
+      is_not_type_constraint = False
   is_forbidden_type = (
       isinstance(type_param, type) and type_param in DISALLOWED_PRIMITIVE_TYPES)
 
@@ -363,26 +397,6 @@ def validate_composite_type_param(type_param, error_msg_prefix):
         '%s must be a non-sequence, a type, or a TypeConstraint. %s'
         ' is an instance of %s.' %
         (error_msg_prefix, type_param, type_param.__class__.__name__))
-
-
-# TODO(BEAM-12469): Remove this function and use plain repr() instead.
-def _unified_repr(o):
-  """Given an object return a qualified name for the object.
-
-  This function closely mirrors '__qualname__' which was introduced in
-  Python 3.3. It is used primarily to format types or object instances for
-  error messages.
-
-  Args:
-    o: An instance of a TypeConstraint or a type.
-
-  Returns:
-    A qualified name for the passed Python object fit for string formatting.
-  """
-  if isinstance(o, (TypeConstraint, type(None))) or not hasattr(o, '__name__'):
-    return repr(o)
-  else:
-    return o.__name__
 
 
 def check_constraint(type_constraint, object_instance):
@@ -430,7 +444,8 @@ class AnyTypeConstraint(TypeConstraint):
     return 'Any'
 
   def __hash__(self):
-    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    # TODO(https://github.com/apache/beam/issues/18633): Fix
+    # typehints.TypeVariable issues with __hash__.
     return hash(id(self))
 
   def type_check(self, instance):
@@ -452,7 +467,8 @@ class TypeVariable(AnyTypeConstraint):
     return type(self) == type(other)
 
   def __hash__(self):
-    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    # TODO(https://github.com/apache/beam/issues/18633): Fix
+    # typehints.TypeVariable issues with __hash__.
     return hash(id(self))
 
   def __repr__(self):
@@ -501,7 +517,7 @@ class UnionHint(CompositeTypeHint):
     def __repr__(self):
       # Sorting the type name strings simplifies unit tests.
       return 'Union[%s]' % (
-          ', '.join(sorted(_unified_repr(t) for t in self.union_types)))
+          ', '.join(sorted(repr(t) for t in self.union_types)))
 
     def inner_types(self):
       for t in self.union_types:
@@ -533,7 +549,7 @@ class UnionHint(CompositeTypeHint):
           '%s type-constraint violated. Expected an instance of one of: %s, '
           'received %s instead.%s' % (
               repr(self),
-              tuple(sorted(_unified_repr(t) for t in self.union_types)),
+              tuple(sorted(repr(t) for t in self.union_types)),
               instance.__class__.__name__,
               error_msg))
 
@@ -641,7 +657,7 @@ class TupleHint(CompositeTypeHint):
       super().__init__(type_param, tuple)
 
     def __repr__(self):
-      return 'Tuple[%s, ...]' % _unified_repr(self.inner_type)
+      return 'Tuple[%s, ...]' % repr(self.inner_type)
 
     def _consistent_with_check_(self, sub):
       if isinstance(sub, TupleConstraint):
@@ -664,8 +680,7 @@ class TupleHint(CompositeTypeHint):
       return hash(self.tuple_types)
 
     def __repr__(self):
-      return 'Tuple[%s]' % (
-          ', '.join(_unified_repr(t) for t in self.tuple_types))
+      return 'Tuple[%s]' % (', '.join(repr(t) for t in self.tuple_types))
 
     def _inner_types(self):
       for t in self.tuple_types:
@@ -705,11 +720,8 @@ class TupleHint(CompositeTypeHint):
           raise CompositeTypeHintError(
               '%s hint type-constraint violated. The type of element #%s in '
               'the passed tuple is incorrect. Expected an instance of '
-              'type %s, instead received an instance of type %s.' % (
-                  repr(self),
-                  type_pos,
-                  _unified_repr(expected),
-                  actual.__class__.__name__))
+              'type %s, instead received an instance of type %s.' %
+              (repr(self), type_pos, repr(expected), actual.__class__.__name__))
         except CompositeTypeHintError as e:
           raise CompositeTypeHintError(
               '%s hint type-constraint violated. The type of element #%s in '
@@ -773,7 +785,7 @@ class ListHint(CompositeTypeHint):
       super().__init__(list_type, list)
 
     def __repr__(self):
-      return 'List[%s]' % _unified_repr(self.inner_type)
+      return 'List[%s]' % repr(self.inner_type)
 
   def __getitem__(self, t):
     validate_composite_type_param(t, error_msg_prefix='Parameter to List hint')
@@ -832,8 +844,7 @@ class DictHint(CompositeTypeHint):
       self.value_type = normalize(value_type)
 
     def __repr__(self):
-      return 'Dict[%s, %s]' % (
-          _unified_repr(self.key_type), _unified_repr(self.value_type))
+      return 'Dict[%s, %s]' % (repr(self.key_type), repr(self.value_type))
 
     def __eq__(self, other):
       return (
@@ -864,7 +875,7 @@ class DictHint(CompositeTypeHint):
                 repr(self),
                 incorrect_type[:-1],
                 incorrect_type,
-                _unified_repr(hinted_type),
+                repr(hinted_type),
                 inner_error_message))
       else:
         raise CompositeTypeHintError(
@@ -873,7 +884,7 @@ class DictHint(CompositeTypeHint):
                 repr(self),
                 incorrect_type[:-1],
                 incorrect_type,
-                _unified_repr(hinted_type),
+                repr(hinted_type),
                 incorrect_instance,
                 incorrect_instance.__class__.__name__))
 
@@ -954,7 +965,7 @@ class SetHint(CompositeTypeHint):
       super().__init__(type_param, set)
 
     def __repr__(self):
-      return 'Set[%s]' % _unified_repr(self.inner_type)
+      return 'Set[%s]' % repr(self.inner_type)
 
   def __getitem__(self, type_param):
     validate_composite_type_param(
@@ -980,7 +991,7 @@ class FrozenSetHint(CompositeTypeHint):
             self).__init__(type_param, frozenset)
 
     def __repr__(self):
-      return 'FrozenSet[%s]' % _unified_repr(self.inner_type)
+      return 'FrozenSet[%s]' % repr(self.inner_type)
 
   def __getitem__(self, type_param):
     validate_composite_type_param(
@@ -1004,7 +1015,7 @@ class IterableHint(CompositeTypeHint):
             self).__init__(iter_type, abc.Iterable)
 
     def __repr__(self):
-      return 'Iterable[%s]' % _unified_repr(self.inner_type)
+      return 'Iterable[%s]' % repr(self.inner_type)
 
     def _consistent_with_check_(self, sub):
       if isinstance(sub, SequenceTypeConstraint):
@@ -1045,7 +1056,7 @@ class IteratorHint(CompositeTypeHint):
       self.yielded_type = normalize(t)
 
     def __repr__(self):
-      return 'Iterator[%s]' % _unified_repr(self.yielded_type)
+      return 'Iterator[%s]' % repr(self.yielded_type)
 
     def __eq__(self, other):
       return (
@@ -1074,10 +1085,8 @@ class IteratorHint(CompositeTypeHint):
       except SimpleTypeHintError:
         raise CompositeTypeHintError(
             '%s hint type-constraint violated. Expected a iterator of type %s. '
-            'Instead received a iterator of type %s.' % (
-                repr(self),
-                _unified_repr(self.yielded_type),
-                instance.__class__.__name__))
+            'Instead received a iterator of type %s.' %
+            (repr(self), repr(self.yielded_type), instance.__class__.__name__))
 
   def __getitem__(self, type_param):
     validate_composite_type_param(
@@ -1132,7 +1141,7 @@ class WindowedTypeConstraint(TypeConstraint, metaclass=GetitemConstructor):
           'is incorrect. Expected an instance of type %s, '
           'instead received an instance of type %s.' % (
               repr(self),
-              _unified_repr(self.inner_type),
+              repr(self.inner_type),
               instance.value.__class__.__name__))
 
 

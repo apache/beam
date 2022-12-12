@@ -38,7 +38,7 @@ type ReusableInput interface {
 	// Init initializes the value before use.
 	Init() error
 	// Value returns the side input value.
-	Value() interface{}
+	Value() any
 	// Reset resets the value after use.
 	Reset() error
 }
@@ -65,7 +65,7 @@ func IsInputRegistered(t reflect.Type) bool {
 type reIterValue struct {
 	t  reflect.Type
 	s  ReStream
-	fn interface{}
+	fn any
 }
 
 func makeReIter(t reflect.Type, s ReStream) ReusableInput {
@@ -82,7 +82,7 @@ func (v *reIterValue) Init() error {
 	return nil
 }
 
-func (v *reIterValue) Value() interface{} {
+func (v *reIterValue) Value() any {
 	return v.fn
 }
 
@@ -98,7 +98,7 @@ func (v *reIterValue) invoke(args []reflect.Value) []reflect.Value {
 
 type iterValue struct {
 	s     ReStream
-	fn    interface{}
+	fn    any
 	types []reflect.Type
 
 	// cur is the "current" stream, if any.
@@ -136,7 +136,7 @@ func (v *iterValue) Init() error {
 	return nil
 }
 
-func (v *iterValue) Value() interface{} {
+func (v *iterValue) Value() any {
 	return v.fn
 }
 
@@ -169,8 +169,6 @@ func (v *iterValue) invoke(args []reflect.Value) []reflect.Value {
 	for i, t := range v.types {
 		var v reflect.Value
 		switch {
-		case t == typex.EventTimeType:
-			v = reflect.ValueOf(elm.Timestamp)
 		case isKey:
 			v = reflect.ValueOf(Convert(elm.Elm, t))
 			isKey = false
@@ -183,14 +181,14 @@ func (v *iterValue) invoke(args []reflect.Value) []reflect.Value {
 }
 
 type fixedValue struct {
-	val interface{}
+	val any
 }
 
 func (v *fixedValue) Init() error {
 	return nil
 }
 
-func (v *fixedValue) Value() interface{} {
+func (v *fixedValue) Value() any {
 	return v.val
 }
 
@@ -207,7 +205,7 @@ type multiMapValue struct {
 	reader  StateReader
 	w       typex.Window
 	// fn is the actual invoked function
-	fn interface{}
+	fn any
 }
 
 func makeMultiMap(ctx context.Context, t reflect.Type, adapter SideInputAdapter, reader StateReader, w typex.Window) ReusableInput {
@@ -224,7 +222,7 @@ func (v *multiMapValue) Init() error {
 	return nil
 }
 
-func (v *multiMapValue) Value() interface{} {
+func (v *multiMapValue) Value() any {
 	return v.fn
 }
 

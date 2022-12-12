@@ -32,7 +32,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
   implementation project(":runners:core-construction-java")
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation library.java.slf4j_api
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation library.java.joda_time
@@ -42,7 +42,9 @@ dependencies {
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
-  testRuntimeOnly library.java.slf4j_simple
+  // We want to use jdk logging backend to appropriately simulate logging setup
+  // for RemoteExecutionTest
+  testRuntimeOnly library.java.slf4j_jdk14
 }
 
 test {

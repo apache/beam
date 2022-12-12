@@ -23,6 +23,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.util.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -32,9 +33,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * PValue}.
  */
 @Internal
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class PValueBase implements PValue {
 
   private final transient @Nullable Pipeline pipeline;
@@ -127,14 +125,13 @@ public abstract class PValueBase implements PValue {
 
   @Override
   public Pipeline getPipeline() {
-    checkState(
-        pipeline != null,
+    return Preconditions.checkStateNotNull(
+        pipeline,
         "Pipeline was null for %s. "
             + "this probably means it was used as a %s after being deserialized, "
             + "which not unsupported.",
         getClass().getCanonicalName(),
         PValue.class.getSimpleName());
-    return pipeline;
   }
 
   @Override

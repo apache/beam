@@ -3,6 +3,7 @@ title:  "Apache Beam 2.36.0"
 date:   2022-02-07 10:11:00 -0800
 categories:
   - blog
+  - release
 authors:
   - emilymye
 ---

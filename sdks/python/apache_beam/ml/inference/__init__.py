@@ -14,3 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+""" A package with various modules for running inferences and predictions
+on models. This package contains support for popular frameworks as well
+as an interface for adding unsupported frameworks.
+
+Note: on top of the frameworks captured in submodules below, Beam also has
+a supported TensorFlow model handler via the tfx-bsl library. See
+https://beam.apache.org/documentation/sdks/python-machine-learning/#tensorflow
+for more information on using TensorFlow in Beam.
+"""
+
+from apache_beam.ml.inference.base import RunInference

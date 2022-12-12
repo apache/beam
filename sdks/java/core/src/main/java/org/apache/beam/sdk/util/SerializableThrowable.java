@@ -28,7 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * regular {@link Throwable}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class SerializableThrowable implements Serializable {
   private final @Nullable Throwable throwable;

@@ -84,7 +84,7 @@ public class ReshuffleTranslator<K, InT, OutT>
             ((KvCoder<K, InT>) windowedInputCoder.getValueCoder()).getKeyCoder(),
             windowedInputCoder,
             "rshfl-" + ctx.getTransformId(),
-            ctx.getSamzaPipelineOptions().getMaxSourceParallelism() > 1);
+            ctx.getPipelineOptions().getMaxSourceParallelism() > 1);
 
     ctx.registerMessageStream(outputId, outputStream);
   }
@@ -115,7 +115,7 @@ public class ReshuffleTranslator<K, InT, OutT>
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
       return false;
-      // Re-enable after BEAM-12999 is completed
+      // Re-enable after https://github.com/apache/beam/issues/21188 is completed
       //       return PTransformTranslation.RESHUFFLE_URN.equals(
       //          PTransformTranslation.urnForTransformOrNull(pTransform));
     }

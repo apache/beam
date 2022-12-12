@@ -53,7 +53,8 @@ import (
 var (
 	endpoint               = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
 	stagingLocation        = flag.String("staging_location", "", "GCS staging location (required).")
-	image                  = flag.String("worker_harness_container_image", "", "Worker harness container image (optional).")
+	workerHarnessImage     = flag.String("worker_harness_container_image", "", "Worker harness container image (optional). Deprecated in favor of the sdk_container_image flag.")
+	image                  = flag.String("sdk_container_image", "", "Worker harness container image (optional).")
 	labels                 = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
 	serviceAccountEmail    = flag.String("service_account_email", "", "Service account email (optional).")
 	numWorkers             = flag.Int64("num_workers", 0, "Number of workers (optional).")
@@ -75,15 +76,16 @@ var (
 	workerZone             = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
 	dataflowServiceOptions = flag.String("dataflow_service_options", "", "Comma separated list of additional job modes and configurations (optional)")
 	flexRSGoal             = flag.String("flexrs_goal", "", "Which Flexible Resource Scheduling mode to run in (optional)")
-	// TODO(BEAM-14512) Turn this on once TO_STRING is implemented
+	// TODO(https://github.com/apache/beam/issues/21604) Turn this on once TO_STRING is implemented
 	// enableHotKeyLogging    = flag.Bool("enable_hot_key_logging", false, "Specifies that when a hot key is detected in the pipeline, the literal, human-readable key is printed in the user's Cloud Logging project (optional).")
 
 	// Streaming update flags
 	update           = flag.Bool("update", false, "Submit this job as an update to an existing Dataflow job (optional); the job name must match the existing job to update")
 	transformMapping = flag.String("transform_name_mapping", "", "JSON-formatted mapping of old transform names to new transform names for pipeline updates (optional)")
 
-	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
-	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
+	dryRun           = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
+	teardownPolicy   = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
+	templateLocation = flag.String("template_location", "", "GCS location to save the job graph. If set, the job is not submitted to Dataflow (optional.)")
 
 	// SDK options
 	cpuProfiling = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
@@ -99,10 +101,12 @@ func init() {
 //
 // New flags that are already put into pipeline options
 // should be added to this map.
+// Don't filter temp_location since we need this included in PipelineOptions to correctly upload heap dumps.
 var flagFilter = map[string]bool{
 	"dataflow_endpoint":              true,
 	"staging_location":               true,
 	"worker_harness_container_image": true,
+	"sdk_container_image":            true,
 	"labels":                         true,
 	"service_account_email":          true,
 	"num_workers":                    true,
@@ -114,7 +118,7 @@ var flagFilter = map[string]bool{
 	"network":                        true,
 	"subnetwork":                     true,
 	"no_use_public_ips":              true,
-	"temp_location":                  true,
+	"template_location":              true,
 	"worker_machine_type":            true,
 	"min_cpu_platform":               true,
 	"dataflow_worker_jar":            true,
@@ -201,7 +205,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, errors.WithContext(err, "creating environment for model pipeline")
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	model, err := graphx.Marshal(edges, &graphx.Options{
+		Environment:           environment,
+		PipelineResourceHints: jobopts.GetPipelineResourceHints(),
+	})
 	if err != nil {
 		return nil, errors.WithContext(err, "generating model pipeline")
 	}
@@ -326,6 +333,7 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		Labels:                 jobLabels,
 		ServiceAccountEmail:    *serviceAccountEmail,
 		TempLocation:           *tempLocation,
+		TemplateLocation:       *templateLocation,
 		Worker:                 *jobopts.WorkerBinary,
 		WorkerJar:              *workerJar,
 		WorkerRegion:           *workerRegion,
@@ -360,6 +368,12 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 func getContainerImage(ctx context.Context) string {
 	urn := jobopts.GetEnvironmentUrn(ctx)
 	if urn == "" || urn == "beam:env:docker:v1" {
+		if *workerHarnessImage != "" {
+			if *image != "" {
+				panic("Both worker_harness_container_image and sdk_container_image cannot both be set. Prefer sdk_container_image, worker_harness_container_image is deprecated.")
+			}
+			return *workerHarnessImage
+		}
 		if *image != "" {
 			return *image
 		}

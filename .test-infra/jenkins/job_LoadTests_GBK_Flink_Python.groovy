@@ -146,7 +146,7 @@ def loadTest = { scope, triggeringContext ->
         "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   def configurations = testScenarios.findAll { it.pipelineOptions?.parallelism?.value == numberOfWorkers }
   loadTestsBuilder.loadTests(scope, sdk, configurations, "GBK", "batch")
@@ -168,4 +168,4 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       loadTest(delegate, CommonTestProperties.TriggeringContext.PR)
     }
 
-// TODO(BEAM-9761) Re-enable auto builds after these tests pass.
+// TODO(https://github.com/apache/beam/issues/20146) Re-enable auto builds after these tests pass.

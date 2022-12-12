@@ -15,13 +15,13 @@
 <head>
   {{ partial "head.html" . }}
 </head>
-<body class="body">
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
   {{ partial "header.html" . }}
   <div class="clearfix container-main-content">
     <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
       {{ .TableOfContents }}
     </nav>
-    <div class="{{ if .Params.hasNav }}body__contained body__section-no-nav{{ end }} case-study-page">
+    <div class="{{ if .Params.hasNav }}body__contained body__section-no-nav--wide{{ end }} case-study-page">
       {{ block "main" . }}{{ end }}
     </div>
   </div>

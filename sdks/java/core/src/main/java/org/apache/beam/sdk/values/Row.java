@@ -87,7 +87,7 @@ import org.joda.time.ReadableInstant;
  */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public abstract class Row implements Serializable {
@@ -101,13 +101,13 @@ public abstract class Row implements Serializable {
 
   /** Get value by field index, {@link ClassCastException} is thrown if schema doesn't match. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public abstract <T> @Nullable T getValue(int fieldIdx);
+  public abstract <T extends @Nullable Object> T getValue(int fieldIdx);
 
   /** Return the size of data fields. */
   public abstract int getFieldCount();
 
-  /** Return the list of data values. */
-  public abstract List<Object> getValues();
+  /** Return the list of raw unmodified data values to enable 0-copy code. */
+  public abstract List<@Nullable Object> getValues();
 
   /** Return a list of data values. Any LogicalType values are returned as base values. * */
   public List<Object> getBaseValues() {
@@ -118,7 +118,7 @@ public abstract class Row implements Serializable {
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> @Nullable T getValue(String fieldName) {
+  public <T extends @Nullable Object> T getValue(String fieldName) {
     return getValue(getSchema().indexOf(fieldName));
   }
 
@@ -214,7 +214,7 @@ public abstract class Row implements Serializable {
    * Get an array value by field name, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  public @Nullable <T> Collection<T> getArray(String fieldName) {
+  public <T> @Nullable Collection<T> getArray(String fieldName) {
     return getArray(getSchema().indexOf(fieldName));
   }
 
@@ -222,22 +222,22 @@ public abstract class Row implements Serializable {
    * Get an iterable value by field name, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  public @Nullable <T> Iterable<T> getIterable(String fieldName) {
+  public <T> @Nullable Iterable<T> getIterable(String fieldName) {
     return getIterable(getSchema().indexOf(fieldName));
   }
 
   /**
    * Get a MAP value by field name, {@link IllegalStateException} is thrown if schema doesn't match.
    */
-  public @Nullable <T1, T2> Map<T1, T2> getMap(String fieldName) {
+  public <T1, T2> @Nullable Map<T1, T2> getMap(String fieldName) {
     return getMap(getSchema().indexOf(fieldName));
   }
 
-  /* Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
+  /**
+   * Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-
-  public @Nullable <T> T getLogicalTypeValue(String fieldName, Class<T> clazz) {
+  public <T extends @Nullable Object> T getLogicalTypeValue(String fieldName, Class<T> clazz) {
     return getLogicalTypeValue(getSchema().indexOf(fieldName), clazz);
   }
 
@@ -245,7 +245,7 @@ public abstract class Row implements Serializable {
    * Returns the base type for this field. If this is a logical type, we convert to the base value.
    * Otherwise the field itself is returned.
    */
-  public @Nullable <T> T getBaseValue(String fieldName, Class<T> clazz) {
+  public <T extends @Nullable Object> T getBaseValue(String fieldName, Class<T> clazz) {
     return getBaseValue(getSchema().indexOf(fieldName), clazz);
   }
 
@@ -358,7 +358,7 @@ public abstract class Row implements Serializable {
    * Get an array value by field index, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  public @Nullable <T> Collection<T> getArray(int idx) {
+  public <T> @Nullable Collection<T> getArray(int idx) {
     return getValue(idx);
   }
 
@@ -366,7 +366,7 @@ public abstract class Row implements Serializable {
    * Get an iterable value by field index, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  public @Nullable <T> Iterable<T> getIterable(int idx) {
+  public <T> @Nullable Iterable<T> getIterable(int idx) {
     return getValue(idx);
   }
 
@@ -374,7 +374,7 @@ public abstract class Row implements Serializable {
    * Get a MAP value by field index, {@link IllegalStateException} is thrown if schema doesn't
    * match.
    */
-  public @Nullable <T1, T2> Map<T1, T2> getMap(int idx) {
+  public <T1, T2> @Nullable Map<T1, T2> getMap(int idx) {
     return getValue(idx);
   }
 
@@ -382,7 +382,7 @@ public abstract class Row implements Serializable {
    * Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
-  public @Nullable <T> T getLogicalTypeValue(int idx, Class<T> clazz) {
+  public <T extends @Nullable Object> T getLogicalTypeValue(int idx, Class<T> clazz) {
     return (T) getValue(idx);
   }
 
@@ -390,12 +390,14 @@ public abstract class Row implements Serializable {
    * Returns the base type for this field. If this is a logical type, we convert to the base value.
    * Otherwise the field itself is returned.
    */
-  public @Nullable <T> T getBaseValue(int idx, Class<T> clazz) {
+  public <T extends @Nullable Object> T getBaseValue(int idx, Class<T> clazz) {
     Object value = getValue(idx);
     FieldType fieldType = getSchema().getField(idx).getType();
     if (fieldType.getTypeName().isLogicalType() && value != null) {
       while (fieldType.getTypeName().isLogicalType()) {
-        value = fieldType.getLogicalType().toBaseType(value);
+        Schema.LogicalType<Object, T> logicalType =
+            (Schema.LogicalType<Object, T>) fieldType.getLogicalType();
+        value = logicalType.toBaseType(value);
         fieldType = fieldType.getLogicalType().getBaseType();
       }
     }
@@ -461,10 +463,12 @@ public abstract class Row implements Serializable {
       if (a == null || b == null) {
         return a == b;
       } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
         return deepEquals(
-            SchemaUtils.toLogicalBaseType(fieldType.getLogicalType(), a),
-            SchemaUtils.toLogicalBaseType(fieldType.getLogicalType(), b),
-            fieldType.getLogicalType().getBaseType());
+            SchemaUtils.toLogicalBaseType(logicalType, a),
+            SchemaUtils.toLogicalBaseType(logicalType, b),
+            logicalType.getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.equals((byte[]) a, (byte[]) b);
       } else if (fieldType.getTypeName() == TypeName.ARRAY) {

@@ -17,7 +17,7 @@
 // (https://cloud.google.com/bigquery). These transforms only work on runners that support
 // cross-language transforms.
 //
-// Setup
+// # Setup
 //
 // Transforms specified here are cross-language transforms implemented in a
 // different SDK (listed below). During pipeline construction, the Go SDK will
@@ -37,28 +37,30 @@
 //
 // Current supported SDKs, including expansion service modules and reference
 // documentation:
-//   * Java
-//     - Vendored Module: beam-sdks-java-extensions-schemaio-expansion-service
-//     - Run via Gradle: ./gradlew :sdks:java:extensions:schemaio-expansion-service:runExpansionService
-//     - Reference Class: org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaIOProvider and
-//       org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
 //
-// Type Conversions
+// Java:
+//   - Vendored Module: beam-sdks-java-extensions-schemaio-expansion-service
+//   - Run via Gradle: ./gradlew :sdks:java:extensions:schemaio-expansion-service:runExpansionService
+//   - Reference Class: org.apache.beam.sdk.io.gcp.bigquery.BigQuerySchemaIOProvider and
+//     org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
+//
+// # Type Conversions
 //
 // Elements are read from and written to BigQuery by first converting to a Beam schema Row type
 // before converting to BigQuery compatible types. The following table lists all BigQuery types
 // currently supported, and how they convert to Beam schema and Go types.
-//   +----------------------------+------------------+-----------------+
-//   | BigQuery Standard SQL Type | Beam Schema Type |     Go Type     |
-//   +----------------------------+------------------+-----------------+
-//   | BOOLEAN                    | BOOLEAN          | bool            |
-//   | INT64                      | INT64            | int64           |
-//   | FLOAT64                    | DOUBLE           | float64         |
-//   | BYTES                      | BYTES            | []byte          |
-//   | STRING                     | STRING           | string          |
-//   | ARRAY                      | ARRAY            | Special: slice  |
-//   | STRUCT                     | ROW              | Special: struct |
-//   +----------------------------+------------------+-----------------+
+//
+//	+----------------------------+------------------+-----------------+
+//	| BigQuery Standard SQL Type | Beam Schema Type |     Go Type     |
+//	+----------------------------+------------------+-----------------+
+//	| BOOLEAN                    | BOOLEAN          | bool            |
+//	| INT64                      | INT64            | int64           |
+//	| FLOAT64                    | DOUBLE           | float64         |
+//	| BYTES                      | BYTES            | []byte          |
+//	| STRING                     | STRING           | string          |
+//	| ARRAY                      | ARRAY            | Special: slice  |
+//	| STRUCT                     | ROW              | Special: struct |
+//	+----------------------------+------------------+-----------------+
 //
 // Array types are inferred from slice fields. For example, []int64 is equivalent to BigQuery's
 // ARRAY<INT64>. Struct types are inferred from nested structs in Go.
@@ -69,11 +71,12 @@
 // in SQL, as in the table above).
 //
 // Example of BigQuery fields with modes:
-//   field1 *int64   // Nullable INT64
-//   field2 int64    // Required INT64
-//   field3 []int64  // Repeated INT64
 //
-// Note On Documentation
+//	field1 *int64   // Nullable INT64
+//	field2 int64    // Required INT64
+//	field3 []int64  // Repeated INT64
+//
+// # Note On Documentation
 //
 // This cross-language implementation relies on the behavior of external SDKs. In order to keep
 // documentation up-to-date and consistent, BigQuery functionality will not be described in detail
@@ -131,12 +134,13 @@ type bigQueryConfig struct {
 // within Read's function signature.
 //
 // Example:
-//   expansionAddr := "localhost:1234"
-//   table := "project_id:dataset_id.table_id"
-//   outType := reflect.TypeOf((*Foo)(nil)).Elem()
-//   pcol := bigqueryio.Read(s, outType,
-//       bigqueryio.FromTable(table),
-//       bigqueryio.ReadExpansionAddr(expansionAddr))
+//
+//	expansionAddr := "localhost:1234"
+//	table := "project_id:dataset_id.table_id"
+//	outType := reflect.TypeOf((*Foo)(nil)).Elem()
+//	pcol := bigqueryio.Read(s, outType,
+//	    bigqueryio.FromTable(table),
+//	    bigqueryio.ReadExpansionAddr(expansionAddr))
 func Read(s beam.Scope, elmT reflect.Type, opts ...readOption) beam.PCollection {
 	s = s.Scope("bigqueryio.Read")
 
@@ -187,8 +191,15 @@ func FromTable(table string) readOption {
 // FromQuery is a Read option that specifies a query to use for reading from BigQuery. Uses the
 // BigQuery Standard SQL dialect.
 //
+// Important: When reading from a query, the schema of any source tables is not used and the read
+// transform cannot detect which elements are Required, therefore every field in the output type
+// will be a pointer (including fields within inner structs).
+//
 // For more details see in the Java SDK:
 // org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Read.fromQuery(java.lang.String)
+//
+// BUG(https://github.com/apache/beam/issues/21784): Query read outputs currently cannot be named
+// struct types. See link for workaround.
 func FromQuery(query string) readOption {
 	return func(rc *readConfig) {
 		rc.cfg.Query = &query
@@ -217,11 +228,12 @@ func WithQueryLocation(location string) readOption {
 // function within Write's function signature.
 //
 // Example:
-//   expansionAddr := "localhost:1234"
-//   table := "project_id:dataset_id.table_id"
-//   pcol := bigqueryio.Write(s, table, input,
-//      bigqueryio.CreateDisposition(bigqueryio.CreateIfNeeded),
-//      bigqueryio.WriteExpansionAddr(expansionAddr))
+//
+//	expansionAddr := "localhost:1234"
+//	table := "project_id:dataset_id.table_id"
+//	pcol := bigqueryio.Write(s, table, input,
+//	   bigqueryio.CreateDisposition(bigqueryio.CreateIfNeeded),
+//	   bigqueryio.WriteExpansionAddr(expansionAddr))
 func Write(s beam.Scope, table string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("bigqueryio.Write")
 

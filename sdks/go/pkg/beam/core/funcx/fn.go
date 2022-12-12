@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -82,6 +83,8 @@ const (
 	FnBundleFinalization FnParamKind = 0x800
 	// FnWatermarkEstimator indicates a function input parameter that implements sdf.WatermarkEstimator
 	FnWatermarkEstimator FnParamKind = 0x1000
+	// FnStateProvider indicates a function input parameter that implements state.Provider
+	FnStateProvider FnParamKind = 0x2000
 )
 
 func (k FnParamKind) String() string {
@@ -112,6 +115,8 @@ func (k FnParamKind) String() string {
 		return "BundleFinalization"
 	case FnWatermarkEstimator:
 		return "WatermarkEstimator"
+	case FnStateProvider:
+		return "StateProvider"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -289,6 +294,17 @@ func (u *Fn) BundleFinalization() (pos int, exists bool) {
 	return -1, false
 }
 
+// StateProvider returns (index, true) iff the function expects a
+// parameter that implements state.Provider.
+func (u *Fn) StateProvider() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnStateProvider {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // WatermarkEstimator returns (index, true) iff the function expects a
 // parameter that implements sdf.WatermarkEstimator.
 func (u *Fn) WatermarkEstimator() (pos int, exists bool) {
@@ -374,6 +390,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnWindow
 		case t == typex.BundleFinalizationType:
 			kind = FnBundleFinalization
+		case t == state.ProviderType:
+			kind = FnStateProvider
 		case t == reflectx.Type:
 			kind = FnType
 		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
@@ -464,9 +482,11 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnWatermarkEstimator?, FnType?, FnBundleFinalization?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
-//     where ? indicates 0 or 1, and * indicates any number.
-//     and  a SideInput is one of FnValue or FnIter or FnReIter
+// func(FnContext?, FnPane?, FnWindow?, FnEventTime?, FnWatermarkEstimator?, FnType?, FnBundleFinalization?, FnRTracker?, FnStateProvider?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
+//
+//	where ? indicates 0 or 1, and * indicates any number.
+//	and  a SideInput is one of FnValue or FnIter or FnReIter
+//
 // Note: Fns with inputs must have at least one FnValue as the main input.
 func validateOrder(u *Fn) error {
 	paramState := psStart
@@ -496,6 +516,7 @@ var (
 	errReflectTypePrecedence             = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
 	errRTrackerPrecedence                = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
 	errBundleFinalizationPrecedence      = errors.New("may only have a single BundleFinalization parameter and it must precede the main input parameter")
+	errStateProviderPrecedence           = errors.New("may only have a single state.Provider parameter and it must precede the main input parameter")
 	errInputPrecedence                   = errors.New("inputs parameters must precede emit function parameters")
 )
 
@@ -513,6 +534,7 @@ const (
 	psOutput
 	psRTracker
 	psBundleFinalization
+	psStateProvider
 )
 
 func nextParamState(cur paramState, transition FnParamKind) (paramState, error) {
@@ -535,6 +557,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psContext:
 		switch transition {
@@ -552,6 +576,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psPane:
 		switch transition {
@@ -567,6 +593,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psWindow:
 		switch transition {
@@ -580,6 +608,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psEventTime:
 		switch transition {
@@ -591,6 +621,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psWatermarkEstimator:
 		switch transition {
@@ -600,6 +632,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psType:
 		switch transition {
@@ -607,13 +641,22 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psBundleFinalization, nil
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psBundleFinalization:
 		switch transition {
 		case FnRTracker:
 			return psRTracker, nil
+		case FnStateProvider:
+			return psStateProvider, nil
 		}
 	case psRTracker:
+		switch transition {
+		case FnStateProvider:
+			return psStateProvider, nil
+		}
+	case psStateProvider:
 		// Completely handled by the default clause
 	case psInput:
 		switch transition {
@@ -644,6 +687,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errBundleFinalizationPrecedence
 	case FnRTracker:
 		return -1, errRTrackerPrecedence
+	case FnStateProvider:
+		return -1, errStateProviderPrecedence
 	case FnIter, FnReIter, FnValue, FnMultiMap:
 		return psInput, nil
 	case FnEmit:

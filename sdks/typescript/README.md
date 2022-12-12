@@ -17,13 +17,13 @@
     under the License.
 -->
 
-# Typescript Beam SDK
+# TypeScript Beam SDK
 
-This is the start of a fully functioning Javascript (actually, Typescript) SDK.
-There are two distinct aims with this SDK
+This is the start of a fully functioning JavaScript (actually, TypeScript) SDK.
+There are two distinct aims with this SDK:
 
 1. Tap into the large (and relatively underserved, by existing data processing
-frameworks) community of javascript developers with a native SDK targeting this language.
+frameworks) community of JavaScript developers with a native SDK targeting this language.
 
 1. Develop a new SDK which can serve both as a proof of concept and reference
 that highlights the (relative) ease of porting Beam to new languages,
@@ -38,11 +38,71 @@ to running on production runners such as Dataflow and Flink.
 The target audience should hopefully not be put off by running other-language
 code encapsulated in docker images.
 
+## Getting started
+
+To install and test the Typescript SDK from source, you will need `npm` and
+`python`. Other requirements can be installed by `npm` later on.
+
+(**Note** that Python is a requirement as it is used to orchestrate Beam
+functionality.)
+
+1. First you must clone the Beam repository and go to the `typescript` directory.
+```
+git checkout https://github.com/apache/beam
+cd beam/sdks/typescript/
+```
+
+2. Execute a local install of the necessary packages:
+
+```
+npm install
+```
+
+3. Then run `./build.sh` to transpile Typescript files into JS files.
+
+### Development workflows
+
+All of the development workflows (build, test, lint, clean, etc) are defined in
+`package.json` and can be run with `npm` commands (e.g. `npm run build`).
+
+### Running a pipeline
+
+The `wordcount.ts` file defines a parameterizable pipeline that can be run
+against different runners. You can run it from the transpiled `.js` file
+like so:
+
+```
+node dist/src/apache_beam/examples/wordcount.js ${PARAMETERS}
+```
+
+To run locally:
+
+```
+node dist/src/apache_beam/examples/wordcount.js --runner=direct
+```
+
+To run against Flink, where the local infrastructure is automatically
+downloaded and set up:
+
+```
+node dist/src/apache_beam/examples/wordcount.js --runner=flink
+```
+
+To run on Dataflow:
+
+```
+node dist/src/apache_beam/examples/wordcount.js \
+    --runner=dataflow \
+    --project=${PROJECT_ID} \
+    --tempLocation=gs://${GCS_BUCKET}/wordcount-js/temp --region=${REGION}
+```
+
+
 ## API
 
-We generally try to apply the concepts from the Beam API in a Typescript
+We generally try to apply the concepts from the Beam API in a TypeScript
 idiomatic way, but it should be noted that few of the initial developers
-have extensive (if any) Javascript/Typescript development experience, so
+have extensive (if any) JavaScript/TypeScript development experience, so
 feedback is greatly appreciated.
 
 In addition, some notable departures are taken from the traditional SDKs:
@@ -51,10 +111,10 @@ In addition, some notable departures are taken from the traditional SDKs:
 [schema'd data](https://docs.google.com/document/d/1tnG2DPHZYbsomvihIpXruUmQ12pHGK0QIvXS1FOTgRc/edit#heading=h.puuotbien1gf)
 is the primary way to interact with data, and we generally eschew the key-value
 requiring transforms in favor of a more flexible approach naming fields or
-expressions. Javascript's native Object is used as the row type.
+expressions. JavaScript's native Object is used as the row type.
 
 * As part of being schema-first we also de-emphasize Coders as a first-class
-concept in the SDK, relegating it to an advance feature used for interop.
+concept in the SDK, relegating it to an advanced feature used for interop.
 Though we can infer schemas from individual elements, it is still TBD to
 figure out if/how we can leverage the type system and/or function introspection
 to regularly infer schemas at construction time. A fallback coder using BSON
@@ -87,7 +147,7 @@ There is currently an operation to split a PCollection into multiple
 PCollections based on the properties of the elements, and
 we may consider using a callback for side outputs.
 
-* The `map`, `flatMap`, and `ParDo.proceess` methods take an additional
+* The `map`, `flatMap`, and `ParDo.process` methods take an additional
 (optional) context argument, which is similar to the keyword arguments
 used in Python. These can be "ordinary" javascript objects (which are passed
 as is) or special DoFnParam objects which provide getters to element-specific
@@ -99,9 +159,9 @@ themselves, producing multiple outputs is done by following with a new
 `PCollection<{a?: AType, b: BType, ... }>` and produces an object
 `{a: PCollection<AType>, b: PCollection<BType>, ...}`.
 
-* Javascript supports (and encourages) an asynchronous programing model, with
+* JavaScript supports (and encourages) an asynchronous programing model, with
 many libraries requiring use of the async/await paradigm.
-As there is no way (by design) to go from the asyncronous style back to
+As there is no way (by design) to go from the asynchronous style back to
 the synchronous style, this needs to be taken into account
 when designing the API.
 We currently offer asynchronous variants of `PValue.apply(...)` (in addition
@@ -142,7 +202,7 @@ on a portable runner) but the following big-ticket items remain.
 
   * Enforce unique names for pipeline update.
 
-  * Cleanup uses of var, this. Arrow functions. `===` vs `==`.
+  * Cleanup uses of `var`, `this`. Arrow functions.
 
   * Avoid `any` return types (and re-enable check in compiler).
 
@@ -154,7 +214,7 @@ on a portable runner) but the following big-ticket items remain.
   * Set channel options like `grpc.max_{send,receive}_message_length` as we
   do in other SDKs.
 
-  * Reduce use of any.
+  * Reduce use of `any`.
 
     * Could use `unknown` in its place where the type is truly unknown.
 
@@ -178,7 +238,7 @@ npm install
 ### Running tests
 
 ```
-$  npm test
+npm test
 ```
 
 ### Style
@@ -186,5 +246,5 @@ $  npm test
 We have adopted prettier which can be run with
 
 ```
-#  npx prettier --write .
+npx prettier --write .
 ```

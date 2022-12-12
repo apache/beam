@@ -25,6 +25,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleTask: ':clean',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true',
       '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
@@ -47,6 +48,7 @@ builder.build {
       rootBuildScriptDir(properties.checkoutDir)
       tasks 'javaExamplesDataflowPreCommit'
       switches '-PdisableSpotlessCheck=true'
+      switches '-PdisableCheckStyle=true'
       switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
       switches '-PcompileAndRunTestsWithJava17'
       switches "-Pjava17Home=${properties.JAVA_17_HOME}"

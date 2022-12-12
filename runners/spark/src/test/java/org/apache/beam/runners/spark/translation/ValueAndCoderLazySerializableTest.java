@@ -38,7 +38,7 @@ import org.junit.Test;
 
 /** Unit tests of {@link ValueAndCoderLazySerializable}. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ValueAndCoderLazySerializableTest {
 

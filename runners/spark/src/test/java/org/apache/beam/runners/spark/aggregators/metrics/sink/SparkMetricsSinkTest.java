@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -51,7 +52,10 @@ import org.junit.rules.ExternalResource;
  * streaming modes.
  */
 public class SparkMetricsSinkTest {
-  @ClassRule public static SparkContextRule contextRule = new SparkContextRule();
+  @ClassRule
+  public static SparkContextRule contextRule =
+      new SparkContextRule(
+          KV.of("spark.metrics.conf.*.sink.memory.class", InMemoryMetrics.class.getName()));
 
   @Rule public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
 
@@ -82,7 +86,7 @@ public class SparkMetricsSinkTest {
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
-    pipeline.getOptions().as(TestSparkPipelineOptions.class).setForceStreaming(true);
+    pipeline.getOptions().as(TestSparkPipelineOptions.class).setStreaming(true);
     assertThat(InMemoryMetrics.valueOf("emptyLines"), is(nullValue()));
 
     Instant instant = new Instant(0);

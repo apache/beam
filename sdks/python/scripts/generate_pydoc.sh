@@ -55,6 +55,7 @@ current_minor_version=`echo ${python_version} | sed -E "s/Python 3.([0-9])\..*/\
 excluded_patterns=(
     'apache_beam/coders/coder_impl.*'
     'apache_beam/coders/stream.*'
+    'apache_beam/coders/coder_impl_row_encoders.*'
     'apache_beam/examples/'
     'apache_beam/io/gcp/tests/'
     'apache_beam/metrics/execution.*'
@@ -64,6 +65,7 @@ excluded_patterns=(
     'apache_beam/runners/test/'
     'apache_beam/runners/worker/'
     'apache_beam/testing/benchmarks/chicago_taxi/'
+    'apache_beam/testing/benchmarks/inference/'
     'apache_beam/testing/benchmarks/data/'
     'apache_beam/testing/benchmarks/load_tests/'
     'apache_beam/testing/.*test.py'
@@ -126,6 +128,7 @@ release = version
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
+autodoc_mock_imports = ["tensorrt", "cuda"]
 
 # Allow a special section for documenting DataFrame API
 napoleon_custom_sections = ['Differences from pandas']
@@ -164,6 +167,7 @@ ignore_identifiers = [
   'apache_beam.coders.coders.FastCoder',
   'apache_beam.coders.coders.ListLikeCoder',
   'apache_beam.io._AvroSource',
+  'apache_beam.io.fileio.FileSink',
   'apache_beam.io.gcp.bigquery.RowAsDictJsonCoder',
   'apache_beam.io.gcp.datastore.v1new.datastoreio._Mutate',
   'apache_beam.io.gcp.datastore.v1new.datastoreio.DatastoreMutateFn',
@@ -247,24 +251,28 @@ EOF
 
 # Build the documentation using sphinx
 # Reference: http://www.sphinx-doc.org/en/stable/man/sphinx-build.html
+# Note we cut out warnings from apache_beam.dataframe, this package uses pandas
+# documentation verbatim.
 python $(type -p sphinx-build) -v -a -E -q target/docs/source \
   target/docs/_build -c target/docs/source \
-  -w "target/docs/sphinx-build.warnings.log"
+  2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | tee "target/docs/sphinx-build.log"
 
 # Fail if there are errors or warnings in docs
-! grep -q "ERROR:" target/docs/sphinx-build.warnings.log || exit 1
-(! grep -v 'apache_beam.dataframe' target/docs/sphinx-build.warnings.log | grep -q "WARNING:") || exit 1
+! grep -q "ERROR:" target/docs/sphinx-build.log || exit 1
+! grep -q "WARNING:" target/docs/sphinx-build.log || exit 1
 
 # Run tests for code samples, these can be:
 # - Code blocks using '.. testsetup::', '.. testcode::' and '.. testoutput::'
 # - Interactive code starting with '>>>'
 python -msphinx -M doctest target/docs/source \
   target/docs/_build -c target/docs/source \
-  -w "target/docs/sphinx-doctest.warnings.log"
+  2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | tee "target/docs/sphinx-doctest.log"
 
 # Fail if there are errors or warnings in docs
-! grep -q "ERROR:" target/docs/sphinx-doctest.warnings.log || exit 1
-(! grep -v 'apache_beam.dataframe' target/docs/sphinx-doctest.warnings.log | grep -q "WARNING:") || exit 1
+! grep -q "ERROR:" target/docs/sphinx-doctest.log || exit 1
+! grep -q "WARNING:" target/docs/sphinx-doctest.log || exit 1
 
 # Message is useful only when this script is run locally.  In a remote
 # test environment, this path will be removed when the test completes.

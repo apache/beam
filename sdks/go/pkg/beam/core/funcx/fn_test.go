@@ -26,6 +26,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
@@ -50,7 +51,7 @@ func (m foo) Do(context.Context, int, string) (string, int, error) {
 func TestNew(t *testing.T) {
 	tests := []struct {
 		Name  string
-		Fn    interface{}
+		Fn    any
 		Param []FnParamKind
 		Ret   []ReturnKind
 		Err   error
@@ -107,6 +108,11 @@ func TestNew(t *testing.T) {
 			Name:  "good9",
 			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, sdf.WatermarkEstimator, reflect.Type, []byte) {},
 			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnWatermarkEstimator, FnType, FnValue},
+		},
+		{
+			Name:  "good10",
+			Fn:    func(sdf.RTracker, state.Provider, []byte) {},
+			Param: []FnParamKind{FnRTracker, FnStateProvider, FnValue},
 		},
 		{
 			Name:  "good-method",
@@ -210,6 +216,16 @@ func TestNew(t *testing.T) {
 			Name: "errInputPrecedence- ReIter before after output",
 			Fn:   func(int, func(int), func() func(*int) bool) {},
 			Err:  errInputPrecedence,
+		},
+		{
+			Name: "errInputPrecedence- StateProvider before RTracker",
+			Fn:   func(state.Provider, sdf.RTracker, int) {},
+			Err:  errRTrackerPrecedence,
+		},
+		{
+			Name: "errInputPrecedence- StateProvider after output",
+			Fn:   func(int, state.Provider) {},
+			Err:  errStateProviderPrecedence,
 		},
 		{
 			Name: "errInputPrecedence- input after output",

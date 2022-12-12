@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // DataSource is a Root execution unit.
@@ -55,6 +56,9 @@ type DataSource struct {
 	su chan SplittableUnit
 
 	mu sync.Mutex
+
+	// Whether the downstream transform only iterates a GBK coder once.
+	singleIterate bool
 }
 
 // InitSplittable initializes the SplittableUnit channel from the output unit,
@@ -75,6 +79,15 @@ func (n *DataSource) ID() UnitID {
 
 // Up initializes this datasource.
 func (n *DataSource) Up(ctx context.Context) error {
+	// TODO(https://github.com/apache/beam/issues/23043) - Reenable single iteration or more fully rip this out.
+	safeToSingleIterate := false
+	switch n.Out.(type) {
+	case *Expand, *Multiplex:
+		// CoGBK Expands aren't safe, as they may re-iterate the GBK stream.
+		// Multiplexes aren't safe, since they re-iterate the GBK stream by default.
+		safeToSingleIterate = false
+	}
+	n.singleIterate = safeToSingleIterate
 	return nil
 }
 
@@ -134,7 +147,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 	case coder.IsCoGBK(c):
 		cp = MakeElementDecoder(c.Components[0])
 
-		// TODO(BEAM-490): Support multiple value streams (coder components) with
+		// TODO(https://github.com/apache/beam/issues/18032): Support multiple value streams (coder components) with
 		// with CoGBK.
 		cvs = []ElementDecoder{MakeElementDecoder(c.Components[1])}
 	default:
@@ -165,7 +178,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 		var valReStreams []ReStream
 		for _, cv := range cvs {
-			values, err := n.makeReStream(ctx, pe, cv, &bcr)
+			values, err := n.makeReStream(ctx, cv, &bcr, len(cvs) == 1 && n.singleIterate)
 			if err != nil {
 				return err
 			}
@@ -181,11 +194,47 @@ func (n *DataSource) Process(ctx context.Context) error {
 	}
 }
 
-func (n *DataSource) makeReStream(ctx context.Context, key *FullValue, cv ElementDecoder, bcr *byteCountReader) (ReStream, error) {
+func (n *DataSource) makeReStream(ctx context.Context, cv ElementDecoder, bcr *byteCountReader, onlyStream bool) (ReStream, error) {
 	// TODO(lostluck) 2020/02/22: Do we include the chunk size, or just the element sizes?
 	size, err := coder.DecodeInt32(bcr.reader)
 	if err != nil {
 		return nil, errors.Wrap(err, "stream size decoding failed")
+	}
+
+	if onlyStream {
+		// If we know the stream won't be re-iterated,
+		// decode elements on demand instead to reduce memory usage.
+		switch {
+		case size >= 0:
+			return &singleUseReStream{
+				r:    bcr,
+				d:    cv,
+				size: int(size),
+			}, nil
+		case size == -1:
+			return &singleUseMultiChunkReStream{
+				r: bcr,
+				d: cv,
+				open: func(bcr *byteCountReader) (Stream, error) {
+					tokenLen, err := coder.DecodeVarInt(bcr.reader)
+					if err != nil {
+						return nil, err
+					}
+					token, err := ioutilx.ReadN(bcr.reader, (int)(tokenLen))
+					if err != nil {
+						return nil, err
+					}
+					r, err := n.state.OpenIterable(ctx, n.SID, token)
+					if err != nil {
+						return nil, err
+					}
+					// We can't re-use the original bcr, since we may get new iterables,
+					// but we can re-use the count itself.
+					r = &byteCountReader{reader: r, count: bcr.count}
+					return &elementStream{r: r, ec: cv}, nil
+				},
+			}, nil
+		}
 	}
 
 	switch {
@@ -276,7 +325,7 @@ func (n *DataSource) Down(ctx context.Context) error {
 }
 
 func (n *DataSource) String() string {
-	return fmt.Sprintf("DataSource[%v, %v] Coder:%v Out:%v", n.SID, n.Name, n.Coder, n.Out.ID())
+	return fmt.Sprintf("DataSource[%v, %v] Out:%v Coder:%v ", n.SID, n.Name, n.Out.ID(), n.Coder)
 }
 
 // incrementIndexAndCheckSplit increments DataSource.index by one and checks if
@@ -405,7 +454,7 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 // sent to this DataSource, and is used to be able to perform accurate splits
 // even if the DataSource has not yet received all its elements. A bufSize of
 // 0 or less indicates that its unknown, and so uses the current known size.
-func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitResult, error) {
+func (n *DataSource) Split(ctx context.Context, splits []int64, frac float64, bufSize int64) (SplitResult, error) {
 	if n == nil {
 		return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, DataSource not initialized", splits)
 	}
@@ -450,7 +499,8 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 	}
 	s, fr, err := splitHelper(n.index, bufSize, currProg, splits, frac, su != nil)
 	if err != nil {
-		return SplitResult{}, err
+		log.Infof(ctx, "Unsuccessful split: %v", err)
+		return SplitResult{Unsuccessful: true}, nil
 	}
 
 	// No fraction returned, perform channel split.
@@ -472,7 +522,7 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		return SplitResult{PI: s, RI: s + 1}, nil
 	}
 
-	// TODO(BEAM-10579) Eventually encode elements with the splittable
+	// TODO(https://github.com/apache/beam/issues/20343) Eventually encode elements with the splittable
 	// unit's input coder instead of the DataSource's coder.
 	encodeElms := n.makeEncodeElms()
 

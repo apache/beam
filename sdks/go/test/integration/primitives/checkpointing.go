@@ -17,18 +17,19 @@ package primitives
 
 import (
 	"context"
-	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*selfCheckpointingDoFn)(nil)).Elem())
+	register.DoFn3x1[*sdf.LockRTracker, []byte, func(int64), sdf.ProcessContinuation](&selfCheckpointingDoFn{})
+	register.Emitter1[int64]()
 }
 
 type selfCheckpointingDoFn struct{}

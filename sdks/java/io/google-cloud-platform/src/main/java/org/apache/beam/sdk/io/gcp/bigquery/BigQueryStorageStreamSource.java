@@ -40,6 +40,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -166,6 +167,24 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
     private @Nullable TableReference tableReference;
     private @Nullable ServiceCallMetric serviceCallMetric;
+
+    // Initialize metrics.
+    private final Counter totalSplitCalls =
+        Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls");
+    private final Counter impossibleSplitPointCalls =
+        Metrics.counter(
+            BigQueryStorageStreamReader.class,
+            "split-at-fraction-calls-failed-due-to-impossible-split-point");
+    private final Counter badSplitPointCalls =
+        Metrics.counter(
+            BigQueryStorageStreamReader.class,
+            "split-at-fraction-calls-failed-due-to-bad-split-point");
+    private final Counter otherFailedSplitCalls =
+        Metrics.counter(
+            BigQueryStorageStreamReader.class,
+            "split-at-fraction-calls-failed-due-to-other-reasons");
+    private final Counter successfulSplitCalls =
+        Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful");
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
@@ -299,12 +318,13 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
+    @SuppressWarnings("ReturnValueIgnored")
     public @Nullable BoundedSource<T> splitAtFraction(double fraction) {
       // Because superclass cannot have preconditions around these variables, cannot use
       // @RequiresNonNull
       Preconditions.checkStateNotNull(responseStream);
       BigQueryServerStream<ReadRowsResponse> responseStream = this.responseStream;
-      Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls").inc();
+      totalSplitCalls.inc();
       LOG.debug(
           "Received BigQuery Storage API split request for stream {} at fraction {}.",
           source.readStream.getName(),
@@ -328,10 +348,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
       if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
         // No more splits are possible!
-        Metrics.counter(
-                BigQueryStorageStreamReader.class,
-                "split-at-fraction-calls-failed-due-to-impossible-split-point")
-            .inc();
+        impossibleSplitPointCalls.inc();
         LOG.info(
             "BigQuery Storage API stream {} cannot be split at {}.",
             source.readStream.getName(),
@@ -355,13 +372,14 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                       .build(),
                   source.readSession.getTable());
           newResponseIterator = newResponseStream.iterator();
+          // The following line is required to trigger the `FailedPreconditionException` on which
+          // the SplitReadStream validation logic depends. Removing it will cause incorrect
+          // split operations to succeed.
+          newResponseIterator.hasNext();
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
           // is unsuccessful.
-          Metrics.counter(
-                  BigQueryStorageStreamReader.class,
-                  "split-at-fraction-calls-failed-due-to-bad-split-point")
-              .inc();
+          badSplitPointCalls.inc();
           LOG.info(
               "BigQuery Storage API split of stream {} abandoned because the primary stream is to "
                   + "the left of the split fraction {}.",
@@ -369,10 +387,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
               fraction);
           return null;
         } catch (Exception e) {
-          Metrics.counter(
-                  BigQueryStorageStreamReader.class,
-                  "split-at-fraction-calls-failed-due-to-other-reasons")
-              .inc();
+          otherFailedSplitCalls.inc();
           LOG.error("BigQuery Storage API stream split failed.", e);
           return null;
         }
@@ -385,8 +400,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         reader.resetBuffer();
       }
 
-      Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
-          .inc();
+      successfulSplitCalls.inc();
       LOG.info(
           "Successfully split BigQuery Storage API stream at {}. Split response: {}",
           fraction,

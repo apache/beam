@@ -20,9 +20,14 @@ package org.apache.beam.sdk.testutils.publishing;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNoneBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.google.auto.value.AutoValue;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -31,7 +36,15 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.commons.compress.utils.Charsets;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -46,110 +59,156 @@ import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
+import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public final class InfluxDBPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(InfluxDBPublisher.class);
 
   private InfluxDBPublisher() {}
 
+  /** InfluxDB data point. */
+  @AutoValue
+  public abstract static class DataPoint {
+    DataPoint() {}
+
+    public abstract @Pure String measurement();
+
+    public abstract @Pure Map<String, String> tags();
+
+    public abstract @Pure Map<String, Number> fields();
+
+    @Nullable
+    public abstract @Pure Long timestamp();
+
+    public abstract @Pure TimeUnit timestampUnit();
+
+    @Override
+    public final String toString() {
+      return append(new StringBuilder()).toString();
+    }
+
+    private @Nullable Long timestampSecs() {
+      return timestamp() != null ? timestampUnit().toSeconds(timestamp()) : null;
+    }
+
+    private StringBuilder append(StringBuilder builder) {
+      return addMeasurement(builder, measurement(), tags(), fields(), timestampSecs());
+    }
+  }
+
+  /** Creates an InfluxDB data point using optional custom Unix timestamp in seconds. */
+  public static DataPoint dataPoint(
+      String measurement,
+      Map<String, String> tags,
+      Map<String, Number> fields,
+      @Nullable Long timestampSecs) {
+    Preconditions.checkArgument(isNotBlank(measurement), "Measurement cannot be blank");
+    return new AutoValue_InfluxDBPublisher_DataPoint(
+        measurement, tags, fields, timestampSecs, TimeUnit.SECONDS);
+  }
+
+  /** Creates an InfluxDB data point. */
+  public static DataPoint dataPoint(
+      String measurement,
+      Map<String, String> tags,
+      Map<String, Number> fields,
+      @Nullable Long timestamp,
+      TimeUnit timestampUnit) {
+    Preconditions.checkArgument(isNotBlank(measurement), "Measurement cannot be blank");
+    return new AutoValue_InfluxDBPublisher_DataPoint(
+        measurement, tags, fields, timestamp, timestampUnit);
+  }
+
+  /** @deprecated Use {@link #publish} instead. */
+  @Deprecated
   public static void publishNexmarkResults(
       final Collection<Map<String, Object>> results,
       final InfluxDBSettings settings,
       final Map<String, String> tags) {
-    publishWithCheck(settings, () -> publishNexmark(results, settings, tags));
+    publishWithCheck(settings, nexmarkDataPoints(results, tags));
   }
 
   public static void publishWithSettings(
       final Collection<NamedTestResult> results, final InfluxDBSettings settings) {
-    publishWithCheck(settings, () -> publishCommon(results, settings));
+    if (isNotBlank(settings.measurement)) {
+      @SuppressWarnings("nullness")
+      Collection<DataPoint> dataPoints =
+          Collections2.transform(results, res -> res.toInfluxDBDataPoint(settings.measurement));
+      publish(settings, dataPoints);
+    } else {
+      LOG.warn("Missing setting InfluxDB measurement. Metrics won't be published.");
+    }
   }
 
-  private static void publishWithCheck(
-      final InfluxDBSettings settings, final PublishFunction publishFunction) {
+  public static void publish(
+      final InfluxDBSettings settings, final Collection<DataPoint> dataPoints) {
+    final StringBuilder builder = new StringBuilder();
+    dataPoints.forEach(m -> m.append(builder).append('\n'));
+    publishWithCheck(settings, builder.toString());
+  }
+
+  private static void publishWithCheck(final InfluxDBSettings settings, final String data) {
     requireNonNull(settings, "InfluxDB settings must not be null");
-    if (isNoneBlank(settings.measurement, settings.database)) {
+    if (isNotBlank(settings.database)) {
       try {
-        publishFunction.publish();
+        final HttpClientBuilder builder = provideHttpBuilder(settings);
+        final HttpPost postRequest = providePOSTRequest(settings);
+        postRequest.setEntity(new GzipCompressingEntity(new ByteArrayEntity(data.getBytes(UTF_8))));
+        executeWithVerification(postRequest, builder);
       } catch (Exception exception) {
         LOG.warn("Unable to publish metrics due to error: {}", exception.getMessage());
       }
     } else {
-      LOG.warn("Missing property -- measurement/database. Metrics won't be published.");
+      LOG.warn("Missing setting InfluxDB database. Metrics won't be published.");
     }
   }
 
-  private static void publishNexmark(
-      final Collection<Map<String, Object>> results,
-      final InfluxDBSettings settings,
-      final Map<String, String> tags)
-      throws Exception {
-
-    final HttpClientBuilder builder = provideHttpBuilder(settings);
-    final HttpPost postRequest = providePOSTRequest(settings);
-    final StringBuilder metricBuilder = new StringBuilder();
-
+  /** @deprecated To be removed, kept for legacy interface {@link #publishNexmarkResults} */
+  @VisibleForTesting
+  @Deprecated
+  static String nexmarkDataPoints(
+      final Collection<Map<String, Object>> results, final Map<String, String> tags) {
+    final StringBuilder builder = new StringBuilder();
+    final Set<String> fields = ImmutableSet.of("runtimeMs", "numResults");
     results.forEach(
         map -> {
-          metricBuilder.append(map.get("measurement")).append(",").append(getKV(map, "runner"));
-          if (tags != null && !tags.isEmpty()) {
-            tags.entrySet().stream()
-                .forEach(
-                    entry -> {
-                      metricBuilder
-                          .append(",")
-                          .append(entry.getKey())
-                          .append("=")
-                          .append(entry.getValue());
-                    });
-          }
-          metricBuilder
-              .append(" ")
-              .append(getKV(map, "runtimeMs"))
-              .append(",")
-              .append(getKV(map, "numResults"))
-              .append(" ")
-              .append(map.get("timestamp"))
+          String measurement = checkArgumentNotNull(map.get("measurement")).toString();
+          addMeasurement(builder, measurement, tags, filterKeys(map, fields), map.get("timestamp"))
               .append('\n');
         });
-
-    postRequest.setEntity(
-        new GzipCompressingEntity(new ByteArrayEntity(metricBuilder.toString().getBytes(UTF_8))));
-
-    executeWithVerification(postRequest, builder);
+    return builder.toString();
   }
 
-  private static String getKV(final Map<String, Object> map, final String key) {
-    return key + "=" + map.get(key);
+  @SuppressWarnings("nullness")
+  private static <K, V> Map<K, V> filterKeys(final Map<K, V> map, final Set<K> keys) {
+    return Maps.filterKeys(map, keys::contains);
   }
 
-  private static void publishCommon(
-      final Collection<NamedTestResult> results, final InfluxDBSettings settings) throws Exception {
+  // fix types once nexmarkMeasurements is removed
+  private static StringBuilder addMeasurement(
+      StringBuilder builder,
+      String measurement,
+      Map<String, ?> tags,
+      Map<String, ?> fields,
+      @Nullable Object timestampSecs) {
+    checkState(!fields.isEmpty(), "fields cannot be empty");
+    builder.append(measurement);
+    tags.forEach((k, v) -> builder.append(',').append(k).append('=').append(v));
+    builder.append(' ');
+    fields.forEach((k, v) -> builder.append(k).append('=').append(fieldValue(v)).append(','));
+    builder.setLength(builder.length() - 1); // skip last comma
+    if (timestampSecs != null) {
+      builder.append(' ').append(timestampSecs);
+    }
+    return builder;
+  }
 
-    final HttpClientBuilder builder = provideHttpBuilder(settings);
-    final HttpPost postRequest = providePOSTRequest(settings);
-    final StringBuilder metricBuilder = new StringBuilder();
-    results.stream()
-        .map(NamedTestResult::toMap)
-        .forEach(
-            map ->
-                metricBuilder
-                    .append(settings.measurement)
-                    .append(",")
-                    .append(getKV(map, "test_id"))
-                    .append(",")
-                    .append(getKV(map, "metric"))
-                    .append(" ")
-                    .append(getKV(map, "value"))
-                    .append('\n'));
-
-    postRequest.setEntity(new ByteArrayEntity(metricBuilder.toString().getBytes(UTF_8)));
-
-    executeWithVerification(postRequest, builder);
+  private static String fieldValue(@Nullable Object value) {
+    checkStateNotNull(value, "field value cannot be null");
+    // append 'i' suffix for 64-bit integer, default is float
+    return (value instanceof Integer || value instanceof Long) ? value + "i" : value.toString();
   }
 
   private static HttpClientBuilder provideHttpBuilder(final InfluxDBSettings settings) {
@@ -196,10 +255,5 @@ public final class InfluxDBPublisher {
     final JsonElement errorElement =
         new Gson().fromJson(EntityUtils.toString(entity, encoding), JsonObject.class).get("error");
     return isNull(errorElement) ? "[Unable to get error message]" : errorElement.toString();
-  }
-
-  @FunctionalInterface
-  private interface PublishFunction {
-    void publish() throws Exception;
   }
 }

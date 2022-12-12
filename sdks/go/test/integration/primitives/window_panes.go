@@ -21,12 +21,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 )
 
 func init() {
-	beam.RegisterFunction(PanesFn)
+	register.Function3x0(PanesFn)
+
+	register.Emitter1[int]()
 }
 
 // PanesFn is DoFn that simply emits the pane timing value.

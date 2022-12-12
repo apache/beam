@@ -48,13 +48,14 @@ import java.util.TreeMap;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Pubsub client using JSON transport. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PubsubJsonClient extends PubsubClient {
 
@@ -73,6 +74,17 @@ public class PubsubJsonClient extends PubsubClient {
     public PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
+
+      return newClient(timestampAttribute, idAttribute, options, null);
+    }
+
+    @Override
+    public PubsubClient newClient(
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
+        PubsubOptions options,
+        String rootUrlOverride)
+        throws IOException {
       Pubsub pubsub =
           new Pubsub.Builder(
                   Transport.getTransport(),
@@ -82,7 +94,7 @@ public class PubsubJsonClient extends PubsubClient {
                       // Do not log 404. It clutters the output and is possibly even required by the
                       // caller.
                       new RetryHttpRequestInitializer(ImmutableList.of(404))))
-              .setRootUrl(options.getPubsubRootUrl())
+              .setRootUrl(MoreObjects.firstNonNull(rootUrlOverride, options.getPubsubRootUrl()))
               .setApplicationName(options.getAppName())
               .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
               .build();
@@ -133,6 +145,8 @@ public class PubsubJsonClient extends PubsubClient {
       if (!outgoingMessage.message().getOrderingKey().isEmpty()) {
         pubsubMessage.setOrderingKey(outgoingMessage.message().getOrderingKey());
       }
+
+      // N.B. publishTime and messageId are intentionally not set on the message that is published
       pubsubMessages.add(pubsubMessage);
     }
     PublishRequest request = new PublishRequest().setMessages(pubsubMessages);

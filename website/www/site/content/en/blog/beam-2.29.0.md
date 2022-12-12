@@ -3,6 +3,7 @@ title:  "Apache Beam 2.29.0"
 date:   2021-04-29 9:00:00 -0700
 categories:
   - blog
+  - release
 authors:
   - klk
 ---

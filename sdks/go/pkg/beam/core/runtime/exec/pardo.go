@@ -38,6 +38,7 @@ type ParDo struct {
 	Fn      *graph.DoFn
 	Inbound []*graph.Inbound
 	Side    []SideInputAdapter
+	UState  UserStateAdapter
 	Out     []Node
 
 	PID      string
@@ -65,7 +66,7 @@ func (n *ParDo) GetPID() string {
 type cacheElm struct {
 	key       typex.Window
 	sideinput []ReusableInput
-	extra     []interface{}
+	extra     []any
 }
 
 // ID returns the UnitID for this ParDo.
@@ -87,7 +88,7 @@ func (n *ParDo) Up(ctx context.Context) error {
 	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
 	setupCtx := metrics.SetPTransformID(ctx, n.PID)
-	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil, nil); err != nil {
+	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil, nil, nil, nil, nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -147,9 +148,9 @@ func (n *ParDo) ProcessElement(_ context.Context, elm *FullValue, values ...ReSt
 func (n *ParDo) processMainInput(mainIn *MainInput) error {
 	elm := &mainIn.Key
 
-	// If the function observes windows, we must invoke it for each window. The expected fast path
-	// is that either there is a single window or the function doesn't observe windows, so we can
-	// optimize it by treating all windows as a single one.
+	// If the function observes windows or uses per window state, we must invoke it for each window.
+	// The expected fast path is that either there is a single window or the function doesn't observe
+	// windows, so we can optimize it by treating all windows as a single one.
 	if !mustExplodeWindows(n.inv.fn, elm, len(n.Side) > 0) {
 		// The ProcessContinuation return value is ignored because only SDFs can return ProcessContinuations.
 		_, processResult := n.processSingleWindow(mainIn)
@@ -208,13 +209,14 @@ func rtErrHelper(err error) error {
 
 // mustExplodeWindows returns true iif we need to call the function
 // for each window. It is needed if the function either observes the
-// window, either directly or indirectly via (windowed) side inputs.
+// window, either directly or indirectly via (windowed) side inputs or state.
 func mustExplodeWindows(fn *funcx.Fn, elm *FullValue, usesSideInput bool) bool {
 	if len(elm.Windows) < 2 {
 		return false
 	}
 	_, explode := fn.Window()
-	return explode || usesSideInput
+	_, observesState := fn.StateProvider()
+	return explode || usesSideInput || observesState
 }
 
 // FinishBundle does post-bundle processing operations for the DoFn.
@@ -250,7 +252,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 	n.reader = nil
 	n.cache = nil
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil, nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil, nil, nil, nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -266,7 +268,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 
 		n.cache = &cacheElm{
 			key:   w,
-			extra: make([]interface{}, sideCount+emitCount),
+			extra: make([]any, sideCount+emitCount),
 		}
 		attachEstimator := false
 		if n.we != nil {
@@ -336,7 +338,7 @@ func (n *ParDo) invokeDataFn(ctx context.Context, pn typex.PaneInfo, ws []typex.
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.bf, n.we, n.cache.extra...)
+	val, err = Invoke(ctx, pn, ws, ts, fn, opt, n.bf, n.we, n.UState, n.reader, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +356,7 @@ func (n *ParDo) invokeProcessFn(ctx context.Context, pn typex.PaneInfo, ws []typ
 	if err := n.preInvoke(ctx, ws, ts); err != nil {
 		return nil, err
 	}
-	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.bf, n.we, n.cache.extra...)
+	val, err = n.inv.Invoke(ctx, pn, ws, ts, opt, n.bf, n.we, n.UState, n.reader, n.cache.extra...)
 	if err != nil {
 		return nil, err
 	}
@@ -401,5 +403,5 @@ func (n *ParDo) fail(err error) error {
 }
 
 func (n *ParDo) String() string {
-	return fmt.Sprintf("ParDo[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out...))
+	return fmt.Sprintf("ParDo[%v] Out:%v Sig: %v", path.Base(n.Fn.Name()), IDs(n.Out...), n.Fn.ProcessElementFn().Fn.Type())
 }

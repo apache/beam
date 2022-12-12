@@ -112,7 +112,7 @@ func main() {
 	// Using the SDK Harness ID in the artifact destination path to make sure that dependencies used by multiple
 	// SDK Harnesses in the same VM do not conflict. This is needed since some runners (for example, Dataflow)
 	// may share the artifact staging directory across multiple SDK Harnesses
-	// TODO(BEAM-9455): consider removing the SDK Harness ID from the staging path after Dataflow can properly
+	// TODO(https://github.com/apache/beam/issues/20009): consider removing the SDK Harness ID from the staging path after Dataflow can properly
 	// seperate out dependencies per environment.
 	dir := filepath.Join(*semiPersistDir, *id, "staged")
 
@@ -223,6 +223,11 @@ func main() {
 				args = append(args, "--add-opens=" + module.GetStringValue())
 			}
 		}
+	}
+	// Automatically open modules for Java 11+
+	openModuleAgentJar := "/opt/apache/beam/jars/open-module-agent.jar"
+	if _, err := os.Stat(openModuleAgentJar); err == nil {
+		args = append(args, "-javaagent:" + openModuleAgentJar)
 	}
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
 	log.Printf("Executing: java %v", strings.Join(args, " "))

@@ -66,7 +66,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     Path Operations</a>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GcsPath implements Path, Serializable {
 
@@ -80,7 +80,7 @@ public class GcsPath implements Path, Serializable {
    */
   public static GcsPath fromUri(URI uri) {
     checkArgument(uri.getScheme().equalsIgnoreCase(SCHEME), "URI: %s is not a GCS URI", uri);
-    checkArgument(uri.getPort() == -1, "GCS URI may not specify port: %s (%i)", uri, uri.getPort());
+    checkArgument(uri.getPort() == -1, "GCS URI may not specify port: %s (%s)", uri, uri.getPort());
     checkArgument(
         isNullOrEmpty(uri.getUserInfo()),
         "GCS URI may not specify userInfo: %s (%s)",

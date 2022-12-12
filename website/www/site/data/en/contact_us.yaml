@@ -91,7 +91,7 @@
           link: "https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P",
         },
         {
-          action: " and browse other available channels. Don’t ask Beam questions in #general. We don’t monitor it."
+          action: " and browse other available channels."
         },
       ]
     - purpose: Firehose of commits, bugs, pull requests, etc.
@@ -109,7 +109,7 @@
     - purpose: 'Firehose of build notifications from Jenkins'
       contact: {
         email: commits@beam.apache.org,
-        link: "https://s.apache.org/beam-slack-channel",
+        link: "https://lists.apache.org/list.html?commits@beam.apache.org",
         add: Commits mailing list
       }
       icon: icons/community/contact-us/notification.svg

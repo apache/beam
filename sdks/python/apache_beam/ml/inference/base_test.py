@@ -20,8 +20,11 @@
 import pickle
 import unittest
 from typing import Any
+from typing import Dict
 from typing import Iterable
-from typing import List
+from typing import Mapping
+from typing import Optional
+from typing import Sequence
 
 import apache_beam as beam
 from apache_beam.metrics.metric import MetricsFilter
@@ -36,18 +39,7 @@ class FakeModel:
     return example + 1
 
 
-class FakeInferenceRunner(base.InferenceRunner[int, int, FakeModel]):
-  def __init__(self, clock=None):
-    self._fake_clock = clock
-
-  def run_inference(self, batch: List[int], model: FakeModel) -> Iterable[int]:
-    if self._fake_clock:
-      self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
-    for example in batch:
-      yield model.predict(example)
-
-
-class FakeModelLoader(base.ModelLoader[int, int, FakeModel]):
+class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def __init__(self, clock=None):
     self._fake_clock = clock
 
@@ -56,8 +48,15 @@ class FakeModelLoader(base.ModelLoader[int, int, FakeModel]):
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
     return FakeModel()
 
-  def get_inference_runner(self):
-    return FakeInferenceRunner(self._fake_clock)
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None) -> Iterable[int]:
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 3_000_000  # 3 milliseconds
+    for example in batch:
+      yield model.predict(example)
 
 
 class FakeClock:
@@ -74,19 +73,31 @@ class ExtractInferences(beam.DoFn):
     yield prediction_result.inference
 
 
-class FakeInferenceRunnerNeedsBigBatch(FakeInferenceRunner):
-  def run_inference(self, batch, unused_model):
+class FakeModelHandlerNeedsBigBatch(FakeModelHandler):
+  def run_inference(self, batch, unused_model, inference_args=None):
     if len(batch) < 100:
       raise ValueError('Unexpectedly small batch')
     return batch
 
-
-class FakeLoaderWithBatchArgForwarding(FakeModelLoader):
-  def get_inference_runner(self):
-    return FakeInferenceRunnerNeedsBigBatch()
-
   def batch_elements_kwargs(self):
     return {'min_batch_size': 9999}
+
+
+class FakeModelHandlerFailsOnInferenceArgs(FakeModelHandler):
+  def run_inference(self, batch, unused_model, inference_args=None):
+    raise ValueError(
+        'run_inference should not be called because error should already be '
+        'thrown from the validate_inference_args check.')
+
+
+class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
+  def run_inference(self, batch, unused_model, inference_args=None):
+    if not inference_args:
+      raise ValueError('inference_args should exist')
+    return batch
+
+  def validate_inference_args(self, inference_args):
+    pass
 
 
 class RunInferenceBaseTest(unittest.TestCase):
@@ -95,7 +106,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       examples = [1, 5, 3, 10]
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | base.RunInference(FakeModelLoader())
+      actual = pcoll | base.RunInference(FakeModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_with_keyed_examples(self):
@@ -104,14 +115,102 @@ class RunInferenceBaseTest(unittest.TestCase):
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
       expected = [(i, example + 1) for i, example in enumerate(examples)]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
-      actual = pcoll | base.RunInference(FakeModelLoader())
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(FakeModelHandler()))
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_with_maybe_keyed_examples(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [example + 1 for example in examples]
+      keyed_expected = [(i, example + 1) for i, example in enumerate(examples)]
+      model_handler = base.MaybeKeyedModelHandler(FakeModelHandler())
+
+      pcoll = pipeline | 'Unkeyed' >> beam.Create(examples)
+      actual = pcoll | 'RunUnkeyed' >> base.RunInference(model_handler)
+      assert_that(actual, equal_to(expected), label='CheckUnkeyed')
+
+      keyed_pcoll = pipeline | 'Keyed' >> beam.Create(keyed_examples)
+      keyed_actual = keyed_pcoll | 'RunKeyed' >> base.RunInference(
+          model_handler)
+      assert_that(keyed_actual, equal_to(keyed_expected), label='CheckKeyed')
+
+  def test_run_inference_impl_inference_args(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      inference_args = {'key': True}
+      actual = pcoll | base.RunInference(
+          FakeModelHandlerExpectedInferenceArgs(),
+          inference_args=inference_args)
+      assert_that(actual, equal_to(examples), label='assert:inferences')
+
+  def test_run_inference_metrics_with_custom_namespace(self):
+    metrics_namespace = 'my_custom_namespace'
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    pcoll = pipeline | 'start' >> beam.Create(examples)
+    _ = pcoll | base.RunInference(
+        FakeModelHandler(), metrics_namespace=metrics_namespace)
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    metrics_filter = MetricsFilter().with_namespace(namespace=metrics_namespace)
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) != 0
+    assert len(metrics['distributions']) != 0
+
+    metrics_filter = MetricsFilter().with_namespace(namespace='fake_namespace')
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) == len(metrics['distributions']) == 0
+
+  def test_unexpected_inference_args_passed(self):
+    with self.assertRaisesRegex(ValueError, r'inference_args were provided'):
+      with TestPipeline() as pipeline:
+        examples = [1, 5, 3, 10]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        inference_args = {'key': True}
+        _ = pcoll | base.RunInference(
+            FakeModelHandlerFailsOnInferenceArgs(),
+            inference_args=inference_args)
+
+  def test_increment_failed_batches_counter(self):
+    with self.assertRaises(ValueError):
+      with TestPipeline() as pipeline:
+        examples = [7]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        _ = pcoll | base.RunInference(FakeModelHandlerExpectedInferenceArgs())
+        run_result = pipeline.run()
+        run_result.wait_until_finish()
+
+        metric_results = (
+            run_result.metrics().query(
+                MetricsFilter().with_name('failed_batches_counter')))
+        num_failed_batches_counter = metric_results['counters'][0]
+        self.assertEqual(num_failed_batches_counter.committed, 3)
+        # !!!: The above will need to be updated if retry behavior changes
+
+  def test_failed_batches_counter_no_failures(self):
+    pipeline = TestPipeline()
+    examples = [7]
+    pcoll = pipeline | 'start' >> beam.Create(examples)
+    inference_args = {'key': True}
+    _ = pcoll | base.RunInference(
+        FakeModelHandlerExpectedInferenceArgs(), inference_args=inference_args)
+    run_result = pipeline.run()
+    run_result.wait_until_finish()
+
+    metric_results = (
+        run_result.metrics().query(
+            MetricsFilter().with_name('failed_batches_counter')))
+    self.assertEqual(len(metric_results['counters']), 0)
 
   def test_counted_metrics(self):
     pipeline = TestPipeline()
     examples = [1, 5, 3, 10]
     pcoll = pipeline | 'start' >> beam.Create(examples)
-    _ = pcoll | base.RunInference(FakeModelLoader())
+    _ = pcoll | base.RunInference(FakeModelHandler())
     run_result = pipeline.run()
     run_result.wait_until_finish()
 
@@ -141,7 +240,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     pcoll = pipeline | 'start' >> beam.Create(examples)
     fake_clock = FakeClock()
     _ = pcoll | base.RunInference(
-        FakeModelLoader(clock=fake_clock), clock=fake_clock)
+        FakeModelHandler(clock=fake_clock), clock=fake_clock)
     res = pipeline.run()
     res.wait_until_finish()
 
@@ -163,8 +262,82 @@ class RunInferenceBaseTest(unittest.TestCase):
     examples = list(range(100))
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> beam.Create(examples)
-      actual = pcoll | base.RunInference(FakeLoaderWithBatchArgForwarding())
+      actual = pcoll | base.RunInference(FakeModelHandlerNeedsBigBatch())
       assert_that(actual, equal_to(examples), label='assert:inferences')
+
+  def test_run_inference_unkeyed_examples_with_keyed_model_handler(self):
+    pipeline = TestPipeline()
+    with self.assertRaises(TypeError):
+      examples = [1, 3, 5]
+      model_handler = base.KeyedModelHandler(FakeModelHandler())
+      _ = (
+          pipeline | 'Unkeyed' >> beam.Create(examples)
+          | 'RunUnkeyed' >> base.RunInference(model_handler))
+      pipeline.run()
+
+  def test_run_inference_keyed_examples_with_unkeyed_model_handler(self):
+    pipeline = TestPipeline()
+    examples = [1, 3, 5]
+    keyed_examples = [(i, example) for i, example in enumerate(examples)]
+    model_handler = FakeModelHandler()
+    with self.assertRaises(TypeError):
+      _ = (
+          pipeline | 'keyed' >> beam.Create(keyed_examples)
+          | 'RunKeyed' >> base.RunInference(model_handler))
+      pipeline.run()
+
+  def test_model_handler_compatibility(self):
+    # ** IMPORTANT ** Do not change this test to make your PR pass without
+    # first reading below.
+    # Be certain that the modification will not break third party
+    # implementations of ModelHandler.
+    # See issue https://github.com/apache/beam/issues/23484
+    # If this test fails, likely third party implementations of
+    # ModelHandler will break.
+    class ThirdPartyHandler(base.ModelHandler[int, int, FakeModel]):
+      def __init__(self, custom_parameter=None):
+        pass
+
+      def load_model(self) -> FakeModel:
+        return FakeModel()
+
+      def run_inference(
+          self,
+          batch: Sequence[int],
+          model: FakeModel,
+          inference_args: Optional[Dict[str, Any]] = None) -> Iterable[int]:
+        yield 0
+
+      def get_num_bytes(self, batch: Sequence[int]) -> int:
+        return 1
+
+      def get_metrics_namespace(self) -> str:
+        return 'ThirdParty'
+
+      def get_resource_hints(self) -> dict:
+        return {}
+
+      def batch_elements_kwargs(self) -> Mapping[str, Any]:
+        return {}
+
+      def validate_inference_args(
+          self, inference_args: Optional[Dict[str, Any]]):
+        pass
+
+    # This test passes if calling these methods does not cause
+    # any runtime exceptions.
+    third_party_model_handler = ThirdPartyHandler(custom_parameter=0)
+    fake_model = third_party_model_handler.load_model()
+    third_party_model_handler.run_inference([], fake_model)
+    fake_inference_args = {'some_arg': 1}
+    third_party_model_handler.run_inference([],
+                                            fake_model,
+                                            inference_args=fake_inference_args)
+    third_party_model_handler.get_num_bytes([1, 2, 3])
+    third_party_model_handler.get_metrics_namespace()
+    third_party_model_handler.get_resource_hints()
+    third_party_model_handler.batch_elements_kwargs()
+    third_party_model_handler.validate_inference_args({})
 
 
 if __name__ == '__main__':

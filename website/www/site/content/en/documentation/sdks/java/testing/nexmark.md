@@ -349,7 +349,7 @@ These tables contain statuses of the queries runs in the different runners. Goog
     <tr>
       <th>Query</th>
       <th>Direct</th>
-      <th>Spark <a href="https://issues.apache.org/jira/browse/BEAM-2847">BEAM-2847</a></th>
+      <th>Spark <a href="https://github.com/apache/beam/issues/18416">Issue 18416</a></th>
       <th>Flink</th>
     </tr>
     <tr>
@@ -373,7 +373,7 @@ These tables contain statuses of the queries runs in the different runners. Goog
     <tr>
       <td>3</td>
       <td>ok</td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-2176">BEAM-2176</a>, <a href="https://issues.apache.org/jira/browse/BEAM-3961">BEAM-3961</a></td>
+      <td><a href="https://github.com/apache/beam/issues/18074">Issue 18074</a>, <a href="https://issues.apache.org/jira/browse/BEAM-3961">BEAM-3961</a></td>
       <td>ok</td>
     </tr>
     <tr>
@@ -494,7 +494,7 @@ configure logging.
 Batch Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:spark:2" \
+        -Pnexmark.runner=":runners:spark:3" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -506,7 +506,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:spark:2" \
+        -Pnexmark.runner=":runners:spark:3" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -612,7 +612,7 @@ Submit to the cluster:
             --monitorJobs=true"
 
 ## Nexmark dashboards
-Below dashboards are used as a CI mechanism to detect no-regression on the Beam components. They are not supposed to be benchmark comparision of the runners or engines. Especially because:
+Below dashboards are used as a CI mechanism to detect no-regression on the Beam components. They are not supposed to be benchmark comparison of the runners or engines. Especially because:
 - Parameters of the runners are not the same
 - Nexmark is run with the runners in local (most of the time embedded) mode
 - Nexmark runs on a shared machine that also run all the CI and build.

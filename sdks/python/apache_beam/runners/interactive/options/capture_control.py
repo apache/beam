@@ -46,7 +46,7 @@ class CaptureControl(object):
     self._test_limiters = None
 
   def limiters(self):
-    # type: () -> List[capture_limiters.Limiter]
+    # type: () -> List[capture_limiters.Limiter] # noqa: F821
     if self._test_limiters:
       return self._test_limiters
     return [
@@ -55,7 +55,7 @@ class CaptureControl(object):
     ]
 
   def set_limiters_for_test(self, limiters):
-    # type: (List[capture_limiters.Limiter]) -> None
+    # type: (List[capture_limiters.Limiter]) -> None # noqa: F821
     self._test_limiters = limiters
 
 

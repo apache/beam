@@ -24,8 +24,8 @@
 
 .case-study-list {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
+  gap: 2%;
   margin-bottom: 16px;
 
   @media screen and (max-width: $mobile) {
@@ -42,6 +42,13 @@
   }
 }
 
+.case-study-list--additional {
+  visibility: hidden;
+  @media (min-width: $mobile) and (max-width: $tablet) {
+    justify-content: center;
+  }
+}
+
 .case-study-used-by-card {
   padding: 16px;
   display: flex;
@@ -50,7 +57,6 @@
   background-color: #FCFCFC;
   width: 250px;
   height: 200px;
-  margin-right: 32px;
   margin-bottom: 32px;
 
   .case-study-used-by-card-img {
@@ -80,32 +86,67 @@
   }
 }
 
+.case-study-used-by-card--responsive {
+  @media (min-width: $mobile){
+    width: 18%;
+    margin-right: 0;
+  }
+}
+
+.case-study-used-by-card--with-link {
+  &:hover {
+    .case-study-used-by-card-img {
+      display: block;
+    }
+  }
+}
+
 .case-study-card {
   padding: 16px;
   display: flex;
   flex-direction: column;
   background-color: #FCFCFC;
-  width: 350px;
-  margin-right: 32px;
+  width: 32%;
   margin-bottom: 32px;
+  @media (max-width: $tablet) {
+    width: 350px;
+  }
+  @media (max-width: $ak-breakpoint-xs) {
+    width: 270px;
+  }
 
   .case-study-card-description {
     height: 185px;
     overflow-y: scroll;
+    @media (min-width: $mobile) and (max-width: $tablet) {
+      font-size: 14px;
+    }
   }
 
   .case-study-card-img img {
     height: 50px;
+    @media (min-width: $mobile) and (max-width: $tablet) {
+      object-fit: contain;
+    }
   }
 
   .case-study-card-title {
+    min-height: 70px;
     margin: 12px 0;
     font-size: 18px;
+    @media (min-width: $mobile) and (max-width: $tablet) {
+      min-height: 90px;
+      font-size: 16px;
+      margin: 10px 0;
+    }
   }
 
   .case-study-quote-block {
     margin-top: 8px;
     height: 55px;
+    @media (min-width: $mobile) and (max-width: $tablet) {
+      margin-bottom: 8px;
+    }
   }
 
   .case-study-card-learn-more {
@@ -116,6 +157,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .quote-block-wrapper {
+    padding-top: 15px;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 }
 
@@ -157,7 +206,7 @@ h2.case-study-h2 {
 }
 
 .case-study-quote-block {
-  padding: 0;
+  padding: 5px 0 50px 0;
   border-left: 0;
 
   .case-study-quote-text {
@@ -173,6 +222,7 @@ h2.case-study-h2 {
     .case-study-quote-author-img img {
       height: 40px;
       width: 40px;
+      max-width: none;
       border-radius: 50%;
       margin-right: 10px;
     }
@@ -214,7 +264,7 @@ h2.case-study-h2 {
     &:before {
       content: ' ';
       top: 16px;
-      background-image: url("/images/open-quote.svg");
+      background-image: url('{{ "images/open-quote.svg" | absURL }}');
       height: 37px;
       width: 46px;
       position: absolute;
@@ -224,11 +274,11 @@ h2.case-study-h2 {
 
     &:after {
       content: ' ';
-      background-image: url("/images/close-quote.svg");
+      background-image: url('{{ "images/close-quote.svg" | absURL }}');
       height: 37px;
       width: 46px;
       right: 12px;
-      bottom: 16px;
+      bottom: 12px;
       position: absolute;
       font-size: 96px;
       color: #E5E5E5;
@@ -295,8 +345,21 @@ h2.case-study-h2 {
       margin-bottom: 24px;
 
       img {
-        width: 100%;
+        max-width: 100%;
         max-height: 100px;
+      }
+
+      .case-study-opinion-img-center {
+        display: block;
+        margin: 0 auto;
+      }
+
+      .case-study-opinion-img-cropped {
+        width: 40%;
+
+        @media (max-width: $mobile) {
+          width: 25%;
+        }
       }
     }
   }
@@ -308,6 +371,8 @@ h2.case-study-h2 {
 
   .post-scheme {
     margin-bottom: 16px;
+    text-align: center;
+    font-style: italic;
 
     img {
       width: 100%;

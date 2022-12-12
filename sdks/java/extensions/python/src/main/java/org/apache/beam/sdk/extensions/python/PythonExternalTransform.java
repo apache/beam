@@ -17,8 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.python;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -49,10 +55,13 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -63,7 +72,9 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
   private String fullyQualifiedName;
+
   private String expansionService;
+  private List<String> extraPackages;
 
   // We preseve the order here since Schema's care about order of fields but the order will not
   // matter when applying kwargs at the Python side.
@@ -78,9 +89,11 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
   private PythonExternalTransform(String fullyQualifiedName, String expansionService) {
     this.fullyQualifiedName = fullyQualifiedName;
     this.expansionService = expansionService;
+    this.extraPackages = new ArrayList<>();
     this.kwargsMap = new TreeMap<>();
     this.typeHints = new HashMap<>();
-    // TODO(BEAM-14458): remove a default type hint for PythonCallableSource when BEAM-14458 is
+    // TODO(https://github.com/apache/beam/issues/21567): remove a default type hint for
+    // PythonCallableSource when https://github.com/apache/beam/issues/21567 is
     // resolved
     this.typeHints.put(
         PythonCallableSource.class, Schema.FieldType.logicalType(new PythonCallable()));
@@ -90,6 +103,40 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
 
   /**
    * Instantiates a cross-language wrapper for a Python transform with a given transform name.
+   *
+   * <p>The given fully qualified name will be imported and called to instantiate the transform.
+   * Often this is the fully qualified name of a Python {@code PTransform} class, in which case the
+   * arguments will be passed to its constructor, but any callable will do.
+   *
+   * <p>Two special names, {@code __callable__} and {@code __constructor__} can be used to define a
+   * suitable transform inline if none exists.
+   *
+   * <p>When {@code __callable__} is provided, the first argument (or {@code source} keyword
+   * argument) should be a {@link PythonCallableSource} which represents the expand method of the
+   * {@link PTransform} accepting and returning a {@code PValue} (and may also take additional
+   * arguments and keyword arguments). For example, one might write
+   *
+   * <pre>
+   * PythonExternalTransform
+   *     .from("__callable__")
+   *     .withArgs(
+   *         PythonCallable.of("def expand(pcoll, x, y): return pcoll | ..."),
+   *         valueForX,
+   *         valueForY);
+   * </pre>
+   *
+   * <p>When {@code __constructor__} is provided, the first argument (or {@code source} keyword
+   * argument) should be a {@link PythonCallableSource} which will return the desired PTransform
+   * when called with the remaining arguments and keyword arguments. Often this will be a {@link
+   * PythonCallableSource} representing a PTransform class, for example
+   *
+   * <pre>
+   * PythonExternalTransform
+   *     .from("__constructor__")
+   *     .withArgs(
+   *         PythonCallable.of("class MyPTransform(beam.PTransform): ..."),
+   *         ...valuesForMyPTransformConstructorIfAny);
+   * </pre>
    *
    * @param tranformName fully qualified transform name.
    * @param <InputT> Input {@link PCollection} type
@@ -103,6 +150,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
 
   /**
    * Instantiates a cross-language wrapper for a Python transform with a given transform name.
+   *
+   * <p>See {@link PythonExternalTransform#from(String)} for the meaning of transformName.
    *
    * @param tranformName fully qualified transform name.
    * @param expansionService address and port number for externally launched expansion service
@@ -225,6 +274,25 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
 
     // Output key should not matter when only specifying a single output.
     this.outputCoders.put("random_output_key", outputCoder);
+    return this;
+  }
+
+  /**
+   * Specifies that the given Python packages are required for this transform, which will cause them
+   * to be installed in both the construction-time and execution time environment.
+   *
+   * @param extraPackages a list of pip-installable package specifications, such as would be found
+   *     in a requirements file.
+   * @return updated wrapper for the cross-language transform.
+   */
+  public PythonExternalTransform<InputT, OutputT> withExtraPackages(List<String> extraPackages) {
+    if (extraPackages.isEmpty()) {
+      return this;
+    }
+    Preconditions.checkState(
+        Strings.isNullOrEmpty(expansionService),
+        "Extra packages only apply to auto-started expansion service.");
+    this.extraPackages = extraPackages;
     return this;
   }
 
@@ -380,13 +448,25 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         return apply(input, expansionService, payload);
       } else {
         int port = PythonService.findAvailablePort();
+        ImmutableList.Builder<String> args = ImmutableList.builder();
+        args.add("--port=" + port, "--fully_qualified_name_glob=*", "--pickle_library=cloudpickle");
+        if (!extraPackages.isEmpty()) {
+          File requirementsFile = File.createTempFile("requirements", ".txt");
+          requirementsFile.deleteOnExit();
+          try (Writer fout =
+              new OutputStreamWriter(
+                  new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+            for (String pkg : extraPackages) {
+              fout.write(pkg);
+              fout.write('\n');
+            }
+          }
+          args.add("--requirements_file=" + requirementsFile.getAbsolutePath());
+        }
         PythonService service =
             new PythonService(
-                "apache_beam.runners.portability.expansion_service_main",
-                "--port",
-                "" + port,
-                "--fully_qualified_name_glob",
-                "*");
+                    "apache_beam.runners.portability.expansion_service_main", args.build())
+                .withExtraPackages(extraPackages);
         try (AutoCloseable p = service.start()) {
           PythonService.waitForPort("localhost", port, 15000);
           return apply(input, String.format("localhost:%s", port), payload);

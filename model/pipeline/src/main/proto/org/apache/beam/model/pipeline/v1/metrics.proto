@@ -191,7 +191,7 @@ message MonitoringInfoSpecs {
     // which does not fit into a typical metric format. See MonitoringTableData
     // for more details.
     //
-    // TODO(BEAM-9617): Support monitored state.
+    // TODO(https://github.com/apache/beam/issues/20122): Support monitored state.
     //
     // USER_MONITORING_TABLE = XX [(monitoring_info_spec) = {
     //   urn: "beam:metric:user:v1",
@@ -561,7 +561,7 @@ message MonitoringInfoTypeUrns {
     // which does not fit into a typical metric format. See MonitoringTableData
     // for more details.
     //
-    // TODO(BEAM-9617): Support monitored state.
+    // TODO(https://github.com/apache/beam/issues/20122): Support monitored state.
     //
     // Encoding: MonitoringTableData proto encoded as bytes
     // MONITORING_TABLE_TYPE = XX [(org.apache.beam.model.pipeline.v1.beam_urn) =
@@ -587,7 +587,7 @@ message MonitoringInfoTypeUrns {
 // to aggregate these metrics in custom ways. Engines can use custom aggregation
 // functions for specific URNs by inspecting the column values.
 //
-// TODO(BEAM-9617): Support monitored state.
+// TODO(https://github.com/apache/beam/issues/20122): Support monitored state.
 //
 // message MonitoringTableData {
 //   message MonitoringColumnValue {

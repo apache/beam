@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -28,7 +30,9 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderPropertiesTest.ClosingCoder;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -116,5 +120,26 @@ public class CoderUtilsTest {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
     CoderUtils.encodeToByteArray(new ClosingCoder(), "test-value", Context.NESTED);
+  }
+
+  @Test
+  public void testDecodeFromByteString() throws Exception {
+    String expected = "test string";
+    byte[] data = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), expected);
+    ByteString byteString = ByteString.copyFrom(data);
+    String result = CoderUtils.decodeFromByteString(StringUtf8Coder.of(), byteString);
+    assertEquals(expected, result);
+  }
+
+  @Test
+  public void testDecodeFromByteStringWithExtraDataThrows() throws Exception {
+    String expected = "test string";
+    byte[] data = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), expected, Context.NESTED);
+    ByteString byteString = ByteString.copyFrom(data).concat(ByteString.copyFromUtf8("more text"));
+
+    assertThrows(
+        "9 unexpected extra bytes after decoding test string",
+        CoderException.class,
+        () -> CoderUtils.decodeFromByteString(StringUtf8Coder.of(), byteString, Context.NESTED));
   }
 }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.fn.data;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -27,9 +29,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -130,7 +132,8 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private final class InboundObserver implements StreamObserver<BeamFnApi.Elements> {
     @Override
     public void onNext(BeamFnApi.Elements value) {
-      for (BeamFnApi.Elements.Data data : value.getDataList()) {
+      for (BeamFnApi.Elements.Data maybeData : value.getDataList()) {
+        BeamFnApi.Elements.Data data = checkArgumentNotNull(maybeData);
         try {
           LogicalEndpoint key =
               LogicalEndpoint.data(data.getInstructionId(), data.getTransformId());

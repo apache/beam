@@ -33,7 +33,7 @@ import org.joda.time.Instant;
 
 /** A direct implementation of {@link Query7}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Query7Model extends NexmarkQueryModel<Bid> implements Serializable {
   /** Simulator for query 7. */

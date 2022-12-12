@@ -117,8 +117,8 @@ import org.joda.time.Instant;
 
 /** Run a single Nexmark query using a given configuration. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
@@ -1335,7 +1335,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         // Gets rejected after PR/8301, causing failures.
         //
         // See:
-        //   https://issues.apache.org/jira/browse/BEAM-7072
+        //   https://github.com/apache/beam/issues/19541
         //   https://github.com/apache/beam/pull/8301
         //   https://github.com/apache/beam/pull/8422#issuecomment-487676350
         //

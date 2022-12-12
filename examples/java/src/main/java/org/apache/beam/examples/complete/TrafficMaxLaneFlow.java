@@ -29,6 +29,12 @@ package org.apache.beam.examples.complete;
 //     - Streaming
 //     - Options
 //     - Windowing
+//   complexity: ADVANCED
+//   tags:
+//     - windowing
+//     - timestamp
+//     - batch
+//     - streaming
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
@@ -87,7 +93,7 @@ import org.joda.time.format.DateTimeFormatter;
  * and then exits.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TrafficMaxLaneFlow {
 

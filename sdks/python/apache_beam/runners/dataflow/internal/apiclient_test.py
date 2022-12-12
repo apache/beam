@@ -187,6 +187,8 @@ class UtilTest(unittest.TestCase):
         payload=(
             beam_runner_api_pb2.DockerPayload(
                 container_image='dummy_image')).SerializeToString())
+    dummy_env.capabilities.append(
+        common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn)
     proto_pipeline.components.environments['dummy_env_id'].CopyFrom(dummy_env)
 
     dummy_transform = beam_runner_api_pb2.PTransform(
@@ -203,6 +205,12 @@ class UtilTest(unittest.TestCase):
     worker_pool = env.proto.workerPools[0]
 
     self.assertEqual(2, len(worker_pool.sdkHarnessContainerImages))
+    # Only one of the environments is missing MULTI_CORE_BUNDLE_PROCESSING.
+    self.assertEqual(
+        1,
+        sum(
+            c.useSingleCorePerContainer
+            for c in worker_pool.sdkHarnessContainerImages))
 
     env_and_image = [(item.environmentId, item.containerImage)
                      for item in worker_pool.sdkHarnessContainerImages]
@@ -249,7 +257,7 @@ class UtilTest(unittest.TestCase):
     docker_payload = proto_utils.parse_Bytes(
         env.payload, beam_runner_api_pb2.DockerPayload)
 
-    # Container image should be overridden by a the given override.
+    # Container image should be overridden by the given override.
     self.assertEqual(
         docker_payload.container_image, 'new_dummy_container_image')
 
@@ -565,26 +573,7 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  def test_harness_override_default_in_released_sdks(self):
-    pipeline_options = PipelineOptions(
-        ['--temp_location', 'gs://any-location/temp', '--streaming'])
-    override = ''.join([
-        'runner_harness_container_image=',
-        names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
-        '/harness:2.2.0'
-    ])
-    env = apiclient.Environment(
-        [],  #packages
-        pipeline_options,
-        '2.0.0',  #any environment version
-        FAKE_PIPELINE_URL)
-    self.assertIn(override, env.proto.experiments)
-
-  @mock.patch(
-      'apache_beam.runners.dataflow.internal.apiclient.'
-      'beam_version.__version__',
-      '2.2.0')
-  def test_harness_override_absent_in_released_sdks_with_runner_v2(self):
+  def test_harness_override_absent_with_runner_v2(self):
     pipeline_options = PipelineOptions([
         '--temp_location',
         'gs://any-location/temp',
@@ -604,32 +593,7 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  def test_harness_override_custom_in_released_sdks(self):
-    pipeline_options = PipelineOptions([
-        '--temp_location',
-        'gs://any-location/temp',
-        '--streaming',
-        '--experiments=runner_harness_container_image=fake_image'
-    ])
-    env = apiclient.Environment(
-        [],  #packages
-        pipeline_options,
-        '2.0.0',  #any environment version
-        FAKE_PIPELINE_URL)
-    self.assertEqual(
-        1,
-        len([
-            x for x in env.proto.experiments
-            if x.startswith('runner_harness_container_image=')
-        ]))
-    self.assertIn(
-        'runner_harness_container_image=fake_image', env.proto.experiments)
-
-  @mock.patch(
-      'apache_beam.runners.dataflow.internal.apiclient.'
-      'beam_version.__version__',
-      '2.2.0')
-  def test_harness_override_custom_in_released_sdks_with_runner_v2(self):
+  def test_custom_harness_override_present_with_runner_v2(self):
     pipeline_options = PipelineOptions([
         '--temp_location',
         'gs://any-location/temp',
@@ -650,41 +614,6 @@ class UtilTest(unittest.TestCase):
         ]))
     self.assertIn(
         'runner_harness_container_image=fake_image', env.proto.experiments)
-
-  @mock.patch(
-      'apache_beam.runners.dataflow.internal.apiclient.'
-      'beam_version.__version__',
-      '2.2.0.rc1')
-  def test_harness_override_uses_base_version_in_rc_releases(self):
-    pipeline_options = PipelineOptions(
-        ['--temp_location', 'gs://any-location/temp', '--streaming'])
-    override = ''.join([
-        'runner_harness_container_image=',
-        names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
-        '/harness:2.2.0'
-    ])
-    env = apiclient.Environment(
-        [],  #packages
-        pipeline_options,
-        '2.0.0',  #any environment version
-        FAKE_PIPELINE_URL)
-    self.assertIn(override, env.proto.experiments)
-
-  @mock.patch(
-      'apache_beam.runners.dataflow.internal.apiclient.'
-      'beam_version.__version__',
-      '2.2.0.dev')
-  def test_harness_override_absent_in_unreleased_sdk(self):
-    pipeline_options = PipelineOptions(
-        ['--temp_location', 'gs://any-location/temp', '--streaming'])
-    env = apiclient.Environment(
-        [],  #packages
-        pipeline_options,
-        '2.0.0',  #any environment version
-        FAKE_PIPELINE_URL)
-    if env.proto.experiments:
-      for experiment in env.proto.experiments:
-        self.assertNotIn('runner_harness_container_image=', experiment)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
@@ -1024,7 +953,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 10, 0))
+      (3, 11, 0))
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
@@ -1035,48 +964,6 @@ class UtilTest(unittest.TestCase):
         Exception,
         apiclient._verify_interpreter_version_is_supported,
         pipeline_options)
-
-  def test_use_unified_worker(self):
-    pipeline_options = PipelineOptions([])
-    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
-
-    pipeline_options = PipelineOptions(['--experiments=beam_fn_api'])
-    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
-
-    pipeline_options = PipelineOptions(['--experiments=use_unified_worker'])
-    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
-
-    pipeline_options = PipelineOptions(
-        ['--experiments=use_unified_worker', '--experiments=beam_fn_api'])
-    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
-
-    pipeline_options = PipelineOptions(
-        ['--experiments=use_runner_v2', '--experiments=beam_fn_api'])
-    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
-
-    pipeline_options = PipelineOptions(['--experiments=enable_prime'])
-    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
-
-    pipeline_options = PipelineOptions(
-        ['--dataflow_service_options=enable_prime'])
-    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
-
-    pipeline_options = PipelineOptions([
-        '--dataflow_service_options=enable_prime',
-        '--experiments=disable_prime_runner_v2'
-    ])
-    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
-
-    pipeline_options = PipelineOptions(
-        ['--experiments=enable_prime', '--experiments=disable_prime_runner_v2'])
-    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
-
-    pipeline_options = PipelineOptions([
-        '--experiments=use_unified_worker',
-        '--experiments=use_runner_v2',
-        '--experiments=beam_fn_api'
-    ])
-    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
 
   def test_get_response_encoding(self):
     encoding = apiclient.get_response_encoding()

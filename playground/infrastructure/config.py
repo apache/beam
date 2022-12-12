@@ -19,80 +19,134 @@ Configuration for CI/CD steps
 
 import os
 from dataclasses import dataclass
+from enum import Enum
 from typing import Literal
 
+from dataclasses_json import dataclass_json
+
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
-  STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
-  STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
-  SDK_SCIO, Sdk
+    STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
+    STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
+    SDK_SCIO, Sdk
 
 
 @dataclass(frozen=True)
 class Config:
-  """
-  General configuration for CI/CD steps
-  """
-  SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
-  EXTENSION_TO_SDK = {
-      "java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON, "scala": SDK_SCIO
-  }
-  SUPPORTED_SDK = (
-      Sdk.Name(SDK_JAVA),
-      Sdk.Name(SDK_GO),
-      Sdk.Name(SDK_PYTHON),
-      Sdk.Name(SDK_SCIO))
-  BUCKET_NAME = "playground-precompiled-objects"
-  TEMP_FOLDER = "temp"
-  DEFAULT_PRECOMPILED_OBJECT = "defaultPrecompiledObject.info"
-  SDK_TO_EXTENSION = {
-      SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py", SDK_SCIO: "scala"
-  }
-  NO_STORE = "no-store"
-  ERROR_STATUSES = [
-      STATUS_VALIDATION_ERROR,
-      STATUS_ERROR,
-      STATUS_PREPARATION_ERROR,
-      STATUS_COMPILE_ERROR,
-      STATUS_RUN_TIMEOUT,
-      STATUS_RUN_ERROR
-  ]
-  BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
-  BEAM_PLAYGROUND = "beam-playground"
-  PAUSE_DELAY = 10
-  CI_STEP_NAME = "CI"
-  CD_STEP_NAME = "CD"
-  CI_CD_LITERAL = Literal["CI", "CD"]
-  LINK_PREFIX = "https://github.com/apache/beam/blob/master"
+    """
+    General configuration for CI/CD steps
+    """
+    SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
+    EXTENSION_TO_SDK = {
+        "java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON, "scala": SDK_SCIO
+    }
+    SUPPORTED_SDK = (
+        Sdk.Name(SDK_JAVA),
+        Sdk.Name(SDK_GO),
+        Sdk.Name(SDK_PYTHON),
+        Sdk.Name(SDK_SCIO))
+    SDK_TO_EXTENSION = {
+        SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py", SDK_SCIO: "scala"
+    }
+    ERROR_STATUSES = [
+        STATUS_VALIDATION_ERROR,
+        STATUS_ERROR,
+        STATUS_PREPARATION_ERROR,
+        STATUS_COMPILE_ERROR,
+        STATUS_RUN_TIMEOUT,
+        STATUS_RUN_ERROR
+    ]
+    BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
+    BEAM_PLAYGROUND = "beam-playground"
+    PAUSE_DELAY = 10
+    CI_STEP_NAME = "CI"
+    CD_STEP_NAME = "CD"
+    CI_CD_LITERAL = Literal["CI", "CD"]
+    LINK_PREFIX = "https://github.com/apache/beam/blob/master"
+    GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
+    SDK_CONFIG = os.getenv("SDK_CONFIG", "../../playground/sdks.yaml")
 
 
 @dataclass(frozen=True)
 class TagFields:
-  name: str = "name"
-  description: str = "description"
-  multifile: str = "multifile"
-  categories: str = "categories"
-  pipeline_options: str = "pipeline_options"
-  default_example: str = "default_example"
-  context_line: int = "context_line"
+    name: str = "name"
+    description: str = "description"
+    multifile: str = "multifile"
+    categories: str = "categories"
+    pipeline_options: str = "pipeline_options"
+    default_example: str = "default_example"
+    context_line: int = "context_line"
+    complexity: str = "complexity"
+    tags: str = "tags"
+    emulators: str = "emulators"
+    datasets: str = "datasets"
 
 
 @dataclass(frozen=True)
 class PrecompiledExample:
-  OUTPUT_EXTENSION = "output"
-  LOG_EXTENSION = "log"
-  GRAPH_EXTENSION = "graph"
-  META_NAME = "meta"
-  META_EXTENSION = "info"
+    OUTPUT_EXTENSION = "output"
+    LOG_EXTENSION = "log"
+    GRAPH_EXTENSION = "graph"
+    META_NAME = "meta"
+    META_EXTENSION = "info"
 
 
 @dataclass(frozen=True)
 class PrecompiledExampleType:
-  examples = "examples"
-  katas = "katas"
-  test_ends = ("test", "it")
+    examples = "examples"
+    katas = "katas"
+    test_ends = ("test", "it")
 
 
 @dataclass(frozen=True)
 class OptionalTagFields:
-  pipeline_options: str = "pipeline_options"
-  default_example: str = "default_example"
+    pipeline_options: str = "pipeline_options"
+    default_example: str = "default_example"
+    emulators: str = "emulators"
+    datasets: str = "datasets"
+
+
+@dataclass(frozen=True)
+class DatastoreProps:
+    NAMESPACE = "Playground"
+    KEY_NAME_DELIMITER = "_"
+    EXAMPLE_KIND = "pg_examples"
+    SNIPPET_KIND = "pg_snippets"
+    SCHEMA_KIND = "pg_schema_versions"
+    PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
+    FILES_KIND = "pg_files"
+    SDK_KIND = "pg_sdks"
+    DATASET_KIND = "pg_datasets"
+
+
+@dataclass(frozen=True)
+class RepoProps:
+    REPO_DATASETS_PATH = "../backend/datasets"
+
+class Origin(str, Enum):
+    PG_EXAMPLES = 'PG_EXAMPLES'
+    PG_USER = 'PG_USER'
+    TB_EXAMPLES = 'TB_EXAMPLES'
+    TB_USER = 'TB_USER'
+
+
+@dataclass_json
+@dataclass
+class Dataset:
+    format: str
+    location: str
+    name: str = ""
+    path: str = ""
+
+
+@dataclass_json
+@dataclass
+class Topic:
+    id: str
+    dataset: str
+
+
+@dataclass_json
+@dataclass
+class Emulator:
+    topic: Topic
+    name: str = ""

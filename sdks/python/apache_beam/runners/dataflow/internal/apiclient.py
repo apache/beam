@@ -81,7 +81,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8', '3.9']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8', '3.9', '3.10']
 
 
 class Step(object):
@@ -150,6 +150,7 @@ class Environment(object):
       environment_version,
       proto_pipeline_staged_url,
       proto_pipeline=None):
+    from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
@@ -189,7 +190,7 @@ class Environment(object):
     if self.standard_options.streaming:
       job_type = 'FNAPI_STREAMING'
     else:
-      if _use_fnapi(options):
+      if _is_runner_v2(options):
         job_type = 'FNAPI_BATCH'
       else:
         job_type = 'PYTHON_BATCH'
@@ -203,17 +204,6 @@ class Environment(object):
     if job_type.startswith('FNAPI_'):
       self.debug_options.experiments = self.debug_options.experiments or []
 
-      if self.debug_options.lookup_experiment(
-          'runner_harness_container_image') or _use_unified_worker(options):
-        # Default image is not used if user provides a runner harness image.
-        # Default runner harness image is selected by the service for unified
-        # worker.
-        pass
-      else:
-        runner_harness_override = (get_runner_harness_container_image())
-        if runner_harness_override:
-          self.debug_options.add_experiment(
-              'runner_harness_container_image=' + runner_harness_override)
       debug_options_experiments = self.debug_options.experiments
       # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
@@ -298,14 +288,14 @@ class Environment(object):
       container_image = dataflow.SdkHarnessContainerImage()
       container_image.containerImage = container_image_url
       container_image.useSingleCorePerContainer = (
-          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING not in
+          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn not in
           environment.capabilities)
       container_image.environmentId = id
       for capability in environment.capabilities:
         container_image.capabilities.append(capability)
       pool.sdkHarnessContainerImages.append(container_image)
 
-    if not _use_fnapi(options) or not pool.sdkHarnessContainerImages:
+    if not _is_runner_v2(options) or not pool.sdkHarnessContainerImages:
       pool.workerHarnessContainerImage = (
           get_container_image_from_options(options))
     elif len(pool.sdkHarnessContainerImages) == 1:
@@ -335,7 +325,7 @@ class Environment(object):
       pool.dataDisks.append(disk)
     self.proto.workerPools.append(pool)
 
-    sdk_pipeline_options = options.get_all_options()
+    sdk_pipeline_options = options.get_all_options(retain_unknown_options=True)
     if sdk_pipeline_options:
       self.proto.sdkPipelineOptions = (
           dataflow.Environment.SdkPipelineOptionsValue())
@@ -553,7 +543,8 @@ class DataflowApplicationClient(object):
     self._root_staging_location = (
         root_staging_location or self.google_cloud_options.staging_location)
 
-    if _use_fnapi(options):
+    from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2
+    if _is_runner_v2(options):
       self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
     else:
       self.environment_version = _LEGACY_ENVIRONMENT_MAJOR_VERSION
@@ -645,13 +636,18 @@ class DataflowApplicationClient(object):
       for dep in env.dependencies:
         if dep.type_urn != common_urns.artifact_types.FILE.urn:
           raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
-        if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
-          raise RuntimeError('unsupported role type %s' % dep.role_urn)
         type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
             dep.type_payload)
-        role_payload = (
-            beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
-                dep.role_payload))
+
+        if dep.role_urn == common_urns.artifact_roles.STAGING_TO.urn:
+          remote_name = (
+              beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+                  dep.role_payload)).staged_name
+          is_staged_role = True
+        else:
+          remote_name = os.path.basename(type_payload.path)
+          is_staged_role = False
+
         if self._enable_caching and not type_payload.sha256:
           type_payload.sha256 = self._compute_sha256(type_payload.path)
 
@@ -660,35 +656,44 @@ class DataflowApplicationClient(object):
               'Found duplicated artifact sha256: %s (%s)',
               type_payload.path,
               type_payload.sha256)
-          staged_name = staged_hashes[type_payload.sha256]
-          dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
-              staged_name=staged_name).SerializeToString()
+          remote_name = staged_hashes[type_payload.sha256]
+          if is_staged_role:
+            # We should not be overriding this, as dep.role_payload.staged_name
+            # refers to the desired name on the worker, whereas staged_name
+            # refers to its placement in a distributed filesystem.
+            # TODO(heejong): Clean this up.
+            dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
+                staged_name=remote_name).SerializeToString()
         elif type_payload.path and type_payload.path in staged_paths:
           _LOGGER.info(
               'Found duplicated artifact path: %s (%s)',
               type_payload.path,
               type_payload.sha256)
-          staged_name = staged_paths[type_payload.path]
-          dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
-              staged_name=staged_name).SerializeToString()
+          remote_name = staged_paths[type_payload.path]
+          if is_staged_role:
+            # We should not be overriding this, as dep.role_payload.staged_name
+            # refers to the desired name on the worker, whereas staged_name
+            # refers to its placement in a distributed filesystem.
+            # TODO(heejong): Clean this up.
+            dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
+                staged_name=remote_name).SerializeToString()
         else:
-          staged_name = role_payload.staged_name
           resources.append(
-              (type_payload.path, staged_name, type_payload.sha256))
-          staged_paths[type_payload.path] = staged_name
-          staged_hashes[type_payload.sha256] = staged_name
+              (type_payload.path, remote_name, type_payload.sha256))
+          staged_paths[type_payload.path] = remote_name
+          staged_hashes[type_payload.sha256] = remote_name
 
         if FileSystems.get_scheme(
             google_cloud_options.staging_location) == GCSFileSystem.scheme():
           dep.type_urn = common_urns.artifact_types.URL.urn
           dep.type_payload = beam_runner_api_pb2.ArtifactUrlPayload(
               url=FileSystems.join(
-                  google_cloud_options.staging_location, staged_name),
+                  google_cloud_options.staging_location, remote_name),
               sha256=type_payload.sha256).SerializeToString()
         else:
           dep.type_payload = beam_runner_api_pb2.ArtifactFilePayload(
               path=FileSystems.join(
-                  google_cloud_options.staging_location, staged_name),
+                  google_cloud_options.staging_location, remote_name),
               sha256=type_payload.sha256).SerializeToString()
 
     resource_stager = _LegacyDataflowStager(self)
@@ -748,10 +753,6 @@ class DataflowApplicationClient(object):
         job.options.view_as(GoogleCloudOptions).template_location)
 
     if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
-      # For Runner V2, also set portable job submission.
-      if _use_unified_worker(job.options):
-        job.options.view_as(DebugOptions).add_experiment(
-            'use_portable_job_submission')
       self.stage_file(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json",
@@ -945,7 +946,7 @@ class DataflowApplicationClient(object):
 
     Args:
       job_id: A string representing the job_id for the workflow as returned
-        by the a create_job() request.
+        by the create_job() request.
 
     Returns:
       A Job proto. See below for interesting fields.
@@ -981,7 +982,7 @@ class DataflowApplicationClient(object):
 
     Args:
       job_id: A string representing the job_id for the workflow as returned
-        by the a create_job() request.
+        by the create_job() request.
       start_time: If specified, only messages generated after the start time
         will be returned, otherwise all messages since job started will be
         returned. The value is a string representing UTC time
@@ -1169,37 +1170,6 @@ def translate_value(value, metric_update_proto):
   metric_update_proto.integer = to_split_int(value)
 
 
-def _use_fnapi(pipeline_options):
-  standard_options = pipeline_options.view_as(StandardOptions)
-  debug_options = pipeline_options.view_as(DebugOptions)
-
-  return standard_options.streaming or (
-      debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
-
-
-def _use_unified_worker(pipeline_options):
-  debug_options = pipeline_options.view_as(DebugOptions)
-  use_unified_worker_flag = 'use_unified_worker'
-  use_runner_v2_flag = 'use_runner_v2'
-  enable_prime_flag = 'enable_prime'
-
-  if (debug_options.lookup_experiment(use_runner_v2_flag) and
-      not debug_options.lookup_experiment(use_unified_worker_flag)):
-    debug_options.add_experiment(use_unified_worker_flag)
-
-  dataflow_service_options = pipeline_options.view_as(
-      GoogleCloudOptions).dataflow_service_options or []
-  if ((debug_options.lookup_experiment(enable_prime_flag) or
-       enable_prime_flag in dataflow_service_options) and
-      not any([debug_options.lookup_experiment('disable_prime_runner_v2'),
-               debug_options.lookup_experiment('disable_runner_v2')])):
-    debug_options.add_experiment(use_runner_v2_flag)
-    debug_options.add_experiment(use_unified_worker_flag)
-    debug_options.add_experiment(enable_prime_flag)
-
-  return debug_options.lookup_experiment(use_unified_worker_flag)
-
-
 def _get_container_image_tag():
   base_version = pkg_resources.parse_version(
       beam_version.__version__).base_version
@@ -1221,13 +1191,13 @@ def get_container_image_from_options(pipeline_options):
     Returns:
       str: Container image for remote execution.
   """
+  from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2
   worker_options = pipeline_options.view_as(WorkerOptions)
   if worker_options.sdk_container_image:
     return worker_options.sdk_container_image
 
-  use_fnapi = _use_fnapi(pipeline_options)
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
-  if use_fnapi:
+  if _is_runner_v2(pipeline_options):
     fnapi_suffix = '-fnapi'
   else:
     fnapi_suffix = ''
@@ -1238,45 +1208,27 @@ def get_container_image_from_options(pipeline_options):
       version_suffix=version_suffix,
       fnapi_suffix=fnapi_suffix)
 
-  image_tag = _get_required_container_version(use_fnapi)
+  image_tag = _get_required_container_version(_is_runner_v2(pipeline_options))
   return image_name + ':' + image_tag
 
 
-def _get_required_container_version(use_fnapi):
+def _get_required_container_version(is_runner_v2):
   """For internal use only; no backwards-compatibility guarantees.
 
     Args:
-      use_fnapi (bool): True, if pipeline is using FnAPI, False otherwise.
+      is_runner_v2 (bool): True if and only if pipeline is using runner v2.
 
     Returns:
       str: The tag of worker container images in GCR that corresponds to
         current version of the SDK.
     """
   if 'dev' in beam_version.__version__:
-    if use_fnapi:
+    if is_runner_v2:
       return names.BEAM_FNAPI_CONTAINER_VERSION
     else:
       return names.BEAM_CONTAINER_VERSION
   else:
     return _get_container_image_tag()
-
-
-def get_runner_harness_container_image():
-  """For internal use only; no backwards-compatibility guarantees.
-
-     Returns:
-       str: Runner harness container image that shall be used by default
-         for current SDK version or None if the runner harness container image
-         bundled with the service shall be used.
-    """
-  # Pin runner harness for released versions of the SDK.
-  if 'dev' not in beam_version.__version__:
-    return (
-        names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
-        _get_container_image_tag())
-  # Don't pin runner harness for dev versions so that we can notice
-  # potential incompatibility between runner and sdk harnesses.
-  return None
 
 
 def get_response_encoding():
@@ -1310,8 +1262,9 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 # This is required for the legacy python dataflow runner, as portability
 # does not communicate to the service via python code, but instead via a
 # a runner harness (in C++ or Java).
-# TODO(BEAM-7050) : Remove this antipattern, legacy dataflow python
-# pipelines will break whenever a new cy_combiner type is used.
+# TODO(https://github.com/apache/beam/issues/19433) : Remove this antipattern,
+# legacy dataflow python pipelines will break whenever a new cy_combiner type
+# is used.
 structured_counter_translations = {
     cy_combiners.CountCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.SUM,

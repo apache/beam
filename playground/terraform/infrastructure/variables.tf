@@ -29,9 +29,7 @@ variable "environment" {
 
 variable "region" {
   description = "Infrastructure Region"
-  default     = "us-central1"
 }
-
 
 #IAM
 
@@ -43,23 +41,6 @@ variable "service_account_id" {
 variable "service_account" {
   description = "Service account email"
   default     = "service-account-playground"
-}
-
-#GCS
-
-variable "bucket_examples_name" {
-  description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-examples"
-}
-
-variable "bucket_examples_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
-variable "bucket_examples_storage_class" {
-  description = "Examples Bucket Storage Class"
-  default     = "STANDARD"
 }
 
 variable "bucket_terraform_state_name" {
@@ -167,5 +148,8 @@ variable "gke_name" {
 
 variable "gke_location" {
   description = "Location of GKE cluster"
-  default     = "us-central1-a"
+}
+
+variable "location" {
+  description = "Location of GKE cluster"
 }

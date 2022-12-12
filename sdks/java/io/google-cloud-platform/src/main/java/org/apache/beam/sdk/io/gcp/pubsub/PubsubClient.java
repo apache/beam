@@ -37,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class PubsubClient implements Closeable {
   /** Factory for creating clients. */
@@ -49,6 +49,13 @@ public abstract class PubsubClient implements Closeable {
      * {@code timestampAttribute} and {@code idAttribute} to store custom timestamps/ids within
      * message metadata.
      */
+    PubsubClient newClient(
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
+        PubsubOptions options,
+        @Nullable String rootUrlOverride)
+        throws IOException;
+
     PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException;
@@ -317,6 +324,9 @@ public abstract class PubsubClient implements Closeable {
           PubsubMessage.newBuilder().setData(ByteString.copyFrom(message.getPayload()));
       if (message.getAttributeMap() != null) {
         builder.putAllAttributes(message.getAttributeMap());
+      }
+      if (message.getOrderingKey() != null) {
+        builder.setOrderingKey(message.getOrderingKey());
       }
       return of(builder.build(), timestampMsSinceEpoch, recordId);
     }

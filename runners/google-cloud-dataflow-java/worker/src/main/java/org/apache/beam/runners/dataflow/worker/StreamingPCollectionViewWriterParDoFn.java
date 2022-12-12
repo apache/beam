@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * A {@link ParDoFn} that writes side input data using {@link
  * StreamingModeExecutionContext.StreamingModeStepContext#writePCollectionViewData}.
  */
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class StreamingPCollectionViewWriterParDoFn implements ParDoFn {
 
   private final StreamingModeExecutionContext.StreamingModeStepContext stepContext;

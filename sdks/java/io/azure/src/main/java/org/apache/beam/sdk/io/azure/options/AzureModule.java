@@ -69,7 +69,7 @@ public class AzureModule extends SimpleModule {
   private static final String AZURE_PFX_CERTIFICATE_PASSWORD = "azurePfxCertificatePassword";
 
   @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
   })
   public AzureModule() {
     super("AzureModule");

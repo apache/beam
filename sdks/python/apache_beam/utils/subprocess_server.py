@@ -121,8 +121,9 @@ class SubprocessServer(object):
       def log_stdout():
         line = self._process.stdout.readline()
         while line:
-          # Remove newline via rstrip() to not print an empty line
-          _LOGGER.info(line.rstrip())
+          # The log obtained from stdout is bytes, decode it into string.
+          # Remove newline via rstrip() to not print an empty line.
+          _LOGGER.info(line.decode(errors='backslashreplace').rstrip())
           line = self._process.stdout.readline()
 
       t = threading.Thread(target=log_stdout)
@@ -324,7 +325,7 @@ class JavaJarServer(SubprocessServer):
           manifest.write(b'Manifest-Version: 1.0\n')
           manifest.write(main_class)
           manifest.write(
-              b'Class-Path: ' + ' '.join(classpath).encode('ascii') + b'\n')
+              b'Class-Path: ' + '\n  '.join(classpath).encode('ascii') + b'\n')
       os.rename(composite_jar + '.tmp', composite_jar)
     return composite_jar
 

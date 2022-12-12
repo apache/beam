@@ -296,9 +296,8 @@ public class Neo4jIO {
     }
 
     public DriverConfiguration withUrl(ValueProvider<String> url) {
-      Preconditions.checkArgument(
-          url != null, "a neo4j connection URL can not be empty or null", url);
-      Preconditions.checkArgument(
+      checkArgument(url != null, "a neo4j connection URL can not be empty or null", url);
+      checkArgument(
           StringUtils.isNotEmpty(url.get()),
           "a neo4j connection URL can not be empty or null",
           url);
@@ -310,8 +309,7 @@ public class Neo4jIO {
     }
 
     public DriverConfiguration withUrls(ValueProvider<List<String>> urls) {
-      Preconditions.checkArgument(
-          urls != null, "a list of neo4j connection URLs can not be empty or null", urls);
+      checkArgument(urls != null, "a list of neo4j connection URLs can not be empty or null", urls);
       Preconditions.checkArgument(
           urls.get() != null && !urls.get().isEmpty(),
           "a neo4j connection URL can not be empty or null",
@@ -328,9 +326,8 @@ public class Neo4jIO {
     }
 
     public DriverConfiguration withUsername(ValueProvider<String> username) {
-      Preconditions.checkArgument(username != null, "neo4j username can not be null", username);
-      Preconditions.checkArgument(
-          username.get() != null, "neo4j username can not be null", username);
+      checkArgument(username != null, "neo4j username can not be null", username);
+      checkArgument(username.get() != null, "neo4j username can not be null", username);
       return builder().setUsername(username).build();
     }
 
@@ -339,9 +336,8 @@ public class Neo4jIO {
     }
 
     public DriverConfiguration withPassword(ValueProvider<String> password) {
-      Preconditions.checkArgument(password != null, "neo4j password can not be null", password);
-      Preconditions.checkArgument(
-          password.get() != null, "neo4j password can not be null", password);
+      checkArgument(password != null, "neo4j password can not be null", password);
+      checkArgument(password.get() != null, "neo4j password can not be null", password);
       return builder().setPassword(password).build();
     }
 
@@ -350,9 +346,9 @@ public class Neo4jIO {
     }
 
     public DriverConfiguration withDefaultConfig(ValueProvider<Boolean> useDefault) {
-      Preconditions.checkArgument(
+      checkArgument(
           useDefault != null, "withDefaultConfig parameter useDefault can not be null", useDefault);
-      Preconditions.checkArgument(
+      checkArgument(
           useDefault.get() != null,
           "withDefaultConfig parameter useDefault can not be null",
           useDefault);
@@ -500,8 +496,7 @@ public class Neo4jIO {
     }
 
     public ReadAll<ParameterT, OutputT> withCypher(String cypher) {
-      checkArgument(
-          cypher != null, "Neo4jIO.readAll().withCypher(query) called with null cypher query");
+      checkArgument(cypher != null, "Neo4jIO.readAll().withCypher(cypher) called with null cypher");
       return withCypher(ValueProvider.StaticValueProvider.of(cypher));
     }
 
@@ -733,8 +728,8 @@ public class Neo4jIO {
       cleanUpDriverSession();
     }
 
-    @Override
-    protected void finalize() {
+    @Teardown
+    public void tearDown() {
       cleanUpDriverSession();
     }
 
@@ -929,7 +924,7 @@ public class Neo4jIO {
 
     public WriteUnwind<ParameterT> withCypher(String cypher) {
       checkArgument(
-          cypher != null, "Neo4jIO.writeUnwind().withCypher(query) called with null cypher query");
+          cypher != null, "Neo4jIO.writeUnwind().withCypher(cypher) called with null cypher");
       return withCypher(ValueProvider.StaticValueProvider.of(cypher));
     }
 
@@ -942,21 +937,21 @@ public class Neo4jIO {
     public WriteUnwind<ParameterT> withUnwindMapName(String mapName) {
       checkArgument(
           mapName != null,
-          "Neo4jIO.writeUnwind().withUnwindMapName(query) called with null mapName");
+          "Neo4jIO.writeUnwind().withUnwindMapName(mapName) called with null mapName");
       return withUnwindMapName(ValueProvider.StaticValueProvider.of(mapName));
     }
 
     public WriteUnwind<ParameterT> withUnwindMapName(ValueProvider<String> mapName) {
       checkArgument(
           mapName != null,
-          "Neo4jIO.writeUnwind().withUnwindMapName(cypher) called with null mapName");
+          "Neo4jIO.writeUnwind().withUnwindMapName(mapName) called with null mapName");
       return toBuilder().setUnwindMapName(mapName).build();
     }
 
     public WriteUnwind<ParameterT> withTransactionConfig(TransactionConfig transactionConfig) {
       checkArgument(
           transactionConfig != null,
-          "Neo4jIO.writeUnwind().withTransactionConfig(config) called with null transactionConfig");
+          "Neo4jIO.writeUnwind().withTransactionConfig(transactionConfig) called with null transactionConfig");
       return withTransactionConfig(ValueProvider.StaticValueProvider.of(transactionConfig));
     }
 
@@ -964,7 +959,7 @@ public class Neo4jIO {
         ValueProvider<TransactionConfig> transactionConfig) {
       checkArgument(
           transactionConfig != null,
-          "Neo4jIO.writeUnwind().withTransactionConfig(config) called with null transactionConfig");
+          "Neo4jIO.writeUnwind().withTransactionConfig(transactionConfig) called with null transactionConfig");
       return toBuilder().setTransactionConfig(transactionConfig).build();
     }
 
@@ -985,14 +980,14 @@ public class Neo4jIO {
     // Batch size
     public WriteUnwind<ParameterT> withBatchSize(long batchSize) {
       checkArgument(
-          batchSize > 0, "Neo4jIO.writeUnwind().withFetchSize(query) called with batchSize<=0");
+          batchSize > 0, "Neo4jIO.writeUnwind().withBatchSize(batchSize) called with batchSize<=0");
       return withBatchSize(ValueProvider.StaticValueProvider.of(batchSize));
     }
 
     public WriteUnwind<ParameterT> withBatchSize(ValueProvider<Long> batchSize) {
       checkArgument(
           batchSize != null && batchSize.get() >= 0,
-          "Neo4jIO.readAll().withBatchSize(query) called with batchSize<=0");
+          "Neo4jIO.readAll().withBatchSize(batchSize) called with batchSize<=0");
       return toBuilder().setBatchSize(batchSize).build();
     }
 

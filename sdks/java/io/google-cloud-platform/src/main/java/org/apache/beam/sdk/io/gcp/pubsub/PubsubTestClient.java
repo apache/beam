@@ -41,7 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Experimental
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PubsubTestClient extends PubsubClient implements Serializable {
   /**
@@ -108,6 +108,16 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
     return new PubsubTestClientFactory() {
       @Override
       public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
+      }
+
+      @Override
+      public PubsubClient newClient(
           @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
           throws IOException {
         return new PubsubTestClient();
@@ -137,6 +147,16 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
     activate(
         () -> setPullState(expectedSubscription, clock, ackTimeoutSec, expectedIncomingMessages));
     return new PubsubTestClientFactory() {
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
+      }
+
       @Override
       public PubsubClient newClient(
           @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
@@ -181,6 +201,16 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
               performFinalPublishStateChecks();
               performFinalPullStateChecks();
             });
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
       }
 
       @Override
@@ -292,6 +322,16 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
       public void close() throws IOException {
         checkState(
             numCalls == 1, "Expected exactly one subscription to be created, got %s", numCalls);
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
       }
 
       @Override

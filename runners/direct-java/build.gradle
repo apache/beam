@@ -72,7 +72,7 @@ dependencies {
     implementation project(it)
   }
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_43_2
+  shadow library.java.vendored_grpc_1_48_1
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
@@ -93,7 +93,7 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
-  permitUnusedDeclared library.java.vendored_grpc_1_43_2
+  permitUnusedDeclared library.java.vendored_grpc_1_48_1
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
   examplesJavaIntegrationTest project(project.path)
@@ -116,11 +116,11 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
 }
 
 def sickbayTests = [
-        // https://issues.apache.org/jira/browse/BEAM-2791
+        // https://github.com/apache/beam/issues/18499
         'org.apache.beam.sdk.testing.UsesLoopingTimer',
-        // https://issues.apache.org/jira/browse/BEAM-8035
+        // https://github.com/apache/beam/issues/19734
         'org.apache.beam.sdk.transforms.WatchTest.testMultiplePollsWithManyResults',
-        // https://issues.apache.org/jira/browse/BEAM-6354
+        // https://github.com/apache/beam/issues/19344
         'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
 ]
 
@@ -187,7 +187,7 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
-    // https://issues.apache.org/jira/browse/BEAM-2791
+    // https://github.com/apache/beam/issues/18499
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
 }
@@ -207,7 +207,7 @@ tasks.register("validatesRunnerSickbay", Test) {
       includeTestsMatching test
     }
 
-    // https://issues.apache.org/jira/browse/BEAM-4191
+    // https://github.com/apache/beam/issues/18826
     includeTestsMatching 'org.apache.beam.runners.direct.WatermarkManagerTest.updateWatermarkWithDifferentWindowedValueInstances'
   }
 }
@@ -249,7 +249,7 @@ task examplesIntegrationTest(type: Test) {
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit {
     filter{
-      // TODO (BEAM-14019) Fix integration Tests to run with DirectRunner: Timeout error
+      // TODO (https://github.com/apache/beam/issues/21344) Fix integration Tests to run with DirectRunner: Timeout error
       excludeTestsMatching 'org.apache.beam.examples.complete.TfIdfIT'
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
     }

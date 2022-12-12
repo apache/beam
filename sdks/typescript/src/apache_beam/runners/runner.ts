@@ -17,25 +17,53 @@
  */
 
 import { JobState_Enum } from "../proto/beam_job_api";
+import * as runnerApi from "../proto/beam_runner_api";
+import { MonitoringInfo } from "../proto/metrics";
 import { Pipeline } from "../internal/pipeline";
 import { Root, PValue } from "../pvalue";
 import { PipelineOptions } from "../options/pipeline_options";
+import * as metrics from "../worker/metrics";
 
-export interface PipelineResult {
-  waitUntilFinish(duration?: number): Promise<JobState_Enum>;
+export class PipelineResult {
+  waitUntilFinish(duration?: number): Promise<JobState_Enum> {
+    throw new Error("NotImplemented");
+  }
+
+  async rawMetrics(): Promise<MonitoringInfo[]> {
+    throw new Error("NotImplemented");
+  }
+
+  // TODO: Support filtering, slicing.
+  async counters(): Promise<{ [key: string]: number }> {
+    return Object.fromEntries(
+      metrics.aggregateMetrics(
+        await this.rawMetrics(),
+        "beam:metric:user:sum_int64:v1"
+      )
+    );
+  }
+
+  async distributions(): Promise<{ [key: string]: number }> {
+    return Object.fromEntries(
+      metrics.aggregateMetrics(
+        await this.rawMetrics(),
+        "beam:metric:user:distribution_int64:v1"
+      )
+    );
+  }
 }
 
-export function createRunner(options): Runner {
+export function createRunner(options: any = {}): Runner {
   let runnerConstructor: (any) => Runner;
-  if (options.runner == undefined || options.runner == "default") {
+  if (options.runner === undefined || options.runner === "default") {
     runnerConstructor = defaultRunner;
-  } else if (options.runner == "direct") {
+  } else if (options.runner === "direct") {
     runnerConstructor = require("./direct_runner").directRunner;
-  } else if (options.runner == "universal") {
+  } else if (options.runner === "universal") {
     runnerConstructor = require("./universal").universalRunner;
-  } else if (options.runner == "flink") {
+  } else if (options.runner === "flink") {
     runnerConstructor = require("./flink").flinkRunner;
-  } else if (options.runner == "dataflow") {
+  } else if (options.runner === "dataflow") {
     runnerConstructor = require("./dataflow").dataflowRunner;
   } else {
     throw new Error("Unknown runner: " + options.runner);
@@ -61,10 +89,12 @@ export abstract class Runner {
     pipeline: (root: Root) => PValue<any> | Promise<PValue<any>>,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
-    const p = new Pipeline();
-    await pipeline(new Root(p));
-    const pipelineResult = await this.runPipeline(p, options);
-    await pipelineResult.waitUntilFinish();
+    const pipelineResult = await this.runAsync(pipeline, options);
+    const finalState = await pipelineResult.waitUntilFinish();
+    if (finalState != JobState_Enum.DONE) {
+      // TODO: Grab the last/most severe error message?
+      throw new Error("Job finished in state " + JobState_Enum[finalState]);
+    }
     return pipelineResult;
   }
 
@@ -74,16 +104,16 @@ export abstract class Runner {
    * status.
    */
   async runAsync(
-    pipeline: (root: Root) => PValue<any>,
+    pipeline: (root: Root) => PValue<any> | Promise<PValue<any>>,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
     const p = new Pipeline();
-    pipeline(new Root(p));
-    return this.runPipeline(p);
+    await pipeline(new Root(p));
+    return this.runPipeline(p.getProto());
   }
 
   abstract runPipeline(
-    pipeline: Pipeline,
+    pipeline: runnerApi.Pipeline,
     options?: PipelineOptions
   ): Promise<PipelineResult>;
 }
@@ -91,18 +121,23 @@ export abstract class Runner {
 export function defaultRunner(defaultOptions: Object): Runner {
   return new (class extends Runner {
     async runPipeline(
-      pipeline: Pipeline,
+      pipeline: runnerApi.Pipeline,
       options: Object = {}
     ): Promise<PipelineResult> {
       const directRunner =
         require("./direct_runner").directRunner(defaultOptions);
-      if (directRunner.unsupportedFeatures(pipeline, options).length == 0) {
+      if (directRunner.unsupportedFeatures(pipeline, options).length === 0) {
         return directRunner.runPipeline(pipeline, options);
       } else {
-        return require("./universal")
-          .universalRunner(defaultOptions)
-          .runPipeline(pipeline, options);
+        return loopbackRunner(defaultOptions).runPipeline(pipeline, options);
       }
     }
   })();
+}
+
+export function loopbackRunner(defaultOptions: Object = {}): Runner {
+  return require("./universal").universalRunner({
+    environmentType: "LOOPBACK",
+    ...defaultOptions,
+  });
 }

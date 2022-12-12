@@ -31,13 +31,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for {@code BeamRelNode}. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class BeamSqlRelUtils {
 
@@ -144,5 +145,15 @@ public class BeamSqlRelUtils {
     return Schema.of(
         Schema.Field.of(ROW, Schema.FieldType.row(upstreamSchema)),
         Schema.Field.of(ERROR, Schema.FieldType.STRING));
+  }
+
+  /** A lazy explain via {@link #toString()} for logging purposes. */
+  public static Object explainLazily(final RelNode node) {
+    return new Object() {
+      @Override
+      public String toString() {
+        return RelOptUtil.toString(node);
+      }
+    };
   }
 }

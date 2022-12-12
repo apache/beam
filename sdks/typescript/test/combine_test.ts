@@ -17,11 +17,10 @@
  */
 
 import * as beam from "../src/apache_beam";
-import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
+import { createRunner } from "../src/apache_beam/runners/runner";
 import * as testing from "../src/apache_beam/testing/assert";
 import { KV } from "../src/apache_beam/values";
 
-import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
 import * as combiners from "../src/apache_beam/transforms/combiners";
 import {
   CombineFn,
@@ -33,7 +32,7 @@ import {
 
 describe("Apache Beam combiners", function () {
   it("runs wordcount with a countPerKey transform and asserts the result", async function () {
-    await new DirectRunner().run((root) => {
+    await createRunner().run((root) => {
       const lines = root.apply(
         beam.create([
           "In the beginning God created the heaven and the earth.",
@@ -84,7 +83,7 @@ describe("Apache Beam combiners", function () {
   });
 
   it("runs wordcount with a countGlobally transform and asserts the result", async function () {
-    await new DirectRunner().run((root) => {
+    await createRunner().run((root) => {
       const lines = root.apply(
         beam.create(["And God said, Let there be light: and there was light"])
       );
@@ -134,7 +133,7 @@ describe("Apache Beam combiners", function () {
       };
     }
 
-    await new DirectRunner().run((root) => {
+    await createRunner().run((root) => {
       const lines = root.apply(
         beam.create([
           "In the beginning God created the heaven and the earth.",
@@ -164,7 +163,7 @@ describe("Apache Beam combiners", function () {
   });
 
   it("test GroupBy with combining", async function () {
-    await new DirectRunner().run((root) => {
+    await createRunner().run((root) => {
       const inputs = root.apply(
         beam.create([
           { k: "k1", a: 1, b: 100 },
@@ -190,7 +189,7 @@ describe("Apache Beam combiners", function () {
   });
 
   it("test GroupBy list with combining", async function () {
-    await new DirectRunner().run((root) => {
+    await createRunner().run((root) => {
       const inputs = root.apply(
         beam.create([
           { a: 1, b: 10, c: 100 },
@@ -220,7 +219,7 @@ describe("Apache Beam combiners", function () {
   });
 
   it("test GroupBy expr with combining", async function () {
-    await new DirectRunner().run((root) => {
+    await createRunner().run((root) => {
       const inputs = root.apply(
         beam.create([
           { a: 1, b: 10 },
@@ -247,7 +246,7 @@ describe("Apache Beam combiners", function () {
   });
 
   it("test GroupBy with binary combinefn", async function () {
-    await new DirectRunner().run((root) => {
+    await createRunner().run((root) => {
       const inputs = root.apply(
         beam.create([
           { key: 0, value: 10 },

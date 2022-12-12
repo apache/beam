@@ -71,8 +71,12 @@ body
     margin-left: 0
     width: 100%
 
+.body__section-no-nav--wide
+  margin-left: auto
+  margin-right: auto
+
 .body__section-nav
-  margin-left: 256px
+  margin-left: 6px
   width: calc(100% - 492px)
 
   > [id]:before
@@ -93,6 +97,7 @@ body
   position: relative
   background-color: #fff
   margin-top: 64px
+  display: flex
 
   @media (min-width: $tablet)
     margin-top: 0
@@ -105,7 +110,7 @@ body
     display: block
 
 .code-snippet, pre
-  background: rgba(255, 109, 0, 0.03) !important
+  background: rgba(255, 109, 0, 0.03)
   border-radius: 8px
   border-top-left-radius: 0
   border: solid 0.6px #ff6d05
@@ -122,11 +127,12 @@ body
     border: none
     padding: 0
     margin-top: 36px
-    background: initial !important
+    background: initial
   a
-    float: right
-    margin-left: 12px
     img
+      position: absolute
+      right: 5px
+      top: 5px
       &:hover
         opacity: 0.7
         filter: alpha(opacity=70)
@@ -148,7 +154,7 @@ body
   .without_switcher
     border-top-left-radius: 8px
   pre
-    background: initial !important
+    background: initial
 
 table
   margin-top: 24px
@@ -159,3 +165,19 @@ table
 
 .underline
   text-decoration: underline
+
+code
+  overflow-x: auto
+  max-width: 100%
+  display: inline-block
+  line-height: normal
+  vertical-align: text-top
+
+.video
+  width: 100%
+
+.video--medium-size
+  max-width: 560px
+
+.pre-content-container
+  overflow-x: auto

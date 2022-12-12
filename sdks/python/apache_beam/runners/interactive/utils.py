@@ -35,6 +35,7 @@ from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import storage
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive.caching.cacheable import Cacheable
@@ -56,13 +57,13 @@ _INTERACTIVE_LOG_STYLE = """
 
 
 def to_element_list(
-    reader,  # type: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]]
-    coder,  # type: Coder
+    reader,  # type: Generator[Union[beam_runner_api_pb2.TestStreamPayload.Event, WindowedValueHolder]] # noqa: F821
+    coder,  # type: Coder # noqa: F821
     include_window_info,  # type: bool
     n=None,  # type: int
     include_time_events=False, # type: bool
 ):
-  # type: (...) -> List[WindowedValue]
+  # type: (...) -> List[WindowedValue] # noqa: F821
 
   """Returns an iterator that properly decodes the elements from the reader.
   """
@@ -102,7 +103,7 @@ def to_element_list(
 
 
 def elements_to_df(elements, include_window_info=False, element_type=None):
-  # type: (List[WindowedValue], bool, Any) -> DataFrame
+  # type: (List[WindowedValue], bool, Any) -> DataFrame # noqa: F821
 
   """Parses the given elements into a Dataframe.
 
@@ -267,7 +268,7 @@ class ProgressIndicator(object):
 
 
 def progress_indicated(func):
-  # type: (Callable[..., Any]) -> Callable[..., Any]
+  # type: (Callable[..., Any]) -> Callable[..., Any] # noqa: F821
 
   """A decorator using a unique progress indicator as a context manager to
   execute the given function within."""
@@ -280,7 +281,7 @@ def progress_indicated(func):
 
 
 def as_json(func):
-  # type: (Callable[..., Any]) -> Callable[..., str]
+  # type: (Callable[..., Any]) -> Callable[..., str] # noqa: F821
 
   """A decorator convert python objects returned by callables to json
   string.
@@ -304,8 +305,8 @@ def deferred_df_to_pcollection(df):
 
   # The proxy is used to output a DataFrame with the correct columns.
   #
-  # TODO(BEAM-11064): Once type hints are implemented for pandas, use those
-  # instead of the proxy.
+  # TODO(https://github.com/apache/beam/issues/20577): Once type hints are
+  # implemented for pandas, use those instead of the proxy.
   cache = ExpressionCache()
   cache.replace_with_cached(df._expr)
 
@@ -452,7 +453,7 @@ def assert_bucket_exists(bucket_name):
   try:
     from apitools.base.py.exceptions import HttpError
     storage_client = storage.StorageV1(
-        credentials=auth.get_service_credentials(None),
+        credentials=auth.get_service_credentials(PipelineOptions()),
         get_credentials=False,
         http=get_new_http(),
         response_encoding='utf8')

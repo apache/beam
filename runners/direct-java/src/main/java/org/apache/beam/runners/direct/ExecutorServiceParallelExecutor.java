@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * EvaluationContext} to execute a {@link Pipeline}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 final class ExecutorServiceParallelExecutor
     implements PipelineExecutor,
@@ -147,7 +147,8 @@ final class ExecutorServiceParallelExecutor
   }
 
   @Override
-  // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+  // TODO: [https://github.com/apache/beam/issues/18968] Pass Future back to consumer to check for
+  // async errors
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start(DirectGraph graph, RootProviderRegistry rootProviderRegistry) {
     int numTargetSplits = Math.max(3, targetParallelism);

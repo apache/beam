@@ -22,6 +22,7 @@ import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.Token;
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
@@ -33,8 +34,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ReadFn<T> extends DoFn<Read<T>, T> {
 
@@ -59,25 +60,66 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
       for (RingRange rr : ringRanges) {
         Token startToken = session.getCluster().getMetadata().newToken(rr.getStart().toString());
         Token endToken = session.getCluster().getMetadata().newToken(rr.getEnd().toString());
-        ResultSet rs =
-            session.execute(preparedStatement.bind().setToken(0, startToken).setToken(1, endToken));
-        Iterator<T> iter = mapper.map(rs);
-        while (iter.hasNext()) {
-          T n = iter.next();
-          receiver.output(n);
+        if (rr.isWrapping()) {
+          // A wrapping range is one that overlaps from the end of the partitioner range and its
+          // start (ie : when the start token of the split is greater than the end token)
+          // We need to generate two queries here : one that goes from the start token to the end
+          // of
+          // the partitioner range, and the other from the start of the partitioner range to the
+          // end token of the split.
+          outputResults(
+              session.execute(getLowestSplitQuery(read, partitionKey, rr.getEnd())),
+              receiver,
+              mapper);
+          outputResults(
+              session.execute(getHighestSplitQuery(read, partitionKey, rr.getStart())),
+              receiver,
+              mapper);
+        } else {
+          ResultSet rs =
+              session.execute(
+                  preparedStatement.bind().setToken(0, startToken).setToken(1, endToken));
+          outputResults(rs, receiver, mapper);
         }
       }
 
       if (read.ringRanges() == null) {
         ResultSet rs = session.execute(preparedStatement.bind());
-        Iterator<T> iter = mapper.map(rs);
-        while (iter.hasNext()) {
-          receiver.output(iter.next());
-        }
+        outputResults(rs, receiver, mapper);
       }
     } catch (Exception ex) {
       LOG.error("error", ex);
     }
+  }
+
+  private static <T> void outputResults(
+      ResultSet rs, OutputReceiver<T> outputReceiver, Mapper<T> mapper) {
+    Iterator<T> iter = mapper.map(rs);
+    while (iter.hasNext()) {
+      T n = iter.next();
+      outputReceiver.output(n);
+    }
+  }
+
+  private static String getHighestSplitQuery(
+      Read<?> spec, String partitionKey, BigInteger highest) {
+    String highestClause = String.format("(token(%s) >= %d)", partitionKey, highest);
+    String finalHighQuery =
+        (spec.query() == null)
+            ? buildInitialQuery(spec, true) + highestClause
+            : spec.query() + " AND " + highestClause;
+    LOG.debug("CassandraIO generated a wrapAround query : {}", finalHighQuery);
+    return finalHighQuery;
+  }
+
+  private static String getLowestSplitQuery(Read<?> spec, String partitionKey, BigInteger lowest) {
+    String lowestClause = String.format("(token(%s) < %d)", partitionKey, lowest);
+    String finalLowQuery =
+        (spec.query() == null)
+            ? buildInitialQuery(spec, true) + lowestClause
+            : spec.query() + " AND " + lowestClause;
+    LOG.debug("CassandraIO generated a wrapAround query : {}", finalLowQuery);
+    return finalLowQuery;
   }
 
   private static String generateRangeQuery(

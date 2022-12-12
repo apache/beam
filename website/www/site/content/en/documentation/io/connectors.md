@@ -1,5 +1,6 @@
 ---
 title: "I/O Connectors"
+aliases: [built-in]
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +20,7 @@ limitations under the License.
 
 Apache Beam I/O connectors provide read and write transforms for the most popular data storage systems so that Beam users can benefit from native optimised connectivity.  With the available I/Os, Apache Beam pipelines can read and write data from and to an external storage type in a unified and distributed way.
 
-I/O connectors denoted _via X-language_ have been made available using the Apache Beam [multi-language pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines).
+I/O connectors denoted _via X-language_ have been made available using the Apache Beam [multi-language pipelines framework](/documentation/programming-guide/#multi-language-pipelines).
 
 ## Built-in I/O Connectors
 
@@ -133,7 +134,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>ParquetIO</td>
+    <td>ParquetIO (<a href="/documentation/io/built-in/parquet/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -221,7 +222,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/s3/S3FileSystemRegistrar.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/s3/S3FileSystemRegistrar.html">native</a>
     </td>
     <td class="present">
       ✔
@@ -250,9 +251,12 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kinesis/KinesisIO.html">native</a>
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/kinesis/KinesisIO.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.kinesis.html#apache_beam.io.kinesis.ReadDataFromKinesis">via X-language</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -387,7 +391,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
   </tr>
   <tr>
-    <td>HadoopFormatIO</td>
+    <td>HadoopFormatIO (<a href="/documentation/io/built-in/hadoop/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -413,7 +417,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
   </tr>
   <tr>
-    <td>HCatalogIO</td>
+    <td>HCatalogIO (<a href="/documentation/io/built-in/hcatalog/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -465,7 +469,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigQueryIO</td>
+    <td>BigQueryIO (<a href="/documentation/io/built-in/google-bigquery/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -497,7 +501,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td>Not available</td>
     <td class="present">✔</td>
-    <td class="absent">✘</td>
+    <td class="absent">✔</td>
   </tr>
   <tr>
     <td>DatastoreIO</td>
@@ -519,7 +523,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>SnowflakeIO</td>
+    <td>SnowflakeIO (<a href="/documentation/io/built-in/snowflake">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -766,6 +770,32 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/influxdb/InfluxDbIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>SparkReceiverIO (<a href="/documentation/io/built-in/sparkreceiver/">guide</a>)</td>
+    <td class="present">✔</td>
+    <td class="present">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/sparkreceiver/2/SparkReceiverIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✘</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>CdapIO (<a href="/documentation/io/built-in/cdap/">guide</a>)</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/cdap/CdapIO.html">native</a>
     </td>
     <td>Not available</td>
     <td>Not available</td>

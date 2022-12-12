@@ -33,6 +33,7 @@ from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.utils import retry
+from apache_beam.utils.annotations import deprecated
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -99,10 +100,12 @@ class S3IO(object):
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  @deprecated(since='2.45.0', current='list_files')
   def list_prefix(self, path, with_metadata=False):
     """Lists files matching the prefix.
+
+    ``list_prefix`` has been deprecated. Use `list_files` instead, which returns
+    a generator of file information instead of a dict.
 
     Args:
       path: S3 file path pattern in the form s3://<bucket>/[name].
@@ -112,17 +115,35 @@ class S3IO(object):
       If ``with_metadata`` is False: dict of file name -> size; if
         ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
     """
+    file_info = {}
+    for file_metadata in self.list_files(path, with_metadata):
+      file_info[file_metadata[0]] = file_metadata[1]
+
+    return file_info
+
+  def list_files(self, path, with_metadata=False):
+    """Lists files matching the prefix.
+
+    Args:
+      path: S3 file path pattern in the form s3://<bucket>/[name].
+      with_metadata: Experimental. Specify whether returns file metadata.
+
+    Returns:
+      If ``with_metadata`` is False: generator of tuple(file name, size); if
+      ``with_metadata`` is True: generator of
+      tuple(file name, tuple(size, timestamp)).
+    """
     bucket, prefix = parse_s3_path(path, object_optional=True)
     request = messages.ListRequest(bucket=bucket, prefix=prefix)
 
-    file_info = {}
+    file_info = set()
     counter = 0
     start_time = time.time()
 
     if with_metadata:
-      logging.info("Starting the file information of the input")
+      logging.debug("Starting the file information of the input")
     else:
-      logging.info("Starting the size estimation of the input")
+      logging.debug("Starting the size estimation of the input")
 
     while True:
       #The list operation will raise an exception
@@ -130,7 +151,10 @@ class S3IO(object):
       #This should not be an issue here.
       #Ignore this exception or it will break the procedure.
       try:
-        response = self.client.list(request)
+        response = retry.with_exponential_backoff(
+            retry_filter=retry.retry_on_server_errors_and_timeout_filter)(
+                self.client.list)(
+                    request)
       except messages.S3ClientError as e:
         if e.code == 404:
           break
@@ -139,25 +163,31 @@ class S3IO(object):
 
       for item in response.items:
         file_name = 's3://%s/%s' % (bucket, item.key)
-        if with_metadata:
-          file_info[file_name] = (
-              item.size, self._updated_to_seconds(item.last_modified))
-        else:
-          file_info[file_name] = item.size
-        counter += 1
-        if counter % 10000 == 0:
+        if file_name not in file_info:
+          file_info.add(file_name)
+          counter += 1
+          if counter % 10000 == 0:
+            if with_metadata:
+              logging.info(
+                  "Finished computing file information of: %s files",
+                  len(file_info))
+            else:
+              logging.info(
+                  "Finished computing size of: %s files", len(file_info))
           if with_metadata:
-            logging.info(
-                "Finished computing file information of: %s files",
-                len(file_info))
+            yield file_name, (
+                item.size, self._updated_to_seconds(item.last_modified))
           else:
-            logging.info("Finished computing size of: %s files", len(file_info))
+            yield file_name, item.size
+
       if response.next_token:
         request.continuation_token = response.next_token
       else:
         break
 
-    logging.info(
+    logging.log(
+        # do not spam logs when list_prefix is likely used to check empty folder
+        logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)

@@ -7,7 +7,7 @@ date:   2021-08-25 00:00:01 -0800
 categories:
 
   - blog
-
+  - release
 authors:
 
   - angoenka

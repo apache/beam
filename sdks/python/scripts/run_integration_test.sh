@@ -37,7 +37,6 @@
 #     num_workers   -> Number of workers.
 #     sleep_secs    -> Number of seconds to wait before verification.
 #     streaming     -> True if a streaming job.
-#     worker_jar    -> Customized worker jar for dataflow runner.
 #     kms_key_name  -> Name of Cloud KMS encryption key to use in some tests.
 #     pipeline_opts -> List of space separated pipeline options. If this
 #                      flag is specified, all above flag will be ignored.
@@ -75,10 +74,10 @@ SDK_LOCATION=build/apache-beam.tar.gz
 NUM_WORKERS=1
 SLEEP_SECS=20
 STREAMING=false
-WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 SUITE=""
 COLLECT_MARKERS=
+REQUIREMENTS_FILE=""
 
 # Default test (pytest) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -114,6 +113,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --requirements_file)
+      REQUIREMENTS_FILE="$2"
+      shift # past argument
+      shift # past value
+      ;;
     --num_workers)
         NUM_WORKERS="$2"
         shift # past argument
@@ -129,13 +133,13 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --worker_jar)
-        WORKER_JAR="$2"
+    --runner_v2)
+        RUNNER_V2="$2"
         shift # past argument
         shift # past value
         ;;
-    --runner_v2)
-        RUNNER_V2="$2"
+    --disable_runner_v2)
+        DISABLE_RUNNER_V2="$2"
         shift # past argument
         shift # past value
         ;;
@@ -202,7 +206,6 @@ fi
 # Build pipeline options if not provided in --pipeline_opts from commandline
 
 if [[ -z $PIPELINE_OPTS ]]; then
-
   # Get tar ball path
   if [[ $(find ${SDK_LOCATION} 2> /dev/null) ]]; then
     SDK_LOCATION=$(find ${SDK_LOCATION} | tail -n1)
@@ -213,9 +216,13 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # Install test dependencies for ValidatesRunner tests.
   # pyhamcrest==1.10.0 doesn't work on Py2.
   # See: https://github.com/hamcrest/PyHamcrest/issues/131.
-  echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
-  echo "mock<3.0.0" >> postcommit_requirements.txt
-  echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
+  if [[ -z $REQUIREMENTS_FILE ]]; then
+    echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
+    echo "mock<3.0.0" >> postcommit_requirements.txt
+    echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
+  else
+    cp $REQUIREMENTS_FILE postcommit_requirements.txt
+  fi
 
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
   # running on DirectRunner (some options ignored).
@@ -237,15 +244,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
     opts+=("--streaming")
   fi
 
-  # Add --dataflow_worker_jar if provided
-  if [[ ! -z "$WORKER_JAR" ]]; then
-    opts+=("--dataflow_worker_jar=$WORKER_JAR")
-  fi
-
   # Add --runner_v2 if provided
   if [[ "$RUNNER_V2" = true ]]; then
     opts+=("--experiments=use_runner_v2")
-    # TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    # TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
     opts+=("--experiments=shuffle_mode=appliance")
     if [[ "$STREAMING" = true ]]; then
       # Dataflow Runner V2 only supports streaming engine.
@@ -254,6 +256,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
       opts+=("--experiments=beam_fn_api")
     fi
 
+  fi
+
+  # Add --disable_runner_v2 if provided
+  if [[ "$DISABLE_RUNNER_V2" = true ]]; then
+    opts+=("--experiments=disable_runner_v2")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
@@ -270,6 +277,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
 
 fi
+
+# Handle double quotes in PIPELINE_OPTS
+# add a backslash before `"` to keep it in command line options
+PIPELINE_OPTS=${PIPELINE_OPTS//\"/\\\"}
 
 ###########################################################################
 # Run tests and validate that jobs finish successfully.

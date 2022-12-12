@@ -134,7 +134,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
 
     List<List<TestRow>> requests = capturedRecords.get();
     assertThat(concat(requests)).containsExactlyInAnyOrderElementsOf(getExpectedValues(0, 100));
-    verify(client).close();
   }
 
   @Test
@@ -154,7 +153,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     }
 
     assertThat(concat(requests)).containsExactlyInAnyOrderElementsOf(getExpectedValues(0, 100));
-    verify(client).close();
   }
 
   @Test
@@ -176,7 +174,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     }
 
     assertThat(concat(requests)).containsExactlyInAnyOrderElementsOf(getExpectedValues(0, 100));
-    verify(client).close();
   }
 
   @Test
@@ -195,8 +192,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     assertThatThrownBy(() -> pipeline.run().waitUntilFinish())
         .isInstanceOf(Pipeline.PipelineExecutionException.class)
         .hasMessageContaining("putRecords failed");
-
-    eventually(3, () -> verify(client).close());
   }
 
   @Test
@@ -223,7 +218,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     ordered.verify(client).putRecords(argThat(containsAll(getExpectedValues(0, 100))));
     ordered.verify(client).putRecords(argThat(containsAll(getExpectedValues(70, 100))));
     ordered.verify(client).putRecords(argThat(containsAll(getExpectedValues(80, 100))));
-    verify(client).close();
   }
 
   @Test
@@ -237,7 +231,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
 
     pipeline.run().waitUntilFinish();
     verify(client).putRecords(argThat(hasSize(1)));
-    verify(client).close();
   }
 
   @Test
@@ -253,7 +246,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     pipeline.run().waitUntilFinish();
     verify(client).putRecords(argThat(hasSize(2))); // 1 aggregated record per shard
     verify(client).listShards(any(ListShardsRequest.class));
-    verify(client).close();
   }
 
   @Test
@@ -274,7 +266,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     // while shards are unknown, each row is aggregated into an individual aggregated record
     verify(client).putRecords(argThat(hasSize(100)));
     verify(client).listShards(any(ListShardsRequest.class));
-    verify(client).close();
   }
 
   @Test
@@ -294,7 +285,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     // each row is aggregated into an individual aggregated record
     verify(client).putRecords(argThat(hasSize(100)));
     verify(client, times(0)).listShards(any(ListShardsRequest.class)); // disabled
-    verify(client).close();
   }
 
   @Test
@@ -310,7 +300,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     verify(client).putRecords(argThat(hasSize(2))); // configuration of partitioner
     verify(client, times(0))
         .listShards(any(ListShardsRequest.class)); // disabled for explicit partitioner
-    verify(client).close();
   }
 
   @Test
@@ -333,7 +322,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
 
     // 2 aggregated records of expectedBytes each
     verify(client).putRecords(and(argThat(hasSize(2)), argThat(hasRecordSize(expectedBytes))));
-    verify(client).close();
   }
 
   @Test
@@ -358,7 +346,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     // 2 requests with 1 aggregated record of expectedBytes
     verify(client, times(2))
         .putRecords(and(argThat(hasSize(1)), argThat(hasRecordSize(expectedBytes))));
-    verify(client).close();
   }
 
   @Test
@@ -383,7 +370,6 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
     // 2 requests with 1 aggregated record of expectedBytes
     verify(client, times(2))
         .putRecords(and(argThat(hasSize(1)), argThat(hasRecordSize(expectedBytes))));
-    verify(client).close();
   }
 
   @Test
@@ -617,17 +603,5 @@ public class KinesisIOWriteTest extends PutRecordsHelpers {
         out.output(row);
       }
     }
-  }
-
-  private void eventually(int attempts, Runnable fun) {
-    for (int i = 0; i < attempts - 1; i++) {
-      try {
-        Thread.sleep(i * 100);
-        fun.run();
-        return;
-      } catch (AssertionError | InterruptedException t) {
-      }
-    }
-    fun.run();
   }
 }

@@ -59,6 +59,7 @@ public class StreamingWriteTables<ElementT>
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
   private final boolean autoSharding;
+  private final boolean propagateSuccessful;
   private final @Nullable Coder<ElementT> elementCoder;
   private final @Nullable SerializableFunction<ElementT, TableRow> toTableRow;
   private final @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
@@ -73,6 +74,7 @@ public class StreamingWriteTables<ElementT>
         false, // ignoreUnknownValues
         false, // ignoreInsertIds
         false, // autoSharding
+        false, // propagateSuccessful
         null, // elementCoder
         null, // toTableRow
         null, // toFailsafeTableRow
@@ -87,6 +89,7 @@ public class StreamingWriteTables<ElementT>
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
       boolean autoSharding,
+      boolean propagateSuccessful,
       @Nullable Coder<ElementT> elementCoder,
       @Nullable SerializableFunction<ElementT, TableRow> toTableRow,
       @Nullable SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
@@ -98,6 +101,7 @@ public class StreamingWriteTables<ElementT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
     this.autoSharding = autoSharding;
+    this.propagateSuccessful = propagateSuccessful;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
@@ -113,6 +117,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -128,6 +133,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -143,6 +149,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -158,6 +165,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -173,6 +181,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -188,6 +197,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -203,6 +213,23 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
+  }
+
+  StreamingWriteTables<ElementT> withPropagateSuccessful(boolean propagateSuccessful) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -218,6 +245,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -234,6 +262,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -250,6 +279,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -266,6 +296,7 @@ public class StreamingWriteTables<ElementT>
         ignoreUnknownValues,
         ignoreInsertIds,
         autoSharding,
+        propagateSuccessful,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -288,7 +319,7 @@ public class StreamingWriteTables<ElementT>
           input.getPipeline(),
           failedInsertsTag,
           failedInserts,
-          result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG));
+          propagateSuccessful ? result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG) : null);
     } else {
       TupleTag<TableRow> failedInsertsTag = new TupleTag<>(FAILED_INSERTS_TAG_ID);
       PCollectionTuple result =
@@ -302,7 +333,7 @@ public class StreamingWriteTables<ElementT>
           input.getPipeline(),
           failedInsertsTag,
           failedInserts,
-          result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG),
+          propagateSuccessful ? result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG) : null,
           null,
           null,
           null,
@@ -363,6 +394,7 @@ public class StreamingWriteTables<ElementT>
                   skipInvalidRows,
                   ignoreUnknownValues,
                   ignoreInsertIds,
+                  propagateSuccessful,
                   toTableRow,
                   toFailsafeTableRow)
               .viaStateful());
@@ -422,6 +454,7 @@ public class StreamingWriteTables<ElementT>
                       skipInvalidRows,
                       ignoreUnknownValues,
                       ignoreInsertIds,
+                      propagateSuccessful,
                       toTableRow,
                       toFailsafeTableRow)
                   .viaDoFnFinalization());

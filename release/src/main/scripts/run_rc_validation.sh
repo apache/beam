@@ -55,6 +55,18 @@ function clean_up(){
 
   rm -rf ${LOCAL_BEAM_DIR}
   echo "* Deleted workspace ${LOCAL_BEAM_DIR}"
+
+  if [[ -n `which gcloud` ]]; then
+    if [[ -n ${KAFKA_CLUSTER_NAME} ]]; then
+        echo "-----------------------Clean up Kafka Cluster on GKE------------------------"
+        gcloud container clusters delete --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --async -q ${KAFKA_CLUSTER_NAME}
+    fi
+
+    if [[ -n ${SQL_TAXI_TOPIC} ]]; then
+        echo "-----------------------Clean up pubsub topic on GCP------------------------"
+        gcloud pubsub topics delete --project=${USER_GCP_PROJECT} ${SQL_TAXI_TOPIC}
+    fi
+  fi
 }
 trap clean_up EXIT
 
@@ -98,7 +110,7 @@ echo "All environment and workflow configurations from RC_VALIDATE_CONFIGS:"
 for i in "${RC_VALIDATE_CONFIGS[@]}"; do
   echo "$i = ${!i}"
 done
-echo "TODO(BEAM-13054): parts of this script launch background processes with gnome-terminal,"
+echo "TODO(https://github.com/apache/beam/issues/21237): parts of this script launch background processes with gnome-terminal,"
 echo "It may not work well over ssh or within a tmux session. Using 'ssh -Y' may help."
 echo "[Confirmation Required] Would you like to proceed with current settings? [y|N]"
 read confirmation
@@ -229,7 +241,7 @@ else
   echo "* Skipping Python Quickstart and MobileGame. Hub is required."
 fi
 
-# TODO(BEAM-13220) Run the remaining tests on Jenkins.
+# TODO(https://github.com/apache/beam/issues/21193) Run the remaining tests on Jenkins.
 echo ""
 echo "====================Starting Python Leaderboard & GameStates Validations==============="
 if [[ ("$python_leaderboard_direct" = true \
@@ -496,9 +508,9 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
   set_bashrc
 
   echo "-----------------------Setting up Kafka Cluster on GKE------------------------"
-  CLUSTER_NAME=xlang-kafka-cluster-$RANDOM
+  KAFKA_CLUSTER_NAME=xlang-kafka-cluster-$RANDOM
   if [[ "$python_xlang_kafka_taxi_dataflow" = true ]]; then
-    gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $CLUSTER_NAME
+    gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $KAFKA_CLUSTER_NAME
     kubectl apply -R -f ${LOCAL_BEAM_DIR}/.test-infra/kubernetes/kafka-cluster
     echo "* Please wait for 10 mins to let a Kafka cluster be launched on GKE."
     echo "* Sleeping for 10 mins"

@@ -121,7 +121,7 @@ class TypeCodersTest(unittest.TestCase):
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(real_coder.encode(values), expected_coder.encode(values))
 
-  @unittest.skip('BEAM-14411')
+  @unittest.skip('https://github.com/apache/beam/issues/21658')
   def test_list_coder(self):
     real_coder = typecoders.registry.get_coder(typehints.List[bytes])
     expected_coder = coders.IterableCoder(coders.BytesCoder())

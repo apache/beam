@@ -34,7 +34,6 @@ import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.TestSparkRunner;
 import org.apache.beam.runners.spark.UsesCheckpointRecovery;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
@@ -99,7 +98,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ResumeFromCheckpointStreamingTest implements Serializable {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
@@ -279,7 +278,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     options.setExpectedAssertions(expectedAssertions);
     options.setRunner(TestSparkRunner.class);
     options.setEnableSparkMetricSinks(false);
-    options.setForceStreaming(true);
+    options.setStreaming(true);
     options.setCheckpointDir(temporaryFolder.getRoot().getPath());
     // timeout is per execution so it can be injected by the caller.
     if (stopWatermarkOption.isPresent()) {
@@ -314,7 +313,6 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
   @After
   public void clean() {
-    AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
     GlobalWatermarkHolder.clear();
     MicrobatchSource.clearCache();
@@ -352,7 +350,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
   /**
    * A custom PAssert that avoids using {@link org.apache.beam.sdk.transforms.Flatten} until
-   * BEAM-1444 is resolved.
+   * https://github.com/apache/beam/issues/18144 is resolved.
    */
   private static class PAssertWithoutFlatten<T>
       extends PTransform<PCollection<Iterable<T>>, PDone> {

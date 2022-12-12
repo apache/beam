@@ -40,7 +40,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * @param <V> the type of the values read from the shuffle
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K, V>>> {
   final byte[] shuffleReaderConfig;
@@ -144,9 +144,9 @@ public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<
         return false;
       }
       ShuffleEntry record = iterator.next();
-      K key = CoderUtils.decodeFromByteArray(shuffleReader.keyCoder, record.getKey());
+      K key = CoderUtils.decodeFromByteString(shuffleReader.keyCoder, record.getKey());
       WindowedValue<V> windowedValue =
-          CoderUtils.decodeFromByteArray(shuffleReader.windowedValueCoder, record.getValue());
+          CoderUtils.decodeFromByteString(shuffleReader.windowedValueCoder, record.getValue());
       shuffleReader.notifyElementRead(record.length());
       current = windowedValue.withValue(KV.of(key, windowedValue.getValue()));
       return true;

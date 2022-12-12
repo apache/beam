@@ -54,7 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "keyfor",
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class Schema implements Serializable {
@@ -262,6 +262,21 @@ public class Schema implements Serializable {
 
   public static Schema of(Field... fields) {
     return Schema.builder().addFields(fields).build();
+  }
+
+  /** Returns an identical Schema with sorted fields. */
+  public Schema sorted() {
+    // Create a new schema and copy over the appropriate Schema object attributes:
+    // {fields, uuid, encodingPositions, options}
+    Schema sortedSchema =
+        this.fields.stream()
+            .sorted(Comparator.comparing(Field::getName))
+            .collect(Schema.toSchema())
+            .withOptions(getOptions());
+    sortedSchema.setUUID(getUUID());
+    sortedSchema.setEncodingPositions(getEncodingPositions());
+
+    return sortedSchema;
   }
 
   /** Returns a copy of the Schema with the options set. */
@@ -596,7 +611,7 @@ public class Schema implements Serializable {
 
     // For logical types, return the implementing class.
 
-    public abstract @Nullable LogicalType getLogicalType();
+    public abstract @Nullable LogicalType<?, ?> getLogicalType();
 
     // For container types (e.g. ARRAY or ITERABLE), returns the type of the contained element.
 
@@ -631,8 +646,8 @@ public class Schema implements Serializable {
     }
 
     /** Helper function for retrieving the concrete logical type subclass. */
-    public <LogicalTypeT extends LogicalType> LogicalTypeT getLogicalType(
-        Class<LogicalTypeT> logicalTypeClass) {
+    public <InputT, BaseT, LogicalTypeT extends LogicalType<InputT, BaseT>>
+        LogicalTypeT getLogicalType(Class<LogicalTypeT> logicalTypeClass) {
       return logicalTypeClass.cast(getLogicalType());
     }
 
@@ -647,7 +662,7 @@ public class Schema implements Serializable {
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
 
-      abstract Builder setLogicalType(LogicalType logicalType);
+      abstract Builder setLogicalType(LogicalType<?, ?> logicalType);
 
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
 

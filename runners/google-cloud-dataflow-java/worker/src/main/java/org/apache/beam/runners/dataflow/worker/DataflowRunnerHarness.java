@@ -39,8 +39,9 @@ import org.apache.beam.runners.fnexecution.status.BeamWorkerStatusGrpcService;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * versa.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DataflowRunnerHarness {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunnerHarness.class);
@@ -201,7 +202,12 @@ public class DataflowRunnerHarness {
       }
       worker.startStatusPages();
       worker.start();
-      ExecutorService executor = Executors.newSingleThreadExecutor();
+      ExecutorService executor =
+          Executors.newSingleThreadExecutor(
+              new ThreadFactoryBuilder()
+                  .setDaemon(true)
+                  .setNameFormat("ControlClient-thread")
+                  .build());
       executor.execute(
           () -> { // Task to get new client connections
             while (true) {

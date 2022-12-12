@@ -25,8 +25,12 @@ import java.util.Objects;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -42,7 +46,7 @@ import org.joda.time.Instant;
  * output elements at any time after target time.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PeriodicSequence
     extends PTransform<PCollection<PeriodicSequence.SequenceDefinition>, PCollection<Instant>> {
@@ -178,9 +182,22 @@ public class PeriodicSequence
       return new OutputRangeTracker(restriction);
     }
 
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkState() {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimator<Instant> newWatermarkEstimator(
+        @WatermarkEstimatorState Instant state) {
+
+      return new WatermarkEstimators.Manual(state);
+    }
+
     @ProcessElement
     public ProcessContinuation processElement(
         @Element SequenceDefinition srcElement,
+        ManualWatermarkEstimator<Instant> estimator,
         OutputReceiver<Instant> out,
         RestrictionTracker<OffsetRange, Long> restrictionTracker) {
 
@@ -190,11 +207,14 @@ public class PeriodicSequence
 
       boolean claimSuccess = true;
 
+      estimator.setWatermark(Instant.ofEpochMilli(restriction.getFrom()));
+
       while (claimSuccess && Instant.ofEpochMilli(nextOutput).isBeforeNow()) {
         claimSuccess = restrictionTracker.tryClaim(nextOutput);
         if (claimSuccess) {
           Instant output = Instant.ofEpochMilli(nextOutput);
           out.outputWithTimestamp(output, output);
+          estimator.setWatermark(output);
           nextOutput = nextOutput + interval;
         }
       }

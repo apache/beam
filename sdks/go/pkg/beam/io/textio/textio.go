@@ -109,7 +109,7 @@ func expandFn(ctx context.Context, glob string, emit func(string)) error {
 }
 
 // sizeFn pairs a filename with the size of that file in bytes.
-// TODO(BEAM-11109): Once CreateInitialRestriction supports Context params and
+// TODO(https://github.com/apache/beam/issues/20607): Once CreateInitialRestriction supports Context params and
 // error return values, this can be done in readSdfFn.CreateInitialRestriction.
 func sizeFn(ctx context.Context, filename string) (string, int64, error) {
 	fs, err := filesystem.New(ctx, filename)
@@ -311,7 +311,7 @@ func (w *writeFileFn) ProcessElement(ctx context.Context, _ int, lines func(*str
 func Immediate(s beam.Scope, filename string) (beam.PCollection, error) {
 	s = s.Scope("textio.Immediate")
 
-	var data []interface{}
+	var data []any
 
 	file, err := os.Open(filename)
 	if err != nil {

@@ -28,6 +28,17 @@ github:
     - python
     - sql
     - streaming
+  features:
+    # Enable issue management
+    issues: true
+    # Enable projects for project management boards
+    projects: true
+
+  # Give some users issue triage permissions
+  collaborators:
+    - pcoet
+    - olehborysevych
+    - rshamunov
 
   enabled_merge_buttons:
     squash: true

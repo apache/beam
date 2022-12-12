@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Pipeline } from "../internal/pipeline";
+import { Pipeline } from "../proto/beam_runner_api";
 import { PipelineResult, Runner } from "./runner";
 import { PortableRunner } from "./portable_runner/runner";
 import { PythonService } from "../utils/service";
@@ -31,11 +31,11 @@ export function universalRunner(runnerOptions: {
     ): Promise<PipelineResult> {
       return new PortableRunner(
         runnerOptions as any,
-        new PythonService(
+        PythonService.forModule(
           "apache_beam.runners.portability.local_job_service_main",
           ["--port", "{{PORT}}"]
         )
-      ).runPipeline(pipeline, options);
+      ).runPipeline(pipeline, { directEmbedDockerPython: true, ...options });
     }
   })();
 }

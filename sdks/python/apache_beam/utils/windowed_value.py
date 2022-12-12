@@ -354,6 +354,12 @@ class HomogeneousWindowedBatch(WindowedBatch):
     for value in explode_fn(self._wv.value):
       yield self._wv.with_value(value)
 
+  def as_empty_windowed_value(self):
+    """Get a single WindowedValue with identical windowing information to this
+    HomogeneousWindowedBatch, but with value=None. Useful for re-using APIs that
+    pull windowing information from a WindowedValue."""
+    return self._wv.with_value(None)
+
   def __eq__(self, other):
     if isinstance(other, HomogeneousWindowedBatch):
       return self._wv == other._wv
@@ -361,6 +367,11 @@ class HomogeneousWindowedBatch(WindowedBatch):
 
   def __hash__(self):
     return hash(self._wv)
+
+  @staticmethod
+  def from_batch_and_windowed_value(
+      *, batch, windowed_value: WindowedValue) -> 'WindowedBatch':
+    return HomogeneousWindowedBatch(windowed_value.with_value(batch))
 
   @staticmethod
   def from_windowed_values(

@@ -25,7 +25,7 @@ The samples on this page show you common pipeline configurations. For more infor
 
 Use the `ValueProvider` interface to access runtime parameters after completing a pipeline job.
 
-You can use the `ValueProvider` interface to pass runtime parameters to your pipeline, but you can only log the parameters from within the the Beam DAG. A solution is to add a pipeline [branch](/documentation/programming-guide/#applying-transforms) with a `DoFn` that processes a placeholder value and then logs the runtime parameters:
+You can use the `ValueProvider` interface to pass runtime parameters to your pipeline, but you can only log the parameters from within the Beam DAG. A solution is to add a pipeline [branch](/documentation/programming-guide/#applying-transforms) with a `DoFn` that processes a placeholder value and then logs the runtime parameters:
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" AccessingValueProviderInfoAfterRunSnip1 >}}

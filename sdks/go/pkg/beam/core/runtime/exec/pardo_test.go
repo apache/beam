@@ -50,9 +50,9 @@ func sumFn(n int, a int, b []int, c func(*int) bool, d func() func(*int) bool, e
 	return n
 }
 
-// TestParDo verifies that the ParDo node works correctly for side inputs and emitters. It uses a special
-// dofn that uses all forms of sideinput.
-func TestParDo(t *testing.T) {
+// TestParDo_IterableSideInputsAndEmitters verifies that the ParDo node works correctly for side inputs and emitters.
+// It uses a special dofn that uses all forms of iterable sideinput.
+func TestParDo_IterableSideInputsAndEmitters(t *testing.T) {
 	fn, err := graph.NewDoFn(sumFn)
 	if err != nil {
 		t.Fatalf("invalid function: %v", err)
@@ -99,6 +99,49 @@ func TestParDo(t *testing.T) {
 	expectedSum := makeValues(45, 45, 45)
 	if !equalList(sum.Elements, expectedSum) {
 		t.Errorf("pardo(sumFn) side input = %v, want %v", extractValues(sum.Elements...), extractValues(expectedSum...))
+	}
+}
+
+func shortFn(n int, iter func(*int) bool, emit func(int)) {
+	var i int
+	iter(&i)
+	emit(i + n)
+}
+
+// TestParDo_ShortGBK verifies that the ParDo node works correctly for short read GBKs.
+func TestParDo_ShortGBK(t *testing.T) {
+	fn, err := graph.NewDoFn(shortFn)
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+
+	g := graph.New()
+	nN := g.NewNode(typex.NewCoGBK(typex.New(reflectx.Int), typex.New(reflectx.Int)), window.DefaultWindowingStrategy(), true)
+
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
+	if err != nil {
+		t.Fatalf("invalid pardo: %v", err)
+	}
+
+	short := &CaptureNode{UID: 2}
+	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{short}, Side: []SideInputAdapter{}}
+	n := &FixedRoot{UID: 4, Elements: makeKeyedInput(42, 10, 20, 30), Out: pardo}
+
+	p, err := NewPlan("a", []Unit{n, pardo, short})
+	if err != nil {
+		t.Fatalf("failed to construct plan: %v", err)
+	}
+
+	if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if err := p.Down(context.Background()); err != nil {
+		t.Fatalf("down failed: %v", err)
+	}
+
+	expected := makeValues(52)
+	if !equalList(short.Elements, expected) {
+		t.Errorf("pardo(sumFn) = %v, want %v", extractValues(short.Elements...), extractValues(expected...))
 	}
 }
 
@@ -174,21 +217,21 @@ func TestParDo_WindowObservation(t *testing.T) {
 func TestProcessSingleWindow_withOutputs(t *testing.T) {
 	tests := []struct {
 		name           string
-		inputFn        interface{}
-		input          []interface{}
-		expectedOutput []interface{}
+		inputFn        any
+		input          []any
+		expectedOutput []any
 	}{
 		{
 			"forwarding case",
 			func(a string) (string, error) { return a, nil },
-			[]interface{}{"a", "b", "c"},
-			[]interface{}{"a", "b", "c"},
+			[]any{"a", "b", "c"},
+			[]any{"a", "b", "c"},
 		},
 		{
 			"continuation case",
 			func(a string) (string, sdf.ProcessContinuation, error) { return a, sdf.StopProcessing(), nil },
-			[]interface{}{"a", "b", "c"},
-			[]interface{}{"a", "b", "c"},
+			[]any{"a", "b", "c"},
+			[]any{"a", "b", "c"},
 		},
 	}
 	for _, test := range tests {
@@ -305,7 +348,7 @@ func TestProcessSingleWindow_errorCase(t *testing.T) {
 	}
 }
 
-func makeInputsWithUnfinishedRestrictions(values ...interface{}) []MainInput {
+func makeInputsWithUnfinishedRestrictions(values ...any) []MainInput {
 	initial := makeInput(values...)
 	var restrictedIns []MainInput
 	for _, mainIn := range initial {
@@ -368,7 +411,7 @@ func (fn *noReturnSplittable) ProcessElement(rt *sdf.LockRTracker, a string, emi
 func TestProcessSingleWindow_dataLossCase(t *testing.T) {
 	tests := []struct {
 		name    string
-		inputFn interface{}
+		inputFn any
 		input   *MainInput
 	}{
 		{

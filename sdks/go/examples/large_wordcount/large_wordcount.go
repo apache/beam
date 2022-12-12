@@ -30,18 +30,18 @@
 //
 // New Concepts:
 //
-//   1. Using a SplittableDoFn transform to read the IOs.
-//   2. Using a Map Side Input to access values for specific keys.
-//   3. Testing your Pipeline via passert and metrics, using Go testing tools.
+//  1. Using a SplittableDoFn transform to read the IOs.
+//  2. Using a Map Side Input to access values for specific keys.
+//  3. Testing your Pipeline via passert and metrics, using Go testing tools.
 //
 // This example will not be enumerating concepts, but will document them as they
 // appear. There may be repetition from previous examples.
 //
 // To change the runner, specify:
 //
-//     --runner=YOUR_SELECTED_RUNNER
+//	--runner=YOUR_SELECTED_RUNNER
 //
-// The input file defaults to a public data set containing the text of of King
+// The input file defaults to a public data set containing the text of King
 // Lear, by William Shakespeare. You can override it and choose your own input
 // with --input.
 package main
@@ -50,7 +50,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -61,6 +60,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
@@ -87,13 +87,18 @@ var (
 // All DoFns and user types used as PCollection elements must be registered with beam.
 
 func init() {
-	beam.RegisterFunction(extractFn)
-	beam.RegisterFunction(formatFn)
-	beam.RegisterType(reflect.TypeOf((*makeMetakeys)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*metakey)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*pairWithMetakey)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*writeTempFiles)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*renameFiles)(nil)).Elem())
+	register.Function2x0(extractFn)
+	register.Function2x1(formatFn)
+	register.DoFn4x1[context.Context, []byte, func(*string) bool, func(metakey), error](&makeMetakeys{})
+
+	register.DoFn4x0[context.Context, string, func(*metakey) bool, func(metakey, string)](&pairWithMetakey{})
+	register.DoFn5x1[context.Context, metakey, func(*string) bool, func(string) func(*int) bool, func(string), error](&writeTempFiles{})
+	register.DoFn4x1[context.Context, metakey, func(*string) bool, func(string), error](&renameFiles{})
+
+	register.Emitter1[metakey]()
+	register.Emitter2[metakey, string]()
+	register.Iter1[*string]()
+	register.Iter1[*metakey]()
 }
 
 // The below transforms are identical to the wordcount versions. If this was

@@ -43,8 +43,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
@@ -60,7 +60,7 @@ import org.junit.runners.JUnit4;
 /** Test External transforms. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ExternalTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();

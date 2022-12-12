@@ -27,6 +27,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.setD
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.elasticsearch.client.RestClient;
 import org.junit.AfterClass;
@@ -81,6 +84,14 @@ public class ElasticsearchIOTest implements Serializable {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
     createIndex(elasticsearchIOTestCommon.restClient, getEsIndex());
+    elasticsearchIOTestCommon.testSizes();
+  }
+
+  @Test
+  public void testSizesWithAlias() throws Exception {
+    // need to create the index using the helper method (not create it at first insertion)
+    // for the indexSettings() to be run
+    createIndex(elasticsearchIOTestCommon.restClient, getEsIndex(), true);
     elasticsearchIOTestCommon.testSizes();
   }
 
@@ -272,5 +283,19 @@ public class ElasticsearchIOTest implements Serializable {
   public void testPDone() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testPipelineDone();
+  }
+
+  @Test
+  public void testValidSSLAndUsernameConfiguration() throws Exception {
+    URL fileUrl = getClass().getClassLoader().getResource("clientkeystore");
+    Path filePath = Paths.get(fileUrl.toURI());
+    elasticsearchIOTestCommon.testValidSSLAndUsernameConfiguration(
+        filePath.toAbsolutePath().toString());
+  }
+
+  @Test
+  public void testWriteWindowPreservation() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWindowPreservation();
   }
 }

@@ -33,8 +33,7 @@
    height: 96px;
    width: 100%;
    align-items: center;
-   //usually 30px, change for 0 until summit is over and banner is removed
-   margin-bottom: 0;
+   margin-bottom: 30px;
    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.06);
    background-color: $color-white;
    z-index: 10000; // just to make sure that navbar always on top of other elements

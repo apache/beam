@@ -149,7 +149,7 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class DynamoDBIO {
   public static <T> Read<T> read() {

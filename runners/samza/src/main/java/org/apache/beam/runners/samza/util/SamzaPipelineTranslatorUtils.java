@@ -26,7 +26,7 @@ import org.apache.beam.sdk.values.PCollection;
 
 /** Utilities for pipeline translation. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public final class SamzaPipelineTranslatorUtils {
   private SamzaPipelineTranslatorUtils() {}
@@ -46,8 +46,8 @@ public final class SamzaPipelineTranslatorUtils {
   /**
    * Escape the non-alphabet chars in the name so we can create a physical stream out of it.
    *
-   * <p>This escape will replace ".", "(" and "/" as "-", and then remove all the other
-   * non-alphabetic characters.
+   * <p>This escape will replace any non-alphanumeric characters other than "-" and "_" with "_"
+   * including whitespace.
    */
   public static String escape(String name) {
     return name.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1").replaceAll("[^A-Za-z0-9_-]", "_");

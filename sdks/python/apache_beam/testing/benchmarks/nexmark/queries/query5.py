@@ -51,7 +51,8 @@ def load(events, metadata=None, pipeline_options=None):
       | 'bid_max_count' >> beam.CombineGlobally(
           MostBidCombineFn()).without_defaults()
       # TODO(leiyiz): fanout with sliding window produces duplicated results,
-      #   uncomment after it is fixed [BEAM-10617]
+      #   uncomment after it is fixed
+      #   [https://github.com/apache/beam/issues/20528]
       # .with_fanout(metadata.get('fanout'))
       | beam.FlatMap(
           lambda auc_count: [{

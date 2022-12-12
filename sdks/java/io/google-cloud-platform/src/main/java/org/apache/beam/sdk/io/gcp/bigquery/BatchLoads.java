@@ -21,7 +21,9 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLoc
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -33,6 +35,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
@@ -73,6 +76,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -112,6 +116,10 @@ class BatchLoads<DestinationT, ElementT>
   // If user triggering is supplied, we will trigger the file write after this many records are
   // written.
   static final int FILE_TRIGGERING_RECORD_COUNT = 500000;
+  // If user triggering is supplied, we will trigger the file write after this many bytes are
+  // written.
+  static final int DEFAULT_FILE_TRIGGERING_BYTE_COUNT =
+      AsyncWriteChannelOptions.UPLOAD_CHUNK_SIZE_DEFAULT; // 64MiB as of now
 
   // If using auto-sharding for unbounded data, we batch the records before triggering file write
   // to avoid generating too many small files.
@@ -145,8 +153,8 @@ class BatchLoads<DestinationT, ElementT>
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private final @Nullable String kmsKey;
-  private final boolean clusteringEnabled;
   private final String tempDataset;
+  private Coder<TableDestination> tableDestinationCoder;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -185,9 +193,10 @@ class BatchLoads<DestinationT, ElementT>
     this.elementCoder = elementCoder;
     this.kmsKey = kmsKey;
     this.rowWriterFactory = rowWriterFactory;
-    this.clusteringEnabled = clusteringEnabled;
     schemaUpdateOptions = Collections.emptySet();
     this.tempDataset = tempDataset;
+    this.tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
   }
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
@@ -354,7 +363,7 @@ class BatchLoads<DestinationT, ElementT>
                             rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
-    PCollection<KV<TableDestination, WriteTables.Result>> tempTables =
+    PCollection<KV<DestinationT, WriteTables.Result>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), tempLoadJobIdPrefixView);
 
     List<PCollectionView<?>> sideInputsForUpdateSchema =
@@ -366,7 +375,7 @@ class BatchLoads<DestinationT, ElementT>
             // Now that the load job has happened, we want the rename to happen immediately.
             .apply(
                 "Window Into Global Windows",
-                Window.<KV<TableDestination, WriteTables.Result>>into(new GlobalWindows())
+                Window.<KV<DestinationT, WriteTables.Result>>into(new GlobalWindows())
                     .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
             .apply("Add Void Key", WithKeys.of((Void) null))
             .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
@@ -374,17 +383,14 @@ class BatchLoads<DestinationT, ElementT>
             .apply("Extract Values", Values.create())
             .apply(
                 ParDo.of(
-                        new UpdateSchemaDestination(
+                        new UpdateSchemaDestination<DestinationT>(
                             bigQueryServices,
                             tempLoadJobIdPrefixView,
                             loadJobProjectId,
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
-                            ignoreUnknownValues,
                             kmsKey,
-                            rowWriterFactory.getSourceFormat(),
-                            useAvroLogicalTypes,
                             schemaUpdateOptions,
                             dynamicDestinations))
                     .withSideInputs(sideInputsForUpdateSchema))
@@ -473,17 +479,14 @@ class BatchLoads<DestinationT, ElementT>
             .apply("ReifyRenameInput", new ReifyAsIterable<>())
             .apply(
                 ParDo.of(
-                        new UpdateSchemaDestination(
+                        new UpdateSchemaDestination<DestinationT>(
                             bigQueryServices,
                             tempLoadJobIdPrefixView,
                             loadJobProjectId,
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
-                            ignoreUnknownValues,
                             kmsKey,
-                            rowWriterFactory.getSourceFormat(),
-                            useAvroLogicalTypes,
                             schemaUpdateOptions,
                             dynamicDestinations))
                     .withSideInputs(sideInputsForUpdateSchema))
@@ -498,7 +501,8 @@ class BatchLoads<DestinationT, ElementT>
                             maxRetryJobs,
                             kmsKey,
                             loadJobProjectId))
-                    .withSideInputs(copyJobIdPrefixView));
+                    .withSideInputs(copyJobIdPrefixView))
+            .setCoder(tableDestinationCoder);
 
     PCollectionList<TableDestination> allSuccessfulWrites =
         PCollectionList.of(successfulSinglePartitionWrites).and(successfulMultiPartitionWrites);
@@ -644,6 +648,10 @@ class BatchLoads<DestinationT, ElementT>
         options.getMaxBufferingDurationMilliSec() > 0
             ? Duration.millis(options.getMaxBufferingDurationMilliSec())
             : FILE_TRIGGERING_BATCHING_DURATION;
+    GcsOptions gcsOptions = input.getPipeline().getOptions().as(GcsOptions.class);
+    int byteSize =
+        MoreObjects.firstNonNull(
+            gcsOptions.getGcsUploadBufferSizeBytes(), DEFAULT_FILE_TRIGGERING_BYTE_COUNT);
     // In contrast to fixed sharding with user trigger, here we use a global window with default
     // trigger and rely on GroupIntoBatches transform to group, batch and at the same time
     // parallelize properly. We also ensure that the files are written if a threshold number of
@@ -652,6 +660,7 @@ class BatchLoads<DestinationT, ElementT>
     return input
         .apply(
             GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                .withByteSize(byteSize)
                 .withMaxBufferingDuration(maxBufferingDuration)
                 .withShardedKey())
         .setCoder(
@@ -708,7 +717,7 @@ class BatchLoads<DestinationT, ElementT>
   }
 
   // Take in a list of files and write them to temporary tables.
-  private PCollection<KV<TableDestination, WriteTables.Result>> writeTempTables(
+  private PCollection<KV<DestinationT, WriteTables.Result>> writeTempTables(
       PCollection<KV<ShardedKey<DestinationT>, WritePartition.Result>> input,
       PCollectionView<String> jobIdTokenView) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList(jobIdTokenView);
@@ -719,8 +728,17 @@ class BatchLoads<DestinationT, ElementT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
 
-    Coder<TableDestination> tableDestinationCoder =
-        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
+    // If the final destination table exists already (and we're appending to it), then the temp
+    // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
+    // with one that makes this happen.
+    // In the case schemaUpdateOptions are specified by the user, matching does not occur in order
+    // to respect those options.
+    DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
+    if (schemaUpdateOptions.isEmpty()) {
+      destinations =
+          DynamicDestinationsHelpers.matchTableDynamicDestinations(
+              dynamicDestinations, bigQueryServices);
+    }
 
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
@@ -740,7 +758,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                dynamicDestinations,
+                destinations,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
@@ -748,10 +766,11 @@ class BatchLoads<DestinationT, ElementT>
                 rowWriterFactory.getSourceFormat(),
                 useAvroLogicalTypes,
                 // Note that we can't pass through the schema update options when creating temporary
-                // tables. They also shouldn't be needed. See BEAM-12482 for additional details.
+                // tables. They also shouldn't be needed. See
+                // https://github.com/apache/beam/issues/21105 for additional details.
                 schemaUpdateOptions,
                 tempDataset))
-        .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
+        .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -762,15 +781,12 @@ class BatchLoads<DestinationT, ElementT>
     List<PCollectionView<?>> sideInputs = Lists.newArrayList(loadJobIdPrefixView);
     sideInputs.addAll(dynamicDestinations.getSideInputs());
 
-    Coder<TableDestination> tableDestinationCoder =
-        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
-
     Coder<KV<ShardedKey<DestinationT>, WritePartition.Result>> partitionsCoder =
         KvCoder.of(
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
     // Write single partition to final table
-    PCollection<KV<TableDestination, WriteTables.Result>> successfulWrites =
+    PCollection<KV<DestinationT, WriteTables.Result>> successfulWrites =
         input
             .setCoder(partitionsCoder)
             // Reshuffle will distribute this among multiple workers, and also guard against
@@ -794,9 +810,35 @@ class BatchLoads<DestinationT, ElementT>
                     useAvroLogicalTypes,
                     schemaUpdateOptions,
                     null))
-            .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
+            .setCoder(KvCoder.of(destinationCoder, WriteTables.ResultCoder.INSTANCE));
 
-    return successfulWrites.apply(Keys.create());
+    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    String defaultProjectId =
+        options.getBigQueryProject() == null ? options.getProject() : options.getBigQueryProject();
+
+    return successfulWrites
+        .apply(Keys.create())
+        .apply(
+            "Convert to TableDestinations",
+            ParDo.of(
+                    new DoFn<DestinationT, TableDestination>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        dynamicDestinations.setSideInputAccessorFromProcessContext(c);
+                        TableDestination tableDestination =
+                            dynamicDestinations.getTable(c.element());
+                        TableReference tableReference = tableDestination.getTableReference();
+
+                        // get project ID from options if it's not included in the table reference
+                        if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+                          tableReference.setProjectId(defaultProjectId);
+                          tableDestination = tableDestination.withTableReference(tableReference);
+                        }
+                        c.output(tableDestination);
+                      }
+                    })
+                .withSideInputs(sideInputs))
+        .setCoder(tableDestinationCoder);
   }
 
   private WriteResult writeResult(Pipeline p, PCollection<TableDestination> successfulWrites) {

@@ -27,6 +27,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,14 +39,15 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({"nullness", "rawtypes"})
-public class UpdateSchemaDestination
+public class UpdateSchemaDestination<DestinationT>
     extends DoFn<
-        Iterable<KV<TableDestination, WriteTables.Result>>,
+        Iterable<KV<DestinationT, WriteTables.Result>>,
         Iterable<KV<TableDestination, WriteTables.Result>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UpdateSchemaDestination.class);
@@ -53,17 +55,13 @@ public class UpdateSchemaDestination
   private final PCollectionView<String> loadJobIdPrefixView;
   private final ValueProvider<String> loadJobProjectId;
   private transient @Nullable DatasetService datasetService;
-
   private final int maxRetryJobs;
   private final @Nullable String kmsKey;
-  private final String sourceFormat;
-  private final boolean useAvroLogicalTypes;
   private @Nullable BigQueryServices.JobService jobService;
-  private final boolean ignoreUnknownValues;
   private final Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions;
-  private BigQueryIO.Write.WriteDisposition writeDisposition;
-  private BigQueryIO.Write.CreateDisposition createDisposition;
-  private DynamicDestinations dynamicDestinations;
+  private final BigQueryIO.Write.WriteDisposition writeDisposition;
+  private final BigQueryIO.Write.CreateDisposition createDisposition;
+  private final DynamicDestinations dynamicDestinations;
 
   private static class PendingJobData {
     final BigQueryHelpers.PendingJob retryJob;
@@ -80,7 +78,7 @@ public class UpdateSchemaDestination
     }
   }
 
-  private List<UpdateSchemaDestination.PendingJobData> pendingJobs = Lists.newArrayList();
+  private final List<UpdateSchemaDestination.PendingJobData> pendingJobs = Lists.newArrayList();
 
   public UpdateSchemaDestination(
       BigQueryServices bqServices,
@@ -89,20 +87,14 @@ public class UpdateSchemaDestination
       BigQueryIO.Write.WriteDisposition writeDisposition,
       BigQueryIO.Write.CreateDisposition createDisposition,
       int maxRetryJobs,
-      boolean ignoreUnknownValues,
       @Nullable String kmsKey,
-      String sourceFormat,
-      boolean useAvroLogicalTypes,
       Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions,
       DynamicDestinations dynamicDestinations) {
     this.loadJobProjectId = loadJobProjectId;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
     this.bqServices = bqServices;
     this.maxRetryJobs = maxRetryJobs;
-    this.ignoreUnknownValues = ignoreUnknownValues;
     this.kmsKey = kmsKey;
-    this.sourceFormat = sourceFormat;
-    this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
     this.createDisposition = createDisposition;
     this.writeDisposition = writeDisposition;
@@ -114,21 +106,37 @@ public class UpdateSchemaDestination
     pendingJobs.clear();
   }
 
+  TableDestination getTableWithDefaultProject(DestinationT destination, BigQueryOptions options) {
+    TableDestination tableDestination = dynamicDestinations.getTable(destination);
+    TableReference tableReference = tableDestination.getTableReference();
+
+    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      tableReference.setProjectId(
+          options.getBigQueryProject() == null
+              ? options.getProject()
+              : options.getBigQueryProject());
+      tableDestination = tableDestination.withTableReference(tableReference);
+    }
+
+    return tableDestination;
+  }
+
   @ProcessElement
   public void processElement(
-      @Element Iterable<KV<TableDestination, WriteTables.Result>> element,
+      @Element Iterable<KV<DestinationT, WriteTables.Result>> element,
       ProcessContext context,
       BoundedWindow window)
       throws IOException {
-    Object destination = null;
-    for (KV<TableDestination, WriteTables.Result> entry : element) {
+    DestinationT destination = null;
+    BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
+    for (KV<DestinationT, WriteTables.Result> entry : element) {
       destination = entry.getKey();
       if (destination != null) {
         break;
       }
     }
     if (destination != null) {
-      TableDestination tableDestination = dynamicDestinations.getTable(destination);
+      TableDestination tableDestination = getTableWithDefaultProject(destination, options);
       TableSchema schema = dynamicDestinations.getSchema(destination);
       TableReference tableReference = tableDestination.getTableReference();
       String jobIdPrefix =
@@ -153,8 +161,13 @@ public class UpdateSchemaDestination
       if (updateSchemaDestinationJob != null) {
         pendingJobs.add(new PendingJobData(updateSchemaDestinationJob, tableDestination, window));
       }
-      context.output(element);
     }
+    List<KV<TableDestination, WriteTables.Result>> tableDestinations = new ArrayList<>();
+    for (KV<DestinationT, WriteTables.Result> entry : element) {
+      tableDestinations.add(
+          KV.of(getTableWithDefaultProject(destination, options), entry.getValue()));
+    }
+    context.output(tableDestinations);
   }
 
   @Teardown
@@ -217,14 +230,10 @@ public class UpdateSchemaDestination
             .setSchema(schema)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
-            .setSourceFormat(sourceFormat)
-            .setIgnoreUnknownValues(ignoreUnknownValues)
-            .setUseAvroLogicalTypes(useAvroLogicalTypes);
+            .setSourceFormat("NEWLINE_DELIMITED_JSON");
     if (schemaUpdateOptions != null) {
       List<String> options =
-          schemaUpdateOptions.stream()
-              .map(Enum<BigQueryIO.Write.SchemaUpdateOption>::name)
-              .collect(Collectors.toList());
+          schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
       loadConfig.setSchemaUpdateOptions(options);
     }
     if (!loadConfig
@@ -235,7 +244,7 @@ public class UpdateSchemaDestination
             .equals(BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString())) {
       return null;
     }
-    Table destinationTable = null;
+    final Table destinationTable;
     try {
       destinationTable = datasetService.getTable(tableReference);
       if (destinationTable == null) {

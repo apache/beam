@@ -52,12 +52,31 @@ enum PrecompiledObjectType {
   PRECOMPILED_OBJECT_TYPE_UNIT_TEST = 3;
 }
 
+enum Complexity {
+  COMPLEXITY_UNSPECIFIED = 0;
+  COMPLEXITY_BASIC = 1;
+  COMPLEXITY_MEDIUM = 2;
+  COMPLEXITY_ADVANCED = 3;
+}
+
+enum EmulatorType {
+  EMULATOR_TYPE_UNSPECIFIED = 0;
+  EMULATOR_TYPE_KAFKA = 1;
+}
+
+message Dataset {
+  EmulatorType type = 1;
+  map<string, string> options = 2;
+  string dataset_path = 3;
+}
+
 // RunCodeRequest represents a code text and options of SDK which executes the code.
 message RunCodeRequest {
   string code = 1;
   Sdk sdk = 2;
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
+  repeated Dataset datasets = 4;
 }
 
 // RunCodeResponse contains information of the pipeline uuid.
@@ -166,6 +185,10 @@ message PrecompiledObject{
   bool multifile = 7;
   int32 context_line = 8;
   bool default_example = 9;
+  Sdk sdk = 10;
+  Complexity complexity = 11;
+  repeated string tags = 12;
+  repeated Dataset datasets = 13;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk
@@ -249,6 +272,42 @@ message GetDefaultPrecompiledObjectResponse {
   PrecompiledObject precompiled_object = 1;
 }
 
+// SnippetFile represents the snippet file content and its name to save.
+message SnippetFile {
+  string name = 1;
+  string content = 2;
+  bool is_main = 3;
+}
+
+// SaveSnippetRequest represents a snippet content and options of SDK which executes the snippet.
+message SaveSnippetRequest {
+  repeated SnippetFile files = 1;
+  Sdk sdk = 2;
+  // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
+  string pipeline_options = 3;
+  Complexity complexity = 4;
+  string persistence_key = 5;
+}
+
+// SaveSnippetResponse contains information of the generated ID.
+message SaveSnippetResponse {
+  string id = 1;
+}
+
+// GetSnippetRequest represents the generated ID.
+message GetSnippetRequest {
+  string id = 1;
+}
+
+// GetSnippetResponse contains information of a snippet content and options of SDK which executes the snippet.
+message GetSnippetResponse {
+  repeated SnippetFile files = 1;
+  Sdk sdk = 2;
+  // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
+  string pipeline_options = 3;
+  Complexity complexity = 4;
+}
+
 service PlaygroundService {
 
   // Submit the job for an execution and get the pipeline uuid.
@@ -281,10 +340,10 @@ service PlaygroundService {
   // Cancel code processing
   rpc Cancel(CancelRequest) returns (CancelResponse);
 
-  // Get all precompiled objects from the cloud storage.
+  // Get all precompiled objects from the cloud datastore.
   rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
 
-  // Get precompiled object from the cloud storage.
+  // Get precompiled object from the cloud datastore.
   rpc GetPrecompiledObject(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectResponse);
 
   // Get the code of an PrecompiledObject.
@@ -301,4 +360,10 @@ service PlaygroundService {
 
   // Get the default precompile object for the sdk.
   rpc GetDefaultPrecompiledObject(GetDefaultPrecompiledObjectRequest) returns (GetDefaultPrecompiledObjectResponse);
+
+  // Save the snippet required for the sharing.
+  rpc SaveSnippet(SaveSnippetRequest) returns (SaveSnippetResponse);
+
+  // Get the snippet of playground.
+  rpc GetSnippet(GetSnippetRequest) returns (GetSnippetResponse);
 }

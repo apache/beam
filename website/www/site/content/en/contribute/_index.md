@@ -51,7 +51,7 @@ Here’s a list of things you can do to get started contributing:
     <td class="list-text-size-md">
       <ul>
         <li>Subscribe to our <a href="https://beam.apache.org/community/contact-us/">mailing lists</a> (<a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> and <a href="mailto:dev@beam.apache.org">user@beam.apache.org</a>).</li>
-        <li>Stay in the loop of our <a href="https://issues.apache.org/jira/projects/BEAM/issues">Jira product backlog</a>, participate in discussions to brainstorm solutions, and help the community solve their mailing list questions.</li>
+        <li>Stay in the loop of our <a href="https://github.com/apache/beam/issues">Issues product backlog</a>, participate in discussions to brainstorm solutions, and help the community solve their mailing list questions.</li>
       </ul>
     </td>
   </tr>
@@ -59,7 +59,7 @@ Here’s a list of things you can do to get started contributing:
     <td>File a bug</td>
     <td class="list-text-size-md">
       <ol class="no-bullet">
-        <li>Create a GitHub issue and mark it as a bug</li>
+        <li>Create a <a href="https://github.com/apache/beam/issues">GitHub issue</a> and mark it as a bug</li>
         <br><span class="text--active">OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Bug] &lt;bug summary&gt; and include as much detail as possible.</li>
       </ol>
@@ -69,10 +69,20 @@ Here’s a list of things you can do to get started contributing:
     <td>Propose a feature</td>
     <td class="list-text-size-md">
       <ol class="no-bullet">
-        <li>Create a GitHub issue and mark it as a feature request</li>
+        <li>Create a <a href="https://github.com/apache/beam/issues">GitHub issue</a> and mark it as a feature request</li>
         <br><span class="text--active">OR</span><br><br>
         <li>Send an email to <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a> with subject: [Feature Proposal] &lt;your idea&gt;.</li>
       </ol>
+    </td>
+  </tr>
+  <tr>
+    <td>Fix an open issue</td>
+    <td class="list-text-size-md">
+      <ul>
+        <li>Comment “.take-issue” on the <a href="https://github.com/apache/beam/issues">issue you'd like to work on</a>. This will cause the issue to be assigned to you.</li>
+        <li>If appropriate, make your change and open a <a href=https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork>Pull Request</a>.</li>
+        <li>Comment “.close-issue” to close the issue once all work has been completed.</li>
+      </ul>
     </td>
   </tr>
   <tr>
@@ -86,7 +96,7 @@ Here’s a list of things you can do to get started contributing:
     <td class="list-text-size-md">
       <ul>
         <li>Follow the website <a href="https://beam.apache.org/contribute/get-started-contributing/">Contribution Guide</a> to make changes yourself.</li>
-        <li>Check our <a href="https://issues.apache.org/jira/browse/BEAM-13229?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20website%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">Website Backlog</a> in Jira to find rooms for improvement, or propose one.</li>
+        <li>Check our <a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Awebsite">Website Backlog</a> in GitHub to find rooms for improvement, or propose one.</li>
       </ul>
     </td>
   </tr>

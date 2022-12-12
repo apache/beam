@@ -27,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/jsonx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
@@ -325,7 +326,7 @@ func encodeUserFn(u *funcx.Fn) (*v1pb.UserFn, error) {
 // decodeUserFn receives the wire representation of a Beam user function,
 // extracting the preprocessed representation, expanding all inputs and outputs
 // of the function.
-func decodeUserFn(ref *v1pb.UserFn) (interface{}, error) {
+func decodeUserFn(ref *v1pb.UserFn) (any, error) {
 	t, err := decodeType(ref.GetType())
 	if err != nil {
 		return nil, err
@@ -517,6 +518,8 @@ func tryEncodeSpecial(t reflect.Type) (v1pb.Type_Special, bool) {
 		return v1pb.Type_WINDOW, true
 	case typex.BundleFinalizationType:
 		return v1pb.Type_BUNDLEFINALIZATION, true
+	case state.ProviderType:
+		return v1pb.Type_STATEPROVIDER, true
 	case typex.KVType:
 		return v1pb.Type_KV, true
 	case typex.CoGBKType:
@@ -681,6 +684,8 @@ func decodeSpecial(s v1pb.Type_Special) (reflect.Type, error) {
 		return typex.WindowType, nil
 	case v1pb.Type_BUNDLEFINALIZATION:
 		return typex.BundleFinalizationType, nil
+	case v1pb.Type_STATEPROVIDER:
+		return state.ProviderType, nil
 	case v1pb.Type_KV:
 		return typex.KVType, nil
 	case v1pb.Type_COGBK:

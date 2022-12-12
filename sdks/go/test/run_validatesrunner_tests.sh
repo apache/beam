@@ -84,13 +84,14 @@ RUNNER=portable
 
 # Default timeout. This timeout is applied per-package, as tests in different
 # packages are executed in parallel.
-TIMEOUT=2h
+TIMEOUT=3h
 
 # Default limit on simultaneous test binaries/packages being executed.
 SIMULTANEOUS=3
 
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
+GCS_SUBFOLDER="test$RANDOM"
 
 # Project for the container and integration test
 PROJECT=apache-beam-testing
@@ -233,6 +234,11 @@ case $key in
         ;;
     --pipeline_opts)
         PIPELINE_OPTS="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --java11_home)
+        JAVA11_HOME="$2"
         shift # past argument
         shift # past value
         ;;
@@ -381,7 +387,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
       JAVA_TAG=$(date +%Y%m%d-%H%M%S)
       JAVA_CONTAINER=us.gcr.io/$PROJECT/$USER/beam_java11_sdk
       echo "Using container $JAVA_CONTAINER for cross-language java transforms"
-      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG
+      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG -Pjava11Home=$JAVA11_HOME
 
       # Verify it exists
       docker images | grep $JAVA_TAG
@@ -409,8 +415,8 @@ ARGS="$ARGS --project=$DATAFLOW_PROJECT"
 ARGS="$ARGS --region=$REGION"
 ARGS="$ARGS --environment_type=DOCKER"
 ARGS="$ARGS --environment_config=$CONTAINER:$TAG"
-ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test"
-ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test"
+ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test/$GCS_SUBFOLDER"
+ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test/$GCS_SUBFOLDER"
 ARGS="$ARGS --dataflow_worker_jar=$DATAFLOW_WORKER_JAR"
 ARGS="$ARGS --endpoint=$ENDPOINT"
 if [[ -n "$TEST_EXPANSION_ADDR" ]]; then

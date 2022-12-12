@@ -27,12 +27,13 @@ import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
 /** Utilities for working with Coders. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class CoderUtils {
   private CoderUtils() {} // Non-instantiable
@@ -108,6 +109,29 @@ public final class CoderUtils {
   }
 
   /**
+   * Decodes a value from the given ByteString, validating that no bytes are remaining once decoded.
+   */
+  public static <T> T decodeFromByteString(Coder<T> coder, ByteString encodedValue)
+      throws IOException {
+    return decodeFromByteString(coder, encodedValue, Coder.Context.OUTER);
+  }
+
+  /**
+   * Decodes a value from the given ByteString using a given context, validating that no bytes are
+   * remaining once decoded.
+   */
+  public static <T> T decodeFromByteString(
+      Coder<T> coder, ByteString encodedValue, Coder.Context context) throws IOException {
+    InputStream stream = encodedValue.newInput();
+    T result = coder.decode(stream, context);
+    if (stream.available() != 0) {
+      throw new CoderException(
+          stream.available() + " unexpected extra bytes after decoding " + result);
+    }
+    return result;
+  }
+
+  /**
    * Decodes a value from the given {@code stream}, which should be a stream that never throws
    * {@code IOException}, such as {@code ByteArrayInputStream} or {@link
    * ExposedByteArrayInputStream}.
@@ -168,7 +192,7 @@ public final class CoderUtils {
    * {@code T.class}.
    */
   @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
     "unchecked"
   })
   public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {

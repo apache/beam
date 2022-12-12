@@ -49,17 +49,10 @@ In addition to this, Beam community members might identify other critical depend
 
 These kind of urgently required upgrades might not get automatically picked up by the Jenkins job for few months. So Beam community has to act to identify such issues and perform upgrades early.
 
-## JIRA Issue Automation
+## Dependabot Issue Automation
 
-In order to track the dependency upgrade process, JIRA tickets will be created per significant outdated dependency based on the report. A bot named *Beam Jira Bot* was created for managing JIRA issues. Beam community agrees on the following policies that creates and updates issues.
-* Title (summary) of the issues will be in the format "Beam Dependency Update Request: <dep_name>" where <dep_name> is the dependency artifact name.
-* Issues will be created under the component *"dependencies"*.
-* Owners of dependencies will be notified by tagging the corresponding JIRA IDs mentioned in the ownership files in the issue description. See [Java Dependency Owners](https://github.com/apache/beam/blob/master/ownership/JAVA_DEPENDENCY_OWNERS.yaml) and [Python Dependency Owners](https://github.com/apache/beam/blob/master/ownership/PYTHON_DEPENDENCY_OWNERS.yaml) for current owners for Java SDK and Python SDK dependencies respectively.
-* Automated tool will not create duplicate issues for the same dependency. Instead the tool will look for an existing JIRA when one has to be created for a given dependency and description of the JIRA will be updated with latest information, for example, current version of the dependency.
-* If a Beam community member determines that a given dependency should not be upgraded the corresponding JIRA issue can be closed with a fix version specified.
-* Automated tool will reopen a JIRA for a given dependency when one of following conditions is met:
-  * Next SDK release is for a fix version mentioned in the JIRA.
-  * Six months __and__ three or more minor releases have passed since the JIRA was closed.
+In order to track the dependency upgrade process, Dependabot will automatically raise pull requests to upgrade
+outdated dependencies.
 
 ## Upgrading identified outdated dependencies
 
@@ -73,15 +66,15 @@ __Beam components should define dependencies and their versions at the top level
 
 Components include various Beam runners, IO connectors, etc. Component-level dependency version declarations should only be performed in rare cases and should come with a comment explaining the reasoning for overriding the dependency. For example, dependencies specific to a runner that are unlikely to be utilized by other components might be defined at the runner.
 
-__A significantly outdated dependency (identified manually or through the automated Jenkins job) should result in a JIRA that is a blocker for the next release. Release manager may choose to push the blocker to the subsequent release or downgrade from a blocker.__
+__A significantly outdated dependency (identified manually or through the automated Jenkins job) should result in a issue that is a blocker for the next release. Release manager may choose to push the blocker to the subsequent release or downgrade from a blocker.__
 
-This will be a blocker for next major and minor version releases of Beam. JIRA may be created automatically or manually.
+This will be a blocker for next major and minor version releases of Beam.
 
-For manually identified critical dependency updates, Beam community members should create blocking JIRAs for next release. In addition to this Beam community members may trigger patch releases for any critical dependency fixes that should be made available to users urgently.
+For manually identified critical dependency updates, Beam community members should create blocking Issues for next release. In addition to this Beam community members may trigger patch releases for any critical dependency fixes that should be made available to users urgently.
 
 __Dependency declarations may identify owners that are responsible for upgrading respective dependencies.__
 
-Owners can be mentioned in the yaml files. Blocking JIRAs will be initially assigned to these owners (if available). Release manager may choose to re-assign these JIRAs. A dependency may have more than one declared owner and in this case the JIRA will be assigned to one of the owners mentioned.
+Owners can be mentioned in the yaml files. Blocking Issues will be initially assigned to these owners (if available). Release manager may choose to re-assign these Issues. A dependency may have more than one declared owner and in this case the Issue will be assigned to one of the owners mentioned.
 
 __Dependencies of Java SDK components that may cause issues to other components if leaked should be vendored.__
 

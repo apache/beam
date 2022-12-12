@@ -24,9 +24,12 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
@@ -43,6 +46,11 @@ func (fn *ComputeWordLengthFn) ProcessElement(word string, emit func(int)) {
 // DoFns must be registered with beam.
 func init() {
 	beam.RegisterType(reflect.TypeOf((*ComputeWordLengthFn)(nil)))
+	// 2 inputs and 0 outputs => DoFn2x0
+	// 1 input => Emitter1
+	// Input/output types are included in order in the brackets
+	register.DoFn2x0[string, func(int)](&ComputeWordLengthFn{})
+	register.Emitter1[int]()
 }
 
 // [END model_pardo_pardo]
@@ -67,6 +75,16 @@ func applyWordLenAnon(s beam.Scope, words beam.PCollection) beam.PCollection {
 	return wordLengths
 }
 
+func applyGbk(s beam.Scope, input []stringPair) beam.PCollection {
+	// [START groupbykey]
+	// CreateAndSplit creates and returns a PCollection with <K,V>
+	// from an input slice of stringPair (struct with K, V string fields).
+	pairs := CreateAndSplit(s, input)
+	keyed := beam.GroupByKey(s, pairs)
+	// [END groupbykey]
+	return keyed
+}
+
 // [START cogroupbykey_input_helpers]
 
 type stringPair struct {
@@ -78,9 +96,8 @@ func splitStringPair(e stringPair) (string, string) {
 }
 
 func init() {
-	// Register element types and DoFns.
-	beam.RegisterType(reflect.TypeOf((*stringPair)(nil)).Elem())
-	beam.RegisterFunction(splitStringPair)
+	// Register DoFn.
+	register.Function1x2(splitStringPair)
 }
 
 // CreateAndSplit is a helper function that creates
@@ -202,7 +219,9 @@ func formatCoGBKResults(key string, emailIter, phoneIter func(*string) bool) str
 }
 
 func init() {
-	beam.RegisterFunction(formatCoGBKResults)
+	register.Function3x1(formatCoGBKResults)
+	// 1 input of type string => Iter1[string]
+	register.Iter1[string]()
 }
 
 // [END cogroupbykey_output_helpers]
@@ -256,7 +275,7 @@ func sumInts(a, v int) int {
 }
 
 func init() {
-	beam.RegisterFunction(sumInts)
+	register.Function2x1(sumInts)
 }
 
 func globallySumInts(s beam.Scope, ints beam.PCollection) beam.PCollection {
@@ -276,7 +295,7 @@ func (fn *boundedSum) MergeAccumulators(a, v int) int {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*boundedSum)(nil)))
+	register.Combiner1[int](&boundedSum{})
 }
 
 func globallyBoundedSumInts(s beam.Scope, bound int, ints beam.PCollection) beam.PCollection {
@@ -313,7 +332,7 @@ func (fn *averageFn) ExtractOutput(a averageAccum) float64 {
 }
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*averageFn)(nil)))
+	register.Combiner3[averageAccum, int, float64](&averageFn{})
 }
 
 // [END combine_custom_average]
@@ -370,7 +389,7 @@ func decileFn(student Student) int {
 }
 
 func init() {
-	beam.RegisterFunction(decileFn)
+	register.Function1x1(decileFn)
 }
 
 // [END model_multiple_pcollections_partition_fn]
@@ -417,8 +436,12 @@ func filterWordsBelow(word string, lengthCutOff float64, emitBelowCutoff func(st
 }
 
 func init() {
-	beam.RegisterFunction(filterWordsAbove)
-	beam.RegisterFunction(filterWordsBelow)
+	register.Function3x1(filterWordsAbove)
+	register.Function3x0(filterWordsBelow)
+	// 1 input of type string => Emitter1[string]
+	register.Emitter1[string]()
+	// 1 input of type float64 => Iter1[float64]
+	register.Iter1[float64]()
 }
 
 // [END model_pardo_side_input_dofn]
@@ -470,8 +493,10 @@ func processWordsMixed(word string, emitMarked func(string)) int {
 }
 
 func init() {
-	beam.RegisterFunction(processWords)
-	beam.RegisterFunction(processWordsMixed)
+	register.Function4x0(processWords)
+	register.Function2x1(processWordsMixed)
+	// 1 input of type string => Emitter1[string]
+	register.Emitter1[string]()
 }
 
 // [END model_multiple_output_dofn]
@@ -514,8 +539,165 @@ func extractWordsFn(pn beam.PaneInfo, line string, emitWords func(string)) {
 
 // [END model_paneinfo]
 
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+// TODO(https://github.com/apache/beam/issues/22737): Update state_and_timers to a good example to demonstrate both state and timers.
+// Rename this to bag_state and update the bag state example in the programming guide at that point.
+// [START state_and_timers]
+
+// bagStateFn only emits words that haven't been seen
+type bagStateFn struct {
+	bag state.Bag[string]
+}
+
+func (s *bagStateFn) ProcessElement(p state.Provider, book string, word string, emitWords func(string)) error {
+	// Get all values we've written to this bag state in this window.
+	vals, ok, err := s.bag.Read(p)
+	if err != nil {
+		return err
+	}
+	if !ok || !contains(vals, word) {
+		emitWords(word)
+		s.bag.Add(p, word)
+	}
+
+	if len(vals) > 10000 {
+		// Example of clearing and starting again with an empty bag
+		s.bag.Clear(p)
+	}
+
+	return nil
+}
+
+// [END state_and_timers]
+
+// [START value_state]
+
+// valueStateFn keeps track of the number of elements seen.
+type valueStateFn struct {
+	val state.Value[int]
+}
+
+func (s *valueStateFn) ProcessElement(p state.Provider, book string, word string, emitWords func(string)) error {
+	// Get the value stored in our state
+	val, ok, err := s.val.Read(p)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		s.val.Write(p, 1)
+	} else {
+		s.val.Write(p, val+1)
+	}
+
+	if val > 10000 {
+		// Example of clearing and starting again with an empty bag
+		s.val.Clear(p)
+	}
+
+	return nil
+}
+
+// [END value_state]
+
+type MyCustomType struct{}
+
+func (m MyCustomType) Bytes() []byte {
+	return nil
+}
+
+func (m MyCustomType) FromBytes(_ []byte) MyCustomType {
+	return m
+}
+
+// [START value_state_coder]
+
+type valueStateDoFn struct {
+	val state.Value[MyCustomType]
+}
+
+func encode(m MyCustomType) []byte {
+	return m.Bytes()
+}
+
+func decode(b []byte) MyCustomType {
+	return MyCustomType{}.FromBytes(b)
+}
+
 func init() {
-	beam.RegisterFunction(extractWordsFn)
+	beam.RegisterCoder(reflect.TypeOf((*MyCustomType)(nil)).Elem(), encode, decode)
+}
+
+// [END value_state_coder]
+
+type combineFn struct{}
+
+// [START combining_state]
+
+// combiningStateFn keeps track of the number of elements seen.
+type combiningStateFn struct {
+	// types are the types of the accumulator, input, and output respectively
+	val state.Combining[int, int, int]
+}
+
+func (s *combiningStateFn) ProcessElement(p state.Provider, book string, word string, emitWords func(string)) error {
+	// Get the value stored in our state
+	val, _, err := s.val.Read(p)
+	if err != nil {
+		return err
+	}
+	s.val.Add(p, 1)
+
+	if val > 10000 {
+		// Example of clearing and starting again with an empty bag
+		s.val.Clear(p)
+	}
+
+	return nil
+}
+
+func main() {
+	// ...
+	// CombineFn param can be a simple fn like this or a structural CombineFn
+	cFn := state.MakeCombiningState[int, int, int]("stateKey", func(a, b int) int {
+		return a + b
+	})
+	// ...
+
+	// [END combining_state]
+
+	fmt.Print(cFn)
+}
+
+type statefulDoFn struct {
+	s state.Value[int]
+}
+
+func statefulPipeline() beam.PCollection {
+	var s beam.Scope
+	var elements beam.PCollection
+
+	// [START windowed_state]
+
+	items := beam.ParDo(s, statefulDoFn{}, elements)
+	out := beam.WindowInto(s, window.NewFixedWindows(24*time.Hour), items)
+
+	// [END windowed_state]
+
+	return out
+}
+
+func init() {
+	register.Function3x0(extractWordsFn)
+	// 1 input of type string => Emitter1[string]
+	register.Emitter1[string]()
 }
 
 // [START countwords_composite]

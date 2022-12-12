@@ -17,8 +17,13 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
@@ -47,5 +52,31 @@ public class ShortIdMap {
       throw new NoSuchElementException(shortId);
     }
     return monitoringInfo;
+  }
+
+  public synchronized Map<String, MonitoringInfo> get(List<String> shortIds) {
+    Map<String, MonitoringInfo> monitoringInfos = new HashMap<>(shortIds.size());
+    for (String shortId : shortIds) {
+      MonitoringInfo info = monitoringInfoMap.get(shortId);
+      if (info == null) {
+        throw new NoSuchElementException(shortId);
+      }
+      monitoringInfos.put(shortId, info);
+    }
+    return monitoringInfos;
+  }
+
+  public synchronized Iterable<MonitoringInfo> toMonitoringInfo(
+      Map<String, ByteString> shortIdToData) {
+    List<MonitoringInfo> monitoringInfos = new ArrayList<>(shortIdToData.size());
+    for (Map.Entry<String, ByteString> entry : shortIdToData.entrySet()) {
+      String shortId = entry.getKey();
+      MonitoringInfo info = monitoringInfoMap.get(shortId);
+      if (info == null) {
+        throw new NoSuchElementException(shortId);
+      }
+      monitoringInfos.add(info.toBuilder().setPayload(entry.getValue()).build());
+    }
+    return monitoringInfos;
   }
 }

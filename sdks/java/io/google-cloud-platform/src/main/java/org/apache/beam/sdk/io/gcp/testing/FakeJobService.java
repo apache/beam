@@ -90,7 +90,7 @@ import org.joda.time.Duration;
 /** A fake implementation of BigQuery's job service. */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FakeJobService implements JobService, Serializable {
   private static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
@@ -320,7 +320,9 @@ public class FakeJobService implements JobService, Serializable {
                               "Job %s failed: %s", job.job.getConfiguration(), e.toString())));
           List<ResourceId> sourceFiles =
               filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
-          FileSystems.delete(sourceFiles);
+          if (sourceFiles != null) {
+            FileSystems.delete(sourceFiles);
+          }
         }
         return JSON_FACTORY.fromString(JSON_FACTORY.toString(job.job), Job.class);
       }

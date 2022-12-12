@@ -25,7 +25,7 @@ job('Rotate IO-Datastores Cluster Credentials') {
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a cron job.
-  commonJobProperties.setCronJob(delegate, 'H 2 1 */2 *')// At 00:02am every second month.
+  commonJobProperties.setCronJob(delegate, 'H 2 1 * *')// At 00:02am every month.
   def date = new Date().format('E MMM dd HH:mm:ss z yyyy')
 
   steps {
@@ -35,7 +35,7 @@ job('Rotate IO-Datastores Cluster Credentials') {
 
     //Rebuilding the nodes
     shell('''gcloud container clusters upgrade io-datastores \
-    --node-pool=default-pool --zone=us-central1-a --quiet''')
+    --node-pool=pool-1 --zone=us-central1-a --quiet''')
 
     //Completing the rotation
     shell('''gcloud container clusters update io-datastores \
@@ -47,7 +47,7 @@ job('Rotate IO-Datastores Cluster Credentials') {
       triggers {
         failure {
           subject('Credentials Rotation Failure on IO-Datastores cluster')
-          content("Something went wrong during the automatic credentials rotation for IO-Datastores Cluster, performed at ${date}. It may be necessary to check the state of the cluster certificates. For further details refer to the following links:\n * ${JOB_URL} \n * ${JENKINS_URL}.")
+          content("Something went wrong during the automatic credentials rotation for IO-Datastores Cluster, performed at ${date}. It may be necessary to check the state of the cluster certificates. For further details refer to the following links:\n * Failing job: https://ci-beam.apache.org/job/Rotate%20IO-Datastores%20Cluster%20Credentials/ \n * Job configuration: https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_IODatastoresCredentialsRotation.groovy \n * Cluster URL: https://pantheon.corp.google.com/kubernetes/clusters/details/us-central1-a/io-datastores/details?mods=dataflow_dev&project=apache-beam-testing")
           recipientList('dev@beam.apache.org')
         }
       }

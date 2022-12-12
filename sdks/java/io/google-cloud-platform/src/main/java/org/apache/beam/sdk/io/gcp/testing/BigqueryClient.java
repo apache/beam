@@ -113,7 +113,7 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BigqueryClient {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryClient.class);
@@ -288,7 +288,8 @@ public class BigqueryClient {
 
   /** Performs a query without flattening results. */
   @Nonnull
-  public List<TableRow> queryUnflattened(String query, String projectId, boolean typed)
+  public List<TableRow> queryUnflattened(
+      String query, String projectId, boolean typed, boolean useStandardSql)
       throws IOException, InterruptedException {
     Random rnd = new Random(System.currentTimeMillis());
     String temporaryDatasetId = "_dataflow_temporary_dataset_" + rnd.nextInt(1000000);
@@ -308,6 +309,7 @@ public class BigqueryClient {
             .setFlattenResults(false)
             .setAllowLargeResults(true)
             .setDestinationTable(tempTableReference)
+            .setUseLegacySql(!useStandardSql)
             .setQuery(query);
     JobConfiguration jc = new JobConfiguration().setQuery(jcQuery);
 

@@ -32,7 +32,7 @@ import org.joda.time.Duration;
  * PipelineOptionsFactory can use to parse and construct an instance.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SyntheticSourceOptions extends SyntheticOptions {
   private static final long serialVersionUID = 0;

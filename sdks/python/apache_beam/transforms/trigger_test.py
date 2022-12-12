@@ -540,6 +540,89 @@ class RunnerApiTest(unittest.TestCase):
 
 
 class TriggerPipelineTest(unittest.TestCase):
+  def test_after_processing_time(self):
+    test_options = PipelineOptions(
+        flags=['--allow_unsafe_triggers', '--streaming'])
+    with TestPipeline(options=test_options) as p:
+
+      total_elements_in_trigger = 4
+      processing_time_delay = 2
+      window_size = 10
+
+      # yapf: disable
+      test_stream = TestStream()
+      for i in range(total_elements_in_trigger):
+        (test_stream
+         .advance_processing_time(
+            processing_time_delay / total_elements_in_trigger)
+         .add_elements([('key', i)])
+         )
+
+      test_stream.advance_processing_time(processing_time_delay)
+
+      # Add dropped elements
+      (test_stream
+         .advance_processing_time(0.1)
+         .add_elements([('key', "dropped-1")])
+         .advance_processing_time(0.1)
+         .add_elements([('key', "dropped-2")])
+      )
+
+      (test_stream
+       .advance_processing_time(processing_time_delay)
+       .advance_watermark_to_infinity()
+       )
+      # yapf: enable
+
+      results = (
+          p
+          | test_stream
+          | beam.WindowInto(
+              FixedWindows(window_size),
+              trigger=AfterProcessingTime(processing_time_delay),
+              accumulation_mode=AccumulationMode.DISCARDING)
+          | beam.GroupByKey()
+          | beam.Map(lambda x: x[1]))
+
+      assert_that(results, equal_to([list(range(total_elements_in_trigger))]))
+
+  def test_repeatedly_after_processing_time(self):
+    test_options = PipelineOptions(flags=['--streaming'])
+    with TestPipeline(options=test_options) as p:
+      total_elements = 7
+      processing_time_delay = 2
+      window_size = 10
+      # yapf: disable
+      test_stream = TestStream()
+      for i in range(total_elements):
+        (test_stream
+         .advance_processing_time(processing_time_delay - 0.01)
+         .add_elements([('key', i)])
+         )
+
+      (test_stream
+       .advance_processing_time(processing_time_delay)
+       .advance_watermark_to_infinity()
+       )
+      # yapf: enable
+
+      results = (
+          p
+          | test_stream
+          | beam.WindowInto(
+              FixedWindows(window_size),
+              trigger=Repeatedly(AfterProcessingTime(processing_time_delay)),
+              accumulation_mode=AccumulationMode.DISCARDING)
+          | beam.GroupByKey()
+          | beam.Map(lambda x: x[1]))
+
+      expected = [[i, i + 1]
+                  for i in range(total_elements - total_elements % 2)
+                  if i % 2 == 0]
+      expected += [] if total_elements % 2 == 0 else [[total_elements - 1]]
+
+      assert_that(results, equal_to(expected))
+
   def test_after_count(self):
     test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
     with TestPipeline(options=test_options) as p:
@@ -697,7 +780,7 @@ class TriggerPipelineTest(unittest.TestCase):
 
   def test_on_pane_watermark_hold_no_pipeline_stall(self):
     """A regression test added for
-    https://issues.apache.org/jira/browse/BEAM-10054."""
+    ttps://issues.apache.org/jira/browse/BEAM-10054."""
     START_TIMESTAMP = 1534842000
 
     test_stream = TestStream()
@@ -1043,7 +1126,8 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
 
     # Elements are encoded as a json strings to allow other languages to
     # decode elements while executing the test stream.
-    # TODO(BEAM-8600): Eliminate these gymnastics.
+    # TODO(https://github.com/apache/beam/issues/19934): Eliminate these
+    # gymnastics.
     test_stream = TestStream(coder=coders.StrUtf8Coder()).with_output_types(str)
     for action, params in transcript:
       if action == 'expect':
@@ -1180,7 +1264,8 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
        | beam.ParDo(Check(self.allow_out_of_order)))
 
     with TestPipeline() as p:
-      # TODO(BEAM-8601): Pass this during pipeline construction.
+      # TODO(https://github.com/apache/beam/issues/19933): Pass this during
+      # pipeline construction.
       p._options.view_as(StandardOptions).streaming = True
       p._options.view_as(TypeOptions).allow_unsafe_triggers = True
 

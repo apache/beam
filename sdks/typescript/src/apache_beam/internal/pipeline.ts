@@ -39,11 +39,11 @@ export class PipelineContext {
 
   private coders: { [key: string]: Coder<any> } = {};
 
-  constructor(public components: Components) {}
+  constructor(public components: Components, private componentPrefix: string) {}
 
   getCoder<T>(coderId: string): Coder<T> {
     const this_ = this;
-    if (this.coders[coderId] == undefined) {
+    if (this.coders[coderId] === null || this.coders[coderId] === undefined) {
       const coderProto = this.components.coders[coderId];
       const components: Coder<unknown>[] = (
         coderProto.componentCoderIds || []
@@ -70,7 +70,7 @@ export class PipelineContext {
   }
 
   getPCollectionCoderId<T>(pcoll: pvalue.PCollection<T>): string {
-    const pcollId = typeof pcoll == "string" ? pcoll : pcoll.getId();
+    const pcollId = typeof pcoll === "string" ? pcoll : pcoll.getId();
     return this.components!.pcollections[pcollId].coderId;
   }
 
@@ -102,7 +102,7 @@ export class PipelineContext {
   }
 
   createUniqueName(prefix: string): string {
-    return prefix + "_" + this.counter++;
+    return this.componentPrefix + prefix + "_" + this.counter++;
   }
 }
 
@@ -114,19 +114,20 @@ export class Pipeline {
   context: PipelineContext;
   transformStack: string[] = [];
   defaultEnvironment: string;
+  usedStageNames: Set<string> = new Set();
 
   private proto: runnerApi.Pipeline;
   private globalWindowing: string;
 
-  constructor() {
-    this.defaultEnvironment = "jsEnvironment";
-    this.globalWindowing = "globalWindowing";
+  constructor(componentPrefix: string = "") {
+    this.defaultEnvironment = componentPrefix + "jsEnvironment";
+    this.globalWindowing = componentPrefix + "globalWindowing";
     this.proto = runnerApi.Pipeline.create({
       components: runnerApi.Components.create({}),
     });
     this.proto.components!.environments[this.defaultEnvironment] =
       environments.defaultJsEnvironment();
-    this.context = new PipelineContext(this.proto.components!);
+    this.context = new PipelineContext(this.proto.components!, componentPrefix);
     this.proto.components!.windowingStrategies[this.globalWindowing] =
       createWindowingStrategyProto(this, globalWindows());
   }
@@ -147,9 +148,17 @@ export class Pipeline {
     } else {
       this.proto.rootTransformIds.push(transformId);
     }
+    const uniqueName =
+      (parent ? parent.uniqueName + "/" : "") + extractName(transform);
+    if (this.usedStageNames.has(uniqueName)) {
+      throw new Error(
+        `Duplicate stage name: "${uniqueName}". ` +
+          "Use beam.withName(...) to give your transform a unique name."
+      );
+    }
+    this.usedStageNames.add(uniqueName);
     const transformProto: runnerApi.PTransform = {
-      uniqueName:
-        (parent ? parent.uniqueName + "/" : "") + extractName(transform),
+      uniqueName,
       subtransforms: [],
       inputs: objectMap(pvalue.flattenPValue(input), (pc) => pc.getId()),
       outputs: {},
@@ -179,7 +188,7 @@ export class Pipeline {
     return this.postApplyTransform(transform, transformProto, result);
   }
 
-  async asyncApplyTransform<
+  async applyAsyncTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>
   >(transform: AsyncPTransformClass<InputT, OutputT>, input: InputT) {
@@ -190,7 +199,7 @@ export class Pipeline {
     let result: OutputT;
     try {
       this.transformStack.push(transformId);
-      result = await transform.asyncExpandInternal(input, this, transformProto);
+      result = await transform.expandInternalAsync(input, this, transformProto);
     } finally {
       this.transformStack.pop();
     }
@@ -272,14 +281,14 @@ export class Pipeline {
     const pcollId = this.context.createUniqueName("pc");
     let coderId: string;
     let windowingStrategyId: string;
-    if (typeof coder == "string") {
+    if (typeof coder === "string") {
       coderId = coder;
     } else {
       coderId = this.context.getCoderId(coder);
     }
-    if (windowingStrategy == undefined) {
+    if (windowingStrategy === null || windowingStrategy === undefined) {
       windowingStrategyId = undefined!;
-    } else if (typeof windowingStrategy == "string") {
+    } else if (typeof windowingStrategy === "string") {
       windowingStrategyId = windowingStrategy;
     } else {
       windowingStrategyId = this.context.getWindowingStrategyId(
@@ -318,9 +327,9 @@ function onlyValueOr<T>(
   defaultValue: T,
   comparator: (a: T, b: T) => boolean = (a, b) => false
 ) {
-  if (valueSet.size == 0) {
+  if (valueSet.size === 0) {
     return defaultValue;
-  } else if (valueSet.size == 1) {
+  } else if (valueSet.size === 1) {
     return valueSet.values().next().value;
   } else {
     const candidate = valueSet.values().next().value;
@@ -334,4 +343,4 @@ function onlyValueOr<T>(
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache_beam.pipeline", exports);
+requireForSerialization("apache-beam/internal/pipeline", exports);
