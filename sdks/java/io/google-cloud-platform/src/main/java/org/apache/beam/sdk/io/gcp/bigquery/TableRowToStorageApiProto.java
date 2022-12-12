@@ -618,7 +618,7 @@ public class TableRowToStorageApiProto {
           } catch (ArithmeticException e) {
             throw new SingleValueConversionException(value, schemaInformation, e);
           }
-        } else if( value instanceof BigInteger) {
+        } else if (value instanceof BigInteger) {
           try {
             return ((BigInteger) value).longValueExact();
           } catch (ArithmeticException e) {
