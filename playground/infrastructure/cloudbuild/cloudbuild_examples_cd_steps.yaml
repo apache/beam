@@ -16,7 +16,8 @@
 # under the License.
 
 steps:
-  - name: 'ubuntu'
+  - id: "Deploying Playground CD examples"
+    name: 'ubuntu'
     entrypoint: 'bash'
     args:
       - '-c'

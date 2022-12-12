@@ -28,7 +28,7 @@ pip install -r requirements.txt > /dev/null
 export \
 ORIGIN=PG_EXAMPLES \
 STEP=CD \
-SUBDIRS="././learning/katas ././examples ././sdks" \
+SUBDIRS="./learning/katas ./examples ./sdks" \
 GOOGLE_CLOUD_PROJECT=${PROJECT_ID} \
 BEAM_ROOT_DIR="../../" \
 SDK_CONFIG="../../playground/sdks.yaml" \
