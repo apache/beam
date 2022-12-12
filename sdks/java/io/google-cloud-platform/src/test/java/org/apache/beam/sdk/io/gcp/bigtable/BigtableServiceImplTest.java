@@ -118,7 +118,7 @@ public class BigtableServiceImplTest {
 
   @Mock private ServiceCallMetric mockCallMetric;
 
-  @Captor private ArgumentCaptor<Query> requestCaptor;
+  @Captor private ArgumentCaptor<Query> queryCaptor;
 
   private static AtomicBoolean cancelled = new AtomicBoolean(false);
 
@@ -550,17 +550,17 @@ public class BigtableServiceImplTest {
     Assert.assertTrue(underTest.start());
 
     verify(callable, times(1))
-        .call(requestCaptor.capture(), any(ResponseObserver.class), any(ApiCallContext.class));
+        .call(queryCaptor.capture(), any(ResponseObserver.class), any(ApiCallContext.class));
     Assert.assertEquals(
-        3, requestCaptor.getValue().toProto(requestContext).getRows().getRowRangesCount());
+        3, queryCaptor.getValue().toProto(requestContext).getRows().getRowRangesCount());
     do {
       actualResults.add(underTest.getCurrentRow());
     } while (underTest.advance());
 
     verify(callable, times(3))
-        .call(requestCaptor.capture(), any(ResponseObserver.class), any(ApiCallContext.class));
+        .call(queryCaptor.capture(), any(ResponseObserver.class), any(ApiCallContext.class));
     Assert.assertEquals(
-        1, requestCaptor.getValue().toProto(requestContext).getRows().getRowRangesCount());
+        1, queryCaptor.getValue().toProto(requestContext).getRows().getRowRangesCount());
 
     Assert.assertEquals(
         expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),

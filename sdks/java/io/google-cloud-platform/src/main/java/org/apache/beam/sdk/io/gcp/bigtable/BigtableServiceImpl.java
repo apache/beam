@@ -35,6 +35,7 @@ import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
@@ -103,14 +104,23 @@ class BigtableServiceImpl implements BigtableService {
   public BigtableServiceImpl(BigtableOptions options) {
     try {
       this.options = options;
-      this.veneeringSettings = BigtableHBaseVeneeringSettings.create(options);
+      BigtableHBaseVeneeringSettings veneeringSettings =
+          BigtableHBaseVeneeringSettings.create(options);
+      this.dataSettings = veneeringSettings.getDataSettings();
+      this.tableAdminSettings = veneeringSettings.getTableAdminSettings();
+      this.operationTimeouts = veneeringSettings.getOperationTimeouts();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
   private final BigtableOptions options;
-  private final BigtableHBaseVeneeringSettings veneeringSettings;
+
+  private final BigtableDataSettings dataSettings;
+
+  private final BigtableTableAdminSettings tableAdminSettings;
+
+  private final BigtableHBaseVeneeringSettings.BigtableIOOperationTimeouts operationTimeouts;
 
   @Override
   public BigtableOptions getBigtableOptions() {
@@ -119,17 +129,14 @@ class BigtableServiceImpl implements BigtableService {
 
   @Override
   public BigtableWriterImpl openForWriting(String tableId) throws IOException {
-    LOG.info("Opening for writing with settings " + veneeringSettings.getDataSettings().toString());
-    return new BigtableWriterImpl(
-        BigtableDataClient.create(veneeringSettings.getDataSettings()),
-        veneeringSettings.getDataSettings(),
-        tableId);
+    LOG.info("Opening for writing with settings " + dataSettings.toString());
+    return new BigtableWriterImpl(BigtableDataClient.create(dataSettings), dataSettings, tableId);
   }
 
   @Override
   public boolean tableExists(String tableId) throws IOException {
     try (BigtableTableAdminClient adminClient =
-        BigtableTableAdminClient.create(veneeringSettings.getTableAdminSettings())) {
+        BigtableTableAdminClient.create(tableAdminSettings)) {
       adminClient.getTable(tableId);
       return true;
     } catch (StatusRuntimeException e) {
@@ -207,7 +214,7 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void close() throws IOException {
-      // Goal: by the end of this function, both results and session are null and closed,
+      // Goal: by the end of this function, both results and client are null and closed,
       // independent of what errors they throw or prior state.
 
       if (client == null) {
@@ -355,10 +362,10 @@ class BigtableServiceImpl implements BigtableService {
           .readRowsCallable(new BeamRowAdapter())
           .call(
               Query.fromProto(nextRequest),
-              new ResponseObserver<com.google.bigtable.v2.Row>() {
+              new ResponseObserver<Row>() {
                 private StreamController controller;
 
-                List<com.google.bigtable.v2.Row> rows = new ArrayList<>();
+                List<Row> rows = new ArrayList<>();
 
                 long currentByteSize = 0;
                 boolean byteLimitReached = false;
@@ -369,7 +376,7 @@ class BigtableServiceImpl implements BigtableService {
                 }
 
                 @Override
-                public void onResponse(com.google.bigtable.v2.Row response) {
+                public void onResponse(Row response) {
                   // calculate size of the response
                   currentByteSize += response.getSerializedSize();
                   rows.add(response);
@@ -543,20 +550,12 @@ class BigtableServiceImpl implements BigtableService {
           new FutureCallback<MutateRowResponse>() {
             @Override
             public void onSuccess(MutateRowResponse mutateRowResponse) {
-              // TODO throttling logic to update dataflow counter
-              // long throttledTime = ((ApiCallContext)
-              // context).getOption(Batcher.THROTTLED_TIME_KEY);
-
               result.complete(mutateRowResponse);
               serviceCallMetric.call("ok");
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-              // TODO throttling logic to update dataflow counter
-              // long throttledTime = ((ApiCallContext)
-              // context).getOption(Batcher.THROTTLED_TIME_KEY);
-
               if (throwable instanceof StatusRuntimeException) {
                 serviceCallMetric.call(
                     ((StatusRuntimeException) throwable).getStatus().getCode().value());
@@ -578,21 +577,12 @@ class BigtableServiceImpl implements BigtableService {
 
   @Override
   public Reader createReader(BigtableSource source) throws IOException {
-    LOG.info(
-        "Creating a Reader for Bigtable with settings: " + veneeringSettings.getDataSettings());
-    BigtableDataClient client = BigtableDataClient.create(veneeringSettings.getDataSettings());
+    LOG.info("Creating a Reader for Bigtable with settings: " + dataSettings);
+    BigtableDataClient client = BigtableDataClient.create(dataSettings);
     if (source.getMaxBufferElementCount() != null) {
-      return BigtableSegmentReaderImpl.create(
-          client,
-          veneeringSettings.getDataSettings(),
-          source,
-          veneeringSettings.getOperationTimeouts());
+      return BigtableSegmentReaderImpl.create(client, dataSettings, source, operationTimeouts);
     } else {
-      return new BigtableReaderImpl(
-          client,
-          veneeringSettings.getDataSettings(),
-          source,
-          veneeringSettings.getOperationTimeouts());
+      return new BigtableReaderImpl(client, dataSettings, source, operationTimeouts);
     }
   }
 
@@ -600,7 +590,7 @@ class BigtableServiceImpl implements BigtableService {
   // - disabling timeouts - when timeouts are disabled, bigtable-hbase ignores user configured
   //   timeouts and forces 6 minute deadlines per attempt for all RPCs except scans. This is
   //   implemented by an interceptor. However the interceptor must be informed that this is a scan
-  // - per attempt deadlines - vener doesn't implement deadlines for attempts. To workaround this,
+  // - per attempt deadlines - veneer doesn't implement deadlines for attempts. To workaround this,
   //   the timeouts are set per call in the ApiCallContext. However this creates a separate issue of
   //   over running the operation deadline, so gRPC deadline is also set.
   private static GrpcCallContext createScanCallContext(
@@ -615,15 +605,16 @@ class BigtableServiceImpl implements BigtableService {
                   true));
     } else {
       if (operationTimeouts.getBulkReadRowsTimeouts().getOperationTimeout().isPresent()) {
-        ctx.withCallOptions(
-            CallOptions.DEFAULT.withDeadline(
-                Deadline.after(
-                    operationTimeouts
-                        .getBulkMutateTimeouts()
-                        .getOperationTimeout()
-                        .get()
-                        .toMillis(),
-                    TimeUnit.MILLISECONDS)));
+        ctx =
+            ctx.withCallOptions(
+                CallOptions.DEFAULT.withDeadline(
+                    Deadline.after(
+                        operationTimeouts
+                            .getBulkMutateTimeouts()
+                            .getOperationTimeout()
+                            .get()
+                            .toMillis(),
+                        TimeUnit.MILLISECONDS)));
       }
       if (operationTimeouts.getBulkReadRowsTimeouts().getAttemptTimeout().isPresent()) {
         ctx =
@@ -635,8 +626,7 @@ class BigtableServiceImpl implements BigtableService {
 
   @Override
   public List<KeyOffset> getSampleRowKeys(BigtableSource source) throws IOException {
-    try (BigtableDataClient client =
-        BigtableDataClient.create(veneeringSettings.getDataSettings())) {
+    try (BigtableDataClient client = BigtableDataClient.create(dataSettings)) {
       return client.sampleRowKeys(source.getTableId().get());
     }
   }

@@ -1659,7 +1659,6 @@ public class BigtableIOTest {
 
       ImmutableList.Builder<KeyOffset> ret = ImmutableList.builder();
       SortedMap<ByteString, ByteString> rows = getTable(tableId);
-      System.out.println("num of rows = " + rows.size());
       int currentSample = 1;
       int rowsSoFar = 0;
       for (Map.Entry<ByteString, ByteString> entry : rows.entrySet()) {
@@ -1672,7 +1671,6 @@ public class BigtableIOTest {
         ++rowsSoFar;
       }
 
-      System.out.println("ret size=" + ret.build().size());
       // Add the last sample indicating the end of the table, with all rows before it
       ret.add(KeyOffset.create(ByteString.EMPTY, rows.size() * bytesPerRow));
 
@@ -1780,7 +1778,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public com.google.bigtable.v2.Row getCurrentRow() {
+    public Row getCurrentRow() {
       if (currentRow == null) {
         throw new NoSuchElementException();
       }
