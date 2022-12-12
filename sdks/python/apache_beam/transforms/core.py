@@ -50,6 +50,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.userstate import StateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
@@ -2745,6 +2746,11 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     from apache_beam.transforms.trigger import AccumulationMode
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
+
+    if isinstance(pcoll.windowing.windowfn, SlidingWindows):
+      raise ValueError(
+          'CombinePerKey.with_hot_key_fanout does not yet work properly with '
+          'SlidingWindows. See: https://github.com/apache/beam/issues/20528')
 
     class SplitHotCold(DoFn):
       def start_bundle(self):
