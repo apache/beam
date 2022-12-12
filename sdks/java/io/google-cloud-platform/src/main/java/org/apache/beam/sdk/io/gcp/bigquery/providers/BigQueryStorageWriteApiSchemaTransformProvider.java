@@ -89,7 +89,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return String.format("beam:transform:org.apache.beam:bigquery_storage_write:v1");
+    return String.format("beam:schematransform:org.apache.beam:bigquery_storage_write:v1");
   }
 
   @Override
@@ -162,7 +162,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     public abstract String getWriteDisposition();
 
     @Nullable
-    public abstract Integer getTriggeringFrequencySeconds();
+    public abstract Long getTriggeringFrequencySeconds();
 
     @Nullable
     public abstract Boolean getUseAtLeastOnceSemantics();
@@ -176,7 +176,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       public abstract Builder setWriteDisposition(String writeDisposition);
 
-      public abstract Builder setTriggeringFrequencySeconds(Integer seconds);
+      public abstract Builder setTriggeringFrequencySeconds(Long seconds);
 
       public abstract Builder setUseAtLeastOnceSemantics(Boolean use);
 
@@ -231,11 +231,12 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform();
 
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
+        Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         write =
             write.withTriggeringFrequency(
-                configuration.getTriggeringFrequencySeconds() == null
+                (triggeringFrequency == null || triggeringFrequency <= 0)
                     ? DEFAULT_TRIGGERING_FREQUENCY
-                    : Duration.standardSeconds(configuration.getTriggeringFrequencySeconds()));
+                    : Duration.standardSeconds(triggeringFrequency));
       }
 
       WriteResult result = inputRows.apply(write);
