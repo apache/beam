@@ -144,7 +144,7 @@ func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
 }
 
 func toFloat(input beam.T) float64 {
-	return reflect.ValueOf(input.(interface{})).Convert(reflectx.Float64).Interface().(float64)
+	return reflect.ValueOf(input.(any)).Convert(reflectx.Float64).Interface().(float64)
 }
 
 func validateNonComplexNumber(t reflect.Type) error {

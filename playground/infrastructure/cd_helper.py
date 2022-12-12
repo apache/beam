@@ -27,6 +27,7 @@ from config import Origin
 from datastore_client import DatastoreClient
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
+from repository import set_dataset_path_for_examples
 
 
 class CDHelper:
@@ -50,6 +51,7 @@ class CDHelper:
         """
         single_file_examples = list(filter(
             lambda example: example.tag.multifile is False, examples))
+        set_dataset_path_for_examples(single_file_examples)
         logging.info("Start of executing only single-file Playground examples ...")
         asyncio.run(self._get_outputs(single_file_examples))
         logging.info("Finish of executing single-file Playground examples")
@@ -62,7 +64,6 @@ class CDHelper:
         """
         Save beam examples to the Google Cloud Datastore
         :param examples: beam examples from the repository
-        :param sdk: specific sdk that needs to filter examples
         """
         datastore_client = DatastoreClient()
         datastore_client.save_catalogs()
@@ -78,6 +79,7 @@ class CDHelper:
         Args:
             examples: beam examples that should be run
         """
+
         async def _populate_fields(example: Example):
             try:
                 example.compile_output = await client.get_compile_output(example.pipeline_id)
@@ -92,7 +94,6 @@ class CDHelper:
 
         async with GRPCClient() as client:
             await get_statuses(client,
-                examples)  # run examples code and wait until all are executed
+                               examples)  # run examples code and wait until all are executed
             tasks = [_populate_fields(example) for example in examples]
             await asyncio.gather(*tasks)
-

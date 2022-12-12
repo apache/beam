@@ -105,7 +105,6 @@ class DataflowRunner(PipelineRunner):
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CombineValuesPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
-  from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import NativeReadPTransformOverride
 
@@ -114,10 +113,6 @@ class DataflowRunner(PipelineRunner):
   _PTRANSFORM_OVERRIDES = [
       CombineValuesPTransformOverride(),
       NativeReadPTransformOverride(),
-  ]  # type: List[PTransformOverride]
-
-  _JRH_PTRANSFORM_OVERRIDES = [
-      JrhReadPTransformOverride(),
   ]  # type: List[PTransformOverride]
 
   # These overrides should be applied after the proto representation of the
@@ -138,7 +133,7 @@ class DataflowRunner(PipelineRunner):
     return False
 
   def apply(self, transform, input, options):
-    self._maybe_add_unified_worker_missing_options(options)
+    _check_and_add_missing_options(options)
     return super().apply(transform, input, options)
 
   def _get_unique_step_name(self):
@@ -267,10 +262,7 @@ class DataflowRunner(PipelineRunner):
     return element
 
   @staticmethod
-  def side_input_visitor(
-      use_unified_worker=False,
-      use_fn_api=False,
-      deterministic_key_coders=True):
+  def side_input_visitor(is_runner_v2=False, deterministic_key_coders=True):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.pipeline import PipelineVisitor
@@ -285,37 +277,16 @@ class DataflowRunner(PipelineRunner):
       def visit_transform(self, transform_node):
         if isinstance(transform_node.transform, ParDo):
           new_side_inputs = []
-          for ix, side_input in enumerate(transform_node.side_inputs):
+          for side_input in transform_node.side_inputs:
             access_pattern = side_input._side_input_data().access_pattern
             if access_pattern == common_urns.side_inputs.ITERABLE.urn:
-              if use_unified_worker or not use_fn_api:
-                # TODO(https://github.com/apache/beam/issues/20043): Stop
-                # patching up the access pattern to appease Dataflow when
-                # using the UW and hardcode the output type to be Any since
-                # the Dataflow JSON and pipeline proto can differ in coders
-                # which leads to encoding/decoding issues within the runner.
-                side_input.pvalue.element_type = typehints.Any
-                new_side_input = _DataflowIterableSideInput(side_input)
-              else:
-                # Add a map to ('', value) as Dataflow currently only handles
-                # keyed side inputs when using the JRH.
-                pipeline = side_input.pvalue.pipeline
-                new_side_input = _DataflowIterableAsMultimapSideInput(
-                    side_input)
-                new_side_input.pvalue = beam.pvalue.PCollection(
-                    pipeline,
-                    element_type=typehints.KV[bytes,
-                                              side_input.pvalue.element_type],
-                    is_bounded=side_input.pvalue.is_bounded)
-                parent = transform_node.parent or pipeline._root_transform()
-                map_to_void_key = beam.pipeline.AppliedPTransform(
-                    parent,
-                    beam.Map(lambda x: (b'', x)),
-                    transform_node.full_label + '/MapToVoidKey%s' % ix,
-                    {'input': side_input.pvalue})
-                new_side_input.pvalue.producer = map_to_void_key
-                map_to_void_key.add_output(new_side_input.pvalue, None)
-                parent.add_part(map_to_void_key)
+              # TODO(https://github.com/apache/beam/issues/20043): Stop
+              # patching up the access pattern to appease Dataflow when
+              # using the UW and hardcode the output type to be Any since
+              # the Dataflow JSON and pipeline proto can differ in coders
+              # which leads to encoding/decoding issues within the runner.
+              side_input.pvalue.element_type = typehints.Any
+              new_side_input = _DataflowIterableSideInput(side_input)
             elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
               # Ensure the input coder is a KV coder and patch up the
               # access pattern to appease Dataflow.
@@ -329,7 +300,7 @@ class DataflowRunner(PipelineRunner):
                   'Unsupported access pattern for %r: %r' %
                   (transform_node.full_label, access_pattern))
             new_side_inputs.append(new_side_input)
-          if use_fn_api:
+          if is_runner_v2:
             transform_node.side_inputs = new_side_inputs
             transform_node.transform.side_inputs = new_side_inputs
 
@@ -416,44 +387,35 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
-    debug_options = options.view_as(DebugOptions)
     if pipeline_proto or pipeline.contains_external_transforms:
-      if debug_options.lookup_experiment('disable_runner_v2'):
+      if _is_runner_v2_disabled(options):
         raise ValueError(
             'This pipeline contains cross language transforms, '
-            'which require runner v2.')
-      if not apiclient._use_unified_worker(options):
+            'which requires Runner V2.')
+      if not _is_runner_v2(options):
         _LOGGER.info(
-            'Automatically enabling Dataflow Runner v2 since the '
+            'Automatically enabling Dataflow Runner V2 since the '
             'pipeline used cross-language transforms.')
-        # This has to be done before any Fn API specific setup.
-        debug_options.add_experiment("use_runner_v2")
-      # Dataflow multi-language pipelines require portable job submission.
-      if not debug_options.lookup_experiment('use_portable_job_submission'):
-        debug_options.add_experiment("use_portable_job_submission")
+        _add_runner_v2_missing_options(options)
 
-    self._maybe_add_unified_worker_missing_options(options)
-
-    use_fnapi = apiclient._use_fnapi(options)
-
-    if not use_fnapi:
+    is_runner_v2 = _is_runner_v2(options)
+    if not is_runner_v2:
       self._check_for_unsupported_features_on_non_portable_worker(pipeline)
 
     # Convert all side inputs into a form acceptable to Dataflow.
     if pipeline:
       pipeline.visit(
           self.side_input_visitor(
-              apiclient._use_unified_worker(options),
-              apiclient._use_fnapi(options),
+              _is_runner_v2(options),
               deterministic_key_coders=not options.view_as(
                   TypeOptions).allow_non_deterministic_key_coders))
 
-      # Performing configured PTransform overrides.  Note that this is currently
+      # Performing configured PTransform overrides. Note that this is currently
       # done before Runner API serialization, since the new proto needs to
       # contain any added PTransforms.
       pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
-      if debug_options.lookup_experiment('use_legacy_bq_sink'):
+      if options.view_as(DebugOptions).lookup_experiment('use_legacy_bq_sink'):
         warnings.warn(
             "Native sinks no longer implemented; "
             "ignoring use_legacy_bq_sink.")
@@ -461,9 +423,6 @@ class DataflowRunner(PipelineRunner):
       from apache_beam.runners.dataflow.ptransform_overrides import GroupIntoBatchesWithShardedKeyPTransformOverride
       pipeline.replace_all(
           [GroupIntoBatchesWithShardedKeyPTransformOverride(self, options)])
-
-      if use_fnapi and not apiclient._use_unified_worker(options):
-        pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
 
     if pipeline_proto:
       self.proto_pipeline = pipeline_proto
@@ -480,7 +439,7 @@ class DataflowRunner(PipelineRunner):
             self._default_environment.container_image)
       else:
         artifacts = environments.python_sdk_dependencies(options)
-        if artifacts and apiclient._use_fnapi(options):
+        if artifacts and _is_runner_v2(options):
           _LOGGER.info(
               "Pipeline has additional dependencies to be installed "
               "in SDK worker container, consider using the SDK "
@@ -532,7 +491,7 @@ class DataflowRunner(PipelineRunner):
             known_runner_urns=frozenset(),
             partial=True)
 
-    if not use_fnapi:
+    if not is_runner_v2:
       # Performing configured PTransform overrides which should not be reflected
       # in the proto representation of the graph.
       pipeline.replace_all(DataflowRunner._NON_PORTABLE_PTRANSFORM_OVERRIDES)
@@ -551,36 +510,6 @@ class DataflowRunner(PipelineRunner):
     if worker_options.min_cpu_platform:
       debug_options.add_experiment(
           'min_cpu_platform=' + worker_options.min_cpu_platform)
-
-    # Elevate "enable_streaming_engine" to pipeline option, but using the
-    # existing experiment.
-    google_cloud_options = options.view_as(GoogleCloudOptions)
-    if google_cloud_options.enable_streaming_engine:
-      debug_options.add_experiment("enable_windmill_service")
-      debug_options.add_experiment("enable_streaming_engine")
-    elif (apiclient._use_fnapi(options) and
-          apiclient._use_unified_worker(options) and
-          options.view_as(StandardOptions).streaming):
-      debug_options.add_experiment("enable_windmill_service")
-      debug_options.add_experiment("enable_streaming_engine")
-    else:
-      if (debug_options.lookup_experiment("enable_windmill_service") or
-          debug_options.lookup_experiment("enable_streaming_engine")):
-        raise ValueError(
-            """Streaming engine both disabled and enabled:
-        --enable_streaming_engine flag is not set, but
-        enable_windmill_service
-        and/or enable_streaming_engine experiments are present.
-        It is recommended you only set the --enable_streaming_engine flag.""")
-
-    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
-    if dataflow_worker_jar is not None:
-      if not apiclient._use_fnapi(options):
-        _LOGGER.warning(
-            'Typical end users should not use this worker jar feature. '
-            'It can only be used when FnAPI is enabled.')
-      else:
-        debug_options.add_experiment('use_staged_dataflow_worker_jar')
 
     self.job = apiclient.Job(options, self.proto_pipeline)
 
@@ -617,27 +546,6 @@ class DataflowRunner(PipelineRunner):
     self._metrics = DataflowMetrics(self.dataflow_client, result, self.job)
     result.metric_results = self._metrics
     return result
-
-  def _maybe_add_unified_worker_missing_options(self, options):
-    debug_options = options.view_as(DebugOptions)
-    # Streaming is always portable, default to runner v2.
-    if options.view_as(StandardOptions).streaming:
-      if debug_options.lookup_experiment('disable_runner_v2_until_2023'):
-        debug_options.add_experiment('disable_runner_v2')
-      elif debug_options.lookup_experiment('disable_runner_v2'):
-        raise ValueError(
-            'disable_runner_v2 no longer supported for Beam Python %s, please '
-            'use disable_runner_v2_until_2023' % beam.version.__version__)
-      else:
-        debug_options.add_experiment('beam_fn_api')
-        debug_options.add_experiment('use_runner_v2')
-        debug_options.add_experiment('use_portable_job_submission')
-    # set default beam_fn_api experiment if use unified
-    # worker experiment flag exists, no-op otherwise.
-    from apache_beam.runners.dataflow.internal import apiclient
-    if apiclient._use_unified_worker(options):
-      if not debug_options.lookup_experiment('beam_fn_api'):
-        debug_options.add_experiment('beam_fn_api')
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
@@ -795,36 +703,21 @@ class DataflowRunner(PipelineRunner):
     return step
 
   def run_Impulse(self, transform_node, options):
-    standard_options = options.view_as(StandardOptions)
-    debug_options = options.view_as(DebugOptions)
-    use_fn_api = (
-        debug_options.experiments and
-        'beam_fn_api' in debug_options.experiments)
-    use_streaming_engine = (
-        debug_options.experiments and
-        'enable_streaming_engine' in debug_options.experiments and
-        'enable_windmill_service' in debug_options.experiments)
-
     step = self._add_step(
         TransformNames.READ, transform_node.full_label, transform_node)
-    if (standard_options.streaming and
-        (not use_fn_api or not use_streaming_engine)):
-      step.add_property(PropertyNames.FORMAT, 'pubsub')
-      step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION, '_starting_signal/')
+    step.add_property(PropertyNames.FORMAT, 'impulse')
+    encoded_impulse_element = coders.WindowedValueCoder(
+        coders.BytesCoder(),
+        coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
+            window.GlobalWindows.windowed_value(b''))
+    if _is_runner_v2(options):
+      encoded_impulse_as_str = self.byte_array_to_json_string(
+          encoded_impulse_element)
     else:
-      step.add_property(PropertyNames.FORMAT, 'impulse')
-      encoded_impulse_element = coders.WindowedValueCoder(
-          coders.BytesCoder(),
-          coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
-              window.GlobalWindows.windowed_value(b''))
+      encoded_impulse_as_str = base64.b64encode(encoded_impulse_element).decode(
+          'ascii')
 
-      if use_fn_api:
-        encoded_impulse_as_str = self.byte_array_to_json_string(
-            encoded_impulse_element)
-      else:
-        encoded_impulse_as_str = base64.b64encode(
-            encoded_impulse_element).decode('ascii')
-      step.add_property(PropertyNames.IMPULSE_ELEMENT, encoded_impulse_as_str)
+    step.add_property(PropertyNames.IMPULSE_ELEMENT, encoded_impulse_as_str)
 
     step.encoding = self._get_encoded_output_coder(transform_node)
     step.add_property(
@@ -987,13 +880,9 @@ class DataflowRunner(PipelineRunner):
         ('/{}'.format(transform_name) if transform_node.side_inputs else ''),
         transform_node,
         transform_node.transform.output_tags)
-    # Import here to avoid adding the dependency for local running scenarios.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.runners.dataflow.internal import apiclient
     transform_proto = self.proto_context.transforms.get_proto(transform_node)
     transform_id = self.proto_context.transforms.get_id(transform_node)
-    use_fnapi = apiclient._use_fnapi(options)
-    use_unified_worker = apiclient._use_unified_worker(options)
+    is_runner_v2 = _is_runner_v2(options)
     # Patch side input ids to be unique across a given pipeline.
     if (label_renames and
         transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
@@ -1015,10 +904,8 @@ class DataflowRunner(PipelineRunner):
           self.proto_pipeline.components.transforms[transform_id].CopyFrom(
               transform_proto))
     # The data transmitted in SERIALIZED_FN is different depending on whether
-    # this is a fnapi pipeline or not.
-    if (use_fnapi and
-        (transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn or
-         use_unified_worker)):
+    # this is a runner v2 pipeline or not.
+    if is_runner_v2:
       serialized_data = transform_id
     else:
       serialized_data = pickler.dumps(
@@ -1080,7 +967,6 @@ class DataflowRunner(PipelineRunner):
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
     # Add the restriction encoding if we are a splittable DoFn
-    # and are using the Fn API on the unified worker.
     restriction_coder = transform.get_restriction_coder()
     if restriction_coder:
       step.add_property(
@@ -1128,10 +1014,8 @@ class DataflowRunner(PipelineRunner):
     transform_id = self.proto_context.transforms.get_id(transform_node.parent)
 
     # The data transmitted in SERIALIZED_FN is different depending on whether
-    # this is a fnapi pipeline or not.
-    from apache_beam.runners.dataflow.internal import apiclient
-    use_fnapi = apiclient._use_fnapi(options)
-    if use_fnapi:
+    # this is a runner v2 pipeline or not.
+    if _is_runner_v2(options):
       # Fnapi pipelines send the transform ID of the CombineValues transform's
       # parent composite because Dataflow expects the ID of a CombinePerKey
       # transform.
@@ -1433,18 +1317,93 @@ class _DataflowSideInput(beam.pvalue.AsSideInput):
     return self._data
 
 
-class _DataflowIterableAsMultimapSideInput(_DataflowSideInput):
-  """Wraps an iterable side input as dataflow-compatible side input."""
-  def __init__(self, side_input):
-    # pylint: disable=protected-access
-    side_input_data = side_input._side_input_data()
-    assert (
-        side_input_data.access_pattern == common_urns.side_inputs.ITERABLE.urn)
-    iterable_view_fn = side_input_data.view_fn
-    self._data = beam.pvalue.SideInputData(
-        common_urns.side_inputs.MULTIMAP.urn,
-        side_input_data.window_mapping_fn,
-        lambda multimap: iterable_view_fn(multimap[b'']))
+def _add_runner_v2_missing_options(options):
+  debug_options = options.view_as(DebugOptions)
+  debug_options.add_experiment('beam_fn_api')
+  debug_options.add_experiment('use_unified_worker')
+  debug_options.add_experiment('use_runner_v2')
+  debug_options.add_experiment('use_portable_job_submission')
+
+
+def _check_and_add_missing_options(options):
+  # Type: (PipelineOptions) -> None
+
+  """Validates and adds missing pipeline options depending on options set.
+
+  :param options: PipelineOptions for this pipeline.
+  """
+  debug_options = options.view_as(DebugOptions)
+  dataflow_service_options = options.view_as(
+      GoogleCloudOptions).dataflow_service_options or []
+  options.view_as(
+      GoogleCloudOptions).dataflow_service_options = dataflow_service_options
+
+  # Ensure that prime is specified as an experiment if specified as a dataflow
+  # service option
+  if 'enable_prime' in dataflow_service_options:
+    debug_options.add_experiment('enable_prime')
+  elif debug_options.lookup_experiment('enable_prime'):
+    dataflow_service_options.append('enable_prime')
+
+  # Streaming only supports using runner v2 (aka unified worker).
+  # Runner v2 only supports using streaming engine (aka windmill service)
+  if options.view_as(StandardOptions).streaming:
+    google_cloud_options = options.view_as(GoogleCloudOptions)
+    if _is_runner_v2_disabled(options):
+      raise ValueError(
+          'Disabling Runner V2 no longer supported for streaming pipeline '
+          'using Beam Python %s.' % beam.version.__version__)
+
+    if (not google_cloud_options.enable_streaming_engine and
+        (debug_options.lookup_experiment("enable_windmill_service") or
+         debug_options.lookup_experiment("enable_streaming_engine"))):
+      raise ValueError(
+          """Streaming engine both disabled and enabled:
+          --enable_streaming_engine flag is not set, but
+          enable_windmill_service and/or enable_streaming_engine experiments
+          are present. It is recommended you only set the
+          --enable_streaming_engine flag.""")
+
+    # Ensure that if we detected a streaming pipeline that streaming specific
+    # options and experiments.
+    options.view_as(StandardOptions).streaming = True
+    google_cloud_options.enable_streaming_engine = True
+    debug_options.add_experiment("enable_streaming_engine")
+    debug_options.add_experiment("enable_windmill_service")
+    _add_runner_v2_missing_options(debug_options)
+  elif (debug_options.lookup_experiment('enable_prime') or
+        debug_options.lookup_experiment('beam_fn_api') or
+        debug_options.lookup_experiment('use_unified_worker') or
+        debug_options.lookup_experiment('use_runner_v2') or
+        debug_options.lookup_experiment('use_portable_job_submission')):
+    if _is_runner_v2_disabled(options):
+      raise ValueError(
+          """Runner V2 both disabled and enabled: at least one of
+          ['enable_prime', 'beam_fn_api', 'use_unified_worker', 'use_runner_v2',
+          'use_portable_job_submission'] is set and also one of
+          ['disable_runner_v2', 'disable_runner_v2_until_2023',
+          'disable_prime_runner_v2'] is set.""")
+    _add_runner_v2_missing_options(debug_options)
+
+
+def _is_runner_v2(options):
+  # Type: (PipelineOptions) -> bool
+
+  """Returns true if runner v2 is enabled."""
+  _check_and_add_missing_options(options)
+  return options.view_as(DebugOptions).lookup_experiment(
+      'use_runner_v2', default=False)
+
+
+def _is_runner_v2_disabled(options):
+  # Type: (PipelineOptions) -> bool
+
+  """Returns true if runner v2 is disabled."""
+  debug_options = options.view_as(DebugOptions)
+  return (
+      debug_options.lookup_experiment('disable_runner_v2') or
+      debug_options.lookup_experiment('disable_runner_v2_until_2023') or
+      debug_options.lookup_experiment('disable_prime_runner_v2'))
 
 
 class _DataflowIterableSideInput(_DataflowSideInput):

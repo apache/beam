@@ -17,7 +17,7 @@
 // (http://kafka.apache.org/). These transforms only work on runners that
 // support cross-language transforms.
 //
-// Setup
+// # Setup
 //
 // Transforms specified here are cross-language transforms implemented in a
 // different SDK (listed below). During pipeline construction, the Go SDK will
@@ -35,10 +35,11 @@
 //
 // Current supported SDKs, including expansion service modules and reference
 // documentation:
-// * Java
-//    - Vendored Module: beam-sdks-java-io-expansion-service
-//    - Run via Gradle: ./gradlew :sdks:java:io:expansion-service:runExpansionService
-//    - Reference Class: org.apache.beam.sdk.io.kafka.KafkaIO
+//
+// Java:
+//   - Vendored Module: beam-sdks-java-io-expansion-service
+//   - Run via Gradle: ./gradlew :sdks:java:io:expansion-service:runExpansionService
+//   - Reference Class: org.apache.beam.sdk.io.kafka.KafkaIO
 package kafkaio
 
 // TODO(https://github.com/apache/beam/issues/21000): Implement an API for specifying Kafka type serializers and
@@ -107,11 +108,11 @@ var autoStartupAddress string = xlangx.UseAutomatedJavaExpansionService(serviceG
 //
 // Example of Read with required and optional parameters:
 //
-//   expansionAddr := "localhost:1234"
-//   bootstrapServer := "bootstrap-server:1234"
-//   topic := "topic_name"
-//   pcol := kafkaio.Read( s, expansionAddr, bootstrapServer, []string{topic},
-//       kafkaio.MaxNumRecords(100), kafkaio.CommitOffsetInFinalize(true))
+//	expansionAddr := "localhost:1234"
+//	bootstrapServer := "bootstrap-server:1234"
+//	topic := "topic_name"
+//	pcol := kafkaio.Read( s, expansionAddr, bootstrapServer, []string{topic},
+//	    kafkaio.MaxNumRecords(100), kafkaio.CommitOffsetInFinalize(true))
 func Read(s beam.Scope, addr string, servers string, topics []string, opts ...readOption) beam.PCollection {
 	s = s.Scope("kafkaio.Read")
 
@@ -252,11 +253,11 @@ type readPayload struct {
 //
 // Example of Write with required and optional parameters:
 //
-//   expansionAddr := "localhost:1234"
-//   bootstrapServer := "bootstrap-server:1234"
-//   topic := "topic_name"
-//   pcol := kafkaio.Read(s, expansionAddr, bootstrapServer, topic,
-//       kafkaio.ValueSerializer("foo.BarSerializer"))
+//	expansionAddr := "localhost:1234"
+//	bootstrapServer := "bootstrap-server:1234"
+//	topic := "topic_name"
+//	pcol := kafkaio.Read(s, expansionAddr, bootstrapServer, topic,
+//	    kafkaio.ValueSerializer("foo.BarSerializer"))
 func Write(s beam.Scope, addr, servers, topic string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("kafkaio.Write")
 

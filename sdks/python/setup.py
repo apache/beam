@@ -228,8 +228,6 @@ if __name__ == '__main__':
           'apache_beam/utils/windowed_value.py',
       ]),
       install_requires= protobuf_dependency + [
-        # Avro 1.9.2 for python3 was broken.
-        # The issue was fixed in version 1.9.2.1
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
@@ -305,7 +303,7 @@ if __name__ == '__main__':
             'google-cloud-pubsublite>=1.2.0,<2',
             # GCP packages required by tests
             'google-cloud-bigquery>=1.6.0,<4',
-            'google-cloud-bigquery-storage>=2.6.3,<2.14',
+            'google-cloud-bigquery-storage>=2.6.3,<2.17',
             'google-cloud-core>=0.28.1,<3',
             'google-cloud-bigtable>=0.31.1,<2',
             'google-cloud-spanner>=3.0.0,<4',
@@ -332,7 +330,7 @@ if __name__ == '__main__':
           'interactive_test': [
             # notebok utils
             'nbformat>=5.0.5,<6',
-            'nbconvert>=6.2.0,<7',
+            'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
             'chromedriver-binary>=100,<101',

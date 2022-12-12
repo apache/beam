@@ -20,20 +20,24 @@ package org.apache.beam.sdk.io.kafka;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link KafkaSchemaTransformReadProvider}. */
+/** Tests for {@link KafkaReadSchemaTransformProvider}. */
 @RunWith(JUnit4.class)
-public class KafkaSchemaTransformReadProviderTest {
+public class KafkaReadSchemaTransformProviderTest {
   private static final String AVRO_SCHEMA =
       "{\"type\":\"record\",\"namespace\":\"com.example\","
           + "\"name\":\"FullName\",\"fields\":[{\"name\":\"first\",\"type\":\"string\"},"
@@ -44,7 +48,7 @@ public class KafkaSchemaTransformReadProviderTest {
     assertThrows(
         AssertionError.class,
         () -> {
-          KafkaSchemaTransformReadConfiguration.builder()
+          KafkaReadSchemaTransformConfiguration.builder()
               .setDataFormat("UNUSUAL_FORMAT")
               .setTopic("a_valid_topic")
               .setBootstrapServers("a_valid_server")
@@ -55,7 +59,7 @@ public class KafkaSchemaTransformReadProviderTest {
     assertThrows(
         IllegalStateException.class,
         () -> {
-          KafkaSchemaTransformReadConfiguration.builder()
+          KafkaReadSchemaTransformConfiguration.builder()
               .setDataFormat("UNUSUAL_FORMAT")
               // .setTopic("a_valid_topic")  // Topic is mandatory
               .setBootstrapServers("a_valid_server")
@@ -66,7 +70,7 @@ public class KafkaSchemaTransformReadProviderTest {
     assertThrows(
         IllegalStateException.class,
         () -> {
-          KafkaSchemaTransformReadConfiguration.builder()
+          KafkaReadSchemaTransformConfiguration.builder()
               .setDataFormat("UNUSUAL_FORMAT")
               .setTopic("a_valid_topic")
               // .setBootstrapServers("a_valid_server")  // Bootstrap server is mandatory
@@ -81,17 +85,17 @@ public class KafkaSchemaTransformReadProviderTest {
         ServiceLoader.load(SchemaTransformProvider.class);
     List<SchemaTransformProvider> providers =
         StreamSupport.stream(serviceLoader.spliterator(), false)
-            .filter(provider -> provider.getClass() == KafkaSchemaTransformReadProvider.class)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
             .collect(Collectors.toList());
     SchemaTransformProvider kafkaProvider = providers.get(0);
-    assertEquals(kafkaProvider.outputCollectionNames(), Lists.newArrayList("OUTPUT"));
+    assertEquals(kafkaProvider.outputCollectionNames(), Lists.newArrayList("output"));
     assertEquals(kafkaProvider.inputCollectionNames(), Lists.newArrayList());
 
     assertEquals(
         Sets.newHashSet(
             "bootstrapServers",
             "topic",
-            "avroSchema",
+            "schema",
             "autoOffsetResetConfig",
             "consumerConfigUpdates",
             "dataFormat",
@@ -108,16 +112,43 @@ public class KafkaSchemaTransformReadProviderTest {
         ServiceLoader.load(SchemaTransformProvider.class);
     List<SchemaTransformProvider> providers =
         StreamSupport.stream(serviceLoader.spliterator(), false)
-            .filter(provider -> provider.getClass() == KafkaSchemaTransformReadProvider.class)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
             .collect(Collectors.toList());
-    KafkaSchemaTransformReadProvider kafkaProvider =
-        (KafkaSchemaTransformReadProvider) providers.get(0);
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
     kafkaProvider
         .from(
-            KafkaSchemaTransformReadConfiguration.builder()
+            KafkaReadSchemaTransformConfiguration.builder()
                 .setTopic("anytopic")
                 .setBootstrapServers("anybootstrap")
-                .setAvroSchema(AVRO_SCHEMA)
+                .setSchema(AVRO_SCHEMA)
+                .build())
+        .buildTransform();
+  }
+
+  @Test
+  public void testBuildTransformWithJsonSchema() throws IOException {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+    kafkaProvider
+        .from(
+            KafkaReadSchemaTransformConfiguration.builder()
+                .setTopic("anytopic")
+                .setBootstrapServers("anybootstrap")
+                .setDataFormat("JSON")
+                .setSchema(
+                    new String(
+                        ByteStreams.toByteArray(
+                            Objects.requireNonNull(
+                                getClass()
+                                    .getResourceAsStream("/json-schema/basic_json_schema.json"))),
+                        StandardCharsets.UTF_8))
                 .build())
         .buildTransform();
   }

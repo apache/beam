@@ -464,6 +464,7 @@ dns_name: ${dns_name}
     """)
  }
 }
+
 helm {
     val playground by charts.creating {
         chartName.set("playground")
@@ -478,23 +479,20 @@ helm {
 tasks.register("gkebackend") {
   group = "deploy"
   val init = tasks.getByName("terraformInit")
-  val apply = tasks.getByName("terraformApplyInf")
-  val indexcreate = tasks.getByName("indexcreate")
   val takeConfig = tasks.getByName("takeConfig")
+  val back = tasks.getByName("pushBack")
   val front = tasks.getByName("pushFront")
-  val push = tasks.getByName("pushBack")
+  val indexcreate = tasks.getByName("indexcreate")
   val helm = tasks.getByName("helmInstallPlayground")
   dependsOn(init)
-  dependsOn(apply)
   dependsOn(takeConfig)
-  dependsOn(push)
+  dependsOn(back)
   dependsOn(front)
   dependsOn(indexcreate)
   dependsOn(helm)
-  apply.mustRunAfter(init)
-  takeConfig.mustRunAfter(apply)
-  push.mustRunAfter(takeConfig)
-  front.mustRunAfter(push)
+  takeConfig.mustRunAfter(init)
+  back.mustRunAfter(takeConfig)
+  front.mustRunAfter(back)
   indexcreate.mustRunAfter(front)
   helm.mustRunAfter(indexcreate)
 }
