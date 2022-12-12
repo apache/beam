@@ -57,7 +57,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 /** Unit tests for {@link org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto}. */
 public class TableRowToStorageApiProtoTest {
@@ -831,69 +831,91 @@ public class TableRowToStorageApiProtoTest {
   @Test
   public void testIntegerTypeConversion() throws DescriptorValidationException {
     String intFieldName = "int_field";
-    TableSchema tableSchema = new TableSchema()
-        .setFields(
-            ImmutableList.<TableFieldSchema>builder()
-                .add(
-                    new TableFieldSchema()
-                        .setType("INTEGER")
-                        .setName(intFieldName)
-                        .setMode("REQUIRED")
-                )
-                .build());
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.<TableFieldSchema>builder()
+                    .add(
+                        new TableFieldSchema()
+                            .setType("INTEGER")
+                            .setName(intFieldName)
+                            .setMode("REQUIRED"))
+                    .build());
     TableRowToStorageApiProto.SchemaInformation schemaInformation =
-        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema
-        );
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
     SchemaInformation fieldSchema = schemaInformation.getSchemaForField(intFieldName);
     Descriptor schemaDescriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true);
     FieldDescriptor fieldDescriptor = schemaDescriptor.findFieldByName(intFieldName);
 
-    Object[][] validIntValues = new Object[][]{
-        // Source and expected converted values.
-        {"123", 123L},
-        {123L, 123L},
-        {123, 123L},
-        {new BigDecimal("123"), 123L},
-        {new BigInteger("123"), 123L}
-    };
+    Object[][] validIntValues =
+        new Object[][] {
+          // Source and expected converted values.
+          {"123", 123L},
+          {123L, 123L},
+          {123, 123L},
+          {new BigDecimal("123"), 123L},
+          {new BigInteger("123"), 123L}
+        };
     for (Object[] validValue : validIntValues) {
       Object sourceValue = validValue[0];
       Long expectedConvertedValue = (Long) validValue[1];
       try {
-        Object converted = TableRowToStorageApiProto.singularFieldToProtoValue(fieldSchema,
-            fieldDescriptor, sourceValue, false);
+        Object converted =
+            TableRowToStorageApiProto.singularFieldToProtoValue(
+                fieldSchema, fieldDescriptor, sourceValue, false);
         assertEquals(expectedConvertedValue, converted);
       } catch (SchemaConversionException e) {
-        fail("Failed to convert value " + sourceValue + " of type " + validValue.getClass()
-            + " to INTEGER: " + e);
+        fail(
+            "Failed to convert value "
+                + sourceValue
+                + " of type "
+                + validValue.getClass()
+                + " to INTEGER: "
+                + e);
       }
     }
 
-    Object[][] invalidIntValues = new Object[][] {
-        // Value and expected error message
-        {"12.123", "Column: "
-            + intFieldName
-            + " (INT64). Value: 12.123 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"12.123\""},
-        {Long.toString(Long.MAX_VALUE) + '0', "Column: "
-            + intFieldName
-            + " (INT64). Value: 92233720368547758070 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"92233720368547758070\""},
-        {new BigDecimal("12.123"), "Column: "
-            + intFieldName
-            + " (INT64). Value: 12.123 (java.math.BigDecimal). Reason: java.lang.ArithmeticException: Rounding necessary"},
-        {new BigInteger(String.valueOf(Long.MAX_VALUE)).add(new BigInteger("10")), "Column: "
-            + intFieldName
-            + " (INT64). Value: 9223372036854775817 (java.math.BigInteger). Reason: java.lang.ArithmeticException: BigInteger out of long range"}
-
-    };
+    Object[][] invalidIntValues =
+        new Object[][] {
+          // Value and expected error message
+          {
+            "12.123",
+            "Column: "
+                + intFieldName
+                + " (INT64). Value: 12.123 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"12.123\""
+          },
+          {
+            Long.toString(Long.MAX_VALUE) + '0',
+            "Column: "
+                + intFieldName
+                + " (INT64). Value: 92233720368547758070 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"92233720368547758070\""
+          },
+          {
+            new BigDecimal("12.123"),
+            "Column: "
+                + intFieldName
+                + " (INT64). Value: 12.123 (java.math.BigDecimal). Reason: java.lang.ArithmeticException: Rounding necessary"
+          },
+          {
+            new BigInteger(String.valueOf(Long.MAX_VALUE)).add(new BigInteger("10")),
+            "Column: "
+                + intFieldName
+                + " (INT64). Value: 9223372036854775817 (java.math.BigInteger). Reason: java.lang.ArithmeticException: BigInteger out of long range"
+          }
+        };
     for (Object[] invalidValue : invalidIntValues) {
       Object sourceValue = invalidValue[0];
       String expectedError = (String) invalidValue[1];
       try {
-        TableRowToStorageApiProto.singularFieldToProtoValue(fieldSchema, fieldDescriptor,
-            sourceValue, false);
-        fail("Expected to throw an exception converting " + sourceValue + " of type "
-            + invalidValue.getClass() + " to INTEGER");
+        TableRowToStorageApiProto.singularFieldToProtoValue(
+            fieldSchema, fieldDescriptor, sourceValue, false);
+        fail(
+            "Expected to throw an exception converting "
+                + sourceValue
+                + " of type "
+                + invalidValue.getClass()
+                + " to INTEGER");
       } catch (SchemaConversionException e) {
         assertEquals("Exception message", expectedError, e.getMessage());
       }

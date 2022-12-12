@@ -111,7 +111,18 @@ public class TableRowToStorageApiProto {
 
   public static class SingleValueConversionException extends SchemaConversionException {
     SingleValueConversionException(Object sourceValue, SchemaInformation schema, Exception e) {
-      super("Column: " + getPrettyFieldName(schema) + " (" + schema.getType() + "). "
+      super(
+          "Column: "
+              + getPrettyFieldName(schema)
+              + " ("
+              + schema.getType()
+              + "). "
+              + "Value: "
+              + sourceValue
+              + " ("
+              + sourceValue.getClass().getName()
+              + "). Reason: "
+              + e);
           + "Value: " + sourceValue + " (" + sourceValue.getClass().getName()
           + "). Reason: " + e);
     }
