@@ -1,9 +1,8 @@
 package com.playground.extract_symbols;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.esotericsoftware.yamlbeans.YamlConfig;
+import com.esotericsoftware.yamlbeans.YamlException;
+import com.esotericsoftware.yamlbeans.YamlWriter;
 import com.github.javaparser.ParseProblemException;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -12,8 +11,11 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -56,7 +58,6 @@ public class Main {
             classInfoList.put(cl.getNameAsString(), classInfo);
         }
 
-        classInfo.name = cl.getNameAsString();
         cl.findAll(MethodDeclaration.class).forEach(method -> {
             if (method.isPublic()) {
                 classInfo.publicMethods.add(method.getNameAsString());
@@ -69,23 +70,14 @@ public class Main {
         });
     }
 
-    private static String buildYamlString(HashMap<String, ClassInfo> classInfoMap) throws JsonProcessingException {
-        ObjectMapper mapper = buildObjectMapper();
-        StringBuilder result = new StringBuilder();
-
-        for (var classInfo : classInfoMap.values()) {
-            result.append(mapper.writeValueAsString(classInfo).substring(4).replace("\"", ""));
-        }
-        return result.toString();
-    }
-
-    private static ObjectMapper buildObjectMapper() {
-        var classInfoSerializer = new ClassInfoSerializer(ClassInfo.class);
-        var factory = new YAMLFactory();
-        var mapper = new ObjectMapper(factory);
-        var simpleModule = new SimpleModule("ClassInfoSerializer");
-        simpleModule.addSerializer(classInfoSerializer);
-        mapper.registerModule(simpleModule);
-        return mapper;
+    private static String buildYamlString(HashMap<String, ClassInfo> classInfoMap) throws YamlException {
+        var stringWriter = new StringWriter();
+        var yamlWriter = new YamlWriter(stringWriter);
+        yamlWriter.getConfig().writeConfig.setWriteClassname(YamlConfig.WriteClassName.NEVER);
+        var yamlMap = new HashMap<String, Map<String, Set<String>>>();
+        classInfoMap.forEach((key, value) -> yamlMap.put(key, value.toMap()));
+        yamlWriter.write(yamlMap);
+        yamlWriter.close();
+        return stringWriter.toString();
     }
 }
