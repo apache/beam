@@ -31,8 +31,7 @@ import yaml
 from google.api_core import exceptions
 
 from apache_beam.testing.analyzers import constants
-from apache_beam.testing.analyzers.github_issues_utils import get_issue_description
-from apache_beam.testing.analyzers.github_issues_utils import report_change_point_on_issues
+from apache_beam.testing.analyzers import github_issues_utils
 from apache_beam.testing.load_tests import load_test_metrics_utils
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsPublisher
@@ -195,7 +194,8 @@ def create_performance_alert(
   Creates performance alert on GitHub issues and returns GitHub issue
   number and issue URL.
   """
-  description = get_issue_description(
+  description = github_issues_utils.get_issue_description(
+      test_name=test_name,
       metric_name=metric_name,
       timestamps=timestamps,
       metric_values=metric_values,
@@ -203,8 +203,10 @@ def create_performance_alert(
       max_results_to_display=(
           constants._NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION))
 
-  issue_number, issue_url = report_change_point_on_issues(
-        title=constants._TITLE_TEMPLATE.format(test_name, metric_name),
+  issue_number, issue_url = github_issues_utils.report_change_point_on_issues(
+        title=github_issues_utils._ISSUE_TITLE_TEMPLATE.format(
+          test_name, metric_name
+        ),
         description=description,
         labels=labels,
         existing_issue_number=existing_issue_number)

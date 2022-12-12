@@ -44,10 +44,16 @@ _HEADERS = {
     "X-GitHub-Api-Version": "2022-11-28"
 }
 
-ISSUE_DESCRIPTION_TEMPLATE = """
-  Affected metric: `{}`
+_ISSUE_TITLE_TEMPLATE = """
+  Performance Regression or Improvement: {}:{}
 """
-_METRIC_INFO = "timestamp: {}, metric_value: `{}`"
+
+# TODO: Provide a better debugging tool for the user to visualize metrics.
+# For example, a link to dashboards or query to get recent data to analyze,etc.
+_ISSUE_DESCRIPTION_TEMPLATE = """
+  Performance change found in the test: `{}` for the metric: `{}`.
+"""
+_METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: `{}`"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'
 _PERF_ALERT_LABEL = 'perf-alert'
 
@@ -129,6 +135,7 @@ def add_awaiting_triage_label(issue_number: int):
 
 
 def get_issue_description(
+    test_name: str,
     metric_name: str,
     timestamps: List[pd.Timestamp],
     metric_values: List,
@@ -154,10 +161,11 @@ def get_issue_description(
       change_point_index + max_results_to_display, len(metric_values) - 1)
   min_timestamp_index = max(0, change_point_index - max_results_to_display)
 
-  description = ISSUE_DESCRIPTION_TEMPLATE.format(metric_name) + 2 * '\n'
+  description = _ISSUE_DESCRIPTION_TEMPLATE.format(
+      test_name, metric_name) + 2 * '\n'
 
   runs_to_display = [
-      _METRIC_INFO.format(timestamps[i].ctime(), metric_values[i])
+      _METRIC_INFO_TEMPLATE.format(timestamps[i].ctime(), metric_values[i])
       for i in range(max_timestamp_index, min_timestamp_index - 1, -1)
   ]
 

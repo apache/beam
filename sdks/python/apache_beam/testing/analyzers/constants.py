@@ -66,7 +66,3 @@ _SCHEMA = [{
            }, {
                'name': _ISSUE_URL, 'field_type': 'STRING', 'mode': 'REQUIRED'
            }]
-
-_TITLE_TEMPLATE = """
-  Performance Regression or Improvement: {}:{}
-"""

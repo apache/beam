@@ -84,7 +84,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
         'Since the change point run %s '
         'lies outside the num_runs_in_change_point_window distance: %s, '
         'alert is not raised.' % (
-            test_name,
+            params['test_name'],
             len(timestamps) - 1 - change_point_index,
             num_runs_in_change_point_window))
     return
@@ -110,7 +110,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
   logging.info("Performance alert is %s for test %s" % (is_alert, test_name))
   if is_alert:
     issue_number, issue_url = create_performance_alert(
-    metric_name, test_name, timestamps,
+    metric_name, params['test_name'], timestamps,
     metric_values, change_point_index,
     params.get('labels', None),
     last_reported_issue_number)
