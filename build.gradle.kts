@@ -311,6 +311,9 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
+}
+
+tasks.register("pythonPreCommitIT") {
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }
