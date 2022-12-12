@@ -76,14 +76,17 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
   if not change_point_index:
     return
 
-  if not is_change_point_in_valid_window(num_runs_in_change_point_window,
-                                         change_point_index):
+  if not is_change_point_in_valid_window(
+      num_runs_in_change_point_window,
+      len(timestamps) - 1 - change_point_index):
     logging.info(
         'Performance regression/improvement found for the test: %s. '
-        'Since the change point index %s '
+        'Since the change point run %s '
         'lies outside the num_runs_in_change_point_window distance: %s, '
-        'alert is not raised.' %
-        (test_name, change_point_index, num_runs_in_change_point_window))
+        'alert is not raised.' % (
+            test_name,
+            len(timestamps) - 1 - change_point_index,
+            num_runs_in_change_point_window))
     return
 
   is_alert = True
@@ -103,6 +106,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
         timestamps=timestamps,
         min_runs_between_change_points=min_runs_between_change_points)
 
+  # TODO: remove before merging.
   logging.info("Performance alert is %s for test %s" % (is_alert, test_name))
   if is_alert:
     issue_number, issue_url = create_performance_alert(

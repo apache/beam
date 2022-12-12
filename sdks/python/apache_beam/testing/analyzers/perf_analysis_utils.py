@@ -92,14 +92,15 @@ def is_perf_alert(
   Search the previous_change_point_timestamps with current observed
   change point sibling window and determine if it is a duplicate
   change point or not.
+  timestamps are expected to be in ascending order.
 
   Return False if the current observed change point is a duplicate of
   already reported change points else return True.
   """
-  sibling_change_point_min_timestamp = timestamps[min(
-      change_point_index + min_runs_between_change_points, len(timestamps) - 1)]
-  sibling_change_point_max_timestamp = timestamps[max(
+  sibling_change_point_min_timestamp = timestamps[max(
       0, change_point_index - min_runs_between_change_points)]
+  sibling_change_point_max_timestamp = timestamps[min(
+      change_point_index + min_runs_between_change_points, len(timestamps) - 1)]
   # Search a list of previous change point timestamps and compare it with
   # current change point timestamp. We do this in case, if a current change
   # point is already reported in the past.
@@ -127,6 +128,15 @@ def validate_config(keys):
 def fetch_metric_data(
     params: Dict[str, Any], big_query_metrics_fetcher: BigQueryMetricsFetcher
 ) -> Tuple[List[Union[int, float]], List[pd.Timestamp]]:
+  """
+  Args:
+   params: Dict containing keys required to fetch data from a data source.
+   big_query_metrics_fetcher: A BigQuery metrics fetcher for fetch metrics.
+  Returns:
+    Tuple[List[Union[int, float]], List[pd.Timestamp]]: Tuple containing list
+    of metric_values and list of timestamps. Both are sorted in ascending
+    order wrt timestamps.
+  """
   query = f"""
       SELECT *
       FROM {params['project']}.{params['metrics_dataset']}.{params['metrics_table']}
@@ -135,19 +145,26 @@ def fetch_metric_data(
       LIMIT {constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS}
     """
   metric_data: pd.DataFrame = big_query_metrics_fetcher.fetch(query=query)
-  # metric_data.sort_values(by=[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL])
+  metric_data.sort_values(
+      by=[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL], inplace=True)
   return (
-      metric_data[load_test_metrics_utils.VALUE_LABEL],
-      metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL])
+      metric_data[load_test_metrics_utils.VALUE_LABEL].tolist(),
+      metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL].tolist())
 
 
 def find_latest_change_point_index(metric_values: List[Union[float, int]]):
+  """
+  Args:
+   metric_values: Metric values used to run change point analysis.
+  Returns:
+   int: Right most change point index observed on metric_values.
+  """
   change_points_idx = e_divisive(metric_values)
   if not change_points_idx:
     return None
   # Consider the latest change point.
-  change_points_idx.sort(reverse=True)
-  change_point_index = change_points_idx[0]
+  change_points_idx.sort()
+  change_point_index = change_points_idx[-1]
   return change_point_index
 
 

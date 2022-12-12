@@ -138,8 +138,8 @@ def get_issue_description(
   Args:
    metric_name: Metric name used for the Change Point Analysis.
    timestamps: Timestamps of the metrics when they were published to the
-    Database.
-   metric_values: Values of the metric for the previous runs.
+    Database. Timestamps are expected in ascending order.
+   metric_values: metric values for the previous runs.
    change_point_index: Index for the change point. The element in the
     index of the metric_values would be the change point.
    max_results_to_display: Max number of results to display from the change
@@ -150,18 +150,18 @@ def get_issue_description(
   """
 
   # TODO: Add mean and median before and after the changepoint index.
-  upper_bound = min(
-      change_point_index + max_results_to_display + 1, len(metric_values))
-  lower_bound = max(0, change_point_index - max_results_to_display)
+  max_timestamp_index = min(
+      change_point_index + max_results_to_display, len(metric_values) - 1)
+  min_timestamp_index = max(0, change_point_index - max_results_to_display)
 
   description = ISSUE_DESCRIPTION_TEMPLATE.format(metric_name) + 2 * '\n'
 
   runs_to_display = [
       _METRIC_INFO.format(timestamps[i].ctime(), metric_values[i])
-      for i in range(lower_bound, upper_bound)
+      for i in range(max_timestamp_index, min_timestamp_index - 1, -1)
   ]
 
-  runs_to_display[change_point_index - lower_bound] += " <---- Anomaly"
+  runs_to_display[change_point_index - min_timestamp_index] += " <---- Anomaly"
   return description + '\n'.join(runs_to_display)
 
 
