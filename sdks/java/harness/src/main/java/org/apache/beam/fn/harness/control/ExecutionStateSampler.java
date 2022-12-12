@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
@@ -73,8 +73,7 @@ public class ExecutionStateSampler {
 
   private final Future<Void> stateSamplingThread;
 
-  @SuppressWarnings(
-      "methodref.receiver.bound.invalid" /* Synchronization ensures proper initialization */)
+  @SuppressWarnings("methodref.receiver.bound" /* Synchronization ensures proper initialization */)
   public ExecutionStateSampler(PipelineOptions options, MillisProvider clock) {
     String samplingPeriodMills =
         ExperimentalOptions.getExperimentValue(
@@ -89,7 +88,10 @@ public class ExecutionStateSampler {
     // being published before the state sampler thread starts.
     synchronized (this) {
       this.stateSamplingThread =
-          options.as(GcsOptions.class).getExecutorService().submit(this::stateSampler);
+          options
+              .as(ExecutorOptions.class)
+              .getScheduledExecutorService()
+              .submit(this::stateSampler);
     }
   }
 

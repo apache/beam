@@ -1585,3 +1585,7 @@ class RunnerResult(runner.PipelineResult):
       self._monitoring_metrics = FnApiMetrics(
           self._monitoring_infos_by_stage, user_metrics_only=False)
     return self._monitoring_metrics
+
+  def monitoring_infos(self):
+    for ms in self._monitoring_infos_by_stage.values():
+      yield from ms

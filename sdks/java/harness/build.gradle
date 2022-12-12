@@ -18,36 +18,54 @@
 
 plugins { id 'org.apache.beam.module' }
 
-// We specifically enumerate all the projects that we depend on since
-// the list is used in both defining the included set for the uber jar
-// and also the set of project level dependencies.
-def dependOnShadedProjects = [":model:pipeline", ":model:fn-execution", ":sdks:java:core"]
-def dependOnProjects = [":sdks:java:fn-execution",
-                        ":sdks:java:extensions:google-cloud-platform-core",
-                        ":runners:core-java", ":runners:core-construction-java"]
+configurations {
+  provided
+}
+
+dependencies {
+  // provided dependencies are declared early so they can be resolved in shadowClosure
+  provided enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
+  // :sdks:java:core and transitive dependencies
+  provided project(path: ":model:pipeline", configuration: "shadow")
+  provided project(path: ":sdks:java:core", configuration: "shadow")
+  provided library.java.joda_time
+  provided library.java.slf4j_api
+  provided library.java.vendored_grpc_1_48_1
+  provided library.java.vendored_guava_26_0_jre
+
+  provided library.java.jamm
+}
 
 applyJavaNature(
   classesTriggerCheckerBugs: [
     'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
     'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',
+    'FnApiDoFnRunner': 'https://github.com/typetools/checker-framework/issues/5436',
   ],
   automaticModuleName: 'org.apache.beam.fn.harness',
-  validateShadowJar: false,
   testShadowJar: true,
+  shadowJarValidationExcludes: [
+    "junit/**",
+    "io/github/classgraph/**",
+    "nonapi/io/github/classgraph/**",
+    "org/apache/beam/fn/harness/**",
+    "org/apache/beam/model/fnexecution/**",
+    "org/apache/beam/runners/core/**",
+    "org/apache/beam/runners/core/construction/**",
+    "org/apache/beam/sdk/fn/**",
+    "org/checkerframework/**",
+    "org/hamcrest/**",
+    "org/junit/**",
+  ],
   shadowClosure:
-  // Create an uber jar without repackaging for the SDK harness
-  // TODO: We have been releasing this in the past, consider not
-  // releasing it since its typically bad practice to release 'all'
-  // jars.
   {
     dependencies {
-      // Directly include all projects depended on
-      dependOnProjects.each {
-        include(project(path: it, configuration: "shadow"))
+      // Exclude provided and transient dependencies
+      project.configurations.provided.getResolvedConfiguration()
+          .getLenientConfiguration().getAllModuleDependencies().each {
+        exclude(dependency(it.getModuleGroup() + ":" + it.getModuleName() + ":.*"))
       }
-      // Include all dependencies and transitive dependencies
-      include(dependency(".*:.*"))
-      exclude(dependency(".*:avro:.*"))
     }
   },
 )
@@ -56,21 +74,14 @@ description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 dependencies {
-  dependOnShadedProjects.each {
-    implementation project(path: it, configuration: "shadow")
-  }
-  dependOnProjects.each {
-    implementation project(it)
-  }
-  shadow library.java.vendored_guava_26_0_jre
-  implementation library.java.joda_time
-  implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_48_1
-  implementation library.java.jamm
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(":runners:core-construction-java")
+  implementation project(":runners:core-java")
+  implementation project(":sdks:java:fn-execution")
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
-  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(":runners:core-construction-java")
+  shadowTestRuntimeClasspath project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
 }

@@ -2963,7 +2963,8 @@ For example, consider the following schema, representing actions in a fictitious
 
 **Purchase**
 
-<table>
+<div class="table-container-wrapper">
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -2994,10 +2995,11 @@ For example, consider the following schema, representing actions in a fictitious
   </tbody>
 </table>
 <br/>
+</div>
 
 **ShippingAddress**
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -3031,7 +3033,7 @@ For example, consider the following schema, representing actions in a fictitious
 
 **Transaction**
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -3226,7 +3228,7 @@ The schema for a `PCollection` defines elements of that `PCollection` as an orde
 has a name, a type, and possibly a set of user options. The type of a field can be primitive or composite. The following
 are the primitive types currently supported by Beam:
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th>Type</th>
@@ -3886,7 +3888,7 @@ specific keys from the map. For example, given the following schema:
 
 **PurchasesByType**
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -3950,7 +3952,7 @@ Support for Nested fields hasn't been developed for the Go SDK yet.
 
 The resulting `PCollection` will have the following schema
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -3986,7 +3988,7 @@ Support for Wildcards hasn't been developed for the Go SDK yet.
 
 Will result in the following schema
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4040,7 +4042,7 @@ Support for nested fields hasn't been developed for the Go SDK yet.
 
 {{< paragraph class="language-java" >}}
 Will result in the following schema
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4087,7 +4089,8 @@ Support for nested fields hasn't been developed for the Go SDK yet.
 
 {{< paragraph class="language-java" >}}
 Will result in the following schema
-<table>
+<div class="table-container-wrapper">
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4138,6 +4141,7 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+</div>
 {{< /paragraph >}}
 
 ##### **Grouping aggregations**
@@ -4181,7 +4185,7 @@ Support for schema-aware grouping hasn't been developed for the Go SDK yet.
 The output schema of this is:
 {{< /paragraph >}}
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4237,7 +4241,7 @@ Support for schema-aware grouping hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 The result of this aggregation will have the following schema:
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4284,7 +4288,7 @@ PCollection<Row> joined = transactions.apply(
 
 {{< paragraph class="language-java" >}}
 The resulting schema is the following:
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4352,7 +4356,7 @@ The `Filter` transform can be configured with a set of predicates, each one base
 which all predicates return true will pass the filter. For example the following
 
 {{< highlight java >}}
-purchases.apply(Filter
+purchases.apply(Filter.create()
     .whereFieldName("costCents", c -> c > 100 * 20)
     .whereFieldName("shippingAddress.country", c -> c.equals("de"));
 {{< /highlight >}}
@@ -4674,7 +4678,8 @@ types for any pipeline you create using the Beam SDK for
 The following table shows the standard mapping:
 
 {{< paragraph class="language-java" >}}
-<table>
+<div class="table-container-wrapper">
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th>Java Type</th>
@@ -4736,10 +4741,11 @@ The following table shows the standard mapping:
     </tr>
   </tbody>
 </table>
+</div>
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th>Python Type</th>
@@ -6995,7 +7001,9 @@ which restrictions to split and who should process them.
 
 By default, we use the restriction tracker’s estimate for work remaining falling back to assuming
 that all restrictions have an equal cost. To override the default, SDF authors can provide the
-appropriate method within the restriction provider.
+appropriate method within the restriction provider. SDF authors need to be aware that the
+sizing method will be invoked concurrently during bundle processing due to runner initiated splitting
+and progress estimation.
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_GetSize >}}

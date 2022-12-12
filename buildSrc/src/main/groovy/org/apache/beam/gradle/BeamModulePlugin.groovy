@@ -390,7 +390,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.44.0'
+    project.version = '2.45.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -461,37 +461,40 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk2_version = "2.17.127"
     def cassandra_driver_version = "3.10.2"
     def cdap_version = "6.5.1"
-    def checkerframework_version = "3.10.0"
+    def checkerframework_version = "3.27.0"
     def classgraph_version = "4.8.104"
+    def dbcp2_version = "2.8.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
-    def gax_version = "2.19.2"
+    def gax_version = "2.19.5"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.6"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.31.2"
+    def google_cloud_spanner_version = "6.33.0"
     def google_code_gson_version = "2.9.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.49.2"
+    def grpc_version = "1.50.2"
     def guava_version = "31.1-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
     def httpcore_version = "4.4.14"
-    def jackson_version = "2.13.3"
+    def jackson_version = "2.14.1"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
+    def everit_json_version = "1.14.1"
     def kafka_version = "2.4.1"
     def nemo_version = "0.1"
     def netty_version = "4.1.77.Final"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
-    def protobuf_version = "3.21.7"
+    def protobuf_version = "3.21.9"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
+    def singlestore_jdbc_version = "1.1.4"
     def slf4j_version = "1.7.30"
     def spark2_version = "2.4.8"
     def spark3_version = "3.1.2"
@@ -571,6 +574,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_io                                  : "commons-io:commons-io:2.7",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
+        dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.3",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
@@ -604,9 +608,9 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/26.1.3/artifact_details.html
+        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/26.1.5/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.1.3",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.1.5",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -675,6 +679,8 @@ class BeamModulePlugin implements Plugin<Project> {
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
+        json_org                                    : "org.json:json",     // Try to keep in sync with google_cloud_platform_libraries_bom transitive deps.
+        everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
@@ -703,6 +709,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
         sbe_tool                                    : "uk.co.real-logic:sbe-tool:$sbe_tool_version",
+        singlestore_jdbc                            : "com.singlestore:singlestore-jdbc-client:$singlestore_jdbc_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
         slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
@@ -731,7 +738,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
-        zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-1",
+        zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-5",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
         quickcheck_generators                       : "com.pholser:junit-quickcheck-generators:$quickcheck_version",
         arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
@@ -986,8 +993,12 @@ class BeamModulePlugin implements Plugin<Project> {
       skipDefRegexes += configuration.classesTriggerCheckerBugs.keySet()
       String skipDefCombinedRegex = skipDefRegexes.collect({ regex -> "(${regex})"}).join("|")
 
+      List<String> skipUsesRegexes = []
+      // zstd-jni is not annotated, handles Zstd(De)CompressCtx.loadDict(null) just fine
+      skipUsesRegexes << "^com\\.github\\.luben\\.zstd\\..*"
       // SLF4J logger handles null log message parameters
-      String skipUsesRegex = "^org\\.slf4j\\.Logger.*"
+      skipUsesRegexes << "^org\\.slf4j\\.Logger.*"
+      String skipUsesCombinedRegex = skipUsesRegexes.collect({ regex -> "(${regex})"}).join("|")
 
       project.apply plugin: 'org.checkerframework'
       project.checkerFramework {
@@ -995,11 +1006,9 @@ class BeamModulePlugin implements Plugin<Project> {
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
 
-        if (!parseBooleanProperty(project, 'enableCheckerFramework') && !project.jenkins.isCIBuild) {
-          skipCheckerFramework = true
-        } else {
-          skipCheckerFramework = false
-        }
+        // Only skip checkerframework if explicitly requested
+        skipCheckerFramework = project.hasProperty('enableCheckerFramework') &&
+            !parseBooleanProperty(project, 'enableCheckerFramework')
 
         // Always exclude checkerframework on tests. It's slow, and it often
         // raises erroneous error because we don't have checker annotations for
@@ -1010,8 +1019,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
         extraJavacArgs = [
           "-AskipDefs=${skipDefCombinedRegex}",
-          "-AskipUses=${skipUsesRegex}",
-          "-AsuppressWarnings=annotation.not.completed",
+          "-AskipUses=${skipUsesCombinedRegex}",
+          "-AsuppressWarnings=annotation.not.completed,keyfor",
         ]
 
         project.dependencies {
@@ -1019,6 +1028,50 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.configurations.all {
           it.exclude(group:"org.checkerframework", module:"jdk8")
+        }
+      }
+
+      // Ban these dependencies from all configurations
+      project.configurations.all {
+        // guava-jdk5 brings in classes which conflict with guava
+        exclude group: "com.google.guava", module: "guava-jdk5"
+        // Ban the usage of the JDK tools as a library as this is system dependent
+        exclude group: "jdk.tools", module: "jdk.tools"
+        // protobuf-lite duplicates classes which conflict with protobuf-java
+        exclude group: "com.google.protobuf", module: "protobuf-lite"
+        // Exclude these test dependencies because they bundle other common
+        // test libraries classes causing version conflicts. Users should rely
+        // on using the yyy-core package instead of the yyy-all package.
+        exclude group: "org.hamcrest", module: "hamcrest-all"
+      }
+
+      // Force usage of the libraries defined within our common set found in the root
+      // build.gradle instead of using Gradles default dependency resolution mechanism
+      // which chooses the latest version available.
+      //
+      // TODO: Figure out whether we should force all dependency conflict resolution
+      // to occur in the "shadow" and "shadowTest" configurations.
+      project.configurations.all { config ->
+        // When running beam_Dependency_Check, resolutionStrategy should not be used; otherwise
+        // gradle-versions-plugin does not report the latest versions of the dependencies.
+        def startTasks = project.gradle.startParameter.taskNames
+        def inDependencyUpdates = 'dependencyUpdates' in startTasks || 'runBeamDependencyCheck' in startTasks
+
+        // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
+        // has different dependencies than our project.
+        if (config.getName() != "errorprone" && !inDependencyUpdates) {
+          config.resolutionStrategy {
+            // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
+            // versions for only handful libraries when building the project (BEAM-9542).
+            def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
+            force librariesWithVersion
+
+            // hamcrest-core and hamcrest-library have been superseded by hamcrest.
+            // We force their versions here to ensure that any resolved version provides
+            // the same classes as hamcrest.
+            force "org.hamcrest:hamcrest-core:$hamcrest_version"
+            force "org.hamcrest:hamcrest-library:$hamcrest_version"
+          }
         }
       }
 
@@ -1781,50 +1834,6 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
-
-      // Ban these dependencies from all configurations
-      project.configurations.all {
-        // guava-jdk5 brings in classes which conflict with guava
-        exclude group: "com.google.guava", module: "guava-jdk5"
-        // Ban the usage of the JDK tools as a library as this is system dependent
-        exclude group: "jdk.tools", module: "jdk.tools"
-        // protobuf-lite duplicates classes which conflict with protobuf-java
-        exclude group: "com.google.protobuf", module: "protobuf-lite"
-        // Exclude these test dependencies because they bundle other common
-        // test libraries classes causing version conflicts. Users should rely
-        // on using the yyy-core package instead of the yyy-all package.
-        exclude group: "org.hamcrest", module: "hamcrest-all"
-      }
-
-      // Force usage of the libraries defined within our common set found in the root
-      // build.gradle instead of using Gradles default dependency resolution mechanism
-      // which chooses the latest version available.
-      //
-      // TODO: Figure out whether we should force all dependency conflict resolution
-      // to occur in the "shadow" and "shadowTest" configurations.
-      project.configurations.all { config ->
-        // When running beam_Dependency_Check, resolutionStrategy should not be used; otherwise
-        // gradle-versions-plugin does not report the latest versions of the dependencies.
-        def startTasks = project.gradle.startParameter.taskNames
-        def inDependencyUpdates = 'dependencyUpdates' in startTasks || 'runBeamDependencyCheck' in startTasks
-
-        // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
-        // has different dependencies than our project.
-        if (config.getName() != "errorprone" && !inDependencyUpdates) {
-          config.resolutionStrategy {
-            // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
-            // versions for only handful libraries when building the project (BEAM-9542).
-            def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
-            force librariesWithVersion
-
-            // hamcrest-core and hamcrest-library have been superseded by hamcrest.
-            // We force their versions here to ensure that any resolved version provides
-            // the same classes as hamcrest.
-            force "org.hamcrest:hamcrest-core:$hamcrest_version"
-            force "org.hamcrest:hamcrest-library:$hamcrest_version"
-          }
-        }
-      }
     }
     def cleanUpTask = project.tasks.register('cleanUp') {
       dependsOn ':runners:google-cloud-dataflow-java:cleanUpDockerJavaImages'
@@ -1972,7 +1981,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.18.1"
+      project.ext.goVersion = "go1.19.3"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.

@@ -800,7 +800,7 @@ public class WindmillStateInternalsTest {
 
     assertEquals("hello", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
     assertEquals(1000, updates.getInserts(0).getEntries(0).getSortKey());
-    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
   }
 
   @Test
@@ -829,8 +829,8 @@ public class WindmillStateInternalsTest {
     assertEquals("world", updates.getInserts(0).getEntries(1).getValue().toStringUtf8());
     assertEquals(2000, updates.getInserts(0).getEntries(0).getSortKey());
     assertEquals(2000, updates.getInserts(0).getEntries(1).getSortKey());
-    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
-    assertEquals(IdTracker.MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -877,8 +877,8 @@ public class WindmillStateInternalsTest {
     assertEquals("world", updates.getInserts(0).getEntries(1).getValue().toStringUtf8());
     assertEquals(1000, updates.getInserts(0).getEntries(0).getSortKey());
     assertEquals(4000, updates.getInserts(0).getEntries(1).getSortKey());
-    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
-    assertEquals(IdTracker.MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
   }
 
   @Test

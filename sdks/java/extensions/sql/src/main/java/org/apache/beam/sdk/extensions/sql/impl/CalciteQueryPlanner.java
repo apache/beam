@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
 import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Table;
@@ -38,7 +39,6 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.Contexts;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCost;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.CalciteCatalogReader;
@@ -182,12 +182,11 @@ public class CalciteQueryPlanner implements QueryPlanner {
       SqlNode parsed = planner.parse(sqlStatement);
       TableResolutionUtils.setupCustomTableResolution(connection, parsed);
       SqlNode validated = planner.validate(parsed);
-      LOG.info("SQL:\n" + validated);
+      LOG.info("SQL:\n{}", validated);
 
       // root of original logical plan
       RelRoot root = planner.rel(validated);
-      LOG.info("SQLPlan>\n" + RelOptUtil.toString(root.rel));
-
+      LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(root.rel));
       RelTraitSet desiredTraits =
           root.rel
               .getTraitSet()
@@ -209,7 +208,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
           JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
       root.rel.getCluster().invalidateMetadataQuery();
       beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
-      LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
+      LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
     } catch (RelConversionException | CannotPlanException e) {
       throw new SqlConversionException(
           String.format("Unable to convert query %s", sqlStatement), e);

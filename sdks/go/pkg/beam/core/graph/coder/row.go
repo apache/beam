@@ -40,7 +40,7 @@ func RequireAllFieldsExported(require bool) {
 }
 
 // RegisterSchemaProviders Register Custom Schema providers.
-func RegisterSchemaProviders(rt reflect.Type, enc, dec interface{}) {
+func RegisterSchemaProviders(rt reflect.Type, enc, dec any) {
 	defaultEnc.Register(rt, enc)
 	defaultDec.Register(rt, dec)
 }
@@ -50,7 +50,7 @@ func RegisterSchemaProviders(rt reflect.Type, enc, dec interface{}) {
 //
 // Returns an error if the given type is invalid or not encodable to a beam
 // schema row.
-func RowEncoderForStruct(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+func RowEncoderForStruct(rt reflect.Type) (func(any, io.Writer) error, error) {
 	return defaultEnc.Build(rt)
 }
 
@@ -59,7 +59,7 @@ func RowEncoderForStruct(rt reflect.Type) (func(interface{}, io.Writer) error, e
 //
 // Returns an error if the given type is invalid or not decodable from a beam
 // schema row.
-func RowDecoderForStruct(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func RowDecoderForStruct(rt reflect.Type) (func(io.Reader) (any, error), error) {
 	return defaultDec.Build(rt)
 }
 
