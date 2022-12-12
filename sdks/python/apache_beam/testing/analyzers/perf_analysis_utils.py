@@ -58,8 +58,6 @@ class GitHubIssueMetaData:
 
 def is_change_point_in_valid_window(
     num_runs_in_change_point_window: int, change_point_index: int) -> bool:
-  # If the change point is more than N runs behind the most recent run,
-  # Ignore the change point and don't raise an alert for it.
   return num_runs_in_change_point_window >= change_point_index
 
 
@@ -137,6 +135,7 @@ def fetch_metric_data(
       LIMIT {constants._NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS}
     """
   metric_data: pd.DataFrame = big_query_metrics_fetcher.fetch(query=query)
+  # metric_data.sort_values(by=[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL])
   return (
       metric_data[load_test_metrics_utils.VALUE_LABEL],
       metric_data[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL])

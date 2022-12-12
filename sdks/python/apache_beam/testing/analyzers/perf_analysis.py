@@ -106,10 +106,10 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
   logging.info("Performance alert is %s for test %s" % (is_alert, test_name))
   if is_alert:
     issue_number, issue_url = create_performance_alert(
-     metric_name, test_name, timestamps,
-     metric_values, change_point_index,
-     params.get('labels', None),
-      last_reported_issue_number)
+    metric_name, test_name, timestamps,
+    metric_values, change_point_index,
+    params.get('labels', None),
+    last_reported_issue_number)
 
     issue_metadata = GitHubIssueMetaData(
         issue_timestamp=pd.Timestamp(

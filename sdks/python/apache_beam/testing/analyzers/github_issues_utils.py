@@ -44,8 +44,7 @@ _HEADERS = {
     "X-GitHub-Api-Version": "2022-11-28"
 }
 
-# Fill the GitHub issue description with the below variables.
-_ISSUE_DESCRIPTION_HEADER = """
+ISSUE_DESCRIPTION_TEMPLATE = """
   Affected metric: `{}`
 """
 _METRIC_INFO = "timestamp: {}, metric_value: `{}`"
@@ -96,8 +95,8 @@ def comment_on_issue(issue_number: int,
     comment_description: If an issue with issue_number is open,
       then comment on the issue with the using comment_description.
   Returns:
-    Boolean, indicating a comment was added to issue, and URL directing to
-     the comment.
+    tuple[bool, Optional[str]] indicating if a comment was added to
+      issue, and the comment URL.
   """
   url = 'https://api.github.com/repos/{}/{}/issues/{}'.format(
       _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
@@ -122,7 +121,7 @@ def comment_on_issue(issue_number: int,
   return False, None
 
 
-def add_awaiting_triage_label_to_issue(issue_number: int):
+def add_awaiting_triage_label(issue_number: int):
   url = 'https://api.github.com/repos/{}/{}/issues/{}/labels'.format(
       _BEAM_GITHUB_REPO_OWNER, _BEAM_GITHUB_REPO_NAME, issue_number)
   requests.post(
@@ -155,7 +154,7 @@ def get_issue_description(
       change_point_index + max_results_to_display + 1, len(metric_values))
   lower_bound = max(0, change_point_index - max_results_to_display)
 
-  description = _ISSUE_DESCRIPTION_HEADER.format(metric_name) + 2 * '\n'
+  description = ISSUE_DESCRIPTION_TEMPLATE.format(metric_name) + 2 * '\n'
 
   runs_to_display = [
       _METRIC_INFO.format(timestamps[i].ctime(), metric_values[i])
@@ -182,6 +181,6 @@ def report_change_point_on_issues(
           comment_description=description
           )
     if commented_on_issue:
-      add_awaiting_triage_label_to_issue(issue_number=existing_issue_number)
+      add_awaiting_triage_label(issue_number=existing_issue_number)
       return existing_issue_number, issue_url
   return create_issue(title=title, description=description, labels=labels)
