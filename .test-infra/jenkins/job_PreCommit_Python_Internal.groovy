@@ -28,7 +28,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
-      '^sdks/python/apache_beam/internal/metrics/.*$', // TODO - update this to actual paths
+      '^sdks/python/apache_beam/internal/.*$',
       '^release/.*$',
     ]
     )

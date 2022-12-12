@@ -22,6 +22,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python',
     gradleTask: ':pythonPreCommit',
+    gradleSwitches: [
+      '-Pposargs=--ignore=apache_beam/internal/'
+    ],
     timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
