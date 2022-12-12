@@ -213,7 +213,8 @@ public abstract class TemplateTestBase {
       moduleBuild = "it,v1";
     } else if (pomPath.contains("v2/")) {
       // Flex templates run on parent pom and -pl {path-to-folder}
-      moduleBuild = "it," + pomPath.substring(pomPath.indexOf("v2/")).replace("/pom.xml", "");
+      moduleBuild =
+          "it,v2/common," + pomPath.substring(pomPath.indexOf("v2/")).replace("/pom.xml", "");
       pomPath = pomPath.replaceAll("/v2/.*", "/pom.xml");
     } else {
       LOG.warn(

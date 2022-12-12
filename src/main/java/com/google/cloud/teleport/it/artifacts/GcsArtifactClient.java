@@ -149,7 +149,9 @@ public final class GcsArtifactClient implements ArtifactClient {
 
           List<Boolean> deleted = client.delete(blobIds);
           for (int i = 0; i < deleted.size(); ++i) {
-            if (!deleted.get(i)) {
+            if (deleted.get(i)) {
+              LOG.info("Blob '{}' was deleted", blobIds.get(i).getName());
+            } else {
               LOG.warn("Blob '{}' not deleted", blobIds.get(i).getName());
             }
           }
