@@ -201,6 +201,7 @@ if __name__ == '__main__':
           'apache_beam/utils/counters.py',
           'apache_beam/utils/windowed_value.py',
       ]),
+      # Do not commit
       install_requires=[
         # Avro 1.9.2 for python3 was broken.
         # The issue was fixed in version 1.9.2.1
