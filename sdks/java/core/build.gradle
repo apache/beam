@@ -33,7 +33,6 @@ applyJavaNature(
     relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
   },
-  disableLintWarnings: ['rawtypes'], // Avro-generated test code has rawtype errorss
 )
 applyAvroNature()
 applyAntlrNature()
@@ -117,4 +116,8 @@ dependencies {
   shadowTest library.java.zstd_jni
   shadowTest library.java.jamm
   testRuntimeOnly library.java.slf4j_jdk14
+}
+
+project.tasks.compileTestJava {
+  options.compilerArgs += ['-Xlint:-rawtypes'] // generated avro uses rawtypes without suppression
 }
