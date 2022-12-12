@@ -72,15 +72,15 @@ public class DebeziumIOMySqlConnectorIT {
   public static DataSource getMysqlDatasource(Void unused) {
     HikariConfig hikariConfig = new HikariConfig();
     hikariConfig.setJdbcUrl(MY_SQL_CONTAINER.getJdbcUrl());
-    hikariConfig.setUsername("debezium");
-    hikariConfig.setPassword("dbz");
+    hikariConfig.setUsername(MY_SQL_CONTAINER.getUsername());
+    hikariConfig.setPassword(MY_SQL_CONTAINER.getPassword());
     hikariConfig.setDriverClassName(MY_SQL_CONTAINER.getDriverClassName());
     return new HikariDataSource(hikariConfig);
   }
 
   @Test
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
-    int writeSize = 500;
+    int writeSize = 5000;
     int testTime = writeSize * 200;
     MY_SQL_CONTAINER.start();
 
@@ -124,8 +124,8 @@ public class DebeziumIOMySqlConnectorIT {
                         DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration
                             .builder()
                             .setDatabase("MYSQL")
-                            .setPassword(MY_SQL_CONTAINER.getPassword())
-                            .setUsername(MY_SQL_CONTAINER.getUsername())
+                            .setPassword("dbz")
+                            .setUsername("debezium")
                             .setHost("localhost")
                             .setTable("inventory.customers")
                             .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
