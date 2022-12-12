@@ -22,6 +22,9 @@ import '../../models/example_loading_descriptors/user_shared_example_loading_des
 import '../../models/sdk.dart';
 import 'example_loader.dart';
 
+/// The [ExampleLoader] from [UserSharedExampleLoadingDescriptor].
+///
+/// Loads a snippet previously saved by some user.
 class UserSharedExampleLoader extends ExampleLoader {
   @override
   final UserSharedExampleLoadingDescriptor descriptor;

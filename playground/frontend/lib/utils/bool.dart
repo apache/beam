@@ -17,10 +17,12 @@
  */
 
 extension BoolExtension on bool {
+  /// Returns '1' or '0'.
   String toIntString() {
     return this ? '1' : '0';
   }
 
+  /// Parses a boolean from '1' or '0', otherwise returns null.
   static bool? tryParseIntString(Object? str) {
     switch (str) {
       case '0':

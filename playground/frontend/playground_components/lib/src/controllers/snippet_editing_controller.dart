@@ -28,6 +28,7 @@ import '../models/example_view_options.dart';
 import '../models/sdk.dart';
 import '../services/symbols/symbols_notifier.dart';
 
+/// The main state object for a single [sdk].
 class SnippetEditingController extends ChangeNotifier {
   final Sdk sdk;
   final CodeController codeController;

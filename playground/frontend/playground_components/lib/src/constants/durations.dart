@@ -17,5 +17,6 @@
  */
 
 class BeamDurations {
+  /// The duration for a notification toast.
   static const toast = Duration(seconds: 3);
 }

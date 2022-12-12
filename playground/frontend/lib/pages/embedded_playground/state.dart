@@ -28,6 +28,7 @@ const _cutUrlDescriptors = {
   ContentExampleLoadingDescriptor,
 };
 
+/// The main state object behind EmbeddedPlaygroundScreen.
 class EmbeddedPlaygroundNotifier extends ChangeNotifier
     with PageStateMixin<void> {
   final PlaygroundController playgroundController;

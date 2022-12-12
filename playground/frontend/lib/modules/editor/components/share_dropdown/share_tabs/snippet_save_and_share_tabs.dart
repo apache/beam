@@ -23,6 +23,9 @@ import 'package:playground_components/playground_components.dart';
 
 import 'example_share_tabs.dart';
 
+/// Saves the current playground content when shown,
+/// then presents a shareable link.
+// TODO(alexeyinkin): Refactor code sharing, https://github.com/apache/beam/issues/24637
 class SnippetSaveAndShareTabs extends StatefulWidget {
   final VoidCallback onError;
   final PlaygroundController playgroundController;

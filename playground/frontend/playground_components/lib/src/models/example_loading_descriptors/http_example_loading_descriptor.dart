@@ -20,6 +20,7 @@ import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+/// Describes an example with the code to be fetched from [uri].
 class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   final Sdk sdk;
   final Uri uri;

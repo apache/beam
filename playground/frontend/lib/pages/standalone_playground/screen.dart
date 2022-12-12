@@ -28,7 +28,6 @@ import '../../modules/editor/components/pipeline_options_dropdown/pipeline_optio
 import '../../modules/examples/example_selector.dart';
 import '../../modules/sdk/components/sdk_selector.dart';
 import '../../modules/shortcuts/components/shortcuts_manager.dart';
-import '../../modules/shortcuts/constants/global_shortcuts.dart';
 import 'state.dart';
 import 'widgets/close_listener_nonweb.dart'
     if (dart.library.html) 'widgets/close_listener.dart';
@@ -47,11 +46,8 @@ class StandalonePlaygroundScreen extends StatelessWidget {
     return CloseListener(
       child: PlaygroundPageProviders(
         playgroundController: notifier.playgroundController,
-        child: ShortcutsManager(
-          shortcuts: [
-            ...notifier.playgroundController.shortcuts,
-            ...globalShortcuts,
-          ],
+        child: PlaygroundShortcutsManager(
+          playgroundController: notifier.playgroundController,
           child: AnimatedBuilder(
             animation: notifier.playgroundController,
             builder: (context, child) {

@@ -26,6 +26,9 @@ import '../../../../../utils/share_code_utils.dart';
 import '../link_text_field.dart';
 import '../share_tab_body.dart';
 
+/// The content of the sharing dropdown at the point when the
+/// shareable link can be generated from [descriptor].
+// TODO(alexeyinkin): Refactor code sharing, https://github.com/apache/beam/issues/24637
 class ExampleShareTabs extends StatelessWidget {
   final ExampleLoadingDescriptor descriptor;
   final Sdk sdk;

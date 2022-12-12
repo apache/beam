@@ -24,6 +24,7 @@ import '../../../../constants/sizes.dart';
 import '../../../analytics/analytics_service.dart';
 import 'example_item_actions.dart';
 
+/// An [example] in the example dropdown.
 class ExpansionPanelItem extends StatelessWidget {
   final ExampleBase example;
   final VoidCallback onSelected;

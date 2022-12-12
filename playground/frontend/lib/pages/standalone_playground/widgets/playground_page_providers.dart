@@ -23,6 +23,7 @@ import 'package:provider/provider.dart';
 import '../../../modules/output/models/output_placement_state.dart';
 import '../notifiers/feedback_state.dart';
 
+/// Sticks commonly needed objects in the widget tree.
 class PlaygroundPageProviders extends StatelessWidget {
   final Widget child;
   final PlaygroundController playgroundController;

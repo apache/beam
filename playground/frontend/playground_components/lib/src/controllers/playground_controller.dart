@@ -55,6 +55,7 @@ const kPipelineOptionsParseError =
 const kCachedResultsLog =
     'The results of this example are taken from the Apache Beam Playground cache.\n';
 
+/// The main state object for the code and its running.
 class PlaygroundController with ChangeNotifier {
   final ExampleCache exampleCache;
   final ExamplesLoader examplesLoader;

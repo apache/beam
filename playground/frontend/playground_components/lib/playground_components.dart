@@ -74,6 +74,7 @@ export 'src/widgets/output/output.dart';
 export 'src/widgets/reset_button.dart';
 export 'src/widgets/run_or_cancel_button.dart';
 export 'src/widgets/shortcut_tooltip.dart';
+export 'src/widgets/shortcuts_manager.dart';
 export 'src/widgets/snippet_editor.dart';
 export 'src/widgets/split_view.dart';
 export 'src/widgets/tab_header.dart';

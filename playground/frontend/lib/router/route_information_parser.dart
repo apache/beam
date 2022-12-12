@@ -25,6 +25,7 @@ import 'package:flutter/widgets.dart';
 import '../pages/embedded_playground/path.dart';
 import '../pages/standalone_playground/path.dart';
 
+/// Converts URL strings into [PagePath] objects to construct pages later.
 class PlaygroundRouteInformationParser extends PageStackRouteInformationParser {
   @override
   Future<PagePath> parsePagePath(RouteInformation ri) async {

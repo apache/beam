@@ -24,6 +24,9 @@ import '../../models/example_loading_descriptors/standard_example_loading_descri
 import '../../models/sdk.dart';
 import 'example_loader.dart';
 
+/// The [ExampleLoader] for [CatalogDefaultExampleLoadingDescriptor].
+///
+/// Loads the default example for the [sdk].
 class CatalogDefaultExampleLoader extends ExampleLoader {
   @override
   ExampleLoadingDescriptor get descriptor =>

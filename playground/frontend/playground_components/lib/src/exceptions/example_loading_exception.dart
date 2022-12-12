@@ -18,6 +18,7 @@
 
 import 'package:easy_localization/easy_localization.dart';
 
+/// Thrown when a single example failed to be loaded.
 class ExampleLoadingException implements Exception {
   final Exception inner;
 

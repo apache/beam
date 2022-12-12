@@ -20,6 +20,7 @@ import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+/// Describes a loadable example previously saved by some user.
 class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   final Sdk sdk;
   final String snippetId;

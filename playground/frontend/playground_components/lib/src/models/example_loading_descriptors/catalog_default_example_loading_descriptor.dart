@@ -22,6 +22,7 @@ import 'example_loading_descriptor.dart';
 
 const _key = 'default';
 
+/// Describes a single loadable example that is default for its [sdk].
 class CatalogDefaultExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   final Sdk sdk;
 

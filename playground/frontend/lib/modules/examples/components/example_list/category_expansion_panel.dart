@@ -25,6 +25,8 @@ import 'package:playground_components/playground_components.dart';
 import '../../../../constants/sizes.dart';
 import 'expansion_panel_item.dart';
 
+/// An expandable list of [examples] for the given [categoryName]
+/// to be shown in the example dropdown.
 class CategoryExpansionPanel extends StatelessWidget {
   final String categoryName;
   final List<ExampleBase> examples;

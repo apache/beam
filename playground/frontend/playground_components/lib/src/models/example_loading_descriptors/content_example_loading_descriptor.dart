@@ -21,6 +21,7 @@ import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+/// Fully contains an example data to be loaded.
 class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   /// The source code.
   final String content;

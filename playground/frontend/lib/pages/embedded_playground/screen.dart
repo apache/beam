@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../modules/shortcuts/components/shortcuts_manager.dart';
 import '../standalone_playground/widgets/playground_page_providers.dart';
 import 'state.dart';
 import 'widgets/embedded_actions.dart';
@@ -38,20 +39,23 @@ class EmbeddedPlaygroundScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlaygroundPageProviders(
       playgroundController: notifier.playgroundController,
-      child: ToastListenerWidget(
-        child: Scaffold(
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            title: const EmbeddedAppBarTitle(),
-            actions: const [EmbeddedActions()],
-          ),
-          body: EmbeddedSplitView(
-            first: EmbeddedEditor(isEditable: notifier.isEditable),
-            second: Container(
-              color: Theme.of(context).backgroundColor,
-              child: OutputWidget(
-                playgroundController: notifier.playgroundController,
-                graphDirection: Axis.horizontal,
+      child: PlaygroundShortcutsManager(
+        playgroundController: notifier.playgroundController,
+        child: ToastListenerWidget(
+          child: Scaffold(
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              title: const EmbeddedAppBarTitle(),
+              actions: const [EmbeddedActions()],
+            ),
+            body: EmbeddedSplitView(
+              first: EmbeddedEditor(isEditable: notifier.isEditable),
+              second: Container(
+                color: Theme.of(context).backgroundColor,
+                child: OutputWidget(
+                  playgroundController: notifier.playgroundController,
+                  graphDirection: Axis.horizontal,
+                ),
               ),
             ),
           ),

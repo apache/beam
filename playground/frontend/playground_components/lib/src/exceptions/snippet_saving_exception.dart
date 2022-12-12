@@ -18,6 +18,7 @@
 
 import 'package:easy_localization/easy_localization.dart';
 
+/// Called when user code failed to be saved.
 class SnippetSavingException implements Exception {
   final Exception ex;
 

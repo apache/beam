@@ -20,7 +20,9 @@ import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+/// Describes an example to be loaded from the catalog.
 class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
+  /// The identifier of the example in the catalog.
   final String path;
   final Sdk sdk;
 

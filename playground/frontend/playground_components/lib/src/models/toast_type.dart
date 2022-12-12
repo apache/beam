@@ -18,8 +18,11 @@
 
 import 'package:enum_map/enum_map.dart';
 
+import 'toast.dart';
+
 part 'toast_type.g.dart';
 
+/// The type for [Toast] objects.
 @unmodifiableEnumMap
 enum ToastType {
   error,

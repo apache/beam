@@ -23,6 +23,7 @@ import 'package:provider/provider.dart';
 import '../../../../pages/standalone_playground/notifiers/example_selector_state.dart';
 import '../examples_components.dart';
 
+/// The list of expandable example categories shown in the example dropdown.
 class ExampleList extends StatefulWidget {
   final VoidCallback onSelected;
   final ExampleBase? selectedExample;

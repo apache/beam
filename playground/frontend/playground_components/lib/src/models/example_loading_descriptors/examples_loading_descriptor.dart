@@ -25,14 +25,18 @@ import 'package:meta/meta.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+/// A factory that may parse a [map] into an [ExampleLoadingDescriptor].
+///
+/// [map] comes from query parameters or a serialized state of a page.
 typedef SingleDescriptorFactory = ExampleLoadingDescriptor? Function(
-  Map<String, dynamic>,
+  Map<String, dynamic> map,
 );
 
 const _descriptorsField = 'examples';
 const _initialSdkField = 'sdk';
 const _lazyLoadDescriptorsField = 'lazyLoad';
 
+/// Holds information to load multiple examples.
 @immutable
 class ExamplesLoadingDescriptor with EquatableMixin {
   /// The descriptors to be loaded right away.
@@ -109,6 +113,9 @@ class ExamplesLoadingDescriptor with EquatableMixin {
     );
   }
 
+  /// Tries to parse a [map] into an [ExamplesLoadingDescriptor].
+  ///
+  /// [singleDescriptorFactory] is tried on nested collections of the [map].
   static ExamplesLoadingDescriptor? tryParse(
     Map<String, dynamic> map, {
     required SingleDescriptorFactory singleDescriptorFactory,

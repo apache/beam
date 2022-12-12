@@ -16,19 +16,38 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
-/// Shows a static "Error while loading" text.
-class LoadingErrorWidget extends StatelessWidget {
-  const LoadingErrorWidget({
+import '../models/shortcut.dart';
+
+/// Makes [shortcuts] available to the tree beneath.
+class ShortcutsManager extends StatelessWidget {
+  final Widget child;
+  final List<BeamShortcut> shortcuts;
+
+  const ShortcutsManager({
     super.key,
+    required this.child,
+    required this.shortcuts,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: const Text('errors.loading').tr(),
+    return FocusableActionDetector(
+      autofocus: true,
+      shortcuts: _shortcutsMap,
+      actions: _getActions(context),
+      child: child,
     );
   }
+
+  Map<LogicalKeySet, Intent> get _shortcutsMap => {
+        for (var shortcut in shortcuts)
+          shortcut.shortcuts: shortcut.actionIntent
+      };
+
+  Map<Type, Action<Intent>> _getActions(BuildContext context) => {
+        for (var shortcut in shortcuts)
+          shortcut.actionIntent.runtimeType: shortcut.createAction(context)
+      };
 }

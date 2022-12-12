@@ -23,6 +23,9 @@ import '../../models/example_loading_descriptors/content_example_loading_descrip
 import '../../models/sdk.dart';
 import 'example_loader.dart';
 
+/// The [ExampleLoader] for [ContentExampleLoadingDescriptor].
+///
+/// Loads the example fully contained in the [descriptor].
 class ContentExampleLoader extends ExampleLoader {
   @override
   final ContentExampleLoadingDescriptor descriptor;

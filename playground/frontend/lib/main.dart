@@ -40,6 +40,7 @@ void main() async {
   await PlaygroundComponents.ensureInitialized();
   await initializeServiceLocator();
 
+  // Router API specific initialization.
   final pageStack = GetIt.instance.get<PageStack>();
   final routerDelegate = PageStackRouterDelegate(pageStack);
   final routeInformationParser = PlaygroundRouteInformationParser();

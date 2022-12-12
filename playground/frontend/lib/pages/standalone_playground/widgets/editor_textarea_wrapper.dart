@@ -27,6 +27,7 @@ import '../../../modules/editor/components/share_dropdown/share_button.dart';
 import '../../../modules/examples/components/description_popover/description_popover_button.dart';
 import '../../../modules/examples/components/multifile_popover/multifile_popover_button.dart';
 
+/// A code editor with controls stacked above it.
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
 

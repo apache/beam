@@ -39,6 +39,9 @@ final _iconNames = UnmodifiableToastTypeMap(
   info: Assets.notificationIcons.info,
 );
 
+/// The content of a popup notification.
+///
+/// Named after 'fluttertoast' package.
 class ToastWidget extends StatelessWidget {
   final Toast toast;
 

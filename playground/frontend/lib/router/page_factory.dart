@@ -21,6 +21,7 @@ import 'package:app_state/app_state.dart';
 import '../pages/standalone_playground/page.dart';
 import '../pages/embedded_playground/page.dart';
 
+/// Creates pages from their normalized state.
 class PageFactory {
   static AbstractPage? createPage(
       String factoryKey,

@@ -23,6 +23,9 @@ import 'package:provider/provider.dart';
 import 'example_share_tabs.dart';
 import 'snippet_save_and_share_tabs.dart';
 
+/// Checks if the playground code is saved yet and shows the specific
+/// content widget accordingly.
+// TODO(alexeyinkin): Refactor code sharing, https://github.com/apache/beam/issues/24637
 class ShareTabs extends StatelessWidget {
   final VoidCallback onError;
   final TabController tabController;

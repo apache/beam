@@ -26,6 +26,7 @@ import '../../../../modules/analytics/analytics_service.dart';
 import '../../notifiers/feedback_state.dart';
 import 'feedback_dropdown_icon_button.dart';
 
+/// A status bar item for feedback.
 class PlaygroundFeedback extends StatelessWidget {
   const PlaygroundFeedback({Key? key}) : super(key: key);
 

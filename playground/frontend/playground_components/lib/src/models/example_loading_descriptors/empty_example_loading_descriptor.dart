@@ -21,6 +21,7 @@ import 'example_loading_descriptor.dart';
 
 const _key = 'empty';
 
+/// Indicates that an empty content should be loaded for the [sdk].
 class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   final Sdk sdk;
 

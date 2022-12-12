@@ -24,20 +24,27 @@ import 'package:rxdart/rxdart.dart';
 import '../models/toast.dart';
 import '../models/toast_type.dart';
 
+/// Communicates popup notifications.
+///
+/// Objects that need to publish an app-wide notifications
+/// should submit them with [add] or [addException].
 class ToastNotifier {
   final _controller = BehaviorSubject<Toast>();
 
+  /// The stream of notification objects to be shown as popups.
   Stream<Toast> get toasts => _controller.stream;
 
+  /// Adds a [toast] to the [toasts] stream to be shown as a popup.
   void add(Toast toast) {
     _controller.add(toast);
   }
 
-  void addException(Exception ex) {
+  /// Adds an [exception] to be shown as an error popup.
+  void addException(Exception exception) {
     add(
       Toast(
         title: 'errors.error'.tr(),
-        description: ex.toString(),
+        description: exception.toString(),
         type: ToastType.error,
       ),
     );

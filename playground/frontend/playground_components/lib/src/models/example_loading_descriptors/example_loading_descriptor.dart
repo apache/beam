@@ -20,6 +20,7 @@ import 'package:equatable/equatable.dart';
 
 import '../example_view_options.dart';
 
+/// Describes a single example to be loaded.
 abstract class ExampleLoadingDescriptor with EquatableMixin {
   const ExampleLoadingDescriptor({
     this.viewOptions = ExampleViewOptions.empty,

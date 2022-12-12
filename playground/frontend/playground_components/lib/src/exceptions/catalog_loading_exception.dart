@@ -18,6 +18,7 @@
 
 import 'package:easy_localization/easy_localization.dart';
 
+/// Thrown when the list of catalog examples failed to be loaded.
 class CatalogLoadingException implements Exception {
   final Exception ex;
 

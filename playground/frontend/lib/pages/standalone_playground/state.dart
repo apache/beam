@@ -24,10 +24,12 @@ import '../../controllers/factories.dart';
 import '../../modules/examples/models/example_loading_descriptors/no_url_example_loading_descriptor.dart';
 import 'path.dart';
 
+/// Subclasses of [ExampleLoadingDescriptor] that will no show in the URL.
 const _cutUrlDescriptors = {
   ContentExampleLoadingDescriptor,
 };
 
+/// The main state object behind EmbeddedPlaygroundScreen.
 class StandalonePlaygroundNotifier extends ChangeNotifier
     with PageStateMixin<void> {
   final PlaygroundController playgroundController;

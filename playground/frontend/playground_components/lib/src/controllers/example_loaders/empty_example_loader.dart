@@ -22,6 +22,9 @@ import '../../models/example_loading_descriptors/empty_example_loading_descripto
 import '../../models/sdk.dart';
 import 'example_loader.dart';
 
+/// The [ExampleLoader] for [EmptyExampleLoadingDescriptor].
+///
+/// Empties the editor.
 class EmptyExampleLoader extends ExampleLoader {
   @override
   final EmptyExampleLoadingDescriptor descriptor;

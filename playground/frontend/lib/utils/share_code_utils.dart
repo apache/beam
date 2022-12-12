@@ -22,6 +22,7 @@ class ShareCodeUtils {
   static const _width = '90%';
   static const _height = '600px';
 
+  /// The HTML of an <iframe> tag with the given [src] URL.
   static String iframe({
     required Uri src,
   }) {

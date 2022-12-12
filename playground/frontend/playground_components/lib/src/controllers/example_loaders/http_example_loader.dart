@@ -26,6 +26,9 @@ import '../../models/example_loading_descriptors/http_example_loading_descriptor
 import '../../models/sdk.dart';
 import 'example_loader.dart';
 
+/// The [ExampleLoader] for [HttpExampleLoadingDescriptor].
+///
+/// Loads an example from the text content at a URL.
 class HttpExampleLoader extends ExampleLoader {
   @override
   final HttpExampleLoadingDescriptor descriptor;
