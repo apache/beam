@@ -230,6 +230,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
+  <K> @Nullable KeyedStateBackend<K> getBufferingKeyedStateBackend() {
+    // do not use keyed backend for buffering if we do not process stateful DoFn
+    // ExecutableStage uses keyed backend by default
+    return isStateful ? super.getKeyedStateBackend() : null;
+  }
+
+  @Override
   protected Lock getLockToAcquireForStateAccessDuringBundles() {
     return stateBackendLock;
   }
@@ -1058,7 +1065,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   private DoFnRunner<InputT, OutputT> ensureStateDoFnRunner(
-      SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner,
+      DoFnRunner<InputT, OutputT> sdkHarnessRunner,
       RunnerApi.ExecutableStagePayload payload,
       StepContext stepContext) {
 
@@ -1106,7 +1113,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           @SuppressWarnings({"unchecked", "rawtypes"})
           final ByteBuffer key =
               FlinkKeyUtils.encodeKey(((KV) input.getValue()).getKey(), (Coder) keyCoder);
-          getKeyedStateBackend().setCurrentKey(key);
+          if (getKeyedStateBackend() != null) {
+            getKeyedStateBackend().setCurrentKey(key);
+          }
           super.processElement(input);
         }
       }

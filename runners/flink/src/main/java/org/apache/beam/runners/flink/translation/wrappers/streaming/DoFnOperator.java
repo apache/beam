@@ -199,6 +199,8 @@ public class DoFnOperator<InputT, OutputT>
   /** If true, we must process elements only after a checkpoint is finished. */
   private final boolean requiresStableInput;
 
+  private final int numConcurrentCheckpoints;
+
   private final boolean usesOnWindowExpiration;
 
   private final boolean finishBundleBeforeCheckpointing;
@@ -320,6 +322,8 @@ public class DoFnOperator<InputT, OutputT>
           flinkOptions.getCheckpointingInterval()
               + Math.max(0, flinkOptions.getMinPauseBetweenCheckpoints()));
     }
+
+    this.numConcurrentCheckpoints = flinkOptions.getNumConcurrentCheckpoints();
 
     this.finishBundleBeforeCheckpointing = flinkOptions.getFinishBundleBeforeCheckpointing();
   }
@@ -499,21 +503,8 @@ public class DoFnOperator<InputT, OutputT>
             doFnSchemaInformation,
             sideInputMapping);
 
-    doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
-    if (requiresStableInput) {
-      // put this in front of the root FnRunner before any additional wrappers
-      doFnRunner =
-          bufferingDoFnRunner =
-              BufferingDoFnRunner.create(
-                  doFnRunner,
-                  "stable-input-buffer",
-                  windowedInputCoder,
-                  windowingStrategy.getWindowFn().windowCoder(),
-                  getOperatorStateBackend(),
-                  getKeyedStateBackend(),
-                  options.getNumConcurrentCheckpoints(),
-                  serializedOptions);
-    }
+    doFnRunner =
+        createBufferingDoFnRunnerIfNeeded(createWrappingDoFnRunner(doFnRunner, stepContext));
     earlyBindStateIfNeeded();
 
     if (!options.getDisableMetrics()) {
@@ -552,6 +543,36 @@ public class DoFnOperator<InputT, OutputT>
 
     bundleFinalizer = new InMemoryBundleFinalizer();
     pendingFinalizations = new LinkedHashMap<>();
+  }
+
+  private DoFnRunner<InputT, OutputT> createBufferingDoFnRunnerIfNeeded(
+      DoFnRunner<InputT, OutputT> wrappedRunner) throws Exception {
+
+    if (requiresStableInput) {
+      // put this in front of the root FnRunner before any additional wrappers
+      return this.bufferingDoFnRunner =
+          BufferingDoFnRunner.create(
+              wrappedRunner,
+              "stable-input-buffer",
+              windowedInputCoder,
+              windowingStrategy.getWindowFn().windowCoder(),
+              getOperatorStateBackend(),
+              getBufferingKeyedStateBackend(),
+              numConcurrentCheckpoints,
+              serializedOptions);
+    }
+    return wrappedRunner;
+  }
+
+  /**
+   * Retrieve a keyed state backend that should be used to buffer elements for {@link @{code @}
+   * RequiresStableInput} functionality. By default this is the default keyed backend, but can be
+   * override in @{link ExecutableStageDoFnOperator}.
+   *
+   * @return the keyed backend to use for element buffering
+   */
+  <K> @Nullable KeyedStateBackend<K> getBufferingKeyedStateBackend() {
+    return getKeyedStateBackend();
   }
 
   private void earlyBindStateIfNeeded() throws IllegalArgumentException, IllegalAccessException {
