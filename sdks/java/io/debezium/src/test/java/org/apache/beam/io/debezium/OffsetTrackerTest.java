@@ -65,7 +65,7 @@ public class OffsetTrackerTest implements Serializable {
 
     assertTrue(tracker.tryClaim(position));
 
-    Thread.sleep(1000); // Sleep for a whole 2 seconds
+    Thread.sleep(1000); // Sleep for a whole second
 
     assertFalse(tracker.tryClaim(position));
   }
