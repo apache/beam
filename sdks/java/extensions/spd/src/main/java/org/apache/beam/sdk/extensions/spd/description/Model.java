@@ -30,6 +30,10 @@ public class Model {
   @JsonSetter(nulls = Nulls.FAIL)
   public String name;
 
+  public String getName() {
+    return name == null ? "" : name;
+  }
+
   @JsonSetter(nulls = Nulls.AS_EMPTY)
   public List<Column> columns = Arrays.asList();
 }

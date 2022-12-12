@@ -22,7 +22,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.hubspot.jinjava.Jinjava;
 import com.hubspot.jinjava.interpret.RenderResult;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,7 +32,12 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.spd.description.*;
 import org.apache.beam.sdk.extensions.spd.models.SqlModel;
 import org.apache.beam.sdk.extensions.spd.models.StructuredModel;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.KafkaTableProvider;
@@ -45,7 +49,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressFBWarnings
 public class StructuredPipelineDescription {
   private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineDescription.class);
 
@@ -53,9 +56,10 @@ public class StructuredPipelineDescription {
   private Path path;
   private Jinjava jinjava;
 
-  @Nullable private Pipeline pipeline;
+  private Pipeline pipeline;
 
-  private List<StructuredModel> models = new ArrayList<>();
+  private HashMap<String, StructuredModel> models = new HashMap<>();
+  private HashMap<String, BeamSqlTable> modelTables = new HashMap<>();
 
   private InMemoryMetaStore metaStore;
 
@@ -78,13 +82,7 @@ public class StructuredPipelineDescription {
     }
 
     // Otherwise we need to try to make the table from a model
-    StructuredModel found = null;
-    for (StructuredModel m : models) {
-      if (name.equals(m.getName())) {
-        found = m;
-        break;
-      }
-    }
+    StructuredModel found = models.get(name);
 
     // Table by that name doesn't exist?
     if (found == null) {
@@ -100,6 +98,14 @@ public class StructuredPipelineDescription {
       if (result.hasErrors()) {
         return null;
       }
+
+      BeamSqlEnv env =
+          BeamSqlEnv.builder(metaStore).setPipelineOptions(pipeline.getOptions()).build();
+      BeamSqlTable table =
+          new BeamPCollectionTable<>(
+              BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery(result.getOutput())));
+      modelTables.put(found.getName(), table);
+      return Table.builder().name(found.getName()).type("models").schema(table.getSchema()).build();
     }
     return null;
   }
@@ -108,7 +114,9 @@ public class StructuredPipelineDescription {
     return new ObjectMapper(new YAMLFactory());
   }
 
-  public StructuredPipelineDescription(ObjectMapper mapper, Jinjava jinjava, Path path) {
+  public StructuredPipelineDescription(
+      Pipeline pipeline, ObjectMapper mapper, Jinjava jinjava, Path path) {
+    this.pipeline = pipeline;
     this.mapper = mapper;
     this.jinjava = jinjava;
     this.path = path;
@@ -121,10 +129,12 @@ public class StructuredPipelineDescription {
     this.metaStore.registerProvider(new KafkaTableProvider());
     this.metaStore.registerProvider(new PubsubTableProvider());
     this.metaStore.registerProvider(new PubsubLiteTableProvider());
+    // Register our internal table name
+    this.metaStore.registerProvider(new ReadOnlyTableProvider("models", modelTables));
   }
 
-  public StructuredPipelineDescription(Path path) {
-    this(defaultObjectMapper(), JinjaFunctions.getDefault(), path);
+  public StructuredPipelineDescription(Pipeline pipeline, Path path) {
+    this(pipeline, defaultObjectMapper(), JinjaFunctions.getDefault(), path);
   }
 
   private @Nullable Path yamlPath(Path base, String yamlName) throws Exception {
@@ -209,9 +219,10 @@ public class StructuredPipelineDescription {
 
               // If there's a sql file of the same name present we must be a SQL transform.
               if (Files.exists(sqlFile)) {
-                this.models.add(
+                this.models.put(
+                    model.getName(),
                     new SqlModel(
-                        prefix, model.name, String.join("\n", Files.readAllLines(sqlFile))));
+                        prefix, model.getName(), String.join("\n", Files.readAllLines(sqlFile))));
               } else if (Files.exists(pyFile)) {
                 // TODO: Handle python transofmrs
               } else {
@@ -230,13 +241,13 @@ public class StructuredPipelineDescription {
     Schema.Builder beamSchema = Schema.builder();
     for (Column c : columns) {
       HashSet<String> tests = new HashSet<>();
-      tests.addAll(c.tests);
+      tests.addAll(c.getTests());
       if (c.type != null && c.name != null) {
         Schema.FieldType type = Schema.FieldType.of(Schema.TypeName.valueOf(c.type));
         if (tests.contains("not_null")) {
-          beamSchema.addField(c.name, type);
+          beamSchema.addField(c.getName(), type);
         } else {
-          beamSchema.addNullableField(c.name, type);
+          beamSchema.addNullableField(c.getName(), type);
         }
       }
     }
@@ -283,25 +294,22 @@ public class StructuredPipelineDescription {
     project = loadPackage(path, emptyBase);
   }
 
-  public void compile(Pipeline pipeline) throws Exception {
+  public void compile() throws Exception {
     if (project == null) {
       return;
     }
     // Okay, super cheesy but here we go..
-    boolean resolved = true;
-    do {
-      for (StructuredModel model : models) {
-        if (model instanceof SqlModel) {
-          HashMap<String, Object> bindings = new HashMap<String, Object>();
-          jinjava.render(((SqlModel) model).getRawQuery(), bindings);
-        }
+    for (Map.Entry<String, StructuredModel> e : models.entrySet()) {
+      if (e.getValue() instanceof SqlModel) {
+        HashMap<String, Object> bindings = new HashMap<String, Object>();
+        jinjava.render(((SqlModel) e.getValue()).getRawQuery(), bindings);
       }
-    } while (!resolved);
+    }
   }
 
-  public void run(Pipeline pipeline) throws Exception {
+  public void run() throws Exception {
     load();
-    compile(pipeline);
+    compile();
     pipeline.run();
   }
 

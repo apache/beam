@@ -32,7 +32,7 @@ public class StructuredPipelineExecutionTest {
   public void testSimplePipeline() throws Exception {
     URL pipelineURL = ClassLoader.getSystemClassLoader().getResource("simple_pipeline");
     Path pipelinePath = Paths.get(pipelineURL.toURI());
-    StructuredPipelineDescription spd = new StructuredPipelineDescription(pipelinePath);
-    spd.run(pipeline);
+    StructuredPipelineDescription spd = new StructuredPipelineDescription(pipeline, pipelinePath);
+    spd.run();
   }
 }

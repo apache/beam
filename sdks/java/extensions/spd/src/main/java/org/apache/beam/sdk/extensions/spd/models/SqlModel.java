@@ -32,16 +32,16 @@ public class SqlModel implements StructuredModel {
   }
 
   public String getRawQuery() {
-    return rawQuery;
+    return rawQuery == null ? "" : rawQuery;
   }
 
   @Override
   public String getPath() {
-    return path;
+    return path == null ? "" : path;
   }
 
   @Override
   public String getName() {
-    return name;
+    return name == null ? "" : name;
   }
 }

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.spd;
 import com.hubspot.jinjava.Jinjava;
 import com.hubspot.jinjava.interpret.JinjavaInterpreter;
 import com.hubspot.jinjava.lib.fn.ELFunctionDefinition;
-import org.apache.beam.sdk.extensions.spd.models.StructuredModel;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 public class JinjaFunctions {
   public static String reference(String... model) {
@@ -28,9 +28,12 @@ public class JinjaFunctions {
 
     StructuredPipelineDescription spdObject =
         (StructuredPipelineDescription) interpreter.getContext().get("_spd");
-    StructuredModel self = (StructuredModel) interpreter.getContext().get("_self");
-
-    return "";
+    Table table = spdObject.findTable(model[0]);
+    if (table == null) {
+      return "";
+    } else {
+      return table.getName();
+    }
   }
 
   public static Jinjava getDefault() {

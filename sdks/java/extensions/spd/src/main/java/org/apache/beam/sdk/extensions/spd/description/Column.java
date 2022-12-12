@@ -32,7 +32,15 @@ public class Column {
   @JsonSetter(nulls = Nulls.FAIL)
   public String name;
 
+  public String getName() {
+    return name == null ? "" : name;
+  }
+
   @Nullable public String description;
+
+  public String getDescription() {
+    return description == null ? "" : description;
+  }
 
   @Nullable
   @JsonProperty("data_type")
@@ -41,4 +49,8 @@ public class Column {
   @Nullable
   @JsonSetter(nulls = Nulls.AS_EMPTY)
   public List<String> tests = Arrays.asList();
+
+  public List<String> getTests() {
+    return tests == null ? Arrays.asList() : tests;
+  }
 }
