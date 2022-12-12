@@ -1610,7 +1610,9 @@
   "refresh": "",
   "schemaVersion": 30,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "performance tests"
+  ],
   "templating": {
     "list": []
   },
@@ -1636,5 +1638,5 @@
   "timezone": "",
   "title": "Java JMH benchmarks",
   "uid": "kllfR2vVk",
-  "version": 10
+  "version": 11
 }

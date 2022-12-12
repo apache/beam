@@ -321,20 +321,25 @@ func (d *DatastoreDb) GetUserProgress(ctx context.Context, sdk tob.Sdk, uid stri
 	return sdkProgress, nil
 }
 
-func (d *DatastoreDb) upsertUnitProgress(ctx context.Context, sdk tob.Sdk, unitId, uid string, applyChanges func(*TbUnitProgress)) error {
+func (d *DatastoreDb) upsertUnitProgress(ctx context.Context, sdk tob.Sdk, unitId, uid string,
+	applyChanges func(*TbUnitProgress) error) error {
 	userKey := pgNameKey(TbUserKind, uid, nil)
 	progressKey := datastoreKey(TbUserProgressKind, sdk, unitId, userKey)
 
 	_, err := d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
 		// default entity values
 		progress := TbUnitProgress{
-			Sdk:    rootSdkKey(sdk),
-			UnitID: unitId,
+			Sdk:            rootSdkKey(sdk),
+			UnitID:         unitId,
+			PersistenceKey: tob.GeneratePersistentKey(),
 		}
+
 		if err := tx.Get(progressKey, &progress); err != nil && err != datastore.ErrNoSuchEntity {
 			return err
 		}
-		applyChanges(&progress)
+		if err := applyChanges(&progress); err != nil {
+			return err
+		}
 		if _, err := tx.Put(progressKey, &progress); err != nil {
 			return err
 		}
@@ -347,15 +352,25 @@ func (d *DatastoreDb) upsertUnitProgress(ctx context.Context, sdk tob.Sdk, unitI
 }
 
 func (d *DatastoreDb) SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error {
-	return d.upsertUnitProgress(ctx, sdk, unitId, uid, func(p *TbUnitProgress) {
+	return d.upsertUnitProgress(ctx, sdk, unitId, uid, func(p *TbUnitProgress) error {
 		p.IsCompleted = true
+		return nil
 	})
 }
 
-func (d *DatastoreDb) SaveUserSnippetId(ctx context.Context, sdk tob.Sdk, unitId, uid, snippetId string) error {
-	return d.upsertUnitProgress(ctx, sdk, unitId, uid, func(p *TbUnitProgress) {
+func (d *DatastoreDb) SaveUserSnippetId(
+	ctx context.Context, sdk tob.Sdk, unitId, uid string, externalSave func(string) (string, error),
+) error {
+	applyChanges := func(p *TbUnitProgress) error {
+		snippetId, err := externalSave(p.PersistenceKey)
+		if err != nil {
+			return err
+		}
+
 		p.SnippetId = snippetId
-	})
+		return nil
+	}
+	return d.upsertUnitProgress(ctx, sdk, unitId, uid, applyChanges)
 }
 
 // check if the interface is implemented.

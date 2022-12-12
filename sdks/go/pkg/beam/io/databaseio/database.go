@@ -189,11 +189,11 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	}
 	var val beam.X
 	for iter(&val) {
-		var row []interface{}
-		var data map[string]interface{}
+		var row []any
+		var data map[string]any
 		if writer, ok := val.(Writer); ok {
 			if data, err = writer.SaveData(); err == nil {
-				row = make([]interface{}, len(columns))
+				row = make([]any, len(columns))
 				for i, column := range columns {
 					row[i] = data[column]
 				}

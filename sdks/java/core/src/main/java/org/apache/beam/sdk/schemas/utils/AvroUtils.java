@@ -34,7 +34,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
@@ -77,7 +76,6 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
-import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
@@ -89,7 +87,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -122,9 +119,7 @@ import org.joda.time.ReadableInstant;
  *   RECORD      <-----> ROW
  *   UNION       <-----> LogicalType(OneOfType)
  *   LogicalTypes.Date              <-----> LogicalType(DATE)
- *                                  <------ LogicalType(urn="beam:logical_type:date:v1")
  *   LogicalTypes.TimestampMillis   <-----> DATETIME
- *   LogicalTypes.TimestampMicros   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
  *   LogicalTypes.Decimal           <-----> DECIMAL
  * </pre>
  *
@@ -810,11 +805,9 @@ public class AvroUtils {
       if (logicalType instanceof LogicalTypes.Decimal) {
         fieldType = FieldType.DECIMAL;
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
-        // TODO(https://github.com/apache/beam/issues/19215) DATETIME primitive will be removed when
-        // fully migrates to java.time lib from joda-time
+        // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
+        // this is done, this logical type needs to be changed.
         fieldType = FieldType.DATETIME;
-      } else if (logicalType instanceof LogicalTypes.TimestampMicros) {
-        fieldType = FieldType.logicalType(SqlTypes.TIMESTAMP);
       } else if (logicalType instanceof LogicalTypes.Date) {
         fieldType = FieldType.DATETIME;
       }
@@ -927,8 +920,8 @@ public class AvroUtils {
         break;
 
       case DATETIME:
-        // TODO(https://github.com/apache/beam/issues/19215) DATETIME primitive will be removed when
-        // fully migrates to java.time lib from joda-time
+        // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
+        // this is done, this logical type needs to be changed.
         baseType =
             LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG));
         break;
@@ -973,13 +966,10 @@ public class AvroUtils {
                   oneOfType.getOneOfSchema().getFields().stream()
                       .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
                       .collect(Collectors.toList()));
-        } else if ("DATE".equals(identifier) || SqlTypes.DATE.getIdentifier().equals(identifier)) {
+        } else if ("DATE".equals(identifier)) {
           baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
         } else if ("TIME".equals(identifier)) {
           baseType = LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
-        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
-          baseType =
-              LogicalTypes.timestampMicros().addToSchema(org.apache.avro.Schema.create(Type.LONG));
         } else {
           throw new RuntimeException(
               "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
@@ -1104,17 +1094,9 @@ public class AvroUtils {
                 oneOfValue.getValue());
           }
         } else if ("DATE".equals(identifier)) {
-          // "Date" is backed by joda.time.Instant
           return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
-        } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
-          // portable SqlTypes.DATE is backed by java.time.LocalDate
-          return ((java.time.LocalDate) value).toEpochDay();
         } else if ("TIME".equals(identifier)) {
-          // "TIME" is backed by joda.time.Instant
           return (int) ((Instant) value).getMillis();
-        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
-          // portable SqlTypes.TIMESTAMP is backed by java.time.Instant
-          return getMicrosFromJavaInstant((java.time.Instant) value);
         } else {
           throw new RuntimeException("Unhandled logical type " + identifier);
         }
@@ -1188,19 +1170,10 @@ public class AvroUtils {
         } else {
           return convertDateTimeStrict((Long) value, fieldType);
         }
-      } else if (logicalType instanceof LogicalTypes.TimestampMicros) {
-        if (value instanceof java.time.Instant) {
-          return convertMicroMillisStrict(
-              getMicrosFromJavaInstant((java.time.Instant) value), fieldType);
-        } else {
-          return convertMicroMillisStrict((Long) value, fieldType);
-        }
       } else if (logicalType instanceof LogicalTypes.Date) {
         if (value instanceof ReadableInstant) {
           int epochDays = Days.daysBetween(Instant.EPOCH, (ReadableInstant) value).getDays();
           return convertDateStrict(epochDays, fieldType);
-        } else if (value instanceof java.time.LocalDate) {
-          return convertDateStrict((int) ((java.time.LocalDate) value).toEpochDay(), fieldType);
         } else {
           return convertDateStrict((Integer) value, fieldType);
         }
@@ -1258,14 +1231,6 @@ public class AvroUtils {
     }
   }
 
-  /** Helper method to get epoch micros required by Avro TimeStampMicros logical type. */
-  @SuppressWarnings("JavaInstantGetSecondsGetNano")
-  @VisibleForTesting
-  static long getMicrosFromJavaInstant(java.time.Instant value) {
-    return TimeUnit.SECONDS.toMicros(value.getEpochSecond())
-        + TimeUnit.NANOSECONDS.toMicros(value.getNano());
-  }
-
   private static Object convertRecordStrict(GenericRecord record, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), Schema.TypeName.ROW, "record");
     return toBeamRowStrict(record, fieldType.getRowSchema());
@@ -1313,17 +1278,6 @@ public class AvroUtils {
   private static Object convertDateTimeStrict(Long value, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "dateTime");
     return new Instant(value);
-  }
-
-  private static Object convertMicroMillisStrict(Long value, Schema.FieldType fieldType) {
-    checkTypeName(
-        fieldType.getTypeName(), TypeName.LOGICAL_TYPE, SqlTypes.TIMESTAMP.getIdentifier());
-    checkArgument(
-        fieldType.getLogicalType().getIdentifier().equals(SqlTypes.TIMESTAMP.getIdentifier()));
-
-    return java.time.Instant.ofEpochSecond(
-        TimeUnit.MICROSECONDS.toSeconds(value),
-        TimeUnit.MICROSECONDS.toNanos(Math.floorMod(value, TimeUnit.SECONDS.toMicros(1))));
   }
 
   private static Object convertFloatStrict(Float value, Schema.FieldType fieldType) {

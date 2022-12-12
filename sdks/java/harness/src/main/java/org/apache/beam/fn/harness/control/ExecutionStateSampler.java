@@ -73,8 +73,7 @@ public class ExecutionStateSampler {
 
   private final Future<Void> stateSamplingThread;
 
-  @SuppressWarnings(
-      "methodref.receiver.bound.invalid" /* Synchronization ensures proper initialization */)
+  @SuppressWarnings("methodref.receiver.bound" /* Synchronization ensures proper initialization */)
   public ExecutionStateSampler(PipelineOptions options, MillisProvider clock) {
     String samplingPeriodMills =
         ExperimentalOptions.getExperimentValue(

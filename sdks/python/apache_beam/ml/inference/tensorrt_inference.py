@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import threading
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Optional
@@ -164,11 +165,63 @@ class TensorRTEngine:
         self.stream)
 
 
+TensorRTInferenceFn = Callable[
+    [Sequence[np.ndarray], TensorRTEngine, Optional[Dict[str, Any]]],
+    Iterable[PredictionResult]]
+
+
+def _default_tensorRT_inference_fn(
+    batch: Sequence[np.ndarray],
+    engine: TensorRTEngine,
+    inference_args: Optional[Dict[str,
+                                  Any]] = None) -> Iterable[PredictionResult]:
+  from cuda import cuda
+  (
+      engine,
+      context,
+      context_lock,
+      inputs,
+      outputs,
+      gpu_allocations,
+      cpu_allocations,
+      stream) = engine.get_engine_attrs()
+
+  # Process I/O and execute the network
+  with context_lock:
+    _assign_or_fail(
+        cuda.cuMemcpyHtoDAsync(
+            inputs[0]['allocation'],
+            np.ascontiguousarray(batch),
+            inputs[0]['size'],
+            stream))
+    context.execute_async_v2(gpu_allocations, stream)
+    for output in range(len(cpu_allocations)):
+      _assign_or_fail(
+          cuda.cuMemcpyDtoHAsync(
+              cpu_allocations[output],
+              outputs[output]['allocation'],
+              outputs[output]['size'],
+              stream))
+    _assign_or_fail(cuda.cuStreamSynchronize(stream))
+
+    return [
+        PredictionResult(
+            x, [prediction[idx] for prediction in cpu_allocations]) for idx,
+        x in enumerate(batch)
+    ]
+
+
 @experimental(extra_message="No backwards-compatibility guarantees.")
 class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
                                               PredictionResult,
                                               TensorRTEngine]):
-  def __init__(self, min_batch_size: int, max_batch_size: int, **kwargs):
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      *,
+      inference_fn: TensorRTInferenceFn = _default_tensorRT_inference_fn,
+      **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
     Example Usage::
@@ -185,6 +238,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     Args:
       min_batch_size: minimum accepted batch size.
       max_batch_size: maximum accepted batch size.
+      inference_fn: the inference function to use on RunInference calls.
+        default: _default_tensorRT_inference_fn
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
         currently supported.
 
@@ -193,6 +248,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """
     self.min_batch_size = min_batch_size
     self.max_batch_size = max_batch_size
+    self.inference_fn = inference_fn
     if 'engine_path' in kwargs:
       self.engine_path = kwargs.get('engine_path')
     elif 'onnx_path' in kwargs:
@@ -241,40 +297,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
-    from cuda import cuda
-    (
-        engine,
-        context,
-        context_lock,
-        inputs,
-        outputs,
-        gpu_allocations,
-        cpu_allocations,
-        stream) = engine.get_engine_attrs()
-
-    # Process I/O and execute the network
-    with context_lock:
-      _assign_or_fail(
-          cuda.cuMemcpyHtoDAsync(
-              inputs[0]['allocation'],
-              np.ascontiguousarray(batch),
-              inputs[0]['size'],
-              stream))
-      context.execute_async_v2(gpu_allocations, stream)
-      for output in range(len(cpu_allocations)):
-        _assign_or_fail(
-            cuda.cuMemcpyDtoHAsync(
-                cpu_allocations[output],
-                outputs[output]['allocation'],
-                outputs[output]['size'],
-                stream))
-      _assign_or_fail(cuda.cuStreamSynchronize(stream))
-
-      return [
-          PredictionResult(
-              x, [prediction[idx] for prediction in cpu_allocations]) for idx,
-          x in enumerate(batch)
-      ]
+    return self.inference_fn(batch, engine, inference_args)
 
   def get_num_bytes(self, batch: Sequence[np.ndarray]) -> int:
     """

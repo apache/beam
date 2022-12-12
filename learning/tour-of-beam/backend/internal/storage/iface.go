@@ -32,5 +32,9 @@ type Iface interface {
 	SaveUser(ctx context.Context, uid string) error
 	GetUserProgress(ctx context.Context, sdk tob.Sdk, uid string) (*tob.SdkProgress, error)
 	SetUnitComplete(ctx context.Context, sdk tob.Sdk, unitId, uid string) error
-	SaveUserSnippetId(ctx context.Context, sdk tob.Sdk, unitId, uid, snippetId string) error
+
+	SaveUserSnippetId(
+		ctx context.Context, sdk tob.Sdk, unitId, uid string,
+		externalSave func(string) (string, error),
+	) error
 }

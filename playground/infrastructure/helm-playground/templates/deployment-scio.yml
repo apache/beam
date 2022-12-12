@@ -37,6 +37,27 @@ spec:
          value: "remote"
        - name: CACHE_ADDRESS
          value: {{ .Values.redis_ip }}
+       - name: NUM_PARALLEL_JOBS
+         value: "5"
+       livenessProbe:
+         httpGet:
+           path: /liveness
+           port: {{ .Value.healthcheck.port }}
+         initialDelaySeconds: {{ .Value.healthcheck.livInitialDelaySeconds }}
+         periodSeconds: {{ .Value.healthcheck.livPeriodSeconds }}
+       readinessProbe:
+         httpGet:
+           path: /readiness
+           port: {{ .Value.healthcheck.port }}
+         initialDelaySeconds: {{ .Value.healthcheck.readInitialDelaySeconds }}
+         periodSeconds: {{ .Value.healthcheck.readPeriodSeconds }}
+       resources:
+         requests:
+           memory: "1000Mi"
+           cpu: "500m"
+         limits:
+           cpu: "1000"
+           memory: "500Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:
