@@ -1,1 +1,1 @@
-SELECT * FROM {{ ref('my_first_dbt_model') }} WHERE id = 1
+SELECT id,CONCAT(first,last) AS full_name,wins FROM {{ ref('very_simple_table') }} WHERE wins > 0

@@ -15,33 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.spd.models;
+package org.apache.beam.sdk.extensions.spd.description;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import java.util.Arrays;
+import java.util.List;
 
-public class SqlModel implements StructuredModel {
+public class Seed {
+  @Nullable
+  @JsonSetter(nulls = Nulls.FAIL)
+  public String name;
 
-  @Nullable private String path;
-  @Nullable private String name;
-  @Nullable private String rawQuery;
-
-  public SqlModel(String path, String name, String rawQuery) {
-    this.path = path;
-    this.name = name;
-    this.rawQuery = rawQuery;
-  }
-
-  public String getRawQuery() {
-    return rawQuery;
-  }
-
-  @Override
-  public String getPath() {
-    return path;
-  }
-
-  @Override
-  public String getName() {
-    return name;
-  }
+  @JsonSetter(nulls = Nulls.AS_EMPTY)
+  public List<Column> columns = Arrays.asList();
 }

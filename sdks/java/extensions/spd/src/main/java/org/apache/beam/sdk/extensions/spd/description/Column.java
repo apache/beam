@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Arrays;
+import java.util.List;
 
 @SuppressFBWarnings
 public class Column {
@@ -35,4 +37,8 @@ public class Column {
   @Nullable
   @JsonProperty("data_type")
   public String type;
+
+  @Nullable
+  @JsonSetter(nulls = Nulls.AS_EMPTY)
+  public List<String> tests = Arrays.asList();
 }

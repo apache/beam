@@ -1,0 +1,11 @@
+seeds:
+  - name: very_simple_table
+    columns:
+      - name: id
+        data_type: varchar
+      - name: first
+        data_type: varchar
+      - name: last
+        data_type: varchar
+      - name: wins
+        data_type: int

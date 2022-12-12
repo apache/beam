@@ -20,35 +20,44 @@ package org.apache.beam.sdk.extensions.spd;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.hubspot.jinjava.Jinjava;
+import com.hubspot.jinjava.interpret.RenderResult;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.spd.description.Model;
-import org.apache.beam.sdk.extensions.spd.description.PackageImport;
-import org.apache.beam.sdk.extensions.spd.description.Packages;
-import org.apache.beam.sdk.extensions.spd.description.Project;
-import org.apache.beam.sdk.extensions.spd.description.Schemas;
+import org.apache.beam.sdk.extensions.spd.description.*;
 import org.apache.beam.sdk.extensions.spd.models.SqlModel;
 import org.apache.beam.sdk.extensions.spd.models.StructuredModel;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.KafkaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.pubsublite.PubsubLiteTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.schemas.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressFBWarnings
 public class StructuredPipelineDescription {
   private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineDescription.class);
 
   private ObjectMapper mapper;
   private Path path;
   private Jinjava jinjava;
-  private HashMap<String, Object> bindings = new HashMap<String, Object>();
+
+  @Nullable private Pipeline pipeline;
 
   private List<StructuredModel> models = new ArrayList<>();
+
+  private InMemoryMetaStore metaStore;
 
   @Nullable private Project project = null;
 
@@ -60,6 +69,41 @@ public class StructuredPipelineDescription {
     return project == null ? "" : project.version;
   }
 
+  public @Nullable Table findTable(String name) {
+    Table t = metaStore.getTable(name);
+
+    // table already exists so we're good here.
+    if (t != null) {
+      return t;
+    }
+
+    // Otherwise we need to try to make the table from a model
+    StructuredModel found = null;
+    for (StructuredModel m : models) {
+      if (name.equals(m.getName())) {
+        found = m;
+        break;
+      }
+    }
+
+    // Table by that name doesn't exist?
+    if (found == null) {
+      return null;
+    }
+
+    if (found instanceof SqlModel) {
+      HashMap<String, Object> bindings = new HashMap<>();
+      bindings.put("_name", found.getName());
+      bindings.put("_path", found.getPath());
+      bindings.put("_self", this);
+      RenderResult result = jinjava.renderForResult(((SqlModel) found).getRawQuery(), bindings);
+      if (result.hasErrors()) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   public static ObjectMapper defaultObjectMapper() {
     return new ObjectMapper(new YAMLFactory());
   }
@@ -68,10 +112,19 @@ public class StructuredPipelineDescription {
     this.mapper = mapper;
     this.jinjava = jinjava;
     this.path = path;
+    this.metaStore = new InMemoryMetaStore();
+
+    // TODO: I think we can do what SQLTransform does here?
+    this.metaStore.registerProvider(new TextTableProvider());
+    this.metaStore.registerProvider(new BigQueryTableProvider());
+    this.metaStore.registerProvider(new BigtableTableProvider());
+    this.metaStore.registerProvider(new KafkaTableProvider());
+    this.metaStore.registerProvider(new PubsubTableProvider());
+    this.metaStore.registerProvider(new PubsubLiteTableProvider());
   }
 
   public StructuredPipelineDescription(Path path) {
-    this(defaultObjectMapper(), new Jinjava(), path);
+    this(defaultObjectMapper(), JinjaFunctions.getDefault(), path);
   }
 
   private @Nullable Path yamlPath(Path base, String yamlName) throws Exception {
@@ -82,21 +135,17 @@ public class StructuredPipelineDescription {
     return Files.exists(newPath) ? newPath : null;
   }
 
-  private void initialize() throws Exception {
-    bindings.clear();
-    bindings.putIfAbsent(
-        "tmpDir", Files.createTempDirectory("beamspd").toAbsolutePath().toString());
-  }
+  private void initialize() throws Exception {}
 
   private void importPackages(Path path, Project project) throws Exception {
     Path packagePath = yamlPath(path, "packages");
     if (packagePath == null) {
       return;
     }
-
     Packages packages = mapper.readValue(Files.newBufferedReader(packagePath), Packages.class);
     for (PackageImport toImport : packages.packages) {
       if (toImport.local != null && !"".equals(toImport.local)) {
+        HashMap<String, Object> bindings = new HashMap<>();
         Path localPath = Paths.get(jinjava.render(toImport.local, bindings));
         if (Files.exists(localPath)) {
           loadPackage(localPath, project);
@@ -104,6 +153,7 @@ public class StructuredPipelineDescription {
           LOG.error("Package not found at '" + localPath.toAbsolutePath().toString() + "'");
         }
       } else if (toImport.git != null && !"".equals(toImport.git)) {
+        HashMap<String, Object> bindings = new HashMap<>();
         String tmpDir = jinjava.render(project.packagesInstallPath, bindings);
         LOG.warn(
             "Git imports currently unsupported. Skipping import of '"
@@ -132,18 +182,43 @@ public class StructuredPipelineDescription {
           // Load up a yaml file containing models and sources (all schemas)
           Schemas schemas = mapper.readValue(Files.newBufferedReader(file), Schemas.class);
 
-          // TODO: Create model objects for our sources
+          // Create tables for our seeds
+          for (Seed seed : schemas.seeds) {
+            Path csvFile = path.resolve(seed.name + ".csv");
+            // Path jsonFile = path.resolve(seed.name + ".json");
+
+            if (Files.exists(csvFile)) {
+              Schema beamSchema = columnsToSchema(seed.columns);
+              metaStore.createTable(
+                  Table.builder()
+                      .type("text")
+                      .location(csvFile.toAbsolutePath().toString())
+                      .schema(beamSchema)
+                      .build());
+            }
+          }
+
+          // TODO: Create tables for our sources so they can be referenced
 
           // Create model objects for our models
           for (Model model : schemas.models) {
-            Path sqlFile = path.resolve(model.name + ".sql");
-            if (Files.exists(sqlFile)) {
 
-              this.models.add(
-                  new SqlModel(
-                      computeIdentifier(prefix, model.name),
-                      model.name,
-                      String.join("\n", Files.readAllLines(sqlFile))));
+            if (model.name != null) {
+              Path sqlFile = path.resolve(model.name + ".sql");
+              Path pyFile = path.resolve(model.name + ".py");
+
+              // If there's a sql file of the same name present we must be a SQL transform.
+              if (Files.exists(sqlFile)) {
+                this.models.add(
+                    new SqlModel(
+                        prefix, model.name, String.join("\n", Files.readAllLines(sqlFile))));
+              } else if (Files.exists(pyFile)) {
+                // TODO: Handle python transofmrs
+              } else {
+                // Otherwise we're a "built-in" SchemaTransform (i.e. our definition comes from the
+                // user's implementation
+                // in an SDK.
+              }
             }
           }
         }
@@ -151,8 +226,29 @@ public class StructuredPipelineDescription {
     }
   }
 
+  private Schema columnsToSchema(List<Column> columns) {
+    Schema.Builder beamSchema = Schema.builder();
+    for (Column c : columns) {
+      HashSet<String> tests = new HashSet<>();
+      tests.addAll(c.tests);
+      if (c.type != null && c.name != null) {
+        Schema.FieldType type = Schema.FieldType.of(Schema.TypeName.valueOf(c.type));
+        if (tests.contains("not_null")) {
+          beamSchema.addField(c.name, type);
+        } else {
+          beamSchema.addNullableField(c.name, type);
+        }
+      }
+    }
+    return beamSchema.build();
+  }
+
   private void loadModels(Path path, Project project) throws Exception {
-    for (String modelPathName : project.modelPaths) {
+    ArrayList<String> allPaths = new ArrayList<>();
+    allPaths.addAll(project.seedPaths);
+    allPaths.addAll(project.modelPaths);
+
+    for (String modelPathName : allPaths) {
       Path modelsPath = path.resolve(modelPathName);
       if (Files.exists(modelsPath)) {
         importSchemas("", modelsPath, project);
@@ -187,15 +283,25 @@ public class StructuredPipelineDescription {
     project = loadPackage(path, emptyBase);
   }
 
-  public void compile() throws Exception {
+  public void compile(Pipeline pipeline) throws Exception {
     if (project == null) {
       return;
     }
+    // Okay, super cheesy but here we go..
+    boolean resolved = true;
+    do {
+      for (StructuredModel model : models) {
+        if (model instanceof SqlModel) {
+          HashMap<String, Object> bindings = new HashMap<String, Object>();
+          jinjava.render(((SqlModel) model).getRawQuery(), bindings);
+        }
+      }
+    } while (!resolved);
   }
 
   public void run(Pipeline pipeline) throws Exception {
     load();
-    compile();
+    compile(pipeline);
     pipeline.run();
   }
 

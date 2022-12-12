@@ -25,4 +25,5 @@ import java.util.List;
 public class Schemas {
   public List<Source> sources = Arrays.asList();
   public List<Model> models = Arrays.asList();
+  public List<Seed> seeds = Arrays.asList();
 }

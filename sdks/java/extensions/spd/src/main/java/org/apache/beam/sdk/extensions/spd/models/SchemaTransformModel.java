@@ -21,14 +21,28 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 @SuppressFBWarnings
 public class SchemaTransformModel implements StructuredModel {
+  private String path;
+  private String name;
 
   private String urn;
 
-  SchemaTransformModel(String urn) {
+  SchemaTransformModel(String path, String name, String urn) {
+    this.path = path;
+    this.name = name;
     this.urn = urn;
   }
 
   public String getUrn() {
     return urn;
+  }
+
+  @Override
+  public String getPath() {
+    return path;
+  }
+
+  @Override
+  public String getName() {
+    return name;
   }
 }

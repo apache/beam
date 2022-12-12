@@ -28,6 +28,8 @@ ext.summary = "Extension providing Structured Pipeline Descriptions for Beam"
 var jinjava_version = "2.6.0"
 
 dependencies {
+    implementation project(":sdks:java:extensions:sql")
+    permitUnusedDeclared project(":sdks:java:extensions:sql")
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.auto_value_annotations
     implementation library.java.slf4j_api

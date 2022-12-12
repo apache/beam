@@ -17,4 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.spd.models;
 
-public interface StructuredModel {}
+public interface StructuredModel {
+  String getPath();
+
+  String getName();
+}
