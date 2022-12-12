@@ -307,19 +307,19 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     public @Nullable List<?> history;
     public @Nullable Integer fetchedRecords;
     public @Nullable Integer maxRecords;
-    public final long minutesToRun;
+    public final long milisToRun;
 
     OffsetHolder(
         @Nullable Map<String, ?> offset,
         @Nullable List<?> history,
         @Nullable Integer fetchedRecords,
         @Nullable Integer maxRecords,
-        long minutesToRun) {
+        long milisToRun) {
       this.offset = offset;
       this.history = history == null ? new ArrayList<>() : history;
       this.fetchedRecords = fetchedRecords;
       this.maxRecords = maxRecords;
-      this.minutesToRun = minutesToRun;
+      this.milisToRun = milisToRun;
     }
 
     OffsetHolder(
@@ -333,7 +333,6 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   /** {@link RestrictionTracker} for Debezium connectors. */
   static class OffsetTracker extends RestrictionTracker<OffsetHolder, Map<String, Object>> {
     private OffsetHolder restriction;
-    private static final long MILLIS = 60 * 1000;
 
     OffsetTracker(OffsetHolder holder) {
       this.restriction = holder;
@@ -364,23 +363,20 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       int fetchedRecords =
           this.restriction.fetchedRecords == null ? 0 : this.restriction.fetchedRecords + 1;
       LOG.debug("------------Fetched records {} / {}", fetchedRecords, this.restriction.maxRecords);
-      LOG.debug(
-          "-------------- Time running: {} / {}",
-          elapsedTime,
-          (this.restriction.minutesToRun * MILLIS));
+      LOG.debug("-------------- Time running: {} / {}", elapsedTime, (this.restriction.milisToRun));
       this.restriction.offset = position;
       this.restriction.fetchedRecords = fetchedRecords;
       LOG.debug("-------------- History: {}", this.restriction.history);
 
-      if (this.restriction.maxRecords == null && this.restriction.minutesToRun == -1) {
+      if (this.restriction.maxRecords == null && this.restriction.milisToRun == -1) {
         return true;
       }
 
-      if (this.restriction.maxRecords != null) {
-        return fetchedRecords < this.restriction.maxRecords;
-      }
-
-      return elapsedTime < this.restriction.minutesToRun * MILLIS;
+      // If we've reached the maximum number of records OR the maximum time, we reject
+      // the attempt to claim.
+      // If we've reached neither, then we continue approve the claim.
+      return (this.restriction.maxRecords == null || fetchedRecords < this.restriction.maxRecords)
+          && (this.restriction.milisToRun == -1 || elapsedTime < this.restriction.milisToRun);
     }
 
     @Override
@@ -399,6 +395,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
     @Override
     public IsBounded isBounded() {
+      // TODO(pabloem): Implement truncate call that allows us to restart the state
       return IsBounded.UNBOUNDED;
     }
   }
