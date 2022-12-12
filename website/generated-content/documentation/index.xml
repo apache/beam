@@ -8410,7 +8410,8 @@ type of the field itself has a schema. Fields that are array or map types is als
 records.&lt;/p>
 &lt;p>For example, consider the following schema, representing actions in a fictitious e-commerce company:&lt;/p>
 &lt;p>&lt;strong>Purchase&lt;/strong>&lt;/p>
-&lt;table>
+&lt;div class="table-container-wrapper">
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -8441,8 +8442,9 @@ records.&lt;/p>
 &lt;/tbody>
 &lt;/table>
 &lt;br/>
+&lt;/div>
 &lt;p>&lt;strong>ShippingAddress&lt;/strong>&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -8474,7 +8476,7 @@ records.&lt;/p>
 &lt;/table>
 &lt;br/>
 &lt;p>&lt;strong>Transaction&lt;/strong>&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -8691,7 +8693,7 @@ to translate between Java types of equivalent schemas, as detailed below.&lt;/p>
 &lt;p>The schema for a &lt;code>PCollection&lt;/code> defines elements of that &lt;code>PCollection&lt;/code> as an ordered list of named fields. Each field
 has a name, a type, and possibly a set of user options. The type of a field can be primitive or composite. The following
 are the primitive types currently supported by Beam:&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>Type&lt;/th>
@@ -9336,7 +9338,7 @@ arrays, the use of {} curly brackets in the selector is recommended, to make it 
 selected, they can be omitted for brevity. In the future, map key selectors will be supported, allowing selection of
 specific keys from the map. For example, given the following schema:&lt;/p>
 &lt;p>&lt;strong>PurchasesByType&lt;/strong>&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -9387,7 +9389,7 @@ could select only the userId and streetAddress fields as follows&lt;/p>
 &lt;p class="language-py">Support for Nested fields hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
 &lt;p class="language-go">Support for Nested fields hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p>The resulting &lt;code>PCollection&lt;/code> will have the following schema&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -9418,7 +9420,7 @@ could select only the userId and streetAddress fields as follows&lt;/p>
 &lt;p class="language-py">Support for Wildcards hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
 &lt;p class="language-go">Support for Wildcards hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p>Will result in the following schema&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -9467,7 +9469,7 @@ selected field will appear as its own array field. For example&lt;/p>
 &lt;p class="language-py">Support for nested fields hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
 &lt;p class="language-go">Support for nested fields hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p class="language-java">Will result in the following schema&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -9505,7 +9507,8 @@ a name conflict, as all selected fields are put in the same row schema. When thi
 &lt;p class="language-py">Support for nested fields hasn&amp;rsquo;t been developed for the Python SDK yet.&lt;/p>
 &lt;p class="language-go">Support for nested fields hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p class="language-java">Will result in the following schema&lt;/p>
-&lt;table>
+&lt;div class="table-container-wrapper">
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -9555,7 +9558,8 @@ a name conflict, as all selected fields are put in the same row schema. When thi
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;br/>&lt;/p>
+&lt;br/>
+&lt;/div>&lt;/p>
 &lt;h5 id="grouping-aggregations">&lt;strong>Grouping aggregations&lt;/strong>&lt;/h5>
 &lt;p class="language-java">The &lt;code>Group&lt;/code> transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
 those groupings, and storing the result of those aggregations in a new schema field. The output of the &lt;code>Group&lt;/code> transform
@@ -9586,7 +9590,7 @@ are grouped together into an &lt;code>ITERABLE&lt;/code> field. For example&lt;/
 &lt;/div>
 &lt;p class="language-go">Support for schema-aware grouping hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p class="lanuage-java">The output schema of this is:&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -9647,7 +9651,7 @@ output schema:&lt;/p>
 &lt;/div>
 &lt;p class="language-go">Support for schema-aware grouping hasn&amp;rsquo;t been developed for the Go SDK yet.&lt;/p>
 &lt;p>The result of this aggregation will have the following schema:&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -9687,7 +9691,7 @@ and is specified with the &lt;code>using&lt;/code> keyword:&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">The resulting schema is the following:&lt;/p>
-&lt;table>
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>&lt;b>Field Name&lt;/b>&lt;/th>
@@ -10032,7 +10036,8 @@ register a new default coder for a given type.&lt;/p>
 types for any pipeline you create using the Beam SDK for
 &lt;span class="language-java">Java&lt;/span>&lt;span class="language-py">Python&lt;/span>.
 The following table shows the standard mapping:&lt;/p>
-&lt;p class="language-java">&lt;table>
+&lt;p class="language-java">&lt;div class="table-container-wrapper">
+&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>Java Type&lt;/th>
@@ -10093,8 +10098,9 @@ The following table shows the standard mapping:&lt;/p>
 &lt;td>TimestampedValueCoder&lt;/td>
 &lt;/tr>
 &lt;/tbody>
-&lt;/table>&lt;/p>
-&lt;p class="language-py">&lt;table>
+&lt;/table>
+&lt;/div>&lt;/p>
+&lt;p class="language-py">&lt;table class="table-wrapper--pr">
 &lt;thead>
 &lt;tr class="header">
 &lt;th>Python Type&lt;/th>
