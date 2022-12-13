@@ -23,7 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Python',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
-      '-Pposargs="--ignore=apache_beam/coders/ --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/internal/"'
+      '-Pposargs=--ignore-glob=apache_beam/{coders,dataframe,examples,internal}/{**/*,*}' // Exclude any tests that are covered by other suites
     ],
     timeoutMins: 180,
     triggerPathPatterns: [
