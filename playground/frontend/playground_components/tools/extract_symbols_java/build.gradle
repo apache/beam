@@ -38,6 +38,7 @@ dependencies {
 }
 
 tasks.register("buildJava") {
+    dependsOn "build"
     doLast {
         exec {
             commandLine "java", "-classpath", sourceSets.main.runtimeClasspath.getAsPath(), javaMainClass
