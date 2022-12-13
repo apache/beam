@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.spd;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.hubspot.jinjava.interpret.RenderResult;
 import com.hubspot.jinjava.interpret.TemplateError;
@@ -36,11 +37,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.spd.description.Column;
-import org.apache.beam.sdk.extensions.spd.description.Model;
-import org.apache.beam.sdk.extensions.spd.description.Project;
-import org.apache.beam.sdk.extensions.spd.description.Schemas;
-import org.apache.beam.sdk.extensions.spd.description.Seed;
+import org.apache.beam.sdk.extensions.spd.description.*;
+import org.apache.beam.sdk.extensions.spd.models.PTransformModel;
 import org.apache.beam.sdk.extensions.spd.models.SqlModel;
 import org.apache.beam.sdk.extensions.spd.models.StructuredModel;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -51,6 +49,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -121,6 +120,18 @@ public class StructuredPipelineDescription {
       }
       PCollection<Row> pcollection =
           BeamSqlRelUtils.toPCollection(this.pipeline, env.parseQuery(result.getOutput()));
+      metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
+    } else if (model instanceof PTransformModel) {
+      PTransformModel ptm = (PTransformModel) model;
+
+      RenderResult inputResult = JinjaFunctions.getDefault().renderForResult(ptm.getInput(), me);
+      if (inputResult.hasErrors()) {
+        for (TemplateError error : inputResult.getErrors()) {
+          throw error.getException();
+        }
+      }
+      PCollection<Row> pcollection =
+          ptm.applyTo(readFrom(inputResult.getOutput(), pipeline.begin()));
       metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
     }
     return metaTableProvider.getTable(fullTableName);
@@ -216,8 +227,20 @@ public class StructuredPipelineDescription {
                   fullName,
                   new SqlModel(
                       fullName, model.getName(), String.join("\n", Files.readAllLines(sqlPath))));
+            } else if (model.getJava() != null) {
+              // This is totally unsafe, but serves as a proof of concept for arbitrary transforms
+              ModelJavaBinding binding = model.getJava();
+              ObjectNode properties =
+                  binding.getProperties() == null
+                      ? mapper.createObjectNode()
+                      : binding.getProperties();
+              PTransform<PCollection<Row>, PCollection<Row>> transform =
+                  (PTransform<PCollection<Row>, PCollection<Row>>)
+                      mapper.treeToValue(properties, Class.forName(binding.getClassName()));
+              modelMap.put(
+                  fullName,
+                  new PTransformModel(fullName, model.getName(), model.getInput(), transform));
             } else {
-              // TODO: Allow for arbitrary SchemaTransforms as a model
             }
           }
         }

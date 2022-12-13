@@ -1,0 +1,7 @@
+models:
+  - name: print_out
+    input: ref('simple_aggregation')
+    java:
+      className: org.apache.beam.sdk.extensions.spd.transforms.LoggingUtilityTransform
+      properties:
+        prefix: PrintOut

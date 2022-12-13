@@ -20,9 +20,7 @@ package org.apache.beam.sdk.extensions.spd;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -39,10 +37,6 @@ public class StructuredPipelineExecutionTest {
     Path pipelinePath = Paths.get(pipelineURL.toURI());
     StructuredPipelineDescription spd = new StructuredPipelineDescription(pipeline);
     spd.loadProject(pipelinePath);
-    //    spd.readFrom("my_second_dbt_model", pipeline.begin())
-    //        .apply(ParDo.of(new BeamSqlOutputToConsoleFn("Table Output")));
-    spd.readFrom("simple_aggregation", pipeline.begin())
-        .apply(ParDo.of(new BeamSqlOutputToConsoleFn("Output Aggregation")));
     LOG.info("Running pipeline");
     pipeline.run();
   }

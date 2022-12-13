@@ -19,43 +19,21 @@ package org.apache.beam.sdk.extensions.spd.description;
 
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.Arrays;
-import java.util.List;
 
-@SuppressFBWarnings
-public class Model {
-  @Nullable
-  @JsonSetter(nulls = Nulls.FAIL)
-  public String name;
+public class ModelJavaBinding {
+  public String className = "";
 
-  public String getName() {
-    return name == null ? "" : name;
-  }
-
-  @Nullable public String description;
-
-  public String getDescription() {
-    return description == null ? "" : description;
-  }
-
-  @JsonSetter(nulls = Nulls.AS_EMPTY)
-  public List<Column> columns = Arrays.asList();
-
-  @Nullable
-  @JsonSetter(nulls = Nulls.SKIP)
-  public ModelJavaBinding java;
-
-  public @Nullable ModelJavaBinding getJava() {
-    return java;
+  public String getClassName() {
+    return className;
   }
 
   @Nullable
   @JsonSetter(nulls = Nulls.SKIP)
-  public String input = "";
+  public ObjectNode properties;
 
-  public String getInput() {
-    return input == null ? "" : input;
+  public @Nullable ObjectNode getProperties() {
+    return properties;
   }
 }
