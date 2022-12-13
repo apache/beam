@@ -367,9 +367,9 @@ public class WatchTest implements Serializable {
                       .size());
               assertThat(
                   "Poll called more than once",
-                  (int) StreamSupport.stream(outputs.spliterator(), false)
+                  StreamSupport.stream(outputs.spliterator(), false)
                       .map(extractTimestampFn::apply).count(),
-                  greaterThan(1));
+                  greaterThan(1L));
               return null;
             });
 
