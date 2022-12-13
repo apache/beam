@@ -328,7 +328,7 @@ public class WatchTest implements Serializable {
                 Watch.growthOf(
                         new TimedPollFn<String, Integer>(
                             all,
-                            standardSeconds(2) /* timeToOutputEverything */,
+                            standardSeconds(3) /* timeToOutputEverything */,
                             standardSeconds(3) /* timeToDeclareOutputFinal */,
                             standardSeconds(30) /* timeToFail */))
                     .withPollInterval(Duration.millis(500))
