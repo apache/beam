@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.Watch.Growth.eitherOf;
 import static org.apache.beam.sdk.transforms.Watch.Growth.never;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.joda.time.Duration.standardSeconds;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -363,8 +365,11 @@ public class WatchTest implements Serializable {
                               .map(extractValueFn::apply)
                               .collect(Collectors.toList()))
                       .size());
-              assertTrue("Poll called more than once", StreamSupport.stream(outputs.spliterator(), false)
-                  .map(extractTimestampFn::apply).collect(Collectors.toSet()).size() > 0);
+              assertThat(
+                  "Poll called more than once",
+                  (int) StreamSupport.stream(outputs.spliterator(), false)
+                      .map(extractTimestampFn::apply).count(),
+                  greaterThan(1));
               return null;
             });
 
