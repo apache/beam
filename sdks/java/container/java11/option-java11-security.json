@@ -1,0 +1,10 @@
+{
+    "name": "java-securtiy",
+    "enabled": true,
+    "options": {
+      "properties": {
+        "java.security.properties": "/opt/apache/beam/options/java11-security.properties"
+      }
+    }
+  }
+  

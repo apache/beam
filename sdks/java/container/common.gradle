@@ -81,8 +81,8 @@ task copyJdkOptions(type: Copy) {
     if (imageJavaVersion == "17" || imageJavaVersion == "11") {
         from "option-jamm.json"
     }
-    from "jdk${imageJavaVersion}-tls.properties"
-    from "option-tls-${imageJavaVersion}.json"
+    from "java${imageJavaVersion}-security.properties"
+    from "option-java${imageJavaVersion}-security.json"
     into "build/target/options"
 }
 
