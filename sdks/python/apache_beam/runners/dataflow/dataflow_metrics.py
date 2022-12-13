@@ -254,6 +254,9 @@ class DataflowMetrics(MetricResults):
     # then metrics will not change and we can cache them.
     if self.job_result and self.job_result.is_in_terminal_state():
       self._cached_metrics = job_metrics
+
+    _LOGGER.info("debugging... here with metrics:")
+    _LOGGER.info(job_metrics)
     return job_metrics
 
   def all_metrics(self, job_id=None):

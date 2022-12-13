@@ -188,7 +188,7 @@ def verify_all(all_metrics, matchers):
     matched_metrics = [mr for mr in all_metrics if matcher.matches(mr)]
     if not matched_metrics:
       errors.append(
-          'Unable to match metrics for matcher %s' %
+          'Unable to match metrics for matcher %s\n' %
           (string_description.tostring(matcher)))
   if errors:
     errors.append(
