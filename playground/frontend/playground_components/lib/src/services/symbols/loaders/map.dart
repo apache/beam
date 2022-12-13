@@ -26,18 +26,19 @@ import '../../../playground_components.dart';
 import 'yaml.dart';
 
 final symbolLoadersByMode = {
+  //
   go: YamlSymbolsLoader(
     path: Assets.symbols.goG,
     package: PlaygroundComponents.packageName,
   ),
 
-  python: YamlSymbolsLoader(
-    path: Assets.symbols.pythonG,
+  java: YamlSymbolsLoader(
+    path: Assets.symbols.javaG,
     package: PlaygroundComponents.packageName,
   ),
 
-  java: YamlSymbolsLoader(
-    path: Assets.symbols.javaG,
+  python: YamlSymbolsLoader(
+    path: Assets.symbols.pythonG,
     package: PlaygroundComponents.packageName,
   ),
 

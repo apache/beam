@@ -41,8 +41,8 @@ tasks.register("buildJava") {
     dependsOn "build"
     doLast {
         exec {
-            commandLine "java", "-classpath", sourceSets.main.runtimeClasspath.getAsPath(), javaMainClass
-            args("../../../../../sdks/java")
+            executable "java"
+            args "-classpath", sourceSets.main.runtimeClasspath.getAsPath(), javaMainClass, "../../../../../sdks/java"
             standardOutput = new FileOutputStream("playground/frontend/playground_components/assets/symbols/java.g.yaml")
         }
     }

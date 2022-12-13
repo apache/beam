@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
- package com.playground.extract_symbols;
+package com.playground.extract_symbols;
 
 import com.esotericsoftware.yamlbeans.YamlConfig;
 import com.esotericsoftware.yamlbeans.YamlException;
@@ -31,9 +31,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -92,10 +90,31 @@ public class Main {
         var stringWriter = new StringWriter();
         var yamlWriter = new YamlWriter(stringWriter);
         yamlWriter.getConfig().writeConfig.setWriteClassname(YamlConfig.WriteClassName.NEVER);
-        var yamlMap = new HashMap<String, Map<String, Set<String>>>();
+        var yamlMap = new LinkedHashMap<String, Map<String, List<String>>>();
+
         classInfoMap.forEach((key, value) -> yamlMap.put(key, value.toMap()));
-        yamlWriter.write(yamlMap);
+        var sortedMap = sortMap(yamlMap);
+
+        yamlWriter.write(sortedMap);
+
         yamlWriter.close();
         return stringWriter.toString();
+    }
+
+    private static LinkedHashMap<String, Map<String, List<String>>> sortMap(HashMap<String, Map<String, List<String>>> yamlMap) {
+        var comparator = new Comparator<Map.Entry<String, Map<String, List<String>>>>() {
+            @Override
+            public int compare(Map.Entry<String, Map<String, List<String>>> o1, Map.Entry<String, Map<String, List<String>>> o2) {
+                return o1.getKey().compareTo(o2.getKey());
+            }
+        };
+        var array = new ArrayList<>(yamlMap.entrySet());
+        array.sort(comparator);
+
+        var sortedMap = new LinkedHashMap<String, Map<String, List<String>>>();
+        for (Map.Entry<String, Map<String, List<String>>> entry : array) {
+            sortedMap.put(entry.getKey(), entry.getValue());
+        }
+        return sortedMap;
     }
 }

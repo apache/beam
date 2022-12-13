@@ -18,22 +18,20 @@
 
  package com.playground.extract_symbols;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ClassInfo {
     Set<String> publicMethods = new HashSet<>();
     Set<String> publicFields = new HashSet<>();
 
-    Map<String, Set<String>> toMap() {
-        Map<String, Set<String>> map = new HashMap<>();
+    Map<String, List<String>> toMap() {
+        Map<String, List<String>> map = new HashMap<>();
         if (!publicMethods.isEmpty()) {
-            map.put("methods", publicMethods);
+            map.put("methods", publicMethods.stream().sorted().collect(Collectors.toList()));
         }
         if (!publicFields.isEmpty()) {
-            map.put("properties", publicFields);
+            map.put("properties", publicFields.stream().sorted().collect(Collectors.toList()));
         }
         return map;
     }
