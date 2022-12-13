@@ -20,18 +20,15 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python_Internal',
+    nameBase: 'Python_Examples',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
-      '-Pposargs=apache_beam/internal/'
+      '-Pposargs=apache_beam/examples/'
     ],
     timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
-      '^sdks/python/apache_beam/internal/.*$',
-      '^sdks/python/apache_beam/metrics/.*$',
-      '^sdks/python/apache_beam/options/.*$',
-      '^sdks/python/apache_beam/utils/.*$',
+      '^sdks/python/.*$',
       '^release/.*$',
     ]
     )
