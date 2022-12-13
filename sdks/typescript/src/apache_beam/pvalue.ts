@@ -26,7 +26,7 @@ import {
   extractName,
   withName,
 } from "./transforms/transform";
-import { parDo, DoFn } from "./transforms/pardo";
+import { parDo, DoFn, extractContext } from "./transforms/pardo";
 import * as runnerApi from "./proto/beam_runner_api";
 
 /**
@@ -106,6 +106,9 @@ export class PCollection<T> {
       | ((element: T, context: ContextT) => OutputT),
     context: ContextT = undefined!
   ): PCollection<OutputT> {
+    if (extractContext(fn)) {
+      context = { ...extractContext(fn), ...context };
+    }
     return this.apply(
       withName(
         "map(" + extractName(fn) + ")",
@@ -131,6 +134,9 @@ export class PCollection<T> {
       | ((element: T, context: ContextT) => Iterable<OutputT>),
     context: ContextT = undefined!
   ): PCollection<OutputT> {
+    if (extractContext(fn)) {
+      context = { ...extractContext(fn), ...context };
+    }
     return this.apply(
       withName(
         "flatMap(" + extractName(fn) + ")",

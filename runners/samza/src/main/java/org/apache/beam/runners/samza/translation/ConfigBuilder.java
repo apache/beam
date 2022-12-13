@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.translation;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.samza.config.JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE;
 import static org.apache.samza.config.JobConfig.JOB_ID;
 import static org.apache.samza.config.JobConfig.JOB_NAME;
 import static org.apache.samza.config.TaskConfig.COMMIT_MS;
@@ -51,6 +52,7 @@ import org.apache.samza.job.yarn.YarnJobFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
 import org.apache.samza.runtime.RemoteApplicationRunner;
 import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
+import org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory;
 import org.apache.samza.zk.ZkJobCoordinatorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +97,25 @@ public class ConfigBuilder {
       config.put(ApplicationConfig.APP_ID, options.getJobInstance());
       config.put(JOB_NAME, options.getJobName());
       config.put(JOB_ID, options.getJobInstance());
+
+      // bundle-related configs
       config.put(MAX_CONCURRENCY, String.valueOf(options.getMaxBundleSize()));
+      if (options.getMaxBundleSize() > 1) {
+        final String threadPoolSizeStr = config.remove(JOB_CONTAINER_THREAD_POOL_SIZE);
+        final int threadPoolSize =
+            threadPoolSizeStr == null ? 0 : Integer.parseInt(threadPoolSizeStr);
+
+        if (threadPoolSize > 1 && options.getNumThreadsForProcessElement() <= 1) {
+          // In case the user sets the thread pool through samza config instead options,
+          // set the bundle thread pool size based on container thread pool config
+          LOG.info(
+              "Set NumThreadsForProcessElement based on "
+                  + JOB_CONTAINER_THREAD_POOL_SIZE
+                  + " to "
+                  + threadPoolSize);
+          options.setNumThreadsForProcessElement(threadPoolSize);
+        }
+      }
 
       // remove config overrides before serialization (LISAMZA-15259)
       options.setConfigOverride(new HashMap<>());
@@ -287,9 +307,7 @@ public class ConfigBuilder {
   static Map<String, String> createRocksDBStoreConfig(SamzaPipelineOptions options) {
     final ImmutableMap.Builder<String, String> configBuilder =
         ImmutableMap.<String, String>builder()
-            .put(
-                BEAM_STORE_FACTORY,
-                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
+            .put(BEAM_STORE_FACTORY, RocksDbKeyValueStorageEngineFactory.class.getName())
             .put("stores.beamStore.rocksdb.compression", "lz4");
 
     if (options.getStateDurable()) {

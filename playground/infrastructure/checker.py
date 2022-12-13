@@ -16,47 +16,91 @@
 """
 Module implements check to define if it is needed to run CI step for Beam
 Playground examples
+
+Returns exit code 11 if no examples found
+
+All paths are relative to BEAM_ROOT_DIR
 """
+import argparse
+import logging
 import os
 import sys
+from pathlib import PurePath
+from typing import List
+from api.v1.api_pb2 import Sdk
 
 from config import Config
 from helper import get_tag
 
-root_dir = os.getenv("BEAM_ROOT_DIR")
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sdk", type=str, choices=Sdk.keys())
+    parser.add_argument(
+        "--allowlist",
+        nargs="*",
+        default=[],
+        required=True,
+        type=PurePath,
+        help="if any path falls in here, return success",
+    )
+    parser.add_argument(
+        "--paths",
+        nargs="*",
+        default=[],
+        required=True,
+        type=PurePath,
+        help="paths to check",
+    )
+    parser.add_argument("-v", "--verbose", action="store_true")
+    return parser.parse_args()
 
 
-def _check_envs():
-    if root_dir is None:
-        raise KeyError(
-            "BEAM_ROOT_DIR environment variable should be specified in os")
+def check_in_allowlist(paths: List[PurePath], allowlist: List[PurePath]) -> bool:
+    """Check if any of allowlist paths affected"""
+    for path in paths:
+        logging.debug("check if allowlisted: %s", path)
+        for w in allowlist:
+            if w in [path, *path.parents]:
+                logging.info(f"{path} is allowlisted by {w}")
+                return True
+    return False
 
 
-def check(paths) -> bool:
-    pathsArr = []
-    startInd = 0
-    lastInd = 0
-    while lastInd < len(paths):
-        if paths[lastInd] == ".":
-            lastInd += 1
-            while lastInd < len(paths) and paths[lastInd] != " ":
-                lastInd += 1
-            pathsArr.append(paths[startInd:lastInd])
-            lastInd += 1
-            startInd = lastInd
-        lastInd += 1
-    for filepath in pathsArr:
-        extension = filepath.split(os.extsep)[-1]
-        if extension not in Config.SDK_TO_EXTENSION.values():
+def check_sdk_examples(paths: List[PurePath], sdk: Sdk, root_dir: str) -> bool:
+    """
+    Determine if any of the files is an example of a given SDK
+    - has appropriate suffix: *.(go|java|python|scala)
+    - has an embedded beam-playground yaml tag
+    """
+    for path in paths:
+        logging.debug("check for example tag: %s", path)
+        if path.suffix.lstrip(".") != Config.SDK_TO_EXTENSION[sdk]:
             continue
-        filepath = root_dir + filepath
-        if get_tag(filepath) is not None:
+        path = PurePath(root_dir, path)
+        if get_tag(path) is not None:
+            logging.info(f"{path} is an example, return")
             return True
     return False
 
 
+def main():
+    args = parse_args()
+
+    root_dir = os.getenv("BEAM_ROOT_DIR")
+    if root_dir is None:
+        raise KeyError("BEAM_ROOT_DIR environment variable should be specified in os")
+
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING)
+
+    if check_in_allowlist(args.paths, args.allowlist):
+        return
+
+    if check_sdk_examples(args.paths, Sdk.Value(args.sdk), root_dir):
+        return
+
+    sys.exit(11)
+
+
 if __name__ == "__main__":
-    paths = " ".join(sys.argv[1:])
-    if paths == "":
-        print(False)
-    print(check(paths))
+    main()

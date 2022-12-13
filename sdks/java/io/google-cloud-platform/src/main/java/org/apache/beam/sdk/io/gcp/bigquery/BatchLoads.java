@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
@@ -74,6 +76,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -113,6 +116,10 @@ class BatchLoads<DestinationT, ElementT>
   // If user triggering is supplied, we will trigger the file write after this many records are
   // written.
   static final int FILE_TRIGGERING_RECORD_COUNT = 500000;
+  // If user triggering is supplied, we will trigger the file write after this many bytes are
+  // written.
+  static final int DEFAULT_FILE_TRIGGERING_BYTE_COUNT =
+      AsyncWriteChannelOptions.UPLOAD_CHUNK_SIZE_DEFAULT; // 64MiB as of now
 
   // If using auto-sharding for unbounded data, we batch the records before triggering file write
   // to avoid generating too many small files.
@@ -146,8 +153,8 @@ class BatchLoads<DestinationT, ElementT>
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private final @Nullable String kmsKey;
-  private final boolean clusteringEnabled;
   private final String tempDataset;
+  private Coder<TableDestination> tableDestinationCoder;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -186,9 +193,10 @@ class BatchLoads<DestinationT, ElementT>
     this.elementCoder = elementCoder;
     this.kmsKey = kmsKey;
     this.rowWriterFactory = rowWriterFactory;
-    this.clusteringEnabled = clusteringEnabled;
     schemaUpdateOptions = Collections.emptySet();
     this.tempDataset = tempDataset;
+    this.tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
   }
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
@@ -493,7 +501,8 @@ class BatchLoads<DestinationT, ElementT>
                             maxRetryJobs,
                             kmsKey,
                             loadJobProjectId))
-                    .withSideInputs(copyJobIdPrefixView));
+                    .withSideInputs(copyJobIdPrefixView))
+            .setCoder(tableDestinationCoder);
 
     PCollectionList<TableDestination> allSuccessfulWrites =
         PCollectionList.of(successfulSinglePartitionWrites).and(successfulMultiPartitionWrites);
@@ -639,6 +648,10 @@ class BatchLoads<DestinationT, ElementT>
         options.getMaxBufferingDurationMilliSec() > 0
             ? Duration.millis(options.getMaxBufferingDurationMilliSec())
             : FILE_TRIGGERING_BATCHING_DURATION;
+    GcsOptions gcsOptions = input.getPipeline().getOptions().as(GcsOptions.class);
+    int byteSize =
+        MoreObjects.firstNonNull(
+            gcsOptions.getGcsUploadBufferSizeBytes(), DEFAULT_FILE_TRIGGERING_BYTE_COUNT);
     // In contrast to fixed sharding with user trigger, here we use a global window with default
     // trigger and rely on GroupIntoBatches transform to group, batch and at the same time
     // parallelize properly. We also ensure that the files are written if a threshold number of
@@ -647,6 +660,7 @@ class BatchLoads<DestinationT, ElementT>
     return input
         .apply(
             GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                .withByteSize(byteSize)
                 .withMaxBufferingDuration(maxBufferingDuration)
                 .withShardedKey())
         .setCoder(
@@ -714,6 +728,18 @@ class BatchLoads<DestinationT, ElementT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             WritePartition.ResultCoder.INSTANCE);
 
+    // If the final destination table exists already (and we're appending to it), then the temp
+    // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
+    // with one that makes this happen.
+    // In the case schemaUpdateOptions are specified by the user, matching does not occur in order
+    // to respect those options.
+    DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
+    if (schemaUpdateOptions.isEmpty()) {
+      destinations =
+          DynamicDestinationsHelpers.matchTableDynamicDestinations(
+              dynamicDestinations, bigQueryServices);
+    }
+
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
@@ -732,7 +758,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                dynamicDestinations,
+                destinations,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
@@ -754,9 +780,6 @@ class BatchLoads<DestinationT, ElementT>
       PCollectionView<String> loadJobIdPrefixView) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList(loadJobIdPrefixView);
     sideInputs.addAll(dynamicDestinations.getSideInputs());
-
-    Coder<TableDestination> tableDestinationCoder =
-        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
 
     Coder<KV<ShardedKey<DestinationT>, WritePartition.Result>> partitionsCoder =
         KvCoder.of(

@@ -28,6 +28,11 @@ package org.apache.beam.examples.complete;
 //     - Combiners
 //     - Options
 //     - Joins
+//   complexity: ADVANCED
+//   tags:
+//     - tfidf
+//     - count
+//     - strings
 
 import java.io.File;
 import java.io.IOException;

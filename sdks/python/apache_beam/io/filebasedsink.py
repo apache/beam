@@ -352,8 +352,7 @@ class FileBasedSink(iobase.Sink):
         raise Exception(
             'Encountered exceptions in finalize_write: %s' % all_exceptions)
 
-      for final_name in dst_files:
-        yield final_name
+      yield from dst_files
 
       _LOGGER.info(
           'Renamed %d shards in %.2f seconds.',

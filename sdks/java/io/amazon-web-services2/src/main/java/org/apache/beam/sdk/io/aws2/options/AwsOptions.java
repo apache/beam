@@ -78,21 +78,20 @@ public interface AwsOptions extends PipelineOptions {
    * <p>The class name of the provider must be set in the {@code @type} field. Note: Not all
    * available providers are supported and some configuration options might be ignored.
    *
-   * <p>Most providers rely on system's environment to follow AWS conventions, there's no further
-   * configuration:
+   * <p>Most providers must use the system environment following AWS conventions. Programmatic
+   * configuration for these providers is NOT supported:
    * <li>{@link DefaultCredentialsProvider}
    * <li>{@link EnvironmentVariableCredentialsProvider}
    * <li>{@link SystemPropertyCredentialsProvider}
-   * <li>{@link ProfileCredentialsProvider}
    * <li>{@link ContainerCredentialsProvider}
    *
    *     <p>Example:
    *
-   *     <pre>{@code --awsCredentialsProvider={"@type": "ProfileCredentialsProvider"}}</pre>
+   *     <pre>{@code --awsCredentialsProvider={"@type": "EnvironmentVariableCredentialsProvider"}}
+   *     </pre>
    *
-   *     <p>Some other providers require additional configuration:
+   *     <p>Some other providers support additional configuration:
    * <li>{@link StaticCredentialsProvider}
-   * <li>{@link StsAssumeRoleCredentialsProvider}
    *
    *     <p>Examples:
    *
@@ -107,9 +106,27 @@ public interface AwsOptions extends PipelineOptions {
    *   "awsAccessKeyId": "key_id_value",
    *   "awsSecretKey": "secret_value",
    *   "sessionToken": "token_value"
+   * }}</pre>
+   *
+   * <li>{@link ProfileCredentialsProvider}
+   *
+   *     <p>{@code profileName} is optional, if not set the environment default is used. Be careful
+   *     if using this provider programmatically, it can behave unexpectedly.
+   *
+   *     <p>Examples:
+   *
+   *     <pre>{@code --awsCredentialsProvider={
+   *   "@type": "ProfileCredentialsProvider"
    * }
    *
    * --awsCredentialsProvider={
+   *   "@type": "ProfileCredentialsProvider",
+   *   "profileName": "my_profile"
+   * }}</pre>
+   *
+   * <li>{@link StsAssumeRoleCredentialsProvider}
+   *
+   *     <pre>{@code --awsCredentialsProvider={
    *   "@type": "StsAssumeRoleCredentialsProvider",
    *   "roleArn": "role_arn_Value",
    *   "roleSessionName": "session_name_value",

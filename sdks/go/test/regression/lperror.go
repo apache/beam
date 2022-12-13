@@ -60,7 +60,7 @@ func LPErrorPipeline(s beam.Scope) beam.PCollection {
 	// [0 "Foo"]
 	fooKV := beam.ParDo(s, toFoo, fruitsGBK)
 
-	// [0 ["Foo"] ["Apple", "Banana", "Cherry"]]
+	// [0 ["Apple", "Banana", "Cherry"] ["Foo"]]
 	fruitsFooCoGBK := beam.CoGroupByKey(s, fruitsKV, fooKV)
 
 	// [0]

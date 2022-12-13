@@ -1,0 +1,45 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+steps:
+# This stage uses Docker container from image built in step above to run gradle task for Playground Infrastructure deployment
+  - name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
+    entrypoint: "/bin/bash"
+    args:
+      - "-c"
+      - |
+        chmod +x playground/infrastructure/cloudbuild/env_init.sh \
+        && ./playground/infrastructure/cloudbuild/env_init.sh
+        mkdir playground/terraform/environment/$_ENVIRONMENT_NAME
+        printf '%s\n' \
+        'project_id = "$PROJECT_ID"' \
+        'network_name = "$_NETWORK_NAME"' \
+        'gke_name = "$_GKE_NAME"' \
+        'region = "$_PLAYGROUND_REGION"' \
+        'location = "$_PLAYGROUND_ZONE"' \
+        'state_bucket = "$_STATE_BUCKET"' \
+        > playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
+        printf \
+        'bucket = "$_STATE_BUCKET"'\
+        > playground/terraform/environment/$_ENVIRONMENT_NAME/state.tfbackend 
+        ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="$_ENVIRONMENT_NAME" -Pdns-name="$_DNS_NAME"
+
+# This option enables writing logs to Cloud Logging
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 3600s

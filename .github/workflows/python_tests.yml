@@ -104,6 +104,7 @@ jobs:
           {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
+          {"py_ver": "3.10", "tox_env": "py310" },
         ]
     steps:
       - name: Checkout code
@@ -116,7 +117,7 @@ jobs:
         working-directory: ./sdks/python
         run: pip install -r build-requirements.txt
       - name: Install tox
-        run: pip install tox
+        run: pip install tox==3.27.1
       - name: Run tests basic unix
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
@@ -139,7 +140,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: [3.7, 3.8, 3.9]
+        python: ["3.7", "3.8", "3.9", "3.10"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -167,7 +168,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: [3.7, 3.8, 3.9]
+        python: ["3.7", "3.8", "3.9", "3.10"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

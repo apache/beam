@@ -18,16 +18,15 @@ package entity
 import "cloud.google.com/go/datastore"
 
 type ExampleEntity struct {
-	Name       string         `datastore:"name"`
-	Sdk        *datastore.Key `datastore:"sdk"`
-	Descr      string         `datastore:"descr"`
-	Tags       []string       `datastore:"tags"`
-	Cats       []string       `datastore:"cats"`
-	Complexity string         `datastore:"complexity"`
-	Path       string         `datastore:"path"`
-	Type       string         `datastore:"type"`
-	Origin     string         `datastore:"origin"`
-	SchVer     *datastore.Key `datastore:"schVer"`
+	Name   string         `datastore:"name"`
+	Sdk    *datastore.Key `datastore:"sdk"`
+	Descr  string         `datastore:"descr"`
+	Tags   []string       `datastore:"tags"`
+	Cats   []string       `datastore:"cats"`
+	Path   string         `datastore:"path"`
+	Type   string         `datastore:"type"`
+	Origin string         `datastore:"origin"`
+	SchVer *datastore.Key `datastore:"schVer"`
 }
 
 type PrecompiledObjectEntity struct {

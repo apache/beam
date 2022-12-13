@@ -34,7 +34,6 @@ import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.TestSparkRunner;
 import org.apache.beam.runners.spark.UsesCheckpointRecovery;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
@@ -279,7 +278,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
     options.setExpectedAssertions(expectedAssertions);
     options.setRunner(TestSparkRunner.class);
     options.setEnableSparkMetricSinks(false);
-    options.setForceStreaming(true);
+    options.setStreaming(true);
     options.setCheckpointDir(temporaryFolder.getRoot().getPath());
     // timeout is per execution so it can be injected by the caller.
     if (stopWatermarkOption.isPresent()) {
@@ -314,7 +313,6 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
   @After
   public void clean() {
-    AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
     GlobalWatermarkHolder.clear();
     MicrobatchSource.clearCache();

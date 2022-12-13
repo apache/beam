@@ -37,6 +37,13 @@ public interface FutureCollector<OutT> {
   void add(CompletionStage<WindowedValue<OutT>> element);
 
   /**
+   * Outputs a collection of elements to the collector.
+   *
+   * @param elements to add to the collector
+   */
+  void addAll(CompletionStage<Collection<WindowedValue<OutT>>> elements);
+
+  /**
    * Discards the elements within the collector. Once the elements have been discarded, callers need
    * to prepare the collector again before invoking {@link #add(CompletionStage)}.
    */

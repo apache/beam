@@ -55,6 +55,7 @@ current_minor_version=`echo ${python_version} | sed -E "s/Python 3.([0-9])\..*/\
 excluded_patterns=(
     'apache_beam/coders/coder_impl.*'
     'apache_beam/coders/stream.*'
+    'apache_beam/coders/coder_impl_row_encoders.*'
     'apache_beam/examples/'
     'apache_beam/io/gcp/tests/'
     'apache_beam/metrics/execution.*'
