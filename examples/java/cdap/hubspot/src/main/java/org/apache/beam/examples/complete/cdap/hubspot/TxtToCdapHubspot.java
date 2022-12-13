@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap;
+package org.apache.beam.examples.complete.cdap.hubspot;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapHubspotSinkOptions;
-import org.apache.beam.examples.complete.cdap.transforms.FormatOutputTransform;
-import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
+import org.apache.beam.examples.complete.cdap.hubspot.options.CdapHubspotSinkOptions;
+import org.apache.beam.examples.complete.cdap.hubspot.transforms.FormatOutputTransform;
+import org.apache.beam.examples.complete.cdap.hubspot.utils.PluginConfigOptionsConverter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;
@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  *
  * This task allows to run the pipeline via the following command:
  * {@code
- * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.TxtToCdapHubspot \
+ * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.hubspot.TxtToCdapHubspot \
  *      -Dexec.args="--<argument>=<value> --<argument>=<value>"
  * }
  *

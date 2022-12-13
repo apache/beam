@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.transforms;
+package org.apache.beam.examples.complete.cdap.hubspot.transforms;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import io.cdap.cdap.api.plugin.PluginConfig;
-import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.plugin.hubspot.sink.batch.HubspotBatchSink;
 import io.cdap.plugin.hubspot.sink.batch.SinkHubspotConfig;
 import java.util.Map;
@@ -43,10 +42,9 @@ public class FormatOutputTransform {
         new ConfigWrapper<>(SinkHubspotConfig.class).withParams(pluginConfigParams).build();
 
     checkStateNotNull(pluginConfig, "Plugin config can't be null.");
-    Class<? extends BatchSink<?, ?, ?>> pluginClass = HubspotBatchSink.class;
 
     return CdapIO.<NullWritable, String>write()
-        .withCdapPluginClass(pluginClass)
+        .withCdapPluginClass(HubspotBatchSink.class)
         .withPluginConfig(pluginConfig)
         .withKeyClass(NullWritable.class)
         .withValueClass(String.class)

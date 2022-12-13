@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.utils;
+package org.apache.beam.examples.complete.cdap.hubspot.utils;
 
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.hubspot.common.BaseHubspotConfig;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import io.cdap.plugin.hubspot.source.streaming.PullFrequency;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapHubspotOptions;
-import org.apache.beam.examples.complete.cdap.options.CdapHubspotStreamingSourceOptions;
+import org.apache.beam.examples.complete.cdap.hubspot.options.CdapHubspotOptions;
+import org.apache.beam.examples.complete.cdap.hubspot.options.CdapHubspotStreamingSourceOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**

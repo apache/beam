@@ -15,22 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.options;
 
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Validation;
-
-/**
- * The {@link CdapHubspotSourceOptions} interface provides the custom execution options passed by
- * the executor at the command-line for Cdap Hubspot Source examples.
- */
-public interface CdapHubspotSourceOptions extends CdapHubspotOptions {
-
-  @Validation.Required
-  @Description(
-      "Output .txt file path with file name prefix."
-          + "It will write a set of files with names like {prefix}-###.")
-  String getOutputTxtFilePathPrefix();
-
-  void setOutputTxtFilePathPrefix(String outputTxtFilePathPrefix);
-}
+/** Cdap Plugins template. */
+package org.apache.beam.examples.complete.cdap.hubspot.options;

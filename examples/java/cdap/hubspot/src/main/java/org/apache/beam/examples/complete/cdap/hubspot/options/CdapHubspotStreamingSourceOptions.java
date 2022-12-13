@@ -15,31 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.options;
+package org.apache.beam.examples.complete.cdap.hubspot.options;
 
+import org.apache.beam.examples.complete.cdap.hubspot.CdapHubspotStreamingToTxt;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Validation;
 
 /**
- * The {@link CdapHubspotOptions} interface provides the custom execution options passed by the
- * executor at the command-line for examples with Cdap Hubspot plugins.
+ * The {@link CdapHubspotSourceOptions} interface provides the custom execution options passed by
+ * the executor at the command-line for {@link CdapHubspotStreamingToTxt} example.
  */
-public interface CdapHubspotOptions extends BaseCdapOptions {
+public interface CdapHubspotStreamingSourceOptions extends CdapHubspotSourceOptions {
 
-  @Description("Hubspot api server url. If not specified then the default url will be used.")
-  String getApiServerUrl();
+  @Description("Delay in seconds between polling for new records updates.")
+  Long getPullFrequencySec();
 
-  void setApiServerUrl(String apiServerUrl);
+  void setPullFrequencySec(Long pullFrequencySec);
 
-  @Validation.Required
-  @Description("Hubspot Private Application Access Token.")
-  String getAuthToken();
+  @Description("Inclusive start offset from which the reading should be started.")
+  Long getStartOffset();
 
-  void setAuthToken(String authToken);
-
-  @Validation.Required
-  @Description("Name of object to pull from Hubspot (e.g. Contacts).")
-  String getObjectType();
-
-  void setObjectType(String objectType);
+  void setStartOffset(Long startOffset);
 }

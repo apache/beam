@@ -15,14 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap;
+package org.apache.beam.examples.complete.cdap.hubspot;
 
-import com.google.gson.JsonElement;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapHubspotSourceOptions;
-import org.apache.beam.examples.complete.cdap.transforms.FormatInputTransform;
-import org.apache.beam.examples.complete.cdap.utils.JsonElementCoder;
-import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
+import org.apache.beam.examples.complete.cdap.hubspot.options.CdapHubspotStreamingSourceOptions;
+import org.apache.beam.examples.complete.cdap.hubspot.transforms.FormatInputTransform;
+import org.apache.beam.examples.complete.cdap.hubspot.utils.PluginConfigOptionsConverter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -31,17 +29,20 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.MapValues;
 import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The {@link CdapHubspotToTxt} pipeline is a batch pipeline which ingests data in JSON format from
- * CDAP Hubspot, and outputs the resulting records to .txt file. Hubspot parameters and output .txt
- * file path are specified by the user as template parameters. <br>
+ * The {@link CdapHubspotStreamingToTxt} pipeline is a streaming pipeline which ingests data in JSON
+ * format from CDAP Hubspot, and outputs the resulting records to .txt file. Hubspot parameters and
+ * output .txt file path are specified by the user as template parameters. <br>
  *
  * <p><b>Example Usage</b>
  *
@@ -61,7 +62,7 @@ import org.slf4j.LoggerFactory;
  *
  * This task allows to run the pipeline via the following command:
  * {@code
- * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.CdapHubspotToTxt \
+ * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.hubspot.CdapHubspotStreamingToTxt \
  *      -Dexec.args="--<argument>=<value> --<argument>=<value>"
  * }
  *
@@ -71,7 +72,9 @@ import org.slf4j.LoggerFactory;
  * --authToken=your-private-app-access-token \
  * --referenceName=your-reference-name \
  * --objectType=Contacts \
- * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix
+ * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix \
+ * --pullFrequencySec=1 \
+ * --startOffset=0
  * }
  *
  * By default this will run the pipeline locally with the DirectRunner. To change the runner, specify:
@@ -80,10 +83,10 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  */
-public class CdapHubspotToTxt {
+public class CdapHubspotStreamingToTxt {
 
   /* Logger for class.*/
-  private static final Logger LOG = LoggerFactory.getLogger(CdapHubspotToTxt.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CdapHubspotStreamingToTxt.class);
 
   /**
    * Main entry point for pipeline execution.
@@ -91,8 +94,10 @@ public class CdapHubspotToTxt {
    * @param args Command line arguments to the pipeline.
    */
   public static void main(String[] args) {
-    CdapHubspotSourceOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(CdapHubspotSourceOptions.class);
+    CdapHubspotStreamingSourceOptions options =
+        PipelineOptionsFactory.fromArgs(args)
+            .withValidation()
+            .as(CdapHubspotStreamingSourceOptions.class);
 
     // Create the pipeline
     Pipeline pipeline = Pipeline.create(options);
@@ -104,9 +109,9 @@ public class CdapHubspotToTxt {
    *
    * @param options arguments to the pipeline
    */
-  public static PipelineResult run(Pipeline pipeline, CdapHubspotSourceOptions options) {
+  public static PipelineResult run(Pipeline pipeline, CdapHubspotStreamingSourceOptions options) {
     Map<String, Object> paramsMap = PluginConfigOptionsConverter.hubspotOptionsToParamsMap(options);
-    LOG.info("Starting Cdap-Hubspot-to-txt pipeline with parameters: {}", paramsMap);
+    LOG.info("Starting Cdap-Hubspot-streaming-to-txt pipeline with parameters: {}", paramsMap);
 
     /*
      * Steps:
@@ -114,27 +119,27 @@ public class CdapHubspotToTxt {
      *  2) Extract values only
      *  3) Write successful records to .txt file
      */
-    pipeline.getCoderRegistry().registerCoderForClass(JsonElement.class, JsonElementCoder.of());
 
     pipeline
-        .apply("readFromCdapHubspot", FormatInputTransform.readFromCdapHubspot(paramsMap))
-        .setCoder(
-            KvCoder.of(
-                NullableCoder.of(WritableCoder.of(NullWritable.class)), JsonElementCoder.of()))
         .apply(
-            MapValues.into(TypeDescriptors.strings())
-                .via(
-                    jsonElement -> {
-                      if (jsonElement == null) {
-                        return "{}";
-                      }
-                      return jsonElement.toString();
-                    }))
+            "readFromCdapHubspotStreaming",
+            FormatInputTransform.readFromCdapHubspotStreaming(
+                paramsMap, options.getPullFrequencySec(), options.getStartOffset()))
         .setCoder(
             KvCoder.of(
                 NullableCoder.of(WritableCoder.of(NullWritable.class)), StringUtf8Coder.of()))
+        .apply(
+            "globalwindow",
+            Window.<KV<NullWritable, String>>into(new GlobalWindows())
+                .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
+                .discardingFiredPanes())
         .apply(Values.create())
-        .apply("writeToTxt", TextIO.write().to(options.getOutputTxtFilePathPrefix()));
+        .apply(
+            "writeToTxt",
+            TextIO.write()
+                .withWindowedWrites()
+                .withNumShards(1)
+                .to(options.getOutputTxtFilePathPrefix()));
 
     return pipeline.run();
   }

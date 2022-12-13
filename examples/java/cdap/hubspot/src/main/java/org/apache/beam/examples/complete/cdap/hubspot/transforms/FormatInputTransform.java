@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.transforms;
+package org.apache.beam.examples.complete.cdap.hubspot.transforms;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
@@ -28,7 +28,7 @@ import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSource;
 import io.cdap.plugin.hubspot.source.streaming.HubspotStreamingSourceConfig;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.utils.GetOffsetUtils;
+import org.apache.beam.examples.complete.cdap.hubspot.utils.GetOffsetUtils;
 import org.apache.beam.sdk.io.cdap.CdapIO;
 import org.apache.beam.sdk.io.cdap.ConfigWrapper;
 import org.apache.beam.sdk.io.cdap.Plugin;

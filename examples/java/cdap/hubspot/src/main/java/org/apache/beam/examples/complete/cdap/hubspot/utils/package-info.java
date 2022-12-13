@@ -17,4 +17,4 @@
  */
 
 /** Cdap Plugins template. */
-package org.apache.beam.examples.complete.cdap.transforms;
+package org.apache.beam.examples.complete.cdap.hubspot.utils;
