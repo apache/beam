@@ -51,17 +51,20 @@ public class PCollectionTableProvider implements TableProvider {
     return tableType;
   }
 
-  public void createTable(String tableName, PCollection<?> collection) throws Exception {
+  public Table associatePCollection(String tableName, PCollection<?> collection) throws Exception {
     if (!collection.hasSchema()) {
       throw new Exception("PCollection must have a schema to be used as a table");
     }
     LOG.info("Registering table " + tableName + " with schema " + collection.getSchema());
     collections.put(tableName, collection);
+    return getTable(tableName);
   }
 
   @Override
   public void createTable(Table table) {
-    // NO-OP. Tables are actually created by passing a PCollection
+    // NO-OP. You associate the PCollection which is then used to create the table in the metastore
+    // so we
+    // don't need to store that here
   }
 
   @Override

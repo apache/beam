@@ -121,7 +121,7 @@ public class StructuredPipelineDescription {
       }
       PCollection<Row> pcollection =
           BeamSqlRelUtils.toPCollection(this.pipeline, env.parseQuery(result.getOutput()));
-      tableMap.createTable(fullTableName, pcollection);
+      metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
     }
     return metaTableProvider.getTable(fullTableName);
   }

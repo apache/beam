@@ -1,1 +1,1 @@
-SELECT full_name,SUM(wins) FROM {{ ref('my_second_dbt_model') }} GROUP BY 1
+SELECT full_name,SUM(wins) FROM {{ ref('my_second_dbt_model') }} GROUP BY full_name
