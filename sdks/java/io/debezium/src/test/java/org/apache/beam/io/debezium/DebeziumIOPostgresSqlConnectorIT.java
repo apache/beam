@@ -83,7 +83,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
 
   @Test
   public void testDebeziumSchemaTransformPostgresRead() throws InterruptedException {
-    int writeSize = 5000;
+    int writeSize = 500;
     int testTime = writeSize * 200;
     POSTGRES_SQL_CONTAINER.start();
 

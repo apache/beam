@@ -25,6 +25,10 @@ import static org.hamcrest.Matchers.equalTo;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.debezium.connector.mysql.MySqlConnector;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Duration;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
@@ -44,12 +48,16 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 
 @RunWith(JUnit4.class)
 public class DebeziumIOMySqlConnectorIT {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DebeziumIOMySqlConnectorIT.class);
   /**
    * Debezium - MySqlContainer
    *
@@ -78,9 +86,29 @@ public class DebeziumIOMySqlConnectorIT {
     return new HikariDataSource(hikariConfig);
   }
 
+  private void monitorEssentialMetrics() {
+    DataSource ds = getMysqlDatasource(null);
+    try {
+      Connection conn = ds.getConnection();
+      Statement st = conn.createStatement();
+      while (true) {
+        ResultSet rs = st.executeQuery("SHOW STATUS WHERE `variable_name` = 'Threads_connected'");
+        if (rs.next()) {
+          LOG.info("Open connections: {}", rs.getLong(2));
+          rs.close();
+          Thread.sleep(4000);
+        } else {
+          throw new IllegalArgumentException("OIOI");
+        }
+      }
+    } catch (InterruptedException | SQLException ex) {
+      throw new IllegalArgumentException("Oi", ex);
+    }
+  }
+
   @Test
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
-    int writeSize = 5000;
+    int writeSize = 500;
     int testTime = writeSize * 200;
     MY_SQL_CONTAINER.start();
 
@@ -140,9 +168,13 @@ public class DebeziumIOMySqlConnectorIT {
               return null;
             });
     Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());
+    Thread monitorThread = new Thread(this::monitorEssentialMetrics);
+    monitorThread.start();
     writeThread.start();
     readPipeline.run().waitUntilFinish();
     writeThread.join();
+    monitorThread.interrupt();
+    monitorThread.join();
   }
 
   /**

@@ -214,7 +214,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       }
 
       LOG.debug("-------- {} records found", records.size());
-      if (!records.isEmpty()) {
+      while (records != null && !records.isEmpty()) {
         for (SourceRecord record : records) {
           LOG.debug("-------- Record found: {}", record);
 
@@ -230,8 +230,8 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
           receiver.output(json);
         }
-
         task.commit();
+        records = task.poll();
       }
     } catch (Exception ex) {
       throw new RuntimeException("Error occurred when consuming changes from Database. ", ex);
