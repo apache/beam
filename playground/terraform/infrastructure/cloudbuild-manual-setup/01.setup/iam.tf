@@ -37,7 +37,7 @@ resource "google_project_iam_member" "cloud_build_roles" {
     "roles/datastore.indexAdmin",
     "roles/storage.admin",
     "roles/logging.logWriter",
-    "roles/datastore.owner"
+    "roles/datastore.user"
   ])
   role    = each.key
   member  = "serviceAccount:${google_service_account.cloudbuild_service_account_id.email}"
