@@ -113,7 +113,7 @@ func (e *Extractor) Print(s string) {
 }
 
 // Printf forwards to fmt.Printf to the extractor buffer.
-func (e *Extractor) Printf(f string, args ...interface{}) {
+func (e *Extractor) Printf(f string, args ...any) {
 	if e.Debug {
 		fmt.Fprintf(&e.w, f, args...)
 	}

@@ -91,7 +91,8 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
         GRPCChannelFactory.insecure_channel(address))
     _LOGGER.info('Waiting for server to be ready...')
     start = time.time()
-    timeout = 30
+    # Long timeout based previously flaky test. See issue #22115.
+    timeout = 300
     while True:
       time.sleep(0.1)
       if cls._subprocess.poll() is not None:

@@ -119,7 +119,7 @@ func (o *Options) Export() RawOptions {
 }
 
 // LoadOptionsFromFlags adds any flags not defined in excludeFlags to the options.
-// If the key is already defnined, it ignores that flag
+// If the key is already defined, it ignores that flag.
 func (o *Options) LoadOptionsFromFlags(excludeFlags map[string]bool) {
 	o.mu.Lock()
 	defer o.mu.Unlock()

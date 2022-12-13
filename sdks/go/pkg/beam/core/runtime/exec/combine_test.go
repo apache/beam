@@ -33,15 +33,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-var intInput = []interface{}{int(1), int(2), int(3), int(4), int(5), int(6)}
-var int64Input = []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)}
-var strInput = []interface{}{"1", "2", "3", "4", "5", "6"}
+var intInput = []any{int(1), int(2), int(3), int(4), int(5), int(6)}
+var int64Input = []any{int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)}
+var strInput = []any{"1", "2", "3", "4", "5", "6"}
 
 var tests = []struct {
-	Fn         interface{}
+	Fn         any
 	AccumCoder *coder.Coder
-	Input      []interface{}
-	Expected   interface{}
+	Input      []any
+	Expected   any
 }{
 	{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
 	{Fn: nonBinaryMergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: int(21)},
@@ -52,7 +52,7 @@ var tests = []struct {
 	{Fn: &MyErrorCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int(21)},
 }
 
-func fnName(x interface{}) string {
+func fnName(x any) string {
 	v := reflect.ValueOf(x)
 	if v.Kind() != reflect.Func {
 		return v.Type().String()
@@ -83,7 +83,7 @@ func TestCombine(t *testing.T) {
 // TestLiftedCombine verifies that the LiftedCombine, MergeAccumulators, and
 // ExtractOutput nodes work correctly after the lift has been performed.
 func TestLiftedCombine(t *testing.T) {
-	withCoder := func(t *testing.T, suffix string, key interface{}, keyCoder *coder.Coder) {
+	withCoder := func(t *testing.T, suffix string, key any, keyCoder *coder.Coder) {
 		// The test values are all single global window.
 		wc := coder.NewGlobalWindow()
 		for _, test := range tests {
@@ -122,7 +122,7 @@ type pigeonHasher struct {
 	hasher elementHasher
 }
 
-func (p *pigeonHasher) Hash(element interface{}, w typex.Window) (uint64, error) {
+func (p *pigeonHasher) Hash(element any, w typex.Window) (uint64, error) {
 	k, err := p.hasher.Hash(element, w)
 	if err != nil {
 		return 0, err
@@ -316,10 +316,10 @@ func TestLiftingCache(t *testing.T) {
 // correctly doesn't accumulate values at all.
 func TestConvertToAccumulators(t *testing.T) {
 	tests := []struct {
-		Fn         interface{}
+		Fn         any
 		AccumCoder *coder.Coder
-		Input      []interface{}
-		Expected   []interface{}
+		Input      []any
+		Expected   []any
 	}{
 		{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: intInput},
 		{Fn: nonBinaryMergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: intInput},
@@ -385,7 +385,7 @@ func (c *myCodable) DecodeMe(b []byte) {
 	c.val = binary.LittleEndian.Uint64(b)
 }
 
-func getCombineEdge(t *testing.T, cfn interface{}, kt reflect.Type, ac *coder.Coder) *graph.MultiEdge {
+func getCombineEdge(t *testing.T, cfn any, kt reflect.Type, ac *coder.Coder) *graph.MultiEdge {
 	t.Helper()
 	fn, err := graph.NewCombineFn(cfn)
 	if err != nil {
@@ -455,14 +455,14 @@ func constructAndExecutePlan(t *testing.T, us []Unit) {
 
 // mergeFn represents a combine that is just a binary merge, where
 //
-//  InputT == OutputT == AccumT == int
+//	InputT == OutputT == AccumT == int
 func mergeFn(a, b int) int {
 	return a + b
 }
 
 // nonBinaryMergeFn represents a combine with a context parameter and an error return, where
 //
-//  InputT == OutputT == AccumT == int
+//	InputT == OutputT == AccumT == int
 func nonBinaryMergeFn(ctx context.Context, a, b int) (int, error) {
 	return a + b, nil
 }
@@ -470,8 +470,8 @@ func nonBinaryMergeFn(ctx context.Context, a, b int) (int, error) {
 // MyCombine represents a combine with the same Input and Output type (int), but a
 // distinct accumulator type (int64).
 //
-//  InputT == OutputT == int
-//  AccumT == int64
+//	InputT == OutputT == int
+//	AccumT == int64
 type MyCombine struct{}
 
 func (*MyCombine) AddInput(a int64, v int) int64 {
@@ -488,9 +488,9 @@ func (*MyCombine) ExtractOutput(a int64) int {
 
 // MyOtherCombine is the same as MyCombine, but has strings extracted as output.
 //
-//  InputT == int
-//  AccumT == int64
-//  OutputT == string
+//	InputT == int
+//	AccumT == int64
+//	OutputT == string
 type MyOtherCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput and MergeAccumulators implementations
 }
@@ -501,9 +501,9 @@ func (*MyOtherCombine) ExtractOutput(a int64) string {
 
 // MyThirdCombine parses strings as Input, and doesn't specify an ExtractOutput
 //
-//  InputT == string
-//  AccumT == int
-//  OutputT == int
+//	InputT == string
+//	AccumT == int
+//	OutputT == int
 type MyThirdCombine struct{}
 
 func (c *MyThirdCombine) AddInput(a int, s string) (int, error) {
@@ -520,9 +520,9 @@ func (*MyThirdCombine) MergeAccumulators(a, b int) int {
 
 // MyContextCombine is the same as MyCombine, but requires a context parameter.
 //
-//  InputT == int
-//  AccumT == int64
-//  OutputT == string
+//	InputT == int
+//	AccumT == int64
+//	OutputT == string
 type MyContextCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput implementations
 }
@@ -533,9 +533,9 @@ func (*MyContextCombine) MergeAccumulators(_ context.Context, a, b int64) int64 
 
 // MyErrorCombine is the same as MyCombine, but may return an error.
 //
-//  InputT == int
-//  AccumT == int64
-//  OutputT == string
+//	InputT == int
+//	AccumT == int64
+//	OutputT == string
 type MyErrorCombine struct {
 	MyCombine // Embedding to re-use the exisitng AddInput implementations
 }

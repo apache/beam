@@ -109,6 +109,11 @@ public interface BigQueryOptions
 
   void setNumStorageWriteApiStreamAppendClients(Integer value);
 
+  @Default.Boolean(false)
+  Boolean getUseStorageApiConnectionPool();
+
+  void setUseStorageApiConnectionPool(Boolean value);
+
   @Description(
       "If set, then BigQueryIO.Write will default to triggering the Storage Write API writes this often.")
   Integer getStorageWriteApiTriggeringFrequencySec();
@@ -128,12 +133,6 @@ public interface BigQueryOptions
 
   void setBigQueryProject(String value);
 
-  @Description("Specify the number of schema update retries. For internal testing only.")
-  @Default.Integer(2)
-  Integer getSchemaUpdateRetries();
-
-  void setSchemaUpdateRetries(Integer value);
-
   @Description("Maximum (best effort) size of a single append to the storage API.")
   @Default.Integer(2 * 1024 * 1024)
   Integer getStorageApiAppendThresholdBytes();
@@ -145,4 +144,10 @@ public interface BigQueryOptions
   Integer getStorageApiAppendThresholdRecordCount();
 
   void setStorageApiAppendThresholdRecordCount(Integer value);
+
+  @Description("Maximum request size allowed by the storage write API. ")
+  @Default.Long(10 * 1000 * 1000)
+  Long getStorageWriteApiMaxRequestSize();
+
+  void setStorageWriteApiMaxRequestSize(Long value);
 }

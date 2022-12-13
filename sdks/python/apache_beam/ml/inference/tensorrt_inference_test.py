@@ -59,6 +59,14 @@ SINGLE_FEATURE_PREDICTIONS = [
          for example in SINGLE_FEATURE_EXAMPLES])
 ]
 
+SINGLE_FEATURE_CUSTOM_PREDICTIONS = [
+    PredictionResult(ex, pred) for ex,
+    pred in zip(
+        SINGLE_FEATURE_EXAMPLES,
+        [[np.array([(example * 2.0 + 0.5) * 2], dtype=np.float32)]
+         for example in SINGLE_FEATURE_EXAMPLES])
+]
+
 TWO_FEATURES_EXAMPLES = [
     np.array([1, 5], dtype=np.float32),
     np.array([3, 10], dtype=np.float32),
@@ -81,6 +89,58 @@ def _compare_prediction_result(a, b):
   return ((a.example == b.example).all() and all(
       np.array_equal(actual, expected) for actual,
       expected in zip(a.inference, b.inference)))
+
+
+def _assign_or_fail(args):
+  """CUDA error checking."""
+  from cuda import cuda
+  err, ret = args[0], args[1:]
+  if isinstance(err, cuda.CUresult):
+    if err != cuda.CUresult.CUDA_SUCCESS:
+      raise RuntimeError("Cuda Error: {}".format(err))
+  else:
+    raise RuntimeError("Unknown error type: {}".format(err))
+  # Special case so that no unpacking is needed at call-site.
+  if len(ret) == 1:
+    return ret[0]
+  return ret
+
+
+def _custom_tensorRT_inference_fn(batch, engine, inference_args):
+  from cuda import cuda
+  (
+      engine,
+      context,
+      context_lock,
+      inputs,
+      outputs,
+      gpu_allocations,
+      cpu_allocations,
+      stream) = engine.get_engine_attrs()
+
+  # Process I/O and execute the network
+  with context_lock:
+    _assign_or_fail(
+        cuda.cuMemcpyHtoDAsync(
+            inputs[0]['allocation'],
+            np.ascontiguousarray(batch),
+            inputs[0]['size'],
+            stream))
+    context.execute_async_v2(gpu_allocations, stream)
+    for output in range(len(cpu_allocations)):
+      _assign_or_fail(
+          cuda.cuMemcpyDtoHAsync(
+              cpu_allocations[output],
+              outputs[output]['allocation'],
+              outputs[output]['size'],
+              stream))
+    _assign_or_fail(cuda.cuStreamSynchronize(stream))
+
+    return [
+        PredictionResult(
+            x, [prediction[idx] * 2 for prediction in cpu_allocations]) for idx,
+        x in enumerate(batch)
+    ]
 
 
 @pytest.mark.uses_tensorrt
@@ -154,6 +214,44 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     predictions = inference_runner.run_inference(
         SINGLE_FEATURE_EXAMPLES, engine)
     for actual, expected in zip(predictions, SINGLE_FEATURE_PREDICTIONS):
+      self.assertEqual(actual, expected)
+
+  def test_inference_custom_single_tensor_feature(self):
+    """
+    This tests creating TensorRT network from scratch. Test replicates the same
+    ONNX network above but natively in TensorRT. After network creation, network
+    is used to build a TensorRT engine. Single feature tensors batched into size
+    of 4 are used as input. This routes through a custom inference function.
+    """
+    inference_runner = TensorRTEngineHandlerNumPy(
+        min_batch_size=4,
+        max_batch_size=4,
+        inference_fn=_custom_tensorRT_inference_fn)
+    builder = trt.Builder(LOGGER)
+    network = builder.create_network(
+        flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    input_tensor = network.add_input(
+        name="input", dtype=trt.float32, shape=(4, 1))
+    weight_const = network.add_constant(
+        (1, 1), trt.Weights((np.ascontiguousarray([2.0], dtype=np.float32))))
+    mm = network.add_matrix_multiply(
+        input_tensor,
+        trt.MatrixOperation.NONE,
+        weight_const.get_output(0),
+        trt.MatrixOperation.NONE)
+    bias_const = network.add_constant(
+        (1, 1), trt.Weights((np.ascontiguousarray([0.5], dtype=np.float32))))
+    bias_add = network.add_elementwise(
+        mm.get_output(0),
+        bias_const.get_output(0),
+        trt.ElementWiseOperation.SUM)
+    bias_add.get_output(0).name = "output"
+    network.mark_output(tensor=bias_add.get_output(0))
+
+    engine = inference_runner.build_engine(network, builder)
+    predictions = inference_runner.run_inference(
+        SINGLE_FEATURE_EXAMPLES, engine)
+    for actual, expected in zip(predictions, SINGLE_FEATURE_CUSTOM_PREDICTIONS):
       self.assertEqual(actual, expected)
 
   def test_inference_multiple_tensor_features(self):

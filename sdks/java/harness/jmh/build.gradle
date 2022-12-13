@@ -41,6 +41,7 @@ dependencies {
     implementation library.java.joda_time
     runtimeOnly library.java.slf4j_jdk14
     jammAgent library.java.jamm
+    testRuntimeOnly library.java.jamm
 }
 
 jmh {

@@ -23,7 +23,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
@@ -47,7 +46,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Timestamp;
@@ -72,16 +71,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
           .put(Level.INFO, BeamFnApi.LogEntry.Severity.Enum.INFO)
           .put(Level.FINE, BeamFnApi.LogEntry.Severity.Enum.DEBUG)
           .put(Level.FINEST, BeamFnApi.LogEntry.Severity.Enum.TRACE)
-          .build();
-
-  private static final ImmutableMap<SdkHarnessOptions.LogLevel, Level> LEVEL_CONFIGURATION =
-      ImmutableMap.<SdkHarnessOptions.LogLevel, Level>builder()
-          .put(SdkHarnessOptions.LogLevel.OFF, Level.OFF)
-          .put(SdkHarnessOptions.LogLevel.ERROR, Level.SEVERE)
-          .put(SdkHarnessOptions.LogLevel.WARN, Level.WARNING)
-          .put(SdkHarnessOptions.LogLevel.INFO, Level.INFO)
-          .put(SdkHarnessOptions.LogLevel.DEBUG, Level.FINE)
-          .put(SdkHarnessOptions.LogLevel.TRACE, Level.FINEST)
           .build();
 
   private static final Formatter DEFAULT_FORMATTER = new SimpleFormatter();
@@ -113,7 +102,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;
     this.inboundObserverCompletion = new CompletableFuture<>();
-    this.configuredLoggers = new ArrayList<>();
     this.phaser = new Phaser(1);
     this.channel = channelFactory.apply(apiServiceDescriptor);
 
@@ -124,28 +112,16 @@ public class BeamFnLoggingClient implements AutoCloseable {
     for (Handler handler : rootLogger.getHandlers()) {
       rootLogger.removeHandler(handler);
     }
-
-    // Use the passed in logging options to configure the various logger levels.
-    SdkHarnessOptions loggingOptions = options.as(SdkHarnessOptions.class);
-    if (loggingOptions.getDefaultSdkHarnessLogLevel() != null) {
-      rootLogger.setLevel(LEVEL_CONFIGURATION.get(loggingOptions.getDefaultSdkHarnessLogLevel()));
-    }
-
-    if (loggingOptions.getSdkHarnessLogLevelOverrides() != null) {
-      for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
-          loggingOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
-        Logger logger = Logger.getLogger(loggerOverride.getKey());
-        logger.setLevel(LEVEL_CONFIGURATION.get(loggerOverride.getValue()));
-        configuredLoggers.add(logger);
-      }
-    }
+    // configure loggers from default sdk harness log level and log level overrides
+    this.configuredLoggers =
+        SdkHarnessOptions.getConfiguredLoggerFromOptions(options.as(SdkHarnessOptions.class));
 
     BeamFnLoggingGrpc.BeamFnLoggingStub stub = BeamFnLoggingGrpc.newStub(channel);
     inboundObserver = new LogControlObserver();
     logRecordHandler = new LogRecordHandler();
     logRecordHandler.setLevel(Level.ALL);
     logRecordHandler.setFormatter(DEFAULT_FORMATTER);
-    logRecordHandler.executeOn(options.as(GcsOptions.class).getExecutorService());
+    logRecordHandler.executeOn(options.as(ExecutorOptions.class).getScheduledExecutorService());
     outboundObserver = (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
   }

@@ -409,12 +409,13 @@ public class CoGbkResult {
     // These are arrays to facilitate sharing values among all copies of the same root Reiterator.
     private final int[] lastObserved;
     private final boolean[] doneHasRun;
-    private final PeekingReiterator[] mostAdvanced;
+    private final PeekingReiterator<IndexingReiterator.Indexed<T>>[] mostAdvanced;
 
     public ObservingReiterator(Reiterator<T> underlying, Observer<T> observer) {
       this(new PeekingReiterator<>(new IndexingReiterator<>(underlying)), observer);
     }
 
+    @SuppressWarnings("rawtypes") // array creation
     public ObservingReiterator(
         PeekingReiterator<IndexingReiterator.Indexed<T>> underlying, Observer<T> observer) {
       this(
@@ -430,7 +431,7 @@ public class CoGbkResult {
         Observer<T> observer,
         int[] lastObserved,
         boolean[] doneHasRun,
-        PeekingReiterator[] mostAdvanced) {
+        PeekingReiterator<IndexingReiterator.Indexed<T>>[] mostAdvanced) {
       this.underlying = underlying;
       this.observer = observer;
       this.lastObserved = lastObserved;
@@ -500,7 +501,7 @@ public class CoGbkResult {
 
     @Override
     public IndexingReiterator<T> copy() {
-      return new IndexingReiterator(underlying.copy(), index);
+      return new IndexingReiterator<>(underlying.copy(), index);
     }
 
     @Override
@@ -547,7 +548,7 @@ public class CoGbkResult {
 
     @Override
     public PeekingReiterator<T> copy() {
-      return new PeekingReiterator(underlying.copy(), next, nextIsValid);
+      return new PeekingReiterator<>(underlying.copy(), next, nextIsValid);
     }
 
     @Override

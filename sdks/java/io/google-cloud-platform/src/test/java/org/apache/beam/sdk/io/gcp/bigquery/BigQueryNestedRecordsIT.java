@@ -97,12 +97,13 @@ public class BigQueryNestedRecordsIT {
 
     TableRow queryUnflattened =
         bigQueryClient
-            .queryUnflattened(options.getInput(), bigQueryOptions.getProject(), true)
+            .queryUnflattened(options.getInput(), bigQueryOptions.getProject(), true, false)
             .get(0);
 
     TableRow queryUnflattenable =
         bigQueryClient
-            .queryUnflattened(options.getUnflattenableInput(), bigQueryOptions.getProject(), true)
+            .queryUnflattened(
+                options.getUnflattenableInput(), bigQueryOptions.getProject(), true, false)
             .get(0);
 
     // Verify that the results are the same.

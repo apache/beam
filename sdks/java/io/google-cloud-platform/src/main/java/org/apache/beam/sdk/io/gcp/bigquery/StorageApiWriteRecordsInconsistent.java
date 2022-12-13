@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 
 /**
  * A transform to write sharded records to BigQuery using the Storage API. This transform uses the
@@ -32,34 +34,46 @@ import org.apache.beam.sdk.values.PCollection;
  */
 @SuppressWarnings("FutureReturnValueIgnored")
 public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
-    extends PTransform<PCollection<KV<DestinationT, StorageApiWritePayload>>, PCollection<Void>> {
+    extends PTransform<PCollection<KV<DestinationT, StorageApiWritePayload>>, PCollectionTuple> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
+  private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
+  private final TupleTag<KV<String, String>> finalizeTag = new TupleTag<>("finalizeTag");
+  private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
 
   public StorageApiWriteRecordsInconsistent(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
-      BigQueryServices bqServices) {
+      BigQueryServices bqServices,
+      TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
+      Coder<BigQueryStorageApiInsertError> failedRowsCoder) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
+    this.failedRowsTag = failedRowsTag;
+    this.failedRowsCoder = failedRowsCoder;
   }
 
   @Override
-  public PCollection<Void> expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
+  public PCollectionTuple expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     // Append records to the Storage API streams.
-    input.apply(
-        "Write Records",
-        ParDo.of(
-                new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(
-                    operationName,
-                    dynamicDestinations,
-                    bqServices,
-                    true,
-                    bigQueryOptions.getStorageApiAppendThresholdBytes(),
-                    bigQueryOptions.getStorageApiAppendThresholdRecordCount(),
-                    bigQueryOptions.getNumStorageWriteApiStreamAppendClients()))
-            .withSideInputs(dynamicDestinations.getSideInputs()));
-    return input.getPipeline().apply("voids", Create.empty(VoidCoder.of()));
+    PCollectionTuple result =
+        input.apply(
+            "Write Records",
+            ParDo.of(
+                    new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(
+                        operationName,
+                        dynamicDestinations,
+                        bqServices,
+                        true,
+                        bigQueryOptions.getStorageApiAppendThresholdBytes(),
+                        bigQueryOptions.getStorageApiAppendThresholdRecordCount(),
+                        bigQueryOptions.getNumStorageWriteApiStreamAppendClients(),
+                        finalizeTag,
+                        failedRowsTag))
+                .withOutputTags(finalizeTag, TupleTagList.of(failedRowsTag))
+                .withSideInputs(dynamicDestinations.getSideInputs()));
+    result.get(failedRowsTag).setCoder(failedRowsCoder);
+    return result;
   }
 }

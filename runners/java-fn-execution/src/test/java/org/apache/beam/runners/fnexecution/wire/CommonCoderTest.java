@@ -40,6 +40,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -425,6 +426,8 @@ public class CommonCoderTest {
       case DATETIME:
         // convert shifted millis to epoch millis as in InstantCoder
         return new Instant((Long) value + -9223372036854775808L);
+      case DECIMAL:
+        return new BigDecimal((String) value);
       case BYTES:
         // extract String as byte[]
         return ((String) value).getBytes(StandardCharsets.ISO_8859_1);
@@ -465,10 +468,10 @@ public class CommonCoderTest {
       case LOGICAL_TYPE:
         // Logical types are represented as their representation types in YAML. Parse as the
         // representation type, then convert to the base type.
-        return fieldType
-            .getLogicalType()
-            .toInputType(parseField(value, fieldType.getLogicalType().getBaseType()));
-      default: // DECIMAL
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
+        return logicalType.toInputType(parseField(value, fieldType.getLogicalType().getBaseType()));
+      default:
         throw new IllegalArgumentException("Unsupported type name: " + fieldType.getTypeName());
     }
   }
