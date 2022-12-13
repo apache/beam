@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.csv;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.BufferedWriter;
@@ -39,7 +40,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -50,7 +50,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Transforms for reading and writing CSV files. */
 @SuppressWarnings({
-  "unused",
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CsvIO {
@@ -80,10 +79,14 @@ public class CsvIO {
      * file prior to the header. In the example below, all the text proceeding the header
      * 'column1,column2,column3' is the preamble.
      *
-     * <p>Fake company, Inc. Lab experiment: abcdefg123456 Experiment date: 2022-12-05 Operator:
-     * John Doe
-     *
-     * <p>column1,column2,column3 1,2,3 4,5,6
+     * <p><code>Fake company, Inc.
+     * Lab experiment: abcdefg123456
+     * Experiment date: 2022-12-05
+     * Operator: John Doe
+     * column1,column2,colum3
+     * 1,2,3
+     * 4,5,6
+     * </code>
      */
     public Sink<T> withPreamble(String preamble) {
       return toBuilder().setPreamble(preamble).build();
@@ -100,8 +103,10 @@ public class CsvIO {
       writer =
           new PrintWriter(
               new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
+      checkNotNull(writer);
       if (getPreamble() != null) {
         writer.println(getPreamble());
+        ;
       }
       writer.println(getHeader());
     }
@@ -131,21 +136,26 @@ public class CsvIO {
      * file prior to the header. In the example below, all the text proceeding the header
      * 'column1,column2,column3' is the preamble.
      *
-     * <p>Fake company, Inc. Lab experiment: abcdefg123456 Experiment date: 2022-12-05 Operator:
-     * John Doe
-     *
-     * <p>column1,column2,column3 1,2,3 4,5,6
+     * <p><code>Fake company, Inc.
+     * Lab experiment: abcdefg123456
+     * Experiment date: 2022-12-05
+     * Operator: John Doe
+     * column1,column2,colum3
+     * 1,2,3
+     * 4,5,6
+     * </code>
      */
     abstract @Nullable String getPreamble();
 
     /**
      * The column names of the CSV file written at the top line of each shard after the preamble, if
-     * available.
+     * available. Named fields in header must conform to types listed in {@link
+     * CsvUtils#VALID_FIELD_TYPE_SET}.
      */
     abstract String getHeader();
 
-    /** A {@link SimpleFunction} for converting a {@param T} to a CSV formatted string. */
-    abstract SimpleFunction<T, String> getFormatFunction();
+    /** A {@link SerializableFunction} for converting a {@param T} to a CSV formatted string. */
+    abstract SerializableFunction<T, String> getFormatFunction();
 
     abstract Builder<T> toBuilder();
 
@@ -166,12 +176,13 @@ public class CsvIO {
 
       /**
        * The column names of the CSV file written at the top line of each shard after the preamble,
-       * if available.
+       * if available. Named fields in header must conform to types listed in {@link
+       * CsvUtils#VALID_FIELD_TYPE_SET}.
        */
       abstract Builder<T> setHeader(String value);
 
-      /** A {@link SimpleFunction} for converting a {@param T} to a CSV formatted string. */
-      abstract Builder<T> setFormatFunction(SimpleFunction<T, String> value);
+      /** A {@link SerializableFunction} for converting a {@param T} to a CSV formatted string. */
+      abstract Builder<T> setFormatFunction(SerializableFunction<T, String> value);
 
       abstract Sink<T> build();
     }
@@ -196,10 +207,14 @@ public class CsvIO {
      * file prior to the header. In the example below, all the text proceeding the header
      * 'column1,column2,column3' is the preamble.
      *
-     * <p>Fake company, Inc. Lab experiment: abcdefg123456 Experiment date: 2022-12-05 Operator:
-     * John Doe
-     *
-     * <p>column1,column2,column3 1,2,3 4,5,6
+     * <p><code>Fake company, Inc.
+     * Lab experiment: abcdefg123456
+     * Experiment date: 2022-12-05
+     * Operator: John Doe
+     * column1,column2,colum3
+     * 1,2,3
+     * 4,5,6
+     * </code>
      */
     public Write<T> withPreamble(String preamble) {
       return toBuilder().setPreamble(preamble).build();
@@ -327,6 +342,8 @@ public class CsvIO {
     /**
      * Builds a header using {@link CSVFormat} based on either a {@link Schema#sorted()} {@link
      * Schema#getFieldNames()} if {@link #getSchemaFields()} is null or {@link #getSchemaFields()}.
+     * {@link Schema} {@link Schema.Field}s must conform to types listed in {@link
+     * CsvUtils#VALID_FIELD_TYPE_SET}.
      */
     String buildHeader(Schema schema) {
       if (getSchemaFields() != null) {
@@ -338,7 +355,6 @@ public class CsvIO {
     /** Builds a {@link Sink} for writing {@link Row} serialized using {@link CSVFormat}. */
     Sink<Row> buildSink(Schema schema) {
       List<String> schemaFields = null;
-      String header = null;
       if (getSchemaFields() != null) {
         schemaFields = getSchemaFields();
       }

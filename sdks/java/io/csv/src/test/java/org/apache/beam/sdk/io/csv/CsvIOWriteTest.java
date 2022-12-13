@@ -59,8 +59,11 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link CsvIO.Write}. */
+@RunWith(JUnit4.class)
 public class CsvIOWriteTest {
 
   @Rule public TemporaryFolder tmpFolder = TemporaryFolder.builder().build();

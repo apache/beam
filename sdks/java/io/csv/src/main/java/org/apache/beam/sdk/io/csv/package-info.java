@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Transforms for reading and writing Csv files. */
+/** Transforms for reading and writing CSV files. */
 package org.apache.beam.sdk.io.csv;

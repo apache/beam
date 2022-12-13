@@ -25,6 +25,7 @@ import java.util.Set;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -87,12 +88,12 @@ public final class CsvUtils {
   }
 
   /**
-   * Returns a {@link SimpleFunction} that converts a {@link Row} to a CSV String record. Providing
-   * {@param schemaFields} determines the subset and order of {@param beamSchema} fields of the
-   * resulting CSV String record. Otherwise, the order derives from the {@link Schema#sorted()}
-   * field order.
+   * Returns a {@link SerializableFunction} that converts a {@link Row} to a CSV String record.
+   * Providing {@param schemaFields} determines the subset and order of {@param beamSchema} fields
+   * of the resulting CSV String record. Otherwise, the order derives from the {@link
+   * Schema#sorted()} field order.
    */
-  public static SimpleFunction<Row, String> getRowToCsvStringFunction(
+  public static SerializableFunction<Row, String> getRowToCsvStringFunction(
       Schema beamSchema, @Nullable CSVFormat format, @Nullable List<String> schemaFields) {
 
     CsvPayloadSerializer payloadSerializer =
@@ -115,9 +116,7 @@ public final class CsvUtils {
     return builder.toString();
   }
 
-  /**
-   * Formats {@link Schema#sorted()} list of fields into a header String based on {@link CSVFormat}.
-   */
+  /** Formats {@link Schema#sorted()} list of fields into a header based upon {@link CSVFormat}. */
   static String buildHeaderFrom(Schema schema, CSVFormat csvFormat) {
     return buildHeaderFrom(schema.sorted().getFieldNames(), csvFormat);
   }
