@@ -1,17 +1,24 @@
 models:
-  - name: my_first_dbt_model
-    description: "A starter dbt model"
-    columns:
-      - name: id
-        description: "Primary key for this table"
-        tests:
-          - unique
-          - not_null
   - name: my_second_dbt_model
     description: "A starter dbt model"
     columns:
       - name: id
+        data_type: STRING
         description: "Primary key for this table"
         tests:
           - unique
           - not_null
+      - name: full_name
+        data_type: STRING
+        description: "Full name of the user"
+      - name: wins
+        data_type: INT64
+        description: "Number of game wins"
+  - name: simple_aggregation
+    description: "A very simple aggregation"
+    columns:
+      - name: full_name
+        data_type: STRING
+      - name: wins
+        data_type: INT64
+        description: "Total Wins"

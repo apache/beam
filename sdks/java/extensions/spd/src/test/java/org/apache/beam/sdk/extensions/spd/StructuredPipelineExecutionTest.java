@@ -37,7 +37,10 @@ public class StructuredPipelineExecutionTest {
     StructuredPipelineDescription spd = new StructuredPipelineDescription(pipeline);
     spd.loadProject(pipelinePath);
     spd.readFrom("my_second_dbt_model", pipeline.begin())
-        .apply(ParDo.of(new BeamSqlOutputToConsoleFn("Output")));
+        .apply(ParDo.of(new BeamSqlOutputToConsoleFn("Table Output")));
+    spd.readFrom("simple_aggregation", pipeline.begin())
+        .apply(ParDo.of(new BeamSqlOutputToConsoleFn("Output Aggregation")));
+
     pipeline.run();
   }
 }

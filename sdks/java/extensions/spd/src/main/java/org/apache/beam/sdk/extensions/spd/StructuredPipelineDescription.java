@@ -184,6 +184,7 @@ public class StructuredPipelineDescription {
 
   private void readSchemaTables(Path basePath, Path schemaPath, ObjectMapper mapper)
       throws Exception {
+    // TODO: Break the dependence between the YAML and a file to allow file configurations
     LOG.info("Reading seed tables in " + schemaPath.toAbsolutePath().toString());
     try (Stream<Path> files = Files.list(schemaPath)) {
       List<Path> fileList = files.collect(Collectors.toList());
