@@ -17,227 +17,140 @@
  */
 package org.apache.beam.sdk.extensions.spd;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.hubspot.jinjava.Jinjava;
 import com.hubspot.jinjava.interpret.RenderResult;
+import com.hubspot.jinjava.interpret.TemplateError;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.spd.description.*;
+import org.apache.beam.sdk.extensions.spd.description.Column;
+import org.apache.beam.sdk.extensions.spd.description.Model;
+import org.apache.beam.sdk.extensions.spd.description.Project;
+import org.apache.beam.sdk.extensions.spd.description.Schemas;
+import org.apache.beam.sdk.extensions.spd.description.Seed;
 import org.apache.beam.sdk.extensions.spd.models.SqlModel;
 import org.apache.beam.sdk.extensions.spd.models.StructuredModel;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.KafkaTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.pubsublite.PubsubLiteTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressFBWarnings
 public class StructuredPipelineDescription {
   private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineDescription.class);
-
-  private ObjectMapper mapper;
-  private Path path;
-  private Jinjava jinjava;
+  private static final String DEFAULT_PLANNER =
+      "org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner";
 
   private Pipeline pipeline;
+  private InMemoryMetaStore metaTableProvider;
+  private BeamSqlEnv env;
+  private Map<String, BeamSqlTable> tableMap;
+  private Map<String, StructuredModel> modelMap;
 
-  private HashMap<String, StructuredModel> models = new HashMap<>();
-  private HashMap<String, BeamSqlTable> modelTables = new HashMap<>();
+  @Nullable Project project = null;
 
-  private InMemoryMetaStore metaStore;
-
-  @Nullable private Project project = null;
-
-  public @Nullable String getName() {
-    return project == null ? "" : project.name;
+  public StructuredPipelineDescription(Pipeline pipeline) {
+    this.pipeline = pipeline;
+    this.tableMap = new HashMap<>();
+    this.modelMap = new HashMap<>();
+    this.metaTableProvider = new InMemoryMetaStore();
+    BeamSqlEnvBuilder envBuilder = BeamSqlEnv.builder(this.metaTableProvider);
+    envBuilder.autoLoadUserDefinedFunctions();
+    ServiceLoader.load(TableProvider.class).forEach(metaTableProvider::registerProvider);
+    // envBuilder.setCurrentSchema("spd");
+    envBuilder.setQueryPlannerClassName(
+        MoreObjects.firstNonNull(
+            DEFAULT_PLANNER,
+            this.pipeline.getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
+    envBuilder.setPipelineOptions(this.pipeline.getOptions());
+    this.env = envBuilder.build();
   }
 
-  public @Nullable String getVersion() {
-    return project == null ? "" : project.version;
+  public PCollection<Row> readFrom(String fullTableName, PBegin input) throws Exception {
+    Table t = getTable(fullTableName);
+    if (t == null) {
+      throw new Exception("No table named " + fullTableName);
+    }
+    return tableMap.get(fullTableName).buildIOReader(input);
   }
 
-  public @Nullable Table findTable(String name) {
-    Table t = metaStore.getTable(name);
-
-    // table already exists so we're good here.
+  public Table getTable(String fullTableName) throws Exception {
+    // If table already exists, return it
+    Table t = metaTableProvider.getTable(fullTableName);
     if (t != null) {
       return t;
     }
-
-    // Otherwise we need to try to make the table from a model
-    StructuredModel found = models.get(name);
-
-    // Table by that name doesn't exist?
-    if (found == null) {
-      return null;
-    }
-
-    if (found instanceof SqlModel) {
-      HashMap<String, Object> bindings = new HashMap<>();
-      bindings.put("_name", found.getName());
-      bindings.put("_path", found.getPath());
-      bindings.put("_self", this);
-      RenderResult result = jinjava.renderForResult(((SqlModel) found).getRawQuery(), bindings);
-      if (result.hasErrors()) {
-        return null;
+    // If the table doesn't exist yet try to build it from models
+    if (!tableMap.containsKey(fullTableName)) {
+      StructuredModel model = modelMap.get(fullTableName);
+      if (model == null) {
+        throw new Exception("Model " + fullTableName + " doesn't exist.");
       }
+      Map<String, Object> me = new HashMap<>();
+      me.put("_spd", this);
+      if (model instanceof SqlModel) {
+        RenderResult result =
+            JinjaFunctions.getDefault().renderForResult(((SqlModel) model).getRawQuery(), me);
+        if (result.hasErrors()) {
+          for (TemplateError error : result.getErrors()) {
+            throw error.getException();
+          }
+        }
 
-      BeamSqlEnv env =
-          BeamSqlEnv.builder(metaStore).setPipelineOptions(pipeline.getOptions()).build();
-      BeamSqlTable table =
-          new BeamPCollectionTable<>(
-              BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery(result.getOutput())));
-      modelTables.put(found.getName(), table);
-      return Table.builder().name(found.getName()).type("models").schema(table.getSchema()).build();
+        PCollection<Row> pcollection =
+            BeamSqlRelUtils.toPCollection(this.pipeline, env.parseQuery(result.getOutput()));
+        BeamSqlTable table = new BeamPCollectionTable<>(pcollection);
+        tableMap.put(fullTableName, table);
+        return Table.builder()
+            .name(fullTableName)
+            .schema(pcollection.getSchema())
+            .type("spd")
+            .build();
+      }
     }
     return null;
   }
 
-  public static ObjectMapper defaultObjectMapper() {
-    return new ObjectMapper(new YAMLFactory());
-  }
-
-  public StructuredPipelineDescription(
-      Pipeline pipeline, ObjectMapper mapper, Jinjava jinjava, Path path) {
-    this.pipeline = pipeline;
-    this.mapper = mapper;
-    this.jinjava = jinjava;
-    this.path = path;
-    this.metaStore = new InMemoryMetaStore();
-
-    // TODO: I think we can do what SQLTransform does here?
-    this.metaStore.registerProvider(new TextTableProvider());
-    this.metaStore.registerProvider(new BigQueryTableProvider());
-    this.metaStore.registerProvider(new BigtableTableProvider());
-    this.metaStore.registerProvider(new KafkaTableProvider());
-    this.metaStore.registerProvider(new PubsubTableProvider());
-    this.metaStore.registerProvider(new PubsubLiteTableProvider());
-    // Register our internal table name
-    this.metaStore.registerProvider(new ReadOnlyTableProvider("models", modelTables));
-  }
-
-  public StructuredPipelineDescription(Pipeline pipeline, Path path) {
-    this(pipeline, defaultObjectMapper(), JinjaFunctions.getDefault(), path);
-  }
-
-  private @Nullable Path yamlPath(Path base, String yamlName) throws Exception {
-    Path newPath = base.resolve(yamlName + ".yml");
-    if (!Files.exists(newPath)) {
-      newPath = base.resolve(yamlName + ".yaml");
+  // Try both yml and yaml
+  private Path yamlPath(Path basePath, String filename) {
+    Path returnPath = basePath.resolve(filename + ".yml");
+    if (Files.exists(returnPath)) {
+      return returnPath;
     }
-    return Files.exists(newPath) ? newPath : null;
-  }
-
-  private void initialize() throws Exception {}
-
-  private void importPackages(Path path, Project project) throws Exception {
-    Path packagePath = yamlPath(path, "packages");
-    if (packagePath == null) {
-      return;
+    returnPath = basePath.resolve(filename + ".yaml");
+    if (Files.exists(returnPath)) {
+      return returnPath;
     }
-    Packages packages = mapper.readValue(Files.newBufferedReader(packagePath), Packages.class);
-    for (PackageImport toImport : packages.packages) {
-      if (toImport.local != null && !"".equals(toImport.local)) {
-        HashMap<String, Object> bindings = new HashMap<>();
-        Path localPath = Paths.get(jinjava.render(toImport.local, bindings));
-        if (Files.exists(localPath)) {
-          loadPackage(localPath, project);
-        } else {
-          LOG.error("Package not found at '" + localPath.toAbsolutePath().toString() + "'");
-        }
-      } else if (toImport.git != null && !"".equals(toImport.git)) {
-        HashMap<String, Object> bindings = new HashMap<>();
-        String tmpDir = jinjava.render(project.packagesInstallPath, bindings);
-        LOG.warn(
-            "Git imports currently unsupported. Skipping import of '"
-                + toImport.git
-                + "' to "
-                + tmpDir);
-      }
-    }
+    return null;
   }
 
-  private String computeIdentifier(String prefix, String name) {
-    return prefix + ("".equals(prefix) ? "" : "/") + name;
-  }
-
-  private void importSchemas(String prefix, Path modelPath, Project project) throws Exception {
-    LOG.info("Loading models in " + modelPath.toString() + " into '" + prefix + "'");
-    try (Stream<Path> files = Files.list(modelPath)) {
-      for (Path file : files.collect(Collectors.toList())) {
-        if (Files.isDirectory(file)) {
-          Path filename = file.getFileName();
-          if (filename != null) {
-            importSchemas(computeIdentifier(prefix, filename.toString()), file, project);
-          }
-        } else if (Files.isReadable(file) && (file.endsWith("yml") || file.endsWith("yaml"))) {
-
-          // Load up a yaml file containing models and sources (all schemas)
-          Schemas schemas = mapper.readValue(Files.newBufferedReader(file), Schemas.class);
-
-          // Create tables for our seeds
-          for (Seed seed : schemas.seeds) {
-            Path csvFile = path.resolve(seed.name + ".csv");
-            // Path jsonFile = path.resolve(seed.name + ".json");
-
-            if (Files.exists(csvFile)) {
-              Schema beamSchema = columnsToSchema(seed.columns);
-              metaStore.createTable(
-                  Table.builder()
-                      .type("text")
-                      .location(csvFile.toAbsolutePath().toString())
-                      .schema(beamSchema)
-                      .build());
-            }
-          }
-
-          // TODO: Create tables for our sources so they can be referenced
-
-          // Create model objects for our models
-          for (Model model : schemas.models) {
-
-            if (model.name != null) {
-              Path sqlFile = path.resolve(model.name + ".sql");
-              Path pyFile = path.resolve(model.name + ".py");
-
-              // If there's a sql file of the same name present we must be a SQL transform.
-              if (Files.exists(sqlFile)) {
-                this.models.put(
-                    model.getName(),
-                    new SqlModel(
-                        prefix, model.getName(), String.join("\n", Files.readAllLines(sqlFile))));
-              } else if (Files.exists(pyFile)) {
-                // TODO: Handle python transofmrs
-              } else {
-                // Otherwise we're a "built-in" SchemaTransform (i.e. our definition comes from the
-                // user's implementation
-                // in an SDK.
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  private Schema columnsToSchema(List<Column> columns) {
+  private Schema columnsToSchema(Iterable<Column> columns) {
     Schema.Builder beamSchema = Schema.builder();
     for (Column c : columns) {
       HashSet<String> tests = new HashSet<>();
@@ -254,67 +167,111 @@ public class StructuredPipelineDescription {
     return beamSchema.build();
   }
 
-  private void loadModels(Path path, Project project) throws Exception {
-    ArrayList<String> allPaths = new ArrayList<>();
-    allPaths.addAll(project.seedPaths);
-    allPaths.addAll(project.modelPaths);
+  // TODO: figure out the real way of doing this
+  private String getFullName(Path basePath, Path subdir, String localName) {
+    Path relativePath = subdir.toAbsolutePath().relativize(basePath.toAbsolutePath());
+    LOG.info("Computing schema path for " + relativePath.toString());
+    ArrayList<String> parts = new ArrayList<>();
+    for (Path p : relativePath) {
+      String part = p.toString().trim();
+      if (!"..".equals(part) && !"".equals(part)) {
+        parts.add(part);
+      }
+    }
+    parts.add(localName);
+    return String.join(".", parts);
+  }
 
-    for (String modelPathName : allPaths) {
-      Path modelsPath = path.resolve(modelPathName);
-      if (Files.exists(modelsPath)) {
-        importSchemas("", modelsPath, project);
+  private void readSchemaTables(Path basePath, Path schemaPath, ObjectMapper mapper)
+      throws Exception {
+    LOG.info("Reading seed tables in " + schemaPath.toAbsolutePath().toString());
+    try (Stream<Path> files = Files.list(schemaPath)) {
+      List<Path> fileList = files.collect(Collectors.toList());
+      LOG.info("Found " + fileList.size() + " files");
+      for (Path file : fileList) {
+        String fileName = file.getFileName().toString();
+        LOG.info("Examining file " + file.toAbsolutePath().toString());
+        if (Files.isDirectory(file)) {
+          readSchemaTables(basePath, file, mapper);
+        } else if (fileName.endsWith(".yml") || fileName.endsWith(".yaml")) {
+          LOG.info("Found schema file at " + file.toString());
+          Schemas schemas = mapper.readValue(Files.newBufferedReader(file), Schemas.class);
+          for (Seed seed : schemas.getSeeds()) {
+            LOG.info("Checking for seed file in " + seed.getName());
+            Path csvPath = schemaPath.resolve(seed.getName() + ".csv");
+            if (Files.exists(csvPath)) {
+              LOG.info("Found CSV at " + csvPath.toAbsolutePath().toString());
+              Schema beamSchema = columnsToSchema(seed.getColumns());
+              String fullName = getFullName(basePath, schemaPath, seed.getName());
+              LOG.info(
+                  "Creating csv external table "
+                      + fullName
+                      + " at "
+                      + csvPath.toAbsolutePath().toString());
+              metaTableProvider.createTable(
+                  Table.builder()
+                      .name(fullName)
+                      .type("text")
+                      .location(csvPath.toAbsolutePath().toString())
+                      .schema(beamSchema)
+                      .build());
+            }
+          }
+          for (Model model : schemas.getModels()) {
+            Path sqlPath = schemaPath.resolve(model.getName() + ".sql");
+            String fullName = getFullName(basePath, schemaPath, model.getName());
+            if (Files.exists(sqlPath)) {
+              LOG.info("Found SQL at " + sqlPath.toAbsolutePath().toString());
+              modelMap.put(
+                  fullName,
+                  new SqlModel(
+                      fullName, model.getName(), String.join("\n", Files.readAllLines(sqlPath))));
+            } else {
+              // TODO: Allow for arbitrary SchemaTransforms as a model
+            }
+          }
+        }
       }
     }
   }
 
-  private Project loadPackage(Path path, Project parent) throws Exception {
-    LOG.info("Loading package at path " + path.toString());
+  private void loadSchemas(Path basePath, Iterable<String> subdirs, ObjectMapper mapper)
+      throws Exception {
+    for (String schemaDir : subdirs) {
+      Path schemaPath = basePath.resolve(schemaDir);
+      if (Files.isDirectory(schemaPath)) {
+        readSchemaTables(schemaPath, schemaPath, mapper);
+      }
+    }
+  }
+
+  private void resolveModels() throws Exception {
+    Set<String> models = modelMap.keySet();
+    for (String fullTableName : models) {
+      LOG.info("Finding table " + fullTableName);
+      getTable(fullTableName);
+    }
+    this.metaTableProvider.registerProvider(new ReadOnlyTableProvider("spd", tableMap));
+  }
+
+  public void loadProject(Path path) throws Exception {
+    ObjectMapper mapper =
+        new ObjectMapper(new YAMLFactory())
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
     Path projectPath = yamlPath(path, "spd_project");
     if (projectPath == null) {
       throw new Exception("spd_project file not found at path " + path.toString());
     }
+    LOG.info("Loading SPD project at " + path);
     Project project = mapper.readValue(Files.newBufferedReader(projectPath), Project.class);
-    importPackages(path, parent);
-    loadModels(path, project);
+    loadSchemas(path, project.seedPaths, mapper);
+    loadSchemas(path, project.modelPaths, mapper);
+    resolveModels();
 
-    return project;
-  }
-
-  public void load() throws Exception {
-    if (project != null) {
-      return;
+    LOG.info("Dumping tables for " + env.toString());
+    for (Map.Entry<String, Table> table : metaTableProvider.getTables().entrySet()) {
+      LOG.info("Table: " + table.getKey() + ", " + table.getValue().toString());
     }
-    initialize();
-
-    Project emptyBase = new Project();
-    emptyBase.name = "_parent";
-    emptyBase.version = "0";
-    emptyBase.initializeEmpty(mapper);
-
-    project = loadPackage(path, emptyBase);
-  }
-
-  public void compile() throws Exception {
-    if (project == null) {
-      return;
-    }
-    // Okay, super cheesy but here we go..
-    for (Map.Entry<String, StructuredModel> e : models.entrySet()) {
-      if (e.getValue() instanceof SqlModel) {
-        HashMap<String, Object> bindings = new HashMap<String, Object>();
-        jinjava.render(((SqlModel) e.getValue()).getRawQuery(), bindings);
-      }
-    }
-  }
-
-  public void run() throws Exception {
-    load();
-    compile();
-    pipeline.run();
-  }
-
-  @Override
-  public String toString() {
-    return project == null ? "UNINITIALIZED_PROJECT" : "SPD:" + getName() + ":" + getVersion();
   }
 }

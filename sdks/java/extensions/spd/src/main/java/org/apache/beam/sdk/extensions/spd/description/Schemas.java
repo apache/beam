@@ -17,13 +17,34 @@
  */
 package org.apache.beam.sdk.extensions.spd.description;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
-@SuppressFBWarnings
 public class Schemas {
+  @Nullable
+  @JsonSetter(nulls = Nulls.SKIP)
   public List<Source> sources = Arrays.asList();
+
+  @Nullable
+  @JsonSetter(nulls = Nulls.SKIP)
   public List<Model> models = Arrays.asList();
+
+  @Nullable
+  @JsonSetter(nulls = Nulls.SKIP)
   public List<Seed> seeds = Arrays.asList();
+
+  public List<Source> getSources() {
+    return sources == null ? Arrays.asList() : sources;
+  }
+
+  public List<Model> getModels() {
+    return models == null ? Arrays.asList() : models;
+  }
+
+  public List<Seed> getSeeds() {
+    return seeds == null ? Arrays.asList() : seeds;
+  }
 }

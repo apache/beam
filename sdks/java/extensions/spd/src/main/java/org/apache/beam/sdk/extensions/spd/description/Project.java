@@ -21,7 +21,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.Arrays;
 import java.util.List;
@@ -60,17 +59,23 @@ public class Project {
   @JsonSetter(nulls = Nulls.SKIP)
   public String packagesInstallPath = "{{tmpDir}}";
 
-  @Nullable public JsonNode vars;
+  // Configuration objects
+
+  @Nullable
+  @JsonSetter(nulls = Nulls.AS_EMPTY)
+  public JsonNode vars;
+
   @Nullable public JsonNode models;
 
-  @Nullable public JsonNode sources;
+  @Nullable
+  @JsonSetter(nulls = Nulls.AS_EMPTY)
+  public JsonNode sources;
 
-  @Nullable public JsonNode tests;
+  @Nullable
+  @JsonSetter(nulls = Nulls.AS_EMPTY)
+  public JsonNode seeds;
 
-  public void initializeEmpty(ObjectMapper mapper) {
-    vars = mapper.createObjectNode();
-    models = mapper.createObjectNode();
-    sources = mapper.createObjectNode();
-    tests = mapper.createObjectNode();
-  }
+  @Nullable
+  @JsonSetter(nulls = Nulls.AS_EMPTY)
+  public JsonNode tests;
 }

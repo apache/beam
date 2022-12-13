@@ -21,19 +21,22 @@ import com.hubspot.jinjava.Jinjava;
 import com.hubspot.jinjava.interpret.JinjavaInterpreter;
 import com.hubspot.jinjava.lib.fn.ELFunctionDefinition;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JinjaFunctions {
-  public static String reference(String... model) {
-    JinjavaInterpreter interpreter = JinjavaInterpreter.getCurrent();
+  private static final Logger LOG = LoggerFactory.getLogger(JinjaFunctions.class);
 
-    StructuredPipelineDescription spdObject =
-        (StructuredPipelineDescription) interpreter.getContext().get("_spd");
-    Table table = spdObject.findTable(model[0]);
-    if (table == null) {
-      return "";
-    } else {
-      return table.getName();
+  // TODO: We should resolve table names relative to their schema not globally
+  public static String reference(String... model) throws Exception {
+    Object spd = JinjavaInterpreter.getCurrent().getContext().get("_spd");
+    if (spd instanceof StructuredPipelineDescription) {
+      Table t = ((StructuredPipelineDescription) spd).getTable(model[0]);
+      LOG.info("Got table for " + model[0] + ": " + t);
+      return t.getName();
     }
+
+    return "";
   }
 
   public static Jinjava getDefault() {

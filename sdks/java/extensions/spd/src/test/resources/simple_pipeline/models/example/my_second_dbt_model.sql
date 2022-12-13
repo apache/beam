@@ -1,1 +1,1 @@
-SELECT id,CONCAT(first,last) AS full_name,wins FROM {{ ref('very_simple_table') }} WHERE wins > 0
+SELECT id AS id,(first || last) AS full_name,wins FROM {{ ref('very_simple_table') }} WHERE wins > 0

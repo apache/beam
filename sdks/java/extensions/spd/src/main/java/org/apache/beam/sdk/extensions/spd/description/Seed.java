@@ -30,4 +30,12 @@ public class Seed {
 
   @JsonSetter(nulls = Nulls.AS_EMPTY)
   public List<Column> columns = Arrays.asList();
+
+  public String getName() {
+    return name == null ? "" : name;
+  }
+
+  public List<Column> getColumns() {
+    return columns == null ? Arrays.asList() : columns;
+  }
 }

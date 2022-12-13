@@ -19,10 +19,17 @@ package org.apache.beam.sdk.extensions.spd.description;
 
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
 public class Packages {
+
+  @Nullable
   @JsonSetter(nulls = Nulls.AS_EMPTY)
   public List<PackageImport> packages = Arrays.asList();
+
+  public List<PackageImport> getPackages() {
+    return packages == null ? Arrays.asList() : packages;
+  }
 }

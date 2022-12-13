@@ -34,6 +34,12 @@ public class Model {
     return name == null ? "" : name;
   }
 
+  @Nullable public String description;
+
+  public String getDescription() {
+    return description == null ? "" : description;
+  }
+
   @JsonSetter(nulls = Nulls.AS_EMPTY)
   public List<Column> columns = Arrays.asList();
 }

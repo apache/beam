@@ -2,10 +2,10 @@ seeds:
   - name: very_simple_table
     columns:
       - name: id
-        data_type: varchar
+        data_type: STRING
       - name: first
-        data_type: varchar
+        data_type: STRING
       - name: last
-        data_type: varchar
+        data_type: STRING
       - name: wins
-        data_type: int
+        data_type: INT64
