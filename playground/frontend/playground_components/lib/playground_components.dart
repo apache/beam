@@ -20,7 +20,6 @@ export 'src/cache/example_cache.dart';
 
 export 'src/constants/colors.dart';
 export 'src/constants/links.dart';
-export 'src/constants/playground_components.dart';
 export 'src/constants/sizes.dart';
 
 export 'src/controllers/example_loaders/examples_loader.dart';
@@ -36,8 +35,10 @@ export 'src/models/example_loading_descriptors/content_example_loading_descripto
 export 'src/models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/examples_loading_descriptor.dart';
+export 'src/models/example_loading_descriptors/http_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 export 'src/models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
+export 'src/models/example_view_options.dart';
 export 'src/models/intents.dart';
 export 'src/models/outputs.dart';
 export 'src/models/sdk.dart';
@@ -45,10 +46,14 @@ export 'src/models/shortcut.dart';
 
 export 'src/notifications/notification.dart';
 
+export 'src/playground_components.dart';
+
 export 'src/repositories/code_client/grpc_code_client.dart';
 export 'src/repositories/code_repository.dart';
 export 'src/repositories/example_client/grpc_example_client.dart';
 export 'src/repositories/example_repository.dart';
+
+export 'src/services/symbols/loaders/yaml.dart';
 
 export 'src/theme/switch_notifier.dart';
 export 'src/theme/theme.dart';
@@ -56,6 +61,7 @@ export 'src/theme/theme.dart';
 export 'src/util/pipeline_options.dart';
 
 export 'src/widgets/bubble.dart';
+export 'src/widgets/clickable.dart';
 export 'src/widgets/complexity.dart';
 export 'src/widgets/dismissible_overlay.dart';
 export 'src/widgets/divider.dart';

@@ -52,6 +52,8 @@ var filteredCases = []struct{ filter, reason string }{
 	{"logical", "BEAM-9615: Support logical types"},
 	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "https://github.com/apache/beam/issues/21206: Support encoding position."},
 	{"80be749a-5700-4ede-89d8-dd9a4433a3f8", "https://github.com/apache/beam/issues/19817: Support millis_instant."},
+	{"800c44ae-a1b7-4def-bbf6-6217cca89ec4", "https://github.com/apache/beam/issues/19817: Support decimal."},
+	{"f0ffb3a4-f46f-41ca-a942-85e3e939452a", "https://github.com/apache/beam/issues/23526: Support char/varchar, binary/varbinary."},
 }
 
 // Coder is a representation a serialized beam coder.
@@ -63,8 +65,8 @@ type Coder struct {
 }
 
 type logger interface {
-	Errorf(string, ...interface{})
-	Logf(string, ...interface{})
+	Errorf(string, ...any)
+	Logf(string, ...any)
 }
 
 // Spec is a set of conditions that a coder must pass.
@@ -178,7 +180,7 @@ var cmpOpts = []cmp.Option{
 }
 
 func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
-	var got, want interface{}
+	var got, want any
 	switch c.Urn {
 	case "beam:coder:bytes:v1":
 		got = string(elem.Elm.([]byte))
@@ -252,7 +254,7 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 	case "beam:coder:interval_window:v1":
 		var a, b int
 		val := eg.Value
-		if is, ok := eg.Value.([]interface{}); ok {
+		if is, ok := eg.Value.([]any); ok {
 			val = is[0]
 		}
 		v := val.(yaml.MapSlice)
@@ -338,7 +340,7 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 					pass = false
 				}
 			case "windows":
-				if v, ok := item.Value.([]interface{}); ok {
+				if v, ok := item.Value.([]any); ok {
 					for i, val := range v {
 						if val.(string) == "global" && fmt.Sprintf("%s", tm.Windows[i]) == "[*]" {
 							continue
@@ -374,7 +376,7 @@ func diff(c Coder, elem *exec.FullValue, eg yaml.MapItem) bool {
 	return true
 }
 
-func diffPane(eg interface{}, got typex.PaneInfo) bool {
+func diffPane(eg any, got typex.PaneInfo) bool {
 	pass := true
 	paneTiming := map[typex.PaneTiming]string{
 		typex.PaneUnknown: "UNKNOWN",
@@ -421,7 +423,7 @@ var nameToType = map[string]reflect.Type{
 	"f_float": reflectx.Float32,
 }
 
-func setField(rv reflect.Value, i int, v interface{}) {
+func setField(rv reflect.Value, i int, v any) {
 	if v == nil {
 		return
 	}
@@ -453,9 +455,9 @@ func setField(rv reflect.Value, i int, v interface{}) {
 			rf.Set(reflect.ValueOf([]byte(v.(string))))
 			break
 		}
-		// Value is a []interface{} with string values.
+		// Value is a []any with string values.
 		var arr []string
-		for _, a := range v.([]interface{}) {
+		for _, a := range v.([]any) {
 			arr = append(arr, a.(string))
 		}
 		rf.Set(reflect.ValueOf(arr))
@@ -497,11 +499,11 @@ func (s *Spec) parseCoder(c Coder) string {
 // Simple logger to run as main program.
 type logLogger struct{}
 
-func (*logLogger) Errorf(format string, v ...interface{}) {
+func (*logLogger) Errorf(format string, v ...any) {
 	log.Printf(format, v...)
 }
 
-func (*logLogger) Logf(format string, v ...interface{}) {
+func (*logLogger) Logf(format string, v ...any) {
 	log.Printf(format, v...)
 }
 

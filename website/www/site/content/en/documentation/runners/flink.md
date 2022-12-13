@@ -66,9 +66,9 @@ Please use the switcher below to select the appropriate mode for the Runner:
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java">Classic (Java)</li>
-    <li data-type="language-py">Portable (Python)</li>
-    <li data-type="language-portable">Portable (Java/Python/Go)</li>
+    <li data-value="java">Classic (Java)</li>
+    <li data-value="py">Portable (Python)</li>
+    <li data-value="portable">Portable (Java/Python/Go)</li>
   </ul>
 </nav>
 
@@ -155,7 +155,7 @@ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --flinkMaster=<flink master url> \
       --filesToStage=target/word-count-beam-bundled-0.1.jar"
 {{< /highlight >}}
-<!-- Span implictly ended -->
+<!-- Span implicitly ended -->
 
 {{< paragraph class="language-java" >}}
 If you have a Flink `JobManager` running on your local machine you can provide `localhost:8081` for
@@ -234,7 +234,7 @@ options = PipelineOptions([
 with beam.Pipeline(options) as p:
     ...
 {{< /highlight >}}
-<!-- Span implictly ended -->
+<!-- Span implicitly ended -->
 
 {{< paragraph class="language-portable" >}}
 To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html):

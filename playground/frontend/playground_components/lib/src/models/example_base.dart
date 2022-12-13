@@ -18,7 +18,9 @@
 
 import 'package:equatable/equatable.dart';
 
+import '../enums/complexity.dart';
 import '../repositories/example_repository.dart';
+import 'example_view_options.dart';
 import 'sdk.dart';
 
 enum ExampleType {
@@ -47,28 +49,35 @@ extension ExampleTypeToString on ExampleType {
 /// and other large fields.
 /// These objects are fetched as lists from [ExampleRepository].
 class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
-  final Sdk sdk;
-  final ExampleType type;
-  final String name;
-  final String path;
-  final String description;
+  final Complexity? complexity;
   final int contextLine;
+  final String description;
   final bool isMultiFile;
   final String? link;
+  final String name;
+  final String path;
   final String pipelineOptions;
+  final Sdk sdk;
+  final List<String> tags;
+  final ExampleType type;
+  final ExampleViewOptions viewOptions;
 
   const ExampleBase({
-    required this.sdk,
     required this.name,
     required this.path,
-    required this.description,
+    required this.sdk,
     required this.type,
+    this.complexity,
     this.contextLine = 1,
+    this.description = '',
     this.isMultiFile = false,
     this.link,
-    required this.pipelineOptions,
+    this.pipelineOptions = '',
+    this.tags = const [],
+    this.viewOptions = ExampleViewOptions.empty,
   });
 
+  // TODO(alexeyinkin): Use all fields, https://github.com/apache/beam/issues/23979
   @override
   List<Object> get props => [path];
 

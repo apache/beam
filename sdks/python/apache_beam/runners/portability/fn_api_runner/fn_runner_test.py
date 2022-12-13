@@ -54,6 +54,7 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -165,6 +166,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(res, equal_to([6, 12, 18]))
 
+  @unittest.skip('https://github.com/apache/beam/issues/23944')
   def test_batch_pardo_trigger_flush(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
@@ -191,7 +193,8 @@ class FnApiRunnerTest(unittest.TestCase):
     # - The output batch type of the producer
     # - The input batch type of the consumer
     with self.assertWarnsRegex(InefficientExecutionWarning,
-                               r'ListPlusOneDoFn.*NumpyArray.*List\[int64\]'):
+                               (r'ListPlusOneDoFn.*NumpyArray.*List\[<class '
+                                r'\'numpy.int64\'>\]')):
       with self.create_pipeline() as p:
         res = (
             p
@@ -367,6 +370,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
       assert_that(res, equal_to([6, 12, 12, 18, 18, 18]))
 
+  @unittest.skip('https://github.com/apache/beam/issues/23944')
   def test_pardo_large_input(self):
     try:
       utils.check_compiled('apache_beam.coders.coder_impl')
@@ -2106,6 +2110,33 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         assert_that(flat, equal_to(expected))
         if expected_groups:
           assert_that(grouped, equal_to(expected_groups), label='CheckGrouped')
+
+  def test_time_based_split_manager(self):
+
+    elements = [str(x) for x in range(100)]
+
+    class BundleCountingDoFn(beam.DoFn):
+      def process(self, element):
+        time.sleep(0.005)
+        yield element
+
+      def finish_bundle(self):
+        yield window.GlobalWindows.windowed_value('endOfBundle')
+
+    with self.create_pipeline() as p:
+      p._options.view_as(DirectOptions).direct_test_splits = {
+          'SplitMarker': {
+              'timings': [0, .05], 'fractions': [0.5, 0.5]
+          }
+      }
+      assert_that(
+          p
+          | beam.Create(elements)
+          | 'SplitMarker' >> beam.ParDo(BundleCountingDoFn()),
+          # We split the first bundle twice (once at 50%, and again at 50% of
+          # what was left). All returned split remainders get processed
+          # (together) in a (single) subsequent bundle.
+          equal_to(elements + ['endOfBundle'] * 2))
 
   def verify_channel_split(self, split_result, last_primary, first_residual):
     self.assertEqual(1, len(split_result.channel_splits), split_result)

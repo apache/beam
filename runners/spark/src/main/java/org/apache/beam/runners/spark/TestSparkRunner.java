@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.isOneOf;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
@@ -82,18 +81,19 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     TestSparkPipelineOptions testSparkOptions =
         PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
 
-    boolean isForceStreaming = testSparkOptions.isForceStreaming();
+    SparkRunner.detectTranslationMode(pipeline, testSparkOptions);
+    boolean isStreaming = testSparkOptions.isStreaming();
+
     SparkPipelineResult result = null;
 
     // clear state of Aggregators, Metrics and Watermarks if exists.
-    AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
     GlobalWatermarkHolder.clear();
 
     LOG.info("About to run test pipeline {}", options.getJobName());
 
     // if the pipeline was executed in streaming mode, validate aggregators.
-    if (isForceStreaming) {
+    if (isStreaming) {
       try {
         result = delegate.run(pipeline);
         awaitWatermarksOrTimeout(testSparkOptions, result);

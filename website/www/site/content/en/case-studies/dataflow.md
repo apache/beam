@@ -2,6 +2,7 @@
 title: "Cloud Dataflow"
 icon: /images/logo_google_cloud.png
 hasNav: true
+hasLink: "https://cloud.google.com/dataflow"
 cardDescription: "Google Cloud Dataflow is a fully managed service for executing Apache Beam pipelines within the Google Cloud Platform ecosystem."
 ---
 <!--

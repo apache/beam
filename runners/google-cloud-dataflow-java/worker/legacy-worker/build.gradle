@@ -84,6 +84,7 @@ applyJavaNature(
         classesTriggerCheckerBugs: [
           'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
           'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
+          'FetchAndFilterStreamingSideInputsOperation': 'https://github.com/typetools/checker-framework/issues/5436',
         ],
         exportJavadoc: false,
         enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,

@@ -55,10 +55,10 @@ To run a query using ZetaSQL planner (currently Query96 can be run using ZetaSQL
 
 ## Spark Runner
 
-To execute TPC-DS benchmark with Query3 for 1Gb dataset on Apache Spark 2.x, run the following example command from the command line:
+To execute TPC-DS benchmark with Query3 for 1Gb dataset on Apache Spark 3.x, run the following example command from the command line:
 
 ```bash
-./gradlew :sdks:java:testing:tpcds:run -Ptpcds.runner=":runners:spark:2" -Ptpcds.args=" \
+./gradlew :sdks:java:testing:tpcds:run -Ptpcds.runner=":runners:spark:3" -Ptpcds.args=" \
   --runner=SparkRunner \
   --queries=3 \
   --tpcParallel=1 \

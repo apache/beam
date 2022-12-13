@@ -61,7 +61,8 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
   @Override
   public final Schema configurationSchema() {
     try {
-      return SchemaRegistry.createDefault().getSchema(configurationClass());
+      // Sort the fields by name to ensure a consistent schema is produced
+      return SchemaRegistry.createDefault().getSchema(configurationClass()).sorted();
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(
           "Unable to find schema for "

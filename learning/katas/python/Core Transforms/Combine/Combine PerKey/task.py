@@ -21,10 +21,14 @@
 #   context_line: 29
 #   categories:
 #     - Combiners
+#   complexity: BASIC
+#   tags:
+#     - map
+#     - combine
+#     - strings
+#     - numbers
 
 import apache_beam as beam
-
-from log_elements import LogElements
 
 PLAYER_1 = 'Player 1'
 PLAYER_2 = 'Player 2'
@@ -35,5 +39,4 @@ with beam.Pipeline() as p:
   (p | beam.Create([(PLAYER_1, 15), (PLAYER_2, 10), (PLAYER_1, 100),
                     (PLAYER_3, 25), (PLAYER_2, 75)])
      | beam.CombinePerKey(sum)
-     | LogElements())
-
+     | beam.LogElements())

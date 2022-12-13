@@ -18,9 +18,9 @@
 
 import 'package:flutter/material.dart';
 
-import '../constants/playground_components.dart';
+import '../assets/assets.gen.dart';
 import '../constants/sizes.dart';
-import '../generated/assets.gen.dart';
+import '../playground_components.dart';
 
 class BeamLogo extends StatelessWidget {
   const BeamLogo();
