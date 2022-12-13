@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap;
+package org.apache.beam.examples.complete.cdap.salesforce;
 
 import io.cdap.cdap.api.data.schema.Schema;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSourceOptions;
-import org.apache.beam.examples.complete.cdap.transforms.FormatInputTransform;
-import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
+import org.apache.beam.examples.complete.cdap.salesforce.options.CdapSalesforceSourceOptions;
+import org.apache.beam.examples.complete.cdap.salesforce.transforms.FormatInputTransform;
+import org.apache.beam.examples.complete.cdap.salesforce.utils.PluginConfigOptionsConverter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
  *
  * This task allows to run the pipeline via the following command:
  * {@code
- * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.CdapSalesforceToTxt \
+ * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.salesforce.CdapSalesforceToTxt \
  *      -Dexec.args="--<argument>=<value> --<argument>=<value>"
  * }
  *

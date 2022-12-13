@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.options;
+package org.apache.beam.examples.complete.cdap.salesforce.options;
 
+import org.apache.beam.examples.complete.cdap.salesforce.CdapSalesforceStreamingToTxt;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
 /**
  * The {@link CdapSalesforceStreamingSourceOptions} interface provides the custom execution options
- * passed by the executor at the command-line for {@link
- * org.apache.beam.examples.complete.cdap.CdapSalesforceStreamingToTxt} example.
+ * passed by the executor at the command-line for {@link CdapSalesforceStreamingToTxt} example.
  */
 public interface CdapSalesforceStreamingSourceOptions extends CdapSalesforceSourceOptions {
 

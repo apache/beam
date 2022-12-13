@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.options;
+package org.apache.beam.examples.complete.cdap.salesforce.options;
 
 import io.cdap.plugin.salesforce.SalesforceConstants;
+import org.apache.beam.examples.complete.cdap.options.BaseCdapOptions;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 

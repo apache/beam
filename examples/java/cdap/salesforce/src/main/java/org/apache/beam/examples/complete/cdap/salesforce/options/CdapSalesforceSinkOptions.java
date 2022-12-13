@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.options;
+package org.apache.beam.examples.complete.cdap.salesforce.options;
 
+import org.apache.beam.examples.complete.cdap.salesforce.TxtToCdapSalesforce;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
 /**
  * The {@link CdapSalesforceSinkOptions} interface provides the custom execution options passed by
- * the executor at the command-line for {@link
- * org.apache.beam.examples.complete.cdap.TxtToCdapSalesforce} example.
+ * the executor at the command-line for {@link TxtToCdapSalesforce} example.
  */
 public interface CdapSalesforceSinkOptions extends CdapSalesforceOptions {
 

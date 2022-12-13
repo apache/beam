@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.options;
+package org.apache.beam.examples.complete.cdap.salesforce.options;
 
 import io.cdap.plugin.salesforce.plugin.source.batch.util.SalesforceSourceConstants;
+import org.apache.beam.examples.complete.cdap.salesforce.CdapSalesforceToTxt;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
 /**
  * The {@link CdapSalesforceSourceOptions} interface provides the custom execution options passed by
- * the executor at the command-line for {@link
- * org.apache.beam.examples.complete.cdap.CdapSalesforceToTxt} example.
+ * the executor at the command-line for {@link CdapSalesforceToTxt} example.
  */
 public interface CdapSalesforceSourceOptions extends CdapSalesforceOptions {
 

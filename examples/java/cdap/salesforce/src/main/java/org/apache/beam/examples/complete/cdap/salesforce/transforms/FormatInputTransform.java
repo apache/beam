@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.transforms;
+package org.apache.beam.examples.complete.cdap.salesforce.transforms;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
@@ -27,7 +27,7 @@ import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSour
 import io.cdap.plugin.salesforce.plugin.source.streaming.SalesforceStreamingSourceConfig;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.utils.GetOffsetUtils;
+import org.apache.beam.examples.complete.cdap.salesforce.utils.GetOffsetUtils;
 import org.apache.beam.sdk.io.cdap.CdapIO;
 import org.apache.beam.sdk.io.cdap.ConfigWrapper;
 import org.apache.beam.sdk.io.cdap.Plugin;

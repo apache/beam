@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.utils;
+package org.apache.beam.examples.complete.cdap.salesforce.utils;
 
 import com.google.gson.Gson;
 import io.cdap.plugin.salesforce.plugin.sink.batch.CSVRecord;

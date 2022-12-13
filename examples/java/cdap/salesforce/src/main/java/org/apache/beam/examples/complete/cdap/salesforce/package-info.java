@@ -15,4 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.utils;
+
+/** Cdap Plugins template. */
+package org.apache.beam.examples.complete.cdap.salesforce;

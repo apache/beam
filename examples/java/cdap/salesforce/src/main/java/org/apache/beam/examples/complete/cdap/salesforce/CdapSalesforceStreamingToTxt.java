@@ -15,35 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap;
+package org.apache.beam.examples.complete.cdap.salesforce;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
-import com.google.gson.Gson;
-import io.cdap.plugin.salesforce.plugin.sink.batch.CSVRecord;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSinkOptions;
-import org.apache.beam.examples.complete.cdap.transforms.FormatOutputTransform;
-import org.apache.beam.examples.complete.cdap.utils.CsvRecordCoder;
-import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
+import org.apache.beam.examples.complete.cdap.salesforce.options.CdapSalesforceStreamingSourceOptions;
+import org.apache.beam.examples.complete.cdap.salesforce.transforms.FormatInputTransform;
+import org.apache.beam.examples.complete.cdap.salesforce.utils.PluginConfigOptionsConverter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The {@link TxtToCdapSalesforce} pipeline is a batch pipeline which ingests data from .txt file,
- * and outputs the resulting records to Salesforce. Salesforce parameters and input .txt file path
- * are specified by the user as template parameters. <br>
+ * The {@link CdapSalesforceStreamingToTxt} pipeline is a streaming pipeline which ingests data in
+ * JSON format from CDAP Salesforce, and outputs the resulting records to .txt file. Salesforce
+ * parameters and output .txt file path are specified by the user as template parameters. <br>
  *
  * <p><b>Example Usage</b>
  *
@@ -63,7 +62,7 @@ import org.slf4j.LoggerFactory;
  *
  * This task allows to run the pipeline via the following command:
  * {@code
- * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.TxtToCdapSalesforce \
+ * gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.salesforce.CdapSalesforceStreamingToTxt \
  *      -Dexec.args="--<argument>=<value> --<argument>=<value>"
  * }
  *
@@ -76,13 +75,12 @@ import org.slf4j.LoggerFactory;
  * --consumerKey=your-key \
  * --consumerSecret=your-secret \
  * --loginUrl=your-login-url \
- * --sObject=CustomObject__c \
+ * --sObjectName=object-name \
+ * --pushTopicName=your-push-topic-name \
  * --referenceName=your-reference-name \
- * --inputTxtFilePath=your-path-to-input-file \
- * --maxRecordsPerBatch=10 \
- * --maxBytesPerBatch=9999999 \
- * --operation=Insert \
- * --errorHandling=Stop on error
+ * --outputTxtFilePathPrefix=your-path-to-output-folder-with-filename-prefix \
+ * --pullFrequencySec=1 \
+ * --startOffset=0
  * }
  *
  * By default this will run the pipeline locally with the DirectRunner. To change the runner, specify:
@@ -91,12 +89,10 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  */
-public class TxtToCdapSalesforce {
-
-  private static final Gson GSON = new Gson();
+public class CdapSalesforceStreamingToTxt {
 
   /* Logger for class.*/
-  private static final Logger LOG = LoggerFactory.getLogger(TxtToCdapSalesforce.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CdapSalesforceStreamingToTxt.class);
 
   /**
    * Main entry point for pipeline execution.
@@ -104,10 +100,10 @@ public class TxtToCdapSalesforce {
    * @param args Command line arguments to the pipeline.
    */
   public static void main(String[] args) {
-    CdapSalesforceSinkOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(CdapSalesforceSinkOptions.class);
-
-    checkStateNotNull(options.getLocksDirPath(), "locksDirPath can not be null!");
+    CdapSalesforceStreamingSourceOptions options =
+        PipelineOptionsFactory.fromArgs(args)
+            .withValidation()
+            .as(CdapSalesforceStreamingSourceOptions.class);
 
     // Create the pipeline
     Pipeline pipeline = Pipeline.create(options);
@@ -115,36 +111,43 @@ public class TxtToCdapSalesforce {
   }
 
   /**
-   * Runs a pipeline which reads records from .txt file and writes it to CDAP Salesforce.
+   * Runs a pipeline which reads records from CDAP Salesforce and writes them to .txt file.
    *
    * @param options arguments to the pipeline
    */
-  public static PipelineResult run(Pipeline pipeline, CdapSalesforceSinkOptions options) {
+  public static PipelineResult run(
+      Pipeline pipeline, CdapSalesforceStreamingSourceOptions options) {
     Map<String, Object> paramsMap =
-        PluginConfigOptionsConverter.salesforceBatchSinkOptionsToParamsMap(options);
-    LOG.info("Starting Txt-to-Cdap-Salesforce pipeline with parameters: {}", paramsMap);
+        PluginConfigOptionsConverter.salesforceStreamingSourceOptionsToParamsMap(options);
+    LOG.info("Starting Cdap-Salesforce-streaming-to-txt pipeline with parameters: {}", paramsMap);
 
     /*
      * Steps:
-     *  1) Read messages in from .txt file
-     *  2) Map to KV
-     *  3) Write successful records to Cdap Salesforce
+     *  1) Read messages in from Cdap Salesforce
+     *  2) Extract values only
+     *  3) Write successful records to .txt file
      */
 
     pipeline
-        .apply("readFromTxt", TextIO.read().from(options.getInputTxtFilePath()))
         .apply(
-            MapElements.into(new TypeDescriptor<KV<NullWritable, CSVRecord>>() {})
-                .via(
-                    json -> {
-                      CSVRecord csvRecord = GSON.fromJson(json, CSVRecord.class);
-                      return KV.of(NullWritable.get(), csvRecord);
-                    }))
+            "readFromCdapSalesforceStreaming",
+            FormatInputTransform.readFromCdapSalesforceStreaming(
+                paramsMap, options.getPullFrequencySec(), options.getStartOffset()))
         .setCoder(
-            KvCoder.of(NullableCoder.of(WritableCoder.of(NullWritable.class)), CsvRecordCoder.of()))
+            KvCoder.of(
+                NullableCoder.of(WritableCoder.of(NullWritable.class)), StringUtf8Coder.of()))
         .apply(
-            "writeToCdapSalesforce",
-            FormatOutputTransform.writeToCdapSalesforce(paramsMap, options.getLocksDirPath()));
+            "globalwindow",
+            Window.<KV<NullWritable, String>>into(new GlobalWindows())
+                .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
+                .discardingFiredPanes())
+        .apply(Values.create())
+        .apply(
+            "writeToTxt",
+            TextIO.write()
+                .withWindowedWrites()
+                .withNumShards(1)
+                .to(options.getOutputTxtFilePathPrefix()));
 
     return pipeline.run();
   }

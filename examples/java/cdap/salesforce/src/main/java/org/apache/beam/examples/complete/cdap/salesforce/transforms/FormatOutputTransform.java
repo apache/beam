@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.transforms;
+package org.apache.beam.examples.complete.cdap.salesforce.transforms;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import io.cdap.cdap.api.plugin.PluginConfig;
-import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.plugin.salesforce.plugin.sink.batch.CSVRecord;
 import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceBatchSink;
 import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceSinkConfig;
@@ -44,10 +43,9 @@ public class FormatOutputTransform {
         new ConfigWrapper<>(SalesforceSinkConfig.class).withParams(pluginConfigParams).build();
 
     checkStateNotNull(pluginConfig, "Plugin config can't be null.");
-    Class<? extends BatchSink<?, ?, ?>> pluginClass = SalesforceBatchSink.class;
 
     return CdapIO.<NullWritable, CSVRecord>write()
-        .withCdapPluginClass(pluginClass)
+        .withCdapPluginClass(SalesforceBatchSink.class)
         .withPluginConfig(pluginConfig)
         .withKeyClass(NullWritable.class)
         .withValueClass(CSVRecord.class)

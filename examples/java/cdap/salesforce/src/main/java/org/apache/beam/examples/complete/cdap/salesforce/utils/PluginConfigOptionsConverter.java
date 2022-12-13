@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.utils;
+package org.apache.beam.examples.complete.cdap.salesforce.utils;
 
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.salesforce.SalesforceConstants;
@@ -23,9 +23,9 @@ import io.cdap.plugin.salesforce.plugin.sink.batch.ErrorHandling;
 import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceSinkConfig;
 import io.cdap.plugin.salesforce.plugin.source.batch.util.SalesforceSourceConstants;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSinkOptions;
-import org.apache.beam.examples.complete.cdap.options.CdapSalesforceSourceOptions;
-import org.apache.beam.examples.complete.cdap.options.CdapSalesforceStreamingSourceOptions;
+import org.apache.beam.examples.complete.cdap.salesforce.options.CdapSalesforceSinkOptions;
+import org.apache.beam.examples.complete.cdap.salesforce.options.CdapSalesforceSourceOptions;
+import org.apache.beam.examples.complete.cdap.salesforce.options.CdapSalesforceStreamingSourceOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
