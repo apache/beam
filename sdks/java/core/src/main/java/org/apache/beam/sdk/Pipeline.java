@@ -20,15 +20,18 @@ package org.apache.beam.sdk;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.transform;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nonnull;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
@@ -123,9 +126,6 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
   /**
@@ -136,7 +136,7 @@ public class Pipeline {
    */
   public static class PipelineExecutionException extends RuntimeException {
     /** Wraps {@code cause} into a {@link PipelineExecutionException}. */
-    public PipelineExecutionException(Throwable cause) {
+    public PipelineExecutionException(@Nullable Throwable cause) {
       super(cause);
     }
   }
@@ -432,7 +432,7 @@ public class Pipeline {
 
       @Override
       public void enterPipeline(Pipeline pipeline) {
-        this.pipeline = checkNotNull(pipeline);
+        this.pipeline = checkArgumentNotNull(pipeline);
       }
 
       @Override
@@ -606,7 +606,9 @@ public class Pipeline {
   void validate(PipelineOptions options) {
     this.traverseTopologically(new ValidateVisitor(options));
     final Collection<Map.Entry<String, Collection<PTransform<?, ?>>>> errors =
-        Collections2.filter(instancePerName.asMap().entrySet(), Predicates.not(new IsUnique<>()));
+        instancePerName.asMap().entrySet().stream()
+            .filter(entry -> entry.getValue().size() > 1)
+            .collect(Collectors.toList());
     if (!errors.isEmpty()) {
       switch (options.getStableUniqueNames()) {
         case OFF:
@@ -614,18 +616,19 @@ public class Pipeline {
         case WARNING:
           LOG.warn(
               "The following transforms do not have stable unique names: {}",
-              Joiner.on(", ").join(transform(errors, new KeysExtractor())));
+              errors.stream().map(err -> err.getKey()).collect(Collectors.joining(", ")));
           break;
         case ERROR: // be very verbose here since it will just fail the execution
           throw new IllegalStateException(
               String.format(
                       "Pipeline update will not be possible because the following transforms do"
                           + " not have stable unique names: %s.",
-                      Joiner.on(", ").join(transform(errors, new KeysExtractor())))
+                      errors.stream().map(err -> err.getKey()).collect(Collectors.joining(", ")))
                   + "\n\n"
                   + "Conflicting instances:\n"
-                  + Joiner.on("\n")
-                      .join(transform(errors, new UnstableNameToMessage(instancePerName)))
+                  + errors.stream()
+                      .map(err -> unstableNameToMessage(instancePerName, err))
+                      .collect(Collectors.joining("\n"))
                   + "\n\nYou can fix it adding a name when you call apply(): "
                   + "pipeline.apply(<name>, <transform>).");
         default:
@@ -675,57 +678,19 @@ public class Pipeline {
 
     @Override
     public void visitPrimitiveTransform(Node node) {
+      checkStateNotNull(node.getTransform(), "Primitive transform node with null transform");
       node.getTransform().validate(options, node.getInputs(), node.getOutputs());
     }
   }
 
-  private static class TransformToMessage implements Function<PTransform<?, ?>, String> {
-    @Override
-    public String apply(final PTransform<?, ?> transform) {
-      return "    - " + transform;
-    }
-  }
-
-  private static class UnstableNameToMessage
-      implements Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
-    private final Multimap<String, PTransform<?, ?>> instances;
-
-    private UnstableNameToMessage(final Multimap<String, PTransform<?, ?>> instancePerName) {
-      this.instances = instancePerName;
-    }
-
-    @SuppressFBWarnings(
-        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
-        justification = "https://github.com/google/guava/issues/920")
-    @Override
-    public String apply(@Nonnull final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
-      final Collection<PTransform<?, ?>> values = instances.get(input.getKey());
-      return "- name="
-          + input.getKey()
-          + ":\n"
-          + Joiner.on("\n").join(transform(values, new TransformToMessage()));
-    }
-  }
-
-  private static class KeysExtractor
-      implements Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
-    @SuppressFBWarnings(
-        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
-        justification = "https://github.com/google/guava/issues/920")
-    @Override
-    public String apply(@Nonnull final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
-      return input.getKey();
-    }
-  }
-
-  private static class IsUnique<K, V> implements Predicate<Map.Entry<K, Collection<V>>> {
-    @SuppressFBWarnings(
-        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
-        justification = "https://github.com/google/guava/issues/920")
-    @Override
-    public boolean apply(@Nonnull final Map.Entry<K, Collection<V>> input) {
-      return input != null && input.getValue().size() == 1;
-    }
+  private static String unstableNameToMessage(
+      Multimap<String, PTransform<?, ?>> instancePerName,
+      Map.Entry<String, Collection<PTransform<?, ?>>> input) {
+    final Collection<PTransform<?, ?>> values = instancePerName.get(input.getKey());
+    return "- name="
+        + input.getKey()
+        + ":\n"
+        + values.stream().map(transform -> "    - " + transform).collect(Collectors.joining("\n"));
   }
 
   private void validateErrorHandlers() {
