@@ -47,10 +47,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
-import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
@@ -70,19 +67,20 @@ public class StructuredPipelineDescription {
   private Pipeline pipeline;
   private InMemoryMetaStore metaTableProvider;
   private BeamSqlEnv env;
-  private Map<String, BeamSqlTable> tableMap;
+  private PCollectionTableProvider tableMap;
   private Map<String, StructuredModel> modelMap;
 
   @Nullable Project project = null;
 
   public StructuredPipelineDescription(Pipeline pipeline) {
     this.pipeline = pipeline;
-    this.tableMap = new HashMap<>();
+    this.tableMap = new PCollectionTableProvider("spd");
     this.modelMap = new HashMap<>();
     this.metaTableProvider = new InMemoryMetaStore();
     BeamSqlEnvBuilder envBuilder = BeamSqlEnv.builder(this.metaTableProvider);
     envBuilder.autoLoadUserDefinedFunctions();
     ServiceLoader.load(TableProvider.class).forEach(metaTableProvider::registerProvider);
+    metaTableProvider.registerProvider(tableMap);
     // envBuilder.setCurrentSchema("spd");
     envBuilder.setQueryPlannerClassName(
         MoreObjects.firstNonNull(
@@ -97,7 +95,7 @@ public class StructuredPipelineDescription {
     if (t == null) {
       throw new Exception("No table named " + fullTableName);
     }
-    return tableMap.get(fullTableName).buildIOReader(input);
+    return tableMap.buildBeamSqlTable(t).buildIOReader(input);
   }
 
   public Table getTable(String fullTableName) throws Exception {
@@ -106,35 +104,26 @@ public class StructuredPipelineDescription {
     if (t != null) {
       return t;
     }
-    // If the table doesn't exist yet try to build it from models
-    if (!tableMap.containsKey(fullTableName)) {
-      StructuredModel model = modelMap.get(fullTableName);
-      if (model == null) {
-        throw new Exception("Model " + fullTableName + " doesn't exist.");
-      }
-      Map<String, Object> me = new HashMap<>();
-      me.put("_spd", this);
-      if (model instanceof SqlModel) {
-        RenderResult result =
-            JinjaFunctions.getDefault().renderForResult(((SqlModel) model).getRawQuery(), me);
-        if (result.hasErrors()) {
-          for (TemplateError error : result.getErrors()) {
-            throw error.getException();
-          }
-        }
 
-        PCollection<Row> pcollection =
-            BeamSqlRelUtils.toPCollection(this.pipeline, env.parseQuery(result.getOutput()));
-        BeamSqlTable table = new BeamPCollectionTable<>(pcollection);
-        tableMap.put(fullTableName, table);
-        return Table.builder()
-            .name(fullTableName)
-            .schema(pcollection.getSchema())
-            .type("spd")
-            .build();
-      }
+    StructuredModel model = modelMap.get(fullTableName);
+    if (model == null) {
+      throw new Exception("Model " + fullTableName + " doesn't exist.");
     }
-    return null;
+    Map<String, Object> me = new HashMap<>();
+    me.put("_spd", this);
+    if (model instanceof SqlModel) {
+      RenderResult result =
+          JinjaFunctions.getDefault().renderForResult(((SqlModel) model).getRawQuery(), me);
+      if (result.hasErrors()) {
+        for (TemplateError error : result.getErrors()) {
+          throw error.getException();
+        }
+      }
+      PCollection<Row> pcollection =
+          BeamSqlRelUtils.toPCollection(this.pipeline, env.parseQuery(result.getOutput()));
+      tableMap.createTable(fullTableName, pcollection);
+    }
+    return metaTableProvider.getTable(fullTableName);
   }
 
   // Try both yml and yaml
@@ -252,7 +241,6 @@ public class StructuredPipelineDescription {
       LOG.info("Finding table " + fullTableName);
       getTable(fullTableName);
     }
-    this.metaTableProvider.registerProvider(new ReadOnlyTableProvider("spd", tableMap));
   }
 
   public void loadProject(Path path) throws Exception {

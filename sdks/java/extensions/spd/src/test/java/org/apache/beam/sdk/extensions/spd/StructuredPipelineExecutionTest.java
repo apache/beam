@@ -25,8 +25,11 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StructuredPipelineExecutionTest {
+  private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineExecutionTest.class);
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -40,7 +43,7 @@ public class StructuredPipelineExecutionTest {
         .apply(ParDo.of(new BeamSqlOutputToConsoleFn("Table Output")));
     spd.readFrom("simple_aggregation", pipeline.begin())
         .apply(ParDo.of(new BeamSqlOutputToConsoleFn("Output Aggregation")));
-
+    LOG.info("Running pipeline");
     pipeline.run();
   }
 }
