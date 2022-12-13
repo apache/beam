@@ -64,6 +64,7 @@ flutter:
     - assets/svg/
     - assets/symbols/go.g.yaml
     - assets/symbols/python.g.yaml
+    - assets/symbols/java.g.yaml
     - assets/translations/en.yaml
 
 flutter_gen:

@@ -3,7 +3,6 @@ plugins {
 }
 
 group 'com.playground.extract_symbols'
-version '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()

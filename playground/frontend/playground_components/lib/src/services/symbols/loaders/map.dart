@@ -17,6 +17,7 @@
  */
 
 import 'package:highlight/languages/go.dart';
+import 'package:highlight/languages/java.dart';
 import 'package:highlight/languages/python.dart';
 
 import '../../../assets/assets.gen.dart';
@@ -31,6 +32,11 @@ final symbolLoadersByMode = {
 
   python: YamlSymbolsLoader(
     path: Assets.symbols.pythonG,
+    package: PlaygroundComponents.packageName,
+  ),
+
+  java: YamlSymbolsLoader(
+    path: Assets.symbols.javaG,
     package: PlaygroundComponents.packageName,
   ),
 };

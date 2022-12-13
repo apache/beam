@@ -20,22 +20,22 @@ import java.util.Set;
 public class Main {
     public static void main(String[] args) throws IOException {
         var sdkPath = args[0];
-        HashMap<String, ClassInfo> classInfoMap = collectClassInfo(sdkPath);
+        HashMap<String, ClassInfo> classInfoMap = getDirSymbols(sdkPath);
         String yamlString = buildYamlString(classInfoMap);
         System.out.println(yamlString);
     }
 
-    private static HashMap<String, ClassInfo> collectClassInfo(String sdkPath) throws IOException {
+    private static HashMap<String, ClassInfo> getDirSymbols(String sdkPathString) throws IOException {
         var classInfoMap = new HashMap<String, ClassInfo>();
-        var paths = new File(sdkPath).toPath().toAbsolutePath();
-        Files.walk(paths).forEach(path -> {
+        var sdkPath = new File(sdkPathString).toPath().toAbsolutePath();
+        Files.walk(sdkPath).forEach(path -> {
             var stringPath = path.toString();
             if (stringPath.endsWith(".java") && !stringPath.contains("test")) {
                 var fileName = stringPath.substring(stringPath.lastIndexOf("/") + 1).replace(".java", "");
                 try {
                     var unit = StaticJavaParser.parse(path);
                     if (unit.getClassByName(fileName).isPresent()) {
-                        buildClass(classInfoMap, unit.getClassByName(fileName).get());
+                        addClassSymbols(classInfoMap, unit.getClassByName(fileName).get());
                     }
                 } catch (IOException | ParseProblemException ignored) {
                 }
@@ -45,7 +45,7 @@ public class Main {
         return classInfoMap;
     }
 
-    private static void buildClass(HashMap<String, ClassInfo> classInfoList, ClassOrInterfaceDeclaration cl) {
+    private static void addClassSymbols(HashMap<String, ClassInfo> classInfoList, ClassOrInterfaceDeclaration cl) {
         if (!cl.isPublic()) {
             return;
         }
