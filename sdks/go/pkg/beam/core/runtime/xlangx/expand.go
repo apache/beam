@@ -113,21 +113,22 @@ func expand(
 	}
 
 	// The external transforms that needs to specify the output coder
-	// in expansion request sends tagged input as xlang.SetOutputCoder.
-	var set bool
-	for tag := range edge.External.InputsMap {
+	// in expansion request sends tagged output as xlang.SetOutputCoder.
+	outputCoderID := make(map[string]string)
+	newOutputMap := make(map[string]int)
+	for tag, id := range edge.External.OutputsMap {
 		if tag == xlang.SetOutputCoder {
-			set = true
+			newOutputMap[graph.UnnamedOutputTag] = id
+			outputCoderID[tag] = edge.Output[id].To.Coder.ID
+			// Since only one output coder request can be specified, we break here.
+			// This is because with graph.UnnamedOutputTag is used as a key in edge.External.OutputsMap.
 			break
 		}
 	}
-	outputCoderID := make(map[string]string)
-	for tag, id := range edge.External.OutputsMap {
-		if set {
-			outputCoderID[tag] = edge.Output[id].To.Coder.ID
-		}
-	}
 
+	if len(newOutputMap) > 0 {
+		edge.External.OutputsMap = newOutputMap
+	}
 	return h(ctx, &HandlerParams{
 		Config: config,
 		Req: &jobpb.ExpansionRequest{

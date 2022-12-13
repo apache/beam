@@ -131,6 +131,13 @@ func runInference[Kwargs any](s beam.Scope, col beam.PCollection, a argsStruct, 
 	pet.WithArgs(a)
 	pl := beam.CrossLanguagePayload(pet)
 	namedInput := map[string]beam.PCollection{xlang.SetOutputCoder: col}
-	result := beam.CrossLanguage(s, "beam:transforms:python:fully_qualified_named", pl, expansionAddr, namedInput, beam.UnnamedOutput(typex.New(outputT)))
+
+	// Since External RunInference Transform with Python Expansion Service will send encoded output, we need to specify
+	// output coder. We do this by setting the output tag as xlang.SetOutputCoder so that while sending
+	// an expansion request we populate the OutputCoderRequests field. If this is not done then the encoded output
+	// may not be decoded with coders known to Go SDK.
+	outputType := map[string]typex.FullType{xlang.SetOutputCoder: typex.New(outputT)}
+
+	result := beam.CrossLanguage(s, "beam:transforms:python:fully_qualified_named", pl, expansionAddr, namedInput, outputType)
 	return result[beam.UnnamedOutputTag()]
 }
