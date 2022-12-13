@@ -22,9 +22,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.utils.Locker;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -69,9 +72,37 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
         windowedInputCoder,
         windowCoder,
         operatorStateBackend,
-        keyedStateBackend,
         maxConcurrentCheckpoints,
-        pipelineOptions);
+        pipelineOptions,
+        keyedStateBackend,
+        null,
+        null);
+  }
+
+  public static <InputT, OutputT> BufferingDoFnRunner<InputT, OutputT> create(
+      DoFnRunner<InputT, OutputT> doFnRunner,
+      String stateName,
+      org.apache.beam.sdk.coders.Coder windowedInputCoder,
+      org.apache.beam.sdk.coders.Coder windowCoder,
+      OperatorStateBackend operatorStateBackend,
+      @Nullable KeyedStateBackend<Object> keyedStateBackend,
+      int maxConcurrentCheckpoints,
+      SerializablePipelineOptions pipelineOptions,
+      Supplier<Locker> locker,
+      Function<InputT, Object> keySelector)
+      throws Exception {
+
+    return new BufferingDoFnRunner<>(
+        doFnRunner,
+        stateName,
+        windowedInputCoder,
+        windowCoder,
+        operatorStateBackend,
+        maxConcurrentCheckpoints,
+        pipelineOptions,
+        keyedStateBackend,
+        locker,
+        keyedStateBackend != null ? keySelector : null);
   }
 
   /** The underlying DoFnRunner that any buffered data will be handed over to eventually. */
@@ -87,7 +118,18 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   /** The current handler used for buffering. */
   private BufferingElementsHandler currentBufferingElementsHandler;
   /** Minimum timestamp of all buffered elements. */
-  private volatile long currentOutputWatermarkHold;
+  private volatile long minBufferedElementTimestamp;
+  /** The associated keyed state backend. */
+  private final @Nullable KeyedStateBackend keyedStateBackend;
+  /**
+   * Locker that must be held (if present) before buffering an element. If non-null, we must
+   * manually set a key to the state backend.
+   */
+  private final @Nullable Supplier<Locker> locker;
+  /**
+   * A selector of key. When non-null, this must be set to the keyed state beckend before buffering.
+   */
+  private final @Nullable Function<InputT, Object> keySelector;
 
   private BufferingDoFnRunner(
       DoFnRunner<InputT, OutputT> underlying,
@@ -95,9 +137,11 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       org.apache.beam.sdk.coders.Coder inputCoder,
       org.apache.beam.sdk.coders.Coder windowCoder,
       OperatorStateBackend operatorStateBackend,
-      @Nullable KeyedStateBackend keyedStateBackend,
       int maxConcurrentCheckpoints,
-      SerializablePipelineOptions pipelineOptions)
+      SerializablePipelineOptions pipelineOptions,
+      @Nullable KeyedStateBackend keyedStateBackend,
+      @Nullable Supplier<Locker> locker,
+      @Nullable Function<InputT, Object> keySelector)
       throws Exception {
 
     Preconditions.checkArgument(
@@ -126,6 +170,13 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
     this.numCheckpointBuffers = initializeState(maxConcurrentCheckpoints);
     this.currentBufferingElementsHandler =
         bufferingElementsHandlerFactory.get(rotateAndGetStateIndex());
+    this.keyedStateBackend = keyedStateBackend;
+    this.locker = locker;
+    this.keySelector = keySelector;
+
+    Preconditions.checkArgument(
+        keySelector == null || keyedStateBackend != null,
+        "keySelector must be null for null keyed state backend");
   }
 
   /**
@@ -144,7 +195,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       lastUsedIndex = pendingSnapshots.get(pendingSnapshots.size() - 1).internalId;
     }
     this.currentStateIndex = lastUsedIndex;
-    this.currentOutputWatermarkHold = Long.MAX_VALUE;
+    this.minBufferedElementTimestamp = Long.MAX_VALUE;
     // If a previous run had a higher number of concurrent checkpoints we need to use this number to
     // not break the buffering/flushing logic.
     return Math.max(maxConcurrentCheckpoints, maxIndex) + 1;
@@ -157,9 +208,14 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
 
   @Override
   public void processElement(WindowedValue<InputT> elem) {
-    currentOutputWatermarkHold =
-        Math.min(elem.getTimestamp().getMillis(), currentOutputWatermarkHold);
-    currentBufferingElementsHandler.buffer(new BufferedElements.Element(elem));
+    minBufferedElementTimestamp =
+        Math.min(elem.getTimestamp().getMillis(), minBufferedElementTimestamp);
+    try (Locker lock = locker != null ? locker.get() : null) {
+      if (keySelector != null) {
+        keyedStateBackend.setCurrentKey(keySelector.apply(elem.getValue()));
+      }
+      currentBufferingElementsHandler.buffer(new BufferedElements.Element(elem));
+    }
   }
 
   @Override
@@ -172,10 +228,15 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       Instant outputTimestamp,
       TimeDomain timeDomain) {
 
-    currentOutputWatermarkHold = Math.min(timestamp.getMillis(), currentOutputWatermarkHold);
-    currentBufferingElementsHandler.buffer(
-        new BufferedElements.Timer<>(
-            timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain));
+    minBufferedElementTimestamp = Math.min(outputTimestamp.getMillis(), minBufferedElementTimestamp);
+    try (Locker lock = locker != null ? locker.get() : null) {
+      if (keySelector != null) {
+        keyedStateBackend.setCurrentKey(key);
+      }
+      currentBufferingElementsHandler.buffer(
+          new BufferedElements.Timer<>(
+              timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain));
+    }
   }
 
   @Override
@@ -221,11 +282,11 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       }
       bufferingElementsHandler.clear();
     }
-    currentOutputWatermarkHold = Long.MAX_VALUE;
+    minBufferedElementTimestamp = Long.MAX_VALUE;
   }
 
   public long getOutputWatermarkHold() {
-    return currentOutputWatermarkHold;
+    return minBufferedElementTimestamp;
   }
 
   private void addToBeAcknowledgedCheckpoint(long checkpointId, int internalId) throws Exception {

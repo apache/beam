@@ -38,15 +38,10 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
@@ -154,80 +149,6 @@ public class PortableExecutionTest implements Serializable {
     jobInvocation.start();
     while (jobInvocation.getState() != JobState.Enum.DONE) {
       Thread.sleep(1000);
-    }
-  }
-
-  @Test(timeout = 120_000)
-  public void testRequiresStableInput() throws Exception {
-    if (!isStreaming) {
-      return;
-    }
-    long checkpointInterval = 3000L;
-    PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
-    options.setRunner(CrashingRunner.class);
-    options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
-    options.as(FlinkPipelineOptions.class).setStreaming(true);
-    options.as(FlinkPipelineOptions.class).setCheckpointingInterval(checkpointInterval);
-    options.as(FlinkPipelineOptions.class).setShutdownSourcesAfterIdleMs(3 * checkpointInterval);
-    options.as(FlinkPipelineOptions.class).setParallelism(2);
-    options
-        .as(PortablePipelineOptions.class)
-        .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
-    Pipeline p = Pipeline.create(options);
-    PCollection<Boolean> result =
-        p.apply(Impulse.create())
-            .apply(MapElements.into(TypeDescriptors.longs()).via(e -> System.currentTimeMillis()))
-            // prevent fusion
-            .apply(Reshuffle.viaRandomKey())
-            .apply(
-                ParDo.of(
-                    StableDoFn.of(in -> System.currentTimeMillis() - in, TypeDescriptors.longs())))
-            .apply(
-                MapElements.into(TypeDescriptors.booleans()).via(e -> e > checkpointInterval / 2));
-    PAssert.that(result).containsInAnyOrder(true);
-
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
-
-    // execute the pipeline
-    JobInvocation jobInvocation =
-        FlinkJobInvoker.create(null)
-            .createJobInvocation(
-                "fakeId",
-                "fakeRetrievalToken",
-                flinkJobExecutor,
-                pipelineProto,
-                options.as(FlinkPipelineOptions.class),
-                new FlinkPipelineRunner(
-                    options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
-    jobInvocation.start();
-    while (jobInvocation.getState() != JobState.Enum.DONE) {
-      Thread.sleep(1000);
-    }
-  }
-
-  private static class StableDoFn<T> extends DoFn<Long, T> {
-
-    static <T> StableDoFn<T> of(SerializableFunction<Long, T> fn, TypeDescriptor<T> type) {
-      return new StableDoFn<>(fn, type);
-    }
-
-    private final SerializableFunction<Long, T> fn;
-    private final TypeDescriptor<T> type;
-
-    private StableDoFn(SerializableFunction<Long, T> fn, TypeDescriptor<T> type) {
-      this.fn = fn;
-      this.type = type;
-    }
-
-    @Override
-    public TypeDescriptor<T> getOutputTypeDescriptor() {
-      return type;
-    }
-
-    @ProcessElement
-    // @RequiresStableInput
-    public void process(@Element Long in, OutputReceiver<T> output) {
-      output.output(fn.apply(in));
     }
   }
 }

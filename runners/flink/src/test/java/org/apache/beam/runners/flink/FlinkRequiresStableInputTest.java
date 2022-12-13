@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 
 import java.util.Collections;
 import java.util.Date;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -37,22 +38,30 @@ import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.testing.CrashingRunner;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.FilePatternMatchingShardedFile;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
+import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -78,23 +87,6 @@ public class FlinkRequiresStableInputTest {
     flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
   }
 
-  @BeforeClass
-  public static void beforeClass() {
-    Configuration config = new Configuration();
-    // Avoid port collision in parallel tests
-    config.setInteger(RestOptions.PORT, 0);
-    config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
-    // It is necessary to configure the checkpoint directory for the state backend,
-    // even though we only create savepoints in this test.
-    config.setString(
-        CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-        "file://" + tempFolder.getRoot().getAbsolutePath());
-    // Checkpoints will go into a subdirectory of this directory
-    config.setString(
-        CheckpointingOptions.SAVEPOINT_DIRECTORY,
-        "file://" + tempFolder.getRoot().getAbsolutePath());
-  }
-
   /**
    * Test for the support of {@link DoFn.RequiresStableInput} in both {@link ParDo.SingleOutput} and
    * {@link ParDo.MultiOutput}.
@@ -117,6 +109,30 @@ public class FlinkRequiresStableInputTest {
   @Test(timeout = 30_000)
   public void testParDoRequiresStableInputPortable() throws Exception {
     runTest(true);
+  }
+
+  @Test(timeout = 30_000)
+  public void testParDoRequiresStableInputStateful() throws Exception {
+    testParDoRequiresStableInputStateful(false);
+  }
+
+  @Test(timeout = 30_000)
+  public void testParDoRequiresStableInputStatefulPortable() throws Exception {
+    testParDoRequiresStableInputStateful(true);
+  }
+
+  private void testParDoRequiresStableInputStateful(boolean portable) throws Exception {
+    FlinkPipelineOptions opts = getFlinkOptions(portable);
+    opts.as(FlinkPipelineOptions.class).setShutdownSourcesAfterIdleMs(CHECKPOINT_INTERVAL * 2);
+    opts.as(FlinkPipelineOptions.class).setNumberOfExecutionRetries(0);
+    Pipeline pipeline = Pipeline.create(opts);
+    PCollection<Integer> result =
+        pipeline
+            .apply(Create.of(1, 2, 3, 4))
+            .apply(WithKeys.of((Void) null))
+            .apply(ParDo.of(new StableDoFn()));
+    PAssert.that(result).containsInAnyOrder(1, 2, 3, 4);
+    executePipeline(pipeline, portable);
   }
 
   private void runTest(boolean portable) throws Exception {
@@ -233,5 +249,41 @@ public class FlinkRequiresStableInputTest {
       options.setRunner(FlinkRunner.class);
     }
     return options;
+  }
+
+  private static class StableDoFn extends DoFn<KV<Void, Integer>, Integer> {
+
+    @StateId("state")
+    final StateSpec<BagState<Integer>> stateSpec = StateSpecs.bag();
+
+    @TimerId("flush")
+    final TimerSpec flushSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @ProcessElement
+    @RequiresStableInput
+    public void process(
+        @Element KV<Void, Integer> input,
+        @StateId("state") BagState<Integer> buffer,
+        @TimerId("flush") Timer flush,
+        OutputReceiver<Integer> output) {
+
+      // Timers do not to work with stateful stable dofn,
+      // see https://github.com/apache/beam/issues/24662
+      // Once this is resolved, flush the buffer on timer
+      // flush.set(GlobalWindow.INSTANCE.maxTimestamp());
+      // buffer.add(input.getValue());
+      output.output(input.getValue());
+    }
+
+    @OnTimer("flush")
+    public void flush(
+        @Timestamp Instant ts,
+        @StateId("state") BagState<Integer> buffer,
+        OutputReceiver<Integer> output) {
+
+      Optional.ofNullable(buffer.read())
+          .ifPresent(b -> b.forEach(e -> output.outputWithTimestamp(e, ts)));
+      buffer.clear();
+    }
   }
 }

@@ -177,15 +177,15 @@ public class DoFnOperator<InputT, OutputT>
 
   protected final String stepName;
 
-  private final Coder<WindowedValue<InputT>> windowedInputCoder;
+  final Coder<WindowedValue<InputT>> windowedInputCoder;
 
-  private final Map<TupleTag<?>, Coder<?>> outputCoders;
+  final Map<TupleTag<?>, Coder<?>> outputCoders;
 
-  protected final Coder<?> keyCoder;
+  final Coder<?> keyCoder;
 
   final KeySelector<WindowedValue<InputT>, ?> keySelector;
 
-  private final TimerInternals.TimerDataCoderV2 timerCoder;
+  final TimerInternals.TimerDataCoderV2 timerCoder;
 
   /** Max number of elements to include in a bundle. */
   private final long maxBundleSize;
@@ -197,9 +197,9 @@ public class DoFnOperator<InputT, OutputT>
   private final Map<String, PCollectionView<?>> sideInputMapping;
 
   /** If true, we must process elements only after a checkpoint is finished. */
-  private final boolean requiresStableInput;
+  final boolean requiresStableInput;
 
-  private final int numConcurrentCheckpoints;
+  final int numConcurrentCheckpoints;
 
   private final boolean usesOnWindowExpiration;
 
@@ -545,7 +545,7 @@ public class DoFnOperator<InputT, OutputT>
     pendingFinalizations = new LinkedHashMap<>();
   }
 
-  private DoFnRunner<InputT, OutputT> createBufferingDoFnRunnerIfNeeded(
+  DoFnRunner<InputT, OutputT> createBufferingDoFnRunnerIfNeeded(
       DoFnRunner<InputT, OutputT> wrappedRunner) throws Exception {
 
     if (requiresStableInput) {
@@ -628,7 +628,9 @@ public class DoFnOperator<InputT, OutputT>
     }
     if (currentOutputWatermark < Long.MAX_VALUE) {
       throw new RuntimeException(
-          "There are still watermark holds. Watermark held at " + currentOutputWatermark);
+          String.format(
+              "There are still watermark holds left when terminating operator %s Watermark held %d",
+              getOperatorName(), currentOutputWatermark));
     }
 
     // sanity check: these should have been flushed out by +Inf watermarks
@@ -647,7 +649,12 @@ public class DoFnOperator<InputT, OutputT>
 
   public long getEffectiveInputWatermark() {
     // hold back by the pushed back values waiting for side inputs
-    return Math.min(pushedBackWatermark, currentInputWatermark);
+    long combinedPushedBackWatermark = pushedBackWatermark;
+    if (requiresStableInput) {
+      combinedPushedBackWatermark =
+          Math.min(combinedPushedBackWatermark, bufferingDoFnRunner.getOutputWatermarkHold());
+    }
+    return Math.min(combinedPushedBackWatermark, currentInputWatermark);
   }
 
   public long getCurrentOutputWatermark() {
@@ -799,9 +806,6 @@ public class DoFnOperator<InputT, OutputT>
    * @return The new output watermark which will be emitted.
    */
   public long applyOutputWatermarkHold(long currentOutputWatermark, long potentialOutputWatermark) {
-    if (requiresStableInput) {
-      return Math.min(bufferingDoFnRunner.getOutputWatermarkHold(), potentialOutputWatermark);
-    }
     return potentialOutputWatermark;
   }
 
@@ -830,7 +834,7 @@ public class DoFnOperator<InputT, OutputT>
         return;
       }
 
-      LOG.debug("Emitting watermark {}", watermark);
+      LOG.debug("Emitting watermark {} from {}", watermark, getOperatorName());
       currentOutputWatermark = watermark;
       output.emitWatermark(new Watermark(watermark));
 

@@ -65,6 +65,8 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.utils.Locker;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput.BufferingDoFnRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
 import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandlers;
@@ -754,6 +756,28 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
+  DoFnRunner<InputT, OutputT> createBufferingDoFnRunnerIfNeeded(
+      DoFnRunner<InputT, OutputT> wrappedRunner) throws Exception {
+
+    if (requiresStableInput) {
+      // put this in front of the root FnRunner before any additional wrappers
+      return this.bufferingDoFnRunner =
+          BufferingDoFnRunner.create(
+              wrappedRunner,
+              "stable-input-buffer",
+              windowedInputCoder,
+              windowingStrategy.getWindowFn().windowCoder(),
+              getOperatorStateBackend(),
+              getBufferingKeyedStateBackend(),
+              numConcurrentCheckpoints,
+              serializedOptions,
+              () -> Locker.locked(stateBackendLock),
+              input -> FlinkKeyUtils.encodeKey(((KV) input).getKey(), (Coder) keyCoder));
+    }
+    return wrappedRunner;
+  }
+
+  @Override
   protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
       DoFnRunner<InputT, OutputT> wrappedRunner, StepContext stepContext) {
     sdkHarnessRunner =
@@ -1108,19 +1132,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         requiresTimeSortedInput(payload, true)) {
 
       @Override
-      public void processElement(WindowedValue<InputT> input) {
-        try (Locker locker = Locker.locked(stateBackendLock)) {
-          @SuppressWarnings({"unchecked", "rawtypes"})
-          final ByteBuffer key =
-              FlinkKeyUtils.encodeKey(((KV) input.getValue()).getKey(), (Coder) keyCoder);
-          if (getKeyedStateBackend() != null) {
-            getKeyedStateBackend().setCurrentKey(key);
-          }
-          super.processElement(input);
-        }
-      }
-
-      @Override
       public void finishBundle() {
         // Before cleaning up state, first finish bundle for all underlying DoFnRunners
         super.finishBundle();
@@ -1291,25 +1302,5 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     @RequiresStableInput
     @ProcessElement
     public void doNothing(ProcessContext context) {}
-  }
-
-  private static class Locker implements AutoCloseable {
-
-    public static Locker locked(Lock lock) {
-      Locker locker = new Locker(lock);
-      lock.lock();
-      return locker;
-    }
-
-    private final Lock lock;
-
-    Locker(Lock lock) {
-      this.lock = lock;
-    }
-
-    @Override
-    public void close() {
-      lock.unlock();
-    }
   }
 }
