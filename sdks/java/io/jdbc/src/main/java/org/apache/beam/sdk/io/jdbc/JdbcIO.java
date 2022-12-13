@@ -2097,7 +2097,7 @@ public class JdbcIO {
       checkState(
           tableSchema.getFieldCount() >= schema.getFieldCount(),
           String.format(
-              "Input schema has more fields (%s) than actual table (%s).\n\t"
+              "Input schema has more fields (%s) than actual table (%s).%n\t"
                   + "Input schema fields: %s | Table fields: %s",
               tableSchema.getFieldCount(),
               schema.getFieldCount(),
