@@ -20,7 +20,7 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python Integration',
+    nameBase: 'Python_Integration',
     gradleTask: ':pythonPreCommitIT',
     timeoutMins: 180,
     triggerPathPatterns: [
