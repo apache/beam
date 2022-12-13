@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.Watch.Growth.eitherOf;
 import static org.apache.beam.sdk.transforms.Watch.Growth.never;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.joda.time.Duration.standardSeconds;
 import static org.junit.Assert.assertEquals;
@@ -32,14 +31,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -307,74 +304,6 @@ public class WatchTest implements Serializable {
                   numResults,
                   Lists.newArrayList(input).size());
               assertEquals("Results are not unique", numResults, Sets.newHashSet(input).size());
-              return null;
-            });
-
-    p.run();
-  }
-
-  @Test
-  @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
-  public void testMultiplePollsWithManyResults() {
-    final long numResults = 3000;
-    List<Integer> all = Lists.newArrayList();
-    for (int i = 0; i < numResults; ++i) {
-      all.add(i);
-    }
-
-    PCollection<TimestampedValue<Integer>> res =
-        p.apply(Create.of("a"))
-            .apply(
-                Watch.growthOf(
-                        new TimedPollFn<String, Integer>(
-                            all,
-                            standardSeconds(3) /* timeToOutputEverything */,
-                            standardSeconds(3) /* timeToDeclareOutputFinal */,
-                            standardSeconds(30) /* timeToFail */))
-                    .withPollInterval(Duration.millis(500))
-                    .withOutputCoder(VarIntCoder.of()))
-            .apply(Reify.timestampsInValue())
-            .apply("Drop timestamped input", Values.create());
-
-    PAssert.that(res)
-        .satisfies(
-            outputs -> {
-              Function<TimestampedValue<Integer>, Integer> extractValueFn =
-                  new Function<TimestampedValue<Integer>, Integer>() {
-                    @Override
-                    public @Nullable Integer apply(@Nullable TimestampedValue<Integer> input) {
-                      return input.getValue();
-                    }
-                  };
-              Function<TimestampedValue<Integer>, Instant> extractTimestampFn =
-                  new Function<TimestampedValue<Integer>, Instant>() {
-                    @Override
-                    public @Nullable Instant apply(@Nullable TimestampedValue<Integer> input) {
-                      return input.getTimestamp();
-                    }
-                  };
-
-              Ordering<TimestampedValue<Integer>> byTimestamp =
-                  Ordering.natural().onResultOf(extractTimestampFn);
-              // New outputs appear in timestamp order because each output's assigned timestamp
-              // is Instant.now() at the time of poll.
-              assertTrue("Outputs must be in timestamp order", byTimestamp.isOrdered(outputs));
-              assertEquals(
-                  "Yields all expected values",
-                  numResults,
-                  Sets.newHashSet(
-                          StreamSupport.stream(outputs.spliterator(), false)
-                              .map(extractValueFn::apply)
-                              .collect(Collectors.toList()))
-                      .size());
-              assertThat(
-                  "Poll called more than once",
-                  Sets.newHashSet(
-                          StreamSupport.stream(outputs.spliterator(), false)
-                              .map(extractTimestampFn::apply)
-                              .collect(Collectors.toList()))
-                      .size(),
-                  greaterThan(1));
               return null;
             });
 
