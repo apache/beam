@@ -17,4 +17,4 @@
  */
 
 /** Cdap Plugins template. */
-package org.apache.beam.examples.complete.cdap.options;
+package org.apache.beam.examples.complete.cdap.zendesk.utils;

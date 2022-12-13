@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap;
+package org.apache.beam.examples.complete.cdap.zendesk;
 
-import static org.apache.beam.examples.complete.cdap.transforms.FormatInputTransform.readFromCdapZendesk;
+import static org.apache.beam.examples.complete.cdap.zendesk.transforms.FormatInputTransform.readFromCdapZendesk;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import java.util.Map;
-import org.apache.beam.examples.complete.cdap.options.CdapZendeskOptions;
-import org.apache.beam.examples.complete.cdap.utils.PluginConfigOptionsConverter;
 import org.apache.beam.examples.complete.cdap.utils.StructuredRecordUtils;
+import org.apache.beam.examples.complete.cdap.zendesk.options.CdapZendeskOptions;
+import org.apache.beam.examples.complete.cdap.zendesk.utils.PluginConfigOptionsConverter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;

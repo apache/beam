@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.transforms;
+package org.apache.beam.examples.complete.cdap.zendesk.transforms;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.plugin.PluginConfig;
-import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSourceConfig;
 import java.util.Map;
@@ -41,14 +40,13 @@ public class FormatInputTransform {
   public static CdapIO.Read<NullWritable, StructuredRecord> readFromCdapZendesk(
       Map<String, Object> pluginConfigParams) {
 
-    Class<? extends BatchSource<?, ?, ?>> pluginClass = ZendeskBatchSource.class;
     final PluginConfig pluginConfig =
         new ConfigWrapper<>(ZendeskBatchSourceConfig.class).withParams(pluginConfigParams).build();
 
     checkStateNotNull(pluginConfig, "Plugin config can't be null.");
 
     return CdapIO.<NullWritable, StructuredRecord>read()
-        .withCdapPluginClass(pluginClass)
+        .withCdapPluginClass(ZendeskBatchSource.class)
         .withPluginConfig(pluginConfig)
         .withKeyClass(NullWritable.class)
         .withValueClass(StructuredRecord.class);

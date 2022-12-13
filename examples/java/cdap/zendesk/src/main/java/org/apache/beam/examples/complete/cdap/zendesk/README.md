@@ -15,14 +15,6 @@
     under the License.
 -->
 
-# Apache Beam pipeline examples for CdapIO and CDAP plugins
-
-This directory contains set of [Apache Beam](https://beam.apache.org/) pipeline examples to read data
-from a [CDAP plugin](https://github.com/data-integrations) and write data into .txt file (and vice versa).
-
-Supported CDAP plugins:
-- [Zendesk](https://github.com/data-integrations/zendesk)
-
 ## Gradle preparation
 
 To run this example your `build.gradle` file should contain the following task to execute the pipeline:
@@ -41,7 +33,7 @@ task executeCdap (type:JavaExec) {
 Gradle 'executeCdap' task allows to run the pipeline via the following command:
 
 ```bash
-gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.CdapZendeskToTxt \
+gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.zendesk.CdapZendeskToTxt \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 

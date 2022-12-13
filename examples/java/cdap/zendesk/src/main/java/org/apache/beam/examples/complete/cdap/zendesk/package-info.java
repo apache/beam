@@ -15,22 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.options;
 
-import io.cdap.plugin.common.Constants;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.Validation;
-
-/**
- * The {@link BaseCdapOptions} interface provides the custom execution options passed by the
- * executor at the command-line for examples with Cdap plugins.
- */
-public interface BaseCdapOptions extends PipelineOptions {
-
-  @Validation.Required
-  @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
-  String getReferenceName();
-
-  void setReferenceName(String referenceName);
-}
+/** Cdap Plugins template. */
+package org.apache.beam.examples.complete.cdap.zendesk;

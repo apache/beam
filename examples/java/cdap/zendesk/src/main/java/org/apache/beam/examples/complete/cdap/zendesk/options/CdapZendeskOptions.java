@@ -15,16 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.cdap.options;
+package org.apache.beam.examples.complete.cdap.zendesk.options;
 
+import org.apache.beam.examples.complete.cdap.options.BaseCdapOptions;
+import org.apache.beam.examples.complete.cdap.zendesk.CdapZendeskToTxt;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 
 /**
  * The {@link CdapZendeskOptions} interface provides the custom execution options passed by the
- * executor at the command-line for {@link org.apache.beam.examples.complete.cdap.CdapZendeskToTxt}
- * example.
+ * executor at the command-line for {@link CdapZendeskToTxt} example.
  */
 public interface CdapZendeskOptions extends BaseCdapOptions {
 
