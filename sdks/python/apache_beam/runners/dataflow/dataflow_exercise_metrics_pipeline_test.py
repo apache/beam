@@ -43,8 +43,10 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
     p = beam.Pipeline(options=pipeline_options)
     return dataflow_exercise_metrics_pipeline.apply_and_run(p)
 
+  # ./run_integration_test.sh --test_opts apache_beam/runners/dataflow/dataflow_exercise_metrics_pipeline_test.py::ExerciseMetricsPipelineTest::test_metrics_it --sdk_location "dist/apache-beam-2.45.0.dev0.tar.gz" --gcs_location "gs://ahmedabualsaud-wordcount/tmp" --project "google.com:clouddfe"
   @pytest.mark.it_postcommit
   # @unittest.skip('https://github.com/apache/beam/issues/22605')
+  @pytest.mark.debug_testing
   def test_metrics_it(self):
     result = self.run_pipeline()
     errors = metric_result_matchers.verify_all(

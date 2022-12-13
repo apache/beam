@@ -105,7 +105,8 @@ task postCommitIT {
         "test_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
-        "collect": "it_postcommit"
+        "collect": "debug_testing",
+//         "collect": "it_postcommit"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
