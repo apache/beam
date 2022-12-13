@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.Watch.Growth.eitherOf;
 import static org.apache.beam.sdk.transforms.Watch.Growth.never;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.joda.time.Duration.standardSeconds;
 import static org.junit.Assert.assertEquals;
@@ -31,6 +32,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
@@ -326,7 +328,7 @@ public class WatchTest implements Serializable {
                 Watch.growthOf(
                         new TimedPollFn<String, Integer>(
                             all,
-                            standardSeconds(1) /* timeToOutputEverything */,
+                            standardSeconds(2) /* timeToOutputEverything */,
                             standardSeconds(3) /* timeToDeclareOutputFinal */,
                             standardSeconds(30) /* timeToFail */))
                     .withPollInterval(Duration.millis(500))
@@ -367,9 +369,12 @@ public class WatchTest implements Serializable {
                       .size());
               assertThat(
                   "Poll called more than once",
-                  StreamSupport.stream(outputs.spliterator(), false)
-                      .map(extractTimestampFn::apply).count(),
-                  greaterThan(1L));
+                  Sets.newHashSet(
+                          StreamSupport.stream(outputs.spliterator(), false)
+                              .map(extractTimestampFn::apply)
+                              .collect(Collectors.toList()))
+                      .size(),
+                  greaterThan(1));
               return null;
             });
 
