@@ -137,8 +137,8 @@ tasks.register("generateCode") {
 tasks.register("extractBeamSymbols") {
   dependsOn("ensureSymbolsDirectoryExists")
   dependsOn("extractBeamSymbolsGo")
-  dependsOn("extractBeamSymbolsPython")
   dependsOn("extractBeamSymbolsJava")
+  dependsOn("extractBeamSymbolsPython")
 
   group = "build"
   description = "Build Beam symbols dictionaries"
@@ -168,6 +168,10 @@ tasks.register("extractBeamSymbolsGo") {
   }
 }
 
+tasks.register("extractBeamSymbolsJava") {
+  dependsOn("tools:extract_symbols_java:buildJava")
+}
+
 tasks.register("extractBeamSymbolsPython") {
   doLast {
     exec {
@@ -179,8 +183,4 @@ tasks.register("extractBeamSymbolsPython") {
       standardOutput = FileOutputStream("playground/frontend/playground_components/assets/symbols/python.g.yaml")
     }
   }
-}
-
-tasks.register("extractBeamSymbolsJava") {
-  dependsOn("tools:extract_symbols_java:buildJava")
 }
