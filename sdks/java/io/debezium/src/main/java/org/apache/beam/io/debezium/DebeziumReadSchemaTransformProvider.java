@@ -46,14 +46,14 @@ public class DebeziumReadSchemaTransformProvider
       LoggerFactory.getLogger(DebeziumReadSchemaTransformProvider.class);
   private final Boolean isTest;
   private final Integer testLimitRecords;
-  private final Integer testLimitMilliseconds;
+  private final Long testLimitMilliseconds;
 
   DebeziumReadSchemaTransformProvider() {
-    this(false, -1, Integer.MAX_VALUE);
+    this(false, -1, Long.MAX_VALUE);
   }
 
   @VisibleForTesting
-  DebeziumReadSchemaTransformProvider(Boolean isTest, Integer recordLimit, Integer timeLimitMs) {
+  DebeziumReadSchemaTransformProvider(Boolean isTest, Integer recordLimit, Long timeLimitMs) {
     this.isTest = isTest;
     this.testLimitRecords = recordLimit;
     this.testLimitMilliseconds = timeLimitMs;

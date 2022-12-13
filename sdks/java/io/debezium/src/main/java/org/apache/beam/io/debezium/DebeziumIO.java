@@ -144,7 +144,7 @@ public class DebeziumIO {
 
     abstract @Nullable Integer getMaxNumberOfRecords();
 
-    abstract @Nullable Integer getMaxTimeToRun();
+    abstract @Nullable Long getMaxTimeToRun();
 
     abstract @Nullable Coder<T> getCoder();
 
@@ -160,7 +160,7 @@ public class DebeziumIO {
 
       abstract Builder<T> setMaxNumberOfRecords(Integer maxNumberOfRecords);
 
-      abstract Builder<T> setMaxTimeToRun(Integer miliseconds);
+      abstract Builder<T> setMaxTimeToRun(Long miliseconds);
 
       abstract Read<T> build();
     }
@@ -217,7 +217,7 @@ public class DebeziumIO {
      * @param miliseconds The maximum number of miliseconds to run before stopping the connector.
      * @return PTransform {@link #read}
      */
-    public Read<T> withMaxTimeToRun(Integer miliseconds) {
+    public Read<T> withMaxTimeToRun(Long miliseconds) {
       return toBuilder().setMaxTimeToRun(miliseconds).build();
     }
 

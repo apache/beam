@@ -83,8 +83,8 @@ public class DebeziumIOPostgresSqlConnectorIT {
 
   @Test
   public void testDebeziumSchemaTransformPostgresRead() throws InterruptedException {
-    int writeSize = 500;
-    int testTime = writeSize * 200;
+    long writeSize = 500L;
+    long testTime = writeSize * 200L;
     POSTGRES_SQL_CONTAINER.start();
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -120,7 +120,8 @@ public class DebeziumIOPostgresSqlConnectorIT {
     PCollection<Row> result =
         PCollectionRowTuple.empty(readPipeline)
             .apply(
-                new DebeziumReadSchemaTransformProvider(true, writeSize + 4, testTime)
+                new DebeziumReadSchemaTransformProvider(
+                        true, Long.valueOf(writeSize).intValue() + 4, testTime)
                     .from(
                         DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration
                             .builder()
@@ -137,7 +138,8 @@ public class DebeziumIOPostgresSqlConnectorIT {
     PAssert.that(result)
         .satisfies(
             rows -> {
-              assertThat(Lists.newArrayList(rows).size(), equalTo(writeSize + 4));
+              assertThat(
+                  Lists.newArrayList(rows).size(), equalTo(Long.valueOf(writeSize + 4).intValue()));
               return null;
             });
     Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());

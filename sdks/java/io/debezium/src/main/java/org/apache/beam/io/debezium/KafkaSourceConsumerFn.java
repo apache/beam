@@ -79,7 +79,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   private final Class<? extends SourceConnector> connectorClass;
   private final SourceRecordMapper<T> fn;
 
-  private Integer milisecondsToRun = -1;
+  private Long milisecondsToRun = null;
   private Integer maxRecords;
 
   private static DateTime startTime;
@@ -97,7 +97,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       Class<?> connectorClass,
       SourceRecordMapper<T> fn,
       Integer maxRecords,
-      Integer milisecondsToRun) {
+      Long milisecondsToRun) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
     this.maxRecords = maxRecords;
@@ -307,14 +307,14 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     public @Nullable List<?> history;
     public @Nullable Integer fetchedRecords;
     public @Nullable Integer maxRecords;
-    public final long milisToRun;
+    public final @Nullable Long milisToRun;
 
     OffsetHolder(
         @Nullable Map<String, ?> offset,
         @Nullable List<?> history,
         @Nullable Integer fetchedRecords,
         @Nullable Integer maxRecords,
-        long milisToRun) {
+        @Nullable Long milisToRun) {
       this.offset = offset;
       this.history = history == null ? new ArrayList<>() : history;
       this.fetchedRecords = fetchedRecords;
@@ -326,7 +326,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
         @Nullable Map<String, ?> offset,
         @Nullable List<?> history,
         @Nullable Integer fetchedRecords) {
-      this(offset, history, fetchedRecords, null, -1);
+      this(offset, history, fetchedRecords, null, -1L);
     }
   }
 
@@ -376,7 +376,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       // the attempt to claim.
       // If we've reached neither, then we continue approve the claim.
       return (this.restriction.maxRecords == null || fetchedRecords < this.restriction.maxRecords)
-          && (this.restriction.milisToRun == -1 || elapsedTime < this.restriction.milisToRun);
+          && (this.restriction.milisToRun == null || elapsedTime < this.restriction.milisToRun);
     }
 
     @Override

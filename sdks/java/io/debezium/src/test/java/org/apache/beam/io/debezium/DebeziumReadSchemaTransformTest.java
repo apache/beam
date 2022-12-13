@@ -93,7 +93,7 @@ public class DebeziumReadSchemaTransformTest {
 
   private PTransform<PCollectionRowTuple, PCollectionRowTuple> makePtransform(
       String user, String password, String database, Integer port, String host) {
-    return new DebeziumReadSchemaTransformProvider(true, 10, 100)
+    return new DebeziumReadSchemaTransformProvider(true, 10, 100L)
         .from(
             DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration.builder()
                 .setDatabase(database)
