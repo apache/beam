@@ -20,11 +20,14 @@
 package inference
 
 import (
+	"context"
 	"reflect"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang/python"
 )
@@ -47,6 +50,7 @@ type PredictionResult struct {
 type runInferenceConfig struct {
 	args          argsStruct
 	expansionAddr string
+	extraPackages []string
 }
 
 type runInferenceOption func(*runInferenceConfig)
@@ -65,8 +69,30 @@ func WithExpansionAddr(expansionAddr string) runInferenceOption {
 	}
 }
 
+// WithExtraPackages is used to specify additional packages when using an automated expansion service.
+func WithExtraPackages(extraPackages []string) runInferenceOption {
+	return func(c *runInferenceConfig) {
+		c.extraPackages = extraPackages
+	}
+}
+
 type argsStruct struct {
 	args []string
+}
+
+func inferExtraPackages(modelHandler string) []string {
+	extraPackages := []string{}
+
+	mhLowered := strings.ToLower(modelHandler)
+	if strings.Contains(mhLowered, "sklearn") {
+		extraPackages = append(extraPackages, "scikit-learn", "pandas")
+	} else if strings.Contains(mhLowered, "pytorch") {
+		extraPackages = append(extraPackages, "torch")
+	}
+	if len(extraPackages) > 0 {
+		log.Infof(context.Background(), "inferExtraPackages: %v", extraPackages)
+	}
+	return extraPackages
 }
 
 // sklearn configures the parameters for the sklearn inference transform.
@@ -118,17 +144,24 @@ func (sk sklearn) RunInference(s beam.Scope, col beam.PCollection, opts ...runIn
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	return runInference[sklearn](s, col, cfg.args, sk, cfg.expansionAddr)
+	if cfg.expansionAddr == "" {
+		cfg.extraPackages = inferExtraPackages(string(sk.ModelHandlerProvider))
+	}
+
+	return runInference[sklearn](s, col, sk, cfg)
 }
 
-func runInference[Kwargs any](s beam.Scope, col beam.PCollection, a argsStruct, k Kwargs, addr string) beam.PCollection {
-	expansionAddr := addr
-	if expansionAddr == "" {
-		expansionAddr = xlangx.UseAutomatedPythonExpansionService(python.ExpansionServiceModule)
+func runInference[Kwargs any](s beam.Scope, col beam.PCollection, k Kwargs, cfg runInferenceConfig) beam.PCollection {
+	if cfg.expansionAddr == "" {
+		if len(cfg.extraPackages) > 0 {
+			cfg.expansionAddr = xlangx.UseAutomatedPythonExpansionService(python.ExpansionServiceModule, xlangx.AddExtraPackages(cfg.extraPackages))
+		} else {
+			cfg.expansionAddr = xlangx.UseAutomatedPythonExpansionService(python.ExpansionServiceModule)
+		}
 	}
 	pet := python.NewExternalTransform[argsStruct, Kwargs]("apache_beam.ml.inference.base.RunInference.from_callable")
 	pet.WithKwargs(k)
-	pet.WithArgs(a)
+	pet.WithArgs(cfg.args)
 	pl := beam.CrossLanguagePayload(pet)
 
 	// Since External RunInference Transform with Python Expansion Service will send encoded output, we need to specify
@@ -137,6 +170,6 @@ func runInference[Kwargs any](s beam.Scope, col beam.PCollection, a argsStruct, 
 	// may not be decoded with coders known to Go SDK.
 	outputType := map[string]typex.FullType{xlang.SetOutputCoder: typex.New(outputT)}
 
-	result := beam.CrossLanguage(s, "beam:transforms:python:fully_qualified_named", pl, expansionAddr, beam.UnnamedInput(col), outputType)
+	result := beam.CrossLanguage(s, "beam:transforms:python:fully_qualified_named", pl, cfg.expansionAddr, beam.UnnamedInput(col), outputType)
 	return result[beam.UnnamedOutputTag()]
 }

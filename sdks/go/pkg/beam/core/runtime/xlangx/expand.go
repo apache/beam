@@ -28,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
@@ -258,7 +257,6 @@ func startPythonExpansionService(service, extraPackage string) (stopFunc func() 
 	if err != nil {
 		return nil, "", err
 	}
-	log.Debugf(context.Background(), "path: %v", venvPython)
 
 	serviceRunner, err := expansionx.NewPyExpansionServiceRunner(venvPython, service, "")
 	if err != nil {
