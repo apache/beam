@@ -21,6 +21,7 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields, field
+import urllib3
 from pathlib import PurePath
 from typing import List, Optional, Dict
 from api.v1 import api_pb2
@@ -280,12 +281,9 @@ def _get_url_vcs(filepath: str):
     """
     Construct VCS URL from example's filepath
     """
-    root_dir = os.getenv("BEAM_ROOT_DIR", "")
-    file_path_without_root = filepath.replace(root_dir, "", 1)
-    if file_path_without_root.startswith("/"):
-        return "{}{}".format(Config.URL_VCS_PREFIX, file_path_without_root)
-    else:
-        return "{}/{}".format(Config.URL_VCS_PREFIX, file_path_without_root)
+    root_dir = os.getenv("BEAM_ROOT_DIR", "../..")
+    rel_path = os.path.relpath(filepath, root_dir)
+    return "{}/{}".format(Config.URL_VCS_PREFIX, rel_path)
 
 def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
     """

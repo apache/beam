@@ -232,13 +232,14 @@ def test__get_example():
         "",
     )
 
-    result = _get_example("/root/filepath.java", "filepath.java", tag)
+    result = _get_example("../../examples/dir/filepath.java", "filepath.java", tag)
 
     assert result == Example(
         name="Name",
         sdk=SDK_JAVA,
-        filepath="/root/filepath.java",
+        filepath="../../examples/dir/filepath.java",
         code="data",
+        type=PRECOMPILED_OBJECT_TYPE_EXAMPLE,
         status=STATUS_UNSPECIFIED,
         tag=Tag(
             "Name",
@@ -254,7 +255,7 @@ def test__get_example():
             None,
             "https://some_url/py-name.ipynb",
         ),
-        url_vcs="https://github.com/apache/beam/blob/master/root/filepath.java",
+        url_vcs="https://github.com/apache/beam/blob/master/examples/dir/filepath.java",
         url_notebook="https://some_url/py-name.ipynb",
         complexity="MEDIUM",
         emulators=[
