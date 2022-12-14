@@ -40,8 +40,8 @@ val licenseText = "#############################################################
 
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
-    id("org.unbroken-dome.helm") version "1.7.0"
-    id("org.unbroken-dome.helm-releases") version "1.7.0"
+//   id("org.unbroken-dome.helm") version "1.7.0"
+//   id("org.unbroken-dome.helm-releases") version "1.7.0" 
 }
 
 terraformPlugin {
@@ -465,34 +465,43 @@ dns_name: ${dns_name}
  }
 }
 
-helm {
-    val playground by charts.creating {
-        chartName.set("playground")
-        sourceDir.set(file("../infrastructure/helm-playground"))
+// helm {
+//     val playground by charts.creating {
+//         chartName.set("playground")
+//         sourceDir.set(file("../infrastructure/helm-playground"))
+//     }
+//     releases {
+//         create("playground") {
+//             from(playground)
+//         }
+//     }
+// }
+tasks.register("helmRelease") {
+    group = "deploy"
+    doLast{
+    exec {
+        executable("helm")
+    args("--help")
     }
-    releases {
-        create("playground") {
-            from(playground)
-        }
-    }
+   }
 }
 tasks.register("gkebackend") {
   group = "deploy"
-  val init = tasks.getByName("terraformInit")
-  val takeConfig = tasks.getByName("takeConfig")
-  val back = tasks.getByName("pushBack")
-  val front = tasks.getByName("pushFront")
-  val indexcreate = tasks.getByName("indexcreate")
-  val helm = tasks.getByName("helmInstallPlayground")
-  dependsOn(init)
-  dependsOn(takeConfig)
-  dependsOn(back)
-  dependsOn(front)
-  dependsOn(indexcreate)
-  dependsOn(helm)
-  takeConfig.mustRunAfter(init)
-  back.mustRunAfter(takeConfig)
-  front.mustRunAfter(back)
-  indexcreate.mustRunAfter(front)
-  helm.mustRunAfter(indexcreate)
+  val initTask = tasks.getByName("terraformInit")
+  val takeConfigTask = tasks.getByName("takeConfig")
+  val pushBackTask = tasks.getByName("pushBack")
+  val pushFrontTask = tasks.getByName("pushFront")
+  val indexcreateTask = tasks.getByName("indexcreate")
+  val helmTask = tasks.getByName("helmRelease")
+  dependsOn(initTask)
+  dependsOn(takeConfigTask)
+  dependsOn(pushBackTask)
+  dependsOn(pushFrontTask)
+  dependsOn(indexcreateTask)
+  dependsOn(helmTask)
+  takeConfigTask.mustRunAfter(initTask)
+  pushBackTask.mustRunAfter(takeConfigTask)
+  pushFrontTask.mustRunAfter(pushBackTask)
+  indexcreateTask.mustRunAfter(pushFrontTask)
+  helmTask.mustRunAfter(indexcreateTask)
 }
