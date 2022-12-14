@@ -40,20 +40,19 @@ variable "gke_machine_type" {
   default     = "e2-standard-4"
 }
 
+variable "gke_node_count" {
+  description = "Node pool size"
+  default     = 1
+}
+
 variable "gke_name" {
   description = "Name of GKE cluster"
   default = "playground-backend"
 }
 
-variable "min_count" {
-  description = "Min cluster node count"
-  default     = 2
-}
-
-variable "max_count" {
-  description = "Max cluster node count"
-  default     = 6
-}
+#  variable "gke_location" {
+#    description = "Location of GKE cluster"
+#  }
 
 variable "service_account" {
   description = "Service account id"
@@ -65,6 +64,10 @@ variable "repository_id" {
   description = "ID of Artifact Registry"
   default     = "playground-repository"
 }
+
+# variable "repository_location" {
+#   description = "Location of Artifact Registry"
+# }
 
 #Redis
 
@@ -116,6 +119,10 @@ variable "docker_image_name" {
   default     = "beam_playground"
   description = "Base prefix for docker images"
 }
+
+# variable "application_location" {
+#   description = "Location of App"
+# }
 
 # Frontend variables
 
@@ -287,6 +294,7 @@ variable "router_cpu" {
   type        = number
   default     = 2
 }
+
 
 variable "state_bucket" {
   description = "GCP bucket that used to store terraform state"
