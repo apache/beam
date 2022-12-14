@@ -278,21 +278,21 @@ def create_builtin_provider():
       for key in dir(apache_beam.io)
       if key.startswith('ReadFrom') or key.startswith('WriteTo')
   }
-  ios['ReadFromCsv'] = lambda **kwargs: apache_beam.dataframes.io.ReadViaPandas(
+  ios['ReadFromCsv'] = lambda **kwargs: apache_beam.dataframe.io.ReadViaPandas(
       'csv', **kwargs)
-  ios['WriteToCsv'] = lambda **kwargs: apache_beam.dataframes.io.WriteViaPandas(
+  ios['WriteToCsv'] = lambda **kwargs: apache_beam.dataframe.io.WriteViaPandas(
       'csv', **kwargs)
   ios['ReadFromJson'] = (
       lambda *,
       orient='records',
       lines=True,
-      **kwargs: apache_beam.dataframes.io.ReadViaPandas(
+      **kwargs: apache_beam.dataframe.io.ReadViaPandas(
           'json', orient=orient, lines=lines, **kwargs))
   ios['WriteToJson'] = (
       lambda *,
       orient='records',
       lines=True,
-      **kwargs: apache_beam.dataframes.io.WriteViaPandas(
+      **kwargs: apache_beam.dataframe.io.WriteViaPandas(
           'json', orient=orient, lines=lines, **kwargs))
 
   return InlineProvider(
@@ -301,7 +301,13 @@ def create_builtin_provider():
           reshuffle=True: beam.Create(elements, reshuffle),
           'PyMap': lambda fn: beam.Map(
               python_callable.PythonCallableWithSource(fn)),
+          'PyMapTuple': lambda fn: beam.MapTuple(
+              python_callable.PythonCallableWithSource(fn)),
           'PyFlatMap': lambda fn: beam.FlatMap(
+              python_callable.PythonCallableWithSource(fn)),
+          'PyFlatMapTuple': lambda fn: beam.FlatMapTuple(
+              python_callable.PythonCallableWithSource(fn)),
+          'PyFilter': lambda fn: beam.Filter(
               python_callable.PythonCallableWithSource(fn)),
           'PyTransform': fully_qualified_named_transform,
           'PyToRow': lambda fields: beam.Select(
