@@ -20,8 +20,6 @@ package org.apache.beam.examples.complete.cdap.hubspot.transforms;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.gson.JsonElement;
-import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.etl.api.streaming.StreamingSource;
 import io.cdap.plugin.hubspot.common.SourceHubspotConfig;
 import io.cdap.plugin.hubspot.source.batch.HubspotBatchSource;
 import io.cdap.plugin.hubspot.source.streaming.HubspotReceiver;
@@ -69,8 +67,6 @@ public class FormatInputTransform {
   public static CdapIO.Read<NullWritable, String> readFromCdapHubspotStreaming(
       Map<String, Object> pluginConfigParams, Long pullFrequencySec, Long startOffset) {
 
-    Class<? extends StreamingSource<StructuredRecord>> pluginClass = HubspotStreamingSource.class;
-
     final HubspotStreamingSourceConfig pluginConfig =
         new ConfigWrapper<>(HubspotStreamingSourceConfig.class)
             .withParams(pluginConfigParams)
@@ -81,8 +77,8 @@ public class FormatInputTransform {
         CdapIO.<NullWritable, String>read()
             .withCdapPlugin(
                 Plugin.createStreaming(
-                    pluginClass,
-                    GetOffsetUtils.getOffsetFnForCdapPlugin(pluginClass),
+                    HubspotStreamingSource.class,
+                    GetOffsetUtils.getOffsetFnForCdapPlugin(HubspotStreamingSource.class),
                     HubspotReceiver.class))
             .withPluginConfig(pluginConfig)
             .withKeyClass(NullWritable.class)

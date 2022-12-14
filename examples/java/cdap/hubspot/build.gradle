@@ -51,9 +51,11 @@ dependencies {
     implementation project(":sdks:java:io:hadoop-common")
     implementation library.java.cdap_api
     implementation library.java.cdap_api_commons
+    permitUnusedDeclared library.java.cdap_api_commons
     implementation library.java.cdap_etl_api
     permitUnusedDeclared library.java.cdap_etl_api
     implementation library.java.cdap_etl_api_spark
+    permitUnusedDeclared library.java.cdap_etl_api_spark
     implementation library.java.cdap_hydrator_common
     //TODO: modify to 'implementation library.java.cdap_plugin_hubspot',
     // when new release with HasOffset interface will be published
