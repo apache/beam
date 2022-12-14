@@ -48,8 +48,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class PythonExternalTransformTest implements Serializable {
-  // @Ignore("https://github.com/apache/beam/issues/21561")
-  @Test
+
   @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
   public void trivialPythonTransform() {
     Pipeline p = Pipeline.create();
@@ -64,7 +63,6 @@ public class PythonExternalTransformTest implements Serializable {
     // TODO: Run this on a multi-language supporting runner.
   }
 
-  // @Ignore("https://github.com/apache/beam/issues/21561")
   @Test
   @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
   public void pythonTransformWithDependencies() {
