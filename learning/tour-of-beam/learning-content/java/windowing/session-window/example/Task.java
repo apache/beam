@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: fixed-time-window
-//   description: Fixed-time-window example.
+//   name: session-window
+//   description: Session window example.
 //   multifile: false
 //   context_line: 36
 //   categories:
@@ -33,6 +33,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -58,10 +60,10 @@ public class Task {
                 );
 
 
-        PCollection<String> fixedWindowedItems = words.apply(
-                Window.<String>into(FixedWindows.of(Duration.standardSeconds(30))));
+        PCollection<String> sessionWindowedItems = words.apply(
+                Window.<String>into(Sessions.withGapDuration(Duration.standardSeconds(600))));
 
-        fixedWindowedItems.apply("Log words", ParDo.of(new LogStrings()));
+        sessionWindowedItems.apply("Log words", ParDo.of(new LogStrings()));
 
 
         pipeline.run();
