@@ -386,6 +386,7 @@ func (d *DatastoreDb) DeleteProgress(ctx context.Context, uid string) error {
 		if err != nil {
 			return fmt.Errorf("query tb_user_progress: %w", err)
 		}
+		log.Printf("deleting %v tb_user_progress entities\n", len(keys))
 		if err := tx.DeleteMulti(keys); err != nil {
 			return fmt.Errorf("delete %v enitities tb_user_progress: %w", len(keys), err)
 		}
