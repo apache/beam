@@ -33,6 +33,8 @@ final class SingleStoreDefaultUserDataMapper implements SingleStoreIO.UserDataMa
       DateTimeFormat.forPattern("yyyy-MM-DD' 'HH:mm:ss.SSS");
 
   private String convertLogicalTypeFieldToString(Schema.FieldType type, Object value) {
+    assert type.getTypeName().isLogicalType();
+
     Schema.LogicalType<Object, Object> logicalType =
         (Schema.LogicalType<Object, Object>) type.getLogicalType();
     if (logicalType == null) {
