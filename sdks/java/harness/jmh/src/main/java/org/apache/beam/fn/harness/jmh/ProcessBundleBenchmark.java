@@ -193,7 +193,7 @@ public class ProcessBundleBenchmark {
         controlClient.close();
         sdkHarnessExecutorFuture.get();
       } catch (InterruptedException ignored) {
-        // expected
+        Thread.currentThread().interrupt();
       } catch (Exception e) {
         throw new RuntimeException(e);
       } finally {
