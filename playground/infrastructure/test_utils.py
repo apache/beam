@@ -39,6 +39,6 @@ def _get_examples(number_of_examples: int) -> List[Example]:
             output=f"MOCK_OUTPUT_{number}",
             status=STATUS_UNSPECIFIED,
             tag=Tag(**object_meta),
-            link=f"MOCK_LINK_{number}")
+            url_vcs=f"MOCK_LINK_{number}")
         examples.append(example)
     return examples

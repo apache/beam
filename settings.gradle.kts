@@ -52,6 +52,8 @@ include(":release:go-licenses:py")
 
 include(":examples:java")
 include(":examples:java:twitter")
+include(":examples:java:cdap")
+include(":examples:java:cdap:servicenow")
 include(":examples:kotlin")
 include(":examples:multi-language")
 include(":model:fn-execution")
