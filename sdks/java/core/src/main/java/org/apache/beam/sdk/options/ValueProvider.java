@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.options;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -129,8 +130,8 @@ public interface ValueProvider<T> extends Serializable {
     private transient volatile T cachedValue;
 
     NestedValueProvider(ValueProvider<X> value, SerializableFunction<X, T> translator) {
-      this.value = checkNotNull(value);
-      this.translator = checkNotNull(translator);
+      this.value = checkArgumentNotNull(value);
+      this.translator = checkArgumentNotNull(translator);
     }
 
     /** Creates a {@link NestedValueProvider} that wraps the provided value. */

@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,9 +60,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * different files for each window and other sharding controls, see the {@code
  * WriteOneFilePerWindow} example pipeline.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public final class DefaultFilenamePolicy extends FilenamePolicy {
   /** The default sharding name template. */
   public static final String DEFAULT_UNWINDOWED_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
@@ -91,6 +90,10 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     private final boolean explicitTemplate;
     private final String suffix;
 
+    private ValueProvider<ResourceId> getBaseFilename() {
+      return checkStateNotNull(baseFilename, "baseFileName accessed before initialization");
+    }
+
     /**
      * Construct a default Params object. The shard template will be set to the default {@link
      * #DEFAULT_UNWINDOWED_SHARD_TEMPLATE} value.
@@ -103,7 +106,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     }
 
     private Params(
-        ValueProvider<ResourceId> baseFilename,
+        @Nullable ValueProvider<ResourceId> baseFilename,
         String shardTemplate,
         String suffix,
         boolean explicitTemplate) {
@@ -147,7 +150,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(baseFilename.get(), shardTemplate, suffix);
+      return Objects.hashCode(getBaseFilename().get(), shardTemplate, suffix);
     }
 
     @Override
@@ -156,7 +159,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
         return false;
       }
       Params other = (Params) o;
-      return baseFilename.get().equals(other.baseFilename.get())
+      return getBaseFilename().get().equals(other.getBaseFilename().get())
           && shardTemplate.equals(other.shardTemplate)
           && suffix.equals(other.suffix);
     }
@@ -185,7 +188,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
       }
-      STRING_CODER.encode(value.baseFilename.get().toString(), outStream);
+      STRING_CODER.encode(value.getBaseFilename().get().toString(), outStream);
       STRING_CODER.encode(value.shardTemplate, outStream);
       STRING_CODER.encode(value.suffix, outStream);
     }
@@ -284,10 +287,12 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
     Matcher m = SHARD_FORMAT_RE.matcher(shardTemplate);
     while (m.find()) {
-      boolean isCurrentShardNum = (m.group(1).charAt(0) == 'S');
-      boolean isNumberOfShards = (m.group(1).charAt(0) == 'N');
-      boolean isPane = (m.group(1).charAt(0) == 'P') && paneStr != null;
-      boolean isWindow = (m.group(1).charAt(0) == 'W') && windowStr != null;
+      String group =
+          checkStateNotNull(m.group(1), "internal error: regex matched but ( ) group not found");
+      boolean isCurrentShardNum = (group.charAt(0) == 'S');
+      boolean isNumberOfShards = (group.charAt(0) == 'N');
+      boolean isPane = (group.charAt(0) == 'P') && paneStr != null;
+      boolean isWindow = (group.charAt(0) == 'W') && windowStr != null;
 
       char[] zeros = new char[m.end() - m.start()];
       Arrays.fill(zeros, '0');
@@ -299,8 +304,10 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
         String formatted = df.format(numShards);
         m.appendReplacement(sb, formatted);
       } else if (isPane) {
+        checkArgumentNotNull(paneStr, "shard format specifies pane but pane string null");
         m.appendReplacement(sb, paneStr);
       } else if (isWindow) {
+        checkArgumentNotNull(windowStr, "shard format specifies window but window string null");
         m.appendReplacement(sb, windowStr);
       }
     }
@@ -313,10 +320,10 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   }
 
   @Override
-  public @Nullable ResourceId unwindowedFilename(
+  public ResourceId unwindowedFilename(
       int shardNumber, int numShards, OutputFileHints outputFileHints) {
     return constructName(
-        params.baseFilename.get(),
+        params.getBaseFilename().get(),
         params.shardTemplate,
         params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
         shardNumber,
@@ -335,7 +342,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     String paneStr = paneInfoToString(paneInfo);
     String windowStr = windowToString(window);
     return constructName(
-        params.baseFilename.get(),
+        params.getBaseFilename().get(),
         params.shardTemplate,
         params.suffix + outputFileHints.getSuggestedFilenameSuffix(),
         shardNumber,
@@ -372,9 +379,9 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     String displayBaseFilename =
-        params.baseFilename.isAccessible()
-            ? params.baseFilename.get().toString()
-            : ("(" + params.baseFilename + ")");
+        params.getBaseFilename().isAccessible()
+            ? params.getBaseFilename().get().toString()
+            : ("(" + params.getBaseFilename() + ")");
     builder.add(
         DisplayData.item(
                 "filenamePattern",

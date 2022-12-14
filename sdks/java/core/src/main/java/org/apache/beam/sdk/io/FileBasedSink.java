@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verifyNotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -81,6 +81,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.TerminatesExecution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,9 +121,6 @@ import org.slf4j.LoggerFactory;
  *
  * @param <OutputT> the type of values written to the sink.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
@@ -283,8 +282,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * #getSideInputs()}.
      */
     protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
-      checkState(
-          sideInputAccessor != null,
+      checkStateNotNull(
+          sideInputAccessor,
           "sideInput called on %s but side inputs have not been initialized",
           getClass().getName());
       return sideInputAccessor.sideInput(view);
@@ -384,7 +383,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * <p>The shardNumber and numShards parameters, should be used by the policy to generate unique
      * and consistent filenames.
      */
-    public abstract @Nullable ResourceId unwindowedFilename(
+    public abstract ResourceId unwindowedFilename(
         int shardNumber, int numShards, OutputFileHints outputFileHints);
 
     /** Populates the display data. */
@@ -443,7 +442,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     return tempDirectoryProvider;
   }
 
-  public void validate(PipelineOptions options) {}
+  public void validate(@Nullable PipelineOptions options) {}
 
   /** Return a subclass of {@link WriteOperation} that will manage the write to the sink. */
   public abstract WriteOperation<DestinationT, OutputT> createWriteOperation();
@@ -562,6 +561,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       this.windowedWrites = false;
     }
 
+    @Pure
     public ResourceId getTempDirectory() {
       if (tempSubdirType == TempSubDirType.NONE) {
         return baseTempDirectory.get();
@@ -956,12 +956,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * fault tolerance.
      */
     public final void open(String uId) throws Exception {
-      this.id = spreadUid(uId);
       ResourceId tempDirectory = getWriteOperation().getTempDirectory();
-      outputFile = tempDirectory.resolve(id, StandardResolveOptions.RESOLVE_FILE);
-      verifyNotNull(
-          outputFile, "FileSystems are not allowed to return null from resolve: %s", tempDirectory);
-
       final WritableByteChannelFactory factory =
           getWriteOperation().getSink().writableByteChannelFactory;
       // The factory may force a MIME type or it may return null, indicating to use the sink's MIME.
@@ -975,7 +970,11 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
               // would otherwise overwrite already finalized data.
               .setExpectFileToNotExist(true)
               .build();
+
+      this.id = spreadUid(uId);
+      this.outputFile = tempDirectory.resolve(id, StandardResolveOptions.RESOLVE_FILE);
       WritableByteChannel tempChannel = FileSystems.create(outputFile, createOptions);
+      @Nullable WritableByteChannel channel = null;
       try {
         channel = factory.create(tempChannel);
       } catch (Exception e) {
@@ -997,6 +996,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         closeChannelAndThrow(channel, outputFile, e);
       }
 
+      this.channel = channel;
       LOG.debug("Starting write of bundle {} to {}.", this.id, outputFile);
     }
 
@@ -1004,11 +1004,13 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     public abstract void write(OutputT value) throws Exception;
 
     public ResourceId getOutputFile() {
+      checkStateNotNull(outputFile, "outputFile accessed when FileBasedSink.Writer not open");
       return outputFile;
     }
 
     // Helper function to close a channel, on exception cases.
     // Always throws prior exception, with any new closing exception suppressed.
+    @TerminatesExecution
     private static void closeChannelAndThrow(
         WritableByteChannel channel, ResourceId filename, Exception prior) throws Exception {
       try {
@@ -1032,7 +1034,11 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     /** Closes the channel and returns the bundle result. */
     public final void close() throws Exception {
-      checkState(outputFile != null, "FileResult.close cannot be called with a null outputFile");
+      ResourceId outputFile =
+          checkStateNotNull(
+              this.outputFile, "FileResult.close cannot be called with a null outputFile");
+      WritableByteChannel channel =
+          checkStateNotNull(this.channel, "FileResult.close cannot be called with a null channel");
       LOG.debug("Closing {}", outputFile);
 
       try {
@@ -1062,6 +1068,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     }
 
     /** Return the WriteOperation that this Writer belongs to. */
+    @Pure
     public WriteOperation<DestinationT, OutputT> getWriteOperation() {
       return writeOperation;
     }
@@ -1071,7 +1078,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     }
 
     /** Return the user destination object for this writer. */
-    public DestinationT getDestination() {
+    public @Nullable DestinationT getDestination() {
       return destination;
     }
   }
@@ -1114,7 +1121,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       return new FileResult<>(tempFilename, shard, window, paneInfo, destination);
     }
 
-    public @Nullable BoundedWindow getWindow() {
+    public BoundedWindow getWindow() {
       return window;
     }
 
@@ -1158,8 +1165,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       extends StructuredCoder<FileResult<DestinationT>> {
     private static final Coder<String> FILENAME_CODER = StringUtf8Coder.of();
     private static final Coder<Integer> SHARD_CODER = VarIntCoder.of();
-    private static final Coder<PaneInfo> PANE_INFO_CODER = NullableCoder.of(PaneInfoCoder.INSTANCE);
-    private final Coder<BoundedWindow> windowCoder;
+    private static final Coder<@Nullable PaneInfo> PANE_INFO_CODER =
+        NullableCoder.of(PaneInfoCoder.INSTANCE);
+    private final Coder<@Nullable BoundedWindow> windowCoder;
     private final Coder<DestinationT> destinationCoder;
 
     protected FileResultCoder(
@@ -1198,8 +1206,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     @Override
     public FileResult<DestinationT> decode(InputStream inStream) throws IOException {
       String tempFilename = FILENAME_CODER.decode(inStream);
-      BoundedWindow window = windowCoder.decode(inStream);
-      PaneInfo paneInfo = PANE_INFO_CODER.decode(inStream);
+      BoundedWindow window =
+          checkArgumentNotNull(windowCoder.decode(inStream), "window cannot be null");
+      PaneInfo paneInfo =
+          checkArgumentNotNull(PANE_INFO_CODER.decode(inStream), "paneInfo cannot be null");
       int shard = SHARD_CODER.decode(inStream);
       DestinationT destination = destinationCoder.decode(inStream);
       return new FileResult<>(

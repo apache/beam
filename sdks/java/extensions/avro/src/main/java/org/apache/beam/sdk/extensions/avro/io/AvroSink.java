@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.avro.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -34,9 +36,6 @@ import org.apache.beam.sdk.util.MimeTypes;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link FileBasedSink} for Avro files. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AvroSink<UserT, DestinationT, OutputT>
     extends FileBasedSink<UserT, DestinationT, OutputT> {
   private final Class<OutputT> type;
@@ -112,7 +111,8 @@ public class AvroSink<UserT, DestinationT, OutputT>
     @SuppressWarnings("deprecation") // uses internal test functionality.
     @Override
     protected void prepareWrite(WritableByteChannel channel) throws Exception {
-      DestinationT destination = getDestination();
+      DestinationT destination =
+          checkStateNotNull(getDestination(), "prepareWrite requirest destination to be set");
       CodecFactory codec = dynamicDestinations.getCodec(destination);
       Schema schema = dynamicDestinations.getSchema(destination);
       Map<String, Object> metadata = dynamicDestinations.getMetadata(destination);

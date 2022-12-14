@@ -82,6 +82,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 
 /**
@@ -344,9 +345,6 @@ import org.joda.time.Duration;
  * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in {@link FileIO} for
  * details on usage
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AvroIO {
   /**
    * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
@@ -1313,14 +1311,19 @@ public class AvroIO {
   @Deprecated
   @AutoValue
   public abstract static class ParseAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
+    @Pure
     abstract MatchConfiguration getMatchConfiguration();
 
+    @Pure
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
+    @Pure
     abstract @Nullable Coder<T> getCoder();
 
+    @Pure
     abstract long getDesiredBundleSizeBytes();
 
+    @Pure
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1333,6 +1336,7 @@ public class AvroIO {
 
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
+      @Pure
       abstract ParseAll<T> build();
     }
 

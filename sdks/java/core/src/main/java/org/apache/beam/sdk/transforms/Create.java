@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -613,8 +614,8 @@ public class Create<T> {
     private final Coder<T> coder;
 
     private OfValueProvider(ValueProvider<T> provider, Coder<T> coder) {
-      this.provider = checkNotNull(provider, "provider");
-      this.coder = checkNotNull(coder, "coder");
+      this.provider = checkArgumentNotNull(provider, "provider");
+      this.coder = checkArgumentNotNull(coder, "coder");
     }
 
     @Override

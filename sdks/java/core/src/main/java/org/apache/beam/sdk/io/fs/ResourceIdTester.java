@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -32,11 +31,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
+import org.junit.Assert;
 
 /** A utility to test {@link ResourceId} implementations. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public final class ResourceIdTester {
   /**
    * Enforces that the {@link ResourceId} implementation of {@code baseDirectory} meets the {@link
@@ -106,6 +103,11 @@ public final class ResourceIdTester {
     //   May need options to be filesystem-independent, e.g., if filesystems ban certain chars.
   }
 
+  @SuppressWarnings("nullness") // JUnit not annotated fully, but is fine with nulls
+  private static <T> void assertEquals(String message, T expected, T actual) {
+    Assert.assertEquals(message, expected, actual);
+  }
+
   /**
    * Asserts that all elements in each group are equal to each other but not equal to any other
    * element in another group.
@@ -113,12 +115,9 @@ public final class ResourceIdTester {
   private static <T> void assertEqualityGroups(List<List<T>> equalityGroups) {
     for (int i = 0; i < equalityGroups.size(); ++i) {
       List<T> current = equalityGroups.get(i);
-      for (int j = 0; j < current.size(); ++j) {
-        for (int k = 0; k < current.size(); ++k) {
-          assertEquals(
-              "Value at " + j + " should equal value at " + k + " in equality group " + i,
-              current.get(j),
-              current.get(k));
+      for (T left : current) {
+        for (T right : current) {
+          assertEquals("In equality group" + i + ": " + left + " != " + right, left, right);
         }
       }
       for (int j = 0; j < equalityGroups.size(); ++j) {

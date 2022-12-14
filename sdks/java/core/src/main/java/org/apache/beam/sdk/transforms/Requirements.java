@@ -61,9 +61,9 @@ public final class Requirements implements Serializable {
     return sideInputs.isEmpty();
   }
 
-  public static Requirements union(Contextful... contextfuls) {
+  public static Requirements union(Contextful<?>... contextfuls) {
     Set<PCollectionView<?>> sideInputs = Sets.newHashSet();
-    for (Contextful c : contextfuls) {
+    for (Contextful<?> c : contextfuls) {
       sideInputs.addAll(c.getRequirements().getSideInputs());
     }
     return requiresSideInputs(sideInputs);

@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -79,6 +81,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjec
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -331,9 +334,6 @@ import org.slf4j.LoggerFactory;
  *     .withNaming(type -> defaultNaming(type + "-transactions", ".csv"));
  * }</pre>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class FileIO {
   private static final Logger LOG = LoggerFactory.getLogger(FileIO.class);
 
@@ -649,8 +649,10 @@ public class FileIO {
 
     @Override
     public PCollection<MatchResult.Metadata> expand(PBegin input) {
+      ValueProvider<String> filePattern =
+          checkStateNotNull(getFilepattern(), "filepattern must be provided for Match transform");
       return input
-          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply("Create filepattern", Create.ofProvider(filePattern, StringUtf8Coder.of()))
           .apply("Via MatchAll", matchAll().withConfiguration(getConfiguration()));
     }
 
@@ -735,9 +737,17 @@ public class FileIO {
     /** Helper function creating a watch transform based on outputKeyFn. */
     private <KeyT> Watch.Growth<String, MatchResult.Metadata, KeyT> createWatchTransform(
         SerializableFunction<MatchResult.Metadata, KeyT> outputKeyFn) {
+      Duration watchInterval =
+          checkStateNotNull(
+              getConfiguration().getWatchInterval(),
+              "watchInterval must be provided to Growth transform");
+      TerminationCondition<String, ?> terminationCondition =
+          checkStateNotNull(
+              getConfiguration().getWatchTerminationCondition(),
+              "terminationCondition must be provided to Growth transform");
       return Watch.growthOf(Contextful.of(new MatchPollFn(), Requirements.empty()), outputKeyFn)
-          .withPollInterval(getConfiguration().getWatchInterval())
-          .withTerminationPerInput(getConfiguration().getWatchTerminationCondition());
+          .withPollInterval(watchInterval)
+          .withTerminationPerInput(terminationCondition);
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
@@ -875,10 +885,13 @@ public class FileIO {
     static ReadableFile matchToReadableFile(
         MatchResult.Metadata metadata, Compression compression) {
 
-      compression =
-          (compression == Compression.AUTO)
-              ? Compression.detect(metadata.resourceId().getFilename())
-              : compression;
+      if (compression == Compression.AUTO) {
+        String filename =
+            checkStateNotNull(
+                metadata.resourceId().getFilename(),
+                "Compression type detection requires filename");
+        compression = Compression.detect(filename);
+      }
       return new ReadableFile(
           MatchResult.Metadata.builder()
               .setResourceId(metadata.resourceId())
@@ -1007,44 +1020,64 @@ public class FileIO {
               .toString();
     }
 
+    @Pure
     abstract boolean getDynamic();
 
+    @Pure
     abstract @Nullable Contextful<Fn<DestinationT, Sink<?>>> getSinkFn();
 
+    @Pure
     abstract @Nullable Contextful<Fn<UserT, ?>> getOutputFn();
 
+    @Pure
     abstract @Nullable Contextful<Fn<UserT, DestinationT>> getDestinationFn();
 
+    @Pure
     abstract @Nullable ValueProvider<String> getOutputDirectory();
 
+    @Pure
     abstract @Nullable ValueProvider<String> getFilenamePrefix();
 
+    @Pure
     abstract @Nullable ValueProvider<String> getFilenameSuffix();
 
+    @Pure
     abstract @Nullable FileNaming getConstantFileNaming();
 
+    @Pure
     abstract @Nullable Contextful<Fn<DestinationT, FileNaming>> getFileNamingFn();
 
+    @Pure
     abstract @Nullable DestinationT getEmptyWindowDestination();
 
+    @Pure
     abstract @Nullable Coder<DestinationT> getDestinationCoder();
 
+    @Pure
     abstract @Nullable ValueProvider<String> getTempDirectory();
 
+    @Pure
     abstract Compression getCompression();
 
+    @Pure
     abstract @Nullable ValueProvider<Integer> getNumShards();
 
+    @Pure
     abstract @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
 
+    @Pure
     abstract boolean getIgnoreWindowing();
 
+    @Pure
     abstract boolean getAutoSharding();
 
+    @Pure
     abstract boolean getNoSpilling();
 
+    @Pure
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    @Pure
     abstract Builder<DestinationT, UserT> toBuilder();
 
     @AutoValue.Builder
@@ -1071,7 +1104,7 @@ public class FileIO {
           Contextful<Fn<DestinationT, FileNaming>> namingFn);
 
       abstract Builder<DestinationT, UserT> setEmptyWindowDestination(
-          DestinationT emptyWindowDestination);
+          @Nullable DestinationT emptyWindowDestination);
 
       abstract Builder<DestinationT, UserT> setDestinationCoder(
           Coder<DestinationT> destinationCoder);
@@ -1085,7 +1118,7 @@ public class FileIO {
           @Nullable ValueProvider<Integer> numShards);
 
       abstract Builder<DestinationT, UserT> setSharding(
-          PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding);
+          @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding);
 
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
 
@@ -1096,6 +1129,7 @@ public class FileIO {
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
+      @Pure
       abstract Write<DestinationT, UserT> build();
     }
 
@@ -1341,19 +1375,20 @@ public class FileIO {
     @VisibleForTesting
     Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
       if (getDynamic()) {
-        checkArgument(
-            getConstantFileNaming() == null,
+        checkArgumentNotNull(
+            getConstantFileNaming(),
             "when using writeDynamic(), must use versions of .withNaming() "
                 + "that take functions from DestinationT");
-        checkArgument(getFilenamePrefix() == null, ".withPrefix() requires write()");
-        checkArgument(getFilenameSuffix() == null, ".withSuffix() requires write()");
-        checkArgument(
-            getFileNamingFn() != null,
-            "when using writeDynamic(), must specify "
-                + ".withNaming() taking a function form DestinationT");
+        checkArgumentNotNull(getFilenamePrefix(), ".withPrefix() requires write()");
+        checkArgumentNotNull(getFilenameSuffix(), ".withSuffix() requires write()");
+        Contextful<Fn<DestinationT, FileNaming>> fileNamingFn =
+            checkArgumentNotNull(
+                getFileNamingFn(),
+                "when using writeDynamic(), must specify "
+                    + ".withNaming() taking a function form DestinationT");
         return fn(
             (element, c) -> {
-              FileNaming naming = getFileNamingFn().getClosure().apply(element, c);
+              FileNaming naming = fileNamingFn.getClosure().apply(element, c);
               return getOutputDirectory() == null
                   ? naming
                   : relativeFileNaming(getOutputDirectory(), naming);
@@ -1363,8 +1398,8 @@ public class FileIO {
         checkArgument(
             getFileNamingFn() == null,
             ".withNaming() taking a function from DestinationT requires writeDynamic()");
-        FileNaming constantFileNaming;
-        if (getConstantFileNaming() == null) {
+        FileNaming constantFileNaming = getConstantFileNaming();
+        if (constantFileNaming == null) {
           constantFileNaming =
               defaultNaming(
                   MoreObjects.firstNonNull(getFilenamePrefix(), StaticValueProvider.of("output")),
@@ -1374,7 +1409,6 @@ public class FileIO {
               getFilenamePrefix() == null, ".to(FileNaming) is incompatible with .withSuffix()");
           checkArgument(
               getFilenameSuffix() == null, ".to(FileNaming) is incompatible with .withPrefix()");
-          constantFileNaming = getConstantFileNaming();
         }
         if (getOutputDirectory() != null) {
           constantFileNaming = relativeFileNaming(getOutputDirectory(), constantFileNaming);
@@ -1389,21 +1423,21 @@ public class FileIO {
 
       resolvedSpec.setDynamic(getDynamic());
 
-      checkArgument(getSinkFn() != null, ".via() is required");
+      checkArgumentNotNull(getSinkFn(), ".via() is required");
       resolvedSpec.setSinkFn(getSinkFn());
 
-      checkArgument(getOutputFn() != null, "outputFn should have been set by .via()");
+      checkArgumentNotNull(getOutputFn(), "outputFn should have been set by .via()");
       resolvedSpec.setOutputFn(getOutputFn());
 
       // Resolve destinationFn
       if (getDynamic()) {
-        checkArgument(getDestinationFn() != null, "when using writeDynamic(), .by() is required");
+        checkArgumentNotNull(getDestinationFn(), "when using writeDynamic(), .by() is required");
         resolvedSpec.setDestinationFn(getDestinationFn());
         resolvedSpec.setDestinationCoder(resolveDestinationCoder(input));
       } else {
-        checkArgument(getDestinationFn() == null, ".by() requires writeDynamic()");
-        checkArgument(
-            getDestinationCoder() == null, ".withDestinationCoder() requires writeDynamic()");
+        checkArgumentNotNull(getDestinationFn(), ".by() requires writeDynamic()");
+        checkArgumentNotNull(
+            getDestinationCoder(), ".withDestinationCoder() requires writeDynamic()");
         resolvedSpec.setDestinationFn(fn(SerializableFunctions.constant(null)));
         resolvedSpec.setDestinationCoder((Coder) VoidCoder.of());
       }
@@ -1411,8 +1445,8 @@ public class FileIO {
       resolvedSpec.setFileNamingFn(resolveFileNamingFn());
       resolvedSpec.setEmptyWindowDestination(getEmptyWindowDestination());
       if (getTempDirectory() == null) {
-        checkArgument(
-            getOutputDirectory() != null, "must specify either .withTempDirectory() or .to()");
+        checkArgumentNotNull(
+            getOutputDirectory(), "must specify either .withTempDirectory() or .to()");
         resolvedSpec.setTempDirectory(getOutputDirectory());
       } else {
         resolvedSpec.setTempDirectory(getTempDirectory());
@@ -1454,8 +1488,11 @@ public class FileIO {
     private Coder<DestinationT> resolveDestinationCoder(PCollection<UserT> input) {
       Coder<DestinationT> destinationCoder = getDestinationCoder();
       if (destinationCoder == null) {
+        Contextful<Fn<UserT, DestinationT>> destinationFn =
+            checkStateNotNull(
+                getDestinationFn(), "inferring destination coder requires destinationFn");
         TypeDescriptor<DestinationT> destinationT =
-            TypeDescriptors.outputOf(getDestinationFn().getClosure());
+            TypeDescriptors.outputOf(destinationFn.getClosure());
         try {
           destinationCoder = input.getPipeline().getCoderRegistry().getCoder(destinationT);
         } catch (CannotProvideCoderException e) {
@@ -1469,7 +1506,11 @@ public class FileIO {
     }
 
     private Collection<PCollectionView<?>> getAllSideInputs() {
-      return Requirements.union(getDestinationFn(), getOutputFn(), getSinkFn(), getFileNamingFn())
+      return Requirements.union(
+              checkStateNotNull(getDestinationFn(), "destinationFn cannot be null"),
+              checkStateNotNull(getOutputFn(), "outputFn cannot be null"),
+              checkStateNotNull(getSinkFn(), "sinkFn cannot be null"),
+              checkStateNotNull(getFileNamingFn(), "fileNamingFn cannot be null"))
           .getSideInputs();
     }
 
@@ -1480,7 +1521,8 @@ public class FileIO {
       private ViaFileBasedSink(Write<DestinationT, UserT> spec) {
         super(
             ValueProvider.NestedValueProvider.of(
-                spec.getTempDirectory(),
+                checkArgumentNotNull(
+                    spec.getTempDirectory(), "Write.ViaFileBasedSink requires a tempDirectory"),
                 input -> FileSystems.matchNewResource(input, true /* isDirectory */)),
             new DynamicDestinationsAdapter<>(spec),
             spec.getCompression());
@@ -1493,14 +1535,28 @@ public class FileIO {
           @Override
           public Writer<DestinationT, OutputT> createWriter() throws Exception {
             return new Writer<DestinationT, OutputT>(this, "") {
+
+              // non-null after prepareWrite
               private @Nullable Sink<OutputT> sink;
+
+              private Sink<OutputT> getSink() {
+                return checkStateNotNull(
+                    sink, "prepareWrite() must be called before using WriteOperation");
+              }
 
               @Override
               protected void prepareWrite(WritableByteChannel channel) throws Exception {
-                Fn<DestinationT, Sink<OutputT>> sinkFn = (Fn) spec.getSinkFn().getClosure();
+                Contextful<Fn<DestinationT, Sink<?>>> sinkFnBox =
+                    checkArgumentNotNull(
+                        spec.getSinkFn(), "Write.ViaFileBasedSink requires a sinkFn");
+                Fn<DestinationT, Sink<OutputT>> sinkFn =
+                    (Fn<DestinationT, Sink<OutputT>>) (Fn<?, ?>) sinkFnBox.getClosure();
+                DestinationT destination =
+                    checkStateNotNull(
+                        getDestination(), "prepareWrite requires destination to be set");
                 sink =
                     sinkFn.apply(
-                        getDestination(),
+                        destination,
                         new Fn.Context() {
                           @Override
                           public <T> T sideInput(PCollectionView<T> view) {
@@ -1515,12 +1571,12 @@ public class FileIO {
 
               @Override
               public void write(OutputT value) throws Exception {
-                sink.write(value);
+                getSink().write(value);
               }
 
               @Override
               protected void finishWrite() throws Exception {
-                sink.flush();
+                getSink().flush();
               }
             };
           }
@@ -1552,8 +1608,9 @@ public class FileIO {
         @Override
         public OutputT formatRecord(UserT record) {
           try {
-            return ((Fn<UserT, OutputT>) spec.getOutputFn().getClosure())
-                .apply(record, getContext());
+            Contextful<Fn<UserT, ?>> outputFn =
+                checkArgumentNotNull(spec.getOutputFn(), "DynamicDestinations requires outputFn");
+            return ((Fn<UserT, OutputT>) outputFn.getClosure()).apply(record, getContext());
           } catch (Exception e) {
             throw new RuntimeException(e);
           }
@@ -1562,7 +1619,10 @@ public class FileIO {
         @Override
         public DestinationT getDestination(UserT element) {
           try {
-            return spec.getDestinationFn().getClosure().apply(element, getContext());
+            Contextful<Fn<UserT, DestinationT>> destinationFn =
+                checkArgumentNotNull(
+                    spec.getDestinationFn(), "DynamicDestinations requires destinationFn");
+            return destinationFn.getClosure().apply(element, getContext());
           } catch (Exception e) {
             throw new RuntimeException(e);
           }
@@ -1570,14 +1630,18 @@ public class FileIO {
 
         @Override
         public DestinationT getDefaultDestination() {
-          return spec.getEmptyWindowDestination();
+          return checkStateNotNull(
+              spec.getEmptyWindowDestination(), "DynamicDestinations requires defaultDestination");
         }
 
         @Override
         public FilenamePolicy getFilenamePolicy(final DestinationT destination) {
           final FileNaming namingFn;
           try {
-            namingFn = spec.getFileNamingFn().getClosure().apply(destination, getContext());
+            namingFn =
+                checkArgumentNotNull(spec.getFileNamingFn(), "fileNamePolicy requires fileNamingFn")
+                    .getClosure()
+                    .apply(destination, getContext());
           } catch (Exception e) {
             throw new RuntimeException(e);
           }
@@ -1598,7 +1662,7 @@ public class FileIO {
             }
 
             @Override
-            public @Nullable ResourceId unwindowedFilename(
+            public ResourceId unwindowedFilename(
                 int shardNumber, int numShards, OutputFileHints outputFileHints) {
               return FileSystems.matchNewResource(
                   namingFn.getFilename(

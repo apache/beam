@@ -29,9 +29,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This returns a row count estimation for files associated with a file pattern. */
 @AutoValue
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class TextRowCountEstimator {
   private static final long DEFAULT_NUM_BYTES_PER_FILE = 64 * 1024L;
   private static final Compression DEFAULT_COMPRESSION = Compression.AUTO;

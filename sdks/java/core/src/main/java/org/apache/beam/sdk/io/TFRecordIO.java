@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -46,6 +47,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * {@link PTransform}s for reading and writing TensorFlow TFRecord files.
@@ -56,9 +58,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * to write windowed data or writing to multiple destinations) use {@link #sink} in combination with
  * {@link FileIO#write} or {@link FileIO#writeDynamic}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class TFRecordIO {
   /** The default coder, which returns each record of the input file as a byte array. */
   public static final Coder<byte[]> DEFAULT_BYTE_ARRAY_CODER = ByteArrayCoder.of();
@@ -110,12 +109,16 @@ public class TFRecordIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<byte[]>> {
 
+    @Pure
     abstract @Nullable ValueProvider<String> getFilepattern();
 
+    @Pure
     abstract boolean getValidate();
 
+    @Pure
     abstract Compression getCompression();
 
+    @Pure
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -126,6 +129,7 @@ public class TFRecordIO {
 
       abstract Builder setCompression(Compression compression);
 
+      @Pure
       abstract Read build();
     }
 
@@ -257,23 +261,30 @@ public class TFRecordIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
     /** The directory to which files will be written. */
+    @Pure
     abstract @Nullable ValueProvider<ResourceId> getOutputPrefix();
 
     /** The suffix of each file written, combined with prefix and shardTemplate. */
+    @Pure
     abstract @Nullable String getFilenameSuffix();
 
     /** Requested number of shards. 0 for automatic. */
+    @Pure
     abstract int getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
+    @Pure
     abstract @Nullable String getShardTemplate();
 
     /** Option to indicate the output sink's compression type. Default is NONE. */
+    @Pure
     abstract Compression getCompression();
 
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
+    @Pure
     abstract boolean getNoSpilling();
 
+    @Pure
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -290,6 +301,7 @@ public class TFRecordIO {
 
       abstract Builder setNoSpilling(boolean noSpilling);
 
+      @Pure
       abstract Write build();
     }
 
@@ -390,9 +402,8 @@ public class TFRecordIO {
 
     @Override
     public PDone expand(PCollection<byte[]> input) {
-      checkState(
-          getOutputPrefix() != null,
-          "need to set the output prefix of a TFRecordIO.Write transform");
+      checkStateNotNull(
+          getOutputPrefix(), "need to set the output prefix of a TFRecordIO.Write transform");
       WriteFiles<byte[], Void, byte[]> write =
           WriteFiles.to(
               new TFRecordSink(
@@ -430,6 +441,14 @@ public class TFRecordIO {
     private transient @Nullable WritableByteChannel channel;
     private transient @Nullable TFRecordCodec codec;
 
+    private WritableByteChannel getChannel() {
+      return checkStateNotNull(channel, "must call open() before using TFRecordIO.Sink");
+    }
+
+    private TFRecordCodec getCodec() {
+      return checkStateNotNull(codec, "must call open() before using TFRecordIO.Sink");
+    }
+
     @Override
     public void open(WritableByteChannel channel) throws IOException {
       this.channel = channel;
@@ -438,7 +457,7 @@ public class TFRecordIO {
 
     @Override
     public void write(byte[] element) throws IOException {
-      codec.write(channel, element);
+      getCodec().write(getChannel(), element);
     }
 
     @Override
@@ -529,6 +548,14 @@ public class TFRecordIO {
       private @Nullable ReadableByteChannel inChannel;
       private @Nullable TFRecordCodec codec;
 
+      private ReadableByteChannel getInChannel() {
+        return checkStateNotNull(inChannel, "must call startReading() before using TFRecordReader");
+      }
+
+      private TFRecordCodec getCodec() {
+        return checkStateNotNull(codec, "must call startReading() before using TFRecordReader");
+      }
+
       private TFRecordReader(TFRecordSource source) {
         super(source);
       }
@@ -616,6 +643,15 @@ public class TFRecordIO {
       private @Nullable WritableByteChannel outChannel;
       private @Nullable TFRecordCodec codec;
 
+      private WritableByteChannel getOutChannel() {
+        return checkStateNotNull(
+            outChannel, "must call prepareWrite() before using TFRecordWriter");
+      }
+
+      private TFRecordCodec getCodec() {
+        return checkStateNotNull(codec, "must call prepareWrite() before using TFRecordWriter");
+      }
+
       private TFRecordWriter(WriteOperation<Void, byte[]> writeOperation) {
         super(writeOperation, MimeTypes.BINARY);
       }
@@ -628,7 +664,7 @@ public class TFRecordIO {
 
       @Override
       public void write(byte[] value) throws Exception {
-        codec.write(outChannel, value);
+        getCodec().write(getOutChannel(), value);
       }
     }
   }

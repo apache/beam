@@ -25,6 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * A {@code BlockBasedSource} is a {@link FileBasedSource} where a file consists of blocks of
@@ -58,9 +59,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> The type of records to be read from the source.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
   /**
    * Creates a {@code BlockBasedSource} based on a file name or pattern. Subclasses must call this
@@ -150,6 +148,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
      * BlockBasedReader#readNextBlock}). May return null initially, or if no block has been
      * successfully read.
      */
+    @Pure
     public abstract @Nullable Block<T> getCurrentBlock();
 
     /**
@@ -216,7 +215,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
 
     @Override
     public @Nullable Double getFractionConsumed() {
-      if (!isStarted()) {
+      if (!isStarted() || getCurrentBlock() == null) {
         return 0.0;
       }
       if (isDone()) {

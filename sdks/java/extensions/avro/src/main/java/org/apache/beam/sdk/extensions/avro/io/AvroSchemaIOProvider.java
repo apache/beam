@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.avro.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
@@ -45,9 +47,6 @@ import org.joda.time.Duration;
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AvroSchemaIOProvider implements SchemaIOProvider {
   /** Returns an id that uniquely represents this IO. */
   @Override
@@ -69,7 +68,8 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
    * resides there, and some IO-specific configuration object.
    */
   @Override
-  public AvroSchemaIO from(String location, Row configuration, Schema dataSchema) {
+  public AvroSchemaIO from(String location, Row configuration, @Nullable Schema dataSchema) {
+    checkArgumentNotNull(dataSchema, "AvroIO SchemaTransform requires schema");
     return new AvroSchemaIO(location, dataSchema, configuration);
   }
 

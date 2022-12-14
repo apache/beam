@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -62,9 +63,6 @@ import org.joda.time.Instant;
  *
  * @param <T> The type to read from the compressed file.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
@@ -223,16 +221,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     super(metadata, minBundleSize, startOffset, endOffset);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
-    boolean splittable;
-    try {
-      splittable = isSplittable();
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to determine if the source is splittable", e);
-    }
-    checkArgument(
-        splittable || startOffset == 0,
-        "CompressedSources must start reading at offset 0. Requested offset: %s",
-        startOffset);
   }
 
   /**
@@ -241,6 +229,10 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   @Override
   public void validate() {
     super.validate();
+    checkArgument(
+        isSplittable() || getStartOffset() == 0,
+        "CompressedSources must start reading at offset 0. Requested offset: %s",
+        getStartOffset());
     checkNotNull(sourceDelegate);
     sourceDelegate.validate();
     checkNotNull(channelFactory);
@@ -346,6 +338,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     // Initialized in startReading
     @GuardedBy("progressLock")
     private @Nullable CountingChannel channel;
+
+    private CountingChannel getChannel() {
+      return checkStateNotNull(
+          channel, "startReading() must be called before using CompressedReader");
+    }
 
     private DecompressingChannelFactory channelFactory;
 
@@ -473,7 +470,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
           // is outside the valid range.
           return 0;
         }
-        return channel.getCount();
+        return getChannel().getCount();
       }
     }
 

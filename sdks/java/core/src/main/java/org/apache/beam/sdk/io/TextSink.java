@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.channels.Channels;
@@ -34,10 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * '\n'} represented in {@code UTF-8} format as the record separator. Each record (including the
  * last) is terminated.
  */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
+@SuppressWarnings({"rawtypes"})
 class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, String> {
   private final @Nullable String header;
   private final @Nullable String footer;
@@ -91,6 +90,10 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
     // Initialized in prepareWrite
     private @Nullable OutputStreamWriter out;
 
+    private OutputStreamWriter getOut() {
+      return checkStateNotNull(out, "TextWriter requires prepareWrite before use for output");
+    }
+
     public TextWriter(
         WriteOperation<DestinationT, String> writeOperation,
         char[] delimiter,
@@ -111,8 +114,8 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
 
     /** Writes {@code value} followed by the delimiter byte sequence. */
     private void writeLine(String value) throws IOException {
-      out.write(value);
-      out.write(delimiter);
+      getOut().write(value);
+      getOut().write(delimiter);
     }
 
     @Override
@@ -137,7 +140,7 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
 
     @Override
     protected void finishWrite() throws Exception {
-      out.flush();
+      getOut().flush();
     }
   }
 }

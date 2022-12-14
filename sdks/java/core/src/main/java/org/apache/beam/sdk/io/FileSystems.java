@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
@@ -37,7 +37,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nonnull;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
@@ -62,13 +62,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeMultimap;
 
 /** Clients facing {@link FileSystem} utility. */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
+@SuppressWarnings({"rawtypes"})
 public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "file";
@@ -216,7 +214,7 @@ public class FileSystems {
    *     until callers retrieve metadata with {@link MatchResult#metadata()}.
    */
   public static List<MatchResult> matchResources(List<ResourceId> resourceIds) throws IOException {
-    return match(FluentIterable.from(resourceIds).transform(ResourceId::toString).toList());
+    return match(resourceIds.stream().map(r -> r.toString()).collect(Collectors.toList()));
   }
 
   /**
@@ -354,37 +352,21 @@ public class FileSystems {
     if (Sets.newHashSet(moveOptions)
         .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       resourceIdsToDelete =
-          FluentIterable.from(matchResources(Lists.newArrayList(resourceIds)))
+          matchResources(Lists.newArrayList(resourceIds)).stream()
               .filter(matchResult -> !matchResult.status().equals(Status.NOT_FOUND))
-              .transformAndConcat(
-                  new Function<MatchResult, Iterable<Metadata>>() {
-                    @SuppressFBWarnings(
-                        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
-                        justification = "https://github.com/google/guava/issues/920")
-                    @Nonnull
-                    @Override
-                    public Iterable<Metadata> apply(@Nonnull MatchResult input) {
-                      try {
-                        return Lists.newArrayList(input.metadata());
-                      } catch (IOException e) {
-                        throw new RuntimeException(
-                            String.format("Failed to get metadata from MatchResult: %s.", input),
-                            e);
-                      }
+              .flatMap(
+                  (MatchResult matchResult) -> {
+                    try {
+                      return matchResult.metadata().stream();
+                    } catch (IOException e) {
+                      throw new RuntimeException(
+                          String.format(
+                              "Failed to get metadata from MatchResult: %s.", matchResult),
+                          e);
                     }
                   })
-              .transform(
-                  new Function<Metadata, ResourceId>() {
-                    @SuppressFBWarnings(
-                        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
-                        justification = "https://github.com/google/guava/issues/920")
-                    @Nonnull
-                    @Override
-                    public ResourceId apply(@Nonnull Metadata input) {
-                      return input.resourceId();
-                    }
-                  })
-              .toList();
+              .map((Metadata metadata) -> metadata.resourceId())
+              .collect(Collectors.toList());
     } else {
       resourceIdsToDelete = resourceIds;
     }
@@ -431,7 +413,9 @@ public class FileSystems {
     }
     List<MatchResult> matchResults =
         fileSystem.match(
-            FluentIterable.from(matchResources).transform(ResourceId::toString).toList());
+            matchResources.stream()
+                .map(resourceId -> resourceId.toString())
+                .collect(Collectors.toList()));
     List<MatchResult> matchSrcResults = ignoreMissingSrc ? matchResults.subList(0, size) : null;
     List<MatchResult> matchDestResults =
         skipExistingDest
@@ -478,10 +462,9 @@ public class FileSystems {
     }
 
     Set<String> schemes =
-        FluentIterable.from(srcResourceIds)
-            .append(destResourceIds)
-            .transform(ResourceId::getScheme)
-            .toSet();
+        Streams.concat(srcResourceIds.stream(), destResourceIds.stream())
+            .map(ResourceId::getScheme)
+            .collect(Collectors.toSet());
     checkArgument(
         schemes.size() == 1,
         String.format(
@@ -491,7 +474,7 @@ public class FileSystems {
 
   private static String getOnlyScheme(List<String> specs) {
     checkArgument(!specs.isEmpty(), "Expect specs are not empty.");
-    Set<String> schemes = FluentIterable.from(specs).transform(FileSystems::parseScheme).toSet();
+    Set<String> schemes = specs.stream().map(FileSystems::parseScheme).collect(Collectors.toSet());
     return Iterables.getOnlyElement(schemes);
   }
 
@@ -506,7 +489,10 @@ public class FileSystems {
     if (!matcher.matches()) {
       return DEFAULT_SCHEME;
     } else {
-      return matcher.group("scheme").toLowerCase();
+      String schemeGroup =
+          checkStateNotNull(
+              matcher.group("scheme"), "Internal error: could not extract scheme from URL");
+      return schemeGroup.toLowerCase();
     }
   }
 
@@ -571,11 +557,10 @@ public class FileSystems {
     for (Entry<String, Collection<FileSystem>> entry : fileSystemsBySchemes.asMap().entrySet()) {
       if (entry.getValue().size() > 1) {
         String conflictingFileSystems =
-            Joiner.on(", ")
-                .join(
-                    FluentIterable.from(entry.getValue())
-                        .transform(input -> input.getClass().getName())
-                        .toSortedList(Ordering.natural()));
+            entry.getValue().stream()
+                .map(input -> input.getClass().getName())
+                .sorted()
+                .collect(Collectors.joining(", "));
         throw new IllegalStateException(
             String.format(
                 "Scheme: [%s] has conflicting filesystems: [%s]",

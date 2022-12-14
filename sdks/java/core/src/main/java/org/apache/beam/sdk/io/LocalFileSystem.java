@@ -49,7 +49,6 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.commons.lang3.SystemUtils;
@@ -81,9 +80,6 @@ import org.slf4j.LoggerFactory;
  *   <li>file:///C:/Users/beam/Documents/pom.xml
  * </ul>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
@@ -288,12 +284,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     Iterable<File> files = fileTraverser().depthFirstPreOrder(parent);
     Iterable<File> matchedFiles =
         StreamSupport.stream(files.spliterator(), false)
-            .filter(
-                Predicates.and(
-                        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files
-                            .isFile(),
-                        input -> matcher.matches(input.toPath()))
-                    ::apply)
+            .filter(file -> file.isFile() && matcher.matches(file.toPath()))
             .collect(Collectors.toList());
 
     List<Metadata> result = Lists.newLinkedList();

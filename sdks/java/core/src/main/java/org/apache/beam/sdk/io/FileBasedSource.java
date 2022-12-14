@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,9 +65,6 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> Type of records represented by the source.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSource.class);
 
@@ -183,8 +182,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         "End offset value %s of the subrange cannot be larger than the end offset value %s",
         end,
         getEndOffset());
-    checkState(
-        singleFileMetadata != null, "A single file source should not have null metadata: %s", this);
+    checkStateNotNull(
+        singleFileMetadata, "A single file source should not have null metadata: %s", this);
 
     FileBasedSource<T> source = createForSubrangeOfFile(singleFileMetadata, start, end);
     if (start > 0 || end != Long.MAX_VALUE) {
@@ -565,6 +564,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     // Initialized in start
     @Nullable FileBasedReader<T> currentReader = null;
 
+    @Pure
+    private FileBasedReader<T> getCurrentReader() {
+      return checkStateNotNull(currentReader, "reader must be started before use");
+    }
+
     public FilePatternReader(FileBasedSource<T> source, List<FileBasedReader<T>> fileReaders) {
       this.source = source;
       this.fileReaders = fileReaders;
@@ -588,10 +592,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     private boolean startNextNonemptyReader() throws IOException {
       while (fileReadersIterator.hasNext()) {
         currentReader = fileReadersIterator.next();
-        if (currentReader.start()) {
+        if (getCurrentReader().start()) {
           return true;
         }
-        currentReader.close();
+        getCurrentReader().close();
       }
       return false;
     }
@@ -600,14 +604,14 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     public T getCurrent() throws NoSuchElementException {
       // A NoSuchElement will be thrown by the last FileBasedReader if getCurrent() is called after
       // advance() returns false.
-      return currentReader.getCurrent();
+      return getCurrentReader().getCurrent();
     }
 
     @Override
     public Instant getCurrentTimestamp() throws NoSuchElementException {
       // A NoSuchElement will be thrown by the last FileBasedReader if getCurrentTimestamp()
       // is called after advance() returns false.
-      return currentReader.getCurrentTimestamp();
+      return getCurrentReader().getCurrentTimestamp();
     }
 
     @Override

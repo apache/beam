@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.avro.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.avro.Schema;
@@ -32,14 +34,15 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncodin
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Always returns a constant {@link FilenamePolicy}, {@link Schema}, metadata, and codec. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class ConstantAvroDestination<UserT, OutputT>
     extends DynamicAvroDestinations<UserT, Void, OutputT> {
+
   private static class SchemaFunction implements Serializable, Function<String, Schema> {
     @Override
-    public Schema apply(String input) {
+    public Schema apply(@Nullable String input) {
+      // Guava Function / Suppliers library requires all sort of things to be nullable that
+      // shouldn't need to be
+      checkArgumentNotNull(input, "no avro schema provided");
       return new Schema.Parser().parse(input);
     }
   }
@@ -51,7 +54,7 @@ class ConstantAvroDestination<UserT, OutputT>
   private final Map<String, Object> metadata;
   private final SerializableAvroCodecFactory codec;
   private final SerializableFunction<UserT, OutputT> formatFunction;
-  private final AvroSink.DatumWriterFactory<OutputT> datumWriterFactory;
+  private final AvroSink.@Nullable DatumWriterFactory<OutputT> datumWriterFactory;
 
   private class Metadata implements HasDisplayData {
     @Override

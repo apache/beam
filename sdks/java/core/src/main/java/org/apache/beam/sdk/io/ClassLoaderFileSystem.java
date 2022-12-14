@@ -37,9 +37,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A read-only {@link FileSystem} implementation looking up resources using a ClassLoader. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.ClassLoaderResourceId> {
 
   public static final String SCHEMA = "classpath";
@@ -61,6 +58,9 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
   @Override
   protected ReadableByteChannel open(ClassLoaderResourceId resourceId) throws IOException {
     ClassLoader classLoader = getClass().getClassLoader();
+    if (classLoader == null) {
+      throw new IOException("Unable to load " + resourceId.path + " with bootstrap classloader");
+    }
     InputStream inputStream =
         classLoader.getResourceAsStream(resourceId.path.substring(PREFIX.length()));
     if (inputStream == null) {

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.commons.compress.utils.CharsetNames.UTF_8;
 
 import com.google.auto.value.AutoValue;
@@ -61,6 +62,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 
 /**
@@ -183,9 +185,6 @@ import org.joda.time.Duration;
  * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in {@link FileIO} for
  * details on usage
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class TextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
 
@@ -661,65 +660,83 @@ public class TextIO {
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
 
     /** The prefix of each file written, combined with suffix and shardTemplate. */
+    @Pure
     abstract @Nullable ValueProvider<ResourceId> getFilenamePrefix();
 
     /** The suffix of each file written, combined with prefix and shardTemplate. */
+    @Pure
     abstract @Nullable String getFilenameSuffix();
 
     /** The base directory used for generating temporary files. */
+    @Pure
     abstract @Nullable ValueProvider<ResourceId> getTempDirectory();
 
     /** The delimiter between string records. */
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
+    @Pure
     abstract char[] getDelimiter();
 
     /** An optional header to add to each file. */
+    @Pure
     abstract @Nullable String getHeader();
 
     /** An optional footer to add to each file. */
+    @Pure
     abstract @Nullable String getFooter();
 
     /** Requested number of shards. 0 for automatic. */
+    @Pure
     abstract @Nullable ValueProvider<Integer> getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
+    @Pure
     abstract @Nullable String getShardTemplate();
 
     /** A policy for naming output files. */
+    @Pure
     abstract @Nullable FilenamePolicy getFilenamePolicy();
 
     /** Allows for value-dependent {@link DynamicDestinations} to be vended. */
+    @Pure
     abstract @Nullable DynamicDestinations<UserT, DestinationT, String> getDynamicDestinations();
 
     /** A destination function for using {@link DefaultFilenamePolicy}. */
+    @Pure
     abstract @Nullable SerializableFunction<UserT, Params> getDestinationFunction();
 
     /** A default destination for empty PCollections. */
+    @Pure
     abstract @Nullable Params getEmptyDestination();
 
     /** A function that converts UserT to a String, for writing to the file. */
+    @Pure
     abstract @Nullable SerializableFunction<UserT, String> getFormatFunction();
 
     /** Whether to write windowed output files. */
+    @Pure
     abstract boolean getWindowedWrites();
 
     /** Whether to enable autosharding. */
     abstract boolean getAutoSharding();
 
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
+    @Pure
     abstract boolean getNoSpilling();
 
     /** Whether to skip writing any output files if the PCollection is empty. */
+    @Pure
     abstract boolean getSkipIfEmpty();
 
     /**
      * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
      */
+    @Pure
     abstract WritableByteChannelFactory getWritableByteChannelFactory();
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    @Pure
     abstract Builder<UserT, DestinationT> toBuilder();
 
     @AutoValue.Builder
@@ -771,6 +788,7 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
+      @Pure
       abstract TypedWrite<UserT, DestinationT> build();
     }
 
@@ -1394,7 +1412,13 @@ public class TextIO {
       return toBuilder().setFooter(footer).build();
     }
 
+    // null except when "open"
     private transient @Nullable PrintWriter writer;
+
+    @Pure
+    private PrintWriter getWriter() {
+      return checkStateNotNull(writer, "Sink not open");
+    }
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
@@ -1402,22 +1426,22 @@ public class TextIO {
           new PrintWriter(
               new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
       if (getHeader() != null) {
-        writer.println(getHeader());
+        getWriter().println(getHeader());
       }
     }
 
     @Override
     public void write(String element) throws IOException {
-      writer.println(element);
+      getWriter().println(element);
     }
 
     @Override
     public void flush() throws IOException {
       if (getFooter() != null) {
-        writer.println(getFooter());
+        getWriter().println(getFooter());
       }
       // BEAM-7813: don't close writer here
-      writer.flush();
+      getWriter().flush();
     }
   }
 

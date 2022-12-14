@@ -28,6 +28,8 @@ import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,9 +56,6 @@ import org.slf4j.LoggerFactory;
  * @see FileBasedSource
  * @see RangeTracker
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   private final long startOffset;
   private final long endOffset;
@@ -78,6 +77,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   }
 
   /** Returns the starting offset of the source. */
+  @Pure
   public long getStartOffset() {
     return startOffset;
   }
@@ -337,7 +337,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public final synchronized OffsetBasedSource<T> splitAtFraction(double fraction) {
+    public final synchronized @Nullable OffsetBasedSource<T> splitAtFraction(double fraction) {
       if (!allowsDynamicSplitting()) {
         return null;
       }

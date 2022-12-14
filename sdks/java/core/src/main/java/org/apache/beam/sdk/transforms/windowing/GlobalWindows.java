@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
+public class GlobalWindows extends NonMergingWindowFn<@Nullable Object, GlobalWindow> {
 
   private static final Collection<GlobalWindow> GLOBAL_WINDOWS =
       Collections.singletonList(GlobalWindow.INSTANCE);

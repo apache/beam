@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 
 /**
  * Implementation detail of {@link TextIO.Read}.
@@ -50,18 +53,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * representing the beginning of the first record to be decoded.
  */
 @VisibleForTesting
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
-public class TextSource extends FileBasedSource<String> {
-  byte[] delimiter;
+class TextSource extends FileBasedSource<String> {
+  byte @Nullable [] delimiter;
 
   int skipHeaderLines;
 
-  public TextSource(
+  TextSource(
       ValueProvider<String> fileSpec,
       EmptyMatchTreatment emptyMatchTreatment,
-      byte[] delimiter,
+      byte @Nullable [] delimiter,
       int skipHeaderLines) {
     super(fileSpec, emptyMatchTreatment, 1L);
     this.delimiter = delimiter;
@@ -69,12 +69,12 @@ public class TextSource extends FileBasedSource<String> {
   }
 
   public TextSource(
-      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
+      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte @Nullable [] delimiter) {
     this(fileSpec, emptyMatchTreatment, delimiter, 0);
   }
 
   public TextSource(
-      MatchResult.Metadata metadata, long start, long end, byte[] delimiter, int skipHeaderLines) {
+      MatchResult.Metadata metadata, long start, long end, byte @Nullable [] delimiter, int skipHeaderLines) {
     super(metadata, 1L, start, end);
     this.delimiter = delimiter;
     this.skipHeaderLines = skipHeaderLines;
@@ -120,7 +120,13 @@ public class TextSource extends FileBasedSource<String> {
     private final byte[] buffer;
     private final ByteBuffer byteBuffer;
 
-    private ReadableByteChannel inChannel;
+    // non-null after startReading
+    private @Nullable ReadableByteChannel inChannel = null;
+
+    private ReadableByteChannel getInChannel() {
+      return checkStateNotNull(inChannel, "TextBasedReader used before startReading() called");
+    }
+
     private long startOfRecord;
     private volatile long startOfNextRecord;
     private volatile boolean eof;
@@ -129,11 +135,11 @@ public class TextSource extends FileBasedSource<String> {
     private int bufferPosn = 0; // the current position in the buffer
     private boolean skipLineFeedAtStart; // skip an LF if at the start of the next buffer
 
-    private TextBasedReader(TextSource source, byte[] delimiter) {
+    private TextBasedReader(TextSource source, byte @Nullable [] delimiter) {
       this(source, delimiter, 0);
     }
 
-    private TextBasedReader(TextSource source, byte[] delimiter, int skipHeaderLines) {
+    private TextBasedReader(TextSource source, byte @Nullable [] delimiter, int skipHeaderLines) {
       super(source);
       this.buffer = new byte[READ_BUFFER_SIZE];
       this.str = new ByteArrayOutputStream();
@@ -385,6 +391,7 @@ public class TextSource extends FileBasedSource<String> {
      * <p>Note that this implementation fixes an issue where a partial match against the delimiter
      * would have been lost if the delimiter crossed at the buffer boundaries during reading.
      */
+    @RequiresNonNull("delimiter")
     private boolean readCustomLine() throws IOException {
       assert !eof;
 

@@ -20,11 +20,13 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -96,6 +98,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -122,10 +125,7 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code p.apply(WriteFiles.to(new MySink(...)).withNumShards(3));}</pre>
  */
 @AutoValue
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
+@SuppressWarnings({"rawtypes"})
 public abstract class WriteFiles<UserT, DestinationT, OutputT>
     extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);
@@ -155,7 +155,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   static final int UNKNOWN_SHARDNUM = -1;
   static final int DUMMY_SHARDNUM = 0;
+
+  // Null until expand() time
   private @Nullable WriteOperation<DestinationT, OutputT> writeOperation;
+
+  @Pure
+  private WriteOperation<DestinationT, OutputT> getWriteOperation() {
+    return checkStateNotNull(writeOperation);
+  }
 
   /**
    * Creates a {@link WriteFiles} transform that writes to the given {@link FileBasedSink}, letting
@@ -178,32 +185,41 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .build();
   }
 
+  @Pure
   public abstract FileBasedSink<UserT, DestinationT, OutputT> getSink();
 
+  @Pure
   public abstract @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>>
       getComputeNumShards();
 
   // We don't use a side input for static sharding, as we want this value to be updatable
   // when a pipeline is updated.
 
+  @Pure
   public abstract @Nullable ValueProvider<Integer> getNumShardsProvider();
 
+  @Pure
   public abstract boolean getWindowedWrites();
 
   public abstract boolean getWithAutoSharding();
 
+  @Pure
   abstract int getMaxNumWritersPerBundle();
 
+  @Pure
   abstract boolean getSkipIfEmpty();
 
+  @Pure
   abstract List<PCollectionView<?>> getSideInputs();
 
+  @Pure
   public abstract @Nullable ShardingFunction<UserT, DestinationT> getShardingFunction();
 
   public abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
   public abstract BadRecordRouter getBadRecordRouter();
 
+  @Pure
   abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
   @AutoValue.Builder
@@ -238,6 +254,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     abstract Builder<UserT, DestinationT, OutputT> setBadRecordRouter(
         BadRecordRouter badRecordRouter);
 
+    @Pure
     abstract WriteFiles<UserT, DestinationT, OutputT> build();
   }
 
@@ -370,7 +387,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   @Override
-  public void validate(PipelineOptions options) {
+  public void validate(@Nullable PipelineOptions options) {
     getSink().validate(options);
   }
 
@@ -394,7 +411,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
     this.writeOperation = getSink().createWriteOperation();
     if (getWindowedWrites()) {
-      this.writeOperation.setWindowedWrites();
+      getWriteOperation().setWindowedWrites();
     } else {
       // Re-window the data into the global window and remove any existing triggers.
       input =
@@ -470,7 +487,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   private DynamicDestinations<UserT, DestinationT, OutputT> getDynamicDestinations() {
     return (DynamicDestinations<UserT, DestinationT, OutputT>)
-        writeOperation.getSink().getDynamicDestinations();
+        getWriteOperation().getSink().getDynamicDestinations();
   }
 
   private class GatherResults<ResultT>
@@ -640,6 +657,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     public void processElement(
         ProcessContext c, BoundedWindow window, MultiOutputReceiver outputReceiver)
         throws Exception {
+      Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers =
+          checkStateNotNull(this.writers, "startBundle must be called before processElement");
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
       PaneInfo paneInfo = c.pane();
       // If we are doing windowed writes, we need to ensure that we have separate files for
@@ -664,12 +683,16 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               window,
               paneInfo,
               destination);
-          writer = writeOperation.createWriter();
+          writer = getWriteOperation().createWriter();
           writer.setDestination(destination);
           writer.open(uuid);
           writers.put(key, writer);
           LOG.debug("Done opening writer");
         } else {
+          TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag =
+              checkStateNotNull(
+                  this.unwrittenRecordsTag,
+                  "unwrittenRecordsTag required when max writers per bundle is set");
           if (spilledShardNum == UNKNOWN_SHARDNUM) {
             // Cache the random value so we only call ThreadLocalRandom once per DoFn instance.
             spilledShardNum = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
@@ -696,6 +719,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
+      Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers =
+          checkStateNotNull(this.writers, "startBundle must be called before finishBundle");
       for (Map.Entry<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> entry :
           writers.entrySet()) {
         WriterKey<DestinationT> key = entry.getKey();
@@ -761,6 +786,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     @Override
+    @SuppressWarnings(
+        "nullness") // Objects.hashCode is annotated and accepts nulls but some issue with varargs?
     public int hashCode() {
       return Objects.hashCode(window, paneInfo, destination);
     }
@@ -1094,9 +1121,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       if (numShardsView != null) {
         shardCount = context.sideInput(numShardsView);
       } else {
-        checkNotNull(getNumShardsProvider());
+        ValueProvider<Integer> numShardsProvider =
+            checkStateNotNull(getNumShardsProvider(), "Must have non-null number of shards");
         shardCount =
-            checkNotNull(getNumShardsProvider().get(), "Must have non-null number of shards.");
+            checkStateNotNull(numShardsProvider.get(), "Must have non-null number of shards.");
       }
       checkArgument(
           shardCount > 0,
@@ -1145,7 +1173,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // Since we key by a 32-bit hash of the destination, there might be multiple destinations
       // in this iterable. The number of destinations is generally very small (1000s or less), so
       // there will rarely be hash collisions.
-      Map<DestinationT, Writer<DestinationT, OutputT>> writers = Maps.newHashMap();
+      // Note that HashMap allows null keys, while Map does not in general, hence we keep the
+      // precise type
+      HashMap<DestinationT, Writer<DestinationT, OutputT>> writers = Maps.newHashMap();
       for (UserT input : c.element().getValue()) {
         MaybeDestination<DestinationT> maybeDestination =
             getDestinationWithErrorHandling(input, outputReceiver, inputCoder);
@@ -1162,7 +1192,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               window,
               c.pane(),
               destination);
-          writer = writeOperation.createWriter();
+          writer = getWriteOperation().createWriter();
           writer.setDestination(destination);
           writer.open(uuid);
           writers.put(destination, writer);
@@ -1289,10 +1319,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         DestinationT defaultDest = getDynamicDestinations().getDefaultDestination();
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames =
             fileResults.isEmpty()
-                ? writeOperation.finalizeDestination(
-                    defaultDest, GlobalWindow.INSTANCE, fixedNumShards, fileResults)
+                ? getWriteOperation()
+                    .finalizeDestination(
+                        defaultDest, GlobalWindow.INSTANCE, fixedNumShards, fileResults)
                 : finalizeAllDestinations(fileResults, fixedNumShards);
-        writeOperation.moveToOutputFiles(resultsToFinalFilenames);
+        getWriteOperation().moveToOutputFiles(resultsToFinalFilenames);
         for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
           FileResult<DestinationT> res = entry.getKey();
           c.output(KV.of(res.getDestination(), entry.getValue().toString()));
@@ -1314,8 +1345,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         destEntry : res.asMap().entrySet()) {
       KV<DestinationT, BoundedWindow> destWindow = destEntry.getKey();
       resultsToFinalFilenames.addAll(
-          writeOperation.finalizeDestination(
-              destWindow.getKey(), destWindow.getValue(), fixedNumShards, destEntry.getValue()));
+          getWriteOperation()
+              .finalizeDestination(
+                  destWindow.getKey(),
+                  destWindow.getValue(),
+                  fixedNumShards,
+                  destEntry.getValue()));
     }
     return resultsToFinalFilenames;
   }
@@ -1330,11 +1365,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @ProcessElement
     public void process(ProcessContext c, BoundedWindow w) {
+      Multimap<BoundedWindow, T> bundles =
+          checkStateNotNull(this.bundles, "startBundle must be called before process");
       bundles.put(w, c.element());
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
+      Multimap<BoundedWindow, T> bundles =
+          checkStateNotNull(this.bundles, "startBundle must be called before finishBundle");
       for (BoundedWindow w : bundles.keySet()) {
         c.output(Lists.newArrayList(bundles.get(w)), w.maxTimestamp(), w);
       }

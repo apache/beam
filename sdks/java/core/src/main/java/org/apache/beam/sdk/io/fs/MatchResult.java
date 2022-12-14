@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** The result of {@link org.apache.beam.sdk.io.FileSystem#match}. */
 public abstract class MatchResult {
@@ -82,13 +83,17 @@ public abstract class MatchResult {
   public abstract static class Metadata implements Serializable {
     private static final long UNKNOWN_LAST_MODIFIED_MILLIS = 0L;
 
+    @Pure
     public abstract ResourceId resourceId();
 
+    @Pure
     public abstract long sizeBytes();
 
+    @Pure
     public abstract boolean isReadSeekEfficient();
 
     /** An optional checksum to identify the contents of a file. */
+    @Pure
     public abstract @Nullable String checksum();
 
     /**
@@ -110,8 +115,10 @@ public abstract class MatchResult {
      *     .apply(WithTimestamps.of(metadata -> new Instant(metadata.lastModifiedMillis())));
      * }</pre>
      */
+    @Pure
     public abstract long lastModifiedMillis();
 
+    @Pure
     public static Builder builder() {
       return new AutoValue_MatchResult_Metadata.Builder()
           .setIsReadSeekEfficient(false)
@@ -131,6 +138,7 @@ public abstract class MatchResult {
 
       public abstract Builder setChecksum(String value);
 
+      @Pure
       public abstract Metadata build();
     }
   }

@@ -124,10 +124,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <T> The type of records to be read from the source.
  */
 // CHECKSTYLE.ON: JavadocStyle
-
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AvroSource<T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).
@@ -724,7 +720,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     }
 
     @Override
-    public AvroBlock<T> getCurrentBlock() {
+    public @Nullable AvroBlock<T> getCurrentBlock() {
       return currentBlock;
     }
 

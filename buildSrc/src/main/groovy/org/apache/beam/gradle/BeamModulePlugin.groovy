@@ -1158,7 +1158,9 @@ class BeamModulePlugin implements Plugin<Project> {
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
-          '-Werror'
+          '-Werror',
+          '-Xmaxerrs',
+          '1000'
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }
