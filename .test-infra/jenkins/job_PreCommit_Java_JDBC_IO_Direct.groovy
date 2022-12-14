@@ -31,6 +31,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^sdks/java/core/src/main/.*$',
+      '^sdks/java/testing/test-utils/.*$',
+      '^sdks/java/io/common/.*$',
       '^sdks/java/io/jdbc/.*$',
     ],
     timeoutMins: 60,

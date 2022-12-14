@@ -63,7 +63,7 @@ func UnnamedOutputTag() string {
 //	    Data string
 //	}
 //	encodedPl := beam.CrossLanguagePayload(stringPayload{Data: "foo"})
-func CrossLanguagePayload(pl interface{}) []byte {
+func CrossLanguagePayload(pl any) []byte {
 	bytes, err := xlangx.EncodeStructPayload(pl)
 	if err != nil {
 		panic(err)

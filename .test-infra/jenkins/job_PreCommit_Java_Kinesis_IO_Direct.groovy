@@ -23,6 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Java_Kinesis_IO_Direct',
     gradleTasks: [
       ':sdks:java:io:kinesis:build',
+      ':sdks:java:io:kinesis:expansion-service:build',
       ':sdks:java:io:kinesis:integrationTest',
     ],
     gradleSwitches: [
@@ -31,6 +32,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^sdks/java/core/src/main/.*$',
+      '^sdks/java/io/common/.*$',
       '^sdks/java/io/kinesis/.*$',
     ],
     timeoutMins: 60,

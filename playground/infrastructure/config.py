@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
 
+from dataclasses_json import dataclass_json
+
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
     STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
     STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
@@ -75,6 +77,8 @@ class TagFields:
     context_line: int = "context_line"
     complexity: str = "complexity"
     tags: str = "tags"
+    emulators: str = "emulators"
+    datasets: str = "datasets"
 
 
 @dataclass(frozen=True)
@@ -97,6 +101,8 @@ class PrecompiledExampleType:
 class OptionalTagFields:
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
+    emulators: str = "emulators"
+    datasets: str = "datasets"
 
 
 @dataclass(frozen=True)
@@ -109,9 +115,38 @@ class DatastoreProps:
     PRECOMPILED_OBJECT_KIND = "pg_pc_objects"
     FILES_KIND = "pg_files"
     SDK_KIND = "pg_sdks"
+    DATASET_KIND = "pg_datasets"
+
+
+@dataclass(frozen=True)
+class RepoProps:
+    REPO_DATASETS_PATH = "../backend/datasets"
 
 class Origin(str, Enum):
     PG_EXAMPLES = 'PG_EXAMPLES'
     PG_USER = 'PG_USER'
     TB_EXAMPLES = 'TB_EXAMPLES'
     TB_USER = 'TB_USER'
+
+
+@dataclass_json
+@dataclass
+class Dataset:
+    format: str
+    location: str
+    name: str = ""
+    path: str = ""
+
+
+@dataclass_json
+@dataclass
+class Topic:
+    id: str
+    dataset: str
+
+
+@dataclass_json
+@dataclass
+class Emulator:
+    topic: Topic
+    name: str = ""

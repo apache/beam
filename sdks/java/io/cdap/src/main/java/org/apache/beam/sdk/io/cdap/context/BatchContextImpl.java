@@ -38,6 +38,9 @@ import io.cdap.cdap.etl.api.batch.BatchContext;
 import io.cdap.cdap.etl.api.lineage.field.FieldOperation;
 import java.net.URL;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -45,6 +48,9 @@ import javax.annotation.Nullable;
 /** Class for Batch, Sink and Stream CDAP wrapper classes that use it to provide common details. */
 @SuppressWarnings({"TypeParameterUnusedInFormals", "nullness"})
 public abstract class BatchContextImpl implements BatchContext {
+
+  public static final String DEFAULT_SCHEMA_FIELD_NAME = "Name";
+  public static final String DEFAULT_SCHEMA_RECORD_NAME = "Record";
 
   private final FailureCollectorWrapper failureCollector = new FailureCollectorWrapper();
 
@@ -59,6 +65,12 @@ public abstract class BatchContextImpl implements BatchContext {
    * context object as a param.
    */
   protected OutputFormatProvider outputFormatProvider;
+
+  /**
+   * This should be set after {@link SubmitterLifecycle#prepareRun(Object)} call with passing this
+   * context object as a param.
+   */
+  protected Map<String, String> settableArguments = new HashMap<>();
 
   private final Timestamp startTime = new Timestamp(System.currentTimeMillis());
 
@@ -115,10 +127,11 @@ public abstract class BatchContextImpl implements BatchContext {
     return null;
   }
 
-  @Nullable
   @Override
   public Schema getInputSchema() {
-    return null;
+    List<Schema.Field> fields = new ArrayList<>();
+    fields.add(Schema.Field.of(DEFAULT_SCHEMA_FIELD_NAME, Schema.of(Schema.Type.STRING)));
+    return Schema.recordOf(DEFAULT_SCHEMA_RECORD_NAME, fields);
   }
 
   @Override
@@ -127,8 +140,10 @@ public abstract class BatchContextImpl implements BatchContext {
   }
 
   @Override
-  public @Nullable Schema getOutputSchema() {
-    return null;
+  public Schema getOutputSchema() {
+    List<Schema.Field> fields = new ArrayList<>();
+    fields.add(Schema.Field.of(DEFAULT_SCHEMA_FIELD_NAME, Schema.of(Schema.Type.STRING)));
+    return Schema.recordOf(DEFAULT_SCHEMA_RECORD_NAME, fields);
   }
 
   @Override
@@ -147,7 +162,33 @@ public abstract class BatchContextImpl implements BatchContext {
 
   @Override
   public SettableArguments getArguments() {
-    return null;
+    return new SettableArguments() {
+      @Override
+      public boolean has(String name) {
+        return settableArguments.containsKey(name);
+      }
+
+      @Nullable
+      @Override
+      public String get(String name) {
+        return settableArguments.get(name);
+      }
+
+      @Override
+      public void set(String name, String value) {
+        settableArguments.put(name, value);
+      }
+
+      @Override
+      public Map<String, String> asMap() {
+        return settableArguments;
+      }
+
+      @Override
+      public Iterator<Map.Entry<String, String>> iterator() {
+        return settableArguments.entrySet().iterator();
+      }
+    };
   }
 
   @Override

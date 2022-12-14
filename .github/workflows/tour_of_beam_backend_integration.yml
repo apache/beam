@@ -110,7 +110,7 @@ jobs:
       # 4. run integration tests
       - name: Go integration tests
         run: go test -v --tags integration ./integration_tests/...
-      
+
       - name: Stop emulators
         if: always()
         run: docker-compose down

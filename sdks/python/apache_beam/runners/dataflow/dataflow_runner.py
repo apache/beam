@@ -396,6 +396,7 @@ class DataflowRunner(PipelineRunner):
         _LOGGER.info(
             'Automatically enabling Dataflow Runner V2 since the '
             'pipeline used cross-language transforms.')
+        _add_runner_v2_missing_options(options)
 
     is_runner_v2 = _is_runner_v2(options)
     if not is_runner_v2:
@@ -1316,6 +1317,14 @@ class _DataflowSideInput(beam.pvalue.AsSideInput):
     return self._data
 
 
+def _add_runner_v2_missing_options(options):
+  debug_options = options.view_as(DebugOptions)
+  debug_options.add_experiment('beam_fn_api')
+  debug_options.add_experiment('use_unified_worker')
+  debug_options.add_experiment('use_runner_v2')
+  debug_options.add_experiment('use_portable_job_submission')
+
+
 def _check_and_add_missing_options(options):
   # Type: (PipelineOptions) -> None
 
@@ -1323,13 +1332,6 @@ def _check_and_add_missing_options(options):
 
   :param options: PipelineOptions for this pipeline.
   """
-  def _add_runner_v2_missing_options(options):
-    debug_options = options.view_as(DebugOptions)
-    debug_options.add_experiment('beam_fn_api')
-    debug_options.add_experiment('use_unified_worker')
-    debug_options.add_experiment('use_runner_v2')
-    debug_options.add_experiment('use_portable_job_submission')
-
   debug_options = options.view_as(DebugOptions)
   dataflow_service_options = options.view_as(
       GoogleCloudOptions).dataflow_service_options or []

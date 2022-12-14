@@ -15,31 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.metrics;
 
-import com.codahale.metrics.MetricRegistry;
-import org.apache.spark.metrics.source.Source;
+import PrecommitJobBuilder
 
-/** Composite source made up of several {@link MetricRegistry} instances. */
-public class CompositeSource implements Source {
-  private final String name;
-  private final MetricRegistry metricRegistry;
-
-  public CompositeSource(final String name, MetricRegistry... metricRegistries) {
-    this.name = name;
-    this.metricRegistry = new MetricRegistry();
-    for (MetricRegistry metricRegistry : metricRegistries) {
-      this.metricRegistry.registerAll(metricRegistry);
-    }
-  }
-
-  @Override
-  public String sourceName() {
-    return name;
-  }
-
-  @Override
-  public MetricRegistry metricRegistry() {
-    return metricRegistry;
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Java_Redis_IO_Direct',
+    gradleTasks: [
+      ':sdks:java:io:redis:build',
+    ],
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true'
+    ], // spotless checked in separate pre-commit
+    triggerPathPatterns: [
+      '^sdks/java/core/src/main/.*$',
+      '^sdks/java/io/common/.*$',
+      '^sdks/java/io/redis/.*$',
+    ],
+    timeoutMins: 60,
+    )
+builder.build {
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
   }
 }

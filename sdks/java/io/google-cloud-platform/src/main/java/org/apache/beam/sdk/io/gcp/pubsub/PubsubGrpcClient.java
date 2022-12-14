@@ -111,7 +111,7 @@ public class PubsubGrpcClient extends PubsubClient {
     }
   }
 
-  /** Factory for creating Pubsub clients using gRCP transport. */
+  /** Factory for creating Pubsub clients using gRPC transport. */
   public static final PubsubClientFactory FACTORY = new PubsubGrpcClientFactory();
 
   /** Timeout for grpc calls (in s). */
