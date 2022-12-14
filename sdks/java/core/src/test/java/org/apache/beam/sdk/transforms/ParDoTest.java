@@ -3072,7 +3072,7 @@ public class ParDoTest implements Serializable {
     public void testMultimapStateStructuralValue() {
       final String stateId = "foo:";
       final String countStateId = "count";
-      final byte[] bagKey = "BadKey".getBytes(StandardCharsets.UTF_8);
+      final byte[] badKey = "BadKey".getBytes(StandardCharsets.UTF_8);
       DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
           new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
 
@@ -3096,11 +3096,34 @@ public class ParDoTest implements Serializable {
               state.put(value.getKey().getBytes(StandardCharsets.UTF_8), value.getValue());
               count.add(1);
               if (count.read() >= 4) {
+                // those should be evaluated only when ReadableState.read is called.
+                ReadableState<Iterable<byte[]>> keysView = state.keys();
+                ReadableState<Boolean> containsBadKeyView = state.containsKey(badKey);
+                ReadableState<Iterable<Integer>> getBadKeyView = state.get(badKey);
+
+                // those are evaluated immediately.
                 Iterable<Entry<byte[], Integer>> entries = state.entries().read();
-                state.put(bagKey, -1);
+                boolean containsBadKey = state.containsKey(badKey).read();
+                Iterable<Integer> getBadKey = state.get(badKey).read();
+
+                // use a different object than badKey with the same structural value to put into the
+                // multimap.
+                state.put("BadKey".getBytes(StandardCharsets.UTF_8), -1);
+
+                // entries
                 assertEquals(4, Iterables.size(entries));
                 assertEquals(5, Iterables.size(entriesView.read()));
                 assertEquals(5, Iterables.size(state.entries().read()));
+
+                // get
+                assertThat(getBadKey, emptyIterable());
+                assertThat(getBadKeyView.read(), containsInAnyOrder(-1));
+                assertThat(state.get(badKey).read(), containsInAnyOrder(-1));
+
+                // containsKey
+                assertFalse(containsBadKey);
+                assertTrue(containsBadKeyView.read());
+                assertTrue(state.containsKey(badKey).read());
 
                 for (Entry<byte[], Integer> entry : entries) {
                   r.output(
