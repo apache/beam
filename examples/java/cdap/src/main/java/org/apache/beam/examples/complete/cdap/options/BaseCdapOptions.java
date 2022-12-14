@@ -15,31 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.metrics;
+package org.apache.beam.examples.complete.cdap.options;
 
-import com.codahale.metrics.MetricRegistry;
-import org.apache.spark.metrics.source.Source;
+import io.cdap.plugin.common.Constants;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.Validation;
 
-/** Composite source made up of several {@link MetricRegistry} instances. */
-public class CompositeSource implements Source {
-  private final String name;
-  private final MetricRegistry metricRegistry;
+/**
+ * The {@link BaseCdapOptions} interface provides the custom execution options passed by the
+ * executor at the command-line for examples with Cdap plugins.
+ */
+public interface BaseCdapOptions extends PipelineOptions {
 
-  public CompositeSource(final String name, MetricRegistry... metricRegistries) {
-    this.name = name;
-    this.metricRegistry = new MetricRegistry();
-    for (MetricRegistry metricRegistry : metricRegistries) {
-      this.metricRegistry.registerAll(metricRegistry);
-    }
-  }
+  @Validation.Required
+  @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
+  String getReferenceName();
 
-  @Override
-  public String sourceName() {
-    return name;
-  }
-
-  @Override
-  public MetricRegistry metricRegistry() {
-    return metricRegistry;
-  }
+  void setReferenceName(String referenceName);
 }

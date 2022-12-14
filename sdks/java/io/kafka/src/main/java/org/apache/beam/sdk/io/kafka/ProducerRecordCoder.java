@@ -39,14 +39,11 @@ import org.apache.kafka.common.header.Headers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Coder} for {@link ProducerRecord}. */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K, V>> {
-  private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
-  private static final VarLongCoder longCoder = VarLongCoder.of();
-  private static final VarIntCoder intCoder = VarIntCoder.of();
-  private static final IterableCoder headerCoder =
+  private static final Coder<String> stringCoder = StringUtf8Coder.of();
+  private static final Coder<Long> longCoder = VarLongCoder.of();
+  private static final Coder<Integer> intCoder = VarIntCoder.of();
+  private static final Coder<Iterable<KV<String, byte[]>>> headerCoder =
       IterableCoder.of(KvCoder.of(stringCoder, ByteArrayCoder.of()));
 
   private final KvCoder<K, V> kvCoder;
@@ -104,7 +101,7 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
     return consumerRecord.headers();
   }
 
-  private Iterable<KV<String, byte[]>> toIterable(ProducerRecord record) {
+  private Iterable<KV<String, byte[]>> toIterable(ProducerRecord<K, V> record) {
     if (!ConsumerSpEL.hasHeaders()) {
       return Collections.emptyList();
     }

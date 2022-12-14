@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Provides internal utilities for implementing Beam aggregators using Spark accumulators. */
-package org.apache.beam.runners.spark.structuredstreaming.aggregators;
+/** Cdap Plugins template. */
+package org.apache.beam.examples.complete.cdap.options;
