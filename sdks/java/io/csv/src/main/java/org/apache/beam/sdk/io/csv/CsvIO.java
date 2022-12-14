@@ -206,7 +206,6 @@ public class CsvIO {
       checkNotNull(writer);
       if (getPreamble() != null) {
         writer.println(getPreamble());
-        ;
       }
       writer.println(getHeader());
     }
