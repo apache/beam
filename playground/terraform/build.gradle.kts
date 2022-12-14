@@ -40,8 +40,6 @@ val licenseText = "#############################################################
 
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
-//   id("org.unbroken-dome.helm") version "1.7.0"
-//   id("org.unbroken-dome.helm-releases") version "1.7.0" 
 }
 
 terraformPlugin {
@@ -465,43 +463,38 @@ dns_name: ${dns_name}
  }
 }
 
-// helm {
-//     val playground by charts.creating {
-//         chartName.set("playground")
-//         sourceDir.set(file("../infrastructure/helm-playground"))
-//     }
-//     releases {
-//         create("playground") {
-//             from(playground)
-//         }
-//     }
-// }
 tasks.register("helmRelease") {
     group = "deploy"
+    val modulePath = project(":playground").projectDir.absolutePath
+    val hdir = File("$modulePath/infrastructure/helm-playground/")
     doLast{
     exec {
         executable("helm")
-    args("--help")
+    args("upgrade", "playground", "$hdir")
     }
    }
 }
 tasks.register("gkebackend") {
   group = "deploy"
   val initTask = tasks.getByName("terraformInit")
+  val docRegTask = tasks.getByName("setDockerRegistry")
   val takeConfigTask = tasks.getByName("takeConfig")
   val pushBackTask = tasks.getByName("pushBack")
   val pushFrontTask = tasks.getByName("pushFront")
   val indexcreateTask = tasks.getByName("indexcreate")
   val helmTask = tasks.getByName("helmRelease")
   dependsOn(initTask)
+  dependsOn(docRegTask)
   dependsOn(takeConfigTask)
   dependsOn(pushBackTask)
   dependsOn(pushFrontTask)
   dependsOn(indexcreateTask)
   dependsOn(helmTask)
-  takeConfigTask.mustRunAfter(initTask)
+  docRegTask.mustRunAfter(initTask)
+  takeConfigTask.mustRunAfter(docRegTask)
   pushBackTask.mustRunAfter(takeConfigTask)
   pushFrontTask.mustRunAfter(pushBackTask)
   indexcreateTask.mustRunAfter(pushFrontTask)
   helmTask.mustRunAfter(indexcreateTask)
 }
+
