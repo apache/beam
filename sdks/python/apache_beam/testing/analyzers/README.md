@@ -79,7 +79,7 @@ config file.
 
 ## Triage performance alert issues
 
-All the performance/load tests metrics defined at [beam/.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) are imported to [Grafana dashboards](http://104.154.241.245/d/1/getting-started?orgId=1) for visualization. Please 
+All the performance/load tests metrics defined at [beam/.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) are imported to [Grafana dashboards](http://104.154.241.245/d/1/getting-started?orgId=1) for visualization. Please
 find the alerted test dashboard to find a spike in the metric values.
 
 For example, for the below configuration,
@@ -88,45 +88,10 @@ For example, for the below configuration,
 
 Grafana dashboard can be found at http://104.154.241.245/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
 
-If the dashboard for a test is not found, you can use the 
-code below to generate a plot for the given test, metric_name. 
-
-If the performance/load test store the results in BigQuery using this [schema](https://github.com/apache/beam/blob/83679216cce2d52dbeb7e837f06ca1d57b31d509/sdks/python/apache_beam/testing/load_tests/load_test_metrics_utils.py#L66),
-then use the following code to fetch the metric_values for a `metric_name` for the last `30` runs and display a plot using matplotlib.
-
-**NOTE**: Install matplotlib and pandas using `pip install matplotlib pandas`.
-```
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from apache_beam.testing.load_tests import load_test_metrics_utils
-from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsFetcher
-
-bq_project = 'apache-beam-testing'
-bq_dataset = '<bq-dataset-name>'
-bq_table = '<bq-table>'
-metric_name = '<perf-alerted-metric-name>'
-
-query = f"""
-      SELECT *
-      FROM {bq_project}.{bq_dataset}.{bq_table}
-      WHERE CONTAINS_SUBSTR(({load_test_metrics_utils.METRICS_TYPE_LABEL}), '{metric_name}')
-      ORDER BY {load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL} DESC
-      LIMIT 30
-    """
-
-big_query_metrics_fetcher = BigQueryMetricsFetcher()
-metric_data: pd.DataFrame = big_query_metrics_fetcher.fetch(query=query)
-# sort the data to view it in chronological order.
-metric_data.sort_values(
-      by=[load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL], inplace=True)
-
-metric_data.plot(x=load_test_metrics_utils.SUBMIT_TIMESTAMP_LABEL,
-                 y=load_test_metrics_utils.VALUE_LABEL)
-plt.show()
-```
+If the dashboard for a test is not found, you can use the
+notebook `analyze_metric_data.ipynb` to generate a plot for the given test, metric_name.
 
 If you confirm there is a change in the pattern of the values for a test, find the timestamp of when that change happened
-and use that timestamp to find possible culprit commit. 
+and use that timestamp to find possible culprit commit.
 
 If the performance alert is a `false positive`, close the issue as `Close as not planned`.
