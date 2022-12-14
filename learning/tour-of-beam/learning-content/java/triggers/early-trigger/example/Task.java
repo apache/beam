@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: ParDo
-//   description: ParDo example.
+//   name: early-trigger
+//   description: Early trigger example.
 //   multifile: false
 //   context_line: 36
 //   categories:
@@ -26,3 +26,64 @@
 //   complexity: BASIC
 //   tags:
 //     - hellobeam
+
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class Task {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+
+    public static void main(String[] args) {
+        PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+        Pipeline pipeline = Pipeline.create(options);
+
+        PCollection<String> words = pipeline.apply(Create.of("first","second"));
+
+        PCollection<Long> output = applyTransform(words);
+
+        output.apply("Event time trigger", ParDo.of(new LogOutput<>("Result")));
+
+        pipeline.run();
+    }
+
+    static PCollection<Long> applyTransform(PCollection<String> events) {
+        return events
+                .apply(
+                        Window.<String>into(FixedWindows.of(Duration.standardSeconds(5)))
+                                .triggering(AfterWatermark.pastEndOfWindow())
+                                .withAllowedLateness(Duration.ZERO)
+                                .discardingFiredPanes())
+
+                .apply(Combine.globally(Count.<String>combineFn()).withoutDefaults());
+    }
+
+    static class LogOutput<T> extends DoFn<T, T> {
+
+        private String prefix;
+
+        LogOutput() {
+            this.prefix = "Processing element";
+        }
+
+        LogOutput(String prefix) {
+            this.prefix = prefix;
+        }
+
+        @ProcessElement
+        public void processElement(ProcessContext c) throws Exception {
+            LOG.info(prefix + ": {}", c.element());
+        }
+    }
+}
