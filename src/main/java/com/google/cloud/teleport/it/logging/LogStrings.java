@@ -50,7 +50,8 @@ public final class LogStrings {
             .setRequestedState(job.getRequestedState()) // For when we try to cancel it
             .setCurrentState(job.getCurrentState())
             .setLabels(job.getLabels())
-            .setJobMetadata(job.getJobMetadata());
+            .setJobMetadata(job.getJobMetadata())
+            .setType(job.getType());
     return formatForLogging(ImmutableMap.copyOf(simpleCopy));
   }
 

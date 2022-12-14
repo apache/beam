@@ -27,10 +27,10 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.teleport.it.artifacts.GcsArtifactClient;
 import com.google.cloud.teleport.it.common.IORedirectUtil;
 import com.google.cloud.teleport.it.dataflow.ClassicTemplateClient;
+import com.google.cloud.teleport.it.dataflow.DataflowClient;
+import com.google.cloud.teleport.it.dataflow.DataflowClient.JobInfo;
+import com.google.cloud.teleport.it.dataflow.DataflowClient.LaunchConfig;
 import com.google.cloud.teleport.it.dataflow.DataflowOperator;
-import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient;
-import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobInfo;
-import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.LaunchConfig;
 import com.google.cloud.teleport.it.dataflow.DataflowUtils;
 import com.google.cloud.teleport.it.dataflow.FlexTemplateClient;
 import com.google.cloud.teleport.metadata.Template;
@@ -255,7 +255,7 @@ public abstract class TemplateTestBase {
     }
   }
 
-  protected DataflowTemplateClient getDataflowClient() {
+  protected DataflowClient getDataflowClient() {
     if (template.flexContainerName() != null && !template.flexContainerName().isEmpty()) {
       return FlexTemplateClient.builder().setCredentials(credentials).build();
     } else {
@@ -270,7 +270,7 @@ public abstract class TemplateTestBase {
       options.addEnvironment("experiments", "use_runner_v2");
     }
 
-    return getDataflowClient().launchTemplate(PROJECT, REGION, options.build());
+    return getDataflowClient().launch(PROJECT, REGION, options.build());
   }
 
   protected String getGcsBasePath() {

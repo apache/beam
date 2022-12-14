@@ -111,13 +111,14 @@ public final class DefaultPubsubResourceManager implements PubsubResourceManager
     checkArgument(!topicName.isEmpty(), "topicName can not be empty");
     checkIsUsable();
 
-    LOG.info("Creating topic '{}'...", topicName);
+    TopicName name = getTopicName(topicName);
+    LOG.info("Creating topic '{}'...", name.toString());
 
-    Topic topic = topicAdminClient.createTopic(getTopicName(topicName));
+    Topic topic = topicAdminClient.createTopic(name);
     TopicName reference = PubsubUtils.toTopicName(topic);
     createdTopics.add(reference);
 
-    LOG.info("Topic '{}' was created successfully!", topicName);
+    LOG.info("Topic '{}' was created successfully!", name);
 
     return reference;
   }

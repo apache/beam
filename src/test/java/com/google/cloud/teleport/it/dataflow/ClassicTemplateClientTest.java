@@ -19,6 +19,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,11 +30,13 @@ import com.google.api.services.dataflow.Dataflow.Projects.Locations.Templates;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Templates.Create;
 import com.google.api.services.dataflow.model.CreateJobFromTemplateRequest;
 import com.google.api.services.dataflow.model.Job;
+import com.google.api.services.dataflow.model.JobMetadata;
 import com.google.api.services.dataflow.model.RuntimeEnvironment;
+import com.google.api.services.dataflow.model.SdkVersion;
 import com.google.auth.Credentials;
-import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobInfo;
-import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobState;
-import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.LaunchConfig;
+import com.google.cloud.teleport.it.dataflow.DataflowClient.JobInfo;
+import com.google.cloud.teleport.it.dataflow.DataflowClient.JobState;
+import com.google.cloud.teleport.it.dataflow.DataflowClient.LaunchConfig;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import org.junit.Rule;
@@ -82,7 +85,18 @@ public final class ClassicTemplateClientTest {
     Templates.Create launch = mock(Create.class);
     Get get = mock(Get.class);
     Job launchJob = new Job().setId(JOB_ID);
-    Job getJob = new Job().setId(JOB_ID).setCurrentState(JobState.QUEUED.toString());
+    Job getJob =
+        new Job()
+            .setId(JOB_ID)
+            .setCurrentState(JobState.RUNNING.toString())
+            .setCreateTime("")
+            .setJobMetadata(
+                new JobMetadata()
+                    .setSdkVersion(
+                        new SdkVersion()
+                            .setVersionDisplayName("Apache Beam Java")
+                            .setVersion("2.42")))
+            .setType("JOB_TYPE_BATCH");
 
     LaunchConfig options =
         LaunchConfig.builder(JOB_NAME, SPEC_PATH).addParameter(PARAM_KEY, PARAM_VALUE).build();
@@ -94,7 +108,7 @@ public final class ClassicTemplateClientTest {
 
     // Act
     JobInfo actual =
-        ClassicTemplateClient.withDataflowClient(client).launchTemplate(PROJECT, REGION, options);
+        ClassicTemplateClient.withDataflowClient(client).launch(PROJECT, REGION, options);
 
     // Assert
     CreateJobFromTemplateRequest expectedRequest =
@@ -110,13 +124,23 @@ public final class ClassicTemplateClientTest {
     assertThat(regionCaptor.getValue()).isEqualTo(REGION);
     assertThat(requestCaptor.getValue()).isEqualTo(expectedRequest);
 
-    verify(getLocationJobs(client))
+    verify(getLocationJobs(client), times(2))
         .get(projectCaptor.capture(), regionCaptor.capture(), jobIdCaptor.capture());
     assertThat(projectCaptor.getValue()).isEqualTo(PROJECT);
     assertThat(regionCaptor.getValue()).isEqualTo(REGION);
     assertThat(jobIdCaptor.getValue()).isEqualTo(JOB_ID);
 
-    JobInfo expected = JobInfo.builder().setJobId(JOB_ID).setState(JobState.QUEUED).build();
+    JobInfo expected =
+        JobInfo.builder()
+            .setJobId(JOB_ID)
+            .setState(JobState.RUNNING)
+            .setCreateTime("")
+            .setSdk("Apache Beam Java")
+            .setVersion("2.42")
+            .setJobType("JOB_TYPE_BATCH")
+            .setRunner("Dataflow")
+            .setParameters(ImmutableMap.of(PARAM_KEY, PARAM_VALUE))
+            .build();
     assertThat(actual).isEqualTo(expected);
   }
 
@@ -127,8 +151,7 @@ public final class ClassicTemplateClientTest {
         IOException.class,
         () ->
             ClassicTemplateClient.withDataflowClient(client)
-                .launchTemplate(
-                    PROJECT, REGION, LaunchConfig.builder(JOB_NAME, SPEC_PATH).build()));
+                .launch(PROJECT, REGION, LaunchConfig.builder(JOB_NAME, SPEC_PATH).build()));
   }
 
   private static Locations.Jobs getLocationJobs(Dataflow client) {

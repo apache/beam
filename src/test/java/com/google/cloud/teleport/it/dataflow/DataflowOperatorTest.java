@@ -25,9 +25,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.teleport.it.dataflow.DataflowClient.JobState;
 import com.google.cloud.teleport.it.dataflow.DataflowOperator.Config;
 import com.google.cloud.teleport.it.dataflow.DataflowOperator.Result;
-import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobState;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashSet;
@@ -49,7 +49,7 @@ import org.mockito.junit.MockitoRule;
 public final class DataflowOperatorTest {
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
 
-  @Mock private DataflowTemplateClient client;
+  @Mock private DataflowClient client;
 
   private static final String PROJECT = "test-project";
   private static final String REGION = "us-east1";
@@ -164,8 +164,7 @@ public final class DataflowOperatorTest {
     // Assert
     verify(client, atLeast(totalCalls))
         .getJobStatus(projectCaptor.capture(), regionCaptor.capture(), jobIdCaptor.capture());
-    verify(client)
-        .cancelJob(projectCaptor.capture(), regionCaptor.capture(), jobIdCaptor.capture());
+    verify(client).drainJob(projectCaptor.capture(), regionCaptor.capture(), jobIdCaptor.capture());
 
     Set<String> allProjects = new HashSet<>(projectCaptor.getAllValues());
     Set<String> allRegions = new HashSet<>(regionCaptor.getAllValues());
@@ -199,7 +198,7 @@ public final class DataflowOperatorTest {
     Result result =
         new DataflowOperator(client).waitForConditionAndFinish(DEFAULT_CONFIG, () -> false);
 
-    verify(client).cancelJob(any(), any(), any());
+    verify(client).drainJob(any(), any(), any());
     assertThat(result).isEqualTo(Result.TIMEOUT);
   }
 }

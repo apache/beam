@@ -16,6 +16,7 @@
 package com.google.cloud.teleport.it.dataflow;
 
 import static com.google.cloud.teleport.it.logging.LogStrings.formatForLogging;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.googleapis.util.Utils;
 import com.google.api.services.dataflow.Dataflow;
@@ -31,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Client for interacting with Dataflow Flex Templates using the Dataflow SDK. */
-public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
+public final class FlexTemplateClient extends AbstractDataflowClient {
   private static final Logger LOG = LoggerFactory.getLogger(FlexTemplateClient.class);
 
   private FlexTemplateClient(Builder builder) {
@@ -55,8 +56,10 @@ public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
   }
 
   @Override
-  public JobInfo launchTemplate(String project, String region, LaunchConfig options)
-      throws IOException {
+  public JobInfo launch(String project, String region, LaunchConfig options) throws IOException {
+    checkState(
+        options.specPath() != null,
+        "Cannot launch a template job without specPath. Please specify specPath and try again!");
     LOG.info("Getting ready to launch {} in {} under {}", options.jobName(), region, project);
     LOG.info("Using the spec at {}", options.specPath());
     LOG.info("Using parameters:\n{}", formatForLogging(options.parameters()));
@@ -76,9 +79,10 @@ public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
     Job job = response.getJob();
     printJobResponse(job);
 
-    // The initial response will not return the state, so need to explicitly get it
-    JobState state = getJobStatus(project, region, job.getId());
-    return JobInfo.builder().setJobId(job.getId()).setState(state).build();
+    // Wait until the job is active to get more information
+    JobState state = waitUntilActive(project, region, job.getId());
+    job = getJob(project, region, job.getId());
+    return getJobInfo(options, state, job, /*runner*/ "Dataflow");
   }
 
   private FlexTemplateRuntimeEnvironment buildEnvironment(LaunchConfig options) {
