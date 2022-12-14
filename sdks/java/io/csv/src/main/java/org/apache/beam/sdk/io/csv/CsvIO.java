@@ -40,15 +40,114 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Transforms for reading and writing CSV files. */
+/**
+ * {@link PTransform}s for reading and writing CSV files.
+ *
+ * <h2>Reading CSV files</h2>
+ *
+ * <p>Reading from CSV files is not yet implemented. Please see <a
+ * href="https://github.com/apache/beam/issues/24552">https://github.com/apache/beam/issues/24552</a>.
+ *
+ * <h2>Writing CSV files</h2>
+ *
+ * <p>To write a {@link PCollection} to one or more CSV files, use {@link CsvIO.Write}, using {@code
+ * CsvIO.write().to(String)}. {@link CsvIO.Write} supports writing {@link Row} or custom Java types
+ * using an inferred {@link Schema}. See the Beam Programming Guide on <a
+ * href="https://beam.apache.org/documentation/programming-guide/#inferring-schemas">Inferring
+ * schemas</a> for more information on how to enable Beam to infer a {@link Schema} from a custom
+ * Java type.
+ *
+ * <p>Please note that {@link CsvIO.Write} restricts the use of flat {@link Schema}s and checks
+ * whether the {@link Schema.FieldType}s are one of {@link CsvUtils#VALID_FIELD_TYPE_SET}.
+ *
+ * <h3>Example usage:</h3>
+ *
+ * <p>Suppose we have a <code>Transaction</code> class annotated with
+ * {@code @DefaultSchema(JavaBeanSchema.class)} so that Beam can infer its {@link Schema}:
+ *
+ * <pre>{@code @DefaultSchema(JavaBeanSchema.class)
+ * public class Transaction {
+ *   public Transaction() { … }
+ *   public Long getTransactionId();
+ *   public void setTransactionId(Long transactionId) { … }
+ *   public String getBank() { … }
+ *   public void setBank(String bank) { … }
+ *   public double getPurchaseAmount() { … }
+ *   public void setPurchaseAmount(double purchaseAmount) { … }
+ * }
+ * }</pre>
+ *
+ * <p>From a {@code PCollection<Transaction>}, we can write one or many CSV files and {@link
+ * CsvIO.Write} will automatically create the header based on its inferred {@link Schema}
+ *
+ * <pre>{@code
+ * PCollection<Transaction> transactions ...
+ * transactions.apply(CsvIO.<Transaction>write().to("gs://bucket/path/to/folder"));
+ * }</pre>
+ *
+ * <p>The resulting CSV files will look like the following where the header is repeated for every
+ * file, whereas by default, {@link CsvIO.Write} will write all fields in <b>sorted order</b> of the
+ * field names.
+ *
+ * <pre>{@code
+ * bank,purchaseAmount,transactionId
+ * A,10.23,12345
+ * B,54.65,54321
+ * C,11.76,98765
+ * }</pre>
+ *
+ * <p>{@link CsvIO.Write} allows the use a subset of the available fields or control the order of
+ * their output using {@link CsvIO.Write#withSchemaFields(List)} listing of matching {@link
+ * Schema#getField(String)} names.
+ *
+ * <pre>{@code
+ * PCollection<Transaction> transactions ...
+ * transactions.apply(
+ *  CsvIO
+ *    .<Transaction>write()
+ *    .to("gs://bucket/path/to/folder")
+ *    .withSchemaFields(Arrays.asList("transactionId", "purchaseAmount"))
+ * );
+ * }</pre>
+ *
+ * <p>The resulting CSV files will look like the following where the header is repeated for every
+ * file, but only including the subset of fields in their listed order.
+ *
+ * <pre>{@code
+ * transactionId,purchaseAmount
+ * 12345,10.23
+ * 54321,54.65
+ * 98765,11.76
+ * }</pre>
+ *
+ * <p>Additionally, we may define a {@link CSVFormat} other than the {@link CSVFormat#DEFAULT}.
+ *
+ * <pre>{@code
+ * PCollection<Transaction> transactions ...
+ * transactions.apply(
+ *  CsvIO
+ *    .<Transaction>write()
+ *    .to("gs://bucket/path/to/folder")
+ *    .withCSVFormat(CSVFormat.POSTGRESQL_CSV)
+ *  );
+ * }</pre>
+ *
+ * <p>The resulting CSV files will look like the following formatted according to {@link
+ * CSVFormat#POSTGRESQL_CSV}.
+ *
+ * <pre>{@code
+ * "bank","purchaseAmount","transactionId"
+ * "A","10.23","12345"
+ * "B","54.65","54321"
+ * "C","11.76","98765"
+ * }</pre>
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -79,14 +178,15 @@ public class CsvIO {
      * file prior to the header. In the example below, all the text proceeding the header
      * 'column1,column2,column3' is the preamble.
      *
-     * <p><code>Fake company, Inc.
+     * <pre>{@code
+     * Fake company, Inc.
      * Lab experiment: abcdefg123456
      * Experiment date: 2022-12-05
      * Operator: John Doe
      * column1,column2,colum3
      * 1,2,3
      * 4,5,6
-     * </code>
+     * }</pre>
      */
     public Sink<T> withPreamble(String preamble) {
       return toBuilder().setPreamble(preamble).build();
@@ -111,7 +211,7 @@ public class CsvIO {
       writer.println(getHeader());
     }
 
-    /** Serializes and writes the {@param element} to a file. */
+    /** Serializes and writes the element to a file. */
     @Override
     public void write(T element) throws IOException {
       if (writer == null) {
@@ -132,29 +232,19 @@ public class CsvIO {
     }
 
     /**
-     * Not to be confused with the CSV header, it is content written to the top of every sharded
-     * file prior to the header. In the example below, all the text proceeding the header
-     * 'column1,column2,column3' is the preamble.
-     *
-     * <p><code>Fake company, Inc.
-     * Lab experiment: abcdefg123456
-     * Experiment date: 2022-12-05
-     * Operator: John Doe
-     * column1,column2,colum3
-     * 1,2,3
-     * 4,5,6
-     * </code>
+     * Not to be confused with the header. It is the text preceding the header in every sharded
+     * file. See {@link #withPreamble(String)}.
      */
     abstract @Nullable String getPreamble();
 
     /**
      * The column names of the CSV file written at the top line of each shard after the preamble, if
-     * available. Named fields in header must conform to types listed in {@link
+     * available. Named fields in header must conform to the types listed in {@link
      * CsvUtils#VALID_FIELD_TYPE_SET}.
      */
     abstract String getHeader();
 
-    /** A {@link SerializableFunction} for converting a {@param T} to a CSV formatted string. */
+    /** A {@link SerializableFunction} for converting to a CSV formatted string. */
     abstract SerializableFunction<T, String> getFormatFunction();
 
     abstract Builder<T> toBuilder();
@@ -163,34 +253,28 @@ public class CsvIO {
     abstract static class Builder<T> {
 
       /**
-       * Not to be confused with the CSV header, it is content written to the top of every sharded
-       * file prior to the header. In the example below, all the text proceeding the header
-       * 'column1,column2,column3' is the preamble.
-       *
-       * <p>Fake company, Inc. Lab experiment: abcdefg123456 Experiment date: 2022-12-05 Operator:
-       * John Doe
-       *
-       * <p>column1,column2,column3 1,2,3 4,5,6
+       * Not to be confused with the header. It is the text preceding the header in every sharded
+       * file. See {@link #withPreamble(String)}.
        */
       abstract Builder<T> setPreamble(String value);
 
       /**
        * The column names of the CSV file written at the top line of each shard after the preamble,
-       * if available. Named fields in header must conform to types listed in {@link
+       * if available. Named fields in header must conform to the types listed in {@link
        * CsvUtils#VALID_FIELD_TYPE_SET}.
        */
       abstract Builder<T> setHeader(String value);
 
-      /** A {@link SerializableFunction} for converting a {@param T} to a CSV formatted string. */
+      /** A {@link SerializableFunction} for converting a to a CSV formatted string. */
       abstract Builder<T> setFormatFunction(SerializableFunction<T, String> value);
 
       abstract Sink<T> build();
     }
   }
 
+  /** {@link PTransform} for writing CSV files. */
   @AutoValue
-  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone>
-      implements HasDisplayData {
+  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
     /** Specifies a common prefix for all generated files. */
     public Write<T> to(String filenamePrefix) {
@@ -202,19 +286,25 @@ public class CsvIO {
       return toBuilder().setCSVFormat(format).build();
     }
 
+    /** Controls the subset and order of included fields when writing records. */
+    public Write<T> withSchemaFields(List<String> schemaFields) {
+      return toBuilder().setSchemaFields(schemaFields).build();
+    }
+
     /**
      * Not to be confused with the CSV header, it is content written to the top of every sharded
      * file prior to the header. In the example below, all the text proceeding the header
      * 'column1,column2,column3' is the preamble.
      *
-     * <p><code>Fake company, Inc.
+     * <pre>{@code
+     * Fake company, Inc.
      * Lab experiment: abcdefg123456
      * Experiment date: 2022-12-05
      * Operator: John Doe
      * column1,column2,colum3
      * 1,2,3
      * 4,5,6
-     * </code>
+     * }</pre>
      */
     public Write<T> withPreamble(String preamble) {
       return toBuilder().setPreamble(preamble).build();
@@ -237,7 +327,7 @@ public class CsvIO {
      * Specifies a directory into which all temporary files will be placed. See {@link
      * FileIO.Write#withTempDirectory(String)}.
      */
-    public Write<T> withTempDirectory(ResourceId value) {
+    public Write<T> withTempDirectory(String value) {
       return toBuilder().setTempDirectory(value).build();
     }
 
@@ -253,7 +343,7 @@ public class CsvIO {
 
     abstract String getFilenameSuffix();
 
-    abstract @Nullable ResourceId getTempDirectory();
+    abstract @Nullable String getTempDirectory();
 
     abstract @Nullable List<String> getSchemaFields();
 
@@ -278,7 +368,7 @@ public class CsvIO {
 
       abstract Optional<String> getFilenameSuffix();
 
-      abstract Builder<T> setTempDirectory(ResourceId value);
+      abstract Builder<T> setTempDirectory(String value);
 
       abstract Builder<T> setSchemaFields(List<String> value);
 
@@ -294,31 +384,6 @@ public class CsvIO {
         }
 
         return autoBuild();
-      }
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      if (getFilenamePrefix() != null) {
-        builder.add(DisplayData.item("filenamePrefix", getFilenamePrefix()));
-      }
-      if (getCSVFormat() != null) {
-        builder.add(DisplayData.item("csvFormat", getCSVFormat().toString()));
-      }
-      if (getPreamble() != null) {
-        builder.add(DisplayData.item("preamble", getPreamble()));
-      }
-      if (getCompression() != null) {
-        builder.add(DisplayData.item("compression", getCompression().name()));
-      }
-      if (getNumShards() != null) {
-        builder.add(DisplayData.item("numShards", getNumShards()));
-      }
-
-      builder.add(DisplayData.item("filenameSuffix", getFilenameSuffix()));
-
-      if (getTempDirectory() != null) {
-        builder.add(DisplayData.item("tempDirectory", getTempDirectory().getFilename()));
       }
     }
 
@@ -391,7 +456,7 @@ public class CsvIO {
       }
 
       if (getTempDirectory() != null) {
-        write = write.withTempDirectory(Objects.requireNonNull(getTempDirectory().getFilename()));
+        write = write.withTempDirectory(getTempDirectory());
       }
 
       return write;

@@ -46,10 +46,10 @@ public class CsvPayloadSerializerProvider implements PayloadSerializerProvider {
   }
 
   /**
-   * Validates {@link Map} of {@param params} against {@link
-   * #CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA} and converts the {@param params} as a {@link Row}.
-   * The design goals of this method are to schematize {@link #getSerializer(Schema, Map)}'s params
-   * to improve error handling and developer expectations of the keys and value types.
+   * Validates {@link Map} of params against {@link #CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA} and
+   * converts the params as a {@link Row}. The design goals of this method are to schematize {@link
+   * #getSerializer(Schema, Map)}'s params to improve error handling and developer expectations of
+   * the keys and value types.
    */
   static Row rowFrom(Map<String, Object> params) {
     return Row.withSchema(CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA).withFieldValues(params).build();
@@ -58,7 +58,7 @@ public class CsvPayloadSerializerProvider implements PayloadSerializerProvider {
   /**
    * Implementation of {@link PayloadSerializerProvider#getSerializer(Schema, Map)} method.
    * Instantiates a {@link CsvPayloadSerializer}. See {@link
-   * #CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA} for {@param params}'s expected keys and value types.
+   * #CSV_PAYLOAD_SERIALIZER_PARAMETER_SCHEMA} for params's expected keys and value types.
    */
   @Override
   public PayloadSerializer getSerializer(Schema schema, Map<String, Object> params) {

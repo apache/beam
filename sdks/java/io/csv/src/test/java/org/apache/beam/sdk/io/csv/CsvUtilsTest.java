@@ -82,6 +82,14 @@ public class CsvUtilsTest {
   }
 
   @Test
+  public void getRowToCsvStringFunctionNonDefaultCSVFormat() {
+    assertEquals(
+        "\"true\",\"0\",\"3.12345\",\"4.1\",\"7\",\"5\",\"2\",\"2022-12-06T20:26:05.856Z\",\"1\",\"asdfjkl;\"",
+        CsvUtils.getRowToCsvStringFunction(row.getSchema(), CSVFormat.POSTGRESQL_CSV, null)
+            .apply(row));
+  }
+
+  @Test
   public void buildHeaderFromDefaults() {
     assertEquals(
         "aBoolean,aByte,aDouble,aFloat,aLong,aShort,anInt,dateTime,decimal,string",

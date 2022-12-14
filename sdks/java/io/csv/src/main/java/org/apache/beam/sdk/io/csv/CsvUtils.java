@@ -35,6 +35,29 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Utilities to convert between CSV records, Beam rows, and user types. */
 public final class CsvUtils {
 
+  /**
+   * The valid {@link Schema.FieldType} from which {@link CsvIO} converts CSV records.
+   *
+   * <p>{@link FieldType#BYTE}
+   *
+   * <p>{@link FieldType#BOOLEAN}
+   *
+   * <p>{@link FieldType#DATETIME}
+   *
+   * <p>{@link FieldType#DECIMAL}
+   *
+   * <p>{@link FieldType#DOUBLE}
+   *
+   * <p>{@link FieldType#INT16}
+   *
+   * <p>{@link FieldType#INT32}
+   *
+   * <p>{@link FieldType#INT64}
+   *
+   * <p>{@link FieldType#FLOAT}
+   *
+   * <p>{@link FieldType#STRING}
+   */
   public static final Set<FieldType> VALID_FIELD_TYPE_SET =
       ImmutableSet.of(
           FieldType.BYTE,
@@ -50,9 +73,9 @@ public final class CsvUtils {
 
   /**
    * Planned for: TODO(https://github.com/apache/beam/issues/24552) Returns a {@link SimpleFunction}
-   * that converts a CSV byte[] record to a Beam {@link Row}. Providing {@param schemaFields}
-   * determines the subset and order of {@param beamSchema} fields expected from the CSV byte[]
-   * record. Otherwise, the expected order derives from the {@link Schema#sorted()} field order.
+   * that converts a CSV byte[] record to a Beam {@link Row}. Providing schemaFields determines the
+   * subset and order of beamSchema fields expected from the CSV byte[] record. Otherwise, the
+   * expected order derives from the {@link Schema#sorted()} field order.
    */
   public static SimpleFunction<byte[], Row> getCsvBytesToRowFunction(
       Schema beamSchema, @Nullable CSVFormat format, @Nullable List<String> schemaFields) {
@@ -63,9 +86,9 @@ public final class CsvUtils {
 
   /**
    * Planned for: TODO(https://github.com/apache/beam/issues/24552) Returns a {@link SimpleFunction}
-   * that converts a CSV String record to a Beam {@link Row}. Providing {@param schemaFields}
-   * determines the subset and order of {@param beamSchema} fields expected from the CSV String
-   * record. Otherwise, the expected order derives from the {@link Schema#sorted()} field order.
+   * that converts a CSV String record to a Beam {@link Row}. Providing schemaFields determines the
+   * subset and order of beamSchema fields expected from the CSV String record. Otherwise, the
+   * expected order derives from the {@link Schema#sorted()} field order.
    */
   public static SimpleFunction<String, Row> getCsvStringToRowFunction(
       Schema beamSchema, @Nullable CSVFormat format, @Nullable List<String> schemaFields) {
@@ -76,9 +99,8 @@ public final class CsvUtils {
 
   /**
    * Returns a {@link SimpleFunction} that converts a {@link Row} to a CSV byte[] record. Providing
-   * {@param schemaFields} determines the subset and order of {@param beamSchema} fields of the
-   * resulting CSV byte[] record. Otherwise, the order derives from the {@link Schema#sorted()}
-   * field order.
+   * schemaFields determines the subset and order of beamSchema fields of the resulting CSV byte[]
+   * record. Otherwise, the order derives from the {@link Schema#sorted()} field order.
    */
   public static SimpleFunction<Row, byte[]> getRowToCsvBytesFunction(
       Schema beamSchema, @Nullable CSVFormat format, @Nullable List<String> schemaFields) {
@@ -89,9 +111,8 @@ public final class CsvUtils {
 
   /**
    * Returns a {@link SerializableFunction} that converts a {@link Row} to a CSV String record.
-   * Providing {@param schemaFields} determines the subset and order of {@param beamSchema} fields
-   * of the resulting CSV String record. Otherwise, the order derives from the {@link
-   * Schema#sorted()} field order.
+   * Providing schemaFields determines the subset and order of beamSchema fields of the resulting
+   * CSV String record. Otherwise, the order derives from the {@link Schema#sorted()} field order.
    */
   public static SerializableFunction<Row, String> getRowToCsvStringFunction(
       Schema beamSchema, @Nullable CSVFormat format, @Nullable List<String> schemaFields) {
@@ -101,7 +122,7 @@ public final class CsvUtils {
     return new RowToCsvStringFn(payloadSerializer);
   }
 
-  /** Formats {@param columns} into a header String based on {@link CSVFormat}. */
+  /** Formats columns into a header String based on {@link CSVFormat}. */
   static String buildHeaderFrom(List<String> columns, CSVFormat csvFormat) {
     StringBuilder builder = new StringBuilder();
     try {
@@ -121,7 +142,7 @@ public final class CsvUtils {
     return buildHeaderFrom(schema.sorted().getFieldNames(), csvFormat);
   }
 
-  /** Checks {@param columns} against the {@param schema}. */
+  /** Checks columns against the schema. */
   static void validateHeaderAgainstSchema(@Nullable List<String> columns, Schema schema) {
     if (columns == null) {
       return;
@@ -145,8 +166,8 @@ public final class CsvUtils {
   }
 
   /**
-   * Validates whether the {@param schema} is flat i.e. only contains {@link #VALID_FIELD_TYPE_SET}
-   * {@link FieldType}s.
+   * Validates whether the schema is flat i.e. only contains {@link #VALID_FIELD_TYPE_SET} {@link
+   * FieldType}s.
    */
   static void validateSchema(Schema schema) {
     if (schema.getFieldCount() == 0) {
@@ -213,7 +234,7 @@ public final class CsvUtils {
     }
   }
 
-  /** Converts a CSV {@param CsvT} record to a Beam {@link Row}. */
+  /** Converts a CSV record to a Beam {@link Row}. */
   abstract static class CsvToRowFn<CsvT> extends SimpleFunction<CsvT, Row> {
     private final CsvPayloadSerializer payloadSerializer;
 
@@ -230,7 +251,7 @@ public final class CsvUtils {
     }
   }
 
-  /** Converts a Beam {@link Row} to a CSV {@param CsvT} record. */
+  /** Converts a Beam {@link Row} to a CSV record. */
   abstract static class RowToCsvFn<CsvT> extends SimpleFunction<Row, CsvT> {
     private final CsvPayloadSerializer payloadSerializer;
 

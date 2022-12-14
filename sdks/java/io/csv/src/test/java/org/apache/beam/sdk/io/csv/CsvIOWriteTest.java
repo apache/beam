@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.csv;
 
-import static org.apache.beam.sdk.io.csv.CsvIO.DEFAULT_FILENAME_SUFFIX;
 import static org.apache.beam.sdk.io.csv.CsvIOTestHelpers.ALL_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.csv.CsvIOTestHelpers.rowOf;
 import static org.junit.Assert.assertArrayEquals;
@@ -34,25 +33,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.csv.CsvIOTestHelpers.AllDataTypes;
-import org.apache.beam.sdk.io.fs.ResolveOptions;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Identifier;
-import org.apache.beam.sdk.transforms.display.DisplayData.Item;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -143,62 +132,22 @@ public class CsvIOWriteTest {
               "c"));
 
   @Test
-  public void populateDisplayData() {
-    CsvIO.Write<Row> write = CsvIO.writeRows().to("somewhere");
-    Map<String, Object> commonWithoutCsvFormat =
-        ImmutableMap.of("filenameSuffix", DEFAULT_FILENAME_SUFFIX, "filenamePrefix", "somewhere");
-    Map<String, Object> common =
-        ImmutableMap.<String, Object>builder()
-            .putAll(commonWithoutCsvFormat)
-            .put("csvFormat", CSVFormat.DEFAULT.toString())
-            .build();
-    assertDisplayDataEquals(common, DisplayData.from(write));
-    assertDisplayDataEquals(
-        ImmutableMap.<String, Object>builder()
-            .putAll(commonWithoutCsvFormat)
-            .put("csvFormat", CSVFormat.MONGODB_CSV.toString())
-            .build(),
-        DisplayData.from(write.withCSVFormat(CSVFormat.MONGODB_CSV)));
-    assertDisplayDataEquals(
-        ImmutableMap.<String, Object>builder()
-            .putAll(common)
-            .put("preamble", "preamblevalue")
-            .build(),
-        DisplayData.from(write.withPreamble("preamblevalue")));
-    assertDisplayDataEquals(
-        ImmutableMap.<String, Object>builder()
-            .putAll(common)
-            .put("compression", Compression.GZIP.name())
-            .build(),
-        DisplayData.from(write.withCompression(Compression.GZIP)));
-    assertDisplayDataEquals(
-        ImmutableMap.<String, Object>builder().putAll(common).put("numShards", 9L).build(),
-        DisplayData.from(write.withNumShards(9)));
-    assertDisplayDataEquals(
-        ImmutableMap.<String, Object>builder()
-            .putAll(common)
-            .put("tempDirectory", tmpFolder.getRoot().getAbsolutePath())
-            .build(),
-        DisplayData.from(
-            write.withTempDirectory(new MockResourceId(Paths.get(tmpFolder.getRoot().toURI())))));
-  }
-
-  private static void assertDisplayDataEquals(
-      Map<String, Object> expected, DisplayData displayData) {
-    Map<String, Object> actual = mapFrom(displayData);
-    Set<String> keys =
-        ImmutableSet.<String>builder().addAll(expected.keySet()).addAll(actual.keySet()).build();
-    for (String key : keys) {
-      assertEquals(key, expected.get(key), actual.get(key));
+  public void withCompression() {
+    String to = "with_compression";
+    String regex = String.format("^%s.*$", to);
+    pipeline
+        .apply(Create.of(rows).withRowSchema(ALL_DATA_TYPES_SCHEMA))
+        .apply(
+            CsvIO.writeRows()
+                .to(tmpFolder.getRoot().getAbsolutePath() + "/" + to)
+                .withCompression(Compression.GZIP));
+    pipeline.run().waitUntilFinish();
+    String[] files = filesMatching(regex);
+    for (String name : files) {
+      Path p = Paths.get(tmpFolder.getRoot().getAbsolutePath(), name);
+      File f = new File(p.toString());
+      assertTrue(Compression.GZIP.isCompressed(f.getAbsolutePath()));
     }
-  }
-
-  private static Map<String, Object> mapFrom(DisplayData displayData) {
-    Map<String, Object> result = new HashMap<>();
-    for (Map.Entry<Identifier, Item> entry : displayData.asMap().entrySet()) {
-      result.put(entry.getKey().getKey(), entry.getValue().getValue());
-    }
-    return result;
   }
 
   @Test
@@ -207,6 +156,21 @@ public class CsvIOWriteTest {
         IllegalArgumentException.class,
         () -> CsvIO.write().to("badtype").expand(pipeline.apply(Create.of("1,2,3", "4,5,6"))));
     pipeline.run();
+  }
+
+  @Test
+  public void withNumShards() {
+    String to = "with_num_shards";
+    String regex = String.format("^%s.*$", to);
+    pipeline
+        .apply(Create.of(rows).withRowSchema(ALL_DATA_TYPES_SCHEMA))
+        .apply(
+            CsvIO.writeRows()
+                .to(tmpFolder.getRoot().getAbsolutePath() + "/" + to)
+                .withNumShards(1));
+    pipeline.run().waitUntilFinish();
+    String[] files = filesMatching(regex);
+    assertEquals(1, files.length);
   }
 
   @Test
@@ -272,6 +236,30 @@ public class CsvIOWriteTest {
   }
 
   @Test
+  public void withSchemaFields() throws IOException {
+    String to = "with_schema_fields";
+    String regex = String.format("^%s.*$", to);
+    pipeline
+        .apply(Create.of(rows).withRowSchema(ALL_DATA_TYPES_SCHEMA))
+        .apply(
+            CsvIO.writeRows()
+                .to(tmpFolder.getRoot().getAbsolutePath() + "/" + to)
+                .withSchemaFields(Arrays.asList("aShort", "aBoolean", "aLong")));
+    pipeline.run().waitUntilFinish();
+    String[] files = filesMatching(regex);
+    assertTrue(
+        "CsvIO.writeRows should write to " + tmpFolder.getRoot().getAbsolutePath() + "/" + to,
+        files.length > 0);
+    String expectedHeader = "aShort,aBoolean,aLong";
+    for (String name : files) {
+      Path p = Paths.get(tmpFolder.getRoot().getAbsolutePath(), name);
+      File f = new File(p.toString());
+      assertFileContentsMatchInAnyOrder(
+          null, expectedHeader, f, "3,true,5", "4,true,6", "5,false,7");
+    }
+  }
+
+  @Test
   public void rowsWithDefaults() throws IOException {
     String to = "rows";
     String regex = String.format("^%s.*$", to);
@@ -286,6 +274,10 @@ public class CsvIOWriteTest {
     String expectedHeader =
         "aBoolean,aByte,aDouble,aFloat,aLong,aShort,anInt,dateTime,decimal,string";
     for (String name : files) {
+      Pattern matchCSVSuffix = Pattern.compile("^.*csv$");
+      assertTrue(
+          String.format("%s should match %s", name, matchCSVSuffix.pattern()),
+          matchCSVSuffix.matcher(name).matches());
       Path p = Paths.get(tmpFolder.getRoot().getAbsolutePath(), name);
       File f = new File(p.toString());
       assertFileContentsMatchInAnyOrder(
@@ -363,39 +355,5 @@ public class CsvIOWriteTest {
   private String[] filesMatching(String regex) {
     Pattern p = Pattern.compile(regex);
     return tmpFolder.getRoot().list((file, s) -> p.matcher(s).matches());
-  }
-
-  private static class MockResourceId implements ResourceId {
-
-    private final Path basis;
-
-    MockResourceId(Path basis) {
-      this.basis = basis;
-    }
-
-    @Override
-    public ResourceId resolve(String other, ResolveOptions resolveOptions) {
-      return new MockResourceId(Paths.get(basis.toAbsolutePath().toString(), other));
-    }
-
-    @Override
-    public ResourceId getCurrentDirectory() {
-      return new MockResourceId(basis.getRoot());
-    }
-
-    @Override
-    public String getScheme() {
-      return basis.toAbsolutePath().toUri().getScheme();
-    }
-
-    @Override
-    public String getFilename() {
-      return basis.toAbsolutePath().toString();
-    }
-
-    @Override
-    public boolean isDirectory() {
-      return basis.toFile().isDirectory();
-    }
   }
 }

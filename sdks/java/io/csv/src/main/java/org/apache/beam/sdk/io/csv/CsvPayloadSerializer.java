@@ -33,8 +33,8 @@ public class CsvPayloadSerializer implements PayloadSerializer {
   private final List<String> schemaFields;
 
   /**
-   * Instantiates a {@link PayloadSerializer} for a CSV format. {@param csvFormat} defaults to
-   * {@link CSVFormat#DEFAULT} and {@param schemaFields} defaults to {@link Schema#sorted()} {@link
+   * Instantiates a {@link PayloadSerializer} for a CSV format. If null, csvFormat defaults to
+   * {@link CSVFormat#DEFAULT} and schemaFields default to {@link Schema#sorted()} {@link
    * Schema#getFieldNames()}.
    */
   CsvPayloadSerializer(
@@ -85,9 +85,8 @@ public class CsvPayloadSerializer implements PayloadSerializer {
   }
 
   /**
-   * Converts {@param bytes} to a {@link Row} based on the {@link CSVFormat} and schemaFields
-   * parameter in the constructor. Not yet implemented. See
-   * https://github.com/apache/beam/issues/24552.
+   * Converts bytes to a {@link Row} based on the {@link CSVFormat} and schemaFields parameter in
+   * the constructor. Not yet implemented. See https://github.com/apache/beam/issues/24552.
    */
   @Override
   public Row deserialize(byte[] bytes) {
