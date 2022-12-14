@@ -367,8 +367,7 @@ class FileBasedSink(iobase.Sink):
     try:
       FileSystems.delete([init_result])
     except IOError:
-      # May have already been removed.
-      _LOGGER.warning('Unable to delete file: %s, may have already been removed', init_result)
+      _LOGGER.info('Unable to delete file: %s', init_result)
       pass
 
   @staticmethod
