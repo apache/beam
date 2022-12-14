@@ -154,7 +154,10 @@ public class CsvIOWriteTest {
   public void withInvalidType() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> CsvIO.write().to("badtype").expand(pipeline.apply(Create.of("1,2,3", "4,5,6"))));
+        () ->
+            CsvIO.write()
+                .to(tmpFolder.getRoot().getAbsolutePath() + "/badtype")
+                .expand(pipeline.apply(Create.of("1,2,3", "4,5,6"))));
     pipeline.run();
   }
 
