@@ -35,6 +35,10 @@ public class Project {
   @Nullable
   public String version;
 
+  @JsonSetter(nulls = Nulls.FAIL)
+  @Nullable
+  public String profile;
+
   @JsonProperty("model-paths")
   @JsonSetter(nulls = Nulls.SKIP)
   public List<String> modelPaths = Arrays.asList("models");

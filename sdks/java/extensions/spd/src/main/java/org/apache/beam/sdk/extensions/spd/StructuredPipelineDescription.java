@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.spd;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -70,6 +71,7 @@ public class StructuredPipelineDescription {
   private Map<String, StructuredModel> modelMap;
 
   @Nullable Project project = null;
+  private String target = "";
 
   public StructuredPipelineDescription(Pipeline pipeline) {
     this.pipeline = pipeline;
@@ -88,6 +90,10 @@ public class StructuredPipelineDescription {
     envBuilder.setPipelineOptions(this.pipeline.getOptions());
     this.env = envBuilder.build();
   }
+
+  public void setTarget(String target) { this.target = target; }
+  public String getTarget() { return target; }
+
 
   public PCollection<Row> readFrom(String fullTableName, PBegin input) throws Exception {
     Table t = getTable(fullTableName);
@@ -285,5 +291,32 @@ public class StructuredPipelineDescription {
     for (Map.Entry<String, Table> table : metaTableProvider.getTables().entrySet()) {
       LOG.info("Table: " + table.getKey() + ", " + table.getValue().toString());
     }
+  }
+
+  public void applyProfiles(Path path) throws Exception {
+    ObjectMapper mapper =
+            new ObjectMapper(new YAMLFactory())
+                    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    if(Files.exists(path)) {
+      throw new Exception("Profiles not found.");
+    }
+    if(project == null || "".equals(project.profile) || project.profile == null) {
+      throw new Exception("Project must be initialized with a profile.");
+    }
+    JsonNode allProfiles = mapper.readTree(Files.newBufferedReader(path));
+    JsonNode profile = allProfiles.get(project.profile);
+    //If target isn't set, try to set it from the profile object
+    if(target == null || "".equals(target)) {
+      this.target = profile.get("target").asText("");
+    }
+    if("".equals(this.target)) {
+      throw new Exception("Unable to apply profile as target is not set properly.");
+    }
+    JsonNode providers = profile.path("outputs").path("target");
+    if(providers.isEmpty()) {
+      throw new Exception("Unable to locate outputs ");
+    }
+
+
   }
 }
