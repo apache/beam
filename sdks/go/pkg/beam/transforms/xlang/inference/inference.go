@@ -70,6 +70,8 @@ func WithExpansionAddr(expansionAddr string) runInferenceOption {
 }
 
 // WithExtraPackages is used to specify additional packages when using an automated expansion service.
+// Packages required to run the required Model are included implicitly,
+// eg: scikit-learn, pandas for Sklearn Model Handler.
 func WithExtraPackages(extraPackages []string) runInferenceOption {
 	return func(c *runInferenceConfig) {
 		c.extraPackages = extraPackages
@@ -145,7 +147,7 @@ func (sk sklearn) RunInference(s beam.Scope, col beam.PCollection, opts ...runIn
 		opt(&cfg)
 	}
 	if cfg.expansionAddr == "" {
-		cfg.extraPackages = inferExtraPackages(string(sk.ModelHandlerProvider))
+		cfg.extraPackages = append(cfg.extraPackages, inferExtraPackages(string(sk.ModelHandlerProvider))...)
 	}
 
 	return runInference[sklearn](s, col, sk, cfg)
