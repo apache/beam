@@ -61,7 +61,7 @@ class Config:
     CI_STEP_NAME = "CI"
     CD_STEP_NAME = "CD"
     CI_CD_LITERAL = Literal["CI", "CD"]
-    LINK_PREFIX = "https://github.com/apache/beam/blob/master"
+    URL_VCS_PREFIX = "https://github.com/apache/beam/blob/master"
     GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
     SDK_CONFIG = os.getenv("SDK_CONFIG", "../../playground/sdks.yaml")
 
@@ -74,11 +74,12 @@ class TagFields:
     categories: str = "categories"
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
-    context_line: int = "context_line"
+    context_line: str = "context_line"
     complexity: str = "complexity"
     tags: str = "tags"
     emulators: str = "emulators"
     datasets: str = "datasets"
+    url_notebook: str = "url_notebook"
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,7 @@ class OptionalTagFields:
     default_example: str = "default_example"
     emulators: str = "emulators"
     datasets: str = "datasets"
+    url_notebook: str = "url_notebook"
 
 
 @dataclass(frozen=True)
