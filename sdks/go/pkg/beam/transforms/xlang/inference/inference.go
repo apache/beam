@@ -77,7 +77,7 @@ type sklearn struct {
 	ModelURI string `beam:"model_uri"`
 }
 
-// sklearnConfig could be used to configre other optional parameters in future if necessary.
+// sklearnConfig could be used to configure other optional parameters in future if necessary.
 type sklearnConfig func(*sklearn)
 
 // SklearnModel configures the parameters required to perform RunInference transform
