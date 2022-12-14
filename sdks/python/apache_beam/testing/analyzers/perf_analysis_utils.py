@@ -54,8 +54,8 @@ class GitHubIssueMetaData:
 
 
 def is_change_point_in_valid_window(
-    num_runs_in_change_point_window: int, change_point_index: int) -> bool:
-  return num_runs_in_change_point_window >= change_point_index
+    num_runs_in_change_point_window: int, latest_change_point_run: int) -> bool:
+  return num_runs_in_change_point_window > latest_change_point_run
 
 
 def get_existing_issues_data(
@@ -161,8 +161,7 @@ def find_latest_change_point_index(metric_values: List[Union[float, int]]):
     return None
   # Consider the latest change point.
   change_points_idx.sort()
-  change_point_index = change_points_idx[-1]
-  return change_point_index
+  return change_points_idx[-1]
 
 
 def publish_issue_metadata_to_big_query(issue_metadata, test_name):

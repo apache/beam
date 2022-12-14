@@ -23,7 +23,7 @@ test_1:
   metric_name: mean_load_model_latency_milli_secs
   labels:
     - run-inference
-  # TODO: Remove before merging.
+  # Optional parameters.
   min_runs_between_change_points: 5
   num_runs_in_change_point_window: 30
 

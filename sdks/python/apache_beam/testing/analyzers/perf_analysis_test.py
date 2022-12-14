@@ -21,6 +21,7 @@ import os
 import time
 import unittest
 
+# pylint: disable=ungrouped-imports
 try:
   import apache_beam.testing.analyzers.perf_analysis as analysis
   from apache_beam.testing.analyzers import constants

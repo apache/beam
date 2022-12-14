@@ -48,14 +48,12 @@ _ISSUE_TITLE_TEMPLATE = """
   Performance Regression or Improvement: {}:{}
 """
 
-# TODO: Provide a better debugging tool for the user to visualize metrics.
-# For example, a link to dashboards or query to get recent data to analyze,etc.
 _ISSUE_DESCRIPTION_TEMPLATE = """
   Performance change found in the
   test: `{}` for the metric: `{}`.
 
   For more information on how to triage the alerts, please look at
-   `Triage performance alert issues` section of the README.
+  `Triage performance alert issues` section of the [README](https://github.com/apache/beam/blob/3a453cd9fe2883eebed4b326d800b4cf8b2069e4/sdks/python/apache_beam/testing/analyzers/README.md).
 """
 _METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: `{}`"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'
@@ -170,7 +168,7 @@ def get_issue_description(
 
   runs_to_display = [
       _METRIC_INFO_TEMPLATE.format(timestamps[i].ctime(), metric_values[i])
-      for i in range(max_timestamp_index, min_timestamp_index - 1, -1)
+      for i in reversed(range(min_timestamp_index, max_timestamp_index + 1))
   ]
 
   runs_to_display[change_point_index - min_timestamp_index] += " <---- Anomaly"
