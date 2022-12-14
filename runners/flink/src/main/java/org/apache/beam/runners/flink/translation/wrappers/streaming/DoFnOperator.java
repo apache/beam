@@ -797,7 +797,7 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   /**
-   * Allows to apply a hold to the output watermark before it is send out. Used to apply hold on
+   * Allows to apply a hold to the output watermark before it is sent out. Used to apply hold on
    * output watermark for delayed (asynchronous or buffered) processing.
    *
    * @param currentOutputWatermark the current output watermark
