@@ -115,6 +115,7 @@ func init() {
 	functions.HTTP("getUserProgress", commonGet(ParseSdkParam(auth.ParseAuthHeader(getUserProgress))))
 	functions.HTTP("postUnitComplete", commonPost(ParseSdkParam(auth.ParseAuthHeader(postUnitComplete))))
 	functions.HTTP("postUserCode", commonPost(ParseSdkParam(auth.ParseAuthHeader(postUserCode))))
+	functions.HTTP("postDeleteProgress", commonPost(auth.ParseAuthHeader(postDeleteProgress)))
 }
 
 // Get list of SDK names
@@ -243,6 +244,20 @@ func postUserCode(w http.ResponseWriter, r *http.Request) {
 			message = fmt.Sprintf("playground api error: %s", st)
 		}
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, message)
+		return
+	}
+
+	fmt.Fprint(w, "{}")
+}
+
+// Delete user progress
+func postDeleteProgress(w http.ResponseWriter, r *http.Request) {
+	uid := getContextUid(r)
+
+	err := svc.DeleteProgress(r.Context(), uid)
+	if err != nil {
+		log.Println("Delete progress error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
 		return
 	}
 
