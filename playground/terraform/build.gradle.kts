@@ -472,7 +472,7 @@ tasks.register("helmRelease") {
     doLast{
     exec {
         executable("helm")
-    args("upgrade", "playground", "$hdir", "--force")
+    args("install", "playground", "$hdir")
     }
    }
 }
