@@ -28,4 +28,7 @@ const (
 	SdkName = "Apache Beam SDK for Go"
 	// SdkVersion is the current version of the SDK.
 	SdkVersion = "2.45.0.dev"
+
+	// DefaultDockerImage represents the associated image for this release.
+	DefaultDockerImage = "apache/beam_go_sdk:" + SdkVersion
 )
