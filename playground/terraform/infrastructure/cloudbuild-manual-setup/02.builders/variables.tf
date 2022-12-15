@@ -20,11 +20,6 @@ variable "project_id" {
   description = "The ID of the Google Cloud project within which resources are provisioned"
 }
 
-variable "region" {
-  type        = string
-  description = "The Google Cloud Platform (GCP) region (For example: us-central1) where Cloud Build triggers will be created at"
-}
-
 variable "infra_trigger_name" {
   type        = string
   description = "The name of the trigger that will deploy Playground infrastructure"

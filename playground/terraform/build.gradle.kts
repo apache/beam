@@ -81,6 +81,7 @@ tasks {
             "-lock=false",
             "-var=project_id=$project_id",
             "-var=environment=$environment",
+            "-var=region=$location",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
                 "-var-file=./environment/$environment/terraform.tfvars"
             } else {
