@@ -16,7 +16,7 @@
 # under the License.
 
 steps:
-  - id: "First step"
+  - id: "Checking Playground examples (CI)"
     name: 'ubuntu'
     entrypoint: 'bash'
     args:
