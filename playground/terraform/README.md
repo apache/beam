@@ -68,7 +68,6 @@ gke_name             = "playground-backend"  #Playground GKE Cluster name
 region               = "us-east1"            #Set the deployment region
 location             = "us-east1-b"          #Select the deployment location from available in the specified region
 state_bucket         = "bucket_name"         #GCS bucket name for Beam Playground temp files
-bucket_examples_name = "bucket_name-example" #GCS bucket name for Playground examples storage
 redis_name           = "playground_redis"    #Choose the name for redis instance
 min_count            = 2                     #Min node count for GKE cluster
 max_count            = 6                     #Max node count for GKE cluster
