@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-// TODO(alexeyinkin): Refactor this, merge into snippet_editor.dart
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -27,11 +25,11 @@ import 'package:flutter_code_editor/flutter_code_editor.dart';
 import '../controllers/snippet_editing_controller.dart';
 import '../theme/theme.dart';
 
-class EditorTextArea extends StatefulWidget {
+class SnippetEditor extends StatefulWidget {
   final SnippetEditingController controller;
   final bool isEditable;
 
-  EditorTextArea({
+  SnippetEditor({
     required this.controller,
     required this.isEditable,
   }) : super(
@@ -40,14 +38,13 @@ class EditorTextArea extends StatefulWidget {
   );
 
   @override
-  State<EditorTextArea> createState() => _EditorTextAreaState();
+  State<SnippetEditor> createState() => _SnippetEditorState();
 }
 
-class _EditorTextAreaState extends State<EditorTextArea> {
+class _SnippetEditorState extends State<SnippetEditor> {
   bool _didAutoFocus = false;
   final _focusNode = FocusNode();
   final _scrollController = ScrollController();
-  final _sizeKey = LabeledGlobalKey('CodeFieldKey');
 
   @override
   void didChangeDependencies() {
@@ -100,7 +97,6 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       readOnly: isEnabled,
       label: 'widgets.codeEditor.label',
       child: FocusScope(
-        key: _sizeKey,
         node: FocusScopeNode(canRequestFocus: isEnabled),
         child: CodeTheme(
           data: ext.codeTheme,

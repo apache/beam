@@ -34,7 +34,7 @@ class EmbeddedEditor extends StatelessWidget {
       return const LoadingIndicator();
     }
 
-    return EditorTextArea(
+    return SnippetEditor(
       controller: snippetController,
       isEditable: isEditable,
     );

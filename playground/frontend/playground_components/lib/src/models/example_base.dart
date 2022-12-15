@@ -51,7 +51,7 @@ extension ExampleTypeToString on ExampleType {
 class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final Complexity? complexity;
 
-  // Index of the line to focus, 1-based.
+  /// Index of the line to focus, 1-based.
   final int contextLine;
   final String description;
   final bool isMultiFile;
