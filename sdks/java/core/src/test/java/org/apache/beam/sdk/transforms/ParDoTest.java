@@ -2908,21 +2908,6 @@ public class ParDoTest implements Serializable {
                 @StateId(stateId) MultimapState<String, Integer> state,
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, Integer>> r) {
-              if (count.read() == 1) {
-                ReadableState<Boolean> isEmptyView = state.isEmpty();
-                boolean isEmpty = state.isEmpty().read();
-
-                state.remove("a");
-
-                // isEmpty before and after remove:
-                assertFalse(isEmpty);
-                assertTrue(isEmptyView.read());
-                assertTrue(state.isEmpty().read());
-
-                // put the removed key-value pair back
-                state.put("a", 97);
-              }
-
               KV<String, Integer> value = element.getValue();
               state.put(value.getKey(), value.getValue());
               count.add(1);
@@ -2976,6 +2961,66 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
               .apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("a", 97), KV.of("a", 98));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMultimapState.class})
+    public void testMultimapStateIsEmptyAfterRemove() {
+      final String stateId = "foo:";
+      final String countStateId = "count";
+      DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+          new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+            @StateId(stateId)
+            private final StateSpec<MultimapState<String, Integer>> multimapState =
+                StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+            @StateId(countStateId)
+            private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+                StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c,
+                @Element KV<String, KV<String, Integer>> element,
+                @StateId(stateId) MultimapState<String, Integer> state,
+                @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+                OutputReceiver<KV<String, Integer>> r) {
+              KV<String, Integer> value = element.getValue();
+              state.put(value.getKey(), value.getValue());
+              count.add(1);
+
+              if (count.read() >= 4) {
+                ReadableState<Boolean> isEmptyView = state.isEmpty();
+                boolean isEmpty = state.isEmpty().read();
+
+                state.remove("a");
+
+                assertFalse(isEmpty);
+                assertFalse(isEmptyView.read());
+                assertFalse(state.isEmpty().read());
+
+                isEmptyView = state.isEmpty();
+                isEmpty = state.isEmpty().read();
+
+                // isEmpty after removing the only multimap key.
+                state.remove("b");
+
+                assertFalse(isEmpty);
+                assertTrue(isEmptyView.read());
+                assertTrue(state.isEmpty().read());
+              }
+            }
+          };
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(
+                  Create.of(
+                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("a", 98)), KV.of("hello", KV.of("b", 33))))
+              .apply(ParDo.of(fn));
+      PAssert.that(output).empty();
       pipeline.run();
     }
 
