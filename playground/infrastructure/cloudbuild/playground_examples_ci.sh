@@ -59,9 +59,9 @@ BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
 BEAM_CONCURRENCY=4 \
 BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
-allowlist=("playground/infrastructure" "playground/backend" \
-"playground/infrastructure/cloudbuild/cloudbuild_examples_ci_steps.yaml" \
-"playground/infrastructure/cloudbuild/playground_examples_ci.sh")
+allowlist="playground/infrastructure playground/backend \
+playground/infrastructure/cloudbuild/cloudbuild_examples_ci_steps.yaml \
+playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 # Get Difference
 # branch name will be master for any branch in cloud build
