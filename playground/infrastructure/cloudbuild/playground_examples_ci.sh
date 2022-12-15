@@ -68,12 +68,13 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 # Example: even if branch name in cloud build trigger is some "feature"
 # it will appear as master in builder log
 echo $BRANCH_NAME
+git branch
 base_ref=refs/heads/master
 if [ -z "$base_ref" ] || [ "$base_ref" == "refs/heads/master" ]
 then
   base_ref=refs/heads/master
 fi
-diff=$(git diff --name-only)
+diff=$(git diff --name-only cloudbuild+manualsetup+playground+cd)
 
 echo ${diff}
 # Check if there are Examples
