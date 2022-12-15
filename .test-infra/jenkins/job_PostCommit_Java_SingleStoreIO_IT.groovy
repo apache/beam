@@ -41,7 +41,7 @@ PostcommitJobBuilder.postCommitJob(jobName,
       description('Runs the Java SingleStoreIO Integration Test.')
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
+      common.setTopLevelMainJobProperties(delegate)
 
       // Deploy SingleStoreDB cluster
       String namespace = common.getKubernetesNamespace(jobName)
