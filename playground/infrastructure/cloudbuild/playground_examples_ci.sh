@@ -72,7 +72,7 @@ if [ -z "$base_ref" ] || [ "$base_ref" == "refs/heads/master" ]
 then
   base_ref=refs/heads/master
 fi
-diff=$(git diff --name-only $base_ref | tr '\n' ' ')
+diff=$(git diff --name-only $base_ref ${COMMIT_SHA} | tr '\n' ' ')
 
 echo ${diff}
 # Check if there are Examples
