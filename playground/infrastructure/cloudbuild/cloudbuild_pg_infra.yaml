@@ -32,6 +32,9 @@ steps:
         'region = "$_PLAYGROUND_REGION"' \
         'location = "$_PLAYGROUND_ZONE"' \
         'state_bucket = "$_STATE_BUCKET"' \
+        'redis_name = "$_REDIS_NAME"' \
+        'min_count = 2' \
+        'max_count = 6' \
         > playground/terraform/environment/$_ENVIRONMENT_NAME/terraform.tfvars
         printf \
         'bucket = "$_STATE_BUCKET"'\

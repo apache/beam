@@ -112,3 +112,8 @@ Apache Beam Golang and Python images SDK tag. (For example: 2.43.0)
 See more: https://hub.docker.com/r/apache/beam_python3.7_sdk/tags and https://hub.docker.com/r/apache/beam_go_sdk"
   EOF
 }
+
+variable "redis_name" {
+  description = "The name Redis Memorystore servive"
+  default = "redis-memorystore-instance"
+}

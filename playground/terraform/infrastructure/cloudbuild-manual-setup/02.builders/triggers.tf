@@ -41,6 +41,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     _NETWORK_NAME : var.playground_network_name
     _GKE_NAME : var.playground_gke_name
     _STATE_BUCKET : var.state_bucket
+    _REDIS_NAME : var.redis_name
   }
 
   filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
@@ -73,6 +74,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     _TAG : var.image_tag
     _DOCKER_REPOSITORY_ROOT : var.docker_repository_root
     _SDK_TAG : var.sdk_tag
+    _REDIS_NAME : var.redis_name
   }
 
   filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
