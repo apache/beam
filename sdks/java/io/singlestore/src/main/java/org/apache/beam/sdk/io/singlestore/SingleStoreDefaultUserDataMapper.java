@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -37,7 +39,7 @@ final class SingleStoreDefaultUserDataMapper implements SingleStoreIO.UserDataMa
       DateTimeFormat.forPattern("yyyy-MM-DD' 'HH:mm:ss.SSS");
 
   private String convertLogicalTypeFieldToString(Schema.FieldType type, Object value) {
-    assert type.getTypeName().isLogicalType();
+    checkArgument(type.getTypeName().isLogicalType(), "<appropriate error message>");
 
     Schema.LogicalType<Object, Object> logicalType =
         (Schema.LogicalType<Object, Object>) type.getLogicalType();
