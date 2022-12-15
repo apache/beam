@@ -23,5 +23,4 @@ content:
   - common-transforms
   - core-transforms
   - schema-based-transforms
-
   - windowing

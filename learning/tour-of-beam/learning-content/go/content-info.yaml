@@ -20,7 +20,7 @@
 sdk: Go
 content:
   - introduction
-  - windowing
   - common-transforms
   - core-transforms
   - schema-based-transforms
+  - windowing
