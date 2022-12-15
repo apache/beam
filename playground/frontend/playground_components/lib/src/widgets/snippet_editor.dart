@@ -86,16 +86,16 @@ class _SnippetEditorState extends State<SnippetEditor> {
   @override
   Widget build(BuildContext context) {
     final ext = Theme.of(context).extension<BeamThemeExtension>()!;
-    final isMultifile = widget.controller.selectedExample?.isMultiFile ?? false;
-    final isEnabled = widget.isEditable && !isMultifile;
+    final isMultiFile = widget.controller.selectedExample?.isMultiFile ?? false;
+    final isEnabled = widget.isEditable && !isMultiFile;
 
     return Semantics(
       container: true,
-      textField: true,
-      multiline: true,
       enabled: isEnabled,
-      readOnly: isEnabled,
       label: 'widgets.codeEditor.label',
+      multiline: true,
+      readOnly: isEnabled,
+      textField: true,
       child: FocusScope(
         node: FocusScopeNode(canRequestFocus: isEnabled),
         child: CodeTheme(
@@ -106,9 +106,9 @@ class _SnippetEditorState extends State<SnippetEditor> {
               controller: _scrollController,
               child: CodeField(
                 key: ValueKey(widget.controller.codeController),
-                focusNode: _focusNode,
-                enabled: isEnabled,
                 controller: widget.controller.codeController,
+                enabled: isEnabled,
+                focusNode: _focusNode,
                 textStyle: ext.codeRootStyle,
               ),
             ),

@@ -114,6 +114,10 @@ class SnippetEditingController extends ChangeNotifier {
   }
 
   void _toStartOfFullLine(int line) {
+    if (line >= codeController.code.lines.length) {
+      return;
+    }
+
     final fullPosition = codeController.code.lines.lines[line].textRange.start;
     final visiblePosition = codeController.code.hiddenRanges.cutPosition(
       fullPosition,
