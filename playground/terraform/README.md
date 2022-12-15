@@ -112,7 +112,7 @@ Where "playground.zone" is the registered DNS zone<br>
 ```
 2. Run the following command to authenticate in GKE:
 ```
-gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
+gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id` -Psdk-tag=2.43.0
 ```
 Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```
