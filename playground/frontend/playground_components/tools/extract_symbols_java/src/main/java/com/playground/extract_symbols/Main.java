@@ -106,10 +106,10 @@ public class Main {
     }
 
     private static LinkedHashMap<String, Map<String, List<String>>> sortMap(HashMap<String, Map<String, List<String>>> yamlMap) {
-        final var comparator = new Comparator<Map.Entry<String, Map<String, List<String>>>>() {
+        final var comparator = new Comparator<Map.Entry<String, ?>>() {
             @Override
-            public int compare(Map.Entry<String, Map<String, List<String>>> o1, Map.Entry<String, Map<String, List<String>>> o2) {
-                return o1.getKey().compareTo(o2.getKey());
+            public int compare(Map.Entry<String, ?> a, Map.Entry<String, ?> b) {
+                return a.getKey().compareTo(b.getKey());
             }
         };
         final var array = new ArrayList<>(yamlMap.entrySet());

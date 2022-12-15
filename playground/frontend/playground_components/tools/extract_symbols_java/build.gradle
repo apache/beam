@@ -33,8 +33,6 @@ ext {
 dependencies {
     implementation group: 'com.github.javaparser', name: 'javaparser-core', version: '3.23.1'
     implementation group: 'com.esotericsoftware.yamlbeans', name: 'yamlbeans', version: '1.15'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
 }
 
 tasks.register("buildJava") {
