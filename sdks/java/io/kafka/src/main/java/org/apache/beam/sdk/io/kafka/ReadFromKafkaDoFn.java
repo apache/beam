@@ -32,8 +32,6 @@ import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
 import org.apache.beam.sdk.io.kafka.KafkaUnboundedReader.TimestampPolicyContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
-import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -384,7 +382,7 @@ abstract class ReadFromKafkaDoFn<K, V>
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
           if (timestampPolicy != null) {
-            updateWatermark(timestampPolicy, watermarkEstimator, tracker);
+            updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
           }
           return ProcessContinuation.resume();
         }
@@ -414,7 +412,7 @@ abstract class ReadFromKafkaDoFn<K, V>
           // WatermarkEstimator should be a manual one.
           if (timestampPolicy != null) {
             TimestampPolicyContext context =
-                updateWatermark(timestampPolicy, watermarkEstimator, tracker);
+                updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
             outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
           } else {
             Preconditions.checkStateNotNull(this.extractOutputTimestampFn);
@@ -426,7 +424,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     }
   }
 
-  private TimestampPolicyContext updateWatermark(
+  private TimestampPolicyContext updateWatermarkManually(
       TimestampPolicy<K, V> timestampPolicy,
       WatermarkEstimator<Instant> watermarkEstimator,
       RestrictionTracker<OffsetRange, Long> tracker) {

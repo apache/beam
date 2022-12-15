@@ -68,7 +68,7 @@ import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.FlatMapElements;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -691,7 +691,7 @@ public class KafkaIOIT {
   }
 
   @Test
-  public void testWatermarkUpdateWithSparseMessages() throws IOException {
+  public void testWatermarkUpdateWithSparseMessages() throws IOException, InterruptedException {
     AdminClient client =
         AdminClient.create(
             ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
@@ -719,7 +719,6 @@ public class KafkaIOIT {
 
       client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
 
-      PCollection<String> values =
           sdfReadPipeline
               .apply(
                   "Read from Kafka",
@@ -733,16 +732,19 @@ public class KafkaIOIT {
               .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
               .apply("GroupKey", GroupByKey.create())
               .apply("GetValues", Values.create())
-              .apply(
-                  "Flatten",
-                  FlatMapElements.into(TypeDescriptor.of(String.class)).via(iterable -> iterable));
-
-      PAssert.that(values).containsInAnyOrder("0", "1", "2", "3", "4");
+              .apply("Flatten", Flatten.iterables())
+              .apply("LogValues", ParDo.of(new LogFn()));
 
       PipelineResult readResult = sdfReadPipeline.run();
 
-      PipelineResult.State readState =
-          readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout() / 2));
+      //By adding a sleep & verify here, we don't cause the pipeline to progress before we verify
+      Thread.sleep(options.getReadTimeout()*1000);
+
+      for (String value : records.values()) {
+        kafkaIOITExpectedLogs.verifyError(value);
+      }
+
+      PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(5));
 
       cancelIfTimeouted(readResult, readState);
       // Fail the test if pipeline failed.
