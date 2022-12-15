@@ -23,6 +23,7 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.teleport.it.artifacts.GcsArtifactClient;
 import com.google.cloud.teleport.it.common.IORedirectUtil;
@@ -334,9 +335,23 @@ public abstract class TemplateTestBase {
     }
 
     if (is == null) {
-      LOG.warn("Not found credentials with file name " + credentialFile);
+      LOG.warn("Not found credentials with file name {}", credentialFile);
       return null;
     }
     return is;
+  }
+
+  /**
+   * Convert a BigQuery TableId to a table spec string.
+   *
+   * @param table TableId to format.
+   * @return String in the format {project}:{dataset}.{table}.
+   */
+  protected String toTableSpec(TableId table) {
+    return String.format(
+        "%s:%s.%s",
+        table.getProject() != null ? table.getProject() : PROJECT,
+        table.getDataset(),
+        table.getTable());
   }
 }
