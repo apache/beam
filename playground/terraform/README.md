@@ -112,13 +112,13 @@ Where "playground.zone" is the registered DNS zone<br>
 ```
 2. Run the following command to authenticate in GKE:
 ```
-gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id` -Psdk-tag=2.43.0
+gcloud container clusters get-credentials --region `chosen_location` `gke_name` --project `project_id`
 ```
 Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" -Pdns-name="playground.zone"
+./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" -Pdns-name="playground.zone" -Psdk-tag=2.43.0
 ```
-Where tag - image tag for backend, playground.zone - chosen DNS for Playground
+Where tag - image tag for backend, playground.zone - chosen DNS for Playground, Psdk-tag - current BEAM version
 
 During script execution, a Google managed certificate will be created. [Provisioning might take up to 60 minutes](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs).
 
