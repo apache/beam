@@ -29,6 +29,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "4.1.0"
+  app_state:
+    dependency: "direct main"
+    description:
+      name: app_state
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.8.3"
   archive:
     dependency: transitive
     description:
@@ -225,8 +232,15 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.0.2"
-  equatable:
+  enum_map:
     dependency: transitive
+    description:
+      name: enum_map
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.2.1"
+  equatable:
+    dependency: "direct main"
     description:
       name: equatable
       url: "https://pub.dartlang.org"
@@ -278,7 +292,7 @@ packages:
       name: flutter_code_editor
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.1.9"
+    version: "0.2.1"
   flutter_highlight:
     dependency: transitive
     description:
@@ -286,6 +300,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.7.0"
+  flutter_issue_108697_workaround:
+    dependency: transitive
+    description:
+      name: flutter_issue_108697_workaround
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.2"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -322,6 +343,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  fluttertoast:
+    dependency: transitive
+    description:
+      name: fluttertoast
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "8.1.1"
   frontend_server_client:
     dependency: transitive
     description:
@@ -330,7 +358,7 @@ packages:
     source: hosted
     version: "2.1.3"
   get_it:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: get_it
       url: "https://pub.dartlang.org"
@@ -672,6 +700,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.2.0"
+  rxdart:
+    dependency: transitive
+    description:
+      name: rxdart
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.27.7"
   scrollable_positioned_list:
     dependency: transitive
     description:
