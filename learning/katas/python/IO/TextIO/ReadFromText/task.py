@@ -30,11 +30,9 @@
 
 import apache_beam as beam
 
-from log_elements import LogElements
-
 with beam.Pipeline() as p:
 
   file_path = 'countries.txt'
 
   (p | beam.io.ReadFromText(file_path) | beam.Map(lambda country: country.upper())
-     | LogElements())
+     | beam.LogElements())

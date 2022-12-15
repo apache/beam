@@ -18,15 +18,17 @@ package entity
 import "cloud.google.com/go/datastore"
 
 type ExampleEntity struct {
-	Name   string         `datastore:"name"`
-	Sdk    *datastore.Key `datastore:"sdk"`
-	Descr  string         `datastore:"descr"`
-	Tags   []string       `datastore:"tags"`
-	Cats   []string       `datastore:"cats"`
-	Path   string         `datastore:"path"`
-	Type   string         `datastore:"type"`
-	Origin string         `datastore:"origin"`
-	SchVer *datastore.Key `datastore:"schVer"`
+	Name        string         `datastore:"name"`
+	Sdk         *datastore.Key `datastore:"sdk"`
+	Descr       string         `datastore:"descr"`
+	Tags        []string       `datastore:"tags"`
+	Cats        []string       `datastore:"cats"`
+	Path        string         `datastore:"path"` // TODO remove after #24402 update sequence is done
+	Type        string         `datastore:"type"`
+	Origin      string         `datastore:"origin"`
+	SchVer      *datastore.Key `datastore:"schVer"`
+	UrlVCS      string         `datastore:"urlVCS"`
+	UrlNotebook string         `datastore:"urlNotebook"`
 }
 
 type PrecompiledObjectEntity struct {

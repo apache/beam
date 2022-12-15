@@ -17,6 +17,7 @@ package datastore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,76 +53,85 @@ func New(ctx context.Context, responseMapper mapper.ResponseMapper, projectId st
 	return &Datastore{Client: client, ResponseMapper: responseMapper}, nil
 }
 
+// Delete unused snippets by given persistenceKey
+func (d *Datastore) deleteObsoleteSnippets(ctx context.Context, snipKey *datastore.Key, persistenceKey string) error {
+	if persistenceKey == "" || snipKey == nil {
+		logger.Debugf("no persistence key or no current snippet key")
+		return nil
+	}
+	// If persistenceKey is given, find the previous snippet version
+	snippetQuery := datastore.NewQuery(constants.SnippetKind).
+		Namespace(utils.GetNamespace(ctx)).
+		FilterField("persistenceKey", "=", persistenceKey)
+
+		// At the moment, datastore emulator doesn't allow != filters,
+		// hence this crutches
+		// https://cloud.google.com/datastore/docs/tools/datastore-emulator#known_issues
+		// When it's fixed, post-query filter could be replaced with
+		//
+		// FilterField("__key__", "!=", snipKey)
+
+	return d.deleteSnippets(ctx, snippetQuery, snipKey)
+}
+
 // PutSnippet puts the snippet entity to datastore
 func (d *Datastore) PutSnippet(ctx context.Context, snipId string, snip *entity.Snippet) error {
+	logger.Debugf("putting snippet %q, persistent key %q...", snipId, snip.Snippet.PersistenceKey)
 	if snip == nil {
 		logger.Errorf("Datastore: PutSnippet(): snippet is nil")
 		return nil
 	}
 	snipKey := utils.GetSnippetKey(ctx, snipId)
-	tx, err := d.Client.NewTransaction(ctx)
+
+	// Create the new snippet
+	_, err := d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		if _, err := tx.Put(snipKey, snip.Snippet); err != nil {
+			logger.Errorf("Datastore: PutSnippet(): error during the snippet entity saving, err: %s\n", err.Error())
+			return err
+		}
+
+		var fileKeys []*datastore.Key
+		for index := range snip.Files {
+			fileKeys = append(fileKeys, utils.GetFileKey(ctx, snipId, index))
+		}
+
+		if _, err := tx.PutMulti(fileKeys, snip.Files); err != nil {
+			logger.Errorf("Datastore: PutSnippet(): error during the file entity saving, err: %s\n", err.Error())
+			return err
+		}
+		return nil
+	})
 	if err != nil {
-		logger.Errorf("Datastore: PutSnippet(): error during the transaction creating, err: %s\n", err.Error())
-		return err
-	}
-	if _, err = tx.Put(snipKey, snip.Snippet); err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			err = rollBackErr
-		}
-		logger.Errorf("Datastore: PutSnippet(): error during the snippet entity saving, err: %s\n", err.Error())
+		logger.Errorf("Datastore: PutSnippet(): error during commit, err: %s\n", err.Error())
 		return err
 	}
 
-	var fileKeys []*datastore.Key
-	for index := range snip.Files {
-		fileKeys = append(fileKeys, utils.GetFileKey(ctx, snipId, index))
-	}
-
-	if _, err = tx.PutMulti(fileKeys, snip.Files); err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			err = rollBackErr
-		}
-		logger.Errorf("Datastore: PutSnippet(): error during the file entity saving, err: %s\n", err.Error())
-		return err
-	}
-
-	if _, err = tx.Commit(); err != nil {
-		logger.Errorf(errorMsgTemplateTxCommit, err.Error())
-		return err
-	}
-
-	return nil
+	return d.deleteObsoleteSnippets(ctx, snipKey, snip.Snippet.PersistenceKey)
 }
 
 // GetSnippet returns the snippet entity by identifier
 func (d *Datastore) GetSnippet(ctx context.Context, id string) (*entity.SnippetEntity, error) {
 	key := utils.GetSnippetKey(ctx, id)
 	snip := new(entity.SnippetEntity)
-	tx, err := d.Client.NewTransaction(ctx)
+
+	_, err := d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		if err := tx.Get(key, snip); err != nil {
+			logger.Errorf("Datastore: GetSnippet(): error during snippet getting, err: %s\n", err.Error())
+			return err
+		}
+		snip.LVisited = time.Now()
+		snip.VisitCount += 1
+		if _, err := tx.Put(key, snip); err != nil {
+			logger.Errorf("Datastore: GetSnippet(): error during snippet setting, err: %s\n", err.Error())
+			return err
+		}
+		return nil
+	})
 	if err != nil {
-		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
+		logger.Errorf("Datastore: GetSnippet: error updating snippet: %s\n", err.Error())
 		return nil, err
 	}
-	if err = tx.Get(key, snip); err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			err = rollBackErr
-		}
-		logger.Errorf("Datastore: GetSnippet(): error during snippet getting, err: %s\n", err.Error())
-		return nil, err
-	}
-	snip.LVisited = time.Now()
-	snip.VisitCount += 1
-	if _, err = tx.Put(key, snip); err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			err = rollBackErr
-		}
-		logger.Errorf("Datastore: GetSnippet(): error during snippet setting, err: %s\n", err.Error())
-		return nil, err
-	}
-	if _, err = tx.Commit(); err != nil {
-		logger.Errorf(errorMsgTemplateTxCommit, err.Error())
-		return nil, err
-	}
+
 	return snip, nil
 }
 
@@ -236,11 +246,28 @@ func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEnti
 		return nil, err
 	}
 
+	//Retrieving datasets
+	datastoreQuery := datastore.NewQuery(constants.DatasetKind).Namespace(utils.GetNamespace(ctx))
+	var datasets []*entity.DatasetEntity
+	if _, err = d.Client.GetAll(ctx, datastoreQuery, &datasets); err != nil {
+		logger.Errorf("Datastore: GetCatalog(): error during the getting datasets, err: %s\n", err.Error())
+		return nil, err
+	}
+
+	var datasetBySnippetIDMap map[string][]*dto.DatasetDTO
+	if len(datasets) != 0 {
+		datasetBySnippetIDMap, err = d.ResponseMapper.ToDatasetBySnippetIDMap(datasets, snippets)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return d.ResponseMapper.ToArrayCategories(&dto.CatalogDTO{
-		Examples:   examples,
-		Snippets:   snippets,
-		Files:      files,
-		SdkCatalog: sdkCatalog,
+		Examples:              examples,
+		Snippets:              snippets,
+		Files:                 files,
+		SdkCatalog:            sdkCatalog,
+		DatasetBySnippetIDMap: datasetBySnippetIDMap,
 	}), nil
 }
 
@@ -264,8 +291,8 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	}
 
 	if len(examples) == 0 {
-		logger.Error("no examples")
-		return nil, fmt.Errorf("no examples")
+		logger.Error("no default example")
+		return nil, fmt.Errorf("no default example")
 	}
 
 	//Retrieving snippets
@@ -332,9 +359,33 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 		return nil, err
 	}
 
+	var dataset = new(entity.DatasetEntity)
+	if len(snippet.Datasets) != 0 {
+		datasetKey := snippet.Datasets[0].Dataset
+		if err = tx.Get(datasetKey, dataset); err != nil {
+			logger.Errorf("error during getting dataset by identifier, err: %s", err.Error())
+			return nil, err
+		}
+	}
+
 	sdkToExample := make(map[string]string)
 	for _, sdk := range sdks {
 		sdkToExample[sdk.Name] = sdk.DefaultExample
+	}
+
+	var datasetBySnippetIDMap map[string][]*dto.DatasetDTO
+	if len(snippet.Datasets) != 0 {
+		datasetBySnippetIDMap, err = d.ResponseMapper.ToDatasetBySnippetIDMap([]*entity.DatasetEntity{dataset}, []*entity.SnippetEntity{snippet})
+		if err != nil {
+			return nil, err
+		}
+	}
+	var datasetDTOs []*dto.DatasetDTO
+	if len(datasetBySnippetIDMap) != 0 {
+		datasetDTOsVal, ok := datasetBySnippetIDMap[snippet.Key.Name]
+		if ok {
+			datasetDTOs = datasetDTOsVal
+		}
 	}
 
 	return d.ResponseMapper.ToPrecompiledObj(&dto.ExampleDTO{
@@ -342,6 +393,7 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 		Snippet:            snippet,
 		Files:              []*entity.FileEntity{file},
 		DefaultExampleName: sdkToExample[example.Sdk.Name],
+		Datasets:           datasetDTOs,
 	}), err
 }
 
@@ -388,16 +440,9 @@ func (d *Datastore) GetExampleOutput(ctx context.Context, id string) (string, er
 }
 
 func (d *Datastore) GetExampleLogs(ctx context.Context, id string) (string, error) {
-	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
-	if err != nil {
-		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
-		return "", err
-	}
-	defer rollback(tx)
-
 	pcObjKey := utils.GetPCObjectKey(ctx, id, constants.PCLogType)
 	var pcObj = new(entity.PrecompiledObjectEntity)
-	if err = tx.Get(pcObjKey, pcObj); err != nil {
+	if err := d.Client.Get(ctx, pcObjKey, pcObj); err != nil {
 		if err == datastore.ErrNoSuchEntity {
 			logger.Warnf("error during getting example logs by identifier, err: %s", err.Error())
 			return "", err
@@ -409,16 +454,9 @@ func (d *Datastore) GetExampleLogs(ctx context.Context, id string) (string, erro
 }
 
 func (d *Datastore) GetExampleGraph(ctx context.Context, id string) (string, error) {
-	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
-	if err != nil {
-		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
-		return "", err
-	}
-	defer rollback(tx)
-
 	pcObjKey := utils.GetPCObjectKey(ctx, id, constants.PCGraphType)
 	var pcObj = new(entity.PrecompiledObjectEntity)
-	if err = tx.Get(pcObjKey, pcObj); err != nil {
+	if err := d.Client.Get(ctx, pcObjKey, pcObj); err != nil {
 		if err == datastore.ErrNoSuchEntity {
 			logger.Warnf("error during getting example graph by identifier, err: %s", err.Error())
 			return "", err
@@ -429,37 +467,49 @@ func (d *Datastore) GetExampleGraph(ctx context.Context, id string) (string, err
 	return pcObj.Content, nil
 }
 
+func (d *Datastore) deleteSnippets(ctx context.Context, snippetQuery *datastore.Query, skipKey *datastore.Key) error {
+	snippetQuery = snippetQuery.
+		Project("numberOfFiles")
+	var snpDtos []*dto.SnippetDeleteDTO
+	snpKeys, err := d.Client.GetAll(ctx, snippetQuery, &snpDtos)
+	if err != nil {
+		logger.Errorf("Datastore: deleteSnippets(): query snippets, err: %s\n", err.Error())
+		return err
+	}
+	logger.Debugf("deleting %d unused snippets: %v", len(snpKeys), snpKeys)
+	for snpIndex, snpKey := range snpKeys {
+		if snpKey != nil && skipKey != nil && *snpKey == *skipKey {
+			logger.Debugf("skipping the current snippet %v", snpKey)
+			continue
+		}
+		var fileKeys []*datastore.Key
+		for fileIndex := 0; fileIndex < snpDtos[snpIndex].NumberOfFiles; fileIndex++ {
+			fileKeys = append(fileKeys, utils.GetFileKey(ctx, snpKey.Name, fileIndex))
+		}
+		// delete snippet & its artifacts in a transaction
+		_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+			err = tx.DeleteMulti(fileKeys)
+			err = tx.Delete(snpKey)
+			return err
+		})
+		if err != nil {
+			logger.Errorf("Datastore: deleteSnippets(): error deleting unused snippet, err: %s\n", err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
 //DeleteUnusedSnippets deletes all unused snippets
 func (d *Datastore) DeleteUnusedSnippets(ctx context.Context, dayDiff int32) error {
 	var hoursDiff = dayDiff * 24
 	boundaryDate := time.Now().Add(-time.Hour * time.Duration(hoursDiff))
 	snippetQuery := datastore.NewQuery(constants.SnippetKind).
 		Namespace(utils.GetNamespace(ctx)).
-		Filter("lVisited <= ", boundaryDate).
-		Filter("origin =", constants.UserSnippetOrigin).
-		Project("numberOfFiles")
-	var snpDtos []*dto.SnippetDeleteDTO
-	snpKeys, err := d.Client.GetAll(ctx, snippetQuery, &snpDtos)
-	if err != nil {
-		logger.Errorf("Datastore: DeleteUnusedSnippets(): error during deleting unused snippets, err: %s\n", err.Error())
-		return err
-	}
-	var fileKeys []*datastore.Key
-	for snpIndex, snpKey := range snpKeys {
-		for fileIndex := 0; fileIndex < snpDtos[snpIndex].NumberOfFiles; fileIndex++ {
-			fileKeys = append(fileKeys, utils.GetFileKey(ctx, snpKey.Name, fileIndex))
-		}
-	}
-	_, err = d.Client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
-		err = tx.DeleteMulti(fileKeys)
-		err = tx.DeleteMulti(snpKeys)
-		return err
-	})
-	if err != nil {
-		logger.Errorf("Datastore: DeleteUnusedSnippets(): error during deleting unused snippets, err: %s\n", err.Error())
-		return err
-	}
-	return nil
+		FilterField("lVisited", "<=", boundaryDate).
+		FilterField("origin", "=", constants.UserSnippetOrigin)
+
+	return d.deleteSnippets(ctx, snippetQuery, nil)
 }
 
 func rollback(tx *datastore.Transaction) {
@@ -470,17 +520,18 @@ func rollback(tx *datastore.Transaction) {
 }
 
 func getEntities[V entity.DatastoreEntity](tx *datastore.Transaction, keys []*datastore.Key) ([]*V, error) {
-	var examplesWithNils = make([]*V, len(keys))
-	examples := make([]*V, 0)
-	if err := tx.GetMulti(keys, examplesWithNils); err != nil {
-		if errors, ok := err.(datastore.MultiError); ok {
-			for _, errVal := range errors {
-				if errVal == datastore.ErrNoSuchEntity {
-					for _, exampleVal := range examplesWithNils {
-						if exampleVal != nil {
-							examples = append(examples, exampleVal)
+	var entitiesWithNils = make([]*V, len(keys))
+	entities := make([]*V, 0)
+	if err := tx.GetMulti(keys, entitiesWithNils); err != nil {
+		if errorsVal, ok := err.(datastore.MultiError); ok {
+			for _, errVal := range errorsVal {
+				if errors.Is(datastore.ErrNoSuchEntity, errVal) {
+					for _, entityVal := range entitiesWithNils {
+						if entityVal != nil {
+							entities = append(entities, entityVal)
 						}
 					}
+					break
 				}
 			}
 		} else {
@@ -488,7 +539,7 @@ func getEntities[V entity.DatastoreEntity](tx *datastore.Transaction, keys []*da
 			return nil, err
 		}
 	} else {
-		examples = examplesWithNils
+		entities = entitiesWithNils
 	}
-	return examples, nil
+	return entities, nil
 }

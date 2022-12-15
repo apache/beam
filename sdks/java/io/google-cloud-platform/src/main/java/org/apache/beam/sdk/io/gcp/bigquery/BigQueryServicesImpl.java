@@ -1206,8 +1206,14 @@ class BigQueryServicesImpl implements BigQueryServices {
         }
         rowsToPublish = retryRows;
         idsToPublish = retryIds;
+        // print first 5 failures
+        int numErrorToLog = Math.min(allErrors.size(), 5);
+        LOG.info(
+            "Retrying {} failed inserts to BigQuery. First {} fails: {}",
+            rowsToPublish.size(),
+            numErrorToLog,
+            allErrors.subList(0, numErrorToLog));
         allErrors.clear();
-        LOG.info("Retrying {} failed inserts to BigQuery", rowsToPublish.size());
       }
       if (successfulRows != null) {
         for (int i = 0; i < rowsToPublish.size(); i++) {

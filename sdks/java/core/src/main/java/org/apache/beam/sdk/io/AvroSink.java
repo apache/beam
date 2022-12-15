@@ -39,6 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class AvroSink<UserT, DestinationT, OutputT>
     extends FileBasedSink<UserT, DestinationT, OutputT> {
   private final boolean genericRecords;
+  private final int syncInterval;
 
   @FunctionalInterface
   public interface DatumWriterFactory<T> extends Serializable {
@@ -48,10 +49,12 @@ public class AvroSink<UserT, DestinationT, OutputT>
   AvroSink(
       ValueProvider<ResourceId> outputPrefix,
       DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations,
-      boolean genericRecords) {
+      boolean genericRecords,
+      int syncInterval) {
     // Avro handles compression internally using the codec.
     super(outputPrefix, dynamicDestinations, Compression.UNCOMPRESSED);
     this.genericRecords = genericRecords;
+    this.syncInterval = syncInterval;
   }
 
   @Override
@@ -61,7 +64,7 @@ public class AvroSink<UserT, DestinationT, OutputT>
 
   @Override
   public WriteOperation<DestinationT, OutputT> createWriteOperation() {
-    return new AvroWriteOperation<>(this, genericRecords);
+    return new AvroWriteOperation<>(this, genericRecords, syncInterval);
   }
 
   /** A {@link WriteOperation WriteOperation} for Avro files. */
@@ -69,16 +72,19 @@ public class AvroSink<UserT, DestinationT, OutputT>
       extends WriteOperation<DestinationT, OutputT> {
     private final DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations;
     private final boolean genericRecords;
+    private final int syncInterval;
 
-    private AvroWriteOperation(AvroSink<?, DestinationT, OutputT> sink, boolean genericRecords) {
+    private AvroWriteOperation(
+        AvroSink<?, DestinationT, OutputT> sink, boolean genericRecords, int syncInterval) {
       super(sink);
       this.dynamicDestinations = sink.getDynamicDestinations();
       this.genericRecords = genericRecords;
+      this.syncInterval = syncInterval;
     }
 
     @Override
     public Writer<DestinationT, OutputT> createWriter() throws Exception {
-      return new AvroWriter<>(this, dynamicDestinations, genericRecords);
+      return new AvroWriter<>(this, dynamicDestinations, genericRecords, syncInterval);
     }
   }
 
@@ -90,14 +96,17 @@ public class AvroSink<UserT, DestinationT, OutputT>
 
     private final DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations;
     private final boolean genericRecords;
+    private final int syncInterval;
 
     public AvroWriter(
         WriteOperation<DestinationT, OutputT> writeOperation,
         DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations,
-        boolean genericRecords) {
+        boolean genericRecords,
+        int syncInterval) {
       super(writeOperation, MimeTypes.BINARY);
       this.dynamicDestinations = dynamicDestinations;
       this.genericRecords = genericRecords;
+      this.syncInterval = syncInterval;
     }
 
     @SuppressWarnings("deprecation") // uses internal test functionality.
@@ -133,6 +142,7 @@ public class AvroSink<UserT, DestinationT, OutputT>
                   + v.getClass().getSimpleName());
         }
       }
+      dataFileWriter.setSyncInterval(syncInterval);
       dataFileWriter.create(schema, Channels.newOutputStream(channel));
     }
 

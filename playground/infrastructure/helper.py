@@ -16,14 +16,15 @@
 """
 Common helper module for CI/CD Steps
 """
-
 import asyncio
 import logging
 import os
 from collections import namedtuple
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
+import urllib3
 from pathlib import PurePath
 from typing import List, Optional, Dict
+from api.v1 import api_pb2
 
 from tqdm.asyncio import tqdm
 import yaml
@@ -34,23 +35,27 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
     STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
     PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
     PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
-from config import Config, Origin, TagFields, PrecompiledExampleType, OptionalTagFields
+from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields, Dataset, Emulator
 from grpc_client import GRPCClient
 
+# TODO replace with dataclass
 Tag = namedtuple(
     "Tag",
     [
         TagFields.name,
         TagFields.complexity,
+        TagFields.emulators,
+        TagFields.datasets,
         TagFields.description,
         TagFields.multifile,
         TagFields.categories,
         TagFields.pipeline_options,
         TagFields.default_example,
         TagFields.context_line,
-        TagFields.tags
+        TagFields.tags,
+        TagFields.url_notebook,
     ],
-    defaults=(None, None, None, False, None, None, False, None, None))
+    defaults=(None, None, None, None, None, False, None, None, False, None, None, None))
 
 
 @dataclass
@@ -65,13 +70,16 @@ class Example:
     code: str
     status: STATUS_UNSPECIFIED
     tag: Tag
-    link: str
+    url_vcs: str
+    url_notebook: Optional[str] = None
     logs: str = ""
     type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
     pipeline_id: str = ""
     output: str = ""
     compile_output: str = ""
     graph: str = ""
+    datasets: List[Dataset] = field(default_factory=list)
+    emulators: List[Emulator] = field(default_factory=list)
 
 
 @dataclass
@@ -81,6 +89,7 @@ class ExampleTag:
     """
     tag_as_dict: Dict[str, str]
     tag_as_string: str
+
 
 def _check_no_nested(subdirs: List[str]):
     """
@@ -93,6 +102,7 @@ def _check_no_nested(subdirs: List[str]):
     for dir1, dir2 in zip(sorted_subdirs, sorted_subdirs[1:]):
         if dir1 in [dir2, *dir2.parents]:
             raise ValueError(f"{dir2} is a subdirectory of {dir1}")
+
 
 def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
@@ -163,10 +173,18 @@ async def get_statuses(client: GRPCClient, examples: List[Example], concurrency:
     except (KeyError, ValueError):
         pass
 
-    async with asyncio.Semaphore(concurrency):
-        for example in examples:
-            tasks.append(_update_example_status(example, client))
-        await tqdm.gather(*tasks)
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def _semaphored_task(example):
+        await semaphore.acquire()
+        try:
+            await _update_example_status(example, client)
+        finally:
+            semaphore.release()
+
+    for example in examples:
+        tasks.append(_semaphored_task(example))
+    await tqdm.gather(*tasks)
 
 
 def get_tag(filepath) -> Optional[ExampleTag]:
@@ -259,33 +277,35 @@ def get_supported_categories(categories_path: str) -> List[str]:
         yaml_object = yaml.load(supported_categories.read(), Loader=yaml.SafeLoader)
         return yaml_object[TagFields.categories]
 
+def _get_url_vcs(filepath: str):
+    """
+    Construct VCS URL from example's filepath
+    """
+    root_dir = os.getenv("BEAM_ROOT_DIR", "../..")
+    rel_path = os.path.relpath(filepath, root_dir)
+    return "{}/{}".format(Config.URL_VCS_PREFIX, rel_path)
 
 def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
     """
     Return an Example by filepath and filename.
 
     Args:
-         tag: tag of the example.
          filepath: path of the example's file.
          filename: name of the example's file.
+         tag: tag of the example.
 
     Returns:
         Parsed Example object.
     """
     name = tag.tag_as_dict[TagFields.name]
     complexity = tag.tag_as_dict[TagFields.complexity]
+    url_notebook = tag.tag_as_dict.get(TagFields.url_notebook)
     sdk = Config.EXTENSION_TO_SDK[filename.split(os.extsep)[-1]]
     object_type = _get_object_type(filename, filepath)
     with open(filepath, encoding="utf-8") as parsed_file:
         content = parsed_file.read()
     content = content.replace(tag.tag_as_string, "")
     tag.tag_as_dict[TagFields.context_line] -= tag.tag_as_string.count("\n")
-    root_dir = os.getenv("BEAM_ROOT_DIR", "")
-    file_path_without_root = filepath.replace(root_dir, "", 1)
-    if file_path_without_root.startswith("/"):
-        link = "{}{}".format(Config.LINK_PREFIX, file_path_without_root)
-    else:
-        link = "{}/{}".format(Config.LINK_PREFIX, file_path_without_root)
 
     example = Example(
         name=name,
@@ -296,7 +316,27 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
         status=STATUS_UNSPECIFIED,
         tag=Tag(**tag.tag_as_dict),
         type=object_type,
-        link=link)
+        url_vcs=_get_url_vcs(filepath),
+        url_notebook=url_notebook,
+        )
+
+    if tag.tag_as_dict.get(TagFields.datasets):
+        datasets_as_dict = tag.tag_as_dict[TagFields.datasets]
+        datasets = []
+        for key in datasets_as_dict:
+            dataset = Dataset.from_dict(datasets_as_dict.get(key))
+            dataset.name = key
+            datasets.append(dataset)
+        example.datasets = datasets
+
+    if tag.tag_as_dict.get(TagFields.emulators):
+        emulators_as_dict = tag.tag_as_dict[TagFields.emulators]
+        emulators = []
+        for key in emulators_as_dict:
+            emulator = Emulator.from_dict(emulators_as_dict.get(key))
+            emulator.name = key
+            emulators.append(emulator)
+        example.emulators = emulators
 
     validate_example_fields(example)
     return example
@@ -420,8 +460,22 @@ async def _update_example_status(example: Example, client: GRPCClient):
         example: beam example for processing and updating status and pipeline_id.
         client: client to send requests to the server.
     """
+    datasets = []
+    if example.datasets and example.emulators:
+        dataset_tag = example.datasets[0]
+        emulator_tag = example.emulators[0]
+        options = {
+            "topic": emulator_tag.topic.id
+        }
+        dataset = api_pb2.Dataset(
+            type=api_pb2.EmulatorType.Value(f"EMULATOR_TYPE_{emulator_tag.name.upper()}"),
+            options=options,
+            dataset_path=dataset_tag.path
+        )
+        datasets.append(dataset)
+
     pipeline_id = await client.run_code(
-        example.code, example.sdk, example.tag.pipeline_options)
+        example.code, example.sdk, example.tag.pipeline_options, datasets)
     example.pipeline_id = pipeline_id
     status = await client.check_status(pipeline_id)
     while status in [STATUS_VALIDATING,
@@ -476,29 +530,40 @@ def validate_example_fields(example: Example):
     :param example: example from the repository
     """
     if example.filepath == "":
-        err_msg = f"Example doesn't have a file path field. Example: {example}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_raise_validation_err(f"Example doesn't have a file path field. Example: {example}")
     if example.name == "":
-        err_msg = f"Example doesn't have a name field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_raise_validation_err(f"Example doesn't have a name field. Path: {example.filepath}")
     if example.sdk == SDK_UNSPECIFIED:
-        err_msg = f"Example doesn't have a sdk field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_raise_validation_err(f"Example doesn't have a sdk field. Path: {example.filepath}")
     if example.code == "":
-        err_msg = f"Example doesn't have a code field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
-    if example.link == "":
-        err_msg = f"Example doesn't have a link field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_raise_validation_err(f"Example doesn't have a code field. Path: {example.filepath}")
+    if example.url_vcs == "":
+        _log_and_raise_validation_err(f"Example doesn't have a url_vcs field. Path: {example.filepath}")
     if example.complexity == "":
-        err_msg = f"Example doesn't have a complexity field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
+        _log_and_raise_validation_err(f"Example doesn't have a complexity field. Path: {example.filepath}")
+    datasets = example.datasets
+    emulators = example.emulators
+
+    if datasets and not emulators:
+        _log_and_raise_validation_err(f"Example has a datasets field but an emulators field not found. Path: {example.filepath}")
+    if emulators and not datasets:
+        _log_and_raise_validation_err(f"Example has an emulators field but a datasets field not found. Path: {example.filepath}")
+
+    dataset_names = []
+    for dataset in datasets:
+        location = dataset.location
+        dataset_format = dataset.format
+        if not location or not dataset_format or location not in ["local"] or dataset_format not in ["json", "avro"]:
+            _log_and_raise_validation_err(f"Example has invalid dataset value. Path: {example.filepath}")
+        dataset_names.append(dataset.name)
+    for emulator in emulators:
+        if not (emulator.name == "kafka" and emulator.topic.dataset in dataset_names):
+            _log_and_raise_validation_err(f"Example has invalid emulator value. Path: {example.filepath}")
+
+
+def _log_and_raise_validation_err(msg: str):
+    logging.error(msg)
+    raise ValidationException(msg)
 
 
 class ValidationException(Exception):

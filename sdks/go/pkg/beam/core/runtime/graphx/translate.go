@@ -31,12 +31,12 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Model constants for interfacing with a Beam runner.
-// TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
 	URNImpulse       = "beam:transform:impulse:v1"
 	URNParDo         = "beam:transform:pardo:v1"
@@ -45,6 +45,7 @@ const (
 	URNReshuffle     = "beam:transform:reshuffle:v1"
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window_into:v1"
+	URNMapWindows    = "beam:transform:map_windows:v1"
 
 	URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
@@ -137,12 +138,16 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 	}, nil
 }
 
-// TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
+// TODO(https://github.com/apache/beam/issues/23893): Along with scoped resource hints,
+// move some of the configuration into the graph during construction.
 
 // Options for marshalling a graph into a model pipeline.
 type Options struct {
 	// Environment used to run the user code.
 	Environment *pipepb.Environment
+
+	// PipelineResourceHints for setting defaults across the whole pipeline.
+	PipelineResourceHints resource.Hints
 }
 
 // Marshal converts a graph to a model pipeline.
@@ -683,16 +688,17 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) (string, error) {
 		EnvironmentId: m.addDefaultEnv(),
 	}
 
-	// Add the coders for output types in the marshaller even if expanded is nil
-	// to set the output coder request field in expansion request for python external transforms.
+	// Add the coders for output in the marshaller even if expanded is nil
+	// for output coder field in expansion request.
+	// We need this specifically for Python External Transforms.
 	names := strings.Split(spec.Urn, ":")
 	if len(names) > 2 && names[2] == "python" {
 		for _, out := range edge.Output {
-			cID, err := m.coders.Add(out.To.Coder)
+			id, err := m.coders.Add(out.To.Coder)
 			if err != nil {
 				return "", errors.Wrapf(err, "failed to add output coder to coder registry: %v", m.coders)
 			}
-			out.To.Coder.ID = cID
+			out.To.Coder.ID = id
 		}
 	}
 
@@ -871,11 +877,11 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) (string, error) {
 //
 // In particular, the "backup plan" needs to:
 //
-//  * Encode the windowed element, preserving timestamps.
-//  * Add random keys to the encoded windowed element []bytes
-//  * GroupByKey (in the global window).
-//  * Explode the resulting elements list.
-//  * Decode the windowed element []bytes.
+//   - Encode the windowed element, preserving timestamps.
+//   - Add random keys to the encoded windowed element []bytes
+//   - GroupByKey (in the global window).
+//   - Explode the resulting elements list.
+//   - Decode the windowed element []bytes.
 //
 // While a simple reshard can be written in user terms, (timestamps and windows
 // are accessible to user functions) there are some framework internal
@@ -1122,7 +1128,16 @@ const defaultEnvId = "go"
 
 func (m *marshaller) addDefaultEnv() string {
 	if _, exists := m.environments[defaultEnvId]; !exists {
-		m.environments[defaultEnvId] = m.opt.Environment
+		env := proto.Clone(m.opt.Environment).(*pipepb.Environment)
+		// If there's no environment set, we need to ignore
+		if env == nil {
+			return defaultEnvId
+		}
+		// Add the pipeline level resource hints here for now.
+		// TODO(https://github.com/apache/beam/issues/23893) move to a better place for
+		// scoped hints in next pass, which affect number of environments set by Go pipelines.
+		env.ResourceHints = m.opt.PipelineResourceHints.Payloads()
+		m.environments[defaultEnvId] = env
 	}
 	return defaultEnvId
 }

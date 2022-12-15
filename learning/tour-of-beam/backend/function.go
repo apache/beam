@@ -15,11 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
+//go:generate protoc -I ../../../playground/api/v1 --go_out=playground_api --go_opt=paths=source_relative api.proto
+//go:generate protoc -I ../../../playground/api/v1 --go-grpc_out=playground_api --go-grpc_opt=paths=source_relative api.proto
+//go:generate moq -rm -out playground_api/mock.go playground_api PlaygroundServiceClient
+
 package tob
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -27,14 +33,18 @@ import (
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/service"
 	"beam.apache.org/learning/tour-of-beam/backend/internal/storage"
+	pb "beam.apache.org/learning/tour-of-beam/backend/playground_api"
 	"cloud.google.com/go/datastore"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	grpc_status "google.golang.org/grpc/status"
 )
 
-const (
-	BAD_FORMAT     = "BAD_FORMAT"
-	INTERNAL_ERROR = "INTERNAL_ERROR"
-	NOT_FOUND      = "NOT_FOUND"
+var (
+	svc      service.IContent
+	auth     *Authorizer
+	pgClient pb.PlaygroundServiceClient
 )
 
 // Helper to format http error messages.
@@ -45,31 +55,66 @@ func finalizeErrResponse(w http.ResponseWriter, status int, code, message string
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-var svc service.IContent
-
-func init() {
+func MakeRepo(ctx context.Context) storage.Iface {
 	// dependencies
 	// required:
 	// * TOB_MOCK: respond with static samples
 	// OR
+	// * GOOGLE_APPLICATION_CREDENTIALS: json file path to cloud credentials
 	// * DATASTORE_PROJECT_ID: cloud project id
 	// optional:
 	// * DATASTORE_EMULATOR_HOST: emulator host/port (ex. 0.0.0.0:8888)
 	if os.Getenv("TOB_MOCK") > "" {
-		svc = &service.Mock{}
+		fmt.Println("Initialize mock storage")
+		return &storage.Mock{}
 	} else {
 		// consumes DATASTORE_* env variables
-		client, err := datastore.NewClient(context.Background(), "")
+		client, err := datastore.NewClient(ctx, "")
 		if err != nil {
 			log.Fatalf("new datastore client: %v", err)
 		}
-		svc = &service.Svc{Repo: &storage.DatastoreDb{Client: client}}
+
+		return &storage.DatastoreDb{Client: client}
 	}
+}
+
+func MakePlaygroundClient(ctx context.Context) pb.PlaygroundServiceClient {
+	// dependencies
+	// required:
+	// * TOB_MOCK: use mock implementation
+	// OR
+	// * PLAYGROUND_ROUTER_HOST: playground API host/port
+	if os.Getenv("TOB_MOCK") > "" {
+		fmt.Println("Using mock playground client")
+		return service.GetMockClient()
+	} else {
+		host := os.Getenv("PLAYGROUND_ROUTER_HOST")
+		cc, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("fail to dial playground: %v", err)
+		}
+		return pb.NewPlaygroundServiceClient(cc)
+	}
+}
+
+func init() {
+	ctx := context.Background()
+
+	repo := MakeRepo(ctx)
+	pgClient = MakePlaygroundClient(ctx)
+	svc = &service.Svc{Repo: repo, PgClient: pgClient}
+	auth = MakeAuthorizer(ctx, repo)
+	commonGet := Common(http.MethodGet)
+	commonPost := Common(http.MethodPost)
 
 	// functions framework
-	functions.HTTP("getSdkList", Common(getSdkList))
-	functions.HTTP("getContentTree", Common(ParseSdkParam(getContentTree)))
-	functions.HTTP("getUnitContent", Common(ParseSdkParam(getUnitContent)))
+	functions.HTTP("getSdkList", commonGet(getSdkList))
+	functions.HTTP("getContentTree", commonGet(ParseSdkParam(getContentTree)))
+	functions.HTTP("getUnitContent", commonGet(ParseSdkParam(getUnitContent)))
+
+	functions.HTTP("getUserProgress", commonGet(ParseSdkParam(auth.ParseAuthHeader(getUserProgress))))
+	functions.HTTP("postUnitComplete", commonPost(ParseSdkParam(auth.ParseAuthHeader(postUnitComplete))))
+	functions.HTTP("postUserCode", commonPost(ParseSdkParam(auth.ParseAuthHeader(postUserCode))))
 }
 
 // Get list of SDK names
@@ -85,12 +130,10 @@ func getSdkList(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Get the content tree for a given SDK and user
-// Merges info from the default tree and per-user information:
-// user code snippets and progress
+// Get the content tree for a given SDK
 // Required to be wrapped into ParseSdkParam middleware.
 func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
-	tree, err := svc.GetContentTree(r.Context(), sdk, nil /*TODO userId*/)
+	tree, err := svc.GetContentTree(r.Context(), sdk)
 	if err != nil {
 		log.Println("Get content tree error:", err)
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
@@ -112,8 +155,8 @@ func getContentTree(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 	unitId := r.URL.Query().Get("id")
 
-	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId, nil /*TODO userId*/)
-	if err == service.ErrNoUnit {
+	unit, err := svc.GetUnitContent(r.Context(), sdk, unitId)
+	if errors.Is(err, tob.ErrNoUnit) {
 		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
 		return
 	}
@@ -129,4 +172,70 @@ func getUnitContent(w http.ResponseWriter, r *http.Request, sdk tob.Sdk) {
 		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format unit content")
 		return
 	}
+}
+
+// Get user progress
+func getUserProgress(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid string) {
+	progress, err := svc.GetUserProgress(r.Context(), sdk, uid)
+
+	if err != nil {
+		log.Println("Get user progress error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(progress)
+	if err != nil {
+		log.Println("Format user progress error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "format user progress content")
+		return
+	}
+}
+
+// Mark unit completed
+func postUnitComplete(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid string) {
+	unitId := r.URL.Query().Get("id")
+
+	err := svc.SetUnitComplete(r.Context(), sdk, unitId, uid)
+	if errors.Is(err, tob.ErrNoUnit) {
+		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
+		return
+	}
+	if err != nil {
+		log.Println("Set unit complete error:", err)
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, "storage error")
+		return
+	}
+
+	fmt.Fprint(w, "{}")
+}
+
+// Save user code for unit
+func postUserCode(w http.ResponseWriter, r *http.Request, sdk tob.Sdk, uid string) {
+	unitId := r.URL.Query().Get("id")
+
+	var userCodeRequest tob.UserCodeRequest
+	err := json.NewDecoder(r.Body).Decode(&userCodeRequest)
+	if err != nil {
+		log.Println("body decode error:", err)
+		finalizeErrResponse(w, http.StatusBadRequest, BAD_FORMAT, "bad request body")
+		return
+	}
+
+	err = svc.SaveUserCode(r.Context(), sdk, unitId, uid, userCodeRequest)
+	if errors.Is(err, tob.ErrNoUnit) {
+		finalizeErrResponse(w, http.StatusNotFound, NOT_FOUND, "unit not found")
+		return
+	}
+	if err := errors.Unwrap(err); err != nil {
+		log.Println("Save user code error:", err)
+		message := "storage error"
+		if st, ok := grpc_status.FromError(err); ok {
+			message = fmt.Sprintf("playground api error: %s", st)
+		}
+		finalizeErrResponse(w, http.StatusInternalServerError, INTERNAL_ERROR, message)
+		return
+	}
+
+	fmt.Fprint(w, "{}")
 }

@@ -29,8 +29,6 @@
 
 import apache_beam as beam
 
-from log_elements import LogElements
-
 
 def sum(numbers):
     total = 0
@@ -45,4 +43,4 @@ with beam.Pipeline() as p:
 
   (p | beam.Create([1, 2, 3, 4, 5])
      | beam.CombineGlobally(sum)
-     | LogElements())
+     | beam.LogElements())

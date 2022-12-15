@@ -207,11 +207,16 @@ def fetchGHData(timestamp, ghQuery):
   query = ghQuery.replace('<TemstampSubstitueLocation>', tsString)
   return executeGHGraphqlQuery(query)
 
+def extractUserLogin(user):
+  # user could be missing
+  if not user:
+    return "Unknown"
+  return user.get("login", "Unknown")
 
 def extractRequestedReviewers(pr):
   reviewEdges = pr["reviewRequests"]["edges"]
   return list(
-      map(lambda x: x["node"]["requestedReviewer"]["login"], reviewEdges))
+      map(lambda x: extractUserLogin(x["node"]["requestedReviewer"]), reviewEdges))
 
 
 def extractMentions(pr):
@@ -238,24 +243,24 @@ def extractFirstNAActivity(pr):
   Returns timestamp and login of author on first activity on pull request done
   by non-author.
   '''
-  author = pr["author"]["login"]
+  author = extractUserLogin(pr["author"])
   commentEdges = None
   commentEdges = [
       edge for edge in pr["comments"]["edges"]
-      if edge["node"]["author"]["login"] != author
+      if extractUserLogin(edge["node"]["author"]) != author
   ]
   reviewEdges = [
       edge for edge in pr["reviews"]["edges"]
-      if edge["node"]["author"]["login"] != author
+      if extractUserLogin(edge["node"]["author"]) != author
   ]
   merged = pr["merged"]
   mergedAt = pr["mergedAt"]
-  mergedBy = None if not merged else pr["mergedBy"]["login"]
+  mergedBy = None if not merged else extractUserLogin(pr["mergedBy"])
   commentTimestamps = list(
-      map(lambda x: (x["node"]["createdAt"], x["node"]["author"]["login"]),
+      map(lambda x: (x["node"]["createdAt"], extractUserLogin(x["node"]["author"])),
           commentEdges))
   reviewTimestamps = list(
-      map(lambda x: (x["node"]["createdAt"], x["node"]["author"]["login"]),
+      map(lambda x: (x["node"]["createdAt"], extractUserLogin(x["node"]["author"])),
           reviewEdges))
   allTimestamps = commentTimestamps + reviewTimestamps
   if merged:
@@ -266,18 +271,18 @@ def extractFirstNAActivity(pr):
 
 def extractBeamReviewers(pr):
   '''Extract logins of users defined by Beam as reviewers.'''
-  author = pr['author']['login']
+  author = extractUserLogin(pr['author'])
 
   # All the direct GitHub indicators of reviewers
   reviewers = []
   for r in pr['assignees']['edges']:
-    reviewers.append(r['node']['login'])
+    reviewers.append(extractUserLogin(r['node']))
   for r in pr['reviewRequests']['edges']:
-    reviewers.append(r['node']['requestedReviewer']['login'])
+    reviewers.append(extractUserLogin(r['node']['requestedReviewer']))
 
   # GitHub users that have performed reviews.
   for r in pr['reviews']['edges']:
-    reviewers.append(r['node']['author']['login'])
+    reviewers.append(extractUserLogin(r['node']['author']))
 
   # @r1, @r2 ... look/PTAL/ptal?
   beam_reviewer_regex = r'(@\w+).*?(?:PTAL|ptal|look)'
@@ -303,7 +308,7 @@ def extractBeamReviewers(pr):
 
 def extractReviewers(pr):
   '''Extracts reviewers logins from PR.'''
-  return [edge["node"]["author"]["login"] for edge in pr["reviews"]["edges"]]
+  return [extractUserLogin(edge["node"]["author"]) for edge in pr["reviews"]["edges"]]
 
 
 def extractRowValuesFromPr(pr):
@@ -318,7 +323,7 @@ def extractRowValuesFromPr(pr):
   reviewedBy = extractReviewers(pr)
 
   result = [
-      pr["number"], pr["author"]["login"], pr["createdAt"], pr["updatedAt"],
+      pr["number"], extractUserLogin(pr["author"]), pr["createdAt"], pr["updatedAt"],
       pr["closedAt"], pr["merged"], firstNAActivity, firstNAAAuthor,
       requestedReviewers, mentions, beamReviewers, reviewedBy
   ]
@@ -333,13 +338,13 @@ def extractRowValuesFromIssue(issue):
   '''
   assignees = []
   for a in issue['assignees']['edges']:
-    assignees.append(a['node']['login'])
+    assignees.append(extractUserLogin(a['node']))
   labels = []
   for l in issue['labels']['edges']:
     labels.append(l['node']['name'])
 
   result = [
-      issue["number"], issue["author"]["login"], issue["createdAt"], issue["updatedAt"],
+      issue["number"], extractUserLogin(issue["author"]), issue["createdAt"], issue["updatedAt"],
       issue["closedAt"], issue["title"], assignees, labels
   ]
 

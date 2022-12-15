@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../generated/assets.gen.dart';
+import '../../../assets/assets.gen.dart';
 import '../../../models/group.dart';
 import 'tour_progress_indicator.dart';
 
@@ -38,7 +38,10 @@ class GroupTitleWidget extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          TourProgressIndicator(assetPath: Assets.svg.unitProgress0),
+          TourProgressIndicator(
+            assetPath: Assets.svg.unitProgress0,
+            isSelected: false,
+          ),
           Text(
             group.title,
             style: Theme.of(context).textTheme.headlineMedium,
