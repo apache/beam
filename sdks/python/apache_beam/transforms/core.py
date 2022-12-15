@@ -2431,17 +2431,12 @@ class CombineGlobally(PTransform):
     if self.fanout:
       combine_per_key = combine_per_key.with_hot_key_fanout(self.fanout)
 
-    def print_and_pass(title, phrase):  #!!!
-      _LOGGER.warning("%r = %s", repr(phrase), title)
-      return title
-
     combined = (
         pcoll
         | 'KeyWithVoid' >> add_input_types(
             ParDo(_KeyWithNone()).with_output_types(
                 typehints.KV[None, pcoll.element_type]))
         | 'CombinePerKey' >> combine_per_key
-        # | Map(print_and_pass, "PerKeyOutput") #!!!
         | 'UnKey' >> Map(lambda k_v: k_v[1]))
 
     if not self.has_defaults and not self.as_view:
@@ -2481,11 +2476,10 @@ class CombineGlobally(PTransform):
 
       def inject_default(_, combined):
         if combined:
-          # assert len(combined) == 1
           if len(combined) > 1:
             _LOGGER.warning(
                 "Multiple simultaneous windows"
-                "aren't currently fully supported for CombineGlobally()")
+                "aren't fully supported for CombineGlobally()")
           fully_combined = []
           for element in combined:
             fully_combined.append(element[0])
@@ -2502,8 +2496,7 @@ class CombineGlobally(PTransform):
           pcoll.pipeline
           | 'DoOnce' >> Create([None])
           | 'InjectDefault' >> typed(
-              Map(inject_default, pvalue.AsList(combined)))
-          | Map(print_and_pass, "FinalOutput"))
+              Map(inject_default, pvalue.AsList(combined))))
 
   @staticmethod
   @PTransform.register_urn(

@@ -24,7 +24,6 @@ import heapq
 import itertools
 import operator
 import random
-import logging  #!!!
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -483,7 +482,6 @@ class TopCombineFn(core.CombineFn):
     # Caching to avoid paying the price of variadic expansion of args / kwargs
     # when it's not needed (for the 'if' case below).
     holds_comparables, heap = accumulator
-    # _LOGGER.warning("element = %r" % element)
     if self._compare is not operator.lt or self._key:
       heap = self._hydrated_heap(heap)
       holds_comparables = True
@@ -501,10 +499,8 @@ class TopCombineFn(core.CombineFn):
     return (holds_comparables, heap)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
-    _LOGGER = logging.getLogger(__name__)  #!!!
     result_heap = None
     holds_comparables = None
-    _LOGGER.warning("accumulators = %s" % accumulators)  #!!!
     for accumulator in accumulators:
       holds_comparables, heap = accumulator
       if self._compare is not operator.lt or self._key:
@@ -517,12 +513,9 @@ class TopCombineFn(core.CombineFn):
         result_heap = heap
       else:
         for comparable in heap:
-          _LOGGER.warning("heap = %r" % heap)
-          _LOGGER.warning("comparable = %r" % comparable)
           _, result_heap = self.add_input(
               (holds_comparables, result_heap),
               comparable.value if holds_comparables else comparable)
-      _LOGGER.warning("result heap = %s" % result_heap)  #!!!
 
     return (holds_comparables, result_heap)
 
