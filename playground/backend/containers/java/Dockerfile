@@ -36,7 +36,7 @@ RUN go mod download &&\
     go mod tidy &&\
     cd cmd/server &&\
     go build -o /go/bin/server_java_backend \
-    go version
+RUN go version
 
 FROM $BASE_IMAGE
 # docker linter we use doesn't allow to have ARG declaration without value although it's a valid syntax
