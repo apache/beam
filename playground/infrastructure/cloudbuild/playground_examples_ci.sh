@@ -74,7 +74,7 @@ if [ -z "$base_ref" ] || [ "$base_ref" == "refs/heads/master" ]
 then
   base_ref=refs/heads/master
 fi
-diff=$(git diff --name-only cloudbuild+manualsetup+playground+cd)
+diff=$(git diff --name-only master)
 
 echo ${diff}
 # Check if there are Examples
