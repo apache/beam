@@ -17,10 +17,6 @@
 # under the License.
 #
 
-sdk: Java
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
+id: adding-timestamp
+name: Windowing with timestamp
+taskName: adding-timestamp

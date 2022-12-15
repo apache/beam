@@ -16,11 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-sdk: Java
+id: windowing
+name: Windowing
+complexity: ADVANCED
 content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
+- adding-timestamp
+- fixed-time-window
+- sliding-time-window
+- global-window
+- session-window
+

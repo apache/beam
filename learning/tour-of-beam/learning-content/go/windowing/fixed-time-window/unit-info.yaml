@@ -17,10 +17,6 @@
 # under the License.
 #
 
-sdk: Java
-content:
-  - introduction
-  - common-transforms
-  - core-transforms
-  - schema-based-transforms
-  - windowing
+id: fixed-time-window
+name: Windowing with fixed time
+taskName: fixed-time-window
