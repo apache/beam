@@ -42,12 +42,17 @@ env:
 
 jobs:
 
-  check_gcp_variables:
+  check_env_variables:
     timeout-minutes: 5
-    name: "Check GCP variables"
+    name: "Check environment variables"
     runs-on: ubuntu-latest
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      PY_VERSIONS_FULL: "cp37-* cp38-* cp39-* cp310-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
+      py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
+      py-versions-test: ${{ steps.set-py-versions.outputs.py-versions-test }}
     steps:
       - uses: actions/checkout@v3
       - name: "Check are GCP variables set"
@@ -60,6 +65,19 @@ jobs:
           GCP_PROJECT_ID: "not-needed-here"
           GCP_REGION: "not-needed-here"
           GCP_TESTING_BUCKET: "not-needed-here"
+      - name: Set Python Versions for different environments
+        id: set-py-versions
+        run: |
+          set -xeu
+          if [ $EVENT_NAME == "pull_request" ]; then
+            # run highest supported version on pull request.
+            echo "py-versions-test=${PY_VERSIONS_FULL##* }" >> $GITHUB_OUTPUT
+          else
+            # run full version for push and cron jobs.
+            echo "py-versions-test=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
+          fi
+          # Output full set of versions so that we can test all languages on pull requests for certain platforms.
+          echo "py-versions-full=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
 
   build_source:
     runs-on: ubuntu-latest
@@ -82,21 +100,21 @@ jobs:
       - name: Get tag
         id: get_tag
         run: |
-          echo ::set-output name=TAG::${GITHUB_REF#refs/*/}
+          echo "TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: Check whether an -RC tag was applied to the commit.
         id: is_rc
         run: |
           echo ${{ steps.get_tag.outputs.TAG }} > temp
           OUTPUT=$( if  grep -e '-RC.' -q temp; then echo 1; else echo 0; fi)
-          echo "::set-output name=is_rc::$OUTPUT"
+          echo "is_rc=$OUTPUT" >> $GITHUB_OUTPUT
       - name: Get RELEASE_VERSION and RC_NUM
         if: steps.is_rc.outputs.is_rc == 1
         id: get_rc_version
         run: |
           RC_NUM=$(sed -n "s/^.*-RC\([0-9]*\)/\1/p" temp)
           RELEASE_VERSION=$(sed -n "s/^v\(.*\)-RC[0-9]/\1/p" temp)
-          echo "::set-output name=RC_NUM::$RC_NUM"
-          echo "::set-output name=RELEASE_VERSION::$RELEASE_VERSION"
+          echo "RC_NUM=$RC_NUM" >> $GITHUB_OUTPUT
+          echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_OUTPUT
       - name: Build source
         working-directory: ./sdks/python
         run: python setup.py sdist --formats=zip
@@ -170,9 +188,9 @@ jobs:
     name: Prepare GCS
     needs:
       - build_source
-      - check_gcp_variables
+      - check_env_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
@@ -186,9 +204,9 @@ jobs:
     name: Upload python source distribution to GCS bucket
     needs:
       - prepare_gcs
-      - check_gcp_variables
+      - check_env_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
+    if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v3
@@ -205,20 +223,22 @@ jobs:
 
   build_wheels:
     name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
-    needs: build_source
+    needs:
+      - check_env_variables
+      - build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
     runs-on: ${{ matrix.os_python.os }}
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "macos-latest", "python": "cp37-* cp38-* cp39-*"},
-          {"os": "windows-latest", "python": "cp37-* cp38-* cp39-*"},
+          {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
+          {"os": "macos-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
+          {"os": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
         ]
         arch: [auto]
         include:
-          - os_python: {"os": "ubuntu-latest", "python": "cp37-* cp38-* cp39-*"}
+          - os_python: {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
@@ -296,9 +316,9 @@ jobs:
     name: Upload wheels to GCS bucket
     needs:
       - build_wheels
-      - check_gcp_variables
+      - check_env_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
         os : [ubuntu-latest, macos-latest, windows-latest]
@@ -340,9 +360,9 @@ jobs:
     name: List files on Google Cloud Storage Bucket
     needs:
      - upload_wheels_to_gcs
-     - check_gcp_variables
+     - check_env_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
       uses: google-github-actions/setup-gcloud@v0
@@ -353,6 +373,8 @@ jobs:
       run: gsutil ls "${{ env.GCP_PATH }}*"
 
   branch_repo_nightly:
+    permissions:
+      contents: write
     name: Branch repo nightly
     needs:
       - build_source

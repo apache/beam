@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/src/enums/complexity.dart';
 import 'package:playground_components/src/models/example.dart';
 import 'package:playground_components/src/models/example_base.dart';
 import 'package:playground_components/src/models/sdk.dart';
@@ -23,21 +24,23 @@ import 'package:playground_components/src/models/sdk.dart';
 const exampleMock1 = Example(
   sdk: Sdk.python,
   source: 'ex1',
-  name: 'Example',
+  name: 'Example X1',
+  tags: ['tag1'],
   type: ExampleType.example,
   description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
-  pipelineOptions: '',
+  path: 'SDK_PYTHON/Category/Name1',
+  complexity: Complexity.basic,
 );
 
 const exampleMock2 = Example(
   sdk: Sdk.python,
   source: 'ex2',
   name: 'Kata',
+  tags: ['tag2'],
   type: ExampleType.kata,
   description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
-  pipelineOptions: '',
+  path: 'SDK_PYTHON/Category/Name2',
+  complexity: Complexity.basic,
 );
 
 const exampleWithoutSourceMock = ExampleBase(
@@ -46,7 +49,7 @@ const exampleWithoutSourceMock = ExampleBase(
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
-  pipelineOptions: '',
+  complexity: Complexity.basic,
 );
 
 const exampleWithAllAdditionsMock = Example(
@@ -59,7 +62,20 @@ const exampleWithAllAdditionsMock = Example(
   outputs: 'test outputs',
   logs: 'test outputs',
   graph: 'test outputs',
-  pipelineOptions: '',
+  complexity: Complexity.basic,
+);
+
+const exampleGoPipelineOptions = Example(
+  description: 'description',
+  graph: 'test outputs',
+  logs: 'test outputs',
+  name: 'Test example',
+  outputs: 'test outputs',
+  path: 'SDK_PYTHON/Category/Name',
+  pipelineOptions: 'pipeline options',
+  sdk: Sdk.go,
+  source: 'test outputs',
+  type: ExampleType.example,
 );
 
 const exampleMockGo = Example(
@@ -69,5 +85,5 @@ const exampleMockGo = Example(
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_GO/Category/Name',
-  pipelineOptions: '',
+  complexity: Complexity.medium,
 );

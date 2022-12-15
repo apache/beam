@@ -19,7 +19,12 @@
 FROM debian:11 as build
 ARG FLUTTER_VERSION=3.3.2
 
+# ------------------------------------------------
+# Setting up.
+# ------------------------------------------------
+
 RUN apt-get update && apt-get install -y wget xz-utils git
+
 RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     tar -xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz &&\
     mv flutter /opt/ &&\
@@ -28,18 +33,23 @@ RUN wget https://storage.googleapis.com/flutter_infra_release/releases/stable/li
     dart pub global activate protoc_plugin &&\
     ln -s /root/.pub-cache/bin/protoc-gen-dart /usr/bin/
 
-
 COPY . /app
 WORKDIR /app
 
+# ------------------------------------------------
+# Building the application.
+# ------------------------------------------------
+
 RUN cd /app/playground_components &&\
-    flutter pub get -v &&\
-    flutter pub run build_runner build -v
+    flutter pub get -v
 
 RUN cd /app &&\
     flutter pub get -v &&\
-    flutter pub run build_runner build -v &&\
     flutter build web -v
+
+# ------------------------------------------------
+# Getting the result into NGINX.
+# ------------------------------------------------
 
 FROM nginx:1.21.3
 COPY --from=build /app/nginx_default.conf /etc/nginx/conf.d/default.conf

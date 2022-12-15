@@ -35,10 +35,10 @@ public abstract class SubscriberOptions implements Serializable {
 
   public abstract Builder toBuilder();
 
-  @CanIgnoreReturnValue
   @AutoValue.Builder
   public abstract static class Builder {
     // Required parameters.
+    @CanIgnoreReturnValue
     public abstract Builder setSubscriptionPath(SubscriptionPath path);
 
     public abstract SubscriberOptions build();

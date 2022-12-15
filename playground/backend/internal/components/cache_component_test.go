@@ -20,6 +20,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
@@ -36,6 +37,7 @@ var datastoreDb *db.Datastore
 var ctx context.Context
 var cacheComponent *CacheComponent
 var cacheService cache.Cache
+var defaultCacheRequestTimeout = 10 * time.Second
 
 func TestMain(m *testing.M) {
 	setup()
@@ -89,7 +91,7 @@ func TestCacheComponent_GetSdkCatalogFromCacheOrDatastore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			result, err := cacheComponent.GetSdkCatalogFromCacheOrDatastore(ctx)
+			result, err := cacheComponent.GetSdkCatalogFromCacheOrDatastore(ctx, defaultCacheRequestTimeout)
 			if (err != nil) != tt.wantErr {
 				t.Error("GetSdkCatalogFromCacheOrDatastore() unexpected error")
 				return
@@ -145,7 +147,7 @@ func TestCacheComponent_GetCatalogFromCacheOrDatastore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			result, err := cacheComponent.GetCatalogFromCacheOrDatastore(ctx)
+			result, err := cacheComponent.GetCatalogFromCacheOrDatastore(ctx, defaultCacheRequestTimeout)
 			if (err != nil) != tt.wantErr {
 				t.Error("GetCatalogFromCacheOrDatastore() unexpected error")
 				return
@@ -202,7 +204,7 @@ func TestCacheComponent_GetDefaultPrecompiledObjectFromCacheOrDatastore(t *testi
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			result, err := cacheComponent.GetDefaultPrecompiledObjectFromCacheOrDatastore(ctx, pb.Sdk_SDK_JAVA)
+			result, err := cacheComponent.GetDefaultPrecompiledObjectFromCacheOrDatastore(ctx, pb.Sdk_SDK_JAVA, defaultCacheRequestTimeout)
 			if (err != nil) != tt.wantErr {
 				t.Error("GetDefaultPrecompiledObjectFromCacheOrDatastore() unexpected error")
 				return

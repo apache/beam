@@ -49,7 +49,7 @@ type emit1[T any] struct {
 	n exec.ElementProcessor
 }
 
-func (e *emit1[T]) Value() interface{} {
+func (e *emit1[T]) Value() any {
 	return e.invoke
 }
 
@@ -68,7 +68,7 @@ type emit2[T1, T2 any] struct {
 	n exec.ElementProcessor
 }
 
-func (e *emit2[T1, T2]) Value() interface{} {
+func (e *emit2[T1, T2]) Value() any {
 	return e.invoke
 }
 
@@ -87,7 +87,7 @@ type emit1WithTimestamp[T any] struct {
 	n exec.ElementProcessor
 }
 
-func (e *emit1WithTimestamp[T]) Value() interface{} {
+func (e *emit1WithTimestamp[T]) Value() any {
 	return e.invoke
 }
 
@@ -106,7 +106,7 @@ type emit2WithTimestamp[T1, T2 any] struct {
 	n exec.ElementProcessor
 }
 
-func (e *emit2WithTimestamp[T1, T2]) Value() interface{} {
+func (e *emit2WithTimestamp[T1, T2]) Value() any {
 	return e.invoke
 }
 
@@ -129,7 +129,9 @@ func Emitter1[T1 any]() {
 	registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
 		return &emit1[T1]{n: n}
 	}
-	exec.RegisterEmitter(reflect.TypeOf(e).Elem(), registerFunc)
+	eT := reflect.TypeOf(e).Elem()
+	registerType(eT.In(0))
+	exec.RegisterEmitter(eT, registerFunc)
 }
 
 // Emitter2 registers parameters from your DoFn with a
@@ -147,18 +149,25 @@ func Emitter2[T1, T2 any]() {
 			return &emit1WithTimestamp[T2]{n: n}
 		}
 	}
-	exec.RegisterEmitter(reflect.TypeOf(e).Elem(), registerFunc)
+	eT := reflect.TypeOf(e).Elem()
+	registerType(eT.In(0))
+	registerType(eT.In(1))
+	exec.RegisterEmitter(eT, registerFunc)
 }
 
 // Emitter3 registers parameters from your DoFn with a
-// signature func(T1, T2, T3) and optimizes their execution.
+// signature func(beam.EventTime, T2, T3) and optimizes their execution.
 // This must be done by passing in type parameters of all inputs as constraints,
 // aka: register.Emitter3[beam.EventTime, T1, T2](), where T1 is the type of
 // your key and T2 is the type of your value.
-func Emitter3[T1 typex.EventTime, T2, T3 any]() {
-	e := (*func(T1, T2, T3))(nil)
+func Emitter3[ET typex.EventTime, T1, T2 any]() {
+	e := (*func(ET, T1, T2))(nil)
 	registerFunc := func(n exec.ElementProcessor) exec.ReusableEmitter {
-		return &emit2WithTimestamp[T2, T3]{n: n}
+		return &emit2WithTimestamp[T1, T2]{n: n}
 	}
-	exec.RegisterEmitter(reflect.TypeOf(e).Elem(), registerFunc)
+	eT := reflect.TypeOf(e).Elem()
+	// No need to register event time.
+	registerType(eT.In(1))
+	registerType(eT.In(2))
+	exec.RegisterEmitter(eT, registerFunc)
 }

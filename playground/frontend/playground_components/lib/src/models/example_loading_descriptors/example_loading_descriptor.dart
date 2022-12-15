@@ -18,8 +18,15 @@
 
 import 'package:equatable/equatable.dart';
 
-abstract class ExampleLoadingDescriptor with EquatableMixin {
-  const ExampleLoadingDescriptor();
+import '../example_view_options.dart';
 
-  Map<String, dynamic> toJson() => throw UnimplementedError();
+/// Describes a single example to be loaded.
+abstract class ExampleLoadingDescriptor with EquatableMixin {
+  const ExampleLoadingDescriptor({
+    this.viewOptions = ExampleViewOptions.empty,
+  });
+
+  final ExampleViewOptions viewOptions;
+
+  Map<String, dynamic> toJson();
 }

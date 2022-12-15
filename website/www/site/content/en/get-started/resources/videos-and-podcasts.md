@@ -23,7 +23,7 @@ This page provides links to some of our favorite videos and podcasts that will h
 
 <ul><li><a href="">Introduction</a></li></ul>
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt" frameborder="0" allowfullscreen></iframe>
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt" frameborder="0" allowfullscreen></iframe>
 <br>
 
 {{< toc >}}
@@ -38,7 +38,7 @@ Data Science Summit, Jerusalem, 2016
 
 Presented by Tyler Akidau, *Apache Beam PPMC member*
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen></iframe>
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Apache Beam: A Unified Model for Batch and Streaming Data Processing
@@ -47,7 +47,7 @@ Hadoop Summit, San Jose, CA, 2016
 
 Presented by Davor Bonaci, *Apache Beam PPMC member*
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen></iframe>
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Fundamentals of Stream Processing with Apache Beam
@@ -56,14 +56,14 @@ Presented by Davor Bonaci, *Apache Beam PPMC member*
 
 Presented by Dan Halperin, *Apache Beam PPMC member*
 
-<iframe src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&show_text=0&width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true" allowFullScreen="true"></iframe>
+<iframe class="video video--medium-size" src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&show_text=0&width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true" allowFullScreen="true"></iframe>
 <br>
 
 ### Software Engineering Radio Podcast Episode 272: Apache Beam
 
 Presented by Frances Perry, *Apache Beam PPMC member*
 
-<a href="http://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text](/images/resources/se-radio-podcast.png)</a>
+<a href="https://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text](/images/resources/se-radio-podcast.png)</a>
 <br>
 
 ## Beam & Friends
@@ -76,7 +76,7 @@ Flink Forward, 2020
 
 Presented by Ahmet Altay, Robert Crowe, Reza Rokni
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/jV1WFTmm4qg" frameborder="0" allowfullscreen></iframe>
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/jV1WFTmm4qg" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### TensorFlow Extended: An End-to-End Machine Learning Platform for TensorFlow
@@ -85,7 +85,7 @@ Spark+AI, San Francisco, 2019
 
 Presented by Konstantinos Katsiapis, Ahmet Altay
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/GTibgKo7WaI" frameborder="0" allowfullscreen></iframe>
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/GTibgKo7WaI" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Flink and Beam: Current State & Roadmap
@@ -94,7 +94,7 @@ Flink Forward, Berlin, 2016
 
 Presented by Maximilian Michels, *Apache Beam PPMC member*
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen></iframe>
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Lessons learned from developing a stream processing platform at scale
@@ -103,7 +103,7 @@ Big Things Meetup, Tel Aviv, 2016
 
 By Amit Sela, *Apache Beam PPMC member*
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen></iframe>
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ## Technical Details
@@ -116,7 +116,7 @@ Strata+Hadoop World, New York, 2016
 
 Presented by Slava Chernyak, *Software Engineer at Google*
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen></iframe>
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Triggers in Apache Beam
@@ -125,7 +125,7 @@ Strata+Hadoop World, New York, 2016
 
 Presented by Kenneth Knowles, *Apache Beam PPMC member*
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen></iframe>
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen></iframe>
 
 ### Nexmark Evaluating Big Data systems with Apache Beam
 

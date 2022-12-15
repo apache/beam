@@ -23,6 +23,7 @@ from api.v1.api_pb2 import SDK_JAVA, STATUS_FINISHED, STATUS_ERROR, \
     STATUS_VALIDATION_ERROR, STATUS_PREPARATION_ERROR, STATUS_RUN_TIMEOUT, \
     STATUS_COMPILE_ERROR, STATUS_RUN_ERROR
 from ci_helper import CIHelper, VerifyException
+from config import Origin
 from helper import Example, Tag
 
 
@@ -31,16 +32,14 @@ from helper import Example, Tag
 @mock.patch("ci_helper.get_statuses")
 async def test_verify_examples(mock_get_statuses, mock_verify_examples):
     helper = CIHelper()
-    await helper.verify_examples([])
+    await helper.verify_examples([], Origin.PG_EXAMPLES)
 
-    mock_get_statuses.assert_called_once_with([])
-    mock_verify_examples.assert_called_once_with([])
+    mock_get_statuses.assert_called_once_with(mock.ANY, [])
+    mock_verify_examples.assert_called_once_with(mock.ANY, [], Origin.PG_EXAMPLES)
 
 
 @pytest.mark.asyncio
-@mock.patch("grpc_client.GRPCClient.get_run_error")
-@mock.patch("grpc_client.GRPCClient.get_compile_output")
-async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
+async def test__verify_examples():
     helper = CIHelper()
     object_meta = {
         "name": "name",
@@ -63,7 +62,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
         output="output_of_example",
         status=STATUS_FINISHED,
         tag=Tag(**object_meta_def_ex),
-        link="link")
+        url_vcs="link")
     finished_example = Example(
         name="name",
         complexity="MEDIUM",
@@ -74,7 +73,8 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
         output="output_of_example",
         status=STATUS_FINISHED,
         tag=Tag(**object_meta),
-        link="link")
+        url_vcs="link",
+        url_notebook="notebook_link")
     examples_without_def_ex = [
         finished_example,
         finished_example,
@@ -98,7 +98,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             output="output_of_example",
             status=STATUS_VALIDATION_ERROR,
             tag=Tag(**object_meta_def_ex),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -109,7 +109,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             output="output_of_example",
             status=STATUS_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -120,7 +120,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             output="output_of_example",
             status=STATUS_COMPILE_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -131,7 +131,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             output="output_of_example",
             status=STATUS_PREPARATION_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -142,7 +142,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             output="output_of_example",
             status=STATUS_RUN_TIMEOUT,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -153,7 +153,7 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             output="output_of_example",
             status=STATUS_VALIDATION_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -164,13 +164,13 @@ async def test__verify_examples(mock_get_compile_output, mock_get_run_output):
             output="output_of_example",
             status=STATUS_RUN_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
     ]
-
+    client = mock.AsyncMock()
     with pytest.raises(VerifyException):
-        await helper._verify_examples(examples_with_errors)
+        await helper._verify_examples(client, examples_with_errors, Origin.PG_EXAMPLES)
     with pytest.raises(VerifyException):
-        await helper._verify_examples(examples_without_def_ex)
+        await helper._verify_examples(client, examples_without_def_ex, Origin.PG_EXAMPLES)
     with pytest.raises(VerifyException):
-        await helper._verify_examples(examples_with_several_def_ex)
-    await helper._verify_examples(examples_without_errors)
+        await helper._verify_examples(client, examples_with_several_def_ex, Origin.PG_EXAMPLES)
+    await helper._verify_examples(client, examples_without_errors, Origin.PG_EXAMPLES)

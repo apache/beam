@@ -31,8 +31,6 @@
 
 import apache_beam as beam
 
-from log_elements import LogElements
-
 lines = [
     "apple orange grape banana apple banana",
     "banana orange banana papaya"
@@ -44,4 +42,4 @@ with beam.Pipeline() as p:
      | beam.FlatMap(lambda sentence: sentence.split())
      | beam.combiners.Count.PerElement()
      | beam.MapTuple(lambda k, v: k + ":" + str(v))
-     | LogElements())
+     | beam.LogElements())

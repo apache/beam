@@ -293,7 +293,7 @@ python -m apache_beam.examples.wordcount \
 - `--runner`(required): `SparkRunner`.
 - `--output_executable_path`(required): path for the bundle jar to be created.
 - `--output`(required): where output shall be written.
-- `--spark_version`(optional): select spark version 2 (default) or 3.
+- `--spark_version`(optional): select spark version 3 (default) or 2 (deprecated!).
 
 5. Submit spark job to Dataproc cluster's master node.
 

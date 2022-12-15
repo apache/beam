@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
 import 'package:playground/modules/messages/models/set_content_message.dart';
 import 'package:playground_components/playground_components.dart';
 
@@ -45,9 +46,11 @@ void main() {
 
         expect(
           parsed,
-          const SetContentMessage(
+          SetContentMessage(
             descriptor: ExamplesLoadingDescriptor(
-              descriptors: [EmptyExampleLoadingDescriptor(sdk: Sdk.java)],
+              descriptors: const [EmptyExampleLoadingDescriptor(sdk: Sdk.java)],
+              lazyLoadDescriptors:
+                  ExamplesLoadingDescriptorFactory.defaultLazyLoadDescriptors,
             ),
           ),
         );
@@ -66,9 +69,11 @@ void main() {
 
         expect(
           parsed,
-          const SetContentMessage(
+          SetContentMessage(
             descriptor: ExamplesLoadingDescriptor(
-              descriptors: [EmptyExampleLoadingDescriptor(sdk: Sdk.java)],
+              descriptors: const [EmptyExampleLoadingDescriptor(sdk: Sdk.java)],
+              lazyLoadDescriptors:
+                  ExamplesLoadingDescriptorFactory.defaultLazyLoadDescriptors,
             ),
           ),
         );
@@ -81,7 +86,7 @@ void main() {
         final map = {
           'type': SetContentMessage.type,
           'descriptor': {
-            'descriptors': [
+            'examples': [
               null,
               1,
               1.0,
@@ -92,15 +97,18 @@ void main() {
                 'content': _content,
                 'name': 'name',
                 'sdk': _sdk.id,
+                'complexity': 'basic',
               },
               {
                 'content': _content,
                 'name': null,
                 'sdk': _sdk.id,
+                'complexity': 'medium',
               },
               {
                 'content': _content,
                 'sdk': _sdk.id,
+                'complexity': 'advanced',
               },
             ],
           },
@@ -110,25 +118,30 @@ void main() {
 
         expect(
           parsed,
-          const SetContentMessage(
+          SetContentMessage(
             descriptor: ExamplesLoadingDescriptor(
-              descriptors: [
+              descriptors: const [
                 ContentExampleLoadingDescriptor(
                   content: _content,
                   name: 'name',
                   sdk: _sdk,
+                  complexity: Complexity.basic,
                 ),
                 ContentExampleLoadingDescriptor(
                   content: _content,
                   name: null,
                   sdk: _sdk,
+                  complexity: Complexity.medium,
                 ),
                 ContentExampleLoadingDescriptor(
                   content: _content,
                   name: null,
                   sdk: _sdk,
+                  complexity: Complexity.advanced,
                 ),
               ],
+              lazyLoadDescriptors:
+                  ExamplesLoadingDescriptorFactory.defaultLazyLoadDescriptors,
             ),
           ),
         );

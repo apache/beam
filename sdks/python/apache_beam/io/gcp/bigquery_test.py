@@ -188,120 +188,6 @@ class TestTableRowJsonCoder(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class TestBigQuerySource(unittest.TestCase):
-  def test_display_data_item_on_validate_true(self):
-    source = beam.io.BigQuerySource(
-        'dataset.table', validate=True, use_dataflow_native_source=True)
-
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', True),
-        DisplayDataItemMatcher('table', 'dataset.table')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-  def test_table_reference_display_data(self):
-    source = beam.io.BigQuerySource(
-        'dataset.table', use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', False),
-        DisplayDataItemMatcher('table', 'dataset.table')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-    source = beam.io.BigQuerySource(
-        'project:dataset.table', use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', False),
-        DisplayDataItemMatcher('table', 'project:dataset.table')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-    source = beam.io.BigQuerySource(
-        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', False),
-        DisplayDataItemMatcher('table', 'xyz.com:project:dataset.table')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-  def test_parse_table_reference(self):
-    source = beam.io.BigQuerySource(
-        'dataset.table', use_dataflow_native_source=True)
-    self.assertEqual(source.table_reference.datasetId, 'dataset')
-    self.assertEqual(source.table_reference.tableId, 'table')
-
-    source = beam.io.BigQuerySource(
-        'project:dataset.table', use_dataflow_native_source=True)
-    self.assertEqual(source.table_reference.projectId, 'project')
-    self.assertEqual(source.table_reference.datasetId, 'dataset')
-    self.assertEqual(source.table_reference.tableId, 'table')
-
-    source = beam.io.BigQuerySource(
-        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
-    self.assertEqual(source.table_reference.projectId, 'xyz.com:project')
-    self.assertEqual(source.table_reference.datasetId, 'dataset')
-    self.assertEqual(source.table_reference.tableId, 'table')
-
-    source = beam.io.BigQuerySource(
-        query='my_query', use_dataflow_native_source=True)
-    self.assertEqual(source.query, 'my_query')
-    self.assertIsNone(source.table_reference)
-    self.assertTrue(source.use_legacy_sql)
-
-  def test_query_only_display_data(self):
-    source = beam.io.BigQuerySource(
-        query='my_query', use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', False),
-        DisplayDataItemMatcher('query', 'my_query')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-  def test_specify_query_sql_format(self):
-    source = beam.io.BigQuerySource(
-        query='my_query',
-        use_standard_sql=True,
-        use_dataflow_native_source=True)
-    self.assertEqual(source.query, 'my_query')
-    self.assertFalse(source.use_legacy_sql)
-
-  def test_specify_query_flattened_records(self):
-    source = beam.io.BigQuerySource(
-        query='my_query',
-        flatten_results=False,
-        use_dataflow_native_source=True)
-    self.assertFalse(source.flatten_results)
-
-  def test_specify_query_unflattened_records(self):
-    source = beam.io.BigQuerySource(
-        query='my_query', flatten_results=True, use_dataflow_native_source=True)
-    self.assertTrue(source.flatten_results)
-
-  def test_specify_query_without_table(self):
-    source = beam.io.BigQuerySource(
-        query='my_query', use_dataflow_native_source=True)
-    self.assertEqual(source.query, 'my_query')
-    self.assertIsNone(source.table_reference)
-
-  def test_date_partitioned_table_name(self):
-    source = beam.io.BigQuerySource(
-        'dataset.table$20030102',
-        validate=True,
-        use_dataflow_native_source=True)
-    dd = DisplayData.create_from(source)
-    expected_items = [
-        DisplayDataItemMatcher('validation', True),
-        DisplayDataItemMatcher('table', 'dataset.table$20030102')
-    ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestJsonToDictCoder(unittest.TestCase):
   @staticmethod
   def _make_schema(fields):
@@ -609,8 +495,8 @@ class TestBigQuerySink(unittest.TestCase):
     self.assertEqual(sink.table_reference.datasetId, 'dataset')
     self.assertEqual(sink.table_reference.tableId, 'table')
     result_schema = {
-        field.name: field.type
-        for field in sink.table_schema.fields
+        field['name']: field['type']
+        for field in sink.schema['fields']
     }
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
@@ -622,54 +508,6 @@ class TestBigQuerySink(unittest.TestCase):
         DisplayDataItemMatcher('validation', False)
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-  def test_simple_schema_as_json(self):
-    sink = beam.io.BigQuerySink(
-        'project:dataset.table', schema='s:STRING, n:INTEGER')
-    self.assertEqual(
-        json.dumps({
-            'fields': [{
-                'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'
-            }, {
-                'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'
-            }]
-        }),
-        sink.schema_as_json())
-
-  def test_nested_schema_as_json(self):
-    string_field = bigquery.TableFieldSchema(
-        name='s', type='STRING', mode='NULLABLE', description='s description')
-    number_field = bigquery.TableFieldSchema(
-        name='n', type='INTEGER', mode='REQUIRED', description='n description')
-    record_field = bigquery.TableFieldSchema(
-        name='r',
-        type='RECORD',
-        mode='REQUIRED',
-        description='r description',
-        fields=[string_field, number_field])
-    schema = bigquery.TableSchema(fields=[record_field])
-    sink = beam.io.BigQuerySink('dataset.table', schema=schema)
-    self.assertEqual({
-        'fields': [{
-            'name': 'r',
-            'type': 'RECORD',
-            'mode': 'REQUIRED',
-            'description': 'r description',
-            'fields': [{
-                'name': 's',
-                'type': 'STRING',
-                'mode': 'NULLABLE',
-                'description': 's description'
-            },
-                       {
-                           'name': 'n',
-                           'type': 'INTEGER',
-                           'mode': 'REQUIRED',
-                           'description': 'n description'
-                       }]
-        }]
-    },
-                     json.loads(sink.schema_as_json()))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

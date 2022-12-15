@@ -1959,12 +1959,18 @@ message ExecutableStagePayload {
   }
 }
 
+// See https://beam.apache.org/documentation/runtime/resource-hints/ for additional documentation
+// on the behavior of StandardResourceHint.
 message StandardResourceHints {
   enum Enum {
     // Describes hardware accelerators that are desired to have in the execution environment.
+    // Payload: ASCII encoded string with the following format: "type:<type>;count:<n>;<options>" where type
+    // is an accelerator sku, count is the number of accelerators per worker, and options are
+    // related options flags.
     ACCELERATOR = 0 [(beam_urn) = "beam:resources:accelerator:v1"];
     // Describes desired minimal available RAM size in transform's execution environment.
     // SDKs should convert the size to bytes, but can allow users to specify human-friendly units (e.g. GiB).
+    // Payload: ASCII encoded string of the base 10 representation of an integer number of bytes.
     MIN_RAM_BYTES = 1 [(beam_urn) = "beam:resources:min_ram_bytes:v1"];
   }
 }

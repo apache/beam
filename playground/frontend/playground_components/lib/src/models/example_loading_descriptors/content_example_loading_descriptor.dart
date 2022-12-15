@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
+import '../../enums/complexity.dart';
+import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+/// Fully contains an example data to be loaded.
 class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   /// The source code.
   final String content;
@@ -26,51 +29,51 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   /// The name of the example, if any, to show in the dropdown.
   final String? name;
 
+  final Complexity? complexity;
+
   final Sdk sdk;
 
   const ContentExampleLoadingDescriptor({
     required this.content,
-    required this.name,
     required this.sdk,
+    this.complexity,
+    this.name,
+    super.viewOptions,
   });
 
-  static ContentExampleLoadingDescriptor? tryParse(Map eventData) {
-    final content = _tryParseContent(eventData);
+  static ContentExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {
+    final content = map['content']?.toString();
     if (content == null) {
       return null;
     }
 
-    final sdk = _tryParseSdk(eventData);
+    final sdk = Sdk.tryParse(map['sdk']);
     if (sdk == null) {
       return null;
     }
 
     return ContentExampleLoadingDescriptor(
       content: content,
-      name: _tryParseName(eventData),
+      name: map['name']?.toString(),
       sdk: sdk,
+      complexity: Complexity.fromString(map['complexity']),
+      viewOptions: ExampleViewOptions.fromShortMap(map),
     );
   }
 
-  static String? _tryParseContent(Map map) {
-    return map['content']?.toString();
-  }
-
-  static String? _tryParseName(Map map) {
-    return map['name']?.toString();
-  }
-
-  static Sdk? _tryParseSdk(Map map) {
-    return Sdk.tryParse(map['sdk']);
-  }
-
   @override
-  List<Object> get props => [content, sdk.id];
+  List<Object?> get props => [
+        complexity,
+        content,
+        name,
+        sdk.id,
+      ];
 
   @override
   Map<String, dynamic> toJson() => {
-    'content': content,
-    'name': name,
-    'sdk': sdk.id,
-  };
+        'complexity': complexity?.name,
+        'content': content,
+        'name': name,
+        'sdk': sdk.id,
+      };
 }

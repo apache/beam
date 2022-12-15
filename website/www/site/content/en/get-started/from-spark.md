@@ -19,7 +19,7 @@ limitations under the License.
 
 {{< localstorage language language-py >}}
 
-If you already know [_Apache Spark_](http://spark.apache.org/),
+If you already know [_Apache Spark_](https://spark.apache.org/),
 using Beam should be easy.
 The basic concepts are the same, and the APIs are similar as well.
 
@@ -119,7 +119,7 @@ Here's a comparison on how to get started both in PySpark and Beam.
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table style="width:100%">
+<table style="width:100%" class="table-wrapper--equal-p">
 <tr>
     <th style="width:20%"></th>
     <th style="width:40%">PySpark</th>
@@ -183,7 +183,7 @@ Here are the equivalents of some common transforms in both PySpark and Beam.
 
 <div class="table-container-wrapper">
 {{< table >}}
-<table style="width:100%">
+<table style="width:100%" class="table-wrapper--equal-p">
 <tr>
     <th style="width:20%"></th>
     <th style="width:40%">PySpark</th>

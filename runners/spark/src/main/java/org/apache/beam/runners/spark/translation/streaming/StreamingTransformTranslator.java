@@ -59,6 +59,7 @@ import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -166,6 +167,27 @@ public final class StreamingTransformTranslator {
       @Override
       public String toNativeString() {
         return "streamingContext.<readFrom(<source>)>()";
+      }
+    };
+  }
+
+  private static <T> TransformEvaluator<TestStream<T>> createFromTestStream() {
+    return new TransformEvaluator<TestStream<T>>() {
+
+      @Override
+      public void evaluate(TestStream<T> transform, EvaluationContext context) {
+        TestDStream<T> dStream = new TestDStream<>(transform, context.getStreamingContext().ssc());
+        JavaInputDStream<WindowedValue<T>> javaDStream =
+            new JavaInputDStream<>(dStream, JavaSparkContext$.MODULE$.fakeClassTag());
+
+        UnboundedDataset<T> dataset =
+            new UnboundedDataset<>(javaDStream, Collections.singletonList(dStream.id()));
+        context.putDataset(transform, dataset);
+      }
+
+      @Override
+      public String toNativeString() {
+        return "streamingContext.testStream(...)";
       }
     };
   }
@@ -540,10 +562,12 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN, combineGrouped());
     EVALUATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, parDo());
     EVALUATORS.put(ConsoleIO.Write.Unbound.TRANSFORM_URN, print());
-    EVALUATORS.put(CreateStream.TRANSFORM_URN, createFromQueue());
     EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
     EVALUATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, flattenPColl());
     EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
+    // For testing only
+    EVALUATORS.put(CreateStream.TRANSFORM_URN, createFromQueue());
+    EVALUATORS.put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, createFromTestStream());
   }
 
   private static @Nullable TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {

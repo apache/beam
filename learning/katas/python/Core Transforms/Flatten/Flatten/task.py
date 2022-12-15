@@ -28,8 +28,6 @@
 
 import apache_beam as beam
 
-from log_elements import LogElements
-
 with beam.Pipeline() as p:
 
   wordsStartingWithA = \
@@ -40,4 +38,4 @@ with beam.Pipeline() as p:
 
   ((wordsStartingWithA, wordsStartingWithB)
       | beam.Flatten()
-      | LogElements())
+      | beam.LogElements())
