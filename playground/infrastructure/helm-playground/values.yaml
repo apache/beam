@@ -30,12 +30,4 @@ healthcheck:
    livInitialDelaySeconds: 30
    livPeriodSeconds: 30
    readInitialDelaySeconds: 30
-   readPeriodSeconds: 30
-static_ip: 34.111.57.164
-redis_ip: 10.141.248.100:6379
-project_id: helmtest-371613
-registry: us-east1-docker.pkg.dev/helmtest-371613/playground-repository
-static_ip_name: pg-static-ip
-tag: gamma
-dns_name: dev-playground.online
-    
+   readPeriodSeconds: 30    
