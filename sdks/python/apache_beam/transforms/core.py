@@ -2474,6 +2474,8 @@ class CombineGlobally(PTransform):
       # Capture in closure (avoiding capturing self).
       args, kwargs = self.args, self.kwargs
 
+      #TODO: This is a short term fix but CombineGlobally() needs a more
+      # thorough effort to ensure it works with multi-window inputs consistently
       def inject_default(_, combined):
         if combined:
           if len(combined) > 1:
