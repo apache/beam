@@ -79,8 +79,8 @@ class _SnippetEditorState extends State<SnippetEditor> {
 
   @override
   void dispose() {
-    super.dispose();
     _focusNode.dispose();
+    super.dispose();
   }
 
   @override
