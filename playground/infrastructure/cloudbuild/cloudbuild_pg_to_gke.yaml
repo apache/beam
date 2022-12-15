@@ -45,7 +45,9 @@ steps:
         -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Psdk-tag="$_SDK_TAG" -Pdns-name="$_DNS_NAME"
 
 # This option enables writing logs to Cloud Logging
+logsBucket: 'gs://state-bucket-exname1'
 options:
-  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_32'
+  logging: GCS_ONLY
 
 timeout: 7600s
