@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -83,14 +84,18 @@ const (
 	URNArtifactURLType      = "beam:artifact:type:url:v1"
 	URNArtifactGoWorkerRole = "beam:artifact:role:go_worker_binary:v1"
 
-	// Environment Urns.
+	// Environment URNs.
 	URNEnvProcess  = "beam:env:process:v1"
 	URNEnvExternal = "beam:env:external:v1"
 	URNEnvDocker   = "beam:env:docker:v1"
 
-	// Userstate Urns.
+	// Userstate URNs.
 	URNBagUserState      = "beam:user_state:bag:v1"
 	URNMultiMapUserState = "beam:user_state:multimap:v1"
+
+	// Base version URNs are to allow runners to make distinctions between different releases
+	// in a way that won't change based on actual releases, in particular for FnAPI behaviors.
+	URNBaseVersionGo = "beam:version:sdk_base:go:" + core.DefaultDockerImage
 )
 
 func goCapabilities() []string {
@@ -100,8 +105,7 @@ func goCapabilities() []string {
 		URNTruncate,
 		URNWorkerStatus,
 		URNMonitoringInfoShortID,
-		// TOOD(https://github.com/apache/beam/issues/20287): Make this versioned.
-		"beam:version:sdk_base:go",
+		URNBaseVersionGo,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }
