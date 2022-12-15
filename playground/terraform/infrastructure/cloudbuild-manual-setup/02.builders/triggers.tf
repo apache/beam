@@ -82,6 +82,34 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
   service_account = data.google_service_account.cloudbuild_sa.id
 }
 
+resource "google_cloudbuild_trigger" "playground_examples_ci" {
+  name     = var.examples_ci_trigger_name
+  project  = var.project_id
+
+  description = "Runs CI pipeline steps for Playground Examples"
+
+  github {
+    owner = var.github_repository_owner
+    name  = var.github_repository_name
+    pull_request {
+      branch = var.github_repository_branch
+    }
+  }
+
+  included_files =
+  [
+    "playground/backend/**",
+    "playground/infrastructure/**",
+    "learning/katas/**",
+    "examples/**",
+    "sdks/**"
+  ]
+
+  filename = "playground/infrastructure/cloudbuild/cloudbuild_examples_ci_steps.yaml"
+
+  service_account = data.google_service_account.cloudbuild_sa.id
+}
+
 resource "google_cloudbuild_trigger" "playground_examples_cd" {
   name     = var.examples_cd_trigger_name
   project  = var.project_id
