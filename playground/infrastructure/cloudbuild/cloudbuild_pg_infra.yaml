@@ -44,6 +44,5 @@ steps:
 # This option enables writing logs to Cloud Logging
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: 'E2_HIGHCPU_32'
 
 timeout: 3600s
