@@ -31,7 +31,9 @@ steps:
       - 'TAG_NAME=${TAG_NAME}'
       - 'PROJECT_ID=${PROJECT_ID}'
 
+logsBucket: 'gs://state-bucket-exname1'
 options:
-  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+  logging: GCS_ONLY
 
 timeout: 3600s
