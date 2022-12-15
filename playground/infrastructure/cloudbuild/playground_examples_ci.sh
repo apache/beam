@@ -19,7 +19,8 @@ export GRADLE_VERSION=7.5.1
 export GO_VERSION=1.18
 
 #Install python java8 and dependencies
-apt-get update > /dev/null
+apt-get update 2>/dev/null | grep packages | cut -d '.' -f 1
+apt update 2>/dev/null | grep packages | cut -d '.' -f 1
 export DEBIAN_FRONTEND=noninteractive
 apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
