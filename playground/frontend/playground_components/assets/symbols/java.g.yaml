@@ -4,6 +4,13 @@ AbstractBeamCalcRel:
    - estimateNodeStats
    - getLimitCountOfSortRel
    - isInputSortRelAndLimitOnly
+AbstractSimulator: 
+   methods: 
+   - hasNext
+   - next
+   - remove
+   - results
+   - resultsPerWindow
 ActionFactory: 
    methods: 
    - childPartitionsRecordAction
@@ -316,6 +323,77 @@ AttributeValueCoder:
 AttributeValueCoderProviderRegistrar: 
    methods: 
    - getCoderProviders
+Auction: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hasAnnotation
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - withAnnotation
+   - withoutAnnotation
+   properties: 
+   - CODER
+   - category
+   - dateTime
+   - description
+   - expires
+   - extra
+   - id
+   - initialBid
+   - itemName
+   - reserve
+   - seller
+AuctionBid: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   properties: 
+   - CODER
+   - auction
+   - bid
+AuctionCount: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   properties: 
+   - CODER
+   - auction
+   - num
+AuctionGenerator: 
+   methods: 
+   - lastBase0AuctionId
+   - nextAuction
+   - nextBase0AuctionId
+AuctionOrBid: 
+   methods: 
+   - apply
+AuctionPrice: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   properties: 
+   - CODER
+   - auction
+   - price
 AutoValueSchema: 
    methods: 
    - fieldValueGetters
@@ -1229,6 +1307,9 @@ BeamSqlEnv:
    - setQueryPlannerClassName
    - setRuleSets
    - withTableProvider
+BeamSqlEnvRunner: 
+   methods: 
+   - runUsingBeamSqlEnv
 BeamSqlLine: 
    methods: 
    - main
@@ -1297,6 +1378,9 @@ BeamTableUtils:
    - autoCastField
    - beamRow2CsvLine
    - csvLines2BeamRows
+BeamTpcds: 
+   methods: 
+   - main
 BeamUncollectRel: 
    methods: 
    - beamComputeSelfCost
@@ -1418,6 +1502,43 @@ BeamZetaSqlUnnestRule:
    - onMatch
    properties: 
    - INSTANCE
+Bid: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hasAnnotation
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   - withAnnotation
+   - withoutAnnotation
+   properties: 
+   - ASCENDING_TIME_THEN_PRICE
+   - CODER
+   - PRICE_THEN_DESCENDING_TIME
+   - auction
+   - bidder
+   - dateTime
+   - extra
+   - price
+BidGenerator: 
+   methods: 
+   - nextBid
+BidsPerSession: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   properties: 
+   - CODER
 BigDecimalCoder: 
    methods: 
    - consistentWithEquals
@@ -1464,6 +1585,12 @@ BigIntegerCoder:
    - isRegisterByteSizeObserverCheap
    - of
    - verifyDeterministic
+BigQueryClient: 
+   methods: 
+   - create
+   - createTableIfNotExists
+   - insertAll
+   - insertRow
 BigQueryCoderProviderRegistrar: 
    methods: 
    - getCoderProviders
@@ -1690,6 +1817,31 @@ BigQueryUtils:
    - toTableRow
    - toTableSchema
    - writeCallMetric
+BigqueryClient: 
+   methods: 
+   - createNewDataset
+   - createNewTable
+   - deleteDataset
+   - deleteTable
+   - getClient
+   - getNewBigqueryClient
+   - getTableResource
+   - insertDataToTable
+   - queryUnflattened
+   - queryWithRetries
+   - queryWithRetriesUsingStandardSql
+BigqueryMatcher: 
+   methods: 
+   - create
+   - createQuery
+   - createQueryUsingStandardSql
+   - describeMismatchSafely
+   - describeTo
+   - getApplicationName
+   - getProjectId
+   - getQuery
+   - getUsingStandardSql
+   - queryResultHasChecksum
 BigtableIO: 
    methods: 
    - advance
@@ -1749,6 +1901,14 @@ BigtableTableProvider:
    methods: 
    - buildBeamSqlTable
    - getTableType
+BigtableUtils: 
+   methods: 
+   - booleanToByteArray
+   - byteString
+   - byteStringUtf8
+   - doubleToByteArray
+   - floatToByteArray
+   - longToByteArray
 BigtableWriteResult: 
    methods: 
    - create
@@ -1788,6 +1948,21 @@ BooleanCoder:
    - encode
    - isRegisterByteSizeObserverCheap
    - of
+BoundedEventSource: 
+   methods: 
+   - advance
+   - close
+   - createReader
+   - getCurrent
+   - getCurrentSource
+   - getCurrentTimestamp
+   - getDefaultOutputCoder
+   - getEstimatedSizeBytes
+   - getFractionConsumed
+   - split
+   - splitAtFraction
+   - start
+   - validate
 BoundedReadFromUnboundedSource: 
    methods: 
    - expand
@@ -1796,6 +1971,14 @@ BoundedReadFromUnboundedSource:
    - process
    - withMaxNumRecords
    - withMaxReadTime
+BoundedSideInputJoin: 
+   methods: 
+   - expand
+   - needsSideInput
+   - processElement
+BoundedSideInputJoinModel: 
+   methods: 
+   - simulator
 BoundedSource: 
    methods: 
    - createReader
@@ -1981,6 +2164,9 @@ ByteKeyRangeTracker:
    - tryReturnRecordAt
    - trySplit
    - trySplitAtPosition
+ByteMonitor: 
+   methods: 
+   - processElement
 ByteStringCoder: 
    methods: 
    - consistentWithEquals
@@ -2323,6 +2509,21 @@ CastFunctionImpl:
    - getImplementor
    - getParameters
    - implement
+CategoryPrice: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   properties: 
+   - CODER
+   - category
+   - isLast
+   - price
 CdapIO: 
    methods: 
    - expand
@@ -2592,6 +2793,10 @@ CoGroupByKey:
    - create
    - expand
    - processElement
+CoGroupByKeyLoadTest: 
+   methods: 
+   - main
+   - processElement
 Coder: 
    methods: 
    - consistentWithEquals
@@ -2614,6 +2819,37 @@ Coder:
    - OUTER
    - isWholeStream
 CoderException: {}
+CoderProperties: 
+   methods: 
+   - coderConsistentWithEquals
+   - coderConsistentWithEqualsInContext
+   - coderDecodeEncodeContentsEqual
+   - coderDecodeEncodeContentsEqualInContext
+   - coderDecodeEncodeContentsInSameOrder
+   - coderDecodeEncodeContentsInSameOrderInContext
+   - coderDecodeEncodeEqual
+   - coderDecodeEncodeEqualInContext
+   - coderDecodeEncodeInContext
+   - coderDecodesBase64
+   - coderDecodesBase64ContentsEqual
+   - coderDeterministic
+   - coderDeterministicInContext
+   - coderEncodesBase64
+   - coderSerializable
+   - getCount
+   - getMean
+   - getSum
+   - getSumAndReset
+   - reset
+   - structuralValueConsistentWithEquals
+   - structuralValueConsistentWithEqualsInContext
+   - structuralValueDecodeEncodeEqual
+   - structuralValueDecodeEncodeEqualInContext
+   - structuralValueDecodeEncodeEqualIterable
+   - structuralValueDecodeEncodeEqualIterableInContext
+   - testByteCount
+   properties: 
+   - ALL_CONTEXTS
 CoderProvider: 
    methods: 
    - coderFor
@@ -2720,6 +2956,9 @@ CombineFnBase:
    - getInputTVariable
    - getOutputTVariable
    - populateDisplayData
+CombineFnTester: 
+   methods: 
+   - testCombineFn
 CombineFnUtil: 
    methods: 
    - addInput
@@ -2755,6 +2994,11 @@ CombineFns:
    - remove
    - verifyDeterministic
    - with
+CombineLoadTest: 
+   methods: 
+   - apply
+   - getPerKeyCombiner
+   - main
 CombineRunners: 
    methods: 
    - createRunnerForPTransform
@@ -2825,6 +3069,9 @@ ConfluentSchemaRegistryDeserializerProvider:
    - getDeserializer
    - of
 ConnectionManager: {}
+ConsoleResultPublisher: 
+   methods: 
+   - publish
 Contextful: 
    methods: 
    - fn
@@ -2949,6 +3196,10 @@ CovarianceFn:
    - mergeAccumulators
    - newPopulation
    - newSample
+CrashingRunner: 
+   methods: 
+   - fromOptions
+   - run
 Create: 
    methods: 
    - apply
@@ -3025,6 +3276,10 @@ CrossLanguageConfiguration:
    - setTable
    - setUsername
    - setWarehouse
+CsvToRow: 
+   methods: 
+   - expand
+   - getCsvFormat
 CustomCoder: 
    methods: 
    - getCoderArguments
@@ -3800,6 +4055,18 @@ DoFnWithExecutionInformation:
    - getSchemaInformation
    - getSideInputMapping
    - of
+Done: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   properties: 
+   - CODER
 DoubleCoder: 
    methods: 
    - consistentWithEquals
@@ -4039,6 +4306,23 @@ EnumerationType:
    - valueOf
    properties: 
    - IDENTIFIER
+Event: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hasAnnotation
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   - withAnnotation
+   properties: 
+   - CODER
+   - bid
+   - newAuction
+   - newPerson
 ExecutionStateSampler: 
    methods: 
    - activate
@@ -4200,6 +4484,62 @@ FailureCollectorWrapper:
    - addFailure
    - getOrThrowException
    - getValidationFailures
+FakeBigQueryServices: 
+   methods: 
+   - cancel
+   - convertNumbers
+   - decodeQueryResult
+   - encodeQueryResult
+   - getDatasetService
+   - getJobService
+   - getStorageClient
+   - iterator
+   - withDatasetService
+   - withJobService
+   - withStorageClient
+FakeDatasetService: 
+   methods: 
+   - appendRows
+   - close
+   - commitWriteStreams
+   - createDataset
+   - createTable
+   - createWriteStream
+   - deleteDataset
+   - deleteTable
+   - failOnInsert
+   - finalizeWriteStream
+   - flush
+   - getAllIds
+   - getAllRows
+   - getDataset
+   - getInsertCount
+   - getStreamAppendClient
+   - getTable
+   - getTableImpl
+   - insertAll
+   - isTableEmpty
+   - patchTableDescription
+   - pin
+   - setShouldFailRow
+   - setUp
+   - unpin
+   - updateTableSchema
+FakeJobService: 
+   methods: 
+   - close
+   - dryRunQuery
+   - expectDryRunQuery
+   - getAllJobs
+   - getJob
+   - getNumExtractJobCalls
+   - pollJob
+   - setNumFailuresExpected
+   - setUp
+   - startCopyJob
+   - startExtractJob
+   - startLoadJob
+   - startQueryJob
 FhirBundleParameter: 
    methods: 
    - getBundle
@@ -4434,6 +4774,12 @@ FileBasedSource:
    - start
    - toString
    - validate
+FileChecksumMatcher: 
+   methods: 
+   - describeMismatchSafely
+   - describeTo
+   - fileContentsHaveChecksum
+   - matchesSafely
 FileIO: 
    methods: 
    - apply
@@ -4981,6 +5327,74 @@ GenerateSequenceTableProvider:
    methods: 
    - buildBeamSqlTable
    - getTableType
+Generator: 
+   methods: 
+   - compareTo
+   - copy
+   - currentInterEventDelayUs
+   - equals
+   - getCurrentConfig
+   - getFractionConsumed
+   - getNextEventId
+   - hasNext
+   - hashCode
+   - next
+   - nextEvent
+   - remove
+   - splitAtEventId
+   - toCheckpoint
+   - toString
+   - withDelay
+   properties: 
+   - event
+   - eventTimestamp
+   - wallclockTimestamp
+   - watermark
+GeneratorCheckpoint: 
+   methods: 
+   - decode
+   - encode
+   - finalizeCheckpoint
+   - toGenerator
+   - toString
+   - verifyDeterministic
+   properties: 
+   - CODER_INSTANCE
+GeneratorConfig: 
+   methods: 
+   - copy
+   - copyWith
+   - estimatedBytesForEvents
+   - getAvgAuctionByteSize
+   - getAvgBidByteSize
+   - getAvgPersonByteSize
+   - getEstimatedSizeBytes
+   - getHotAuctionRatio
+   - getHotBiddersRatio
+   - getHotSellersRatio
+   - getNumActivePeople
+   - getNumInFlightAuctions
+   - getOccasionalDelaySec
+   - getProbDelayedEvent
+   - getStartEventId
+   - getStopEventId
+   - nextAdjustedEventNumber
+   - nextEventNumber
+   - nextEventNumberForWatermark
+   - split
+   - timestampAndInterEventDelayUsForEvent
+   - toString
+   properties: 
+   - AUCTION_PROPORTION
+   - FIRST_AUCTION_ID
+   - FIRST_CATEGORY_ID
+   - FIRST_PERSON_ID
+   - PERSON_PROPORTION
+   - PROPORTION_DENOMINATOR
+   - baseTime
+   - firstEventId
+   - firstEventNumber
+   - maxEvents
 GenericDlq: 
    methods: 
    - getDlqTransform
@@ -5073,6 +5487,10 @@ GroupByKey:
    - populateDisplayData
    - updateWindowingStrategy
    - validate
+GroupByKeyLoadTest: 
+   methods: 
+   - main
+   - processElement
 GroupIntoBatches: 
    methods: 
    - apply
@@ -5452,6 +5870,9 @@ HttpHealthcareApiClient:
    - retrieveDicomStudyMetadata
    - searchFhirResource
    - uploadToDicomStore
+IOITMetrics: 
+   methods: 
+   - publishToInflux
 IOUtils: 
    methods: 
    - forEach
@@ -5459,6 +5880,18 @@ IdGenerators:
    methods: 
    - decrementingLongs
    - incrementingLongs
+IdNameReserve: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   properties: 
+   - CODER
 IdentityWindowFn: 
    methods: 
    - assignWindows
@@ -5502,6 +5935,34 @@ InferableFunction:
    - getInputTypeDescriptor
    - getOutputTypeDescriptor
    - populateDisplayData
+InfluxDBPublisher: 
+   methods: 
+   - dataPoint
+   - fields
+   - measurement
+   - publish
+   - publishNexmarkResults
+   - publishWithSettings
+   - tags
+   - timestamp
+   - timestampUnit
+   - toString
+InfluxDBSettings: 
+   methods: 
+   - builder
+   - copyWithMeasurement
+   - get
+   - withDatabase
+   - withHost
+   - withMeasurement
+   - withRetentionPolicy
+   properties: 
+   - database
+   - host
+   - measurement
+   - retentionPolicy
+   - userName
+   - userPassword
 InfluxDbIO: 
    methods: 
    - advance
@@ -5873,6 +6334,11 @@ JsonArrayCoder:
    - decode
    - encode
    - of
+JsonMatcher: 
+   methods: 
+   - describeTo
+   - jsonBytesLike
+   - jsonStringLike
 JsonPayloadSerializerProvider: 
    methods: 
    - getSerializer
@@ -6288,6 +6754,18 @@ LatencyRecordingHttpRequestInitializer:
    - interceptResponse
    properties: 
    - HISTOGRAM_BUCKET_TYPE
+Latest: 
+   methods: 
+   - addInput
+   - combineFn
+   - createAccumulator
+   - expand
+   - extractOutput
+   - getAccumulatorCoder
+   - getDefaultOutputCoder
+   - globally
+   - mergeAccumulators
+   - perKey
 LazyAggregateCombineFn: 
    methods: 
    - addInput
@@ -6322,6 +6800,11 @@ ListCoder:
    - of
    - structuralValue
    - verifyDeterministic
+LoadTestResult: 
+   methods: 
+   - getRuntime
+   - getTotalBytesCount
+   - toMap
 LocalFileSystemRegistrar: 
    methods: 
    - fromOptions
@@ -6343,12 +6826,19 @@ LogicalEndpoint:
    - getTransformId
    - isTimer
    - timer
+LongGenerator: 
+   methods: 
+   - nextLong
 LzoCompression: 
    methods: 
    - createLzoInputStream
    - createLzoOutputStream
    - createLzopInputStream
    - createLzopOutputStream
+Main: 
+   methods: 
+   - call
+   - main
 ManagedChannelFactory: 
    methods: 
    - createDefault
@@ -6604,6 +7094,14 @@ MetricsFilter:
    - builder
    - names
    - steps
+MetricsReader: 
+   methods: 
+   - getCounterMetric
+   - getEndTimeMetric
+   - getStartTimeMetric
+   - ofResults
+   - readAll
+   - withNamespace
 MicrosInstant: 
    methods: 
    - getArgumentType
@@ -6732,6 +7230,13 @@ MongoDbTableProvider:
    methods: 
    - buildBeamSqlTable
    - getTableType
+Monitor: 
+   methods: 
+   - getTransform
+   - processElement
+   properties: 
+   - name
+   - prefix
 MoreFutures: 
    methods: 
    - allAsList
@@ -6860,6 +7365,22 @@ NFA:
    properties: 
    - isFinal
    - isStart
+NameCityStateId: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   properties: 
+   - CODER
+   - city
+   - id
+   - name
+   - state
 NameGenerator: 
    methods: 
    - generatePartitionMetadataTableName
@@ -6867,6 +7388,16 @@ NameUtils:
    methods: 
    - approximatePTransformName
    - approximateSimpleName
+NamedTestResult: 
+   methods: 
+   - create
+   - fields
+   - getMetric
+   - getSchema
+   - getValue
+   - tags
+   - toInfluxDBDataPoint
+   - toMap
 NanosDuration: 
    methods: 
    - toBaseType
@@ -6918,6 +7449,166 @@ Never:
    methods: 
    - ever
    - getWatermarkThatGuaranteesFiring
+NexmarkConfiguration: 
+   methods: 
+   - copy
+   - equals
+   - fromString
+   - hashCode
+   - overrideFromOptions
+   - toShortString
+   - toString
+   properties: 
+   - DEFAULT
+   - auctionSkip
+   - avgAuctionByteSize
+   - avgBidByteSize
+   - avgPersonByteSize
+   - coderStrategy
+   - cpuDelayMs
+   - debug
+   - diskBusyBytes
+   - exportSummaryToBigQuery
+   - fanout
+   - firstEventRate
+   - generateEventFilePathPrefix
+   - hotAuctionRatio
+   - hotBiddersRatio
+   - hotSellersRatio
+   - isRateLimited
+   - maxAuctionsWaitingTime
+   - maxLogEvents
+   - nextEventRate
+   - numActivePeople
+   - numEventGenerators
+   - numEvents
+   - numInFlightAuctions
+   - numKeyBuckets
+   - occasionalDelaySec
+   - outOfOrderGroupSize
+   - pardoCPUFactor
+   - preloadSeconds
+   - probDelayedEvent
+   - pubSubMode
+   - pubsubMessageSerializationMethod
+   - query
+   - ratePeriodSec
+   - rateShape
+   - rateUnit
+   - sessionGap
+   - sideInputNumShards
+   - sideInputRowCount
+   - sideInputType
+   - sideInputUrl
+   - sinkType
+   - sourceType
+   - streamTimeout
+   - usePubsubPublishTime
+   - useWallclockEventTime
+   - watermarkHoldbackSec
+   - windowPeriodSec
+   - windowSizeSec
+NexmarkLauncher: 
+   methods: 
+   - processElement
+   - run
+NexmarkPerf: 
+   methods: 
+   - anyActivity
+   - fromString
+   - toMap
+   - toString
+   properties: 
+   - errors
+   - eventBytesPerSec
+   - eventsPerSec
+   - jobId
+   - numEvents
+   - numResults
+   - processingDelaySec
+   - resultBytesPerSec
+   - resultsPerSec
+   - runtimeSec
+   - shutdownDelaySec
+   - snapshots
+   - startupDelaySec
+NexmarkQuery: 
+   methods: 
+   - expand
+   - getTransform
+   properties: 
+   - eventMonitor
+   - resultMonitor
+NexmarkQueryModel: 
+   methods: 
+   - apply
+   - assertionFor
+   - simulator
+   properties: 
+   - configuration
+NexmarkQueryTransform: 
+   methods: 
+   - getSideInput
+   - needsSideInput
+   - setSideInput
+NexmarkQueryUtil: 
+   methods: 
+   - expand
+   - processElement
+   properties: 
+   - AS_AUCTION
+   - AS_BID
+   - AS_PERSON
+   - AUCTION_BY_ID
+   - AUCTION_BY_SELLER
+   - AUCTION_TAG
+   - BID_BY_AUCTION
+   - BID_TAG
+   - BID_TO_AUCTION
+   - BID_TO_PRICE
+   - EVENT_TIMESTAMP_FROM_DATA
+   - IS_BID
+   - IS_NEW_AUCTION
+   - IS_NEW_PERSON
+   - JUST_BIDS
+   - JUST_NEW_AUCTIONS
+   - JUST_NEW_PERSONS
+   - PERSON_BY_ID
+   - PERSON_TAG
+NexmarkUtils: 
+   methods: 
+   - apply
+   - batchEventsSource
+   - castToKnownSize
+   - cleanUpSideInput
+   - console
+   - cpuDelay
+   - decode
+   - devNull
+   - diskBusy
+   - encode
+   - expand
+   - format
+   - hash
+   - info
+   - interEventDelayUs
+   - log
+   - prepareSideInput
+   - processElement
+   - processingMode
+   - rateToPeriodUs
+   - setupPipeline
+   - snoop
+   - stamp
+   - standardEventIterator
+   - stepLengthSec
+   - streamEventsSource
+   properties: 
+   - BEGINNING_OF_TIME
+   - END_OF_TIME
+   - MAPPER
+   - PUBSUB_ID
+   - PUBSUB_TIMESTAMP
 NoSuchSchemaException: {}
 NodeStats: 
    methods: 
@@ -7120,6 +7811,47 @@ OutboundObserverFactory:
    - outboundObserverFor
    - serverDirect
    - trivial
+PAssert: 
+   methods: 
+   - apply
+   - assertFor
+   - containsInAnyOrder
+   - countAsserts
+   - empty
+   - enterCompositeTransform
+   - equals
+   - expand
+   - from
+   - hashCode
+   - inCombinedNonLatePanes
+   - inEarlyGlobalWindowPanes
+   - inEarlyPane
+   - inFinalPane
+   - inLatePane
+   - inOnTimePane
+   - inOnlyPane
+   - inWindow
+   - isEqualTo
+   - leaveCompositeTransform
+   - notEqualTo
+   - of
+   - prepareActuals
+   - processElement
+   - satisfies
+   - that
+   - thatFlattened
+   - thatList
+   - thatMap
+   - thatMultimap
+   - thatSingleton
+   - thatSingletonIterable
+   - visitPrimitiveTransform
+   - windowActuals
+   - windowDummy
+   - wrap
+   properties: 
+   - FAILURE_COUNTER
+   - SUCCESS_COUNTER
 PBegin: 
    methods: 
    - apply
@@ -7354,6 +8086,10 @@ ParDo:
    - withOutputTags
    - withSideInput
    - withSideInputs
+ParDoLoadTest: 
+   methods: 
+   - main
+   - processElement
 ParquetIO: 
    methods: 
    - apply
@@ -7605,6 +8341,34 @@ PeriodicSequence:
    - durationMilliSec
    - first
    - last
+Person: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hasAnnotation
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   - withAnnotation
+   - withoutAnnotation
+   properties: 
+   - CODER
+   - city
+   - creditCard
+   - dateTime
+   - emailAddress
+   - extra
+   - id
+   - name
+   - state
+PersonGenerator: 
+   methods: 
+   - lastBase0PersonId
+   - nextBase0PersonId
+   - nextPerson
 Pipeline: 
    methods: 
    - apply
@@ -7742,6 +8506,9 @@ PrepareWrite:
    methods: 
    - expand
    - processElement
+PriceGenerator: 
+   methods: 
+   - nextPrice
 ProcessBundleBenchmark: 
    methods: 
    - getCacheTokens
@@ -7973,6 +8740,17 @@ PubsubGrpcClient:
    - pull
    properties: 
    - FACTORY
+PubsubHelper: 
+   methods: 
+   - cleanup
+   - create
+   - createOrReuseTopic
+   - createSubscription
+   - createTopic
+   - reuseSubscription
+   - reuseTopic
+   - subscriptionExists
+   - topicExists
 PubsubIO: 
    methods: 
    - apply
@@ -8306,9 +9084,121 @@ Quantifier:
    - PLUS_RELUCTANT
    - QMARK
    - QMARK_RELUCTANT
+Query0: 
+   methods: 
+   - expand
+   - processElement
+Query0Model: 
+   methods: 
+   - simulator
+Query1: 
+   methods: 
+   - expand
+   - processElement
+Query10: 
+   methods: 
+   - expand
+   - processElement
+   - setMaxNumWorkers
+   - setOutputPath
+   - toString
+Query11: 
+   methods: 
+   - expand
+   - processElement
+Query12: 
+   methods: 
+   - expand
+   - processElement
+Query13: 
+   methods: 
+   - expand
+   - processElement
+Query14: 
+   methods: 
+   - expand
+Query1Model: 
+   methods: 
+   - simulator
+Query2: 
+   methods: 
+   - expand
+   - processElement
+Query2Model: 
+   methods: 
+   - simulator
+Query3: 
+   methods: 
+   - expand
+   - onTimerCallback
+   - processElement
+Query3Model: 
+   methods: 
+   - simulator
+Query4: 
+   methods: 
+   - expand
+   - processElement
+Query4Model: 
+   methods: 
+   - simulator
+Query5: 
+   methods: 
+   - addInput
+   - createAccumulator
+   - equals
+   - expand
+   - extractOutput
+   - getAccumulatorCoder
+   - hashCode
+   - mergeAccumulator
+   - processElement
+   properties: 
+   - auctions
+   - count
+Query5Model: 
+   methods: 
+   - run
+   - simulator
+Query6: 
+   methods: 
+   - addInput
+   - createAccumulator
+   - expand
+   - extractOutput
+   - mergeAccumulators
+   - processElement
+Query6Model: 
+   methods: 
+   - simulator
+Query7: 
+   methods: 
+   - expand
+   - processElement
+Query7Model: 
+   methods: 
+   - simulator
+Query8: 
+   methods: 
+   - expand
+   - processElement
+Query8Model: 
+   methods: 
+   - run
+   - simulator
+Query9: 
+   methods: 
+   - expand
+Query9Model: 
+   methods: 
+   - simulator
 QueryChangeStreamAction: 
    methods: 
    - run
+QueryReader: 
+   methods: 
+   - getQueryIdentifiers
+   - readQuery
 QueryStatementConverter: 
    methods: 
    - convert
@@ -8787,6 +9677,10 @@ Regex:
    - replaceAll
    - replaceFirst
    - split
+RegexMatcher: 
+   methods: 
+   - describeTo
+   - matches
 Reify: 
    methods: 
    - expand
@@ -9029,6 +9923,10 @@ RowMessages:
    - apply
    - bytesToRowFn
    - rowToBytesFn
+RowToCsv: 
+   methods: 
+   - expand
+   - getCsvFormat
 RowToEntity: 
    methods: 
    - create
@@ -9407,6 +10305,10 @@ Select:
    - process
    - withFieldNameAs
    - withOutputSchema
+SelectEvent: 
+   methods: 
+   - expand
+   - processElement
 SelectHelpers: 
    methods: 
    - allLeavesDescriptor
@@ -9417,6 +10319,19 @@ SelectHelpers:
    properties: 
    - CONCAT_FIELD_NAMES
    - KEEP_NESTED_NAME
+SellerPrice: 
+   methods: 
+   - decode
+   - encode
+   - equals
+   - hashCode
+   - sizeInBytes
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   properties: 
+   - CODER
+   - seller
 SerializableCoder: 
    methods: 
    - coderFor
@@ -9451,6 +10366,44 @@ SerializableIr:
    methods: 
    - fromIr
    - ir
+SerializableMatchers: 
+   methods: 
+   - allOf
+   - anyOf
+   - anything
+   - arrayContaining
+   - arrayContainingInAnyOrder
+   - arrayWithSize
+   - closeTo
+   - contains
+   - containsInAnyOrder
+   - containsString
+   - describeMismatch
+   - describeTo
+   - empty
+   - emptyArray
+   - emptyIterable
+   - endsWith
+   - equalTo
+   - fromSupplier
+   - get
+   - greaterThan
+   - greaterThanOrEqualTo
+   - hasItem
+   - hasSize
+   - isIn
+   - isOneOf
+   - iterableWithSize
+   - kv
+   - kvWithKey
+   - kvWithValue
+   - lessThan
+   - lessThanOrEqualTo
+   - matches
+   - not
+   - nullValue
+   - startsWith
+   - toString
 SerializableRexFieldAccess: 
    methods: 
    - getIndexes
@@ -9484,6 +10437,14 @@ ServerFactory:
    - createWithPortSupplier
    - createWithUrlFactory
    - createWithUrlFactoryAndPortSupplier
+SessionSideInputJoin: 
+   methods: 
+   - expand
+   - needsSideInput
+   - processElement
+SessionSideInputJoinModel: 
+   methods: 
+   - simulator
 Sessions: 
    methods: 
    - assignWindows
@@ -9558,6 +10519,10 @@ ShuffleOperator:
    - getKeyExtractor
    - getKeyType
    - getWindow
+SideInputLoadTest: 
+   methods: 
+   - main
+   - processElement
 SideInputSpec: 
    methods: 
    - create
@@ -9991,6 +10956,45 @@ SourceRecordJson:
    methods: 
    - mapSourceRecord
    - toJson
+SourceTestUtils: 
+   methods: 
+   - advance
+   - assertSourcesEqualReferenceSource
+   - assertSplitAtFractionBehavior
+   - assertSplitAtFractionExhaustive
+   - assertSplitAtFractionFails
+   - assertSplitAtFractionSucceedsAndConsistent
+   - assertUnstartedReaderReadsSameAsItsSource
+   - close
+   - createReader
+   - createStructuralValues
+   - equals
+   - getCurrent
+   - getCurrentSource
+   - getCurrentTimestamp
+   - getEstimatedSizeBytes
+   - getFractionConsumed
+   - getOutputCoder
+   - getSplitPointsConsumed
+   - getSplitPointsRemaining
+   - hashCode
+   - populateDisplayData
+   - readFromSource
+   - readFromSplitsOfSource
+   - readFromStartedReader
+   - readFromUnstartedReader
+   - readNItemsFromStartedReader
+   - readNItemsFromUnstartedReader
+   - readRemainingFromReader
+   - split
+   - splitAtFraction
+   - start
+   - toString
+   - toUnsplittableSource
+   - validate
+   properties: 
+   - numPrimaryItems
+   - numResidualItems
 SpannerAccessor: 
    methods: 
    - close
@@ -10202,6 +11206,12 @@ SplunkWriteError:
    - withStatusCode
    - withStatusMessage
 SqlAnalyzer: {}
+SqlBoundedSideInputJoin: 
+   methods: 
+   - calciteSqlBoundedSideInputJoin
+   - expand
+   - needsSideInput
+   - zetaSqlBoundedSideInputJoin
 SqlCheckConstraint: 
    methods: 
    - getOperandList
@@ -10255,6 +11265,32 @@ SqlOperators:
    - VALIDATE_TIMESTAMP
    - VALIDATE_TIME_INTERVAL
    - ZETASQL_TIMESTAMP_ADD
+SqlQuery0: 
+   methods: 
+   - calciteSqlQuery0
+   - expand
+   - processElement
+   - zetaSqlQuery0
+SqlQuery1: 
+   methods: 
+   - apply
+   - expand
+SqlQuery2: 
+   methods: 
+   - calciteSqlQuery2
+   - expand
+   - zetaSqlQuery2
+SqlQuery3: 
+   methods: 
+   - calciteSqlQuery3
+   - expand
+   - zetaSqlQuery3
+SqlQuery5: 
+   methods: 
+   - expand
+SqlQuery7: 
+   methods: 
+   - expand
 SqlSetOptionBeam: 
    methods: 
    - execute
@@ -10272,6 +11308,11 @@ SqlTransform:
    - withPositionalParameters
    - withQueryPlannerClass
    - withTableProvider
+SqlTransformRunner: 
+   methods: 
+   - getIdentifiers
+   - runUsingSqlTransform
+   - visit
 SqlTypes: 
    properties: 
    - DATE
@@ -10478,6 +11519,11 @@ StringUtils:
    - byteArrayToJsonString
    - getLevenshteinDistance
    - jsonStringToByteArray
+StringsGenerator: 
+   methods: 
+   - nextExactString
+   - nextExtra
+   - nextString
 StructuralByteArray: 
    methods: 
    - equals
@@ -10510,6 +11556,15 @@ SubscriptionPartitionCoder:
    - decode
    - encode
    - getCoderProvider
+SuccessOrFailure: 
+   methods: 
+   - assertionError
+   - equals
+   - failure
+   - hashCode
+   - isSuccess
+   - success
+   - toString
 Sum: 
    methods: 
    - apply
@@ -10540,6 +11595,9 @@ SumByKey:
    - withAllowedLateness
    - withOnTimeBehavior
    - withTimestampCombiner
+SummaryGenerator: 
+   methods: 
+   - generateTable
 Sums: 
    methods: 
    - apply
@@ -10570,6 +11628,10 @@ SyntheticBoundedSource:
    - split
    - toString
    - validate
+SyntheticDataPublisher: 
+   methods: 
+   - apply
+   - main
 SyntheticDelay: 
    methods: 
    - delay
@@ -10849,6 +11911,10 @@ TableSchemaCache:
    - putSchemaIfAbsent
    - refreshSchema
    - refreshThread
+TableSchemaJSONLoader: 
+   methods: 
+   - getAllTableNames
+   - parseTableSchema
 TaggedPValue: 
    methods: 
    - getTag
@@ -10867,6 +11933,26 @@ TestBigQuery:
    - now
    - tableReference
    - tableSpec
+TestPipeline: 
+   methods: 
+   - apply
+   - create
+   - enableAbandonedNodeEnforcement
+   - enableAutoRunIfMissing
+   - evaluate
+   - fromOptions
+   - getOptions
+   - isEmpty
+   - leaveCompositeTransform
+   - newProvider
+   - run
+   - runWithAdditionalOptionArgs
+   - testingPipelineOptions
+   - toString
+   - verifyPAssertsSucceeded
+   - visitPrimitiveTransform
+   properties: 
+   - PROPERTY_BEAM_TEST_PIPELINE_OPTIONS
 TestPubsub: 
    methods: 
    - apply
@@ -10891,6 +11977,30 @@ TestPubsubSignal:
    - signalSuccessWhen
    - waitForStart
    - waitForSuccess
+TestStream: 
+   methods: 
+   - add
+   - addElements
+   - advanceBy
+   - advanceProcessingTime
+   - advanceTo
+   - advanceWatermarkTo
+   - advanceWatermarkToInfinity
+   - create
+   - decode
+   - encode
+   - equals
+   - expand
+   - fromRawEvents
+   - getCoderArguments
+   - getElements
+   - getEvents
+   - getProcessingTimeAdvance
+   - getValueCoder
+   - getWatermark
+   - hashCode
+   - of
+   - verifyDeterministic
 TextIO: 
    methods: 
    - apply
@@ -11042,6 +12152,9 @@ Time:
    - toInputType
    properties: 
    - IDENTIFIER
+TimeMonitor: 
+   methods: 
+   - processElement
 TimeUtil: 
    methods: 
    - toJava
@@ -11203,6 +12316,60 @@ TopicPartitionCoder:
    - encode
    - getCoderArguments
    - verifyDeterministic
+TpcdsOptionsRegistrar: 
+   methods: 
+   - getPipelineOptions
+TpcdsParametersReader: 
+   methods: 
+   - getAndCheckDataSize
+   - getAndCheckQueryNames
+   - getAndCheckTpcParallel
+   properties: 
+   - ALL_QUERY_NAMES
+TpcdsRun: 
+   methods: 
+   - call
+TpcdsRunResult: 
+   methods: 
+   - getDataSize
+   - getDialect
+   - getElapsedTime
+   - getEndDate
+   - getIsSuccessful
+   - getJobName
+   - getPipelineOptions
+   - getPipelineResult
+   - getQueryName
+   - getStartDate
+TpcdsSchemas: 
+   methods: 
+   - getCallCenterSchema
+   - getCatalogPageSchema
+   - getCatalogReturnsSchema
+   - getCatalogSalesSchema
+   - getCustomerAddressSchema
+   - getCustomerDemographicsSchema
+   - getCustomerSchema
+   - getDateDimSchema
+   - getHouseholdDemographicsSchema
+   - getIncomeBandSchema
+   - getInventorySchema
+   - getItemSchema
+   - getPromotionSchema
+   - getReasonSchema
+   - getShipModeSchema
+   - getStoreReturnsSchema
+   - getStoreSalesSchema
+   - getStoreSchema
+   - getTimeDimSchema
+   - getTpcdsSchemas
+   - getTpcdsSchemasImmutableMap
+   - getWarehouseSchema
+   - getWebReturnsSchema
+   - getWebSalesSchema
+   - getWebSiteSchema
+   - getWebpageSchema
+TpcdsUtils: {}
 TrackerWithProgress: {}
 Transaction: 
    methods: 
@@ -11385,6 +12552,37 @@ UdfImplReflectiveFunctionBase:
    properties: 
    - method
    - parameters
+UdfTestProvider: 
+   methods: 
+   - addInput
+   - createAccumulator
+   - extractOutput
+   - helloWorld
+   - increment
+   - incrementAll
+   - isNull
+   - matches
+   - mergeAccumulators
+   - notRegistered
+   - userDefinedAggregateFunctions
+   - userDefinedScalarFunctions
+UnboundedEventSource: 
+   methods: 
+   - advance
+   - close
+   - createReader
+   - getCheckpointMark
+   - getCheckpointMarkCoder
+   - getCurrent
+   - getCurrentSource
+   - getCurrentTimestamp
+   - getDefaultOutputCoder
+   - getSplitBacklogBytes
+   - getWatermark
+   - split
+   - start
+   - toString
+   - validate
 UnboundedReaderImpl: 
    methods: 
    - advance
@@ -11531,6 +12729,12 @@ UserFunctionDefinitions:
    - setSqlTableValuedFunctions
    - sqlScalarFunctions
    - sqlTableValuedFunctions
+UsesAttemptedMetrics: {}
+UsesCounterMetrics: {}
+UsesDistributionMetrics: {}
+UsesGaugeMetrics: {}
+UsesImpulse: {}
+UsesOrderedListState: {}
 Uuid: 
    methods: 
    - of
@@ -11769,6 +12973,10 @@ WatermarkEstimators:
    - observeTimestamp
    - setWatermark
    - threadSafe
+WatermarkLatency: 
+   methods: 
+   - main
+   - process
 WatermarkParameters: 
    methods: 
    - builder
@@ -11828,6 +13036,22 @@ WindowFn:
    - verifyCompatibility
    - window
    - windowCoder
+   - windows
+WindowFnTestUtils: 
+   methods: 
+   - assignedWindows
+   - assignedWindowsWithValue
+   - element
+   - get
+   - merge
+   - put
+   - runWindowFn
+   - runWindowFnWithValue
+   - set
+   - timestamp
+   - validateGetOutputTimestamps
+   - validateGetOutputTimestampsWithValue
+   - window
    - windows
 WindowMappingFn: 
    methods: 
@@ -11907,6 +13131,30 @@ WindowingStrategy:
    - withTimestampCombiner
    - withTrigger
    - withWindowFn
+WinningBids: 
+   methods: 
+   - assignWindows
+   - decode
+   - encode
+   - equals
+   - expand
+   - forAuction
+   - forBid
+   - getDefaultWindowMappingFn
+   - hashCode
+   - isAuctionWindow
+   - isCompatible
+   - mergeWindows
+   - of
+   - processElement
+   - structuralValue
+   - toString
+   - verifyDeterministic
+   - windowCoder
+   properties: 
+   - auction
+   - isAuctionWindow
+WinningBidsSimulator: {}
 WithFailures: 
    methods: 
    - apply
@@ -11933,6 +13181,12 @@ WithTimestamps:
    - of
    - processElement
    - withAllowedTimestampSkew
+WordCount: 
+   methods: 
+   - apply
+   - expand
+   - main
+   - processElement
 WrappedSupervisor: 
    methods: 
    - createBlockGenerator
@@ -12115,4 +13369,3 @@ ZstdCoder:
    - structuralValue
    - toString
    - verifyDeterministic
-

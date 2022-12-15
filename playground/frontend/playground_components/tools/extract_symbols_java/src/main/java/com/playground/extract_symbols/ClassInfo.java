@@ -22,8 +22,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class ClassInfo {
-    Set<String> publicMethods = new HashSet<>();
-    Set<String> publicFields = new HashSet<>();
+    final Set<String> publicMethods = new HashSet<>();
+    final Set<String> publicFields = new HashSet<>();
 
     Map<String, List<String>> toMap() {
         Map<String, List<String>> map = new HashMap<>();
