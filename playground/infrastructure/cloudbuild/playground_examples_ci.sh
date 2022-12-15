@@ -80,9 +80,9 @@ do
       --paths "${diff}"
       if [ $? -eq 0 ]
       then
-          example_has_changed_for_"${sdk}"=True
+          ${sdk}-example_has_changed_for=True
       else
-          example_has_changed_for_"${sdk}"=False
+          ${sdk}-example_has_changed_for=False
       fi
 done
 #      if [[ ${example_has_changed_for_"${sdk}"} == True ]]
