@@ -67,6 +67,7 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 # branch name will be master for any branch in cloud build
 # Example: even if branch name in cloud build trigger is some "feature"
 # it will appear as master in builder log
+echo $BRANCH_NAME
 base_ref=refs/heads/master
 if [ -z "$base_ref" ] || [ "$base_ref" == "refs/heads/master" ]
 then
