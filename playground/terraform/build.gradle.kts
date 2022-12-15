@@ -70,6 +70,7 @@ tasks {
         mustRunAfter(":playground:terraform:terraformInit")
         var project_id = "unknown"
         var environment = "unknown"
+        var region = "unknown"
         if (project.hasProperty("project_id")) {
             project_id = project.property("project_id") as String
         }
@@ -81,7 +82,7 @@ tasks {
             "-lock=false",
             "-var=project_id=$project_id",
             "-var=environment=$environment",
-            "-var=region=$location",
+            "-var=region=$region",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
                 "-var-file=./environment/$environment/terraform.tfvars"
             } else {
