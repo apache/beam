@@ -71,6 +71,7 @@ then
 fi
 diff=$(git diff --name-only $base_ref | tr '\n' ' ')
 
+echo ${diff}
 # Check if there are Examples
 for sdk in "${sdks[@]}"
 do
@@ -80,9 +81,11 @@ do
       --paths "${diff}"
       if [ $? -eq 0 ]
       then
-          ${sdk}-example_has_changed_for=True
+          echo "Example has been changed for ${sdk}"
+          #"${sdk}"_example_has_changed_for=True
       else
-          ${sdk}-example_has_changed_for=False
+          echo "Example has not been changed for ${sdk}"
+          #${sdk}-example_has_changed_for=False
       fi
 done
 #      if [[ ${example_has_changed_for_"${sdk}"} == True ]]
