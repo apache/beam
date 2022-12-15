@@ -2474,18 +2474,14 @@ class CombineGlobally(PTransform):
       # Capture in closure (avoiding capturing self).
       args, kwargs = self.args, self.kwargs
 
-      #TODO: This is a short term fix but CombineGlobally() needs a more
-      # thorough effort to ensure it works with multi-window inputs consistently
+      #TODO: We need to add support for multi-window inputs to CombineGlobally()
       def inject_default(_, combined):
         if combined:
           if len(combined) > 1:
-            _LOGGER.warning(
-                "Multiple simultaneous windows"
-                "aren't fully supported for CombineGlobally()")
-          fully_combined = []
-          for element in combined:
-            fully_combined.append(element)
-          return fully_combined
+            raise ValueError(
+                "Input from multiple simultaneous windows"
+                "isn't currently supported for CombineGlobally()")
+          return combined[0]
         else:
           try:
             combine_fn.setup(*args, **kwargs)
