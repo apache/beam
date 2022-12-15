@@ -2484,7 +2484,7 @@ class CombineGlobally(PTransform):
                 "aren't fully supported for CombineGlobally()")
           fully_combined = []
           for element in combined:
-            fully_combined.append(element[0])
+            fully_combined.append(element)
           return fully_combined
         else:
           try:
