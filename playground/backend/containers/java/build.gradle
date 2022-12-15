@@ -77,4 +77,4 @@ docker {
 // Ensure that we build the required resources and copy and file dependencies from related projects
 dockerPrepare.dependsOn copyDockerfileDependencies
 
-// Comment to test 
+// Comment to test

@@ -109,7 +109,7 @@ done
           opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
 
           ./gradlew -i playground:backend:containers:java:docker ${opts}
-          echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG"
+          echo "IMAGE_TAG=apache/beam_playground-backend-java:$DOCKERTAG"
           IMAGE_TAG=apache/beam_playground-backend-java:$DOCKERTAG
 
           docker run -d -p 8080:8080 --name container-java -e PROTOCOL_TYPE=TCP $IMAGE_TAG
