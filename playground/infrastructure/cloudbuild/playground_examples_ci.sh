@@ -85,10 +85,10 @@ do
       if [ $? -eq 0 ]
       then
           echo "Example has been changed for ${sdk}"
-          #"${sdk}"_example_has_changed_for=True
+          "${sdk}"_example_has_changed_for=True
       else
           echo "Example has not been changed for ${sdk}"
-          #${sdk}-example_has_changed_for=False
+          "${sdk}"_example_has_changed_for=False
       fi
 done
 #      if [[ ${example_has_changed_for_"${sdk}"} == True ]]
