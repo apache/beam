@@ -55,7 +55,9 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
@@ -64,13 +66,14 @@ import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 
-class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
-  Schema schema;
+/** RowMapper that maps {@link ResultSet} row to the {@link Row}. */
+class SingleStoreDefaultRowMapper
+    implements SingleStoreIO.RowMapperWithInit<Row>, SingleStoreIO.RowMapperWithCoder<Row> {
+  @Nullable Schema schema = null;
+  List<ResultSetFieldConverter> converters = new ArrayList<>();
 
-  List<ResultSetFieldConverter> converters;
-
-  public SingleStoreDefaultRowMapper(ResultSetMetaData metaData) throws SQLException {
-    converters = new ArrayList<>();
+  @Override
+  public void init(ResultSetMetaData metaData) throws SQLException {
     for (int i = 0; i < metaData.getColumnCount(); i++) {
       converters.add(ResultSetFieldConverter.of(metaData.getColumnType(i + 1)));
     }
@@ -82,15 +85,16 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
     this.schema = schemaBuilder.build();
   }
 
-  public Schema getSchema() {
-    return this.schema;
-  }
-
   @Override
   public Row mapRow(ResultSet resultSet) throws Exception {
+    if (schema == null) {
+      throw new UnsupportedOperationException("mapRow is called before init");
+    }
+
     Row.Builder rowBuilder = Row.withSchema(schema);
 
-    for (int i = 0; i < schema.getFieldCount(); i++) {
+    int fieldCount = schema.getFieldCount();
+    for (int i = 0; i < fieldCount; i++) {
       Object value = converters.get(i).getValue(resultSet, i + 1);
 
       if (resultSet.wasNull() || value == null) {
@@ -101,6 +105,15 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
     }
 
     return rowBuilder.build();
+  }
+
+  @Override
+  public SchemaCoder<Row> getCoder() throws Exception {
+    if (schema == null) {
+      throw new UnsupportedOperationException("getCoder is called before init");
+    }
+
+    return RowCoder.of(this.schema);
   }
 
   abstract static class ResultSetFieldConverter implements Serializable {
@@ -269,16 +282,6 @@ class SingleStoreDefaultRowMapper implements SingleStoreIO.RowMapper<Row> {
     @Override
     Schema.FieldType getSchemaFieldType(ResultSetMetaData md, Integer index) {
       return Schema.FieldType.DATETIME;
-    }
-  }
-
-  public static class SingleStoreDefaultRowMapperCreationException extends RuntimeException {
-    SingleStoreDefaultRowMapperCreationException(String message, Throwable cause) {
-      super(message, cause);
-    }
-
-    SingleStoreDefaultRowMapperCreationException(String message) {
-      super(message);
     }
   }
 }

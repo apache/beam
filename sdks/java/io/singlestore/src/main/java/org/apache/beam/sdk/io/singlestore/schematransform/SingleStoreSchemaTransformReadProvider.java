@@ -124,7 +124,7 @@ public class SingleStoreSchemaTransformReadProvider
           "outputParallelization parameter is not supported for partitioned read");
 
       if (withPartitions != null && withPartitions) {
-        SingleStoreIO.ReadWithPartitionsRows readWithPartitions =
+        SingleStoreIO.ReadWithPartitions<Row> readWithPartitions =
             SingleStoreIO.readWithPartitionsRows();
 
         if (dataSourceConfiguration != null) {
@@ -145,7 +145,7 @@ public class SingleStoreSchemaTransformReadProvider
 
         return PCollectionRowTuple.of(OUTPUT_TAG, rows.setRowSchema(schema));
       } else {
-        SingleStoreIO.ReadRows read = SingleStoreIO.readRows();
+        SingleStoreIO.Read<Row> read = SingleStoreIO.readRows();
 
         if (dataSourceConfiguration != null) {
           read = read.withDataSourceConfiguration(dataSourceConfiguration);

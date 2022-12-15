@@ -27,6 +27,10 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+/**
+ * UserDataMapper that maps {@link Row} objects. ARRAYs, ITTERABLEs, MAPs and nested ROWs are not
+ * supported.
+ */
 final class SingleStoreDefaultUserDataMapper implements SingleStoreIO.UserDataMapper<Row> {
 
   private final transient DateTimeFormatter formatter =

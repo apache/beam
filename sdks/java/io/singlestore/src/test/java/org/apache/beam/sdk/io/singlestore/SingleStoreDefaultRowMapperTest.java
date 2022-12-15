@@ -63,8 +63,9 @@ public class SingleStoreDefaultRowMapperTest {
     Mockito.when(md.getColumnCount()).thenReturn(0);
     ResultSet res = Mockito.mock(ResultSet.class);
 
-    SingleStoreDefaultRowMapper mapper = new SingleStoreDefaultRowMapper(md);
-    Schema s = mapper.getSchema();
+    SingleStoreDefaultRowMapper mapper = new SingleStoreDefaultRowMapper();
+    mapper.init(md);
+    Schema s = mapper.getCoder().getSchema();
     Row r = mapper.mapRow(res);
 
     assertEquals(0, s.getFieldCount());
@@ -128,8 +129,9 @@ public class SingleStoreDefaultRowMapperTest {
 
     Mockito.when(res.wasNull()).thenReturn(false);
 
-    SingleStoreDefaultRowMapper mapper = new SingleStoreDefaultRowMapper(md);
-    Schema s = mapper.getSchema();
+    SingleStoreDefaultRowMapper mapper = new SingleStoreDefaultRowMapper();
+    mapper.init(md);
+    Schema s = mapper.getCoder().getSchema();
     Row r = mapper.mapRow(res);
 
     assertEquals(17, s.getFieldCount());
@@ -235,8 +237,9 @@ public class SingleStoreDefaultRowMapperTest {
 
     Mockito.when(res.wasNull()).thenReturn(true);
 
-    SingleStoreDefaultRowMapper mapper = new SingleStoreDefaultRowMapper(md);
-    Schema s = mapper.getSchema();
+    SingleStoreDefaultRowMapper mapper = new SingleStoreDefaultRowMapper();
+    mapper.init(md);
+    Schema s = mapper.getCoder().getSchema();
     Row r = mapper.mapRow(res);
 
     assertEquals(18, s.getFieldCount());
