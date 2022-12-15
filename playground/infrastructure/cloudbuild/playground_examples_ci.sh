@@ -91,17 +91,77 @@ do
           export "${sdk}"_example_has_changed=False
       fi
 done
-#      if [[ ${example_has_changed_for_"${sdk}"} == True ]]
-#      then
-#          if [[ -z ${TAG_NAME} ]]
-#          then
-#              DOCKERTAG=${COMMIT_SHA}
-#          elif [[ -z ${COMMIT_SHA} ]]
-#          then
-#              DOCKERTAG=${TAG_NAME}
-#          fi
-#          for sdk in "${sdks[@]}"
-#          do
+
+      if [[ ${java_example_has_changed} == True ]]
+      then
+          if [[ -z ${TAG_NAME} ]]
+          then
+              DOCKERTAG=${COMMIT_SHA}
+          elif [[ -z ${COMMIT_SHA} ]]
+          then
+              DOCKERTAG=${TAG_NAME}
+          fi
+
+          opts=" -Pdocker-tag=${DOCKERTAG}"
+          if [ -n "$SDK_TAG" ]; then
+              opts="${opts} -Psdk-tag=${SDK_TAG}"
+          fi
+          opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
+
+          ./gradlew -i playground:backend:containers:java:docker ${opts}
+          echo "IMAGE_TAG=apache/beam_playground-backend-$SDK:$DOCKERTAG"
+          IMAGE_TAG=apache/beam_playground-backend-java:$DOCKERTAG
+
+          docker run -d -p 8080:8080 --name container-java -e PROTOCOL_TYPE=TCP $IMAGE_TAG
+
+          SERVER_ADDRESS=container-go:8080
+          python3 playground/infrastructure/ci_cd.py \
+          --step ${STEP} \
+          --sdk SDK_JAVA \
+          --origin ${ORIGIN} \
+          --subdirs ${SUBDIRS}
+
+          docker stop container-java
+          docker rm container-java
+
+      fi
+
+
+      if [[ ${python_example_has_changed} == True ]]
+      then
+          if [[ -z ${TAG_NAME} ]]
+          then
+              DOCKERTAG=${COMMIT_SHA}
+          elif [[ -z ${COMMIT_SHA} ]]
+          then
+              DOCKERTAG=${TAG_NAME}
+          fi
+
+          # builds apache/beam_python3.7_sdk:$DOCKERTAG image
+          ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${DOCKERTAG}
+          # and set SDK_TAG to DOCKERTAG so that the next step would find it
+          SDK_TAG=${DOCKERTAG}
+
+          opts=" -Pdocker-tag=${DOCKERTAG}"
+
+          ./gradlew -i playground:backend:containers:python:docker ${opts}
+          echo "IMAGE_TAG=apache/beam_playground-backend-python:$DOCKERTAG"
+          IMAGE_TAG=apache/beam_playground-backend-python:$DOCKERTAG
+
+          docker run -d -p 8080:8080 --name container-python -e PROTOCOL_TYPE=TCP $IMAGE_TAG
+
+          SERVER_ADDRESS=container-python:8080
+          python3 playground/infrastructure/ci_cd.py \
+          --step ${STEP} \
+          --sdk SDK_PYTHON \
+          --origin ${ORIGIN} \
+          --subdirs ${SUBDIRS}
+
+          docker stop container-python
+          docker rm container-python
+      fi
+
+#
 #              if [ "$sdk" == "python" ]
 #              then
 #                  # builds apache/beam_python3.7_sdk:$DOCKERTAG image
@@ -143,4 +203,3 @@ done
 #      else
 #            echo "Example has NOT been changed"
 #      fi
-#done
