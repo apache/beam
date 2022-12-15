@@ -28,9 +28,9 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
 	"google.golang.org/grpc"
 )
 
@@ -111,12 +111,30 @@ func expand(
 		ext.ExpansionAddr = config
 	}
 
+	// The external transforms that needs to specify the output coder
+	// in expansion request sends tagged output as xlang.SetOutputCoder.
+	outputCoderID := make(map[string]string)
+	newOutputMap := make(map[string]int)
+	for tag, id := range edge.External.OutputsMap {
+		if tag == xlang.SetOutputCoder {
+			newOutputMap[graph.UnnamedOutputTag] = id
+			outputCoderID[tag] = edge.Output[id].To.Coder.ID
+			// Since only one output coder request can be specified, we break here.
+			// This is because with graph.UnnamedOutputTag is used as a key in edge.External.OutputsMap.
+			break
+		}
+	}
+
+	if len(newOutputMap) > 0 {
+		edge.External.OutputsMap = newOutputMap
+	}
 	return h(ctx, &HandlerParams{
 		Config: config,
 		Req: &jobpb.ExpansionRequest{
-			Components: comps,
-			Transform:  transform,
-			Namespace:  ext.Namespace,
+			Components:          comps,
+			Transform:           transform,
+			Namespace:           ext.Namespace,
+			OutputCoderRequests: outputCoderID,
 		},
 		edge: edge,
 		ext:  ext,
@@ -239,7 +257,6 @@ func startPythonExpansionService(service, extraPackage string) (stopFunc func() 
 	if err != nil {
 		return nil, "", err
 	}
-	log.Debugf(context.Background(), "path: %v", venvPython)
 
 	serviceRunner, err := expansionx.NewPyExpansionServiceRunner(venvPython, service, "")
 	if err != nil {
