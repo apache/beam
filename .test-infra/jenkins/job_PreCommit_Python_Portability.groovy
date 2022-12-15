@@ -20,10 +20,10 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python',
+    nameBase: 'Python_Portability',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
-      '-Pposargs=--ignore-glob=apache_beam/{coders,dataframe,examples,internal,ml,options,portability,runners,testing,tools,transforms,typehints,utils}/{**/*,*}' // Exclude any tests that are covered by other suites
+      '-Pposargs=apache_beam/portability/'
     ],
     timeoutMins: 180,
     triggerPathPatterns: [
