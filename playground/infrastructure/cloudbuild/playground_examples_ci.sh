@@ -22,7 +22,7 @@ export GO_VERSION=1.18
 apt-get update > /dev/null
 apt update > /dev/null
 export DEBIAN_FRONTEND=noninteractive
-apt install git
+apt install -y git > /dev/null
 
 git fetch
 git branch -av
