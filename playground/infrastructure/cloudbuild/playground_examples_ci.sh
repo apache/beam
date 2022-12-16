@@ -67,10 +67,6 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 # Get Difference
 
-echo $REF_NAME
-
-diff=$(git diff --name-only $REF_NAMEg)
-
 echo ${_COMMIT_PATH}
 # Check if there are Examples
 for sdk in "${sdks[@]}"

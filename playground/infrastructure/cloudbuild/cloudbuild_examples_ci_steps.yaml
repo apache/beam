@@ -32,7 +32,7 @@ steps:
       - 'PROJECT_ID=${PROJECT_ID}'
 
 substitutions:
-  _COMMIT_PATH: $(commit.files)
+  _COMMIT_PATH: $(commit.files[*].filename)
 
 logsBucket: 'gs://mytfstate-bucket-1'
 options:
