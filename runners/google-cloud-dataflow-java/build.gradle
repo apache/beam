@@ -189,6 +189,7 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesGaugeMetrics',
         'org.apache.beam.sdk.testing.UsesSetState',
         'org.apache.beam.sdk.testing.UsesMapState',
+        'org.apache.beam.sdk.testing.UsesMultimapState',
         'org.apache.beam.sdk.testing.UsesMetricsPusher',
         'org.apache.beam.sdk.testing.UsesOrderedListState',
         'org.apache.beam.sdk.testing.UsesTestStream',
