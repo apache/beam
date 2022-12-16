@@ -68,11 +68,12 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 # Get Difference
 
 diff="${COMMIT_FILES// /$'\n'}"
-echo "$diff"
+echo "${diff}"
 # Check if there are Examples
 for sdk in "${sdks[@]}"
 do
       python3 playground/infrastructure/checker.py \
+      --verbose
       --sdk SDK_"${sdk^^}" \
       --allowlist "${allowlist}" \
       --paths "$diff"
