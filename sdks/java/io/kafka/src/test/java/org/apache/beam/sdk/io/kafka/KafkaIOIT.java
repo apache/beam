@@ -719,26 +719,26 @@ public class KafkaIOIT {
 
       client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
 
-          sdfReadPipeline
-              .apply(
-                  "Read from Kafka",
-                  KafkaIO.<Integer, String>read()
-                      .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                      .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
-                      .withTopic(topicName)
-                      .withKeyDeserializer(IntegerDeserializer.class)
-                      .withValueDeserializer(StringDeserializer.class)
-                      .withoutMetadata())
-              .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
-              .apply("GroupKey", GroupByKey.create())
-              .apply("GetValues", Values.create())
-              .apply("Flatten", Flatten.iterables())
-              .apply("LogValues", ParDo.of(new LogFn()));
+      sdfReadPipeline
+          .apply(
+              "Read from Kafka",
+              KafkaIO.<Integer, String>read()
+                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                  .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+                  .withTopic(topicName)
+                  .withKeyDeserializer(IntegerDeserializer.class)
+                  .withValueDeserializer(StringDeserializer.class)
+                  .withoutMetadata())
+          .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+          .apply("GroupKey", GroupByKey.create())
+          .apply("GetValues", Values.create())
+          .apply("Flatten", Flatten.iterables())
+          .apply("LogValues", ParDo.of(new LogFn()));
 
       PipelineResult readResult = sdfReadPipeline.run();
 
-      //By adding a sleep & verify here, we don't cause the pipeline to progress before we verify
-      Thread.sleep(options.getReadTimeout()*1000);
+      // By adding a sleep & verify here, we don't cause the pipeline to progress before we verify
+      Thread.sleep(options.getReadTimeout() * 1000);
 
       for (String value : records.values()) {
         kafkaIOITExpectedLogs.verifyError(value);
