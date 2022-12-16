@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -46,7 +47,8 @@ public class Main {
         final var sdkPath = new File(sdkPathString).toPath().toAbsolutePath();
         Files.walk(sdkPath).forEach(path -> {
             var stringPath = path.toString();
-            if (isJavaNonTestFile(stringPath)) {
+            final var relativePath = sdkPath.relativize(path).toString();
+            if (isJavaNonTestFile(relativePath)) {
                 var fileName = stringPath.substring(stringPath.lastIndexOf("/") + 1).replace(".java", "");
                 try {
                     var unit = StaticJavaParser.parse(path);
@@ -93,6 +95,7 @@ public class Main {
     private static String buildYamlString(HashMap<String, ClassInfo> classInfoMap) throws YamlException {
         final var stringWriter = new StringWriter();
         final var yamlWriter = new YamlWriter(stringWriter);
+        yamlWriter.getConfig().writeConfig.setIndentSize(2);
         yamlWriter.getConfig().writeConfig.setWriteClassname(YamlConfig.WriteClassName.NEVER);
         final var yamlMap = new LinkedHashMap<String, Map<String, List<String>>>();
 

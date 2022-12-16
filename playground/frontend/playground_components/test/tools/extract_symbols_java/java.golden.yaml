@@ -1,0 +1,12 @@
+Class1: 
+  methods: 
+  - method11
+  - method12
+  properties: 
+  - field11
+  - field12
+Class2: 
+  methods: 
+  - method21
+  - method22
+Class3: {}
