@@ -20,7 +20,7 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python_Examples',
+    nameBase: 'Python_ML',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
       '-Pposargs=apache_beam/ml/'
