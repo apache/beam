@@ -24,8 +24,6 @@ apt update > /dev/null
 export DEBIAN_FRONTEND=noninteractive
 apt install -y git > /dev/null
 
-git fetch
-
 apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
@@ -69,10 +67,10 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 # Get Difference
 
-echo $BRANCH_NAME
-git branch
+COMMIT_SHA=$(git rev-parse HEAD)
 
-diff=$(git diff --name-only HEAD HEAD~1)
+# list of changed files.
+diff=$(git diff --name-only origin/master)
 
 echo ${diff}
 # Check if there are Examples
