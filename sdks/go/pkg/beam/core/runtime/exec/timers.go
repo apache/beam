@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
+// UserTimerAdapter provides a timer provider to manipulates timers.
 type UserTimerAdapter interface {
 	NewTimerProvider(ctx context.Context, manager TimerManager, w []typex.Window, element any) (timerProvider, error)
 }
@@ -37,6 +38,7 @@ type userTimerAdapter struct {
 	c              *coder.Coder
 }
 
+// NewUserTimerAdapter builds and returns a new user timer adapter for the given StreamID and coder.
 func NewUserTimerAdapter(sID StreamID, c *coder.Coder, timerCoders map[string]*coder.Coder) UserTimerAdapter {
 	if !coder.IsW(c) {
 		panic(fmt.Sprintf("expected WV coder for timer %v: %v", sID, c))
@@ -50,6 +52,7 @@ func NewUserTimerAdapter(sID StreamID, c *coder.Coder, timerCoders map[string]*c
 	return &userTimerAdapter{sID: sID, wc: wc, kc: kc, c: c, timerIDToCoder: timerCoders}
 }
 
+// NewTimerProvider builds and returns a new timer provider used to manipulate timers.
 func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager TimerManager, w []typex.Window, element interface{}) (timerProvider, error) {
 	if u.kc == nil {
 		return timerProvider{}, fmt.Errorf("cannot make a timer provider for an unkeyed input %v", element)
@@ -72,14 +75,12 @@ func (u *userTimerAdapter) NewTimerProvider(ctx context.Context, manager TimerMa
 }
 
 type timerProvider struct {
-	ctx        context.Context
-	tm         TimerManager
-	SID        StreamID
-	elementKey []byte
-	window     []typex.Window
-
-	pn typex.PaneInfo
-
+	ctx          context.Context
+	tm           TimerManager
+	SID          StreamID
+	elementKey   []byte
+	window       []typex.Window
+	pn           typex.PaneInfo
 	writersByKey map[string]io.Writer
 	codersByKey  map[string]*coder.Coder
 }
@@ -97,6 +98,8 @@ func (p *timerProvider) getWriter(key string) (io.Writer, error) {
 	}
 }
 
+// Set manipulates the timer based on the configuration(set/clear) provided
+// in the input TimerMap.
 func (p *timerProvider) Set(t timers.TimerMap) {
 	w, err := p.getWriter(t.Key)
 	if err != nil {
