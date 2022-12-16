@@ -738,12 +738,14 @@ public class KafkaIOIT {
       PipelineResult readResult = sdfReadPipeline.run();
 
       // By adding a sleep & verify here, we don't cause the pipeline to progress before we verify
-      Thread.sleep(options.getReadTimeout() * 1000);
+      // Dividing by 4 to limit how long the test takes
+      Thread.sleep(options.getReadTimeout() * 1000 / 4);
 
       for (String value : records.values()) {
         kafkaIOITExpectedLogs.verifyError(value);
       }
 
+      // Only waiting 5 seconds here because we don't expect any processing at this point
       PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(5));
 
       cancelIfTimeouted(readResult, readState);
