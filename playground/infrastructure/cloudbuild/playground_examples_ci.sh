@@ -67,7 +67,7 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 # Get Difference
 
-echo ${_COMMIT_PATH}
+diff=$(${_COMMIT_PATH} | tr '\n' ' ')
 # Check if there are Examples
 for sdk in "${sdks[@]}"
 do
