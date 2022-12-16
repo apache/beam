@@ -57,7 +57,7 @@ SUBDIRS="./learning/katas ./examples ./sdks" \
 GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
 BEAM_ROOT_DIR="../.." \
 SDK_CONFIG="../../playground/sdks.yaml" \
-BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml" \
+BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
 BEAM_CONCURRENCY=4 \
 BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
@@ -85,7 +85,7 @@ do
           example_has_changed=False
       fi
 
-      if [[ ${example_has_changed} == True ]]
+      if [[ $example_has_changed == "True" ]]
       then
             if [ "$sdk" == "python" ]
             then
@@ -125,6 +125,6 @@ do
             docker rm container-${sdk}
             sleep 10
       else
-          echo "Example has NOT been changed"
+        echo "Nothing changed"
       fi
 done

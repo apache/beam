@@ -58,8 +58,6 @@ RUN if [ "${pull_licenses}" = "false" ] ; then \
     rm -rf /opt/apache/beam/third_party_licenses ; \
    fi
 
-RUN java --version
-
 # Add Google Cloud Profiler agent.
 COPY target/profiler/* /opt/google_cloud_profiler/
 
