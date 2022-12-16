@@ -19,7 +19,7 @@ Common helper module for CI/CD Steps
 import asyncio
 import logging
 import os
-import urllib3
+import urllib.parse
 from pathlib import PurePath
 from typing import List, Optional, Dict
 from api.v1 import api_pb2
@@ -229,13 +229,14 @@ def _get_content(filepath: str, tag_start_line: int, tag_finish_line) -> str:
     return "".join(lines)
 
 
-def _get_url_vcs(filepath: str):
+def _get_url_vcs(filepath: str) -> str:
     """
     Construct VCS URL from example's filepath
     """
     root_dir = os.getenv("BEAM_ROOT_DIR", "../..")
     rel_path = os.path.relpath(filepath, root_dir)
-    return "{}/{}".format(Config.URL_VCS_PREFIX, rel_path)
+    url_vcs = "{}/{}".format(Config.URL_VCS_PREFIX, urllib.parse.quote(rel_path))
+    return url_vcs
 
 
 def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
@@ -257,7 +258,7 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
         status=STATUS_UNSPECIFIED,
         type=_get_object_type(filename, filepath),
         code=_get_content(filepath, tag.line_start, tag.line_finish),
-        url_vcs=_get_url_vcs(filepath),
+        url_vcs=_get_url_vcs(filepath), # type: ignore
         context_line=tag.context_line - (tag.line_finish - tag.line_start),
     )
 

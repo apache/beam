@@ -179,7 +179,7 @@ code line 1
 code line 2
 
 """,
-        url_vcs="https://github.com/apache/beam/blob/master/examples/path/kafka.java",
+        url_vcs="https://github.com/apache/beam/blob/master/examples/path/kafka.java", # type: ignore
         context_line=5,
         tag=Tag(
             line_start=4,
