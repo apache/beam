@@ -71,16 +71,16 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 echo $BRANCH_NAME
 git branch
-git checkout remotes/origin/${BRANCH_NAME}
+git checkout origin/${BRANCH_NAME}
 
 git branch
 
-base_ref=remotes/origin/${BRANCH_NAME}
+base_ref=origin/${BRANCH_NAME}
 if [ -z "$base_ref" ] || [ "$base_ref" == "refs/heads/master" ]
 then
   base_ref=refs/heads/master
 fi
-diff=$(git diff --name-only remotes/origin/${BRANCH_NAME} ${COMMIT_SHA})
+diff=$(git diff --name-only origin/${BRANCH_NAME})
 
 echo ${diff}
 # Check if there are Examples
