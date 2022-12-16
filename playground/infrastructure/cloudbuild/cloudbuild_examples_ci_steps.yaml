@@ -22,7 +22,7 @@ steps:
     args:
       - '-c'
       - |
-        diff=$("${_COMMIT_PATH}" | tr '\n' ' ')
+        diff={"${_COMMIT_PATH}" | tr '\n' ' '}
         echo $diff
         chmod +x playground/infrastructure/cloudbuild/playground_examples_ci.sh \
         && ./playground/infrastructure/cloudbuild/playground_examples_ci.sh
