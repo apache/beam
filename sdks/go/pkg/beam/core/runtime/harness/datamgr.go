@@ -17,11 +17,13 @@ package harness
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
@@ -63,6 +65,24 @@ func (s *ScopedDataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io
 		return nil, err
 	}
 	return ch.OpenWrite(ctx, id.PtransformID, s.instID), nil
+}
+
+// OpenTimerRead returns a channel of typex.Elements on the given stream.
+func (s *ScopedDataManager) OpenTimerRead(ctx context.Context, id exec.StreamID) (chan typex.Elements, error) {
+	ch, err := s.open(ctx, id.Port)
+	if err != nil {
+		return nil, err
+	}
+	return ch.OpenTimerRead(ctx, id.PtransformID, s.instID), nil
+}
+
+// OpenTimerWrite opens an io.WriteCloser on the given stream to write timers
+func (s *ScopedDataManager) OpenTimerWrite(ctx context.Context, id exec.StreamID, key string) (io.WriteCloser, error) {
+	ch, err := s.open(ctx, id.Port)
+	if err != nil {
+		return nil, err
+	}
+	return ch.OpenTimerWrite(ctx, id.PtransformID, s.instID, key), nil
 }
 
 func (s *ScopedDataManager) open(ctx context.Context, port exec.Port) (*DataChannel, error) {
@@ -134,8 +154,9 @@ func (m *DataChannelManager) closeInstruction(instID instructionID) {
 
 // clientID identifies a client of a connected channel.
 type clientID struct {
-	ptransformID string
-	instID       instructionID
+	ptransformID  string
+	instID        instructionID
+	timerFamilyID string
 }
 
 // This is a reduced version of the full gRPC interface to help with testing.
@@ -157,6 +178,7 @@ type DataChannel struct {
 
 	writers map[instructionID]map[string]*dataWriter
 	readers map[instructionID]map[string]*dataReader
+	channel map[instructionID]map[string]chan typex.Elements
 
 	// recently terminated instructions
 	endedInstructions map[instructionID]struct{}
@@ -197,6 +219,7 @@ func makeDataChannel(ctx context.Context, id string, client dataClient, cancelFn
 		client:            client,
 		writers:           make(map[instructionID]map[string]*dataWriter),
 		readers:           make(map[instructionID]map[string]*dataReader),
+		channel:           make(map[instructionID]map[string]chan typex.Elements),
 		endedInstructions: make(map[instructionID]struct{}),
 		cancelFn:          cancelFn,
 	}
@@ -229,6 +252,22 @@ func (c *DataChannel) OpenRead(ctx context.Context, ptransformID string, instID 
 // OpenWrite returns an io.WriteCloser of the data elements for the given instruction and ptransform.
 func (c *DataChannel) OpenWrite(ctx context.Context, ptransformID string, instID instructionID) io.WriteCloser {
 	return c.makeWriter(ctx, clientID{ptransformID: ptransformID, instID: instID})
+}
+
+// OpenTimerRead returns a channel of typex.Elements for the given instruction and ptransform.
+func (c *DataChannel) OpenTimerRead(ctx context.Context, ptransformID string, instID instructionID) chan typex.Elements {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	cid := clientID{ptransformID: ptransformID, instID: instID}
+	if c.readErr != nil {
+		panic(fmt.Errorf("opening a reader %v on a closed channel", cid))
+	}
+	return c.makeChannel(ctx, cid)
+}
+
+// OpenTimerWrite returns io.WriteCloser for the given timerFamilyID, instruction and ptransform.
+func (c *DataChannel) OpenTimerWrite(ctx context.Context, ptransformID string, instID instructionID, key string) io.WriteCloser {
+	return c.makeWriter(ctx, clientID{timerFamilyID: key, ptransformID: ptransformID, instID: instID})
 }
 
 func (c *DataChannel) read(ctx context.Context) {
@@ -330,6 +369,14 @@ func (c *DataChannel) read(ctx context.Context) {
 	}
 }
 
+func makeID(id clientID) string {
+	newID := id.ptransformID
+	if id.timerFamilyID != "" {
+		newID += ":" + id.timerFamilyID
+	}
+	return newID
+}
+
 type errReader struct {
 	err error
 }
@@ -364,6 +411,32 @@ func (c *DataChannel) makeReader(ctx context.Context, id clientID) *dataReader {
 		r.completed = true
 		close(r.buf)
 		r.err = io.EOF // In case of any actual data readers, so they terminate without error.
+		return r
+	}
+
+	m[id.ptransformID] = r
+	return r
+}
+
+// makeChannel creates a channel of typex.Elements. It expects to be called while c.mu is held.
+func (c *DataChannel) makeChannel(ctx context.Context, id clientID) chan typex.Elements {
+	var m map[string]chan typex.Elements
+	var ok bool
+	if m, ok = c.channel[id.instID]; !ok {
+		m = make(map[string]chan typex.Elements)
+		c.channel[id.instID] = m
+	}
+
+	if r, ok := m[id.ptransformID]; ok {
+		return r
+	}
+
+	r := make(chan typex.Elements, 20)
+	// Just in case initial data for an instruction arrives *after* an instructon has ended.
+	// eg. it was blocked by another reader being slow, or the other instruction failed.
+	// So we provide a pre-completed reader, and do not cache it, as there's no further cleanup for it.
+	if _, ok := c.endedInstructions[id.instID]; ok {
+		close(r)
 		return r
 	}
 
@@ -423,7 +496,7 @@ func (c *DataChannel) makeWriter(ctx context.Context, id clientID) *dataWriter {
 		c.writers[id.instID] = m
 	}
 
-	if w, ok := m[id.ptransformID]; ok {
+	if w, ok := m[makeID(id)]; ok {
 		return w
 	}
 
@@ -432,7 +505,7 @@ func (c *DataChannel) makeWriter(ctx context.Context, id clientID) *dataWriter {
 	// runner or user directed.
 
 	w := &dataWriter{ch: c, id: id}
-	m[id.ptransformID] = w
+	m[makeID(id)] = w
 	return w
 }
 
@@ -508,30 +581,47 @@ func (w *dataWriter) send(msg *fnpb.Elements) error {
 
 func (w *dataWriter) Close() error {
 	// Don't acquire the locks as Flush will do so.
-	l := len(w.buf)
-	err := w.Flush()
-	if err != nil {
-		return errors.Wrapf(err, "dataWriter[%v;%v].Close: error flushing buffer of length %d", w.id, w.ch.id, l)
+	if w.id.timerFamilyID == "" {
+		l := len(w.buf)
+		err := w.Flush()
+		if err != nil {
+			return errors.Wrapf(err, "dataWriter[%v;%v].Close: error flushing buffer of length %d, w: %#v", w.id, w.ch.id, l, *w)
+		}
+
+		// TODO(BEAM-13082): Consider a sync.Pool to reuse < 64MB buffers.
+		// The dataWriter won't be reused, but may be referenced elsewhere.
+		// Drop the buffer to let it be GC'd.
+		w.buf = nil
 	}
-	// TODO(BEAM-13082): Consider a sync.Pool to reuse < 64MB buffers.
-	// The dataWriter won't be reused, but may be referenced elsewhere.
-	// Drop the buffer to let it be GC'd.
-	w.buf = nil
 
 	// Now acquire the locks since we're sending.
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
-	delete(w.ch.writers[w.id.instID], w.id.ptransformID)
-	msg := &fnpb.Elements{
-		Data: []*fnpb.Elements_Data{
-			{
-				InstructionId: string(w.id.instID),
-				TransformId:   w.id.ptransformID,
-				// TODO(https://github.com/apache/beam/issues/21164): Set IsLast true on final flush instead of w/empty sentinel?
-				// Empty data == sentinel
-				IsLast: true,
+	delete(w.ch.writers[w.id.instID], makeID(w.id))
+	var msg *fnpb.Elements
+	if w.id.timerFamilyID == "" {
+		msg = &fnpb.Elements{
+			Data: []*fnpb.Elements_Data{
+				{
+					InstructionId: string(w.id.instID),
+					TransformId:   w.id.ptransformID,
+					// TODO(https://github.com/apache/beam/issues/21164): Set IsLast true on final flush instead of w/empty sentinel?
+					// Empty data == sentinel
+					IsLast: true,
+				},
 			},
-		},
+		}
+	} else {
+		msg = &fnpb.Elements{
+			Timers: []*fnpb.Elements_Timers{
+				{
+					InstructionId: string(w.id.instID),
+					TransformId:   w.id.ptransformID,
+					TimerFamilyId: w.id.timerFamilyID,
+					IsLast:        true,
+				},
+			},
+		}
 	}
 	return w.send(msg)
 }
@@ -540,6 +630,10 @@ const largeBufferNotificationThreshold = 1024 * 1024 * 1024 // 1GB
 
 func (w *dataWriter) Flush() error {
 	if w.buf == nil {
+		return nil
+	}
+	if w.id.timerFamilyID != "" {
+		// we don't buffer timers so need to flush.
 		return nil
 	}
 	w.ch.mu.Lock()
@@ -561,7 +655,33 @@ func (w *dataWriter) Flush() error {
 	return w.send(msg)
 }
 
+func (w *dataWriter) writeTimers(p []byte) error {
+	w.ch.mu.Lock()
+	defer w.ch.mu.Unlock()
+
+	msg := &fnpb.Elements{
+		Timers: []*fnpb.Elements_Timers{
+			{
+				InstructionId: string(w.id.instID),
+				TransformId:   w.id.ptransformID,
+				TimerFamilyId: w.id.timerFamilyID,
+				Timers:        p,
+				IsLast:        true,
+			},
+		},
+	}
+	w.buf = w.buf[:0]
+	return w.send(msg)
+}
+
 func (w *dataWriter) Write(p []byte) (n int, err error) {
+	if w.id.timerFamilyID != "" {
+		// write timers directly without buffering.
+		if err := w.writeTimers(p); err != nil {
+			return 0, err
+		}
+		return len(p), nil
+	}
 	if len(w.buf)+len(p) > chunkSize {
 		l := len(w.buf)
 		// We can't fit this message into the buffer. We need to flush the buffer
