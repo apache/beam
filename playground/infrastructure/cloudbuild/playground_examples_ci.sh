@@ -25,7 +25,6 @@ export DEBIAN_FRONTEND=noninteractive
 apt install -y git > /dev/null
 
 git fetch
-git branch -av
 
 apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
@@ -72,12 +71,12 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 echo $BRANCH_NAME
 git branch
-base_ref=${BRANCH_NAME}
+base_ref=remotes/origin/${BRANCH_NAME}
 if [ -z "$base_ref" ] || [ "$base_ref" == "refs/heads/master" ]
 then
   base_ref=refs/heads/master
 fi
-diff=$(git diff --name-only ${BRANCH_NAME})
+diff=$(git diff --name-only remotes/origin/${BRANCH_NAME})
 
 echo ${diff}
 # Check if there are Examples
