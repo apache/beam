@@ -22,7 +22,7 @@ steps:
     args:
       - '-c'
       - |
-        echo $_COMMIT_PATH | tr '\n' ' '
+        echo ${_COMMIT_PATH | tr '\n' ' '}
         chmod +x playground/infrastructure/cloudbuild/playground_examples_ci.sh \
         && ./playground/infrastructure/cloudbuild/playground_examples_ci.sh
     env:
