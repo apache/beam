@@ -22,7 +22,7 @@ from pydantic import Field, validator, root_validator
 
 
 class ComplexityEnum(str, Enum):
-    BASIC = "EASY"
+    EASY = "EASY"
     MEDIUM = "MEDIUM"
     ADVANCED = "ADVANCED"
 
