@@ -27,12 +27,14 @@ const _dependenciesDir = 'test/tools/extract_symbols_$_lang/dependencies';
 
 void main() {
   test('Extract SDK Symbols. $_lang', () async {
+    final classPath = await _buildClassPath();
+    await _compileClasses(classPath);
     await testExtractSymbols(
       language: _lang,
       executables: ['java'],
       arguments: [
         '-classpath',
-        await _buildClassPath(),
+        classPath,
         'com.playground.extract_symbols.Main',
         '../../test/tools/extract_symbols_$_lang/sdk_mock',
       ],
@@ -61,11 +63,27 @@ Future<String> _buildClassPath() async {
 Future<void> _downloadDependenciesIfNeed(List<String> dependencies) async {
   for (final dependency in dependencies) {
     final fileName = dependency.split('/').last;
-    if (!File('$_dependenciesDir/$fileName').existsSync()) {
-      await Process.run(
-        'wget',
-        [dependency, '-P', _dependenciesDir],
-      );
+    final file = File('$_dependenciesDir/$fileName');
+    if (!file.existsSync()) {
+      final request = await HttpClient().getUrl(Uri.parse(dependency));
+      final response = await request.close();
+      await file.create(recursive: true);
+      await response.pipe(file.openWrite());
     }
   }
+}
+
+Future<void> _compileClasses(String classPath) async {
+  await Process.run(
+    'javac',
+    [
+      '-d',
+      'build/classes/java/main/',
+      '-classpath',
+      classPath,
+      'src/main/java/com/playground/extract_symbols/Main.java',
+      'src/main/java/com/playground/extract_symbols/ClassInfo.java',
+    ],
+    workingDirectory: 'tools/extract_symbols_$_lang',
+  );
 }
