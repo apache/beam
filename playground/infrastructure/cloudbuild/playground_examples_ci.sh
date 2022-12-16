@@ -69,9 +69,8 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 COMMIT_SHA=$(git rev-parse HEAD)
 
-diff=$(commit.commit.path)
 
-echo ${diff}
+echo ${_COMMIT_PATH}
 # Check if there are Examples
 for sdk in "${sdks[@]}"
 do
