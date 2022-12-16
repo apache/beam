@@ -72,6 +72,9 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 echo $BRANCH_NAME
 git branch
 git checkout remotes/origin/${BRANCH_NAME}
+
+git branch
+
 base_ref=remotes/origin/${BRANCH_NAME}
 if [ -z "$base_ref" ] || [ "$base_ref" == "refs/heads/master" ]
 then
