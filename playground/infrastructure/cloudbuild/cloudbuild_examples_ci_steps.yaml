@@ -30,6 +30,7 @@ steps:
       - 'BASE_BRANCH=${_BASE_BRANCH}'
       - 'TAG_NAME=${TAG_NAME}'
       - 'PROJECT_ID=${PROJECT_ID}'
+      - '_COMMIT_PATH=${_COMMIT_PATH}'
 
 substitutions:
   _COMMIT_PATH: $(commit.files[*].filename)
