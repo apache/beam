@@ -75,10 +75,6 @@ git checkout origin/${BRANCH_NAME}
 
 git branch
 
-git show HEAD
-
-
-
 diff=$(git diff --cached --name-only origin/${BRANCH_NAME}...)
 
 echo ${diff}
