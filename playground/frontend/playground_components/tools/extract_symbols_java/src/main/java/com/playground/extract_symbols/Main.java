@@ -23,6 +23,7 @@ import com.esotericsoftware.yamlbeans.YamlException;
 import com.esotericsoftware.yamlbeans.YamlWriter;
 import com.github.javaparser.ParseProblemException;
 import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -31,27 +32,27 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        final var sdkPath = args[0];
-        final var classInfoMap = getDirSymbols(sdkPath);
-        final var yamlString = buildYamlString(classInfoMap);
+        final String sdkPath = args[0];
+        final HashMap<String, ClassInfo> classInfoMap = getDirSymbols(sdkPath);
+        final String yamlString = buildYamlString(classInfoMap);
         System.out.print(yamlString);
     }
 
     private static HashMap<String, ClassInfo> getDirSymbols(String sdkPathString) throws IOException {
-        final var classInfoMap = new HashMap<String, ClassInfo>();
-        final var sdkPath = new File(sdkPathString).toPath().toAbsolutePath();
+        final HashMap<String, ClassInfo> classInfoMap = new HashMap<>();
+        final Path sdkPath = new File(sdkPathString).toPath().toAbsolutePath();
         Files.walk(sdkPath).forEach(path -> {
-            var stringPath = path.toString();
-            final var relativePath = sdkPath.relativize(path).toString();
+            String stringPath = path.toString();
+            final String relativePath = sdkPath.relativize(path).toString();
             if (isJavaNonTestFile(relativePath)) {
-                var fileName = stringPath.substring(stringPath.lastIndexOf("/") + 1).replace(".java", "");
+                String fileName = stringPath.substring(stringPath.lastIndexOf("/") + 1).replace(".java", "");
                 try {
-                    var unit = StaticJavaParser.parse(path);
+                    CompilationUnit unit = StaticJavaParser.parse(path);
                     if (unit.getClassByName(fileName).isPresent()) {
                         addClassSymbols(classInfoMap, unit.getClassByName(fileName).get());
                     }
@@ -64,7 +65,7 @@ public class Main {
     }
 
     static boolean isJavaNonTestFile(String stringPath) {
-        final var isInTestFolder = stringPath.contains("/test/") || stringPath.startsWith("test/");
+        final boolean isInTestFolder = stringPath.contains("/test/") || stringPath.startsWith("test/");
         return stringPath.endsWith(".java") && !isInTestFolder;
     }
 
@@ -94,14 +95,14 @@ public class Main {
     }
 
     private static String buildYamlString(HashMap<String, ClassInfo> classInfoMap) throws YamlException {
-        final var stringWriter = new StringWriter();
-        final var yamlWriter = new YamlWriter(stringWriter);
+        final StringWriter stringWriter = new StringWriter();
+        final YamlWriter yamlWriter = new YamlWriter(stringWriter);
         yamlWriter.getConfig().writeConfig.setIndentSize(2);
         yamlWriter.getConfig().writeConfig.setWriteClassname(YamlConfig.WriteClassName.NEVER);
-        final var yamlMap = new LinkedHashMap<String, Map<String, List<String>>>();
+        final LinkedHashMap<String, Map<String, List<String>>> yamlMap = new LinkedHashMap<>();
 
         classInfoMap.forEach((key, value) -> yamlMap.put(key, value.toMap()));
-        final var sortedMap = sortMap(yamlMap);
+        final LinkedHashMap<String, Map<String, List<String>>> sortedMap = sortMap(yamlMap);
 
         yamlWriter.write(sortedMap);
 
@@ -110,16 +111,11 @@ public class Main {
     }
 
     private static LinkedHashMap<String, Map<String, List<String>>> sortMap(HashMap<String, Map<String, List<String>>> yamlMap) {
-        final var comparator = new Comparator<Map.Entry<String, ?>>() {
-            @Override
-            public int compare(Map.Entry<String, ?> a, Map.Entry<String, ?> b) {
-                return a.getKey().compareTo(b.getKey());
-            }
-        };
-        final var array = new ArrayList<>(yamlMap.entrySet());
+        final Comparator<Map.Entry<String, ?>> comparator = Comparator.comparing(Map.Entry::getKey);
+        final ArrayList<Map.Entry<String, Map<String, List<String>>>> array = new ArrayList<>(yamlMap.entrySet());
         array.sort(comparator);
 
-        final var sortedMap = new LinkedHashMap<String, Map<String, List<String>>>();
+        final LinkedHashMap<String, Map<String, List<String>>> sortedMap = new LinkedHashMap<>();
         for (Map.Entry<String, Map<String, List<String>>> entry : array) {
             sortedMap.put(entry.getKey(), entry.getValue());
         }

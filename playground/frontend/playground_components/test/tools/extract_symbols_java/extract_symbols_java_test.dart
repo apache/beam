@@ -75,6 +75,11 @@ Future<void> _downloadDependenciesIfNeed(List<String> dependencies) async {
 
 Future<void> _compileClasses(String classPath) async {
   await Process.run(
+    'mkdir',
+    ['-p', 'build/classes/java/main'],
+    workingDirectory: 'tools/extract_symbols_$_lang',
+  );
+  await Process.run(
     'javac',
     [
       '-d',
