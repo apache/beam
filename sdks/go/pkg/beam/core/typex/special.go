@@ -114,6 +114,12 @@ type TimerMap struct {
 	Pane                         PaneInfo
 }
 
+// Elements holds the elements from data channel to be sent to datasource.
+type Elements struct {
+	Data   []byte
+	Timers []byte
+}
+
 // KV, Nullable, CoGBK, WindowedValue represent composite generic types. They are not used
 // directly in user code signatures, but only in FullTypes.
 

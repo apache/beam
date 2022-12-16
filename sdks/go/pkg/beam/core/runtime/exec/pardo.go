@@ -48,6 +48,9 @@ type ParDo struct {
 	bf       *bundleFinalizer
 	we       sdf.WatermarkEstimator
 
+	Timer        UserTimerAdapter
+	timerManager TimerManager
+
 	reader StateReader
 	cache  *cacheElm
 
@@ -111,6 +114,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	}
 	n.status = Active
 	n.reader = data.State
+	n.timerManager = data.Timer
 	// Allocating contexts all the time is expensive, but we seldom re-write them,
 	// and never accept modified contexts from users, so we will cache them per-bundle
 	// per-unit, to avoid the constant allocation overhead.
@@ -236,6 +240,7 @@ func (n *ParDo) FinishBundle(_ context.Context) error {
 	}
 	n.reader = nil
 	n.cache = nil
+	n.timerManager = nil
 
 	if err := MultiFinishBundle(n.ctx, n.Out...); err != nil {
 		return n.fail(err)
@@ -251,6 +256,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 	n.status = Down
 	n.reader = nil
 	n.cache = nil
+	n.timerManager = nil
 
 	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil, nil, nil, nil); err != nil {
 		n.err.TrySetError(err)

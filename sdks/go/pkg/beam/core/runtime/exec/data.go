@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 // Port represents the connection port of external operations.
@@ -42,6 +44,7 @@ func (id StreamID) String() string {
 type DataContext struct {
 	Data  DataManager
 	State StateReader
+	Timer TimerManager
 }
 
 // SideCache manages cached ReStream values for side inputs that can be re-used across
@@ -91,4 +94,13 @@ type StateReader interface {
 	GetSideInputCache() SideCache
 }
 
-// TODO(herohde) 7/20/2018: user state management
+// TimerManager manages external data byte streams. Each data stream can be
+// opened by one consumer only.
+// TODO: modify OpenTimerRead such that it can be used to read both data and timers.
+type TimerManager interface {
+	DataManager
+	// OpenTimerWrite opens a byte stream for writing timers
+	OpenTimerWrite(ctx context.Context, id StreamID, key string) (io.WriteCloser, error)
+	// OpenTimerRead opens a closable byte stream for reading data and timers.
+	OpenTimerRead(ctx context.Context, id StreamID) (chan typex.Elements, error)
+}
