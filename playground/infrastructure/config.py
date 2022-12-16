@@ -22,8 +22,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
 
-from dataclasses_json import dataclass_json
-
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
     STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
     STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
