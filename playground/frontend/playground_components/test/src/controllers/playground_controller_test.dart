@@ -26,6 +26,7 @@ import 'playground_controller_test.mocks.dart';
 
 @GenerateMocks([ExamplesLoader, ExampleCache])
 Future<void> main() async {
+  TestWidgetsFlutterBinding.ensureInitialized();
   await PlaygroundComponents.ensureInitialized();
 
   late PlaygroundController state;
