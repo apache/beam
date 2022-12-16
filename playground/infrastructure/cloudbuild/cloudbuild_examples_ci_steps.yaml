@@ -33,7 +33,7 @@ steps:
 
 logsBucket: 'gs://mytfstate-bucket-1'
 options:
-  machineType: 'E2_HIGHCPU_32'
+  machineType: 'E2_HIGHCPU_8'
   logging: GCS_ONLY
 
 timeout: 3600s
