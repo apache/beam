@@ -17,6 +17,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -93,4 +94,65 @@ func TestTimerEncodingDecoding(t *testing.T) {
 		})
 	}
 
+}
+
+func TestNewTimerProvider(t *testing.T) {
+	type fields struct {
+		sID            StreamID
+		wc             *coder.WindowCoder
+		ec             *coder.Coder
+		timerIDToCoder map[string]*coder.Coder
+	}
+	type args struct {
+		manager TimerManager
+		w       []typex.Window
+		element interface{}
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "keyed coder",
+			fields: fields{
+				sID:            StreamID{},
+				wc:             coder.NewGlobalWindow(),
+				ec:             coder.NewKV([]*coder.Coder{coder.NewVarInt(), coder.NewString()}),
+				timerIDToCoder: make(map[string]*coder.Coder),
+			},
+			args: args{
+				manager: nil,
+				w:       []typex.Window{},
+				element: &MainInput{Key: FullValue{Elm: int64(1), Elm2: "value"}},
+			},
+			wantErr: false,
+		},
+		{
+			name: "non-keyed coder",
+			fields: fields{
+				sID:            StreamID{},
+				wc:             coder.NewGlobalWindow(),
+				ec:             coder.NewString(),
+				timerIDToCoder: make(map[string]*coder.Coder),
+			},
+			args: args{
+				manager: nil,
+				w:       []typex.Window{},
+				element: &MainInput{Key: FullValue{Elm: "value"}},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u := NewUserTimerAdapter(tt.fields.sID, coder.NewW(tt.fields.ec, tt.fields.wc), tt.fields.timerIDToCoder)
+			_, err := u.NewTimerProvider(context.Background(), tt.args.manager, tt.args.w, tt.args.element)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("userTimerAdapter.NewTimerProvider() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
 }
