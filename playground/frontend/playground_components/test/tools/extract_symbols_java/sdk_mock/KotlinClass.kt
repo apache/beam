@@ -16,22 +16,6 @@
  *  limitations under the License.
  */
 
-package sdk_mock;
-
-public class Class1 {
-    public int field11;
-    public String field12;
-    private int field13;
-
-    public void method11() {
-        System.out.println("method1");
-    }
-
-    public void method12() {
-        System.out.println("method2");
-    }
-
-    private void method13() {
-        System.out.println("method3");
-    }
+public class KotlinClass() { 
+    public fun publicMethod() {}
 }

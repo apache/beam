@@ -64,7 +64,8 @@ public class Main {
     }
 
     static boolean isJavaNonTestFile(String stringPath) {
-        return stringPath.endsWith(".java") && !stringPath.contains("/test/");
+        final var isInTestFolder = stringPath.contains("/test/") || stringPath.startsWith("test/");
+        return stringPath.endsWith(".java") && !isInTestFolder;
     }
 
     private static void addClassSymbols(HashMap<String, ClassInfo> classInfoList, ClassOrInterfaceDeclaration cl) {

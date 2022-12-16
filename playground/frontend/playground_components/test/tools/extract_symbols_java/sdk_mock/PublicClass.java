@@ -16,10 +16,13 @@
  *  limitations under the License.
  */
 
-package org.test.java;
+public class PublicClass {
+    int defaultField;
+    public int publicField;
+    protected int protectedField;
+    private int privateField;
 
-class Class4 {
-    public void method41() {
-        System.out.println("method1");
-    }
+    public void publicMethod() {}
+    protected void protectedMethod() {}
+    private void privateMethod() {}
 }

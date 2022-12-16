@@ -23,7 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../common.dart';
 
 const _lang = 'java';
-const _tempDir = 'test/tools/extract_symbols_java/temp';
+const _dependenciesDir = 'test/tools/extract_symbols_$_lang/dependencies';
 
 void main() {
   test('Extract SDK Symbols. $_lang', () async {
@@ -46,25 +46,25 @@ Future<String> _buildClassPath() async {
     'https://repo1.maven.org/maven2/com/esotericsoftware/yamlbeans/yamlbeans/1.15/yamlbeans-1.15.jar',
   ];
 
-  await _loadFilesIfNotExist(dependencies);
+  await _downloadDependenciesIfNeed(dependencies);
 
   final workingDirectory = Directory.current.path;
 
   return [
-    '$workingDirectory/tools/extract_symbols_java/build/classes/java/main',
+    '$workingDirectory/tools/extract_symbols_$_lang/build/classes/java/main',
     ...dependencies.map(
-      (f) => '$workingDirectory/$_tempDir/${f.split('/').last}',
+      (f) => '$workingDirectory/$_dependenciesDir/${f.split('/').last}',
     ),
   ].join(':');
 }
 
-Future<void> _loadFilesIfNotExist(List<String> dependencies) async {
+Future<void> _downloadDependenciesIfNeed(List<String> dependencies) async {
   for (final dependency in dependencies) {
     final fileName = dependency.split('/').last;
-    if (!File('$_tempDir/$fileName').existsSync()) {
+    if (!File('$_dependenciesDir/$fileName').existsSync()) {
       await Process.run(
         'wget',
-        [dependency, '-P', _tempDir],
+        [dependency, '-P', _dependenciesDir],
       );
     }
   }

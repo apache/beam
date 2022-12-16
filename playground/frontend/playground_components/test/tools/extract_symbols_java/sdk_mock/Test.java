@@ -16,20 +16,4 @@
  *  limitations under the License.
  */
 
-package org.test.java;
-
-public class Class3 {
-    private int field3;
-
-    private void method31() {
-        System.out.println("method1");
-    }
-
-    private void method32() {
-        System.out.println("method2");
-    }
-
-    private void method33() {
-        System.out.println("method3");
-    }
-}
+public class Test {}

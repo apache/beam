@@ -16,20 +16,11 @@
  *  limitations under the License.
  */
 
-package org.test.java;
+public class ExtendedPublicClass extends PublicClass {
+    int extendedDefaultField;
+    public int extendedPublicField;
+    protected int protectedField;
+    private int privateField;
 
-public class Class2 {
-    private int field3;
-
-    public void method21() {
-        System.out.println("method1");
-    }
-
-    public void method22() {
-        System.out.println("method2");
-    }
-
-    private void method23() {
-        System.out.println("method3");
-    }
+    public void extendedPublicMethod() {}
 }
