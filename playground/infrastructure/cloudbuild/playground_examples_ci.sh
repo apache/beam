@@ -67,8 +67,9 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 # Get Difference
 
-COMMIT_SHA=$(git rev-parse HEAD)
+echo $REF_NAME
 
+diff=$(git diff --name-only $REF_NAMEg)
 
 echo ${_COMMIT_PATH}
 # Check if there are Examples

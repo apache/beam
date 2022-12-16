@@ -26,7 +26,7 @@ steps:
         chmod +x playground/infrastructure/cloudbuild/playground_examples_ci.sh \
         && ./playground/infrastructure/cloudbuild/playground_examples_ci.sh
     env:
-      - 'BRANCH_NAME=${BRANCH_NAME}'
+      - 'REF_NAME=${REF_NAME}'
       - 'BASE_BRANCH=${_BASE_BRANCH}'
       - 'TAG_NAME=${TAG_NAME}'
       - 'PROJECT_ID=${PROJECT_ID}'
