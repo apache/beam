@@ -48,6 +48,7 @@ def create_test_example(create_test_tag):
             tag=create_test_tag(**tag_meta),
             **meta,
         )
+
     return _create_test_example
 
 
@@ -73,4 +74,5 @@ def create_test_tag():
             context_line=30,
             **meta,
         )
+
     return _create_test_tag

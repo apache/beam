@@ -71,7 +71,9 @@ def test_check_for_nested():
 @mock.patch("helper._check_no_nested")
 @mock.patch("helper._load_example")
 @mock.patch("helper.os.walk")
-def test_find_examples(mock_os_walk, mock_load_example, mock_check_no_nested, is_valid, create_test_example):
+def test_find_examples(
+    mock_os_walk, mock_load_example, mock_check_no_nested, is_valid, create_test_example
+):
     mock_os_walk.return_value = [
         ("/root/sub1", (), ("file.java",)),
         ("/root/sub2", (), ("file2.java",)),
@@ -308,7 +310,9 @@ def test__get_object_type():
     assert result_test == PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 
 
-def test_validate_examples_for_duplicates_by_name_in_the_usual_case(create_test_example):
+def test_validate_examples_for_duplicates_by_name_in_the_usual_case(
+    create_test_example,
+):
     examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"]
     examples = list(
         map(lambda name: create_test_example(tag_meta=dict(name=name)), examples_names)
@@ -319,7 +323,9 @@ def test_validate_examples_for_duplicates_by_name_in_the_usual_case(create_test_
         pytest.fail("Unexpected ValidationException")
 
 
-def test_validate_examples_for_duplicates_by_name_when_examples_have_duplicates(create_test_example):
+def test_validate_examples_for_duplicates_by_name_when_examples_have_duplicates(
+    create_test_example,
+):
     examples_names = ["MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_1", "MOCK_NAME_3"]
     examples = list(
         map(lambda name: create_test_example(tag_meta=dict(name=name)), examples_names)

@@ -30,7 +30,7 @@ def _get_examples(number_of_examples: int) -> List[Example]:
             complexity=ComplexityEnum.MEDIUM,
             description=f"MOCK_DESCRIPTION_{number}",
             multifile=False,
-            categories=['Side Input', 'Multiple Outputs'],
+            categories=["Side Input", "Multiple Outputs"],
             pipeline_options="--MOCK_OPTION MOCK_OPTION_VALUE",
         )
         example = Example(
@@ -42,6 +42,7 @@ def _get_examples(number_of_examples: int) -> List[Example]:
             code=f"MOCK_CODE_{number}",
             output=f"MOCK_OUTPUT_{number}",
             status=STATUS_UNSPECIFIED,
-            url_vcs=f"MOCK_LINK_{number}")
+            url_vcs=f"MOCK_LINK_{number}",
+        )
         examples.append(example)
     return examples

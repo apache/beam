@@ -20,30 +20,37 @@ from api.v1 import api_pb2
 from pydantic import BaseModel, Extra
 from pydantic import Field, validator, root_validator
 
+
 class ComplexityEnum(str, Enum):
-    BASIC = 'EASY'
-    MEDIUM = 'MEDIUM'
-    ADVANCED = 'ADVANCED'
+    BASIC = "EASY"
+    MEDIUM = "MEDIUM"
+    ADVANCED = "ADVANCED"
+
 
 class DatasetFormat(str, Enum):
-    JSON = 'json'
-    AVRO = 'avro'
+    JSON = "json"
+    AVRO = "avro"
+
 
 class DatasetLocation(str, Enum):
-    LOCAL = 'local'
-    GCS = 'GCS'
+    LOCAL = "local"
+    GCS = "GCS"
+
 
 class Dataset(BaseModel):
     format: DatasetFormat
     location: DatasetLocation
-    file_name: str = ''
+    file_name: str = ""
+
 
 class Topic(BaseModel):
     id: str
     source_dataset: str
 
+
 class EmulatorType(str, Enum):
-    KAFKA = 'kafka'
+    KAFKA = "kafka"
+
 
 class Emulator(BaseModel):
     type: EmulatorType
@@ -72,47 +79,52 @@ class Tag(BaseModel):
 
     @root_validator(skip_on_failure=True)
     def lines_order(cls, values):
-        assert 0 < values['line_start'] < values['line_finish'] <= values['context_line'], \
-            f"line ordering error: {values}"
+        assert (
+            0 < values["line_start"] < values["line_finish"] <= values["context_line"]
+        ), f"line ordering error: {values}"
         return values
 
     @root_validator(skip_on_failure=True)
     def datasets_with_emulators(csl, values):
-        if values.get('datasets') and not values.get('emulators'):
-            raise ValueError('datasets w/o emulators')
+        if values.get("datasets") and not values.get("emulators"):
+            raise ValueError("datasets w/o emulators")
         return values
 
-    @validator('emulators', each_item=True)
+    @validator("emulators", each_item=True)
     def dataset_defined(cls, v, values, **kwargs):
-        if 'datasets' not in values:
-            raise ValueError('datasets not defined')
-        for dataset_id in values['datasets']:
+        if "datasets" not in values:
+            raise ValueError("datasets not defined")
+        for dataset_id in values["datasets"]:
             if dataset_id == v.topic.source_dataset:
                 return v
-        raise ValueError(f'Emulator topic {v.topic.id} has undefined dataset {v.topic.source_dataset}')
+        raise ValueError(
+            f"Emulator topic {v.topic.id} has undefined dataset {v.topic.source_dataset}"
+        )
 
-    @validator('categories', each_item=True)
+    @validator("categories", each_item=True)
     def category_supported(cls, v, values, config, **kwargs):
         if v not in config.supported_categories:
-            raise ValueError(f'Category {v} not in {config.supported_categories}')
+            raise ValueError(f"Category {v} not in {config.supported_categories}")
         return v
 
 
-
 class SdkEnum(IntEnum):
-    JAVA =   api_pb2.SDK_JAVA
-    GO =     api_pb2.SDK_GO
+    JAVA = api_pb2.SDK_JAVA
+    GO = api_pb2.SDK_GO
     PYTHON = api_pb2.SDK_PYTHON
-    SCIO =   api_pb2.SDK_SCIO
+    SCIO = api_pb2.SDK_SCIO
+
 
 def StringToSdkEnum(s: str) -> SdkEnum:
     parsed: int = api_pb2.Sdk.Value(s)
     return SdkEnum(parsed)
 
+
 class Example(BaseModel):
     """
     Class which contains all information about beam example
     """
+
     sdk: SdkEnum
     tag: Tag
     filepath: str = Field(..., min_length=1)
@@ -127,4 +139,3 @@ class Example(BaseModel):
     output: str = ""
     compile_output: str = ""
     graph: str = ""
-

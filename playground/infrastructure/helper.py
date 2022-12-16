@@ -27,11 +27,20 @@ from api.v1 import api_pb2
 from tqdm.asyncio import tqdm
 import yaml
 
-from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
-    STATUS_VALIDATING, STATUS_PREPARING, \
-    STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
-    PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
-    PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
+from api.v1.api_pb2 import (
+    SDK_UNSPECIFIED,
+    STATUS_UNSPECIFIED,
+    Sdk,
+    STATUS_VALIDATING,
+    STATUS_PREPARING,
+    STATUS_COMPILING,
+    STATUS_EXECUTING,
+    PRECOMPILED_OBJECT_TYPE_UNIT_TEST,
+    PRECOMPILED_OBJECT_TYPE_KATA,
+    PRECOMPILED_OBJECT_TYPE_UNSPECIFIED,
+    PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+    PrecompiledObjectType,
+)
 from config import Config, TagFields, PrecompiledExampleType
 from grpc_client import GRPCClient
 
@@ -90,9 +99,8 @@ def find_examples(root_dir: str, subdirs: List[str], sdk: SdkEnum) -> List[Examp
                 filepath = os.path.join(root, filename)
                 try:
                     example = _load_example(
-                        filename=filename,
-                        filepath=filepath,
-                        sdk=sdk)
+                        filename=filename, filepath=filepath, sdk=sdk
+                    )
                     if example is not None:
                         examples.append(example)
                 except Exception:
@@ -101,11 +109,14 @@ def find_examples(root_dir: str, subdirs: List[str], sdk: SdkEnum) -> List[Examp
     if has_errors:
         raise ValueError(
             "Some of the beam examples contain beam playground tag with "
-            "an incorrect format")
+            "an incorrect format"
+        )
     return examples
 
 
-async def get_statuses(client: GRPCClient, examples: List[Example], concurrency: int = 10):
+async def get_statuses(
+    client: GRPCClient, examples: List[Example], concurrency: int = 10
+):
     """
     Receive status and update example.status and example.pipeline_id for
     each example
@@ -160,19 +171,17 @@ def get_tag(filepath) -> Optional[Tag]:
         elif line_start and not line.startswith(tag_prefix):
             line_finish = idx
             break
-    
+
     if not line_start or not line_finish:
         return None
 
     embdedded_yaml_content = "".join(
-        line[len(tag_prefix):] for line in lines[line_start: line_finish]
-        )
+        line[len(tag_prefix) :] for line in lines[line_start:line_finish]
+    )
     yml = yaml.load(embdedded_yaml_content, Loader=yaml.SafeLoader)
     return Tag(
-        line_start=line_start,
-        line_finish=line_finish,
-        **yml[Config.BEAM_PLAYGROUND]
-    ) 
+        line_start=line_start, line_finish=line_finish, **yml[Config.BEAM_PLAYGROUND]
+    )
 
 
 def _load_example(filename, filepath, sdk: SdkEnum) -> Optional[Example]:
@@ -212,11 +221,13 @@ def load_supported_categories(categories_path: str):
         yaml_object = yaml.load(supported_categories.read(), Loader=yaml.SafeLoader)
         Tag.Config.supported_categories = yaml_object[TagFields.categories]
 
+
 def _get_content(filepath: str, tag_start_line: int, tag_finish_line) -> str:
     with open(filepath, encoding="utf-8") as parsed_file:
         lines = parsed_file.readlines()
         lines = lines[:tag_start_line] + lines[tag_finish_line:]
     return "".join(lines)
+
 
 def _get_url_vcs(filepath: str):
     """
@@ -225,6 +236,7 @@ def _get_url_vcs(filepath: str):
     root_dir = os.getenv("BEAM_ROOT_DIR", "../..")
     rel_path = os.path.relpath(filepath, root_dir)
     return "{}/{}".format(Config.URL_VCS_PREFIX, rel_path)
+
 
 def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
     """
@@ -246,7 +258,7 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
         type=_get_object_type(filename, filepath),
         code=_get_content(filepath, tag.line_start, tag.line_finish),
         url_vcs=_get_url_vcs(filepath),
-        context_line=tag.context_line - (tag.line_finish - tag.line_start)
+        context_line=tag.context_line - (tag.line_finish - tag.line_start),
     )
 
 
@@ -267,23 +279,28 @@ async def _update_example_status(example: Example, client: GRPCClient):
     datasets: List[api_pb2.Dataset] = []
     for emulator in example.tag.emulators:
         dataset: Dataset = example.tag.datasets[emulator.topic.source_dataset]
-        
+
         datasets.append(
             api_pb2.Dataset(
-                type=api_pb2.EmulatorType.Value(f"EMULATOR_TYPE_{emulator.type.upper()}"),
-                options=emulator.topic.json(include=set(['topic'])),
+                type=api_pb2.EmulatorType.Value(
+                    f"EMULATOR_TYPE_{emulator.type.upper()}"
+                ),
+                options=emulator.topic.json(include=set(["topic"])),
                 dataset_path=dataset.file_name,
             )
         )
 
     pipeline_id = await client.run_code(
-        example.code, example.sdk, example.tag.pipeline_options, datasets)
+        example.code, example.sdk, example.tag.pipeline_options, datasets
+    )
     example.pipeline_id = pipeline_id
     status = await client.check_status(pipeline_id)
-    while status in [STATUS_VALIDATING,
-                     STATUS_PREPARING,
-                     STATUS_COMPILING,
-                     STATUS_EXECUTING]:
+    while status in [
+        STATUS_VALIDATING,
+        STATUS_PREPARING,
+        STATUS_COMPILING,
+        STATUS_EXECUTING,
+    ]:
         await asyncio.sleep(Config.PAUSE_DELAY)
         status = await client.check_status(pipeline_id)
     example.status = status
@@ -328,4 +345,3 @@ def validate_examples_for_duplicates_by_name(examples: List[Example]):
             err_msg = f"Examples have duplicate names.\nDuplicates: \n - path #1: {duplicates[example.tag.name].filepath} \n - path #2: {example.filepath}"
             logging.error(err_msg)
             raise DuplicatesError(err_msg)
-
