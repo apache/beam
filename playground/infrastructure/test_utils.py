@@ -42,7 +42,7 @@ def _get_examples(number_of_examples: int) -> List[Example]:
             code=f"MOCK_CODE_{number}",
             output=f"MOCK_OUTPUT_{number}",
             status=STATUS_UNSPECIFIED,
-            url_vcs=f"MOCK_LINK_{number}",
+            url_vcs=f"https://mock.link/{number}", # type: ignore
         )
         examples.append(example)
     return examples

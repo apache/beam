@@ -278,7 +278,7 @@ async def test__update_example_status(
         code="code",
         output="output",
         status=STATUS_UNSPECIFIED,
-        url_vcs="link",
+        url_vcs="https://github.com/link", # type: ignore
     )
 
     mock_grpc_client_run_code.return_value = "pipeline_id"

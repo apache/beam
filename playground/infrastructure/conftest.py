@@ -40,7 +40,7 @@ def create_test_example(create_test_tag):
             filepath="MOCK_FILEPATH",
             code="MOCK_CODE",
             output="MOCK_OUTPUT",
-            url_vcs="MOCK_LINK",
+            url_vcs="https://github.com/proj/MOCK_LINK",
             context_line=132,
         )
         meta.update(**example_meta)

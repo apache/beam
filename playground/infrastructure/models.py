@@ -17,8 +17,14 @@ from enum import Enum, IntEnum
 from typing import List, Optional, Dict
 from api.v1 import api_pb2
 
-from pydantic import BaseModel, Extra
-from pydantic import Field, validator, root_validator
+from pydantic import (
+    BaseModel,
+    Extra,
+    Field,
+    validator,
+    root_validator,
+    HttpUrl
+)
 
 
 class ComplexityEnum(str, Enum):
@@ -71,7 +77,7 @@ class Tag(BaseModel):
     multifile: bool = False
     default_example: bool = False
     tags: List[str] = []
-    url_notebook: Optional[str] = None
+    url_notebook: Optional[HttpUrl] = None
 
     class Config:
         supported_categories = []
@@ -129,7 +135,7 @@ class Example(BaseModel):
     tag: Tag
     filepath: str = Field(..., min_length=1)
     code: str = Field(..., min_length=1)
-    url_vcs: str = Field(..., min_length=1)
+    url_vcs: HttpUrl
     type: int = api_pb2.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
     context_line: int = Field(..., gt=0)
 
