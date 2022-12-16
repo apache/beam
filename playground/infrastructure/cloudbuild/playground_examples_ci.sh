@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+git config --global init.defaultBranch ${BRANCH_NAME}
+
 export GRADLE_VERSION=7.5.1
 export GO_VERSION=1.18
 
@@ -69,12 +71,12 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 # it will appear as master in builder log
 echo $BRANCH_NAME
 git branch
-base_ref=refs/heads/master
+base_ref=${BRANCH_NAME}
 if [ -z "$base_ref" ] || [ "$base_ref" == "refs/heads/master" ]
 then
   base_ref=refs/heads/master
 fi
-diff=$(git diff --name-only master)
+diff=$(git diff --name-only ${BRANCH_NAME})
 
 echo ${diff}
 # Check if there are Examples
