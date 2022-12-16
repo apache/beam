@@ -71,11 +71,8 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 echo $BRANCH_NAME
 git branch
-git checkout origin/${BRANCH_NAME}
 
-git branch
-
-diff=$(git diff --cached --name-only origin/${BRANCH_NAME}...)
+diff=$(git diff --name-only HEAD HEAD~1)
 
 echo ${diff}
 # Check if there are Examples
