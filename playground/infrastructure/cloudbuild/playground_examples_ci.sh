@@ -75,7 +75,7 @@ git checkout origin/${BRANCH_NAME}
 
 git branch
 
-diff=$(git diff --name-only origin/${BRANCH_NAME})...
+diff=$(git diff --name-only origin/${BRANCH_NAME}...)
 
 echo ${diff}
 # Check if there are Examples
