@@ -15,7 +15,6 @@
 import pytest
 from typing import Optional, List, Dict, Any
 
-from api.v1 import api_pb2
 from models import Example, SdkEnum, Tag
 
 from helper import (
@@ -41,8 +40,7 @@ def create_test_example(create_test_tag):
             filepath="MOCK_FILEPATH",
             code="MOCK_CODE",
             output="MOCK_OUTPUT",
-            status=api_pb2.STATUS_UNSPECIFIED,
-            link="MOCK_LINK",
+            url_vcs="MOCK_LINK",
             context_line=132,
         )
         meta.update(**example_meta)

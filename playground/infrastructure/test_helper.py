@@ -177,7 +177,7 @@ code line 1
 code line 2
 
 """,
-        link="https://github.com/apache/beam/blob/master/examples/path/kafka.java",
+        url_vcs="https://github.com/apache/beam/blob/master/examples/path/kafka.java",
         context_line=5,
         tag=Tag(
             line_start=4,
@@ -276,13 +276,6 @@ async def test__update_example_status(
         code="code",
         output="output",
         status=STATUS_UNSPECIFIED,
-        tag=Tag(
-            name="MOCK_NAME",
-            description="MOCK_DESCR",
-            context_line=333,
-            pipeline_options="--key value",
-            complexity="MEDIUM",
-            ),
         url_vcs="link",
     )
 
@@ -359,15 +352,15 @@ def test_validate_example_fields_when_code_is_invalid(create_test_example):
         pydantic.ValidationError,
         match="ensure this value has at least 1 characters",
     ):
-        create_test_example(link="")
+        create_test_example(code="")
 
 
-def test_validate_example_fields_when_link_is_invalid(create_test_example):
+def test_validate_example_fields_when_url_vcs_is_invalid(create_test_example):
     with pytest.raises(
         pydantic.ValidationError,
         match="ensure this value has at least 1 characters",
     ):
-        create_test_example(link="")
+        create_test_example(url_vcs="")
 
 
 def test_validate_example_fields_when_name_is_invalid(create_test_tag):

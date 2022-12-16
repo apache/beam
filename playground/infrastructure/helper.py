@@ -218,14 +218,6 @@ def _get_content(filepath: str, tag_start_line: int, tag_finish_line) -> str:
         lines = lines[:tag_start_line] + lines[tag_finish_line:]
     return "".join(lines)
 
-def _get_link(filepath: str) -> str:
-    root_dir = os.getenv("BEAM_ROOT_DIR", "../..")
-    file_path_without_root = filepath.replace(root_dir, "", 1)
-    if file_path_without_root.startswith("/"):
-        return "{}{}".format(Config.LINK_PREFIX, file_path_without_root)
-    else:
-        return "{}/{}".format(Config.LINK_PREFIX, file_path_without_root)
-
 def _get_url_vcs(filepath: str):
     """
     Construct VCS URL from example's filepath
@@ -250,7 +242,6 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
         sdk=SdkEnum(sdk),
         tag=tag,
         filepath=filepath,
-        code=content,
         status=STATUS_UNSPECIFIED,
         type=_get_object_type(filename, filepath),
         code=_get_content(filepath, tag.line_start, tag.line_finish),

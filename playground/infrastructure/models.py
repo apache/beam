@@ -64,6 +64,7 @@ class Tag(BaseModel):
     multifile: bool = False
     default_example: bool = False
     tags: List[str] = []
+    url_notebook: Optional[str] = None
 
     class Config:
         supported_categories = []
@@ -116,7 +117,7 @@ class Example(BaseModel):
     tag: Tag
     filepath: str = Field(..., min_length=1)
     code: str = Field(..., min_length=1)
-    link: str = Field(..., min_length=1)
+    url_vcs: str = Field(..., min_length=1)
     type: int = api_pb2.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
     context_line: int = Field(..., gt=0)
 

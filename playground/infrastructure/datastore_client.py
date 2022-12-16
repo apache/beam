@@ -291,7 +291,7 @@ class DatastoreClient:
                 "origin": origin,
                 "schVer": schema_key,
                 "urlVCS": example.url_vcs,
-                "urlNotebook": example.url_notebook,
+                "urlNotebook": example.tag.url_notebook,
             }
         )
         return example_entity
