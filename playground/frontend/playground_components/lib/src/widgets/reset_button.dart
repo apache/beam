@@ -49,7 +49,7 @@ class ResetButton extends StatelessWidget {
         label: 'widgets.resetButton.label'.tr(),
         onPressed: () {
           beforeReset?.call();
-          playgroundController.reset();
+          playgroundController.codeRunner.reset();
         },
       ),
     );

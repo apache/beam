@@ -45,14 +45,14 @@ class OutputArea extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         children: <Widget>[
           OutputResult(
-            text: playgroundController.outputResult,
+            text: playgroundController.codeRunner.outputResult,
             isSelected: tabController.index == 0,
           ),
           if (playgroundController.graphAvailable)
             sdk == null
                 ? Container()
                 : GraphTab(
-                    graph: playgroundController.result?.graph ?? '',
+                    graph: playgroundController.codeRunner.result?.graph ?? '',
                     sdk: sdk,
                     direction: graphDirection,
                   ),

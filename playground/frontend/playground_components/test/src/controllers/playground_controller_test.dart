@@ -51,13 +51,13 @@ Future<void> main() async {
   });
 
   test('Initial value of isCodeRunning should be false', () {
-    expect(state.isCodeRunning, false);
+    expect(state.codeRunner.isCodeRunning, false);
   });
 
   test('Initial value of pipelineOptions should be empty string', () {
-    expect(state.pipelineOptions, null);
+    expect(state.codeRunner.pipelineOptions, null);
     state.setSdk(Sdk.go);
-    expect(state.pipelineOptions, '');
+    expect(state.codeRunner.pipelineOptions, '');
   });
 
   test('Initial value of source should be empty string', () {
@@ -126,14 +126,14 @@ Future<void> main() async {
     state.addListener(() {
       expect(state.source, exampleMock1.source);
     });
-    state.reset();
+    state.codeRunner.reset();
   });
 
   test(
     'If Playground state result is empty, then resetError should break the execution',
     () {
-      state.resetError();
-      expect(state.result, null);
+      state.codeRunner.resetError();
+      expect(state.codeRunner.result, null);
     },
   );
 
@@ -142,7 +142,7 @@ Future<void> main() async {
     () {
       state.setSdk(Sdk.go);
       state.addListener(() {
-        expect(state.pipelineOptions, 'test options');
+        expect(state.codeRunner.pipelineOptions, 'test options');
       });
       state.setPipelineOptions('test options');
     },

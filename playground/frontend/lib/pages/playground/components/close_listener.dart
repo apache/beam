@@ -36,7 +36,9 @@ class _CloseListenerState extends State<CloseListener> {
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       html.window.onBeforeUnload.listen((event) async {
-        Provider.of<PlaygroundController>(context, listen: false).cancelRun();
+        Provider.of<PlaygroundController>(context, listen: false)
+            .codeRunner
+            .cancelRun();
       });
     });
     super.initState();
