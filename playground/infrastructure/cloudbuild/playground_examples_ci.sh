@@ -73,7 +73,7 @@ echo "${diff}"
 for sdk in "${sdks[@]}"
 do
       python3 playground/infrastructure/checker.py \
-      --verbose
+      --verbose \
       --sdk SDK_"${sdk^^}" \
       --allowlist "${allowlist}" \
       --paths "$diff"
