@@ -16,6 +16,7 @@
  *  limitations under the License.
  */
 
+// This class is skipped because it is in .../test/... .
 public class TestFolderPublicClass {
     public int publicField;
 

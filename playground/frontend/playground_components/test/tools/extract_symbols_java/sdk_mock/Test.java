@@ -16,4 +16,5 @@
  *  limitations under the License.
  */
 
+// This test file is in the result because it is not in .../test/... .
 public class Test {}

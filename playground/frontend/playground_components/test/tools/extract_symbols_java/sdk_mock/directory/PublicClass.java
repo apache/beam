@@ -23,6 +23,7 @@ public class PublicClass {
     protected int protectedField;
     private int privateField;
 
+    void defaultMethod() {}
     public void publicMethod() {}
     public void publicMethod(int i) {}
     public void anotherPublicMethod() {}

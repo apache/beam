@@ -25,6 +25,11 @@ import '../../../assets/assets.gen.dart';
 import '../../../playground_components.dart';
 import 'yaml.dart';
 
+final _javaLoader = YamlSymbolsLoader(
+    path: Assets.symbols.javaG,
+    package: PlaygroundComponents.packageName,
+  );
+
 final symbolLoadersByMode = {
   //
   go: YamlSymbolsLoader(
@@ -32,18 +37,12 @@ final symbolLoadersByMode = {
     package: PlaygroundComponents.packageName,
   ),
 
-  java: YamlSymbolsLoader(
-    path: Assets.symbols.javaG,
-    package: PlaygroundComponents.packageName,
-  ),
+  java: _javaLoader,
 
   python: YamlSymbolsLoader(
     path: Assets.symbols.pythonG,
     package: PlaygroundComponents.packageName,
   ),
 
-  scala: YamlSymbolsLoader(
-    path: Assets.symbols.javaG,
-    package: PlaygroundComponents.packageName,
-  ),
+  scala: _javaLoader,
 };
