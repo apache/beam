@@ -35,7 +35,7 @@ package org.apache.beam.examples;
 //      - type: kafka
 //        topic:
 //          id: dataset
-//          dataset: CountWords
+//          source_dataset: CountWords
 //   datasets:
 //     CountWords:
 //       location: local
