@@ -15,16 +15,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-git fetch
-git branch -av
-
 export GRADLE_VERSION=7.5.1
 export GO_VERSION=1.18
 
 #Install python java8 and dependencies
-apt-get update 2>/dev/null | grep packages | cut -d '.' -f 1
-apt update 2>/dev/null | grep packages | cut -d '.' -f 1
+apt-get update > /dev/null
+apt update > /dev/null
 export DEBIAN_FRONTEND=noninteractive
+apt install git
+
+git fetch
+git branch -av
+
 apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
