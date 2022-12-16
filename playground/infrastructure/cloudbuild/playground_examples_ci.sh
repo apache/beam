@@ -69,8 +69,7 @@ playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 COMMIT_SHA=$(git rev-parse HEAD)
 
-# list of changed files.
-diff=$(git diff --name-only origin/master)
+diff=$(commit.commit.path)
 
 echo ${diff}
 # Check if there are Examples
