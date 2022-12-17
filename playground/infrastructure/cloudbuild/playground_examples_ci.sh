@@ -70,11 +70,10 @@ allowlist=("playground/infrastructure" "playground/backend" \
 diff="${COMMIT_FILES// /$'\n'}"
 echo "${diff}"
 
-cd playground/infrastructure
 # Check if there are Examples
 for sdk in "${sdks[@]}"
 do
-      python3 checker.py \
+      python3 playground/infrastructure/checker.py \
       --verbose \
       --sdk SDK_"${sdk^^}" \
       --allowlist "${allowlist}" \
