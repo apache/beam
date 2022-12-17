@@ -286,7 +286,7 @@ async def _update_example_status(example: Example, client: GRPCClient):
                 type=api_pb2.EmulatorType.Value(
                     f"EMULATOR_TYPE_{emulator.type.upper()}"
                 ),
-                options=emulator.topic.json(include=set(["topic"])),
+                options=f'{"topic": "{emulator.topic.id}"}',
                 dataset_path=dataset.file_name,
             )
         )
