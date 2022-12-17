@@ -17,9 +17,12 @@
 # pytype: skip-file
 
 import logging
+import mock
 import os
 import time
 import unittest
+
+import pandas as pd
 
 # pylint: disable=ungrouped-imports
 try:
@@ -30,7 +33,30 @@ try:
   from apache_beam.testing.analyzers.perf_analysis_utils import e_divisive
   from apache_beam.testing.analyzers.perf_analysis_utils import validate_config
 except ImportError as e:
-  analysis = None
+  analysis = None  # type: ignore
+
+
+# mock methods.
+def get_fake_data_with_no_change_point(**kwargs):
+  num_samples = 20
+  metric_values = [1 for i in range(num_samples)]
+  timestamps = [i for i in range(num_samples)]
+  return metric_values, timestamps
+
+
+def get_fake_data_with_change_point(**kwargs):
+  num_samples = 20
+  metric_values = [0] * (num_samples // 2) + [1] * (num_samples // 2)
+  timestamps = [i for i in range(num_samples)]
+  return metric_values, timestamps
+
+
+def get_existing_issue_data(**kwargs):
+  # change point found at index 10. So passing 10 in the
+  # existing issue data in mock method.
+  return pd.DataFrame([{
+      constants._CHANGE_POINT_TIMESTAMP_LABEL: 10, constants._ISSUE_NUMBER: 0
+  }])
 
 
 @unittest.skipIf(
@@ -43,6 +69,15 @@ class TestChangePointAnalysis(unittest.TestCase):
     self.multiple_change_point_series = self.single_change_point_series + [
         2
     ] * 20
+    self.timestamps = [time.time() + 5 for i in range(5)]
+    self.params = {
+        'test_name': 'fake_test',
+        'metrics_dataset': 'fake_dataset',
+        'metrics_table': 'fake_table',
+        'project': 'fake_project',
+        'metric_name': 'fake_metric_name'
+    }
+    self.test_id = 'fake_id'
 
   def test_edivisive_means(self):
     change_point_indexes = e_divisive(self.single_change_point_series)
@@ -51,7 +86,6 @@ class TestChangePointAnalysis(unittest.TestCase):
     self.assertEqual(sorted(change_point_indexes), [10, 20])
 
   def test_is_changepoint_in_valid_window(self):
-
     changepoint_to_recent_run_window = 19
     change_point_index = 14
 
@@ -59,15 +93,13 @@ class TestChangePointAnalysis(unittest.TestCase):
         changepoint_to_recent_run_window, change_point_index)
     self.assertEqual(is_valid, True)
 
-    changepoint_to_recent_run_window = 13
+  def test_is_change_point_in_invalid_window(self):
+    changepoint_to_recent_run_window = 12
+    change_point_index = 14
+
     is_valid = is_change_point_in_valid_window(
         changepoint_to_recent_run_window, change_point_index)
     self.assertEqual(is_valid, False)
-
-    changepoint_to_recent_run_window = 14
-    is_valid = is_change_point_in_valid_window(
-        changepoint_to_recent_run_window, change_point_index)
-    self.assertEqual(is_valid, True)
 
   def test_validate_config(self):
     test_keys = {
@@ -80,32 +112,89 @@ class TestChangePointAnalysis(unittest.TestCase):
     self.assertEqual(test_keys, constants._PERF_TEST_KEYS)
     self.assertTrue(validate_config(test_keys))
 
-  def test_is_perf_alert(self):
-    timestamp_1 = time.time()
-    timestamps = [timestamp_1 + i for i in range(4, -1, -1)]
-
+  def test_duplicate_change_point(self):
     change_point_index = 2
     min_runs_between_change_points = 1
-
     is_alert = is_perf_alert(
-        previous_change_point_timestamps=[timestamps[3]],
-        timestamps=timestamps,
+        previous_change_point_timestamps=[self.timestamps[0]],
+        timestamps=self.timestamps,
+        change_point_index=change_point_index,
+        min_runs_between_change_points=min_runs_between_change_points)
+    self.assertTrue(is_alert)
+
+  def test_not_duplicate_change_point(self):
+    change_point_index = 2
+    min_runs_between_change_points = 1
+    is_alert = is_perf_alert(
+        previous_change_point_timestamps=[self.timestamps[3]],
+        timestamps=self.timestamps,
         change_point_index=change_point_index,
         min_runs_between_change_points=min_runs_between_change_points)
     self.assertFalse(is_alert)
 
     is_alert = is_perf_alert(
-        previous_change_point_timestamps=[timestamps[0]],
-        timestamps=timestamps,
+        previous_change_point_timestamps=[
+            self.timestamps[0], self.timestamps[3]
+        ],
+        timestamps=self.timestamps,
         change_point_index=change_point_index,
         min_runs_between_change_points=min_runs_between_change_points)
+    self.assertFalse(is_alert)
+
+  @mock.patch(
+      'apache_beam.testing.analyzers.perf_analysis.fetch_metric_data',
+      get_fake_data_with_no_change_point)
+  def test_alert_on_data_with_no_change_point(self):
+    is_alert = analysis.run_change_point_analysis(
+        params=self.params,
+        test_id=self.test_id,
+        big_query_metrics_fetcher=None)
+    self.assertFalse(is_alert)
+
+  @mock.patch(
+      'apache_beam.testing.analyzers.perf_analysis.fetch_metric_data',
+      get_fake_data_with_change_point)
+  @mock.patch(
+      'apache_beam.testing.analyzers.perf_analysis.get_existing_issues_data',
+      lambda *args,
+      **kwargs: None)
+  @mock.patch(
+      'apache_beam.testing.analyzers.perf_analysis.'
+      'publish_issue_metadata_to_big_query',
+      lambda *args,
+      **kwargs: None)
+  @mock.patch(
+      'apache_beam.testing.analyzers.perf_analysis'
+      '.create_performance_alert',
+      lambda *args,
+      **kwargs: (0, ''))
+  def test_alert_on_data_with_change_point(self):
+    is_alert = analysis.run_change_point_analysis(
+        params=self.params,
+        test_id=self.test_id,
+        big_query_metrics_fetcher=None)
     self.assertTrue(is_alert)
 
-    is_alert = is_perf_alert(
-        previous_change_point_timestamps=[timestamps[0], timestamps[3]],
-        timestamps=timestamps,
-        change_point_index=change_point_index,
-        min_runs_between_change_points=min_runs_between_change_points)
+  @mock.patch(
+      'apache_beam.testing.analyzers.perf_analysis.fetch_metric_data',
+      get_fake_data_with_change_point)
+  @mock.patch(
+      'apache_beam.testing.analyzers.perf_analysis.get_existing_issues_data',
+      get_existing_issue_data)
+  @mock.patch(
+      'apache_beam.testing.analyzers.perf_analysis.'
+      'publish_issue_metadata_to_big_query',
+      lambda *args,
+      **kwargs: None)
+  @mock.patch(
+      'apache_beam.testing.analyzers.perf_analysis.create_performance_alert',
+      lambda *args,
+      **kwargs: (0, ''))
+  def test_alert_on_data_with_reported_change_point(self):
+    is_alert = analysis.run_change_point_analysis(
+        params=self.params,
+        test_id=self.test_id,
+        big_query_metrics_fetcher=None)
     self.assertFalse(is_alert)
 
 

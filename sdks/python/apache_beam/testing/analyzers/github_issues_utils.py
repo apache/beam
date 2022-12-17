@@ -85,7 +85,7 @@ def create_issue(
       'labels': [_AWAITING_TRIAGE_LABEL, _PERF_ALERT_LABEL]
   }
   if labels:
-    data['labels'].extend(labels)
+    data['labels'].extend(labels)  # type: ignore
   response = requests.post(
       url=url, data=json.dumps(data), headers=_HEADERS).json()
   return response['number'], response['html_url']

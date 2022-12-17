@@ -73,7 +73,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
   change_point_index = find_latest_change_point_index(
       metric_values=metric_values)
   if not change_point_index:
-    return
+    return False
   # since timestamps are ordered in ascending order and
   # num_runs_in_change_point_window refers to the latest runs,
   # latest_change_point_run can help determine if the change point
@@ -89,7 +89,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
             params['test_name'],
             latest_change_point_run,
             num_runs_in_change_point_window))
-    return
+    return False
 
   is_alert = True
   last_reported_issue_number = None
@@ -130,6 +130,8 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
 
     publish_issue_metadata_to_big_query(
         issue_metadata=issue_metadata, test_name=test_name)
+
+  return is_alert
 
 
 def run(config_file_path: Optional[str] = None) -> None:
