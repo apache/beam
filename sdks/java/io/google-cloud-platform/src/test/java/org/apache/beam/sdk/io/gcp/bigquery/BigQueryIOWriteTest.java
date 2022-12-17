@@ -727,10 +727,14 @@ public class BigQueryIOWriteTest implements Serializable {
     testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
   }
 
-    @Test
+  @Test
   public void testTriggeredFileLoadsWithTempTablesToExistingNullSchemaTable() throws Exception {
     Table fakeTable = new Table();
-    TableReference ref = new TableReference().setProjectId("project-id").setDatasetId("dataset-id").setTableId("table-id");
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
     fakeTable.setTableReference(ref);
     fakeDatasetService.createTable(fakeTable);
     testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
