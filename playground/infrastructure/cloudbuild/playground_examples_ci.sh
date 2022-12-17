@@ -124,7 +124,7 @@ do
             docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} $IMAGE_TAG
             sleep 10
             SERVER_ADDRESS=container-${sdk}:8080
-            python3 ci_cd.py \
+            python3 playground/infrastructure/ci_cd.py \
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
