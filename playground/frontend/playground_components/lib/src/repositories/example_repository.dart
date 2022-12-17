@@ -34,49 +34,49 @@ class ExampleRepository {
     required ExampleClient client,
   }) : _client = client;
 
-  Future<Map<Sdk, List<CategoryWithExamples>>> getListOfExamples(
+  Future<Map<Sdk, List<CategoryWithExamples>>> getPrecompiledObjects(
     GetPrecompiledObjectsRequest request,
   ) async {
     final result = await _client.getPrecompiledObjects(request);
     return result.categories;
   }
 
-  Future<ExampleBase> getDefaultExample(
+  Future<ExampleBase> getDefaultPrecompiledObject(
     GetDefaultPrecompiledObjectRequest request,
   ) async {
     final result = await _client.getDefaultPrecompiledObject(request);
     return result.example;
   }
 
-  Future<String> getExampleSource(
+  Future<String> getPrecompiledObjectCode(
     GetPrecompiledObjectRequest request,
   ) async {
     final result = await _client.getPrecompiledObjectCode(request);
     return result.code;
   }
 
-  Future<String> getExampleOutput(
+  Future<String> getPrecompiledObjectOutput(
     GetPrecompiledObjectRequest request,
   ) async {
     final result = await _client.getPrecompiledObjectOutput(request);
     return result.output;
   }
 
-  Future<String> getExampleLogs(
+  Future<String> getPrecompiledObjectLogs(
     GetPrecompiledObjectRequest request,
   ) async {
     final result = await _client.getPrecompiledObjectLogs(request);
     return result.output;
   }
 
-  Future<String> getExampleGraph(
+  Future<String> getPrecompiledObjectGraph(
     GetPrecompiledObjectRequest request,
   ) async {
     final result = await _client.getPrecompiledObjectGraph(request);
     return result.output;
   }
 
-  Future<ExampleBase> getExample(
+  Future<ExampleBase> getPrecompiledObject(
     GetPrecompiledObjectRequest request,
   ) async {
     final result = await _client.getPrecompiledObject(request);
