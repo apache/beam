@@ -29,9 +29,11 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: SPD"
 ext.summary = "Extension providing Structured Pipeline Descriptions for Beam"
 
 var jinjava_version = "2.6.0"
+var jgit_version = "6.4.0.202211300538-r"
 
 dependencies {
     implementation project(path: ":sdks:java:extensions:sql")
+    implementation project(path: ":sdks:java:extensions:python")
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.auto_value_annotations
     implementation library.java.slf4j_api
@@ -41,6 +43,7 @@ dependencies {
     implementation library.java.jackson_core
     implementation library.java.jackson_dataformat_yaml
     implementation "com.hubspot.jinjava:jinjava:$jinjava_version"
+    implementation "org.eclipse.jgit:org.eclipse.jgit:$jgit_version"
     implementation 'org.jetbrains:annotations:20.1.0'
     testImplementation library.java.junit
     testImplementation library.java.hamcrest

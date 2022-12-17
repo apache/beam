@@ -25,20 +25,17 @@ import java.util.Arrays;
 import java.util.List;
 
 @SuppressFBWarnings
-public class Source {
+public class Table {
+
   @Nullable
   @JsonSetter(nulls = Nulls.FAIL)
   public String name;
 
-  @Nullable public String description;
-
-  @Nullable public String schema;
-
   @Nullable
   @JsonSetter(nulls = Nulls.AS_EMPTY)
-  public List<Table> tables = Arrays.asList();
+  public List<Column> columns = Arrays.asList();
 
-  public List<Table> getTables() {
-    return tables == null ? Arrays.asList() : tables;
+  public List<Column> getColumns() {
+    return columns == null ? Arrays.asList() : columns;
   }
 }

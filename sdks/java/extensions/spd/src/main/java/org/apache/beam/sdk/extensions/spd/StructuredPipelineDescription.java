@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.spd;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.hubspot.jinjava.interpret.RenderResult;
 import com.hubspot.jinjava.interpret.TemplateError;
@@ -35,10 +34,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.spd.description.*;
+import org.apache.beam.sdk.extensions.spd.description.Column;
+import org.apache.beam.sdk.extensions.spd.description.Model;
+import org.apache.beam.sdk.extensions.spd.description.Project;
+import org.apache.beam.sdk.extensions.spd.description.Schemas;
+import org.apache.beam.sdk.extensions.spd.description.Seed;
 import org.apache.beam.sdk.extensions.spd.models.PTransformModel;
 import org.apache.beam.sdk.extensions.spd.models.SqlModel;
 import org.apache.beam.sdk.extensions.spd.models.StructuredModel;
@@ -50,7 +52,6 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -91,9 +92,13 @@ public class StructuredPipelineDescription {
     this.env = envBuilder.build();
   }
 
-  public void setTarget(String target) { this.target = target; }
-  public String getTarget() { return target; }
+  public void setTarget(String target) {
+    this.target = target;
+  }
 
+  public String getTarget() {
+    return target;
+  }
 
   public PCollection<Row> readFrom(String fullTableName, PBegin input) throws Exception {
     Table t = getTable(fullTableName);
@@ -190,67 +195,98 @@ public class StructuredPipelineDescription {
 
   private void readSchemaTables(Path basePath, Path schemaPath, ObjectMapper mapper)
       throws Exception {
-    // TODO: Break the dependence between the YAML and a file to allow file configurations
-    LOG.info("Reading seed tables in " + schemaPath.toAbsolutePath().toString());
+
+    // Split into different groups so we can process leftover Python and SQL files
+    // when we are done with YAML files
+    LOG.info("Reading " + schemaPath.toAbsolutePath().toString());
+    List<Path> configFiles = new ArrayList<>();
+    Set<Path> queryFiles = new HashSet<>();
+    List<Path> directories = new ArrayList<>();
+    Set<Path> seedFiles = new HashSet<>();
+
     try (Stream<Path> files = Files.list(schemaPath)) {
-      List<Path> fileList = files.collect(Collectors.toList());
-      LOG.info("Found " + fileList.size() + " files");
-      for (Path file : fileList) {
-        String fileName = file.getFileName().toString();
-        LOG.info("Examining file " + file.toAbsolutePath().toString());
-        if (Files.isDirectory(file)) {
-          readSchemaTables(basePath, file, mapper);
-        } else if (fileName.endsWith(".yml") || fileName.endsWith(".yaml")) {
-          LOG.info("Found schema file at " + file.toString());
-          Schemas schemas = mapper.readValue(Files.newBufferedReader(file), Schemas.class);
-          for (Seed seed : schemas.getSeeds()) {
-            LOG.info("Checking for seed file in " + seed.getName());
-            Path csvPath = schemaPath.resolve(seed.getName() + ".csv");
-            if (Files.exists(csvPath)) {
-              LOG.info("Found CSV at " + csvPath.toAbsolutePath().toString());
-              Schema beamSchema = columnsToSchema(seed.getColumns());
-              String fullName = getFullName(basePath, schemaPath, seed.getName());
-              LOG.info(
-                  "Creating csv external table "
-                      + fullName
-                      + " at "
-                      + csvPath.toAbsolutePath().toString());
-              metaTableProvider.createTable(
-                  Table.builder()
-                      .name(fullName)
-                      .type("text")
-                      .location(csvPath.toAbsolutePath().toString())
-                      .schema(beamSchema)
-                      .build());
-            }
-          }
-          for (Model model : schemas.getModels()) {
-            Path sqlPath = schemaPath.resolve(model.getName() + ".sql");
-            String fullName = getFullName(basePath, schemaPath, model.getName());
-            if (Files.exists(sqlPath)) {
-              LOG.info("Found SQL at " + sqlPath.toAbsolutePath().toString());
-              modelMap.put(
-                  fullName,
-                  new SqlModel(
-                      fullName, model.getName(), String.join("\n", Files.readAllLines(sqlPath))));
-            } else if (model.getJava() != null) {
-              // This is totally unsafe, but serves as a proof of concept for arbitrary transforms
-              ModelJavaBinding binding = model.getJava();
-              ObjectNode properties =
-                  binding.getProperties() == null
-                      ? mapper.createObjectNode()
-                      : binding.getProperties();
-              PTransform<PCollection<Row>, PCollection<Row>> transform =
-                  (PTransform<PCollection<Row>, PCollection<Row>>)
-                      mapper.treeToValue(properties, Class.forName(binding.getClassName()));
-              modelMap.put(
-                  fullName,
-                  new PTransformModel(fullName, model.getName(), model.getInput(), transform));
+      // Split files into various types
+      files.forEach(
+          (file) -> {
+            String fileName = file.getFileName().toString();
+            if (Files.isDirectory(file)) {
+              directories.add(file);
+            } else if (fileName.endsWith(".yml") || fileName.endsWith(".yaml")) {
+              configFiles.add(file);
+            } else if (fileName.endsWith(".csv")) {
+              seedFiles.add(file);
             } else {
+              queryFiles.add(file);
             }
-          }
+          });
+    }
+
+    LOG.info("Processing " + configFiles.size() + " schema files");
+    for (Path file : configFiles) {
+      LOG.info("Processing schemas in " + file.toString());
+      Schemas schemas = mapper.readValue(Files.newBufferedReader(file), Schemas.class);
+      for (Seed seed : schemas.getSeeds()) {
+        Path csvPath = schemaPath.resolve(seed.getName() + ".csv");
+        if (Files.exists(csvPath)) {
+          seedFiles.remove(csvPath);
+          LOG.info("Found CSV at " + csvPath.toAbsolutePath().toString());
+          Schema beamSchema = columnsToSchema(seed.getColumns());
+          String fullName = getFullName(basePath, schemaPath, seed.getName());
+          LOG.info(
+              "Creating csv external table "
+                  + fullName
+                  + " at "
+                  + csvPath.toAbsolutePath().toString());
+          metaTableProvider.createTable(
+              Table.builder()
+                  .name(fullName)
+                  .type("text")
+                  .location(csvPath.toAbsolutePath().toString())
+                  .schema(beamSchema)
+                  .build());
+        } else {
+          LOG.info("Skipping seed " + seed.getName() + ". Unable to find CSV file.");
         }
       }
+      for (Model model : schemas.getModels()) {
+        String fullName = getFullName(basePath, schemaPath, model.getName());
+        Path sqlPath = schemaPath.resolve(model.getName() + ".sql");
+        if (Files.exists(sqlPath)) {
+          queryFiles.remove(sqlPath);
+          LOG.info("Found SQL at " + sqlPath.toAbsolutePath().toString());
+          // Note that models inside of a project live in a flat namespace and can't be
+          // duplicated
+          if (modelMap.containsKey(model.getName())) {
+            throw new Exception("Duplicate model " + model.getName() + " found.");
+          }
+          modelMap.put(
+              model.getName(),
+              new SqlModel(
+                  fullName, model.getName(), String.join("\n", Files.readAllLines(sqlPath))));
+          continue;
+        }
+        Path pyPath = schemaPath.resolve(model.getName() + ".py");
+        if (Files.exists(pyPath)) {
+          queryFiles.remove(pyPath);
+          LOG.info("Found Python at " + pyPath.toAbsolutePath().toString());
+          continue;
+        }
+      }
+    }
+
+    // Handle the leftovers
+    if (seedFiles.size() > 0) {
+      LOG.warn("Unprocessed seed files.");
+    }
+    if (queryFiles.size() > 0) {
+      for (Path file : queryFiles) {
+        LOG.info("Loading model " + file.toAbsolutePath().toString());
+      }
+    }
+
+    //Finally handle the subdirectories
+    for (Path path : directories) {
+      readSchemaTables(basePath, path, mapper);
     }
   }
 
@@ -295,28 +331,26 @@ public class StructuredPipelineDescription {
 
   public void applyProfiles(Path path) throws Exception {
     ObjectMapper mapper =
-            new ObjectMapper(new YAMLFactory())
-                    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    if(Files.exists(path)) {
+        new ObjectMapper(new YAMLFactory())
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    if (Files.exists(path)) {
       throw new Exception("Profiles not found.");
     }
-    if(project == null || "".equals(project.profile) || project.profile == null) {
+    if (project == null || "".equals(project.profile) || project.profile == null) {
       throw new Exception("Project must be initialized with a profile.");
     }
     JsonNode allProfiles = mapper.readTree(Files.newBufferedReader(path));
     JsonNode profile = allProfiles.get(project.profile);
-    //If target isn't set, try to set it from the profile object
-    if(target == null || "".equals(target)) {
+    // If target isn't set, try to set it from the profile object
+    if (target == null || "".equals(target)) {
       this.target = profile.get("target").asText("");
     }
-    if("".equals(this.target)) {
+    if ("".equals(this.target)) {
       throw new Exception("Unable to apply profile as target is not set properly.");
     }
     JsonNode providers = profile.path("outputs").path("target");
-    if(providers.isEmpty()) {
+    if (providers.isEmpty()) {
       throw new Exception("Unable to locate outputs ");
     }
-
-
   }
 }

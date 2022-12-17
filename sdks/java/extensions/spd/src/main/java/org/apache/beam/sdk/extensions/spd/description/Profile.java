@@ -33,7 +33,7 @@ public class Profile {
 
   @Nullable ObjectNode outputs;
 
-  public ObjectNode getOutputs() {
+  public @Nullable ObjectNode getOutputs() {
     return outputs;
   }
 
