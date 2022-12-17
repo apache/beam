@@ -254,7 +254,7 @@ public class UpdateSchemaDestination<DestinationT>
       LOG.warn("Failed to get table {} with {}", tableReference, e.toString());
       throw new RuntimeException(e);
     }
-    if (destinationTable.getSchema().equals(schema)) {
+    if (destinationTable.getSchema() == null || destinationTable.getSchema().equals(schema)) {
       return null; // no need to update schema ahead if schema is already the same
     }
     if (timePartitioning != null) {
