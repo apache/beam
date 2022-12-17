@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.csv;
 
 import com.google.auto.service.AutoService;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,7 +29,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
 import org.apache.beam.sdk.values.Row;
-import org.apache.commons.csv.CSVFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link PayloadSerializerProvider} implementation supporting CSV. */
 @AutoService(PayloadSerializerProvider.class)
@@ -63,15 +65,16 @@ public class CsvPayloadSerializerProvider implements PayloadSerializerProvider {
   @Override
   public PayloadSerializer getSerializer(Schema schema, Map<String, Object> params) {
     Row paramsRow = rowFrom(params);
-    CSVFormat csvFormat = CSVFormat.DEFAULT;
-    List<String> schemaFields = null;
+    CsvPayloadSerializer.Builder builder = CsvPayloadSerializer.builder()
+        .setSchema(schema);
     if (paramsRow.getValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName()) != null) {
-      schemaFields =
-          Objects.requireNonNull(paramsRow.getValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName()));
+      builder.setSchemaFields(paramsRow.getValue(SCHEMA_FIELDS_PARAMETER_FIELD.getName()));
     }
     if (paramsRow.getValue(CSV_FORMAT_PARAMETER_FIELD.getName()) != null) {
-      csvFormat = Objects.requireNonNull(paramsRow.getValue(CSV_FORMAT_PARAMETER_FIELD.getName()));
+      builder.setCSVFormat(paramsRow.getValue(CSV_FORMAT_PARAMETER_FIELD.getName()));
     }
-    return new CsvPayloadSerializer(schema, csvFormat, schemaFields);
+    return builder.build();
   }
+
+  public PayloadSerializer getSerializer(Schema schema, @Nullable )
 }

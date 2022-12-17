@@ -93,14 +93,14 @@ public class CsvUtilsTest {
   public void buildHeaderFromDefaults() {
     assertEquals(
         "aBoolean,aByte,aDouble,aFloat,aLong,aShort,anInt,dateTime,decimal,string",
-        CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.DEFAULT));
+        CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA.getFieldNames(), CSVFormat.DEFAULT));
   }
 
   @Test
   public void buildHeaderFromNonDefaultCSVFormat() {
     assertEquals(
         "\"aBoolean\",\"aByte\",\"aDouble\",\"aFloat\",\"aLong\",\"aShort\",\"anInt\",\"dateTime\",\"decimal\",\"string\"",
-        CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA, CSVFormat.POSTGRESQL_CSV));
+        CsvUtils.buildHeaderFrom(ALL_DATA_TYPES_SCHEMA.getFieldNames(), CSVFormat.POSTGRESQL_CSV));
   }
 
   @Test

@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.csv;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.values.TypeDescriptors.rows;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.BufferedWriter;
@@ -30,6 +30,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.Compression;
@@ -45,7 +46,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform}s for reading and writing CSV files.
@@ -191,9 +191,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * C,11.76,98765
  * }</pre>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class CsvIO {
 
   static final String DEFAULT_FILENAME_SUFFIX = ".csv";
@@ -235,7 +232,7 @@ public class CsvIO {
       return toBuilder().setPreamble(preamble).build();
     }
 
-    private transient @Nullable PrintWriter writer;
+    private transient Optional<PrintWriter> writer = Optional.empty();
 
     /**
      * Opens a {@link WritableByteChannel} for writing CSV files. Writes the {@link #getPreamble()}
@@ -244,40 +241,35 @@ public class CsvIO {
     @Override
     public void open(WritableByteChannel channel) throws IOException {
       writer =
-          new PrintWriter(
-              new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
-      checkNotNull(writer);
+          Optional.of(
+              new PrintWriter(
+                  new BufferedWriter(
+                      new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8))));
       if (getPreamble() != null) {
-        writer.println(getPreamble());
+        writer.get().println(getPreamble());
       }
-      writer.println(getHeader());
+      writer.get().println(getHeader());
     }
 
     /** Serializes and writes the element to a file. */
     @Override
     public void write(T element) throws IOException {
-      if (writer == null) {
-        throw new IllegalStateException(
-            String.format("%s writer is null", PrintWriter.class.getName()));
-      }
+      checkState(writer.isPresent());
       String line = getFormatFunction().apply(element);
-      writer.println(line);
+      writer.get().println(line);
     }
 
     @Override
     public void flush() throws IOException {
-      if (writer == null) {
-        throw new IllegalStateException(
-            String.format("%s writer is null", PrintWriter.class.getName()));
-      }
-      writer.flush();
+      checkState(writer.isPresent());
+      writer.get().flush();
     }
 
     /**
      * Not to be confused with the header. It is the text preceding the header in every sharded
      * file. See {@link #withPreamble(String)}.
      */
-    abstract @Nullable String getPreamble();
+    abstract String getPreamble();
 
     /**
      * The column names of the CSV file written at the top line of each shard after the preamble, if
@@ -300,6 +292,8 @@ public class CsvIO {
        */
       abstract Builder<T> setPreamble(String value);
 
+      abstract Optional<String> getPreamble();
+
       /**
        * The column names of the CSV file written at the top line of each shard after the preamble,
        * if available. Named fields in header must conform to the types listed in {@link
@@ -310,7 +304,14 @@ public class CsvIO {
       /** A {@link SerializableFunction} for converting a to a CSV formatted string. */
       abstract Builder<T> setFormatFunction(SerializableFunction<T, String> value);
 
-      abstract Sink<T> build();
+      abstract Sink<T> autoBuild();
+
+      final Sink<T> build() {
+        if (!getPreamble().isPresent()) {
+          setPreamble("");
+        }
+        return autoBuild();
+      }
     }
   }
 
@@ -321,8 +322,14 @@ public class CsvIO {
     /** Specifies a common prefix for all generated files. */
     public Write<T> to(String filenamePrefix) {
       Path path = Paths.get(filenamePrefix);
-      String directory = path.getParent().toString();
-      String name = path.getFileName().toString();
+      String directory = "";
+      String name = "";
+      if (path.getParent() != null) {
+        directory = path.getParent().toString();
+      }
+      if (path.getFileName() != null) {
+        name = path.getFileName().toString();
+      }
       return toBuilder()
           .setFileWrite(
               FileIO.<Row>write()
@@ -429,9 +436,9 @@ public class CsvIO {
 
     abstract CSVFormat getCSVFormat();
 
-    abstract @Nullable String getPreamble();
+    abstract String getPreamble();
 
-    abstract @Nullable List<String> getSchemaFields();
+    abstract List<String> getSchemaFields();
 
     abstract Builder<T> toBuilder();
 
@@ -450,11 +457,17 @@ public class CsvIO {
 
       abstract Builder<T> setSchemaFields(List<String> value);
 
+      abstract Optional<List<String>> getSchemaFields();
+
       abstract Write<T> autoBuild();
 
       final Write<T> build() {
         if (!getCSVFormat().isPresent()) {
           setCSVFormat(CSVFormat.DEFAULT);
+        }
+
+        if (!getSchemaFields().isPresent()) {
+          setSchemaFields(Collections.emptyList());
         }
 
         return autoBuild();
@@ -478,31 +491,22 @@ public class CsvIO {
       return PDone.in(input.getPipeline());
     }
 
-    /**
-     * Builds a header using {@link CSVFormat} based on either a {@link Schema#sorted()} {@link
-     * Schema#getFieldNames()} if {@link #getSchemaFields()} is null or {@link #getSchemaFields()}.
-     * {@link Schema} {@link Schema.Field}s must conform to types listed in {@link
-     * CsvUtils#VALID_FIELD_TYPE_SET}.
-     */
-    String buildHeader(Schema schema) {
-      if (getSchemaFields() != null) {
-        return CsvUtils.buildHeaderFrom(getSchemaFields(), getCSVFormat());
-      }
-      return CsvUtils.buildHeaderFrom(schema.sorted(), getCSVFormat());
-    }
-
     /** Builds a {@link Sink} for writing {@link Row} serialized using {@link CSVFormat}. */
     Sink<Row> buildSink(Schema schema) {
-      List<String> schemaFields = null;
-      if (getSchemaFields() != null) {
-        schemaFields = getSchemaFields();
-      }
+      String header = CsvUtils.buildHeaderFrom(getOrDeriveSchemaFields(schema), getCSVFormat());
       return Sink.<Row>builder()
           .setPreamble(getPreamble())
-          .setHeader(buildHeader(schema))
+          .setHeader(header)
           .setFormatFunction(
-              CsvUtils.getRowToCsvStringFunction(schema, getCSVFormat(), schemaFields))
+              CsvUtils.getRowToCsvStringFunction(schema, getCSVFormat(), getSchemaFields()))
           .build();
+    }
+
+    private List<String> getOrDeriveSchemaFields(Schema schema) {
+      if (getSchemaFields().isEmpty()) {
+        return schema.sorted().getFieldNames();
+      }
+      return getSchemaFields();
     }
   }
 }

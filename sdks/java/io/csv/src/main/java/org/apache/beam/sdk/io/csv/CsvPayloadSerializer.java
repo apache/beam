@@ -17,48 +17,70 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Implementation of {@link PayloadSerializer} for a CSV format. */
-public class CsvPayloadSerializer implements PayloadSerializer {
-
-  private final CSVFormat csvFormat;
-  private final List<String> schemaFields;
-
+@AutoValue
+public abstract class CsvPayloadSerializer implements PayloadSerializer {
   /**
-   * Instantiates a {@link PayloadSerializer} for a CSV format. If null, csvFormat defaults to
-   * {@link CSVFormat#DEFAULT} and schemaFields default to {@link Schema#sorted()} {@link
-   * Schema#getFieldNames()}.
+   * The valid {@link Schema.FieldType} from which {@link CsvIO} converts CSV records.
+   *
+   * <p>{@link FieldType#BYTE}
+   *
+   * <p>{@link FieldType#BOOLEAN}
+   *
+   * <p>{@link FieldType#DATETIME}
+   *
+   * <p>{@link FieldType#DECIMAL}
+   *
+   * <p>{@link FieldType#DOUBLE}
+   *
+   * <p>{@link FieldType#INT16}
+   *
+   * <p>{@link FieldType#INT32}
+   *
+   * <p>{@link FieldType#INT64}
+   *
+   * <p>{@link FieldType#FLOAT}
+   *
+   * <p>{@link FieldType#STRING}
    */
-  CsvPayloadSerializer(
-      Schema schema, @Nullable CSVFormat csvFormat, @Nullable List<String> schemaFields) {
-    CsvUtils.validateSchema(schema);
-    CsvUtils.validateHeaderAgainstSchema(schemaFields, schema);
-    if (csvFormat == null) {
-      csvFormat = CSVFormat.DEFAULT;
-    }
-    this.csvFormat = csvFormat;
+  public static final Set<FieldType> VALID_FIELD_TYPE_SET =
+      ImmutableSet.of(
+          FieldType.BYTE,
+          FieldType.BOOLEAN,
+          FieldType.DATETIME,
+          FieldType.DECIMAL,
+          FieldType.DOUBLE,
+          FieldType.INT16,
+          FieldType.INT32,
+          FieldType.INT64,
+          FieldType.FLOAT,
+          FieldType.STRING);
 
-    if (schemaFields == null) {
-      schemaFields = schema.sorted().getFieldNames();
-    }
-    this.schemaFields = schemaFields;
+
+  static Builder builder() {
+    return new AutoValue_CsvPayloadSerializer.Builder();
   }
 
-  CSVFormat getCsvFormat() {
-    return csvFormat;
-  }
+  abstract Schema getSchema();
+  
+  abstract CSVFormat getCSVFormat();
 
-  List<String> getSchemaFields() {
-    return schemaFields;
-  }
+  abstract List<String> getSchemaFields();
 
   /**
    * Serializes a {@link Row} to a CSV byte[] record using a {@link CSVFormat}. The schemaFields
@@ -70,12 +92,12 @@ public class CsvPayloadSerializer implements PayloadSerializer {
     StringBuilder builder = new StringBuilder();
     try {
       boolean newRecord = true;
-      for (String name : schemaFields) {
+      for (String name : getSchemaFields()) {
         Object value = row.getValue(name);
         if (value == null) {
           value = "";
         }
-        csvFormat.print(value, builder, newRecord);
+        getCSVFormat().print(value, builder, newRecord);
         newRecord = false;
       }
     } catch (IOException e) {
@@ -92,5 +114,76 @@ public class CsvPayloadSerializer implements PayloadSerializer {
   public Row deserialize(byte[] bytes) {
     // TODO(https://github.com/apache/beam/issues/24552)
     throw new UnsupportedOperationException("not yet implemented");
+  }
+
+  @AutoValue.Builder
+  static abstract class Builder {
+    abstract Builder setSchema(Schema value);
+    abstract Schema getSchema();
+
+    abstract Builder setCSVFormat(CSVFormat value);
+    abstract Optional<CSVFormat> getCSVFormat();
+
+    abstract Builder setSchemaFields(List<String> value);
+    abstract Optional<List<String>> getSchemaFields();
+
+    abstract CsvPayloadSerializer autoBuild();
+
+    final CsvPayloadSerializer build() {
+      validateSchema(getSchema());
+
+      if (!getCSVFormat().isPresent()) {
+        setCSVFormat(CSVFormat.DEFAULT);
+      }
+
+      if (!getSchemaFields().isPresent()) {
+        setSchemaFields(getSchema().sorted().getFieldNames());
+      }
+
+      validateHeaderAgainstSchema(getSchemaFields().get(), getSchema());
+
+      return autoBuild();
+    }
+  }
+
+  /** Checks columns against the schema. */
+  static void validateHeaderAgainstSchema(List<String> columns, Schema schema) {
+    if (columns.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Columns is empty. An intent to not override columns, should assign null to the columns parameter.");
+    }
+    List<String> mismatch = new ArrayList<>();
+    for (String name : columns) {
+      if (!schema.hasField(name)) {
+        mismatch.add(name);
+      }
+    }
+    if (!mismatch.isEmpty()) {
+      String mismatchString = String.join(", ", mismatch);
+      String schemaString = String.join(", ", schema.getFieldNames());
+      throw new IllegalArgumentException(
+          String.format("schema: [%s] missing columns: [%s]", schemaString, mismatchString));
+    }
+  }
+
+  /**
+   * Validates whether the schema is flat i.e. only contains {@link #VALID_FIELD_TYPE_SET} {@link
+   * FieldType}s.
+   */
+  static void validateSchema(Schema schema) {
+    if (schema.getFieldCount() == 0) {
+      throw new IllegalArgumentException("schema is empty");
+    }
+    List<String> invalidFields = new ArrayList<>();
+    for (Field field : schema.getFields()) {
+      if (!VALID_FIELD_TYPE_SET.contains(field.getType())) {
+        invalidFields.add(field.toString());
+      }
+    }
+    if (!invalidFields.isEmpty()) {
+      String invalidFieldsMessage = String.join(", ", invalidFields);
+      throw new IllegalArgumentException(
+          String.format("CSV should only contain flat fields but found: %s", invalidFieldsMessage));
+    }
   }
 }
