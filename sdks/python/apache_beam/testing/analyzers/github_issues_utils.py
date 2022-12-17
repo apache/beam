@@ -53,7 +53,7 @@ _ISSUE_DESCRIPTION_TEMPLATE = """
   test: `{}` for the metric: `{}`.
 
   For more information on how to triage the alerts, please look at
-  `Triage performance alert issues` section of the [README](https://github.com/apache/beam/blob/3a453cd9fe2883eebed4b326d800b4cf8b2069e4/sdks/python/apache_beam/testing/analyzers/README.md).
+  `Triage performance alert issues` section of the [README](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/testing/analyzers/README.md#triage-performance-alert-issues).
 """
 _METRIC_INFO_TEMPLATE = "timestamp: {}, metric_value: `{}`"
 _AWAITING_TRIAGE_LABEL = 'awaiting triage'
