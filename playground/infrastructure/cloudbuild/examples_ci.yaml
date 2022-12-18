@@ -22,8 +22,8 @@ steps:
     args:
       - '-c'
       - |
-        chmod +x playground/infrastructure/cloudbuild/playground_examples_ci.sh \
-        && ./playground/infrastructure/cloudbuild/playground_examples_ci.sh
+        chmod +x playground/infrastructure/cloudbuild/examples_ci.sh.sh \
+        && ./playground/infrastructure/cloudbuild/examples_ci.sh.sh
     env:
       - 'REF_NAME=${REF_NAME}'
       - 'BASE_BRANCH=${_BASE_BRANCH}'
@@ -37,7 +37,7 @@ substitutions:
 
 logsBucket: 'gs://mytfstate-bucket-1'
 options:
-  machineType: 'E2_HIGHCPU_8'
+  machineType: 'E2_HIGHCPU_32'
   logging: GCS_ONLY
 
 timeout: 3600s
