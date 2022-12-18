@@ -105,7 +105,7 @@ resource "google_cloudbuild_trigger" "playground_examples_ci" {
     "sdks/**"
   ]
 
-  filename = "playground/infrastructure/cloudbuild/cloudbuild_examples_ci_steps.yaml"
+  filename = "playground/infrastructure/cloudbuild/examples_ci.yaml"
 
   service_account = data.google_service_account.cloudbuild_sa.id
 }
@@ -123,7 +123,7 @@ resource "google_cloudbuild_trigger" "playground_examples_cd" {
   }
 
   git_file_source {
-    path      = "playground/infrastructure/cloudbuild/cloudbuild_examples_cd_steps.yaml"
+    path      = "playground/infrastructure/cloudbuild/examples_cd.yaml"
     repo_type = "GITHUB"
   }
 
