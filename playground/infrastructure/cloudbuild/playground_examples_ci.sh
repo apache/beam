@@ -55,9 +55,9 @@ ORIGIN=PG_EXAMPLES \
 STEP=CI \
 SUBDIRS="./learning/katas ./examples ./sdks" \
 GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
-BEAM_ROOT_DIR="../.." \
-SDK_CONFIG="../../playground/sdks.yaml" \
-BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
+BEAM_ROOT_DIR="." \
+SDK_CONFIG="playground/sdks.yaml" \
+BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
 BEAM_CONCURRENCY=4 \
 BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
@@ -77,8 +77,7 @@ ls -la
 # Check if there are Examples
 for sdk in "${sdks[@]}"
 do
-      cd /workspace/playground/infrastructure
-      python3 checker.py \
+      python3 playground/infrastructure/checker.py \
       --verbose \
       --sdk SDK_"${sdk^^}" \
       --allowlist "${allowlist}" \
@@ -122,16 +121,15 @@ do
                 opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
             fi
             echo "DOCKERTAG equals = $DOCKERTAG"
-            cd /workspace
+
             ./gradlew -i playground:backend:containers:${sdk}:docker ${opts}
 
             IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
 
             docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} $IMAGE_TAG
             sleep 10
-            cd /workspace/playground/infrastructure
             SERVER_ADDRESS=container-${sdk}:8080
-            python3 ci_cd.py \
+            python3 playground/infrastructure/ci_cd.py \
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
