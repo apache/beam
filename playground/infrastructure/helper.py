@@ -283,10 +283,11 @@ async def _update_example_status(example: Example, client: GRPCClient):
 
         datasets.append(
             api_pb2.Dataset(
+
                 type=api_pb2.EmulatorType.Value(
                     f"EMULATOR_TYPE_{emulator.type.upper()}"
                 ),
-                options=f'{{"topic": "{emulator.topic.id}"}}',
+                options={"topic": emulator.topic.id},
                 dataset_path=dataset.file_name,
             )
         )
