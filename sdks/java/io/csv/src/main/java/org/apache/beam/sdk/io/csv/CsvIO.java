@@ -311,8 +311,7 @@ public class CsvIO {
 
     /**
      * The column names of the CSV file written at the top line of each shard after the preamble, if
-     * available. Named fields in header must conform to the types listed in {@link
-     * #VALID_FIELD_TYPE_SET}.
+     * available.
      */
     abstract String getHeader();
 
@@ -334,8 +333,7 @@ public class CsvIO {
 
       /**
        * The column names of the CSV file written at the top line of each shard after the preamble,
-       * if available. Named fields in header must conform to the types listed in {@link
-       * #VALID_FIELD_TYPE_SET}.
+       * if available.
        */
       abstract Builder<T> setHeader(String value);
 
