@@ -70,6 +70,10 @@ allowlist=("playground/infrastructure" "playground/backend" \
 diff="${COMMIT_FILES// /$'\n'}"
 echo "${diff}"
 
+echo "pwd && ls -la"
+pwd
+ls -la
+
 # Check if there are Examples
 for sdk in "${sdks[@]}"
 do
