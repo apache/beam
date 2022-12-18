@@ -61,9 +61,9 @@ BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
 BEAM_CONCURRENCY=4 \
 BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
-allowlist="playground/infrastructure/**" "playground/backend/**" \
+allowlist=("playground/infrastructure" "playground/backend" \
 "playground/infrastructure/cloudbuild/cloudbuild_examples_ci_steps.yaml" \
-"playground/infrastructure/cloudbuild/playground_examples_ci.sh"
+"playground/infrastructure/cloudbuild/playground_examples_ci.sh")
 
 # Get Difference
 
@@ -80,7 +80,7 @@ do
       python3 playground/infrastructure/checker.py \
       --verbose \
       --sdk SDK_"${sdk^^}" \
-      --allowlist "${allowlist}" \
+      --allowlist "${allowlist[@]}" \
       --paths "${diff}"
       if [ $? -eq 0 ]
       then
