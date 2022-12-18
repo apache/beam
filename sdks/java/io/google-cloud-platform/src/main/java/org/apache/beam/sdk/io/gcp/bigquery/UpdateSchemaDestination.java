@@ -257,8 +257,8 @@ public class UpdateSchemaDestination<DestinationT>
     // no need to update schema ahead if provided schema already matches destination schema
     // or when destination schema is null (the write will set the schema)
     // or when provided schema is null (e.g. when using CREATE_NEVER disposition)
-    if (destinationTable.getSchema() == null ||
-        destinationTable.getSchema().equals(schema)
+    if (destinationTable.getSchema() == null
+        || destinationTable.getSchema().equals(schema)
         || schema == null) {
       return null;
     }

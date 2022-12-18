@@ -771,7 +771,7 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableSchema()
             .setFields(
                 ImmutableList.of(
-            new TableFieldSchema().setName("str").setType("STRING"),
+                    new TableFieldSchema().setName("str").setType("STRING"),
                     new TableFieldSchema().setName("num").setType("INTEGER")));
     Table fakeTable = new Table();
     TableReference ref =
@@ -792,12 +792,12 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(Create.of(elements))
         .apply(
             BigQueryIO.writeTableRows()
-            .to("project-id:dataset-id.table-id")
-            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-            .withTestServices(fakeBqServices)
-            .withMaxBytesPerPartition(1)
-            .withMaxFilesPerPartition(1)
-            .withoutValidation());
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices)
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withoutValidation());
     p.run();
 
     assertThat(
