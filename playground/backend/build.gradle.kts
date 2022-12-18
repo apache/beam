@@ -144,7 +144,6 @@ task("installLinter") {
   }
 }
 
-
 task("runLint") {
   dependsOn(":playground:backend:installLinter")
   doLast {
