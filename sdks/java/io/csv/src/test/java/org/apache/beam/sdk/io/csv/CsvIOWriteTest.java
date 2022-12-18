@@ -33,15 +33,20 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.csv.CsvIOTestHelpers.AllDataTypes;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.csv.CSVFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -58,6 +63,9 @@ public class CsvIOWriteTest {
   @Rule public TemporaryFolder tmpFolder = TemporaryFolder.builder().build();
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
+
+  @Rule
+  public TestPipeline errorPipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   private final List<AllDataTypes> userTypes =
       Arrays.asList(
@@ -130,6 +138,128 @@ public class CsvIOWriteTest {
               6,
               7L,
               "c"));
+
+  @Test
+  public void validateSchema() {
+    String to = tmpFolder.getRoot().getAbsolutePath() + "/somewhere";
+    Schema emptySchema = Schema.of();
+    Schema bytesSchema =
+        Schema.of(Field.of("badfield", FieldType.BYTES), Field.of("ok", FieldType.STRING));
+    Schema mapSchema =
+        Schema.of(
+            Field.of("badfield", FieldType.map(FieldType.STRING, FieldType.STRING)),
+            Field.of("ok", FieldType.STRING));
+    Schema arraySchema =
+        Schema.of(
+            Field.of("badfield", FieldType.array(FieldType.STRING)),
+            Field.of("ok", FieldType.STRING));
+    Schema rowSchema =
+        Schema.of(
+            Field.of("badfield", FieldType.row(ALL_DATA_TYPES_SCHEMA)),
+            Field.of("ok", FieldType.STRING));
+
+    assertThrows(
+        "schema should not be empty",
+        IllegalArgumentException.class,
+        () ->
+            errorPipeline
+                .apply(Create.of(Row.nullRow(emptySchema)).withRowSchema(emptySchema))
+                .apply(CsvIO.writeRows().to(to)));
+
+    assertThrows(
+        "schema should not contain bytes field",
+        IllegalArgumentException.class,
+        () ->
+            errorPipeline
+                .apply(
+                    Create.of(
+                        Row.withSchema(bytesSchema)
+                            .withFieldValue("badfield", new byte[] {1, 2, 3})
+                            .withFieldValue("ok", "abcdefg")
+                            .build()))
+                .setRowSchema(bytesSchema)
+                .apply(CsvIO.writeRows().to(to)));
+
+    assertThrows(
+        "schema should not contain map field",
+        IllegalArgumentException.class,
+        () ->
+            errorPipeline
+                .apply(
+                    Create.of(
+                        Row.withSchema(mapSchema)
+                            .withFieldValue("badfield", ImmutableMap.of("a", "b"))
+                            .withFieldValue("ok", "abcdefg")
+                            .build()))
+                .setRowSchema(mapSchema)
+                .apply(CsvIO.writeRows().to(to)));
+
+    assertThrows(
+        "schema should not contain array field",
+        IllegalArgumentException.class,
+        () ->
+            errorPipeline
+                .apply(
+                    Create.of(
+                        Row.withSchema(arraySchema)
+                            .withFieldValue("badfield", Arrays.asList("a", "b"))
+                            .withFieldValue("ok", "abcdefg")
+                            .build()))
+                .setRowSchema(arraySchema)
+                .apply(CsvIO.writeRows().to(to)));
+
+    assertThrows(
+        "schema should not contain row field",
+        IllegalArgumentException.class,
+        () ->
+            errorPipeline
+                .apply(
+                    Create.of(
+                        Row.withSchema(rowSchema)
+                            .withFieldValue("badfield", rows.get(0))
+                            .withFieldValue("ok", "abcdefg")
+                            .build()))
+                .setRowSchema(rowSchema)
+                .apply(CsvIO.writeRows().to(to)));
+  }
+
+  @Test
+  public void invalidSchemaFields() {
+    String to = tmpFolder.getRoot().getAbsolutePath() + "/somewhere";
+
+    assertThrows(
+        "schema field names should not be empty",
+        IllegalArgumentException.class,
+        () ->
+            errorPipeline
+                .apply(Create.of(rows))
+                .setRowSchema(ALL_DATA_TYPES_SCHEMA)
+                .apply(
+                    CsvIO.writeRows()
+                        .to(to)
+                        .withSchemaFields(Arrays.asList("", "string", "anInt"))));
+
+    assertThrows(
+        "schema fields should not be an empty list",
+        IllegalArgumentException.class,
+        () ->
+            errorPipeline
+                .apply(Create.of(rows))
+                .setRowSchema(ALL_DATA_TYPES_SCHEMA)
+                .apply(CsvIO.writeRows().to(to).withSchemaFields(Collections.emptyList())));
+
+    assertThrows(
+        "field names should match schema",
+        IllegalArgumentException.class,
+        () ->
+            errorPipeline
+                .apply(Create.of(rows))
+                .setRowSchema(ALL_DATA_TYPES_SCHEMA)
+                .apply(
+                    CsvIO.writeRows()
+                        .to(to)
+                        .withSchemaFields(Arrays.asList("doesnotexist", "string", "anInt"))));
+  }
 
   @Test
   public void withCompression() {
@@ -320,6 +450,48 @@ public class CsvIOWriteTest {
     }
   }
 
+  @Test
+  public void rowsWithNulls() throws IOException {
+    String to = "rows_with_nulls";
+    String regex = String.format("^%s.*$", to);
+    Schema schema =
+        Schema.of(
+            Field.of("string", FieldType.STRING),
+            Field.nullable("aDouble", FieldType.DOUBLE),
+            Field.nullable("anInt", FieldType.INT32));
+
+    List<Row> nullableRows =
+        Arrays.asList(
+            Row.withSchema(schema).withFieldValue("string", "a").build(),
+            Row.withSchema(schema)
+                .withFieldValue("string", "b")
+                .withFieldValue("aDouble", 1.2345)
+                .build(),
+            Row.withSchema(schema).withFieldValue("string", "c").withFieldValue("anInt", 2).build(),
+            Row.withSchema(schema)
+                .withFieldValue("string", "d")
+                .withFieldValue("aDouble", 3.1234)
+                .withFieldValue("anInt", 3)
+                .build());
+
+    pipeline
+        .apply(Create.of(nullableRows).withRowSchema(schema))
+        .apply(CsvIO.writeRows().to(tmpFolder.getRoot().getAbsolutePath() + "/" + to));
+
+    pipeline.run().waitUntilFinish();
+    String[] files = filesMatching(regex);
+    assertTrue(
+        "CsvIO.writeRows should write to " + tmpFolder.getRoot().getAbsolutePath() + "/" + to,
+        files.length > 0);
+    String expectedHeader = "aDouble,anInt,string";
+    for (String name : files) {
+      Path p = Paths.get(tmpFolder.getRoot().getAbsolutePath(), name);
+      File f = new File(p.toString());
+      assertFileContentsMatchInAnyOrder(
+          null, expectedHeader, f, ",,a", "1.2345,,b", ",2,c", "3.1234,3,d");
+    }
+  }
+
   private static List<String> readLinesFromFile(File f) throws IOException {
     List<String> currentFile = new ArrayList<>();
     try (BufferedReader reader = Files.newBufferedReader(f.toPath(), Charsets.UTF_8)) {
@@ -344,7 +516,7 @@ public class CsvIOWriteTest {
       headerIndex = preambleLines.length;
     }
 
-    assertEquals(header, actual.get(headerIndex));
+    assertEquals("header should match", header, actual.get(headerIndex));
 
     String[] rest = actual.subList(headerIndex + 1, actual.size()).toArray(new String[0]);
     List<String> expectedList = Arrays.stream(expected).collect(Collectors.toList());
