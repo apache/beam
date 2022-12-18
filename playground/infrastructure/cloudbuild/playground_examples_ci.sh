@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export GRADLE_VERSION=7.5.1
+export GRADLE_VERSION=7.6
 export GO_VERSION=1.18
 
 #Install python java8 and dependencies
