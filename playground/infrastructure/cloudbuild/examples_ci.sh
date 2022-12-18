@@ -68,10 +68,6 @@ allowlist=("playground/infrastructure" "playground/backend")
 diff="${COMMIT_FILES// /$'\n'}"
 echo "${diff}"
 
-echo "pwd && ls -la"
-pwd
-ls -la
-
 # Check if there are Examples
 for sdk in "${sdks[@]}"
 do
@@ -113,13 +109,11 @@ do
                 opts="${opts} -Psdk-tag=${SDK_TAG}"
             fi
 
-            BEAM_VERSION=2.43.0
             if [ "$sdk" == "java" ]
             then
                 # Java uses a fixed BEAM_VERSION
                 opts="$opts -Pbase-image=apache/beam_java8_sdk:2.43.0"
             fi
-            echo "DOCKERTAG equals = $DOCKERTAG"
 
             ./gradlew -i playground:backend:containers:"${sdk}":docker ${opts}
 
@@ -127,7 +121,6 @@ do
 
             docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} $IMAGE_TAG
             sleep 10
-            docker ps -a
             export SERVER_ADDRESS=container-${sdk}:8080
             python3 playground/infrastructure/ci_cd.py \
             --step ${STEP} \
@@ -137,8 +130,6 @@ do
 
             docker stop container-${sdk}
             docker rm container-${sdk}
-            docker ps -a
-            sleep 10
       else
         echo "Nothing changed"
       fi
