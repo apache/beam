@@ -27,6 +27,7 @@ steps:
     env:
       - 'REF_NAME=${REF_NAME}'
       - 'BASE_BRANCH=${_BASE_BRANCH}'
+      - 'COMMIT_SHA=${COMMIT_SHA}'
       - 'TAG_NAME=${TAG_NAME}'
       - 'PROJECT_ID=${PROJECT_ID}'
       - 'COMMIT_FILES=$_COMMIT_PATH'
