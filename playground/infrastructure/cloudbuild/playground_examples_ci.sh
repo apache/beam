@@ -48,7 +48,7 @@ export PATH=$PATH:/usr/local/go/bin
 # Install Docker
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/null
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
-apt update 2>/dev/null | grep packages | cut -d '.' -f 1 && apt install -y docker-ce > /dev/null
+apt update > /dev/null 1 && apt install -y docker-ce > /dev/null
 
 export \
 ORIGIN=PG_EXAMPLES \
@@ -121,7 +121,7 @@ do
                 # Java uses a fixed BEAM_VERSION
                 opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
             fi
-
+            echo "DOCKERTAG equals = $DOCKERTAG"
             cd /workspace
             ./gradlew -i playground:backend:containers:${sdk}:docker ${opts}
 
