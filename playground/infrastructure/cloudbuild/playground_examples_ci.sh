@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export GRADLE_VERSION=7.6
+export GRADLE_VERSION=7.5.1
 export GO_VERSION=1.18
 
 #Install python java8 and dependencies
@@ -122,7 +122,7 @@ do
             fi
             echo "DOCKERTAG equals = $DOCKERTAG"
 
-            ./gradlew -i playground:backend:containers:${sdk}:docker ${opts}
+            ./gradlew -i playground:backend:containers:"${sdk}":docker "${opts}"
 
             IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
 
