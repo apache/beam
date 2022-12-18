@@ -113,10 +113,11 @@ do
                 opts="${opts} -Psdk-tag=${SDK_TAG}"
             fi
 
+            BEAM_VERSION=2.43.0
             if [ "$sdk" == "java" ]
             then
                 # Java uses a fixed BEAM_VERSION
-                opts="$opts -Pbase-image=apache/beam_java8_sdk:${BEAM_VERSION}"
+                opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
             fi
             echo "DOCKERTAG equals = $DOCKERTAG"
 
