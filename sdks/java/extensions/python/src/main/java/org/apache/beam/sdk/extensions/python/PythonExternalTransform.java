@@ -138,14 +138,14 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
    *         ...valuesForMyPTransformConstructorIfAny);
    * </pre>
    *
-   * @param tranformName fully qualified transform name.
+   * @param transformName fully qualified transform name.
    * @param <InputT> Input {@link PCollection} type
    * @param <OutputT> Output {@link PCollection} type
    * @return A {@link PythonExternalTransform} for the given transform name.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-      PythonExternalTransform<InputT, OutputT> from(String tranformName) {
-    return new PythonExternalTransform<>(tranformName, "");
+      PythonExternalTransform<InputT, OutputT> from(String transformName) {
+    return new PythonExternalTransform<>(transformName, "");
   }
 
   /**
@@ -153,15 +153,15 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
    *
    * <p>See {@link PythonExternalTransform#from(String)} for the meaning of transformName.
    *
-   * @param tranformName fully qualified transform name.
+   * @param transformName fully qualified transform name.
    * @param expansionService address and port number for externally launched expansion service
    * @param <InputT> Input {@link PCollection} type
    * @param <OutputT> Output {@link PCollection} type
    * @return A {@link PythonExternalTransform} for the given transform name.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-      PythonExternalTransform<InputT, OutputT> from(String tranformName, String expansionService) {
-    return new PythonExternalTransform<>(tranformName, expansionService);
+      PythonExternalTransform<InputT, OutputT> from(String transformName, String expansionService) {
+    return new PythonExternalTransform<>(transformName, expansionService);
   }
 
   /**

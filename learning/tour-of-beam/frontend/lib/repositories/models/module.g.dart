@@ -17,7 +17,6 @@ ModuleResponseModel _$ModuleResponseModelFromJson(Map<String, dynamic> json) =>
     );
 
 const _$ComplexityEnumMap = {
-  Complexity.unspecified: 'UNSPECIFIED',
   Complexity.basic: 'BASIC',
   Complexity.medium: 'MEDIUM',
   Complexity.advanced: 'ADVANCED',
