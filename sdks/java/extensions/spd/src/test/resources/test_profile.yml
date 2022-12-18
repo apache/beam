@@ -1,0 +1,9 @@
+profiles:
+  simple_pipeline:
+    target: dev
+    outputs:
+      dev:
+        - type: bigquery
+          schemas:
+            - default
+            - output

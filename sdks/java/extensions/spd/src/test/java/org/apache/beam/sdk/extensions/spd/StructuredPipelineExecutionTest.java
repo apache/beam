@@ -34,9 +34,11 @@ public class StructuredPipelineExecutionTest {
   @Test
   public void testSimplePipeline() throws Exception {
     URL pipelineURL = ClassLoader.getSystemClassLoader().getResource("simple_pipeline");
+    URL profileURL = ClassLoader.getSystemClassLoader().getResource("test_profile.yml");
     Path pipelinePath = Paths.get(pipelineURL.toURI());
     StructuredPipelineDescription spd = new StructuredPipelineDescription(pipeline);
     spd.loadProject(pipelinePath);
+    spd.applyProfiles(Paths.get(profileURL.toURI()));
     LOG.info("Running pipeline");
     pipeline.run();
   }

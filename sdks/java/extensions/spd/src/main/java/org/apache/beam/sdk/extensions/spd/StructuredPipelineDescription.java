@@ -52,6 +52,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -106,6 +107,10 @@ public class StructuredPipelineDescription {
       throw new Exception("No table named " + fullTableName);
     }
     return tableMap.buildBeamSqlTable(t).buildIOReader(input);
+  }
+
+  public Relation getRelation(String name) throws Exception {
+    return new Relation(getTable(name));
   }
 
   public Table getTable(String fullTableName) throws Exception {
@@ -284,7 +289,7 @@ public class StructuredPipelineDescription {
       }
     }
 
-    //Finally handle the subdirectories
+    // Finally handle the subdirectories
     for (Path path : directories) {
       readSchemaTables(basePath, path, mapper);
     }
@@ -318,7 +323,7 @@ public class StructuredPipelineDescription {
       throw new Exception("spd_project file not found at path " + path.toString());
     }
     LOG.info("Loading SPD project at " + path);
-    Project project = mapper.readValue(Files.newBufferedReader(projectPath), Project.class);
+    project = mapper.readValue(Files.newBufferedReader(projectPath), Project.class);
     loadSchemas(path, project.seedPaths, mapper);
     loadSchemas(path, project.modelPaths, mapper);
     resolveModels();
@@ -330,25 +335,36 @@ public class StructuredPipelineDescription {
   }
 
   public void applyProfiles(Path path) throws Exception {
+
+    // Load up ye olde schema transforms.
+    ServiceLoader<SchemaTransformProvider> loader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    loader.forEach(
+        (provider) -> {
+          LOG.info("Found provider " + provider.identifier());
+        });
+
     ObjectMapper mapper =
         new ObjectMapper(new YAMLFactory())
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    if (Files.exists(path)) {
+    if (!Files.exists(path)) {
       throw new Exception("Profiles not found.");
     }
     if (project == null || "".equals(project.profile) || project.profile == null) {
       throw new Exception("Project must be initialized with a profile.");
     }
     JsonNode allProfiles = mapper.readTree(Files.newBufferedReader(path));
-    JsonNode profile = allProfiles.get(project.profile);
+    JsonNode profile = allProfiles.findPath(project.profile);
     // If target isn't set, try to set it from the profile object
     if (target == null || "".equals(target)) {
-      this.target = profile.get("target").asText("");
+      this.target = profile.findPath("target").asText("");
     }
     if ("".equals(this.target)) {
       throw new Exception("Unable to apply profile as target is not set properly.");
+    } else {
+      LOG.info("Applying `" + target + "` profile target.");
     }
-    JsonNode providers = profile.path("outputs").path("target");
+    JsonNode providers = profile.findPath("outputs").findPath(target);
     if (providers.isEmpty()) {
       throw new Exception("Unable to locate outputs ");
     }

@@ -1,3 +1,5 @@
-name: "simple_pipeline"
-version: '1.0'
+name: simple_pipeline
+version: 1.0
+
+profile: simple_pipeline
 

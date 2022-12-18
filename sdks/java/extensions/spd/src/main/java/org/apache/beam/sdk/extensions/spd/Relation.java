@@ -15,31 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.spd.models;
+package org.apache.beam.sdk.extensions.spd;
 
-public class PythonModel implements StructuredModel {
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 
-  private String path;
-  private String name;
-  private String rawPy;
+public class Relation {
+  Table table;
 
-  public PythonModel(String path, String name, String rawPy) {
-    this.path = path;
-    this.name = name;
-    this.rawPy = rawPy;
+  public Relation(Table table) {
+    this.table = table;
   }
 
-  @Override
-  public String getPath() {
-    return path;
-  }
-
-  @Override
   public String getName() {
-    return name;
+    return table.getName();
   }
 
-  public String getRawPy() {
-    return rawPy;
+  public Table getTable() {
+    return table;
+  }
+
+  @Override
+  public String toString() {
+    return getName();
   }
 }
