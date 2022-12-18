@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -142,10 +144,10 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       SourceTask task = (SourceTask) connector.taskClass().getDeclaredConstructor().newInstance();
       task.initialize(new BeamSourceTaskContext(null));
       task.start(connector.taskConfigs(1).get(0));
-      List<SourceRecord> records = Lists.newArrayList();
+      List<SourceRecord> records = null;
       int loops = 0;
-      while (records.size() == 0) {
-        if (loops > 3) {
+      while (records == null || records.size() == 0) {
+        if (loops > 4) {
           throw new RuntimeException("could not fetch database schema");
         }
         records = task.poll();

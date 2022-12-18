@@ -233,9 +233,11 @@ public class DebeziumIO {
 
       Map<String, String> connectorConfig =
           Maps.newHashMap(getConnectorConfiguration().getConfigurationMap());
-      connectorConfig.put("snapshot.mode", "schema_only");
+      connectorConfig.put("snapshot.mode", "initial_only");
+      connectorConfig.remove("include.schema.changes");
+      connectorConfig.remove("table.include.list");
       SourceRecord sampledRecord =
-          fn.getOneRecord(getConnectorConfiguration().getConfigurationMap());
+          fn.getOneRecord(connectorConfig);
       fn.reset();
       Schema keySchema =
           sampledRecord.keySchema() != null

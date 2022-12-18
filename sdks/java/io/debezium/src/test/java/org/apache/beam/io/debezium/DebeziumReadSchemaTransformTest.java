@@ -20,9 +20,15 @@ package org.apache.beam.io.debezium;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -34,11 +40,14 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.postgresql.ds.PGSimpleDataSource;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
+
+import javax.sql.DataSource;
 
 @RunWith(Parameterized.class)
 public class DebeziumReadSchemaTransformTest {
@@ -91,21 +100,75 @@ public class DebeziumReadSchemaTransformTest {
   @Parameterized.Parameter(4)
   public Integer port;
 
+  static DataSource getPostgresDatasource(Void unused) {
+    PGSimpleDataSource dataSource = new PGSimpleDataSource();
+    dataSource.setDatabaseName("inventory");
+    dataSource.setServerName(POSTGRES_SQL_CONTAINER.getContainerIpAddress());
+    dataSource.setPortNumber(POSTGRES_SQL_CONTAINER.getMappedPort(5432));
+    dataSource.setUser("debezium");
+    dataSource.setPassword("dbz");
+    return dataSource;
+  }
+
+  public static DataSource getMysqlDatasource(Void unused) {
+    HikariConfig hikariConfig = new HikariConfig();
+    hikariConfig.setJdbcUrl(MY_SQL_CONTAINER.getJdbcUrl());
+    hikariConfig.setUsername(MY_SQL_CONTAINER.getUsername());
+    hikariConfig.setPassword(MY_SQL_CONTAINER.getPassword());
+    hikariConfig.setDriverClassName(MY_SQL_CONTAINER.getDriverClassName());
+    return new HikariDataSource(hikariConfig);
+  }
+
+  private PTransform<PCollectionRowTuple, PCollectionRowTuple> makePtransform(
+          String user, String password, String database, Integer port, String host, String table) {
+    return new DebeziumReadSchemaTransformProvider(true, 10, 100L)
+            .from(
+                    DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration.builder()
+                            .setDatabase(database)
+                            .setPassword(password)
+                            .setUsername(user)
+                            .setHost(host)
+                            // In postgres, this field is "schema.table", while in MySQL it
+                            // is "database.table".
+                            .setTable(table)
+                            .setPort(port)
+                            .build())
+            .buildTransform();
+  }
+
   private PTransform<PCollectionRowTuple, PCollectionRowTuple> makePtransform(
       String user, String password, String database, Integer port, String host) {
-    return new DebeziumReadSchemaTransformProvider(true, 10, 100L)
-        .from(
-            DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration.builder()
-                .setDatabase(database)
-                .setPassword(password)
-                .setUsername(user)
-                .setHost(host)
-                // In postgres, this field is "schema.table", while in MySQL it
-                // is "database.table".
-                .setTable("inventory.customers")
-                .setPort(port)
-                .build())
-        .buildTransform();
+    return makePtransform(user, password, database, port, host, "inventory.customers");
+  }
+
+  @Test
+  public void testNoProblemButNoData() throws SQLException {
+    DataSource ds = database.equals("MYSQL") ? getMysqlDatasource(null) : getPostgresDatasource(null);
+    Connection conn = ds.getConnection();
+    conn.createStatement().execute("DELETE FROM inventory.orders");
+    conn.close();
+    Pipeline readPipeline = Pipeline.create();
+    PCollection<Row> result =
+            PCollectionRowTuple.empty(readPipeline)
+                    .apply(
+                            makePtransform(
+                                    userName,
+                                    password,
+                                    database,
+                                    databaseContainer.getMappedPort(port),
+                                    "localhost",
+                                    "inventory.orders"))
+                    .get("output");
+    assertThat(
+            result.getSchema().getFields().stream()
+                    .map(field -> field.getName())
+                    .collect(Collectors.toList()),
+            Matchers.containsInAnyOrder("before", "after", "source", "op", "ts_ms", "transaction"));
+    assertThat(
+            result.getSchema().getField("after").getType().getRowSchema().getFields().stream()
+                    .map(field -> field.getName())
+                    .collect(Collectors.toList()),
+            Matchers.containsInAnyOrder("before", "after", "source", "op", "ts_ms", "transaction"));
   }
 
   @Test
@@ -139,6 +202,7 @@ public class DebeziumReadSchemaTransformTest {
                   .apply(
                       makePtransform(
                           "wrongUser",
+
                           password,
                           database,
                           databaseContainer.getMappedPort(port),
