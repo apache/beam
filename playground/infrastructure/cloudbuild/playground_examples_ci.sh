@@ -55,15 +55,15 @@ ORIGIN=PG_EXAMPLES \
 STEP=CI \
 SUBDIRS="./learning/katas ./examples ./sdks" \
 GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
-BEAM_ROOT_DIR="." \
+BEAM_ROOT_DIR="./" \
 SDK_CONFIG="playground/sdks.yaml" \
 BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
 BEAM_CONCURRENCY=4 \
 BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
-allowlist=("playground/infrastructure/**" "playground/backend/**" \
+allowlist="playground/infrastructure/**" "playground/backend/**" \
 "playground/infrastructure/cloudbuild/cloudbuild_examples_ci_steps.yaml" \
-"playground/infrastructure/cloudbuild/playground_examples_ci.sh")
+"playground/infrastructure/cloudbuild/playground_examples_ci.sh"
 
 # Get Difference
 
