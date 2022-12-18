@@ -22,8 +22,8 @@ steps:
     args:
       - '-c'
       - |
-        chmod +x playground/infrastructure/cloudbuild/examples_ci.sh.sh \
-        && ./playground/infrastructure/cloudbuild/examples_ci.sh.sh
+        chmod +x playground/infrastructure/cloudbuild/examples_ci.sh \
+        && ./playground/infrastructure/cloudbuild/examples_ci.sh
     env:
       - 'REF_NAME=${REF_NAME}'
       - 'BASE_BRANCH=${_BASE_BRANCH}'
