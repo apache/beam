@@ -117,11 +117,11 @@ do
             if [ "$sdk" == "java" ]
             then
                 # Java uses a fixed BEAM_VERSION
-                opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
+                opts="$opts -Pbase-image=apache/beam_java8_sdk:2.43.0"
             fi
             echo "DOCKERTAG equals = $DOCKERTAG"
 
-            ./gradlew -i playground:backend:containers:"${sdk}":docker "${opts}"
+            ./gradlew -i playground:backend:containers:"${sdk}":docker ${opts}
 
             IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
 
