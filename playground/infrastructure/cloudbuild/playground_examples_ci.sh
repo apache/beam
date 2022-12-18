@@ -48,7 +48,7 @@ export PATH=$PATH:/usr/local/go/bin
 # Install Docker
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/null
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
-apt update > /dev/null 1 && apt install -y docker-ce > /dev/null
+apt update > /dev/null && apt install -y docker-ce > /dev/null
 
 export \
 ORIGIN=PG_EXAMPLES \
