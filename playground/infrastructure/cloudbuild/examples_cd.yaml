@@ -29,7 +29,6 @@ steps:
       - 'PROJECT_ID=$PROJECT_ID'
 
 options:
-  machineType: 'E2_HIGHCPU_32'
   logging: CLOUD_LOGGING_ONLY
 
 timeout: 1800s

@@ -37,15 +37,15 @@ spec:
        livenessProbe:
          httpGet:
            path: /liveness
-           port: {{ .Values.healthcheck.port }}
-         initialDelaySeconds: {{ .Values.healthcheck.livInitialDelaySeconds }}
-         periodSeconds: {{ .Values.healthcheck.livPeriodSeconds }}
+           port: {{ .Value.healthcheck.port }}
+         initialDelaySeconds: {{ .Value.healthcheck.livInitialDelaySeconds }}
+         periodSeconds: {{ .Value.healthcheck.livPeriodSeconds }}
        readinessProbe:
          httpGet:
            path: /readiness
-           port: {{ .Values.healthcheck.port }}
-         initialDelaySeconds: {{ .Values.healthcheck.readInitialDelaySeconds }}
-         periodSeconds: {{ .Values.healthcheck.readPeriodSeconds }}
+           port: {{ .Value.healthcheck.port }}
+         initialDelaySeconds: {{ .Value.healthcheck.readInitialDelaySeconds }}
+         periodSeconds: {{ .Value.healthcheck.readPeriodSeconds }}
        resources:
          requests:
            memory: "50Mi"

@@ -35,9 +35,7 @@ steps:
 substitutions:
   _COMMIT_PATH: $(commit.files[*].filename)
 
-logsBucket: 'gs://mytfstate-bucket-1'
 options:
-  machineType: 'E2_HIGHCPU_32'
-  logging: GCS_ONLY
+  logging: CLOUD_LOGGING_ONLY
 
 timeout: 3600s
