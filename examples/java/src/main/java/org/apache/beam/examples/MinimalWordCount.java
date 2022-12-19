@@ -74,7 +74,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * file service.
  */
 public class MinimalWordCount {
-//test
+
   public static void main(String[] args) {
 
     // Create a PipelineOptions object. This object lets us set various execution
