@@ -16,19 +16,32 @@
  * limitations under the License.
  */
 
-import '../../api/v1/api.pb.dart' show Dataset;
-import '../../models/sdk.dart';
+import '../api/v1/api.pb.dart' as grpc;
+import '../enums/emulator_type.dart';
 
-class RunCodeRequest {
-  final String code;
-  final Sdk sdk;
-  final Map<String, String> pipelineOptions;
-  final List<Dataset> datasets;
+class Dataset {
+  final EmulatorType? type;
+  final Map<String, String> options;
+  final String datasetPath;
 
-  const RunCodeRequest({
-    required this.code,
-    required this.sdk,
-    required this.pipelineOptions,
-    required this.datasets,
+  Dataset({
+    required this.type,
+    required this.options,
+    required this.datasetPath,
   });
+
+  factory Dataset.fromProto(grpc.Dataset proto) {
+    return Dataset(
+      type: EmulatorType.fromProto(proto.type),
+      options: proto.options,
+      datasetPath: proto.datasetPath,
+    );
+  }
+
+  grpc.Dataset toProto() {
+    return grpc.Dataset()
+      ..type = type?.toProto() ?? grpc.EmulatorType.EMULATOR_TYPE_UNSPECIFIED
+      ..options.addAll(options)
+      ..datasetPath = datasetPath;
+  }
 }

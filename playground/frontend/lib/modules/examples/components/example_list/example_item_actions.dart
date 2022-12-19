@@ -17,11 +17,16 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:playground/constants/assets.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
 import 'package:playground/modules/examples/models/popover_state.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../constants/sizes.dart';
 
 class ExampleItemActions extends StatelessWidget {
   final ExampleBase example;
@@ -38,6 +43,7 @@ class ExampleItemActions extends StatelessWidget {
         if (example.isMultiFile) multifilePopover,
         if (example.complexity != null)
           ComplexityWidget(complexity: example.complexity!),
+        if (example.usesEmulatedData) const _EmulatedDataIcon(),
         descriptionPopover,
       ],
     );
@@ -63,5 +69,24 @@ class ExampleItemActions extends StatelessWidget {
 
   void _setPopoverOpen(BuildContext context, bool isOpen) {
     Provider.of<PopoverState>(context, listen: false).setOpen(isOpen);
+  }
+}
+
+class _EmulatedDataIcon extends StatelessWidget {
+  const _EmulatedDataIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+    return IconButton(
+      iconSize: kIconSizeMd,
+      splashRadius: kIconButtonSplashRadius,
+      icon: SvgPicture.asset(
+        kStreamingIconAsset,
+        color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
+      ),
+      tooltip: appLocale.usesEmulatedData,
+      onPressed: () {},
+    );
   }
 }

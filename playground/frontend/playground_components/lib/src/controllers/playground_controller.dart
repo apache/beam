@@ -291,6 +291,8 @@ class PlaygroundController with ChangeNotifier {
         code: controller.codeController.fullText,
         sdk: controller.sdk,
         pipelineOptions: parsedPipelineOptions,
+        datasets:
+            selectedExample?.datasets.map((e) => e.toProto()).toList() ?? [],
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;

@@ -16,19 +16,28 @@
  * limitations under the License.
  */
 
-import '../../api/v1/api.pb.dart' show Dataset;
-import '../../models/sdk.dart';
+import '../api/v1/api.pb.dart' as grpc;
 
-class RunCodeRequest {
-  final String code;
-  final Sdk sdk;
-  final Map<String, String> pipelineOptions;
-  final List<Dataset> datasets;
+enum EmulatorType {
+  kafka;
 
-  const RunCodeRequest({
-    required this.code,
-    required this.sdk,
-    required this.pipelineOptions,
-    required this.datasets,
-  });
+  static EmulatorType? fromProto(grpc.EmulatorType? type) {
+    EmulatorType? result;
+    switch (type) {
+      case grpc.EmulatorType.EMULATOR_TYPE_KAFKA:
+        result = EmulatorType.kafka;
+        break;
+      case grpc.EmulatorType.EMULATOR_TYPE_UNSPECIFIED:
+        result = null;
+        break;
+    }
+    return result;
+  }
+
+  grpc.EmulatorType toProto() {
+    switch (this) {
+      case EmulatorType.kafka:
+        return grpc.EmulatorType.EMULATOR_TYPE_KAFKA;
+    }
+  }
 }

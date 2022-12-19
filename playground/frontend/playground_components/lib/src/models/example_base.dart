@@ -20,6 +20,7 @@ import 'package:equatable/equatable.dart';
 
 import '../enums/complexity.dart';
 import '../repositories/example_repository.dart';
+import 'dataset.dart';
 import 'example_view_options.dart';
 import 'sdk.dart';
 
@@ -61,12 +62,14 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final List<String> tags;
   final ExampleType type;
   final ExampleViewOptions viewOptions;
+  final List<Dataset> datasets;
 
   const ExampleBase({
     required this.name,
     required this.path,
     required this.sdk,
     required this.type,
+    required this.datasets,
     this.complexity,
     this.contextLine = 1,
     this.description = '',
@@ -85,4 +88,8 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   int compareTo(ExampleBase other) {
     return name.toLowerCase().compareTo(other.name.toLowerCase());
   }
+
+  bool get usesEmulatedData => datasets.any(
+    (dataset) => dataset.type != null,
+  );
 }

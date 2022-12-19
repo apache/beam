@@ -50,6 +50,7 @@ const exampleWithoutSourceMock = ExampleBase(
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
   complexity: Complexity.basic,
+  datasets: [],
 );
 
 const exampleWithAllAdditionsMock = Example(

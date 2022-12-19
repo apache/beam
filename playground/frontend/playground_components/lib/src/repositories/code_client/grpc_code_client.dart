@@ -213,10 +213,12 @@ class GrpcCodeClient implements CodeClient {
   }
 
   grpc.RunCodeRequest _grpcRunCodeRequest(RunCodeRequest request) {
-    return grpc.RunCodeRequest()
-      ..code = request.code
-      ..sdk = request.sdk.grpc
-      ..pipelineOptions = pipelineOptionsToString(request.pipelineOptions);
+    return grpc.RunCodeRequest(
+      code: request.code,
+      sdk: request.sdk.grpc,
+      pipelineOptions: pipelineOptionsToString(request.pipelineOptions),
+      datasets: request.datasets,
+    );
   }
 
   RunCodeStatus _toClientStatus(grpc.Status status) {
