@@ -543,6 +543,7 @@ public class CsvIO {
 
       Sink.Builder<Row> builder = sinkBuilder();
 
+      // resolves [dereference.of.nullable] error
       Optional<String> preamble = Optional.ofNullable(getPreamble());
       if (preamble.isPresent()) {
         builder = builder.setPreamble(preamble.get());
