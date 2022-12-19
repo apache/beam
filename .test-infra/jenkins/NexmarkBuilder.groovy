@@ -184,6 +184,25 @@ class NexmarkBuilder {
   static void pythonSuite(context, String title, Runner runner, SDK sdk, Map<String, Object> options) {
     InfluxDBCredentialsHelper.useCredentials(context)
 
+    final String jobServerJar
+    switch (runner) {
+      case Runner.FLINK:
+      case Runner.SPARK:
+        jobServerJar = "${runner.getDependencyBySDK(SDK.JAVA)}:job-server:shadowJar"
+        break;
+      default:
+        jobServerJar = null
+    }
+    if (jobServerJar != null) {
+      context.steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(jobServerJar)
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
+    }
+
     for (int i = 0; i <= 12; i ++) {
       if (
       // https://github.com/apache/beam/issues/24678
@@ -210,23 +229,31 @@ class NexmarkBuilder {
       } else {
         options.put('numEvents', 100000)
       }
+      if ("STRESS".equals(options.get('suite'))) {
+        options.put('numEvents', options.get('numEvents')*100)
+      }
 
       String eventFile = options.get('tempLocation') + "/eventFiles/\${BUILD_TAG}/query${query}-"
-      options.remove('input')
-      options.put('generateEventFilePathPrefix', eventFile)
+      options.put('input', eventFile + "\\*")
+
+      Map<String, Object> genOptions = [
+        'runner': Runner.DIRECT.option,
+        'generateEventFilePathPrefix': eventFile,
+        'query': options.get('query'),
+        'numEvents': options.get('numEvents'),
+        'manageResources': options.get('manageResources'),
+        'monitorJobs'    : options.get('monitorJobs'),
+      ]
 
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
         switches("-Pnexmark.runner=:runners:direct-java")
-        switches("-Pnexmark.args=\"${parseOptions(options)}\"")
+        switches("-Pnexmark.args=\"${parseOptions(genOptions)}\"")
       }
 
       shell("echo \"*** RUN ${title} query ${query} with Python***\"")
-
-      options.remove('generateEventFilePathPrefix')
-      options.put('input', eventFile + "\\*")
 
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
