@@ -167,7 +167,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, Windows]]
+        os: [[self-hosted, ubuntu-20.04],[self-hosted, windows-server-2019]]
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
         (github.event_name == 'push' || github.event_name == 'schedule') ||
