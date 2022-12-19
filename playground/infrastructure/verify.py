@@ -50,14 +50,10 @@ class Verifier:
         """
         Save beam examples and their output in the Google Cloud Datastore.
 
-        Outputs for multifile examples are left empty.
         """
-        single_file_examples = list(
-            filter(lambda example: example.tag.multifile is False, examples)
-        )
-        logging.info("Start of executing only single-file Playground examples ...")
-        asyncio.run(self._run_and_verify(single_file_examples))
-        logging.info("Finish of executing single-file Playground examples")
+        logging.info("Start of executing Playground examples ...")
+        asyncio.run(self._run_and_verify(examples))
+        logging.info("Finish of executing Playground examples")
 
     async def _run_and_verify(self, examples: List[Example]):
         """
