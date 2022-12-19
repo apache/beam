@@ -521,8 +521,8 @@ public class CsvIO {
       Schema schema = input.getSchema();
       SerializableFunction<T, Row> toRowFn = input.getToRowFunction();
       PCollection<Row> rows =
-          input.apply("ToRows", MapElements.into(rows()).via(toRowFn)).setRowSchema(schema);
-      rows.apply("writeRowsToCsv", getFileWrite().via(buildSink(schema)));
+          input.apply("To Rows", MapElements.into(rows()).via(toRowFn)).setRowSchema(schema);
+      rows.apply("Write Rows To CSV", getFileWrite().via(buildSink(schema)));
       return PDone.in(input.getPipeline());
     }
 
