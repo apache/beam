@@ -34,7 +34,7 @@ package org.apache.beam.examples;
 //   emulators:
 //      - type: kafka
 //        topic:
-//          id: source_dataset
+//          id: dataset
 //          source_dataset: CountWords
 //   datasets:
 //     CountWords:

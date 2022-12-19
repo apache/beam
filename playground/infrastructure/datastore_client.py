@@ -16,6 +16,7 @@
 """
 Module contains the client to communicate with Google Cloud Datastore
 """
+import json
 import logging
 import os.path
 from datetime import datetime
@@ -363,7 +364,7 @@ class DatastoreClient:
             {
                 "dataset": self._get_dataset_key(dataset_id),
                 "emulator": emulator.type,
-                "config": f'{{"topic": {emulator.topic.id}}}',
+                "config": json.dumps({"topic": emulator.topic.id})
             }
         )
         return nested_entity
