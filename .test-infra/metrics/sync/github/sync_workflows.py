@@ -42,8 +42,9 @@ GH_WORKFLOWS_NUMBER_EXECUTIONS = 10
 WORKFLOWS_OBJECT_LIST = []
 
 class Workflow:
-    def __init__(self,id,filename):
+    def __init__(self,id,name,filename):
         self.id = id
+        self.name = name
         self.filename = filename
         self.listOfRuns = []
         self.runUrl = []
@@ -134,12 +135,12 @@ def fetchWorkflowData():
                 workflows.append(workflowsPage)
         for pageItem in workflows:
             for item in pageItem:
-                path =(item['path'])
+                path =item['path']
                 isPostCommit = re.search('(.*)postcommit(.*)',path)
                 if isPostCommit:
                     result = re.search('/(.*).yml', path)
                     path =(result.group(1)) + ".yml"
-                    workflowObject = Workflow(item['name'],path)
+                    workflowObject = Workflow(item['id'],item['name'],path)
                     WORKFLOWS_OBJECT_LIST.append(workflowObject)
             url = "https://api.github.com/repos/apache/beam/actions/workflows/"
             queryOptions = { 'branch' : 'master', 'per_page' : GH_WORKFLOWS_NUMBER_EXECUTIONS,
@@ -152,7 +153,7 @@ def fetchWorkflowData():
                 response = requests.get(url = "{}{}/runs".format(url,workflow.id),
                                 params=queryOptions)
                 if response.status_code != 200:
-                    print('Failed to get the request with code %s'.format(response.status_code))
+                    print('Failed to get the request with code {}'.format(response.status_code))
                     time.sleep(retryTime)
                     retryFactor = retryFactor + retryFactor
                 else:
@@ -183,11 +184,11 @@ def databaseOperations(connection,fetchWorkflows):
     cursor.execute("DELETE FROM {};".format(GH_WORKFLOWS_TABLE_NAME))
     query = ""
     for workflow in WORKFLOWS_OBJECT_LIST:
-        rowInsert = "(\'{}\',\'{}\'".format(workflow.id,workflow.filename)
+        rowInsert = "(\'{}\',\'{}\'".format(workflow.name,workflow.filename)
         for run, runUrl  in zip(workflow.listOfRuns,workflow.runUrl):
             rowInsert += ",\'{}\',\'{}\'".format(run,runUrl)
         query = query + rowInsert
-        rowInsert += "),"
+        query += "),"
     query = query[:-1] + ";"  
     query = queryInsert + query
     cursor.execute(query)
