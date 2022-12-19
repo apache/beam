@@ -17,11 +17,11 @@
 # pytype: skip-file
 
 import logging
-import mock
 import os
 import time
 import unittest
 
+import mock
 import pandas as pd
 
 # pylint: disable=ungrouped-imports
