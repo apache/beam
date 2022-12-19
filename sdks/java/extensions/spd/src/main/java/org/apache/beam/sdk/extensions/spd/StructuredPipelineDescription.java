@@ -36,12 +36,14 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
 import org.apache.beam.sdk.extensions.spd.description.Column;
 import org.apache.beam.sdk.extensions.spd.description.Model;
 import org.apache.beam.sdk.extensions.spd.description.Project;
 import org.apache.beam.sdk.extensions.spd.description.Schemas;
 import org.apache.beam.sdk.extensions.spd.description.Seed;
 import org.apache.beam.sdk.extensions.spd.models.PTransformModel;
+import org.apache.beam.sdk.extensions.spd.models.PythonModel;
 import org.apache.beam.sdk.extensions.spd.models.SqlModel;
 import org.apache.beam.sdk.extensions.spd.models.StructuredModel;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -53,6 +55,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
+import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -114,8 +117,15 @@ public class StructuredPipelineDescription {
   }
 
   public Table getTable(String fullTableName) throws Exception {
+    return getTable(null, fullTableName);
+  }
+
+  public Table getTable(@Nullable String packageName, String fullTableName) throws Exception {
     // If table already exists, return it
-    Table t = metaTableProvider.getTable(fullTableName);
+    Table t = null;
+    if (packageName == null || "".equals(packageName)) {
+      t = metaTableProvider.getSubProvider(packageName).getTable(fullTableName);
+    }
     if (t != null) {
       return t;
     }
@@ -149,6 +159,19 @@ public class StructuredPipelineDescription {
       PCollection<Row> pcollection =
           ptm.applyTo(readFrom(inputResult.getOutput(), pipeline.begin()));
       metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
+    } else if (model instanceof PythonModel) {
+      PythonModel pymodel = (PythonModel) model;
+      RenderResult result = JinjaFunctions.getDefault().renderForResult(pymodel.getRawPy(), me);
+      if (result.hasErrors()) {
+        for (TemplateError error : result.getErrors()) {
+          throw error.getException();
+        }
+      }
+      pipeline
+          .begin()
+          .apply(
+              PythonExternalTransform.from("__callable__")
+                  .withArgs(PythonCallableSource.of(result.getOutput())));
     }
     return metaTableProvider.getTable(fullTableName);
   }

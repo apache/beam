@@ -40,4 +40,10 @@ public class GraphFunctions {
         (StructuredPipelineDescription) JinjavaInterpreter.getCurrent().getContext().get("_spd");
     return spd.getRelation(tableName);
   }
+
+  public static String dataframeReference(String... args) throws Exception {
+    Relation relation = tableReference(args);
+    JinjavaInterpreter.getCurrent().getContext().put("_dataframe_relation", relation);
+    return "df";
+  }
 }

@@ -40,10 +40,12 @@ public class PCollectionTableProvider implements TableProvider {
 
   private String tableType;
   private Map<String, PCollection<?>> collections;
+  private Map<String, PCollectionTableProvider> subproviders;
 
   public PCollectionTableProvider(String tableType) {
     this.tableType = tableType;
     this.collections = new HashMap<>();
+    this.subproviders = new HashMap<>();
   }
 
   @Override
@@ -116,5 +118,10 @@ public class PCollectionTableProvider implements TableProvider {
   @Nullable
   public PCollection<?> getPCollection(String tableName) {
     return collections.get(tableName);
+  }
+
+  @Override
+  public TableProvider getSubProvider(String name) {
+    return subproviders.computeIfAbsent(name, (key) -> new PCollectionTableProvider(name));
   }
 }
