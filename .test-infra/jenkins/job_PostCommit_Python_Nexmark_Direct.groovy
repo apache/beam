@@ -24,21 +24,20 @@ import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 
-// This job runs the suite of Nexmark tests against the Dataflow runner V2.
-NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow_V2_Java11',
-    'Dataflow Runner V2 Java 11 Nexmark Tests', this) {
+NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Python_Nexmark_Direct',
+    'Python Direct Runner Nexmark Tests', this) {
 
-      description('Runs the Nexmark suite on the Dataflow runner V2 on Java 11.')
+      description('Runs the Python Nexmark suite on the Direct runner.')
 
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
 
       commonJob(delegate, TriggeringContext.POST_COMMIT)
     }
 
-PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_DataflowV2_Java11',
-    'Run Dataflow Runner V2 Java 11 Nexmark Tests', 'Dataflow Runner V2 Java 11 Nexmark Tests', this) {
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Python_Nexmark_Direct',
+    'Run Python Direct Runner Nexmark Tests', 'Python Direct Runner Nexmark Tests', this) {
 
-      description('Runs the Nexmark suite on the Dataflow runner V2 on Java 11 against a Pull Request, on demand.')
+      description('Runs the Python Nexmark suite on the Direct runner against a Pull Request, on demand.')
 
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
@@ -47,21 +46,9 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Da
 
 private void commonJob(delegate, TriggeringContext triggeringContext) {
   def final JOB_SPECIFIC_OPTIONS = [
-    'influxTags' : '{\\\"runnerVersion\\\":\\\"V2\\\",\\\"javaVersion\\\":\\\"11\\\"}',
-    'exportSummaryToBigQuery' : false,
-    'region' : 'us-central1',
-    'suite' : 'STRESS',
-    'numWorkers' : 4,
-    'maxNumWorkers' : 4,
-    'autoscalingAlgorithm' : 'NONE',
-    'nexmarkParallel' : 16,
+    'suite' : 'SMOKE',
     'enforceEncodability' : true,
     'enforceImmutability' : true
   ]
-
-  def final JOB_SPECIFIC_SWITCHES = [
-    '-Pnexmark.runner.version="V2"'
-  ]
-
-  Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, triggeringContext, JOB_SPECIFIC_SWITCHES, Nexmark.JAVA_11_RUNTIME_VERSION)
+  Nexmark.standardPythonJob(delegate, Runner.DIRECT, SDK.PYTHON, JOB_SPECIFIC_OPTIONS, triggeringContext)
 }
