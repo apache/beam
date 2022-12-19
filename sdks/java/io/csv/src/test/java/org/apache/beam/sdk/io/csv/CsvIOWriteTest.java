@@ -178,7 +178,7 @@ public class CsvIOWriteTest {
                             .withFieldValue("ok", "abcdefg")
                             .build()))
                 .setRowSchema(bytesSchema)
-                .apply(CsvIO.writeRows().to(to)));
+                .apply(CsvIO.writeRows().withCSVFormat(CSVFormat.DEFAULT).to(to)));
 
     assertThrows(
         "schema should not contain map field",
@@ -206,7 +206,7 @@ public class CsvIOWriteTest {
                             .withFieldValue("ok", "abcdefg")
                             .build()))
                 .setRowSchema(arraySchema)
-                .apply(CsvIO.writeRows().to(to)));
+                .apply(CsvIO.writeRows().withCSVFormat(CSVFormat.DEFAULT).to(to)));
 
     assertThrows(
         "schema should not contain row field",
@@ -285,10 +285,10 @@ public class CsvIOWriteTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            CsvIO.write()
-                .to(tmpFolder.getRoot().getAbsolutePath() + "/badtype")
-                .expand(pipeline.apply(Create.of("1,2,3", "4,5,6"))));
-    pipeline.run();
+            errorPipeline
+                .apply(Create.of("1,2,3", "4.5.6"))
+                .apply(
+                    CsvIO.<String>write().to(tmpFolder.getRoot().getAbsolutePath() + "/badtype")));
   }
 
   @Test

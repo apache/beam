@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -33,10 +34,13 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.Write.FileNaming;
+import org.apache.beam.sdk.io.csv.CsvRowConversions.RowToCsv;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -48,7 +52,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform}s for reading and writing CSV files.
@@ -67,8 +70,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * schemas</a> for more information on how to enable Beam to infer a {@link Schema} from a custom
  * Java type.
  *
- * <p>Please note that {@link CsvIO.Write} restricts the use of flat {@link Schema}s and checks
- * whether the {@link Schema.FieldType}s are one of {@link #VALID_FIELD_TYPE_SET}.
+ * <p>For each {@link Schema.Field} included in the {@link Schema}, according to {@link
+ * CsvIO.Write#withSchemaFields(List)}, {@link CsvIO.Write} restricts the use of flat {@link
+ * Schema}s and checks whether the {@link Schema.FieldType}s are one of {@link
+ * #VALID_FIELD_TYPE_SET}.
  *
  * <h3>Example usage:</h3>
  *
@@ -130,7 +135,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * 98765,11.76
  * }</pre>
  *
- * <p>Additionally, we may define a {@link CSVFormat} other than the {@link CSVFormat#DEFAULT}.
+ * <p>Additionally, we may override the default {@link CSVFormat#DEFAULT}.
  *
  * <pre>{@code
  * PCollection<Transaction> transactions ...
@@ -181,7 +186,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *    .build()
  * );
  *
- * transactions.apply(CsvIO.writeRows().to("gs://bucket/path/to/folder/prefix"));
+ * transactions.apply(
+ *  CsvIO
+ *    .writeRows()
+ *    .to("gs://bucket/path/to/folder/prefix")
+ * );
  * }</pre>
  *
  * <p>Writing the transactions {@link PCollection} of {@link Row}s would yield the following CSV
@@ -233,80 +242,74 @@ public class CsvIO {
 
   static final String DEFAULT_FILENAME_SUFFIX = ".csv";
 
-  /** Instantiates a {@link Write} for writing user types in CSV format. */
+  /** Instantiates a {@link Write} for writing user types in {@link CSVFormat#DEFAULT} format. */
   public static <T> Write<T> write() {
-    return new AutoValue_CsvIO_Write.Builder<T>().setFileWrite(FileIO.write()).build();
+    return defaultWrite();
   }
 
-  /** Instantiates a {@link Write} for {@link Row}s in CSV format. */
+  /** Instantiates a {@link Write} for {@link Row}s in {@link CSVFormat#DEFAULT} format. */
   public static Write<Row> writeRows() {
-    return new AutoValue_CsvIO_Write.Builder<Row>().setFileWrite(FileIO.write()).build();
+    return defaultWrite();
+  }
+
+  private static <T> Write<T> defaultWrite() {
+    return new AutoValue_CsvIO_Write.Builder<T>()
+        .setCSVFormat(CSVFormat.DEFAULT)
+        .setFileWrite(FileIO.write())
+        .build();
+  }
+
+  /** Instantiates a {@link Sink.Builder} for writing {@link Row} elements to CSV file sinks. */
+  static Sink.Builder<Row> sinkBuilder() {
+    return new AutoValue_CsvIO_Sink.Builder<>();
   }
 
   /** Implementation of {@link FileIO.Sink}. */
   @AutoValue
-  public abstract static class Sink<T> implements FileIO.Sink<T> {
+  abstract static class Sink<T> implements FileIO.Sink<T> {
 
-    public static <T> Builder<T> builder() {
-      return new AutoValue_CsvIO_Sink.Builder<>();
-    }
-
-    /**
-     * Not to be confused with the CSV header, it is content written to the top of every sharded
-     * file prior to the header. In the example below, all the text proceeding the header
-     * 'column1,column2,column3' is the preamble.
-     *
-     * <pre>{@code
-     * Fake company, Inc.
-     * Lab experiment: abcdefg123456
-     * Experiment date: 2022-12-05
-     * Operator: John Doe
-     * column1,column2,colum3
-     * 1,2,3
-     * 4,5,6
-     * }</pre>
-     */
-    public Sink<T> withPreamble(String preamble) {
-      return toBuilder().setPreamble(preamble).build();
-    }
-
-    private transient Optional<PrintWriter> writer = Optional.empty();
+    private transient @Nullable PrintWriter writer;
 
     /**
      * Opens a {@link WritableByteChannel} for writing CSV files. Writes the {@link #getPreamble()}
      * if available followed by the {@link #getHeader()}.
      */
     @Override
-    public void open(WritableByteChannel channel) throws IOException {
+    public void open(@NonNull WritableByteChannel channel) throws IOException {
       writer =
-          Optional.of(
-              new PrintWriter(
-                  new BufferedWriter(
-                      new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8))));
-      if (!getPreamble().isEmpty()) {
-        writer.get().println(getPreamble());
+          new PrintWriter(
+              new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
+
+      if (getPreamble() != null) {
+        getWriter().println(getPreamble());
       }
-      writer.get().println(getHeader());
+      getWriter().println(getHeader());
     }
 
     /** Serializes and writes the element to a file. */
     @Override
     public void write(T element) throws IOException {
-      checkState(writer.isPresent());
       String line = getFormatFunction().apply(element);
-      writer.get().println(line);
+      getWriter().println(line);
     }
 
     @Override
     public void flush() throws IOException {
-      checkState(writer.isPresent());
-      writer.get().flush();
+      getWriter().flush();
+    }
+
+    private PrintWriter getWriter() {
+      // resolves [dereference.of.nullable] error
+      Optional<PrintWriter> printWriter = Optional.ofNullable(writer);
+      checkState(printWriter.isPresent());
+      return printWriter.get();
     }
 
     /**
-     * Not to be confused with the header. It is the text preceding the header in every sharded
-     * file. See {@link #withPreamble(String)}.
+     * Not to be confused with the CSV header, it is content written to the top of every sharded
+     * file prior to the header. See {@link Write#withPreamble(String)}.
      */
+    @Nullable
     abstract String getPreamble();
 
     /**
@@ -318,18 +321,14 @@ public class CsvIO {
     /** A {@link SerializableFunction} for converting to a CSV formatted string. */
     abstract SerializableFunction<T, String> getFormatFunction();
 
-    abstract Builder<T> toBuilder();
-
     @AutoValue.Builder
     abstract static class Builder<T> {
 
       /**
-       * Not to be confused with the header. It is the text preceding the header in every sharded
-       * file. See {@link #withPreamble(String)}.
+       * Not to be confused with the CSV header, it is content written to the top of every sharded
+       * file prior to the header. See {@link Write#withPreamble(String)}.
        */
       abstract Builder<T> setPreamble(String value);
-
-      abstract Optional<String> getPreamble();
 
       /**
        * The column names of the CSV file written at the top line of each shard after the preamble,
@@ -340,14 +339,7 @@ public class CsvIO {
       /** A {@link SerializableFunction} for converting a to a CSV formatted string. */
       abstract Builder<T> setFormatFunction(SerializableFunction<T, String> value);
 
-      abstract Sink<T> autoBuild();
-
-      final Sink<T> build() {
-        if (!getPreamble().isPresent()) {
-          setPreamble("");
-        }
-        return autoBuild();
-      }
+      abstract Sink<T> build();
     }
   }
 
@@ -375,12 +367,19 @@ public class CsvIO {
           .build();
     }
 
-    /** The {@link CSVFormat} of the destination CSV file data. */
+    /**
+     * Overrides the default {@link CSVFormat#DEFAULT} with format of the destination CSV file data.
+     */
     public Write<T> withCSVFormat(CSVFormat format) {
       return toBuilder().setCSVFormat(format).build();
     }
 
-    /** Controls the subset and order of included fields when writing records. */
+    /**
+     * Controls the subset and order of included fields when writing records. Defaults to {@link
+     * Schema#getFieldNames()} of {@link Schema#sorted()} from {@link PCollection} input. {@link
+     * CsvIO.Write} will only validate whether {@link Field#getType()} of the {@link Schema}'s
+     * {@link Field#getName()}, included in schemaFields, matches any {@link #VALID_FIELD_TYPE_SET}.
+     */
     public Write<T> withSchemaFields(List<String> schemaFields) {
       return toBuilder().setSchemaFields(schemaFields).build();
     }
@@ -475,29 +474,15 @@ public class CsvIO {
     abstract CSVFormat getCSVFormat();
 
     /**
-     * Not to be confused with the CSV header, it is content written to the top of every sharded
-     * file prior to the header. Defaults to an empty string.
-     *
-     * <p>In the example below, all the text proceeding the header 'column1,column2,column3' is the
-     * preamble.
-     *
-     * <pre>{@code
-     * Fake company, Inc.
-     * Lab experiment: abcdefg123456
-     * Experiment date: 2022-12-05
-     * Operator: John Doe
-     * column1,column2,colum3
-     * 1,2,3
-     * 4,5,6
-     * }</pre>
+     * The order and set of {@link Schema} fields driving the CSV conversion. See {@link
+     * #withSchemaFields(List)}.
      */
-    abstract String getPreamble();
+    @Nullable
+    abstract List<String> getSchemaFields();
 
-    /**
-     * The order and set of {@link Schema} fields driving the CSV conversion. Defaults to {@link
-     * Schema#sorted()#getSchemaFields()}.
-     */
-    abstract @Nullable List<String> getSchemaFields();
+    /** The text preceding the CSV header. See {@link #withPreamble(String)}. */
+    @Nullable
+    abstract String getPreamble();
 
     abstract Builder<T> toBuilder();
 
@@ -509,53 +494,19 @@ public class CsvIO {
        */
       abstract Builder<T> setFileWrite(FileIO.Write<Void, Row> value);
 
-      abstract Optional<FileIO.Write<Void, Row>> getFileWrite();
-
       /** The {@link CSVFormat} to convert input. Defaults to {@link CSVFormat#DEFAULT}. */
       abstract Builder<T> setCSVFormat(CSVFormat value);
 
-      abstract Optional<CSVFormat> getCSVFormat();
-
       /**
-       * Not to be confused with the CSV header, it is content written to the top of every sharded
-       * file prior to the header. Defaults to an empty string.
-       *
-       * <p>In the example below, all the text proceeding the header 'column1,column2,column3' is
-       * the preamble.
-       *
-       * <pre>{@code
-       * Fake company, Inc.
-       * Lab experiment: abcdefg123456
-       * Experiment date: 2022-12-05
-       * Operator: John Doe
-       * column1,column2,colum3
-       * 1,2,3
-       * 4,5,6
-       * }</pre>
-       */
-      abstract Builder<T> setPreamble(String value);
-
-      abstract Optional<String> getPreamble();
-
-      /**
-       * The order and set of {@link Schema} fields driving the CSV conversion. Defaults to {@link
-       * Schema#sorted()#getSchemaFields()}.
+       * The order and set of {@link Schema} fields driving the CSV conversion. See {@link
+       * #withSchemaFields(List)}.
        */
       abstract Builder<T> setSchemaFields(List<String> value);
 
-      abstract Write<T> autoBuild();
+      /** The text preceding the CSV header. See {@link #withPreamble(String)}. */
+      abstract Builder<T> setPreamble(String value);
 
-      final Write<T> build() {
-        if (!getCSVFormat().isPresent()) {
-          setCSVFormat(CSVFormat.DEFAULT);
-        }
-
-        if (!getPreamble().isPresent()) {
-          setPreamble("");
-        }
-
-        return autoBuild();
-      }
+      abstract Write<T> build();
     }
 
     @Override
@@ -570,7 +521,7 @@ public class CsvIO {
       Schema schema = input.getSchema();
       SerializableFunction<T, Row> toRowFn = input.getToRowFunction();
       PCollection<Row> rows =
-          input.apply(MapElements.into(rows()).via(toRowFn)).setRowSchema(schema);
+          input.apply("ToRows", MapElements.into(rows()).via(toRowFn)).setRowSchema(schema);
       rows.apply("writeRowsToCsv", getFileWrite().via(buildSink(schema)));
       return PDone.in(input.getPipeline());
     }
@@ -590,11 +541,14 @@ public class CsvIO {
               .setSchemaFields(schemaFields)
               .build();
 
-      return Sink.<Row>builder()
-          .setPreamble(getPreamble())
-          .setHeader(rowToCsv.buildHeader())
-          .setFormatFunction(rowToCsv)
-          .build();
+      Sink.Builder<Row> builder = sinkBuilder();
+
+      Optional<String> preamble = Optional.ofNullable(getPreamble());
+      if (preamble.isPresent()) {
+        builder = builder.setPreamble(preamble.get());
+      }
+
+      return builder.setHeader(rowToCsv.buildHeader()).setFormatFunction(rowToCsv).build();
     }
   }
 }

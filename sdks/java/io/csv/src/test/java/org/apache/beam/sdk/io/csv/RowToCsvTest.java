@@ -25,6 +25,7 @@ import static org.junit.Assert.assertThrows;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
+import org.apache.beam.sdk.io.csv.CsvRowConversions.RowToCsv;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -157,53 +158,73 @@ public class RowToCsvTest {
 
   @Test
   public void invalidSchema() {
+    RowToCsv.Builder builder = RowToCsv.builder().setCSVFormat(CSVFormat.DEFAULT);
+
     assertThrows(
         "schema should not be empty",
         IllegalArgumentException.class,
-        () -> defaultRowToCsv().setSchema(Schema.of()).build());
+        () -> builder.setSchema(Schema.of()).setSchemaFields(Collections.emptyList()).build());
 
     assertThrows(
         "schema should not contain bytes field",
         IllegalArgumentException.class,
         () ->
-            defaultRowToCsv()
+            builder
                 .setSchema(
                     Schema.of(
                         Field.of("badfield", FieldType.BYTES), Field.of("ok", FieldType.STRING)))
+                .setSchemaFields(Arrays.asList("badfield", "ok"))
                 .build());
 
     assertThrows(
         "schema should not contain array field",
         IllegalArgumentException.class,
         () ->
-            defaultRowToCsv()
+            builder
                 .setSchema(
                     Schema.of(
                         Field.of("badfield", FieldType.array(FieldType.INT16)),
                         Field.of("ok", FieldType.STRING)))
+                .setSchemaFields(Arrays.asList("badfield", "ok"))
                 .build());
 
     assertThrows(
         "schema should not contain map field",
         IllegalArgumentException.class,
         () ->
-            defaultRowToCsv()
+            builder
                 .setSchema(
                     Schema.of(
                         Field.of("badfield", FieldType.map(FieldType.INT16, FieldType.STRING)),
                         Field.of("ok", FieldType.STRING)))
+                .setSchemaFields(Arrays.asList("badfield", "ok"))
                 .build());
 
     assertThrows(
         "schema should not contain row field",
         IllegalArgumentException.class,
         () ->
-            defaultRowToCsv()
+            builder
                 .setSchema(
                     Schema.of(
                         Field.of("badfield", FieldType.row(ALL_DATA_TYPES_SCHEMA)),
                         Field.of("ok", FieldType.STRING)))
+                .setSchemaFields(Arrays.asList("badfield", "ok"))
                 .build());
+
+    // Limiting schemaFields to valid fields should not throw exception.
+    builder
+        .setSchema(
+            Schema.of(
+                Field.of("badfield1", FieldType.BYTES),
+                Field.of("badfield2", FieldType.row(ALL_DATA_TYPES_SCHEMA)),
+                Field.of("badfield3", FieldType.map(FieldType.INT16, FieldType.STRING)),
+                Field.of("badfield4", FieldType.array(FieldType.INT16)),
+                Field.of("ok1", FieldType.STRING),
+                Field.of("ok2", FieldType.DATETIME),
+                Field.of("ok3", FieldType.DECIMAL)))
+        .setSchemaFields(Arrays.asList("ok1", "ok2", "ok3"))
+        .build();
   }
 
   private static RowToCsv.Builder defaultRowToCsv() {
