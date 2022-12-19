@@ -38,8 +38,6 @@ $ python addprefix.py \
       --output "gs://$GCS_BUCKET/javaprefix/output" \
       --expansion_service_port <PORT>
 """
-#test
-
 import logging
 import re
 import typing
