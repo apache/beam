@@ -51,11 +51,6 @@ task copyDockerfileDependencies(type: Copy) {
       from '../../../infrastructure/proxy/allow_list_proxy.py'
       into 'build/'
    }
-//   copy {
-//      from '../../../../playground'
-//      into 'build/playground'
-//      exclude '**/build/**'
-//   }
    copy {
       from '../../../../learning/katas/java'
       into 'build/katas'
