@@ -20,7 +20,6 @@ package org.apache.beam.io.debezium;
 import static org.apache.beam.io.debezium.DebeziumIOPostgresSqlConnectorIT.TABLE_SCHEMA;
 import static org.apache.beam.sdk.testing.SerializableMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -38,12 +37,15 @@ import org.apache.beam.sdk.io.jdbc.JdbcIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -94,7 +96,7 @@ public class DebeziumIOMySqlConnectorIT {
       while (true) {
         ResultSet rs = st.executeQuery("SHOW STATUS WHERE `variable_name` = 'Threads_connected'");
         if (rs.next()) {
-          LOG.info("Open connections: {}", rs.getLong(2));
+          LOG.info("MySQL open connections: {}", rs.getLong(2));
           rs.close();
           Thread.sleep(4000);
         } else {
@@ -108,7 +110,7 @@ public class DebeziumIOMySqlConnectorIT {
 
   @Test
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
-    long writeSize = 500L;
+    long writeSize = 10000L;
     long testTime = writeSize * 200L;
     MY_SQL_CONTAINER.start();
 
@@ -162,13 +164,15 @@ public class DebeziumIOMySqlConnectorIT {
                     .buildTransform())
             .get("output");
 
-    PAssert.that(result)
-        .satisfies(
-            rows -> {
-              assertThat(
-                  Lists.newArrayList(rows).size(), equalTo(Long.valueOf(writeSize + 4).intValue()));
-              return null;
-            });
+    PAssert.that(
+            result
+                .apply(
+                    Window.<Row>into(new GlobalWindows())
+                        .triggering(AfterWatermark.pastEndOfWindow())
+                        .discardingFiredPanes())
+                .apply(Count.globally()))
+        .containsInAnyOrder(writeSize + 4);
+
     Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());
     Thread monitorThread = new Thread(this::monitorEssentialMetrics);
     monitorThread.start();
