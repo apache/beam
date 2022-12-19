@@ -129,4 +129,8 @@ public interface BigQueryResourceManager {
    *     BigQuery.
    */
   void cleanupAll();
+
+  TableResult runQuery(String query);
+
+  Long getRowCount(String project, String dataset, String table);
 }

@@ -69,6 +69,9 @@ public final class DataflowOperator {
    * will time out unless the job is explicitly cancelled or drained. After timeout, the job will be
    * drained.
    *
+   * <p>If the job is drained, this method will return once the drain call is finalized and the job
+   * is fully drained.
+   *
    * @param config the configuration for performing the operation
    * @return the result, which will be {@link Result#JOB_FINISHED}, {@link Result#JOB_FAILED} or
    *     {@link Result#TIMEOUT}

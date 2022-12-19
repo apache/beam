@@ -214,8 +214,7 @@ abstract class AbstractDataflowClient implements DataflowClient {
   }
 
   /** Waits until the specified job is not in a pending state. */
-  protected JobState waitUntilActive(String project, String region, String jobId)
-      throws IOException {
+  public JobState waitUntilActive(String project, String region, String jobId) throws IOException {
     JobState state = getJobStatus(project, region, jobId);
     while (PENDING_STATES.contains(state)) {
       LOG.info("Job still pending. Will check again in 15 seconds");

@@ -40,7 +40,9 @@ public final class FlexTemplateClient extends AbstractDataflowClient {
         new Dataflow(
             Utils.getDefaultTransport(),
             Utils.getDefaultJsonFactory(),
-            new HttpCredentialsAdapter(builder.getCredentials())));
+            builder.getCredentials() == null
+                ? null
+                : new HttpCredentialsAdapter(builder.getCredentials())));
   }
 
   private FlexTemplateClient(Dataflow dataflow) {

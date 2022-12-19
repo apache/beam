@@ -85,8 +85,7 @@ final class PubsubUtils {
   }
 
   /**
-   * Creates a topic name. Based on {@link
-   * com.google.cloud.teleport.it.dataflow.DataflowUtils#createJobName(String)}
+   * Creates a topic name.
    *
    * <p>If there are uppercase characters in {@code prefix}, then this will convert them into a dash
    * followed by the lowercase equivalent of that letter.

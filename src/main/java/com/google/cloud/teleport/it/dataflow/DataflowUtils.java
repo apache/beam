@@ -16,13 +16,31 @@
 package com.google.cloud.teleport.it.dataflow;
 
 import com.google.common.base.CaseFormat;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import org.apache.beam.sdk.PipelineResult;
 
 /** Utilities to make working with Dataflow easier. */
-public final class DataflowUtils {
+public class DataflowUtils {
+
   private DataflowUtils() {}
+
+  public static boolean waitUntilState(
+      PipelineResult pipeline, PipelineResult.State expectedState, Long timeoutMillis)
+      throws InterruptedException {
+    Instant start = Instant.now();
+    while (true) {
+      Thread.sleep(5_000);
+      if (pipeline.getState().equals(expectedState)) {
+        return true;
+      }
+      if (Duration.between(start, Instant.now()).compareTo(Duration.ofMillis(timeoutMillis)) > 0) {
+        return false;
+      }
+    }
+  }
 
   /**
    * Creates a job name.

@@ -14,5 +14,5 @@
  * the License.
  */
 
-/** Package for general-purpose testing utilities. */
+/** Package for managing BigQuery resources within integration tests. */
 package com.google.cloud.teleport.it.bigquery;
