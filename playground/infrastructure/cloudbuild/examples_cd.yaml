@@ -16,7 +16,7 @@
 # under the License.
 
 steps:
-  - id: "Deploying Playground CD examples"
+  - id: "Deploying Playground SDK examples (CD)"
     name: 'ubuntu'
     entrypoint: 'bash'
     args:

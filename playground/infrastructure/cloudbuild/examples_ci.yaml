@@ -16,7 +16,7 @@
 # under the License.
 
 steps:
-  - id: "Checking Playground examples (CI)"
+  - id: "Checking Playground SDK examples (CI)"
     name: 'ubuntu'
     entrypoint: 'bash'
     args:
@@ -25,8 +25,6 @@ steps:
         chmod +x playground/infrastructure/cloudbuild/examples_ci.sh \
         && ./playground/infrastructure/cloudbuild/examples_ci.sh
     env:
-      - 'REF_NAME=${REF_NAME}'
-      - 'BASE_BRANCH=${_BASE_BRANCH}'
       - 'COMMIT_SHA=${COMMIT_SHA}'
       - 'TAG_NAME=${TAG_NAME}'
       - 'PROJECT_ID=${PROJECT_ID}'
@@ -35,9 +33,7 @@ steps:
 substitutions:
   _COMMIT_PATH: $(commit.files[*].filename)
 
-logsBucket: 'gs://mytfstate-bucket-1'
 options:
-  logging: GCS_ONLY
-  machineType: 'N1_HIGHCPU_32'
+  logging: CLOUD_LOGGING_ONLY
 
 timeout: 3600s
