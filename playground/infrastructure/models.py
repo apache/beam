@@ -26,7 +26,6 @@ from pydantic import (
     HttpUrl
 )
 
-
 class ComplexityEnum(str, Enum):
     BASIC = "BASIC"
     MEDIUM = "MEDIUM"

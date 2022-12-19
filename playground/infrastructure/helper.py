@@ -209,6 +209,11 @@ def _load_example(filename, filepath, sdk: SdkEnum) -> Optional[Example]:
     return None
 
 
+# Make load_supported_categories called only once
+# to make testing easier
+_load_supported_categories = False
+
+
 def load_supported_categories(categories_path: str):
     """
     Load the list of supported categories from categories_path file
@@ -217,9 +222,14 @@ def load_supported_categories(categories_path: str):
     Args:
         categories_path: path to the file with categories.
     """
+    global _load_supported_categories
+    if _load_supported_categories:
+        return
     with open(categories_path, encoding="utf-8") as supported_categories:
         yaml_object = yaml.load(supported_categories.read(), Loader=yaml.SafeLoader)
-        Tag.Config.supported_categories = yaml_object[TagFields.categories]
+
+    Tag.Config.supported_categories = yaml_object[TagFields.categories]
+    _load_supported_categories = True
 
 
 def _get_content(filepath: str, tag_start_line: int, tag_finish_line) -> str:
@@ -258,7 +268,7 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
         status=STATUS_UNSPECIFIED,
         type=_get_object_type(filename, filepath),
         code=_get_content(filepath, tag.line_start, tag.line_finish),
-        url_vcs=_get_url_vcs(filepath), # type: ignore
+        url_vcs=_get_url_vcs(filepath),  # type: ignore
         context_line=tag.context_line - (tag.line_finish - tag.line_start),
     )
 
@@ -283,7 +293,6 @@ async def _update_example_status(example: Example, client: GRPCClient):
 
         datasets.append(
             api_pb2.Dataset(
-
                 type=api_pb2.EmulatorType.Value(
                     f"EMULATOR_TYPE_{emulator.type.upper()}"
                 ),
