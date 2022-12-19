@@ -16,26 +16,9 @@
  * limitations under the License.
  */
 
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/constants/params.dart';
 import 'package:playground/modules/examples/models/example_loading_descriptors/examples_loading_descriptor_factory.dart';
 import 'package:playground_components/playground_components.dart';
-
-const _viewOptionsMap = {
-  'readonly': 'readonly1,readonly2',
-  'show': 'show1,show2',
-  'unfold': 'unfold1,unfold2',
-};
-
-const _viewOptions = ExampleViewOptions(
-  foldCommentAtLineZero: true,
-  foldImports: true,
-  readOnlySectionNames: ['readonly1', 'readonly2'],
-  showSectionNames: ['show1', 'show2'],
-  unfoldSectionNames: ['unfold1', 'unfold2'],
-);
 
 void main() {
   final lazy = ExamplesLoadingDescriptorFactory.defaultLazyLoadDescriptors;
@@ -68,157 +51,31 @@ void main() {
       expect(lazy, expected);
     });
 
-    group('fromUriParts', () {
-      void testExamples(Iterable<_Example> examples) {
-        for (final example in examples) {
-          final result = ExamplesLoadingDescriptorFactory.fromUriParts(
-            params: example.params,
-            path: '',
-          );
+    test('emptyLazyLoadDescriptors', () {
+      final expected = {
+        Sdk.go: [
+          const EmptyExampleLoadingDescriptor(
+            sdk: Sdk.go,
+          )
+        ],
+        Sdk.java: [
+          const EmptyExampleLoadingDescriptor(
+            sdk: Sdk.java,
+          )
+        ],
+        Sdk.python: [
+          const EmptyExampleLoadingDescriptor(
+            sdk: Sdk.python,
+          )
+        ],
+        Sdk.scio: [
+          const EmptyExampleLoadingDescriptor(
+            sdk: Sdk.scio,
+          )
+        ],
+      };
 
-          expect(result, example.expected);
-        }
-      }
-
-      test('ContentExampleLoadingDescriptor', () {
-        testExamples([
-          _Example(
-            params: {
-              kExamplesParam: jsonEncode(
-                [
-                  {
-                    'sdk': 'go',
-                    'content': 'go_content',
-                  },
-                  {
-                    'sdk': 'python',
-                    'content': 'python_content',
-                    ..._viewOptionsMap,
-                  },
-                ],
-              ),
-            },
-            expected: ExamplesLoadingDescriptor(
-              descriptors: const [
-                ContentExampleLoadingDescriptor(
-                  content: 'go_content',
-                  sdk: Sdk.go,
-                ),
-                ContentExampleLoadingDescriptor(
-                  content: 'python_content',
-                  sdk: Sdk.python,
-                  viewOptions: _viewOptions,
-                ),
-              ],
-              lazyLoadDescriptors: lazy,
-            ),
-          ),
-        ]);
-      });
-
-      test('HttpExampleLoadingDescriptor', () {
-        testExamples([
-          _Example(
-            params: {
-              kExamplesParam: jsonEncode(
-                [
-                  {
-                    'sdk': 'go',
-                    'example': 'http://',
-                  },
-                  {
-                    'sdk': 'python',
-                    'example': 'https://',
-                    ..._viewOptionsMap,
-                  },
-                ],
-              ),
-            },
-            expected: ExamplesLoadingDescriptor(
-              descriptors: [
-                HttpExampleLoadingDescriptor(
-                  sdk: Sdk.go,
-                  uri: Uri.parse('http://'),
-                ),
-                HttpExampleLoadingDescriptor(
-                  sdk: Sdk.python,
-                  uri: Uri.parse('https://'),
-                  viewOptions: _viewOptions,
-                ),
-              ],
-              lazyLoadDescriptors: lazy,
-            ),
-          ),
-        ]);
-      });
-
-      test('StandardExampleLoadingDescriptor', () {
-        testExamples([
-          _Example(
-            params: {
-              kExamplesParam: jsonEncode(
-                [
-                  {'example': 'SDK_GO'},
-                  {'example': 'SDK_PYTHON/something', ..._viewOptionsMap},
-                ],
-              ),
-            },
-            expected: ExamplesLoadingDescriptor(
-              descriptors: const [
-                StandardExampleLoadingDescriptor(
-                  path: 'SDK_GO',
-                ),
-                StandardExampleLoadingDescriptor(
-                  path: 'SDK_PYTHON/something',
-                  viewOptions: _viewOptions,
-                ),
-              ],
-              lazyLoadDescriptors: lazy,
-            ),
-          ),
-        ]);
-      });
-
-      test('UserSharedExampleLoadingDescriptor', () {
-        testExamples([
-          _Example(
-            params: {
-              kExamplesParam: jsonEncode(
-                [
-                  {'example': ''},
-                  {'example': '123'},
-                  {'example': 'abc', ..._viewOptionsMap},
-                ],
-              ),
-            },
-            expected: ExamplesLoadingDescriptor(
-              descriptors: const [
-                UserSharedExampleLoadingDescriptor(
-                  snippetId: '',
-                ),
-                UserSharedExampleLoadingDescriptor(
-                  snippetId: '123',
-                ),
-                UserSharedExampleLoadingDescriptor(
-                  snippetId: 'abc',
-                  viewOptions: _viewOptions,
-                ),
-              ],
-              lazyLoadDescriptors: lazy,
-            ),
-          ),
-        ]);
-      });
+      expect(ExamplesLoadingDescriptorFactory.emptyLazyLoadDescriptors, expected,);
     });
-  });
-}
-
-class _Example {
-  final Map<String, dynamic> params;
-  final ExamplesLoadingDescriptor expected;
-
-  const _Example({
-    required this.params,
-    required this.expected,
   });
 }

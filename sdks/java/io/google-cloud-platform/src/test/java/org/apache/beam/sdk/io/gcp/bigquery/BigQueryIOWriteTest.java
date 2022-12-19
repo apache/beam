@@ -2629,4 +2629,29 @@ public class BigQueryIOWriteTest implements Serializable {
     thrown.expectMessage("SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
     schemaUpdateOptionsTest(BigQueryIO.Write.Method.STREAMING_INSERTS, options);
   }
+
+  @Test
+  public void testWriteWithStorageApiWithDefaultProject() throws Exception {
+    assumeTrue(useStorageApi);
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))))
+            .withMethod(Method.STORAGE_WRITE_API)
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(
+            Create.of(new TableRow().set("name", "a"), new TableRow().set("name", "b"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply("WriteToBQ", write);
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
+  }
 }
