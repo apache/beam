@@ -39,7 +39,9 @@ final class SingleStoreDefaultUserDataMapper implements SingleStoreIO.UserDataMa
       DateTimeFormat.forPattern("yyyy-MM-DD' 'HH:mm:ss.SSS");
 
   private String convertLogicalTypeFieldToString(Schema.FieldType type, Object value) {
-    checkArgument(type.getTypeName().isLogicalType(), "<appropriate error message>");
+    checkArgument(
+        type.getTypeName().isLogicalType(),
+        "convertLogicalTypeFieldToString accepts only logical types");
 
     Schema.LogicalType<Object, Object> logicalType =
         (Schema.LogicalType<Object, Object>) type.getLogicalType();
