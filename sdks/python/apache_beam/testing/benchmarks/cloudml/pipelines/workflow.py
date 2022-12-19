@@ -21,8 +21,6 @@ import os
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.cloudml.criteo_tft import criteo
-from apache_beam.testing.benchmarks.cloudml.pipelines import tfma_pipeline
-import tensorflow_data_validation as tfdv
 import tensorflow_transform as tft
 from tensorflow_transform import coders
 import tensorflow_transform.beam as tft_beam
@@ -85,18 +83,8 @@ class _PredictionHistogramFn(beam.DoFn):
 
 
 def setup_pipeline(p, args):
-
-  preprocessing_fn = None
   if args.classifier == 'criteo':
-    if args.benchmark_type == 'tfma':
-      # These benchmarks use golden models that expect input conforming to the
-      # legacy input schema.
-      # legacy input schema.
-      input_feature_spec = criteo.make_legacy_input_feature_spec()
-      # input_feature_spec = criteo.make_input_feature_spec()
-    else:
-      assert args.benchmark_type in ('tfdv', 'tft')
-      input_feature_spec = criteo.make_input_feature_spec()
+    input_feature_spec = criteo.make_input_feature_spec()
     input_schema = schema_utils.schema_from_feature_spec(input_feature_spec)
     input_tfxio = tfxio.BeamRecordCsvTFXIO(
         physical_format='text',
@@ -111,59 +99,7 @@ def setup_pipeline(p, args):
   input_data = p | 'ReadFromText' >> beam.io.textio.ReadFromText(
       args.input, coder=beam.coders.BytesCoder())
 
-  if args.benchmark_type == 'tfdv':
-    logging.info('TFDV benchmark')
-    assert args.classifier == 'criteo'
-
-    # Convert the dataset schema into a schema proto, which TFDV uses to infer
-    # types when decoding CSV.
-    _ = (
-        input_data
-        | 'Decode' >> input_tfxio.BeamSource()
-        | 'GenerateStatistics' >> tfdv.GenerateStatistics()
-        | 'Write' >> beam.io.WriteToText(
-            os.path.join(args.output, 'feature_stats')))
-
-  elif args.benchmark_type == 'tfma':
-    logging.info('TFMA benchmark')
-    assert args.classifier == 'criteo'
-    assert args.model_dir
-    # Convert to tf.Example for TFMA.
-    example_coder = coders.ExampleProtoCoder(input_schema)
-
-    def remove_empty_features(serialized_example):
-      """Remove columns with empty feature list."""
-      # From beam: "imports, functions and other variables defined in the global
-      # context of your __main__ file of your Dataflow pipeline are, by default,
-      # not available in the worker execution environment, and such references
-      # will cause a NameError, unless the --save_main_session pipeline option
-      # is set to True. Please see
-      # https://cloud.google.com/dataflow/faq#how-do-i-handle-nameerrors ."
-      import tensorflow.compat.v1 as tf  # pylint:disable=redefined-outer-name,reimported
-      result = tf.train.Example()
-      result.ParseFromString(serialized_example)
-      feature_map = result.features.feature
-      for k in feature_map.keys():
-        feature = feature_map[k]
-        kind = feature.WhichOneof('kind')
-        if kind == 'int64_list':
-          value = feature.int64_list.value
-        elif kind == 'bytes_list':
-          value = feature.bytes_list.value
-        else:
-          value = feature.float_list.value
-        if not value:
-          feature_map.pop(k)
-      return result.SerializeToString()
-
-    example_data = (
-        input_data
-        | 'Decode' >> input_tfxio.BeamSource()
-        | 'RecordBatchToDicts' >> _RecordBatchToPyDict(input_feature_spec)
-        | 'Encode' >> beam.Map(example_coder.encode)
-        | 'RemoveEmptyFeatureList' >> beam.Map(remove_empty_features))
-    tfma_pipeline.setup_tfma_pipeline(args, example_data)
-  elif args.benchmark_type == 'tft':
+  if args.benchmark_type == 'tft':
     logging.info('TFT benchmark')
 
     # Setting TFXIO output format only for Criteo benchmarks to make sure that
@@ -222,7 +158,7 @@ def setup_pipeline(p, args):
         | 'Write' >> beam.io.WriteToTFRecord(
             os.path.join(args.output, 'features_train'),
             file_name_suffix='.tfrecord.gz'))
-
+    # transform_fn | beam.Map(print)
     transform_fn | 'WriteTransformFn' >> tft_beam.WriteTransformFn(args.output)
 
     # TODO: Remember to eventually also save the statistics.
