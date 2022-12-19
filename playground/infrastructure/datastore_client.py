@@ -363,7 +363,7 @@ class DatastoreClient:
             {
                 "dataset": self._get_dataset_key(dataset_id),
                 "emulator": emulator.type,
-                "config": {"topic": emulator.topic.id},
+                "config": f'{{"topic": {emulator.topic.id}}}',
             }
         )
         return nested_entity
