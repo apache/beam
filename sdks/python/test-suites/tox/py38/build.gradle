@@ -27,6 +27,7 @@ applyPythonNature()
 pythonVersion = '3.8'
 
 def posargs = project.findProperty("posargs") ?: ""
+def runDataframesTests = (posargs == "" || posargs.contains("dataframes"))
 
 toxTask "formatter", "py3-yapf-check"
 check.dependsOn formatter
@@ -78,22 +79,25 @@ toxTask "testPy38pyarrow-9", "py38-pyarrow-9", "${posargs}"
 test.dependsOn "testPy38pyarrow-9"
 preCommitPy38.dependsOn "testPy38pyarrow-9"
 
-// Create a test task for each minor version of pandas
-toxTask "testPy38pandas-11", "py38-pandas-11", "${posargs}"
-test.dependsOn "testPy38pandas-11"
-preCommitPy38.dependsOn "testPy38pandas-11"
+// Dataframes tests won't get auto-filtered by path since they explicitly only run on the dataframes directory in tox.ini
+if (runDataframesTests) {
+  // Create a test task for each minor version of pandas
+  toxTask "testPy38pandas-11", "py38-pandas-11", "${posargs}"
+  test.dependsOn "testPy38pandas-11"
+  preCommitPy38.dependsOn "testPy38pandas-11"
 
-toxTask "testPy38pandas-12", "py38-pandas-12", "${posargs}"
-test.dependsOn "testPy38pandas-12"
-preCommitPy38.dependsOn "testPy38pandas-12"
+  toxTask "testPy38pandas-12", "py38-pandas-12", "${posargs}"
+  test.dependsOn "testPy38pandas-12"
+  preCommitPy38.dependsOn "testPy38pandas-12"
 
-toxTask "testPy38pandas-13", "py38-pandas-13", "${posargs}"
-test.dependsOn "testPy38pandas-13"
-preCommitPy38.dependsOn "testPy38pandas-13"
+  toxTask "testPy38pandas-13", "py38-pandas-13", "${posargs}"
+  test.dependsOn "testPy38pandas-13"
+  preCommitPy38.dependsOn "testPy38pandas-13"
 
-toxTask "testPy38pandas-14", "py38-pandas-14", "${posargs}"
-test.dependsOn "testPy38pandas-14"
-preCommitPy38.dependsOn "testPy38pandas-14"
+  toxTask "testPy38pandas-14", "py38-pandas-14", "${posargs}"
+  test.dependsOn "testPy38pandas-14"
+  preCommitPy38.dependsOn "testPy38pandas-14"
+}
 
 // Create a test task for each minor version of pytorch
 toxTask "testPy38pytorch-19", "py38-pytorch-19", "${posargs}"
