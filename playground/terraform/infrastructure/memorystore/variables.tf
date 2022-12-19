@@ -43,7 +43,7 @@ variable "name" {
 
 variable "tier" {
   description = "Tier of Redis. For tired 'STANDARD_HA' need set read_replicas_mode "
-  default     = "BASIC"
+  default     = "STANDARD_HA"
 }
 
 variable "replicas_mode" {
