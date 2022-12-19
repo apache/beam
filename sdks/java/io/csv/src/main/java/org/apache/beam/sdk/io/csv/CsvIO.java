@@ -526,8 +526,7 @@ public class CsvIO {
       return PDone.in(input.getPipeline());
     }
 
-    /** Builds a {@link Sink} for writing {@link Row} serialized using {@link CSVFormat}. */
-    Sink<Row> buildSink(Schema schema) {
+    private Sink<Row> buildSink(Schema schema) {
 
       List<String> schemaFields = getSchemaFields();
       if (schemaFields == null) {
