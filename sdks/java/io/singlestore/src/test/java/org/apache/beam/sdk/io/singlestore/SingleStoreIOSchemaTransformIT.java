@@ -19,37 +19,38 @@ package org.apache.beam.sdk.io.singlestore;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.Timestamp;
 import com.singlestore.jdbc.SingleStoreDataSource;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.function.Function;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformReadConfiguration;
+import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformReadProvider;
+import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformWriteConfiguration;
+import org.apache.beam.sdk.io.singlestore.schematransform.SingleStoreSchemaTransformWriteProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
-import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
-import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,9 +59,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class SingleStoreIOIT {
-
-  private static final String NAMESPACE = SingleStoreIOIT.class.getName();
+public class SingleStoreIOSchemaTransformIT {
 
   private static final String DATABASE_NAME = "SingleStoreIOIT";
 
@@ -77,8 +76,6 @@ public class SingleStoreIOIT {
   private static Integer port;
 
   private static SingleStoreIO.DataSourceConfiguration dataSourceConfiguration;
-
-  private static InfluxDBSettings settings;
 
   @BeforeClass
   public static void setup() {
@@ -101,30 +98,12 @@ public class SingleStoreIOIT {
             .withDatabase(DATABASE_NAME)
             .withPassword(password)
             .withUsername(username);
-    settings =
-        InfluxDBSettings.builder()
-            .withHost(options.getInfluxHost())
-            .withDatabase(options.getInfluxDatabase())
-            .withMeasurement(options.getInfluxMeasurement())
-            .get();
-  }
-
-  void createDatabaseIfNotExists() throws SQLException {
-    DataSource dataSource =
-        new SingleStoreDataSource(
-            String.format(
-                "jdbc:singlestore://%s:%d/?user=%s&password=%s&allowLocalInfile=TRUE",
-                serverName, port, username, password));
-    try (Connection conn = dataSource.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.executeQuery(String.format("CREATE DATABASE IF NOT EXISTS %s", DATABASE_NAME));
-    }
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteThenRead() throws Exception {
-    createDatabaseIfNotExists();
+    TestHelper.createDatabaseIfNotExists(serverName, port, username, password, DATABASE_NAME);
     DataSource dataSource =
         new SingleStoreDataSource(
             String.format(
@@ -138,59 +117,9 @@ public class SingleStoreIOIT {
       assertEquals(PipelineResult.State.DONE, readResult.waitUntilFinish());
       PipelineResult readResultWithPartitions = runReadWithPartitions();
       assertEquals(PipelineResult.State.DONE, readResultWithPartitions.waitUntilFinish());
-      gatherAndPublishMetrics(writeResult, readResult, readResultWithPartitions);
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, tableName);
     }
-  }
-
-  private void gatherAndPublishMetrics(
-      PipelineResult writeResult,
-      PipelineResult readResult,
-      PipelineResult readResultWithPartitions) {
-    String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
-
-    IOITMetrics writeMetrics =
-        new IOITMetrics(
-            getMetricSuppliers(uuid, timestamp, "write_time"),
-            writeResult,
-            NAMESPACE,
-            uuid,
-            timestamp);
-    writeMetrics.publishToInflux(settings);
-
-    IOITMetrics readMetrics =
-        new IOITMetrics(
-            getMetricSuppliers(uuid, timestamp, "read_time"),
-            readResult,
-            NAMESPACE,
-            uuid,
-            timestamp);
-    readMetrics.publishToInflux(settings);
-
-    IOITMetrics readMetricsWithPartitions =
-        new IOITMetrics(
-            getMetricSuppliers(uuid, timestamp, "read_with_partitions_time"),
-            readResultWithPartitions,
-            NAMESPACE,
-            uuid,
-            timestamp);
-    readMetricsWithPartitions.publishToInflux(settings);
-  }
-
-  private Set<Function<MetricsReader, NamedTestResult>> getMetricSuppliers(
-      String uuid, String timestamp, String metricName) {
-    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
-
-    suppliers.add(
-        reader -> {
-          long writeStart = reader.getStartTimeMetric(metricName);
-          long writeEnd = reader.getEndTimeMetric(metricName);
-          return NamedTestResult.create(uuid, timestamp, metricName, (writeEnd - writeStart) / 1e3);
-        });
-
-    return suppliers;
   }
 
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
@@ -198,16 +127,54 @@ public class SingleStoreIOIT {
   @Rule public TestPipeline pipelineReadWithPartitions = TestPipeline.create();
 
   private PipelineResult runWrite() {
-    PCollection<Integer> writtenRows =
+    SchemaTransformProvider provider = new SingleStoreSchemaTransformWriteProvider();
+
+    SingleStoreSchemaTransformWriteConfiguration configuration =
+        SingleStoreSchemaTransformWriteConfiguration.builder()
+            .setDataSourceConfiguration(dataSourceConfiguration)
+            .setTable(tableName)
+            .setBatchSize(100)
+            .build();
+
+    Row configurationRow = configuration.toBeamRow();
+    SchemaTransform schemaTransform = provider.from(configurationRow);
+    PTransform<PCollectionRowTuple, PCollectionRowTuple> pCollectionRowTupleTransform =
+        schemaTransform.buildTransform();
+
+    Schema.Builder schemaBuilder = new Schema.Builder();
+    schemaBuilder.addField("id", Schema.FieldType.INT32);
+    schemaBuilder.addField("name", Schema.FieldType.STRING);
+    Schema schema = schemaBuilder.build();
+
+    PCollection<Row> rows =
         pipelineWrite
             .apply(GenerateSequence.from(0).to(numberOfRows))
             .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
             .apply(
-                SingleStoreIO.<TestRow>write()
-                    .withDataSourceConfiguration(dataSourceConfiguration)
-                    .withTable(tableName)
-                    .withUserDataMapper(new TestHelper.TestUserDataMapper()));
+                "Convert TestRows to Rows",
+                MapElements.into(TypeDescriptor.of(Row.class))
+                    .via(
+                        (SerializableFunction<TestRow, Row>)
+                            testRow -> {
+                              Row.Builder rowBuilder = Row.withSchema(schema);
+                              rowBuilder.addValue(testRow.id());
+                              rowBuilder.addValue(testRow.name());
+                              return rowBuilder.build();
+                            }))
+            .setRowSchema(schema);
+
+    PCollectionRowTuple input =
+        PCollectionRowTuple.of(SingleStoreSchemaTransformWriteProvider.INPUT_TAG, rows);
+    String tag = provider.outputCollectionNames().get(0);
+    PCollectionRowTuple output = input.apply(pCollectionRowTupleTransform);
+    assertTrue(output.has(tag));
+    PCollection<Integer> writtenRows =
+        output
+            .get(tag)
+            .apply(
+                "Convert Rows to Integers",
+                MapElements.into(TypeDescriptor.of(Integer.class))
+                    .via((SerializableFunction<Row, Integer>) row -> row.getInt32(0)));
 
     PAssert.thatSingleton(writtenRows.apply("Sum All", Sum.integersGlobally()))
         .isEqualTo(numberOfRows);
@@ -216,14 +183,32 @@ public class SingleStoreIOIT {
   }
 
   private PipelineResult runRead() {
+    SchemaTransformProvider provider = new SingleStoreSchemaTransformReadProvider();
+
+    SingleStoreSchemaTransformReadConfiguration configuration =
+        SingleStoreSchemaTransformReadConfiguration.builder()
+            .setDataSourceConfiguration(dataSourceConfiguration)
+            .setTable(tableName)
+            .setOutputParallelization(true)
+            .build();
+
+    Row configurationRow = configuration.toBeamRow();
+    SchemaTransform schemaTransform = provider.from(configurationRow);
+    PTransform<PCollectionRowTuple, PCollectionRowTuple> pCollectionRowTupleTransform =
+        schemaTransform.buildTransform();
+
+    PCollectionRowTuple input = PCollectionRowTuple.empty(pipelineRead);
+    String tag = provider.outputCollectionNames().get(0);
+    PCollectionRowTuple output = input.apply(pCollectionRowTupleTransform);
+    assertTrue(output.has(tag));
     PCollection<TestRow> namesAndIds =
-        pipelineRead
+        output
+            .get(tag)
             .apply(
-                SingleStoreIO.<TestRow>read()
-                    .withDataSourceConfiguration(dataSourceConfiguration)
-                    .withTable(tableName)
-                    .withRowMapper(new TestHelper.TestRowMapper()))
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
+                MapElements.into(TypeDescriptor.of(TestRow.class))
+                    .via(
+                        (SerializableFunction<Row, TestRow>)
+                            row -> TestRow.create(row.getInt32(0), row.getString(1))));
 
     testReadResult(namesAndIds);
 
@@ -231,14 +216,32 @@ public class SingleStoreIOIT {
   }
 
   private PipelineResult runReadWithPartitions() {
+    SchemaTransformProvider provider = new SingleStoreSchemaTransformReadProvider();
+
+    SingleStoreSchemaTransformReadConfiguration configuration =
+        SingleStoreSchemaTransformReadConfiguration.builder()
+            .setDataSourceConfiguration(dataSourceConfiguration)
+            .setTable(tableName)
+            .setWithPartitions(true)
+            .build();
+
+    Row configurationRow = configuration.toBeamRow();
+    SchemaTransform schemaTransform = provider.from(configurationRow);
+    PTransform<PCollectionRowTuple, PCollectionRowTuple> pCollectionRowTupleTransform =
+        schemaTransform.buildTransform();
+
+    PCollectionRowTuple input = PCollectionRowTuple.empty(pipelineReadWithPartitions);
+    String tag = provider.outputCollectionNames().get(0);
+    PCollectionRowTuple output = input.apply(pCollectionRowTupleTransform);
+    assertTrue(output.has(tag));
     PCollection<TestRow> namesAndIds =
-        pipelineReadWithPartitions
+        output
+            .get(tag)
             .apply(
-                SingleStoreIO.<TestRow>readWithPartitions()
-                    .withDataSourceConfiguration(dataSourceConfiguration)
-                    .withTable(tableName)
-                    .withRowMapper(new TestHelper.TestRowMapper()))
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_with_partitions_time")));
+                MapElements.into(TypeDescriptor.of(TestRow.class))
+                    .via(
+                        (SerializableFunction<Row, TestRow>)
+                            row -> TestRow.create(row.getInt32(0), row.getString(1))));
 
     testReadResult(namesAndIds);
 
