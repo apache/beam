@@ -122,8 +122,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
       Map<String, Integer> tagColIdx = tagsColumnIndex((Collection<TupleTag<?>>) outputs.keySet());
       List<Encoder<WindowedValue<Object>>> encoders = createEncoders(outputs, tagColIdx, cxt);
 
-      DoFnMapPartitionsFactory<InputT, ?, Tuple2<Integer, WindowedValue<Object>>> doFnMapper =
-          DoFnMapPartitionsFactory.multiOutput(
+      DoFnPartitionIteratorFactory<InputT, ?, Tuple2<Integer, WindowedValue<Object>>> doFnMapper =
+          DoFnPartitionIteratorFactory.multiOutput(
               cxt.getCurrentTransform(),
               cxt.getOptionsSupplier(),
               input,
@@ -177,8 +177,8 @@ class ParDoTranslatorBatch<InputT, OutputT>
       }
     } else {
       PCollection<OutputT> output = cxt.getOutput(transform.getMainOutputTag());
-      DoFnMapPartitionsFactory<InputT, ?, WindowedValue<OutputT>> doFnMapper =
-          DoFnMapPartitionsFactory.singleOutput(
+      DoFnPartitionIteratorFactory<InputT, ?, WindowedValue<OutputT>> doFnMapper =
+          DoFnPartitionIteratorFactory.singleOutput(
               cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader);
 
       Dataset<WindowedValue<OutputT>> mainDS =

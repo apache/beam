@@ -59,10 +59,10 @@ import scala.collection.Iterator;
  * Abstract factory to create a {@link DoFnPartitionIt DoFn partition iterator} using a customizable
  * {@link DoFnRunners.OutputManager}.
  */
-abstract class DoFnMapPartitionsFactory<InT, FnOutT, OutT extends @NonNull Object>
+abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull Object>
     implements Function1<Iterator<WindowedValue<InT>>, Iterator<OutT>>, Serializable {
   private final String stepName;
-  private final DoFn<? super InT, FnOutT> doFn;
+  private final DoFn<InT, FnOutT> doFn;
   private final DoFnSchemaInformation doFnSchema;
   private final Supplier<PipelineOptions> options;
   private final Coder<InT> coder;
@@ -73,7 +73,7 @@ abstract class DoFnMapPartitionsFactory<InT, FnOutT, OutT extends @NonNull Objec
   private final Map<String, PCollectionView<?>> sideInputs;
   private final SideInputReader sideInputReader;
 
-  private DoFnMapPartitionsFactory(
+  private DoFnPartitionIteratorFactory(
       AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, FnOutT>> appliedPT,
       Supplier<PipelineOptions> options,
       PCollection<InT> input,
@@ -92,10 +92,10 @@ abstract class DoFnMapPartitionsFactory<InT, FnOutT, OutT extends @NonNull Objec
   }
 
   /**
-   * {@link DoFnMapPartitionsFactory} emitting a single output of type {@link WindowedValue} of
+   * {@link DoFnPartitionIteratorFactory} emitting a single output of type {@link WindowedValue} of
    * {@link OutT}.
    */
-  static <InT, OutT> DoFnMapPartitionsFactory<InT, ?, WindowedValue<OutT>> singleOutput(
+  static <InT, OutT> DoFnPartitionIteratorFactory<InT, ?, WindowedValue<OutT>> singleOutput(
       AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, OutT>> appliedPT,
       Supplier<PipelineOptions> options,
       PCollection<InT> input,
@@ -104,12 +104,12 @@ abstract class DoFnMapPartitionsFactory<InT, FnOutT, OutT extends @NonNull Objec
   }
 
   /**
-   * {@link DoFnMapPartitionsFactory} emitting multiple outputs encoded as tuple of column index and
-   * {@link WindowedValue} of {@link OutT}, where column index corresponds to the index of a {@link
-   * TupleTag#getId()} in {@code tagColIdx}.
+   * {@link DoFnPartitionIteratorFactory} emitting multiple outputs encoded as tuple of column index
+   * and {@link WindowedValue} of {@link OutT}, where column index corresponds to the index of a
+   * {@link TupleTag#getId()} in {@code tagColIdx}.
    */
   static <InT, FnOutT, OutT>
-      DoFnMapPartitionsFactory<InT, ?, Tuple2<Integer, WindowedValue<OutT>>> multiOutput(
+      DoFnPartitionIteratorFactory<InT, ?, Tuple2<Integer, WindowedValue<OutT>>> multiOutput(
           AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, FnOutT>> appliedPT,
           Supplier<PipelineOptions> options,
           PCollection<InT> input,
@@ -129,11 +129,11 @@ abstract class DoFnMapPartitionsFactory<InT, FnOutT, OutT extends @NonNull Objec
   abstract DoFnRunners.OutputManager outputManager(Deque<OutT> buffer);
 
   /**
-   * {@link DoFnMapPartitionsFactory} emitting a single output of type {@link WindowedValue} of
+   * {@link DoFnPartitionIteratorFactory} emitting a single output of type {@link WindowedValue} of
    * {@link OutT}.
    */
   private static class SingleOut<InT, OutT>
-      extends DoFnMapPartitionsFactory<InT, OutT, WindowedValue<OutT>> {
+      extends DoFnPartitionIteratorFactory<InT, OutT, WindowedValue<OutT>> {
     private SingleOut(
         AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, OutT>> appliedPT,
         Supplier<PipelineOptions> options,
@@ -154,12 +154,12 @@ abstract class DoFnMapPartitionsFactory<InT, FnOutT, OutT extends @NonNull Objec
   }
 
   /**
-   * {@link DoFnMapPartitionsFactory} emitting multiple outputs encoded as tuple of column index and
-   * {@link WindowedValue} of {@link OutT}, where column index corresponds to the index of a {@link
-   * TupleTag#getId()} in {@link #tagColIdx}.
+   * {@link DoFnPartitionIteratorFactory} emitting multiple outputs encoded as tuple of column index
+   * and {@link WindowedValue} of {@link OutT}, where column index corresponds to the index of a
+   * {@link TupleTag#getId()} in {@link #tagColIdx}.
    */
   private static class MultiOut<InT, FnOutT, OutT>
-      extends DoFnMapPartitionsFactory<InT, FnOutT, Tuple2<Integer, WindowedValue<OutT>>> {
+      extends DoFnPartitionIteratorFactory<InT, FnOutT, Tuple2<Integer, WindowedValue<OutT>>> {
     private final Map<String, Integer> tagColIdx;
 
     public MultiOut(
