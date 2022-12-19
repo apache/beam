@@ -14,7 +14,6 @@
 # KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# test
 
 """Script to recursively patch Colab notebooks.
 Replaces links to point to the master branch and adds a license.
