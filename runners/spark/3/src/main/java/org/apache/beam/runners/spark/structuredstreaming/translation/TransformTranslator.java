@@ -150,6 +150,11 @@ public abstract class TransformTranslator<
     }
 
     @Override
+    public boolean isLeave(PCollection<?> pCollection) {
+      return state.isLeave(pCollection);
+    }
+
+    @Override
     public Supplier<PipelineOptions> getOptionsSupplier() {
       return state.getOptionsSupplier();
     }
