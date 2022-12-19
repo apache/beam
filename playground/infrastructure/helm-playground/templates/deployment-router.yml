@@ -65,4 +65,3 @@ spec:
   selector:
     matchLabels:
      app: backend-router
-     
