@@ -27,11 +27,9 @@ from api.v1.api_pb2 import (
     STATUS_PREPARATION_ERROR,
 )
 from config import Origin, Config
-from datastore_client import DatastoreClient
 from grpc_client import GRPCClient
 from models import Example, SdkEnum
 from helper import get_statuses
-from repository import set_dataset_file_name
 
 
 class VerifyException(Exception):
@@ -57,7 +55,6 @@ class Verifier:
         single_file_examples = list(
             filter(lambda example: example.tag.multifile is False, examples)
         )
-        set_dataset_file_name(single_file_examples)
         logging.info("Start of executing only single-file Playground examples ...")
         asyncio.run(self._run_and_verify(single_file_examples))
         logging.info("Finish of executing single-file Playground examples")

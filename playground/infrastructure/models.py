@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
+import os.path
 
 from enum import Enum, IntEnum
 from typing import List, Optional, Dict
@@ -25,6 +27,8 @@ from pydantic import (
     root_validator,
     HttpUrl
 )
+
+from config import RepoProps
 
 class ComplexityEnum(str, Enum):
     BASIC = "BASIC"
@@ -63,6 +67,9 @@ class Emulator(BaseModel):
 
 
 class Tag(BaseModel):
+    """
+    Tag represents the beam-playground embedded yaml content
+    """
     line_start: int
     line_finish: int
     context_line: int
@@ -106,11 +113,24 @@ class Tag(BaseModel):
             f"Emulator topic {v.topic.id} has undefined dataset {v.topic.source_dataset}"
         )
 
+    @validator('datasets')
+    def dataset_file_name(cls, datasets):
+        for dataset_id, dataset in datasets.items():
+            dataset.file_name = f"{dataset_id}.{dataset.format}"
+            if dataset.location == DatasetLocation.LOCAL:
+                dataset_path = os.path.join(RepoProps.REPO_DATASETS_PATH, dataset.file_name)
+                if not os.path.isfile(dataset_path):
+                    logging.error("File not found at the specified path: %s", dataset_path)
+                    raise FileNotFoundError
+        return datasets
+
+
     @validator("categories", each_item=True)
     def category_supported(cls, v, values, config, **kwargs):
         if v not in config.supported_categories:
             raise ValueError(f"Category {v} not in {config.supported_categories}")
         return v
+
 
 
 class SdkEnum(IntEnum):

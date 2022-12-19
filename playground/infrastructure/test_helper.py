@@ -390,7 +390,7 @@ def test_validate_example_fields_when_emulator_not_set_but_dataset_set(create_te
         pydantic.ValidationError,
         match="datasets w/o emulators",
     ):
-        create_test_tag(datasets={"src": {"format": "avro", "location": "local"}})
+        create_test_tag(datasets={"dataset_id_1": {"format": "avro", "location": "local"}})
 
 
 def test_validate_example_fields_when_emulator_type_is_invalid(create_test_tag):
@@ -402,10 +402,10 @@ def test_validate_example_fields_when_emulator_type_is_invalid(create_test_tag):
             emulators=[
                 {
                     "type": "MOCK_TYPE",
-                    "topic": {"id": "topic1", "source_dataset": "src"},
+                    "topic": {"id": "topic1", "source_dataset": "dataset_id_1"},
                 }
             ],
-            datasets={"src": {"format": "json", "location": "local"}},
+            datasets={"dataset_id_1": {"format": "json", "location": "local"}},
         )
 
 
@@ -501,3 +501,15 @@ def test_get_tag_with_datasets():
             "datasets": {"dataset_id_1": {"location": "local", "format": "json"}},
         },
     )
+
+@mock.patch("os.path.isfile", return_value=True)
+def test_dataset_path_ok(mock_file_check, create_test_example):
+    example = create_test_example(with_kafka=True)
+    assert len(example.tag.datasets) > 0
+    assert example.tag.datasets.popitem()[1].file_name == "dataset_id_1.avro"
+
+
+@mock.patch("os.path.isfile", return_value=False)
+def test_dataset_path_notfound(mock_file_check, create_test_example):
+    with pytest.raises(FileNotFoundError):
+        create_test_example(with_kafka=True)

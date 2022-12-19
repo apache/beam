@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os.path
 import pytest
 from typing import Optional, List, Dict, Any
 
@@ -28,8 +29,21 @@ def supported_categories():
 
 
 @pytest.fixture(autouse=True)
+def mock_dataset_file_name(mocker):
+    def _mock_isfile(filepath):
+        if filepath in [
+            "../backend/datasets/dataset_id_1.json",
+            "../backend/datasets/dataset_id_1.avro",
+        ]:
+            return True
+        raise FileNotFoundError(filepath)
+    mocker.patch('os.path.isfile', side_effect=_mock_isfile)
+
+
+@pytest.fixture
 def create_test_example(create_test_tag):
     def _create_test_example(
+        with_kafka=False,
         tag_meta: Optional[Dict[str, Any]] = None, **example_meta
     ) -> Example:
         if tag_meta is None:
@@ -45,16 +59,16 @@ def create_test_example(create_test_tag):
         )
         meta.update(**example_meta)
         return Example(
-            tag=create_test_tag(**tag_meta),
+            tag=create_test_tag(with_kafka=with_kafka, **tag_meta),
             **meta,
         )
 
     return _create_test_example
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def create_test_tag():
-    def _create_test_tag(**tag_meta) -> Tag:
+    def _create_test_tag(with_kafka=False, **tag_meta) -> Tag:
         meta = {
             "name": "MOCK_NAME",
             "description": "MOCK_DESCRIPTION",
@@ -63,6 +77,13 @@ def create_test_tag():
             "categories": ["Testing", "Schemas"],
             "pipeline_options": "--MOCK_OPTION MOCK_OPTION_VALUE",
         }
+        if with_kafka:
+            meta.update(
+                emulators=[
+                    {"type": "kafka", "topic": {"id": "topic1", "source_dataset": "dataset_id_1"}}
+                ],
+                datasets={"dataset_id_1": {"format": "avro", "location": "local"}},
+            )
         for k, v in tag_meta.items():
             if v is None:
                 meta.pop(k, None)
