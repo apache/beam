@@ -110,8 +110,8 @@ public class DebeziumIOMySqlConnectorIT {
 
   @Test
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
-    long writeSize = 10000L;
-    long testTime = writeSize * 200L;
+    long writeSize = 1000L;
+    long testTime = writeSize * 300L;
     MY_SQL_CONTAINER.start();
 
     PipelineOptions options = PipelineOptionsFactory.create();

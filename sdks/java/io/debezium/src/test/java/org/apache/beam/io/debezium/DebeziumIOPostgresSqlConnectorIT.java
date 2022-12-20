@@ -83,8 +83,8 @@ public class DebeziumIOPostgresSqlConnectorIT {
 
   @Test
   public void testDebeziumSchemaTransformPostgresRead() throws InterruptedException {
-    long writeSize = 500L;
-    long testTime = writeSize * 200L;
+    long writeSize = 1000L;
+    long testTime = writeSize * 300L;
     POSTGRES_SQL_CONTAINER.start();
 
     PipelineOptions options = PipelineOptionsFactory.create();
