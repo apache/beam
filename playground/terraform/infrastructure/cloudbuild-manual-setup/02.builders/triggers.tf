@@ -44,6 +44,8 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     _REDIS_NAME : var.redis_name
   }
 
+  included_files = ["playground/**"]
+
   filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_infra.yaml"
 
   service_account = data.google_service_account.cloudbuild_sa.id
@@ -76,6 +78,8 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
     _SDK_TAG : var.sdk_tag
     _REDIS_NAME : var.redis_name
   }
+
+  included_files = ["playground/**"]
 
   filename = "playground/infrastructure/cloudbuild/cloudbuild_pg_to_gke.yaml"
 
