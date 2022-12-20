@@ -37,17 +37,21 @@ steps:
       - 'BEAM_EXAMPLE_CATEGORIES=${_BEAM_EXAMPLE_CATEGORIES}'
       - 'BEAM_CONCURRENCY=${_BEAM_CONCURRENCY}'
       - 'BEAM_VERSION=${_BEAM_VERSION}'
+      - 'sdks=${_SDKS}'
+      - 'allowlist=${_ALLOWLIST}'
 
 substitutions:
   _COMMIT_PATH: $(commit.files[*].filename)
   _ORIGIN: PG_EXAMPLES
   _STEP: CI
-  _SUBDIRS: ./learning/katas ./examples ./sdks
-  _BEAM_ROOT_DIR: ./
+  _SUBDIRS: './learning/katas ./examples ./sdks'
+  _BEAM_ROOT_DIR: './'
   _SDK_CONFIG: playground/sdks.yaml
   _BEAM_EXAMPLE_CATEGORIES: playground/categories.yaml
   _BEAM_CONCURRENCY: '4'
   _BEAM_VERSION: '2.43.0'
+  _SDKS: ("java" "python" "go")
+  _ALLOWLIST: '"playground/infrastructure" "playground/backend"'
 
 options:
   logging: CLOUD_LOGGING_ONLY
