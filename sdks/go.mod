@@ -31,7 +31,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.17.3
 	github.com/aws/aws-sdk-go-v2/config v1.18.6
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.6
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.44
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.45
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.6
 	github.com/aws/smithy-go v1.13.5
 	github.com/docker/go-connections v0.4.0
