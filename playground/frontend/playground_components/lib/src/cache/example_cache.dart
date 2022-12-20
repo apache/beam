@@ -125,7 +125,6 @@ class ExampleCache extends ChangeNotifier {
 
     return Example(
       complexity: result.complexity,
-      datasets: [],
       name: result.files.first.name,
       path: id,
       sdk: result.sdk,

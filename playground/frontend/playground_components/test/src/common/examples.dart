@@ -23,7 +23,6 @@ import 'package:playground_components/src/models/sdk.dart';
 
 const exampleMock1 = Example(
   complexity: Complexity.basic,
-  datasets: [],
   description: 'description',
   name: 'Example X1',
   path: 'SDK_PYTHON/Category/Name1',
@@ -35,7 +34,6 @@ const exampleMock1 = Example(
 
 const exampleMock2 = Example(
   complexity: Complexity.basic,
-  datasets: [],
   description: 'description',
   name: 'Kata',
   path: 'SDK_PYTHON/Category/Name2',
@@ -56,7 +54,6 @@ const exampleWithoutSourceMock = ExampleBase(
 
 const exampleWithAllAdditionsMock = Example(
   complexity: Complexity.basic,
-  datasets: [],
   description: 'description',
   graph: 'test outputs',
   logs: 'test outputs',
@@ -69,7 +66,6 @@ const exampleWithAllAdditionsMock = Example(
 );
 
 const exampleGoPipelineOptions = Example(
-  datasets: [],
   description: 'description',
   graph: 'test outputs',
   logs: 'test outputs',
@@ -84,7 +80,6 @@ const exampleGoPipelineOptions = Example(
 
 const exampleMockGo = Example(
   complexity: Complexity.medium,
-  datasets: [],
   description: 'description',
   name: 'Example',
   path: 'SDK_GO/Category/Name',
