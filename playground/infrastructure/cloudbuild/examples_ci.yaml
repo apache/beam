@@ -37,7 +37,7 @@ steps:
       - 'BEAM_EXAMPLE_CATEGORIES=${_BEAM_EXAMPLE_CATEGORIES}'
       - 'BEAM_CONCURRENCY=${_BEAM_CONCURRENCY}'
       - 'BEAM_VERSION=${_BEAM_VERSION}'
-      - 'sdks=${_SDKS}'
+      - 'sdks=(${_SDKS})'
       - 'allowlist=${_ALLOWLIST}'
 
 substitutions:
