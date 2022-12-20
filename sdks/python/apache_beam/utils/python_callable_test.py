@@ -85,9 +85,10 @@ class PythonCallableWithSourceTest(unittest.TestCase):
 
   def test_pycallable_map(self):
     p = beam.Pipeline()
-    result = (p
-                 | beam.Create([1, 2, 3])
-                 | beam.Map(PythonCallableWithSource("lambda x: x")))
+    result = (
+        p
+        | beam.Create([1, 2, 3])
+        | beam.Map(PythonCallableWithSource("lambda x: x")))
     self.assertEqual(result.element_type, int)
 
 
