@@ -19,7 +19,10 @@ package org.apache.beam.sdk;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasItemInArray;
+import static org.hamcrest.Matchers.not;
 
+import java.security.Security;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -64,6 +67,32 @@ public class SdkHarnessEnvironmentTest {
     PCollection<String> output = input.apply(ParDo.of(new JammDoFn()));
 
     PAssert.that(output).containsInAnyOrder("measured");
+    p.run().waitUntilFinish();
+  }
+
+  /** {@link DoFn} used to validate that TLS was enabled as part of java security properties. */
+  private static class TLSDoFn extends DoFn<String, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      assertThat(
+          Security.getProperty("jdk.tls.disabledAlgorithms").split(",[ ]*"),
+          not(hasItemInArray("TLSv1")));
+      assertThat(
+          Security.getProperty("jdk.tls.disabledAlgorithms").split(",[ ]*"),
+          not(hasItemInArray("TLSv1.1")));
+      c.output("TLSv1-TLSv1.1 enabled");
+    }
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesSdkHarnessEnvironment.class})
+  public void testTlsAvailable() throws Exception {
+    PCollection<String> input = p.apply(Create.of("TLS").withCoder(StringUtf8Coder.of()));
+
+    PCollection<String> output = input.apply(ParDo.of(new TLSDoFn()));
+
+    PAssert.that(output).containsInAnyOrder("TLSv1-TLSv1.1 enabled");
+
     p.run().waitUntilFinish();
   }
 }
