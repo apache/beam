@@ -2096,7 +2096,17 @@ public class JdbcIO {
 
       checkState(
           tableSchema.getFieldCount() >= schema.getFieldCount(),
-          "Input schema has more fields than actual table.");
+          String.format(
+              "Input schema has more fields (%s) than actual table (%s).%n\t"
+                  + "Input schema fields: %s | Table fields: %s",
+              tableSchema.getFieldCount(),
+              schema.getFieldCount(),
+              schema.getFields().stream()
+                  .map(Schema.Field::getName)
+                  .collect(Collectors.joining(", ")),
+              tableSchema.getFields().stream()
+                  .map(Schema.Field::getName)
+                  .collect(Collectors.joining(", "))));
 
       // filter out missing fields from output table
       List<Schema.Field> missingFields =
