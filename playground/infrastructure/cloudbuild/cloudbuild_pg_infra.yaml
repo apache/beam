@@ -41,8 +41,9 @@ steps:
         > playground/terraform/environment/$_ENVIRONMENT_NAME/state.tfbackend 
         ./gradlew playground:terraform:InitInfrastructure -Pproject_environment="$_ENVIRONMENT_NAME" -Pdns-name="$_DNS_NAME"
 
-# This option enables writing logs to Cloud Logging
+logsBucket: 'gs://state-bucket-ex1'
 options:
-  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_32'
+  logging: GCS_ONLY
 
 timeout: 3600s

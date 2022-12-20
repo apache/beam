@@ -33,7 +33,9 @@ steps:
 substitutions:
   _COMMIT_PATH: $(commit.files[*].filename)
 
+logsBucket: 'gs://state-bucket-ex1'
 options:
-  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_32'
+  logging: GCS_ONLY
 
 timeout: 3600s

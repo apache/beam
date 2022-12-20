@@ -44,7 +44,9 @@ steps:
         ./gradlew playground:terraform:gkebackend -Pdocker-repository-root="$_DOCKER_REPOSITORY_ROOT" \
         -Pproject_environment="$_ENVIRONMENT_NAME" -Pdocker-tag="$_TAG" -Psdk-tag="$_SDK_TAG" -Pdns-name="$_DNS_NAME"
 
+logsBucket: 'gs://state-bucket-ex1'
 options:
-  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_32'
+  logging: GCS_ONLY
 
 timeout: 7600s
