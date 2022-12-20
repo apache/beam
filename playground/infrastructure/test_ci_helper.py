@@ -62,7 +62,7 @@ async def test__verify_examples():
         output="output_of_example",
         status=STATUS_FINISHED,
         tag=Tag(**object_meta_def_ex),
-        link="link")
+        url_vcs="link")
     finished_example = Example(
         name="name",
         complexity="MEDIUM",
@@ -73,7 +73,8 @@ async def test__verify_examples():
         output="output_of_example",
         status=STATUS_FINISHED,
         tag=Tag(**object_meta),
-        link="link")
+        url_vcs="link",
+        url_notebook="notebook_link")
     examples_without_def_ex = [
         finished_example,
         finished_example,
@@ -97,7 +98,7 @@ async def test__verify_examples():
             output="output_of_example",
             status=STATUS_VALIDATION_ERROR,
             tag=Tag(**object_meta_def_ex),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -108,7 +109,7 @@ async def test__verify_examples():
             output="output_of_example",
             status=STATUS_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -119,7 +120,7 @@ async def test__verify_examples():
             output="output_of_example",
             status=STATUS_COMPILE_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -130,7 +131,7 @@ async def test__verify_examples():
             output="output_of_example",
             status=STATUS_PREPARATION_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -141,7 +142,7 @@ async def test__verify_examples():
             output="output_of_example",
             status=STATUS_RUN_TIMEOUT,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -152,7 +153,7 @@ async def test__verify_examples():
             output="output_of_example",
             status=STATUS_VALIDATION_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
         Example(
             name="name",
             complexity="MEDIUM",
@@ -163,7 +164,7 @@ async def test__verify_examples():
             output="output_of_example",
             status=STATUS_RUN_ERROR,
             tag=Tag(**object_meta),
-            link="link"),
+            url_vcs="link"),
     ]
     client = mock.AsyncMock()
     with pytest.raises(VerifyException):

@@ -17,9 +17,17 @@
  */
 
 import '../../models/example.dart';
+import '../../models/example_loading_descriptors/example_loading_descriptor.dart';
+import '../../models/sdk.dart';
 
+/// Loads an [Example] of the [sdk] from the [descriptor] when the [future]
+/// is read for the first time.
 abstract class ExampleLoader {
   const ExampleLoader();
 
+  Sdk? get sdk;
+
   Future<Example> get future;
+
+  ExampleLoadingDescriptor get descriptor;
 }

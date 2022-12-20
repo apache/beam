@@ -88,7 +88,7 @@ class CDHelper:
                 if example.sdk in [SDK_JAVA, SDK_PYTHON]:
                     example.graph = await client.get_graph(example.pipeline_id, example.filepath)
             except Exception as e:
-                logging.error(example.link)
+                logging.error(example.url_vcs)
                 logging.error(example.compile_output)
                 raise RuntimeError(f"error in {example.name}") from e
 
