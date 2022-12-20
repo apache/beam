@@ -35,6 +35,7 @@ from apache_beam import pvalue
 from apache_beam.typehints import Any
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
+from apache_beam.utils import python_callable
 
 
 class TypeInferenceError(ValueError):
@@ -314,6 +315,9 @@ def infer_return_type(c, input_types, debug=False, depth=5):
           isinstance(input_types[1], Const)):
       from apache_beam.typehints import opcodes
       return opcodes._getattr(input_types[0], input_types[1].value)
+    elif isinstance(c, python_callable.PythonCallableWithSource):
+      # This can be removed once support for *args and **kwargs is implemented.
+      return infer_return_type(c._callable, input_types, debug, depth)
     else:
       return Any
   except TypeInferenceError:

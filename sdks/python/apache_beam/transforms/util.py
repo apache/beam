@@ -68,6 +68,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
+from apache_beam.utils import python_callable
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
@@ -832,6 +833,9 @@ class Reshuffle(PTransform):
 
 
 def fn_takes_side_inputs(fn):
+  if isinstance(fn, python_callable.PythonCallableWithSource):
+    # This can be removed once support for *args and **kwargs is implemented.
+    fn = fn._callable
   try:
     signature = get_signature(fn)
   except TypeError:
