@@ -98,7 +98,9 @@ public class KafkaConnectUtils {
               Schema fieldSchema = f.getType().getRowSchema();
               if (fieldSchema == null) {
                 throw new IllegalArgumentException(
-                    "Improper schema for Beam record " + fieldSchema);
+                    String.format(
+                        "Improper schema for Beam record: %s has no row schema to build a Row from.",
+                        f.getName()));
               }
               if (structField == null) {
                 // If the field is null, then we must add a null field to ensure we encode things
