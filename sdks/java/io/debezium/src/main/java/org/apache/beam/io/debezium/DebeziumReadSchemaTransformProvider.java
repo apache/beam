@@ -19,6 +19,7 @@ package org.apache.beam.io.debezium;
 
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -38,6 +39,17 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A schema-aware transform provider for {@link DebeziumIO}. This class provides a {@link
+ * PTransform} that returns a change stream for a relational database.
+ *
+ * <p>The transform needs to access the source database <b>on expansion</b> and at <b>pipeline
+ * runtime</b>. At expansion, the output {@link org.apache.beam.sdk.values.PCollection} schema is
+ * retrieved, while at runtime, the change stream is consumed.
+ *
+ * <p>This transform is tested against <b>MySQL and Postgres</b>, but it should work well for any
+ * data source supported by Debezium.
+ */
 public class DebeziumReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration> {
@@ -53,7 +65,8 @@ public class DebeziumReadSchemaTransformProvider
   }
 
   @VisibleForTesting
-  DebeziumReadSchemaTransformProvider(Boolean isTest, Integer recordLimit, Long timeLimitMs) {
+  protected DebeziumReadSchemaTransformProvider(
+      Boolean isTest, Integer recordLimit, Long timeLimitMs) {
     this.isTest = isTest;
     this.testLimitRecords = recordLimit;
     this.testLimitMilliseconds = timeLimitMs;
@@ -68,6 +81,7 @@ public class DebeziumReadSchemaTransformProvider
   @Override
   protected @NonNull @Initialized SchemaTransform from(
       DebeziumReadSchemaTransformConfiguration configuration) {
+    // TODO(pabloem): Validate configuration parameters to ensure formatting is correct.
     return new SchemaTransform() {
       @Override
       public @UnknownKeyFor @NonNull @Initialized PTransform<
@@ -78,19 +92,16 @@ public class DebeziumReadSchemaTransformProvider
           @Override
           public PCollectionRowTuple expand(PCollectionRowTuple input) {
             // TODO(pabloem): Test this behavior
-            if (!Arrays.stream(Connectors.values())
-                .map(Objects::toString)
-                .collect(Collectors.toSet())
-                .contains(configuration.getDatabase())) {
+            Collection<String> connectors =
+                Arrays.stream(Connectors.values())
+                    .map(Object::toString)
+                    .collect(Collectors.toSet());
+            if (!connectors.contains(configuration.getDatabase())) {
               throw new IllegalArgumentException(
-                  "Unsupported dabase "
+                  "Unsupported database "
                       + configuration.getDatabase()
                       + ". Unable to select a JDBC driver for it. Supported Databases are: "
-                      + String.join(
-                          ", ",
-                          Arrays.stream(Connectors.values())
-                              .map(Object::toString)
-                              .collect(Collectors.toList())));
+                      + String.join(", ", connectors));
             }
             Class<?> connectorClass =
                 Objects.requireNonNull(Connectors.valueOf(configuration.getDatabase()))

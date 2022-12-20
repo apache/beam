@@ -57,7 +57,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Quick Overview</h3>
  *
- * SDF used to process records fetched from supported Debezium Connectors.
+ * This is a Splittable {@link DoFn} used to process records fetched from supported Debezium
+ * Connectors.
  *
  * <p>Currently it has a time limiter (see {@link OffsetTracker}) which, if set, it will stop
  * automatically after the specified elapsed minutes. Otherwise, it will keep running until the user
@@ -65,7 +66,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>It might be initialized either as:
  *
- * <pre>KafkaSourceConsumerFn(connectorClass, SourceRecordMapper)</pre>
+ * <pre>KafkaSourceConsumerFn(connectorClass, SourceRecordMapper, maxRecords, milisecondsToRun)
+ * </pre>
  *
  * Or with a time limiter:
  *
@@ -79,8 +81,8 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   private final Class<? extends SourceConnector> connectorClass;
   private final SourceRecordMapper<T> fn;
 
-  private Long milisecondsToRun = null;
-  private Integer maxRecords;
+  private final Long milisecondsToRun;
+  private final Integer maxRecords;
 
   private static DateTime startTime;
   private static final Map<String, RestrictionTracker<OffsetHolder, Map<String, Object>>>
@@ -91,6 +93,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    *
    * @param connectorClass Supported Debezium connector class
    * @param fn a SourceRecordMapper
+   * @param maxRecords Maximum number of records to fetch before finishing.
    * @param milisecondsToRun Maximum time to run (in milliseconds)
    */
   KafkaSourceConsumerFn(
@@ -109,11 +112,10 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    *
    * @param connectorClass Supported Debezium connector class
    * @param fn a SourceRecordMapper
+   * @param maxRecords Maximum number of records to fetch before finishing.
    */
   KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, Integer maxRecords) {
-    this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
-    this.fn = fn;
-    this.maxRecords = maxRecords;
+    this(connectorClass, fn, maxRecords, null);
   }
 
   @GetInitialRestriction
