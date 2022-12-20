@@ -728,6 +728,19 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testTriggeredFileLoadsWithTempTablesToExistingNullSchemaTable() throws Exception {
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+    testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
+  }
+
+  @Test
   public void testUntriggeredFileLoadsWithTempTables() throws Exception {
     // Test only non-streaming inserts.
     assumeTrue(!useStorageApi);
