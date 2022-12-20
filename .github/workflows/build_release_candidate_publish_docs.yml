@@ -1,0 +1,175 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This workflow will choose a commit to be the basis of a release candidate
+## and push a new tagged commit for that RC.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Build Release Candidate Publish Docs
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE:
+        description: Version Release (e.g. 2.XX.X)
+        required: true
+      RC_NO:
+        description: Release Candidate Number (e.g. 1, 2, 3...)
+        required: true
+
+jobs:
+  update_beam_site:
+    runs-on: [self-hosted, ubuntu-20.04]
+    env:
+      PYTHON_VIRTUALENV: python_staging_dir/venv
+      PYTHON_DOC: python_doc
+      JAVA_DOC: java_doc
+      WEBSITE_REPO: beam_website_repo
+      WEBSITE_UPDATE_DIR: website_update_dir
+      BEAM_WEBSITE_REPO: https://github.com/MarcoRob/beam-site.git
+      WEBSITE_ROOT_DIR: beam-site
+      USER_REMOTE_URL: git@github.com:MarcoRob/beam-site.git
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install gh cli
+        shell: bash
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt update \
+          && sudo apt install gh -y
+          gh --version
+      - name: Set git config
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+      - name: Setup Env
+        run: |
+          cd ~
+          mkdir -p ${{ env.WEBSITE_UPDATE_DIR }}
+          cd ${{ env.WEBSITE_UPDATE_DIR }}
+          mkdir -p ${{ env.PYTHON_DOC }}
+          mkdir -p ${{ env.JAVA_DOC }}
+          mkdir -p ${{ env.WEBSITE_REPO }}
+          cd $GITHUB_WORKSPACE
+          RELEASE_COMMIT="$(git rev-list --tags 'v${{github.event.inputs.RELEASE}}-RC${{ github.event.inputs.RC_NO }}' --max-count=1)"
+          echo "RELEASE_COMMIT=${RELEASE_COMMIT}" >> $GITHUB_ENV
+      - name: Set Java Version
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 8
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # gradle-command-action plugin and github's provided maven
+        # settings.xml file
+        shell: bash
+        run: rm ~/.m2/settings.xml
+      #      - name: Build Python Doc
+      #        run: |
+      #         cd $GITHUB_WORKSPACE
+      #         ./gradlew :pythonDocsPreCommit
+      #         GENERATED_PYDOC=$GITHUB_WORKSPACE/sdks/python/test-suites/tox/pycommon/build/srcs/sdks/python/target/docs/_build
+      #         echo "GENERATED_PYDOC=${GENERATED_PYDOC}" >> $GITHUB_ENV
+      #         rm -rf $GENERATED_PYDOC/.doctrees
+      #      - name: Build Java Doc
+      #        run: |
+      #          cd $GITHUB_WORKSPACE
+      #          ./gradlew :sdks:java:javadoc:aggregateJavadoc
+      #          GENERATED_JAVADOC=$GITHUB_WORKSPACE/sdks/java/javadoc/build/docs/javadoc/
+      #          echo "GENERATED_JAVADOC=${GENERATED_JAVADOC}" >> $GITHUB_ENV
+      - name: Build Python Doc
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/pydoc
+          cd $GITHUB_WORKSPACE/pydoc
+          touch temp.txt
+          GENERATED_PYDOC=$GITHUB_WORKSPACE/pydoc
+          echo "GENERATED_PYDOC=${GENERATED_PYDOC}" >> $GITHUB_ENV
+      - name: Build Java Doc
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/javadoc
+          cd $GITHUB_WORKSPACE/javadoc
+          touch temp.txt
+          GENERATED_JAVADOC=$GITHUB_WORKSPACE/javadoc
+          echo "GENERATED_JAVADOC=${GENERATED_JAVADOC}" >> $GITHUB_ENV
+      - name: Update Release Docs
+        run: |
+          cd ~/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}
+          rm -rf ${{ env.WEBSITE_ROOT_DIR }}
+          git clone ${{ env.BEAM_WEBSITE_REPO }}
+          cd ${{ env.WEBSITE_ROOT_DIR }}
+          git checkout release-docs
+          git checkout -b update_release_${{ github.event.inputs.RELEASE }} release-docs
+      - name: Copy Java Doc and Python into beam-site
+        run: |
+          cd ~/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}/${{ env.WEBSITE_ROOT_DIR }}
+          mkdir -p javadoc/${{ github.event.inputs.RELEASE }}
+          mkdir -p pydoc/${{ github.event.inputs.RELEASE }}
+          cp -r ${{env.GENERATED_JAVADOC}} javadoc/${{ github.event.inputs.RELEASE }}
+          cp -r ${{env.GENERATED_PYDOC}} pydoc/${{ github.event.inputs.RELEASE }}
+          COMMIT_MSG='"Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${{ env.RELEASE_COMMIT }}."'
+          echo "COMMIT_MSG=${COMMIT_MSG}" >> $GITHUB_ENV
+      #      - name: Push the changes to repository
+      #        run: |
+      #          cd ~/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}/${{ env.WEBSITE_ROOT_DIR }}
+      #          git config user.name $GITHUB_ACTOR
+      #          git config user.email actions@"$RUNNER_NAME".local
+      #          git add --all
+      #          git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${{ env.RELEASE_COMMIT }}."
+      #          git push -f ${{ env.USER_REMOTE_URL }}
+      #      - name: Push changes to beam-stie repository
+      #        uses: cpina/github-action-push-to-another-repository@ssh-deploy-key
+      #        env:
+      #          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+      #          # API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      #        with:
+      #          source-directory: '$GITHUB_WORKSPACE/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}/${{ env.WEBSITE_ROOT_DIR }}'
+      #          destination-github-username: MarcoRob
+      #          destination-repository-name: 'beam-site'
+      #          user-email: marco.robles@wizeline.com
+      #          commit-message: ${{env.COMMIT_MSG}}
+      #          target-branch: 'update_release_${{ github.event.inputs.RELEASE }}'
+      - name: Push changes to beam-site repository
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        run: |
+          echo ====== Set SSH Deploy Key =======
+          mkdir --parents "$HOME/.ssh"
+          DEPLOY_KEY_FILE="$HOME/.ssh/deploy_key"
+          echo "${{env.SSH_DEPLOY_KEY}}" > "$DEPLOY_KEY_FILE"
+          chmod 600 "$DEPLOY_KEY_FILE"
+          SSH_KNOWN_HOSTS_FILE="$HOME/.ssh/known_hosts"
+          GITHUB_SERVER="github.com"
+          ssh-keyscan -H "$GITHUB_SERVER" > "$SSH_KNOWN_HOSTS_FILE"
+          export GIT_SSH_COMMAND="ssh -i "$DEPLOY_KEY_FILE" -o UserKnownHostsFile=$SSH_KNOWN_HOSTS_FILE"
+          GIT_CMD_REPOSITORY="https://${{env.API_GITHUB_TOKEN}}@$GITHUB_SERVER/MarcoRob/${{env.WEBSITE_ROOT_DIR}}.git"
+          echo ====== Change to beam-site repository and push changes ======
+          cd ~/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}/${{ env.WEBSITE_ROOT_DIR }}
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+          git add --all
+          git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${{ env.RELEASE_COMMIT }}."
+          git push -f $GIT_CMD_REPOSITORY update_release_${{ github.event.inputs.RELEASE }}
+          echo ======== Release Docs pushed into update_release_${{ github.event.inputs.RELEASE }} branch =======
