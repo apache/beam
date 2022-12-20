@@ -72,9 +72,9 @@ import org.joda.time.Duration;
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
-  private static final Duration DEFAULT_TRIGGERING_FREQUENCY = Duration.standardSeconds(60);
-  private static final String INPUT_ROWS_TAG = "INPUT_ROWS";
-  private static final String OUTPUT_ERRORS_TAG = "ERROR_ROWS";
+  private static final Duration DEFAULT_TRIGGERING_FREQUENCY = Duration.standardSeconds(5);
+  private static final String INPUT_ROWS_TAG = "input";
+  private static final String OUTPUT_ERRORS_TAG = "errors";
 
   @Override
   protected Class<BigQueryStorageWriteApiSchemaTransformConfiguration> configurationClass() {
@@ -233,10 +233,12 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         write =
-            write.withTriggeringFrequency(
-                (triggeringFrequency == null || triggeringFrequency <= 0)
-                    ? DEFAULT_TRIGGERING_FREQUENCY
-                    : Duration.standardSeconds(triggeringFrequency));
+            write
+                .withAutoSharding()
+                .withTriggeringFrequency(
+                    (triggeringFrequency == null || triggeringFrequency <= 0)
+                        ? DEFAULT_TRIGGERING_FREQUENCY
+                        : Duration.standardSeconds(triggeringFrequency));
       }
 
       WriteResult result = inputRows.apply(write);
