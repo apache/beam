@@ -32,10 +32,7 @@ resource "google_container_node_pool" "preemptible_nodes" {
   cluster    = google_container_cluster.gh-actions-linux-cluster.id
   node_count = var.node_count
   location = var.zone
-#  autoscaling {
-#    max_node_count = var.max_node_count
-#  }
-
+  
   node_config {
     preemptible     = true
     machine_type    = var.nodes_machine_type
