@@ -62,13 +62,16 @@ variable "github_repository_owner" {
 
 variable "github_repository_branch" {
   type        = string
-  description = "The GitHub repository branch regex to match cloud build trigger"
+  description = <<EOF
+The GitHub repository branch regex to match cloud build trigger.
+Escaping sequence in form of the backslash (\) must be added for symbols in branch names. E.g. ^feature\+branch$
+  EOF
 }
 
 variable "playground_environment_name" {
   description = <<EOF
 Environment name where to deploy Playground. Located in playground/terraform/environment/{environment_name}. E.g. test, dev, prod.
-More details: https://github.com/akvelon/beam/blob/cloudbuild%2Bmanualsetup%2Bplayground/playground/terraform/README.md#prepare-deployment-configuration"
+More details: https://github.com/akvelon/beam/blob/cloudbuild%2Bmanualsetup%2Bplayground/playground/terraform/README.md#prepare-deployment-configuration
   EOF
 }
 
