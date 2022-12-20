@@ -96,14 +96,7 @@ resource "google_cloudbuild_trigger" "playground_examples_ci" {
     }
   }
 
-  included_files =
-  [
-    "playground/backend/**",
-    "playground/infrastructure/**",
-    "learning/katas/**",
-    "examples/**",
-    "sdks/**"
-  ]
+  included_files = ["playground/backend/**", "playground/infrastructure/**", "learning/katas/**", "examples/**", "sdks/**"]
 
   filename = "playground/infrastructure/cloudbuild/examples_ci.yaml"
 
