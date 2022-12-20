@@ -15,4 +15,19 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-include: package:total_lints/app.yaml
+name: playground_components_dev
+description: Helpers for testing playground_components package
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: '>=2.18.1 <4.0.0'
+  flutter: '>=3.3.2'
+
+dependencies:
+  flutter: { sdk: flutter }
+  flutter_code_editor: ^0.2.2
+  flutter_test: { sdk: flutter }
+  http: ^0.13.5
+  playground_components: { path: ../playground_components }
+  total_lints: ^2.18.0
