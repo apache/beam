@@ -15,8 +15,11 @@
 # limitations under the License.
 #
 
+# TODO(robertwb): Add more providers.
+# TODO(robertwb): Perhaps auto-generate this file?
+
 - type: 'beamJar'
   gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
-  version: '2.43.0'
+  version: BEAM_VERSION
   transforms:
      Sql: 'beam:external:java:sql:v1'

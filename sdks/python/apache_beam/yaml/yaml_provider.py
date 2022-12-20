@@ -40,6 +40,7 @@ from apache_beam.typehints import trivial_inference
 from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
+from apache_beam.version import __version__ as beam_version
 
 import yaml
 from yaml.loader import SafeLoader
@@ -93,6 +94,8 @@ class ExternalProvider(Provider):
   def provider_from_spec(spec):
     urns = spec['transforms']
     type = spec['type']
+    if spec.get('version', None) == 'BEAM_VERSION':
+      spec['version'] = beam_version
     if type == 'jar':
       return ExternalJavaProvider(urns, spec['jar'])
     elif type == 'mavenJar':
@@ -121,10 +124,24 @@ class ExternalProvider(Provider):
               }))
     elif type == 'pypi':
       return ExternalPythonProvider(urns, spec['packages'])
+    elif type == 'remote':
+      return RemoteProvider(spec['address'])
     elif type == 'docker':
       raise NotImplementedError()
     else:
       raise NotImplementedError(f'Unknown provider type: {type}')
+
+
+class RemoteProvider(ExternalProvider):
+  def __init__(self, urns, address):
+    super().__init__(urns, address)
+
+  def available(self):
+    try:
+      with ExpansionService.service(self._service):
+        return True
+    except:
+      return False
 
 
 class ExternalJavaProvider(ExternalProvider):
