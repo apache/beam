@@ -23,6 +23,20 @@ import com.google.common.collect.ImmutableList;
 public interface SpannerResourceManager {
 
   /**
+   * Return the instance ID this Resource Manager uses to create and manage tables in.
+   *
+   * @return the instance ID.
+   */
+  String getInstanceId();
+
+  /**
+   * Return the dataset ID this Resource Manager uses to create and manage tables in.
+   *
+   * @return the dataset ID.
+   */
+  String getDatabaseId();
+
+  /**
    * Creates a table given a CREATE TABLE DDL statement.
    *
    * <p>Note: Implementations may do instance creation and database creation here.

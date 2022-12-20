@@ -108,7 +108,7 @@ public final class DefaultSpannerResourceManager implements SpannerResourceManag
     LOG.info("Creating instance {} in project {}.", instanceId, projectId);
     InstanceInfo instanceInfo =
         InstanceInfo.newBuilder(InstanceId.of(projectId, instanceId))
-            .setInstanceConfigId(InstanceConfigId.of(projectId, region))
+            .setInstanceConfigId(InstanceConfigId.of(projectId, "regional-" + region))
             .setDisplayName(instanceId)
             .setNodeCount(1)
             .build();
@@ -151,6 +151,16 @@ public final class DefaultSpannerResourceManager implements SpannerResourceManag
     if (!hasDatabase) {
       throw new IllegalStateException("There is no database for manager to perform operation on");
     }
+  }
+
+  @Override
+  public String getInstanceId() {
+    return this.instanceId;
+  }
+
+  @Override
+  public String getDatabaseId() {
+    return this.databaseId;
   }
 
   /** Creates an instance and database as well if there are none at the time of method call. */
