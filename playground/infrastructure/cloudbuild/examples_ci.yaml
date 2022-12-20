@@ -37,7 +37,7 @@ steps:
       - 'BEAM_EXAMPLE_CATEGORIES=${_BEAM_EXAMPLE_CATEGORIES}'
       - 'BEAM_CONCURRENCY=${_BEAM_CONCURRENCY}'
       - 'BEAM_VERSION=${_BEAM_VERSION}'
-      - 'sdks=(${_SDKS})'
+      - 'sdks=${_SDKS}'
       - 'allowlist=${_ALLOWLIST}'
 
 substitutions:
@@ -50,7 +50,7 @@ substitutions:
   _BEAM_EXAMPLE_CATEGORIES: playground/categories.yaml
   _BEAM_CONCURRENCY: '4'
   _BEAM_VERSION: '2.43.0'
-  _SDKS: '"java" "python" "go"'
+  _SDKS: ("java" "python" "go")
   _ALLOWLIST: '"playground/infrastructure" "playground/backend"'
 
 options:
