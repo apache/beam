@@ -42,7 +42,7 @@ Ubuntu Self-hosted runners are stored in Container Registry and implemented usin
 #### Pod
 ##### Container 1: gh-actions-runner
 * Image: $LOCAL_IMAGE_NAME LOCATION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE:latest
-* CPU: 1.2vCPU - 4vCPU 
+* CPU: 1.2vCPU - 4vCPU
 * Memory: 4Gi - 20 Gi
 * Volumes
     * gcloud-key
