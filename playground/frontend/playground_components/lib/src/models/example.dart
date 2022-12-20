@@ -28,6 +28,7 @@ class Example extends ExampleBase {
 
   const Example({
     required this.source,
+    required super.datasets,
     required super.name,
     required super.sdk,
     required super.type,
@@ -35,7 +36,6 @@ class Example extends ExampleBase {
     this.graph,
     this.logs,
     this.outputs,
-    super.datasets = const [],
     super.complexity,
     super.contextLine,
     super.description,
@@ -55,9 +55,9 @@ class Example extends ExampleBase {
   }) : super(
           complexity: example.complexity,
           contextLine: example.contextLine,
+          datasets: example.datasets,
           description: example.description,
           isMultiFile: example.isMultiFile,
-          datasets: example.datasets,
           link: example.link,
           name: example.name,
           path: example.path,
@@ -70,6 +70,7 @@ class Example extends ExampleBase {
 
   const Example.empty(Sdk sdk)
       : this(
+          datasets: const [],
           name: 'Untitled Example',
           path: '',
           sdk: sdk,

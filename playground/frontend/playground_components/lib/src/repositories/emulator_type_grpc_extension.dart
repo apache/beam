@@ -16,16 +16,29 @@
  * limitations under the License.
  */
 
+import '../api/v1/api.pbgrpc.dart' as g;
 import '../enums/emulator_type.dart';
 
-class Dataset {
-  final EmulatorType? type;
-  final Map<String, String> options;
-  final String datasetPath;
+extension ExampleTypeExtension on EmulatorType {
+  g.EmulatorType get grpc {
+    switch (this) {
+      case EmulatorType.kafka:
+        return g.EmulatorType.EMULATOR_TYPE_KAFKA;
+    }
+  }
+}
 
-  Dataset({
-    required this.type,
-    required this.options,
-    required this.datasetPath,
-  });
+extension GrpcExampleTypeExtension on g.EmulatorType {
+  EmulatorType? get model {
+    EmulatorType? result;
+    switch (this) {
+      case g.EmulatorType.EMULATOR_TYPE_KAFKA:
+        result = EmulatorType.kafka;
+        break;
+      case g.EmulatorType.EMULATOR_TYPE_UNSPECIFIED:
+        result = null;
+        break;
+    }
+    return result;
+  }
 }

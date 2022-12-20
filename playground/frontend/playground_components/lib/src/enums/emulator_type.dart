@@ -16,28 +16,6 @@
  * limitations under the License.
  */
 
-import '../api/v1/api.pb.dart' as grpc;
-
 enum EmulatorType {
-  kafka;
-
-  static EmulatorType? fromProto(grpc.EmulatorType? type) {
-    EmulatorType? result;
-    switch (type) {
-      case grpc.EmulatorType.EMULATOR_TYPE_KAFKA:
-        result = EmulatorType.kafka;
-        break;
-      case grpc.EmulatorType.EMULATOR_TYPE_UNSPECIFIED:
-        result = null;
-        break;
-    }
-    return result;
-  }
-
-  grpc.EmulatorType toProto() {
-    switch (this) {
-      case EmulatorType.kafka:
-        return grpc.EmulatorType.EMULATOR_TYPE_KAFKA;
-    }
-  }
+  kafka,
 }

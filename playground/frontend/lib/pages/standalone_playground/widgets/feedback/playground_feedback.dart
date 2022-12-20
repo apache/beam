@@ -20,9 +20,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../constants/assets.dart';
 import '../../../../constants/font_weight.dart';
 import '../../../../modules/analytics/analytics_service.dart';
+import '../../../../src/assets/assets.gen.dart';
 import '../../notifiers/feedback_state.dart';
 import 'feedback_dropdown_icon_button.dart';
 
@@ -43,15 +43,15 @@ class PlaygroundFeedback extends StatelessWidget {
         ),
         FeedbackDropdownIconButton(
           label: appLocale.enjoying,
-          iconAsset: kThumbUpIconAsset,
-          filledIconAsset: kThumbUpIconAssetFilled,
+          iconAsset: Assets.thumbUp,
+          filledIconAsset: Assets.thumbUpFilled,
           onClick: _setEnjoying(context, true),
           isSelected: isEnjoying != null && isEnjoying,
         ),
         FeedbackDropdownIconButton(
           label: appLocale.notEnjoying,
-          iconAsset: kThumbDownIconAsset,
-          filledIconAsset: kThumbDownIconAssetFilled,
+          iconAsset: Assets.thumbDown,
+          filledIconAsset: Assets.thumbDownFilled,
           onClick: _setEnjoying(context, false),
           isSelected: isEnjoying != null && !isEnjoying,
         ),
@@ -62,8 +62,7 @@ class PlaygroundFeedback extends StatelessWidget {
   _setEnjoying(BuildContext context, bool isEnjoying) {
     return () {
       _getFeedbackState(context, false).setEnjoying(isEnjoying);
-      AnalyticsService.get(context)
-          .trackClickEnjoyPlayground(isEnjoying);
+      AnalyticsService.get(context).trackClickEnjoyPlayground(isEnjoying);
     };
   }
 

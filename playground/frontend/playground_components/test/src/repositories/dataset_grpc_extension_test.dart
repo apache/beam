@@ -16,16 +16,30 @@
  * limitations under the License.
  */
 
-import '../enums/emulator_type.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:playground_components/src/api/v1/api.pbgrpc.dart' as g;
+import 'package:playground_components/src/repositories/dataset_grpc_extension.dart';
 
-class Dataset {
-  final EmulatorType? type;
-  final Map<String, String> options;
-  final String datasetPath;
+void main() {
+  final datasets = <g.Dataset>[
+    g.Dataset(
+      datasetPath: 'mockPath1',
+      options: {'key1': 'value1'},
+      type: g.EmulatorType.EMULATOR_TYPE_KAFKA,
+    ),
+    g.Dataset(
+      datasetPath: 'mockPath2',
+      options: {'key2': 'value2'},
+      type: g.EmulatorType.EMULATOR_TYPE_UNSPECIFIED,
+    ),
+  ];
 
-  Dataset({
-    required this.type,
-    required this.options,
-    required this.datasetPath,
+  group('Dataset extensions test.', () {
+    for (final dataset in datasets) {
+      test('Dataset with type ${dataset.type.name} converts to the same value',
+          () {
+        expect(dataset.model.grpc, dataset);
+      });
+    }
   });
 }

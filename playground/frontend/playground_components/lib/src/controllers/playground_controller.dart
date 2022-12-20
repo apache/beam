@@ -291,8 +291,7 @@ class PlaygroundController with ChangeNotifier {
         code: controller.codeController.fullText,
         sdk: controller.sdk,
         pipelineOptions: parsedPipelineOptions,
-        datasets:
-            selectedExample?.datasets.map((e) => e.toProto()).toList() ?? [],
+        datasets: selectedExample?.datasets ?? [],
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
@@ -415,6 +414,7 @@ class PlaygroundController with ChangeNotifier {
     );
 
     final sharedExample = Example(
+      datasets: controller.selectedExample?.datasets ?? [],
       source: code,
       name: name,
       sdk: controller.sdk,

@@ -16,16 +16,19 @@
  * limitations under the License.
  */
 
-import '../enums/emulator_type.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:playground_components/src/api/v1/api.pbgrpc.dart' as g;
+import 'package:playground_components/src/repositories/emulator_type_grpc_extension.dart';
 
-class Dataset {
-  final EmulatorType? type;
-  final Map<String, String> options;
-  final String datasetPath;
-
-  Dataset({
-    required this.type,
-    required this.options,
-    required this.datasetPath,
+void main() {
+  group('Emulator type extensions test', () {
+    for (final value in g.EmulatorType.values) {
+      test('Emulator type ${value.name} converts to the same value', () {
+        expect(
+          value.model?.grpc ?? g.EmulatorType.EMULATOR_TYPE_UNSPECIFIED,
+          value,
+        );
+      });
+    }
   });
 }

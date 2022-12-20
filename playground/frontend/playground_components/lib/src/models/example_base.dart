@@ -52,6 +52,7 @@ extension ExampleTypeToString on ExampleType {
 class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final Complexity? complexity;
   final int contextLine;
+  final List<Dataset> datasets;
   final String description;
   final bool isMultiFile;
   final String? link;
@@ -62,14 +63,13 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final List<String> tags;
   final ExampleType type;
   final ExampleViewOptions viewOptions;
-  final List<Dataset> datasets;
 
   const ExampleBase({
+    required this.datasets,
     required this.name,
     required this.path,
     required this.sdk,
     required this.type,
-    required this.datasets,
     this.complexity,
     this.contextLine = 1,
     this.description = '',
@@ -90,6 +90,6 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   }
 
   bool get usesEmulatedData => datasets.any(
-    (dataset) => dataset.type != null,
-  );
+        (dataset) => dataset.type != null,
+      );
 }

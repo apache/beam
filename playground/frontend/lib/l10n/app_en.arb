@@ -234,9 +234,5 @@
   "iframeCodeReady": "With this code you can embed Playground to your website.",
   "@iframeCodeReady": {
     "description": "Text that appears when user sees Playground iframe code"
-  },
-  "usesEmulatedData": "Emulated data",
-  "@usesEmulatedData": {
-    "description": "This examples uses emulated data"
   }
 }

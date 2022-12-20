@@ -42,6 +42,7 @@ class ContentExampleLoader extends ExampleLoader {
   @override
   Future<Example> get future async => Example(
         complexity: descriptor.complexity,
+        datasets: [],
         name: descriptor.name ?? 'Untitled Example',
         path: '',
         sdk: descriptor.sdk,

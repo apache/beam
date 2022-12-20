@@ -21,10 +21,10 @@ import 'package:grpc/grpc.dart';
 import '../../api/iis_workaround_channel.dart';
 import '../../api/v1/api.pbgrpc.dart' as grpc;
 import '../../models/category_with_examples.dart';
-import '../../models/dataset.dart';
 import '../../models/example_base.dart';
 import '../../models/sdk.dart';
 import '../complexity_grpc_extension.dart';
+import '../dataset_grpc_extension.dart';
 import '../models/get_default_precompiled_object_request.dart';
 import '../models/get_precompiled_object_code_response.dart';
 import '../models/get_precompiled_object_request.dart';
@@ -336,7 +336,7 @@ class GrpcExampleClient implements ExampleClient {
       isMultiFile: example.multifile,
       link: example.link,
       complexity: example.complexity.model,
-      datasets: example.datasets.map(Dataset.fromProto).toList(),
+      datasets: example.datasets.map((e) => e.model).toList(),
     );
   }
 

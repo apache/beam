@@ -16,16 +16,26 @@
  * limitations under the License.
  */
 
-import '../enums/emulator_type.dart';
+import '../api/v1/api.pbgrpc.dart' as g;
+import '../models/dataset.dart';
+import 'emulator_type_grpc_extension.dart';
 
-class Dataset {
-  final EmulatorType? type;
-  final Map<String, String> options;
-  final String datasetPath;
+extension DatasetExtension on Dataset {
+  g.Dataset get grpc {
+    return g.Dataset(
+      type: type?.grpc ?? g.EmulatorType.EMULATOR_TYPE_UNSPECIFIED,
+      options: options,
+      datasetPath: datasetPath,
+    );
+  }
+}
 
-  Dataset({
-    required this.type,
-    required this.options,
-    required this.datasetPath,
-  });
+extension GrpcDatasetExtension on g.Dataset {
+  Dataset get model {
+    return Dataset(
+      type: type.model,
+      options: options,
+      datasetPath: datasetPath,
+    );
+  }
 }

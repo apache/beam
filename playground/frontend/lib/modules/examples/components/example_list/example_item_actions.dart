@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
-import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
-import 'package:playground/modules/examples/models/popover_state.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../constants/sizes.dart';
+import '../../../../src/assets/assets.gen.dart';
+import '../../models/popover_state.dart';
+import '../description_popover/description_popover_button.dart';
+import '../multifile_popover/multifile_popover_button.dart';
 
 class ExampleItemActions extends StatelessWidget {
   final ExampleBase example;
@@ -41,9 +40,9 @@ class ExampleItemActions extends StatelessWidget {
     return Row(
       children: [
         if (example.isMultiFile) multifilePopover,
+        if (example.usesEmulatedData) const _EmulatedDataIcon(),
         if (example.complexity != null)
           ComplexityWidget(complexity: example.complexity!),
-        if (example.usesEmulatedData) const _EmulatedDataIcon(),
         descriptionPopover,
       ],
     );
@@ -77,16 +76,15 @@ class _EmulatedDataIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
-    return IconButton(
-      iconSize: kIconSizeMd,
-      splashRadius: kIconButtonSplashRadius,
-      icon: SvgPicture.asset(
-        kStreamingIconAsset,
-        color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: Tooltip(
+        message: 'intents.playground.usesEmulatedData'.tr(),
+        child: SvgPicture.asset(
+          Assets.streaming,
+          color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
+        ),
       ),
-      tooltip: appLocale.usesEmulatedData,
-      onPressed: () {},
     );
   }
 }

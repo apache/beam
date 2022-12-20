@@ -348,7 +348,6 @@
   - ImpulseValue
   - InboundTagToNode
   - Include
-  - InferFieldNames
   - Info
   - Infof
   - Infoln
@@ -556,7 +555,6 @@
   - NewI
   - NewImpulse
   - NewIntervalWindow
-  - NewIntervalWindowCoder
   - NewJobServiceClient
   - NewKV
   - NewLegacyArtifactRetrievalServiceClient
@@ -752,7 +750,6 @@
   - SkipK
   - SkipPtr
   - SkipW
-  - SklearnModel
   - Smallest
   - SmallestPerKey
   - Source
@@ -872,7 +869,6 @@
   - UrnToType
   - UseAutomatedJavaExpansionService
   - UseAutomatedPythonExpansionService
-  - UseBatchSize
   - UseStandardSQL
   - UserLabels
   - UserStateCoderID
@@ -889,11 +885,9 @@
   - Warnf
   - Warnln
   - WindowInto
-  - WithArgs
   - WithContext
   - WithContextf
   - WithExpansionAddr
-  - WithExtraPackages
   - WithIndexes
   - WithQueryLocation
   - Wrap
@@ -1753,25 +1747,6 @@ Discard:
   - Up
   properties:
   - UID
-DiscoverSchemaTransformRequest:
-  methods:
-  - Descriptor
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-DiscoverSchemaTransformResponse:
-  methods:
-  - Descriptor
-  - GetError
-  - GetSchemaTransformConfigs
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-  properties:
-  - Error
-  - SchemaTransformConfigs
 DisplayData:
   methods:
   - Descriptor
@@ -2196,7 +2171,6 @@ ExpansionResponse:
   - Transform
 ExpansionServiceClient:
   methods:
-  - DiscoverSchemaTransform
   - Expand
 ExpansionServiceRunner:
   methods:
@@ -2206,7 +2180,6 @@ ExpansionServiceRunner:
   - String
 ExpansionServiceServer:
   methods:
-  - DiscoverSchemaTransform
   - Expand
 ExternalConfigurationPayload:
   methods:
@@ -3607,19 +3580,6 @@ MapTypeValue:
   - String
   properties:
   - Entries
-MapWindows:
-  methods:
-  - Down
-  - FinishBundle
-  - ID
-  - ProcessElement
-  - StartBundle
-  - String
-  - Up
-  properties:
-  - Fn
-  - Out
-  - UID
 MavenPayload:
   methods:
   - Descriptor
@@ -4262,10 +4222,6 @@ PlanSnapshot:
 Port:
   properties:
   - URL
-PredictionResult:
-  properties:
-  - Example
-  - Inference
 PrepareJobRequest:
   methods:
   - Descriptor
@@ -4976,34 +4932,6 @@ SchemaProvider:
   - BuildDecoder
   - BuildEncoder
   - FromLogicalType
-SchemaTransformConfig:
-  methods:
-  - Descriptor
-  - GetConfigSchema
-  - GetInputPcollectionNames
-  - GetOutputPcollectionNames
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-  properties:
-  - ConfigSchema
-  - InputPcollectionNames
-  - OutputPcollectionNames
-SchemaTransformPayload:
-  methods:
-  - Descriptor
-  - GetConfigurationRow
-  - GetConfigurationSchema
-  - GetIdentifier
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-  properties:
-  - ConfigurationRow
-  - ConfigurationSchema
-  - Identifier
 Scope:
   methods:
   - ID
@@ -5210,7 +5138,6 @@ SplitResult:
   - RI
   - RS
   - TId
-  - Unsuccessful
 SplittableDoFn:
   methods:
   - CreateInitialRestrictionFn
@@ -6362,6 +6289,7 @@ TypeMismatchError:
   - Error
   properties:
   - Got
+U: {}
 UnimplementedArtifactRetrievalServiceServer:
   methods:
   - GetArtifact
@@ -6391,7 +6319,6 @@ UnimplementedBeamFnWorkerStatusServer:
   - WorkerStatus
 UnimplementedExpansionServiceServer:
   methods:
-  - DiscoverSchemaTransform
   - Expand
 UnimplementedJobServiceServer:
   methods:
@@ -6455,6 +6382,7 @@ UserFn:
 UserStateAdapter:
   methods:
   - NewStateProvider
+V: {}
 Value:
   methods:
   - Clear
@@ -6466,6 +6394,7 @@ Value:
   - Write
   properties:
   - Key
+W: {}
 WallTimeWatermarkEstimator:
   methods:
   - CurrentWatermark
@@ -6619,3 +6548,6 @@ WriteFilesPayload:
 Writer:
   methods:
   - SaveData
+X: {}
+"Y": {}
+Z: {}
