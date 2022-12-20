@@ -180,7 +180,10 @@ def get_tag(filepath) -> Optional[Tag]:
     )
     yml = yaml.load(embdedded_yaml_content, Loader=yaml.SafeLoader)
     return Tag(
-        line_start=line_start, line_finish=line_finish, **yml[Config.BEAM_PLAYGROUND]
+        filepath=filepath,
+        line_start=line_start,
+        line_finish=line_finish,
+        **yml[Config.BEAM_PLAYGROUND],
     )
 
 

@@ -164,12 +164,12 @@ code line 2
 )
 def test_load_example():
     example = _load_example(
-        "kafka.java", "../../examples/path/kafka.java", SdkEnum.JAVA
+        "kafka.java", "../../examples/MOCK_EXAMPLE/main.java", SdkEnum.JAVA
     )
     assert example == Example(
         sdk=SdkEnum.JAVA,
         type=PRECOMPILED_OBJECT_TYPE_EXAMPLE,
-        filepath="../../examples/path/kafka.java",
+        filepath="../../examples/MOCK_EXAMPLE/main.java",
         code="""
 // license line 1
 // license line 2
@@ -179,9 +179,10 @@ code line 1
 code line 2
 
 """,
-        url_vcs="https://github.com/apache/beam/blob/master/examples/path/kafka.java", # type: ignore
+        url_vcs="https://github.com/apache/beam/blob/master/examples/MOCK_EXAMPLE/main.java",  # type: ignore
         context_line=5,
         tag=Tag(
+            filepath="../../examples/MOCK_EXAMPLE/main.java",
             line_start=4,
             line_finish=27,
             name="KafkaWordCount",
@@ -262,6 +263,7 @@ async def test__update_example_status(
 ):
     example = Example(
         tag=Tag(
+            filepath="../../examples/MOCK_EXAMPLE/main.java",
             line_start=10,
             line_finish=20,
             context_line=100,
@@ -278,7 +280,7 @@ async def test__update_example_status(
         code="code",
         output="output",
         status=STATUS_UNSPECIFIED,
-        url_vcs="https://github.com/link", # type: ignore
+        url_vcs="https://github.com/link",  # type: ignore
     )
 
     mock_grpc_client_run_code.return_value = "pipeline_id"
@@ -390,7 +392,9 @@ def test_validate_example_fields_when_emulator_not_set_but_dataset_set(create_te
         pydantic.ValidationError,
         match="datasets w/o emulators",
     ):
-        create_test_tag(datasets={"dataset_id_1": {"format": "avro", "location": "local"}})
+        create_test_tag(
+            datasets={"dataset_id_1": {"format": "avro", "location": "local"}}
+        )
 
 
 def test_validate_example_fields_when_emulator_type_is_invalid(create_test_tag):
@@ -480,9 +484,10 @@ def test_validate_example_fields_when_dataset_name_is_invalid(create_test_tag):
     ),
 )
 def test_get_tag_with_datasets():
-    tag = get_tag("filepath")
+    tag = get_tag("../../examples/MOCK_EXAMPLE/main.java")
     assert tag == Tag(
         **{
+            "filepath": "../../examples/MOCK_EXAMPLE/main.java",
             "line_start": 2,
             "line_finish": 25,
             "name": "KafkaWordCount",
@@ -501,6 +506,63 @@ def test_get_tag_with_datasets():
             "datasets": {"dataset_id_1": {"location": "local", "format": "json"}},
         },
     )
+
+
+@mock.patch(
+    "builtins.open",
+    mock_open(
+        read_data="""
+
+// beam-playground:
+//   name: MultifileExample
+//   description: Test example with imports
+//   multifile: true
+//   files:
+//     - name: utils.java
+//       context_line: 51
+//     - name: schema.java
+//       context_line: 52
+//   context_line: 55
+//   categories:
+//     - Filtering
+//     - Options
+//     - Quickstart
+//   complexity: MEDIUM
+//   tags:
+//     - filter
+//     - strings
+//     - emulator
+
+"""
+    ),
+)
+def test_get_tag_multifile():
+    tag = get_tag("../../examples/MOCK_EXAMPLE/main.java")
+    assert tag == Tag(
+        **{
+            "filepath": "../../examples/MOCK_EXAMPLE/main.java",
+            "line_start": 2,
+            "line_finish": 21,
+            "name": "MultifileExample",
+            "description": "Test example with imports",
+            "multifile": True,
+            "context_line": 55,
+            "categories": ["Filtering", "Options", "Quickstart"],
+            "complexity": "MEDIUM",
+            "tags": ["filter", "strings", "emulator"],
+            "files": [
+                {
+                    "name": "utils.java",
+                    "context_line": 51,
+                },
+                {
+                    "name": "schema.java",
+                    "context_line": 52,
+                },
+            ],
+        },
+    )
+
 
 @mock.patch("os.path.isfile", return_value=True)
 def test_dataset_path_ok(mock_file_check, create_test_example):

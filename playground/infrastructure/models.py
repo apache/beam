@@ -14,21 +14,16 @@
 # limitations under the License.
 import logging
 import os.path
+import pathlib
 
 from enum import Enum, IntEnum
 from typing import List, Optional, Dict
 from api.v1 import api_pb2
 
-from pydantic import (
-    BaseModel,
-    Extra,
-    Field,
-    validator,
-    root_validator,
-    HttpUrl
-)
+from pydantic import BaseModel, Extra, Field, validator, root_validator, HttpUrl
 
 from config import RepoProps
+
 
 class ComplexityEnum(str, Enum):
     BASIC = "BASIC"
@@ -66,10 +61,17 @@ class Emulator(BaseModel):
     topic: Topic
 
 
+class ImportFile(BaseModel):
+    name: str
+    context_line: str
+
+
 class Tag(BaseModel):
     """
     Tag represents the beam-playground embedded yaml content
     """
+
+    filepath: str = Field(..., min_length=1)
     line_start: int
     line_finish: int
     context_line: int
@@ -84,6 +86,7 @@ class Tag(BaseModel):
     default_example: bool = False
     tags: List[str] = []
     url_notebook: Optional[HttpUrl] = None
+    files: List[ImportFile] = []
 
     class Config:
         supported_categories = []
@@ -113,17 +116,20 @@ class Tag(BaseModel):
             f"Emulator topic {v.topic.id} has undefined dataset {v.topic.source_dataset}"
         )
 
-    @validator('datasets')
+    @validator("datasets")
     def dataset_file_name(cls, datasets):
         for dataset_id, dataset in datasets.items():
             dataset.file_name = f"{dataset_id}.{dataset.format}"
             if dataset.location == DatasetLocation.LOCAL:
-                dataset_path = os.path.join(RepoProps.REPO_DATASETS_PATH, dataset.file_name)
+                dataset_path = os.path.join(
+                    RepoProps.REPO_DATASETS_PATH, dataset.file_name
+                )
                 if not os.path.isfile(dataset_path):
-                    logging.error("File not found at the specified path: %s", dataset_path)
+                    logging.error(
+                        "File not found at the specified path: %s", dataset_path
+                    )
                     raise FileNotFoundError
         return datasets
-
 
     @validator("categories", each_item=True)
     def category_supported(cls, v, values, config, **kwargs):
@@ -131,6 +137,20 @@ class Tag(BaseModel):
             raise ValueError(f"Category {v} not in {config.supported_categories}")
         return v
 
+    @validator("filepath")
+    def check_filepath_exists(cls, v: str):
+        if not os.path.isfile(v):
+            logging.error("Example file not found: %s", v)
+            raise FileNotFoundError(v)
+        return v
+
+    @validator("files", each_item=True)
+    def check_files(cls, v: ImportFile, values):
+        local_path = os.path.join(os.path.dirname(values["filepath"]), v.name)
+        if not os.path.isfile(local_path):
+            logging.error("Import file not found: %s", local_path)
+            raise FileNotFoundError(local_path)
+        return v
 
 
 class SdkEnum(IntEnum):

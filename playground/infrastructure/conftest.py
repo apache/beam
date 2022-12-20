@@ -32,19 +32,25 @@ def supported_categories():
 def mock_dataset_file_name(mocker):
     def _mock_isfile(filepath):
         if filepath in [
+            # mock examples & imports
+            "MOCK_FILEPATH_0",
+            "../../examples/MOCK_EXAMPLE/main.java",
+            "../../examples/MOCK_EXAMPLE/utils.java",
+            "../../examples/MOCK_EXAMPLE/schema.java",
+            # datasets
             "../backend/datasets/dataset_id_1.json",
             "../backend/datasets/dataset_id_1.avro",
         ]:
             return True
         raise FileNotFoundError(filepath)
-    mocker.patch('os.path.isfile', side_effect=_mock_isfile)
+
+    mocker.patch("os.path.isfile", side_effect=_mock_isfile)
 
 
 @pytest.fixture
 def create_test_example(create_test_tag):
     def _create_test_example(
-        with_kafka=False,
-        tag_meta: Optional[Dict[str, Any]] = None, **example_meta
+        with_kafka=False, tag_meta: Optional[Dict[str, Any]] = None, **example_meta
     ) -> Example:
         if tag_meta is None:
             tag_meta = {}
@@ -80,7 +86,10 @@ def create_test_tag():
         if with_kafka:
             meta.update(
                 emulators=[
-                    {"type": "kafka", "topic": {"id": "topic1", "source_dataset": "dataset_id_1"}}
+                    {
+                        "type": "kafka",
+                        "topic": {"id": "topic1", "source_dataset": "dataset_id_1"},
+                    }
                 ],
                 datasets={"dataset_id_1": {"format": "avro", "location": "local"}},
             )
@@ -90,6 +99,7 @@ def create_test_tag():
             else:
                 meta[k] = v
         return Tag(
+            filepath="../../examples/MOCK_EXAMPLE/main.java",
             line_start=10,
             line_finish=20,
             context_line=30,
