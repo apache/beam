@@ -246,7 +246,12 @@ if __name__ == '__main__':
         'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
         'httplib2>=0.8,<0.22.0',
-        'numpy>=1.14.3,<1.23.0',
+        # numpy can have breaking changes in minor versions.
+        # Use a strict upper bound.
+        # 'numpy>=1.14.3,<1.25.0',
+        # Temporary change
+        'numpy>=1.14.3,<1.25.0;python_version<="3.7"',
+        'numpy>=1.24.0,<1.25.0;python_version>"3.7"',
         'objsize>=0.6.1,<0.7.0',
         'pymongo>=3.8.0,<4.0.0',
         'proto-plus>=1.7.1,<2',
