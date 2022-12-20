@@ -41,7 +41,7 @@ void main() {
 
       await wt.tap(find.exampleItemInDropdown(ExampleNames.aggregationMax));
 
-      // There is no animation on changing examples, so the above did not wait
+      // There is no animation on changing examples, so we cannot wait
       // for the example to load.
       // TODO(alexeyinkin): Add animation, https://github.com/apache/beam/issues/24724
       await Future.delayed(_fiveSec);

@@ -21,11 +21,11 @@ import 'package:http/http.dart' as http;
 import 'code.dart';
 
 class Examples {
-  static const repoAndBranch = 'apache/beam/master';
+  static const _repoAndBranch = 'apache/beam/master';
 
   static Future<String> getJavaVisibleText(String path) async {
     final uri =
-    Uri.parse('https://raw.githubusercontent.com/$repoAndBranch$path');
+        Uri.parse('https://raw.githubusercontent.com/$_repoAndBranch$path');
     final response = await http.get(uri);
     final content = response.body;
 

@@ -159,7 +159,7 @@ cd ..
 flutter test
 ```
 
-# Integration Tests
+### Integration Tests
 
 Integration tests currently can be run only on a local development machine.
 Server testing has not been verified yet.
