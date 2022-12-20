@@ -21,29 +21,29 @@ The current GitHub Actions workflows are being tested on multiple operating syst
 On the other hand, we will rely on GitHub-hosted runners for MacOS builds until a straightforward implementation approach comes out.
 
 ## Ubuntu
-Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using Google Kubernetes Engine with the following specifications:
+Ubuntu Self-hosted runners are stored in Container Registry and implemented using Google Kubernetes Engine with the following specifications:
 
 #### Cluster
 * Cluster: [gh-actions-linux-runners](https://console.cloud.google.com/kubernetes/clusters/details/us-central1-a/gh-actions-linux-runners/details?project=apache-beam-testing)
-* Image: [linux-github-actions-runner](https://console.cloud.google.com/artifacts/docker/apache-beam-testing/us-central1/beam-github-actions/linux-github-actions-runner?project=apache-beam-testing)
+* Image: [linux-github-actions-runner](https://console.cloud.google.com/gcr/images/apache-beam-testing/global/ubuntu-runners-self-hosted?project=apache-beam-testing)
 
 #### Pool
-* Number of nodes: 5
+* Number of nodes: 3
 * Cluster Autoscaler: ON
-    * Minimum number of nodes: 5
+    * Minimum number of nodes: 3
     * Maximum number of nodes: 10
 
 #### Node
-* Machine Type: e2-custom-6-18432
+* Machine Type: e2-standard-16
 * Disk Size: 100 GB
-* CPU: 6 vCPUs
-* Memory : 18 GB
+* CPU: 16 vCPUs
+* Memory : 64 GB
 
 #### Pod
 ##### Container 1: gh-actions-runner
 * Image: $LOCAL_IMAGE_NAME LOCATION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE:latest
-* CPU: 2
-* Memory: 1028 Mi
+* CPU: 1.2vCPU - 4vCPU 
+* Memory: 4Gi - 20 Gi
 * Volumes
     * gcloud-key
     * docker-certs-client
@@ -68,10 +68,10 @@ Ubuntu Self-hosted runners are stored in Artifact Registry and implemented using
 
 #### AutoScaling
 * Horizontal Pod Autoscaling
-    * 5-10 nodes (From Pool Cluster Autoscaler)
+    * 3-10 nodes (From Pool Cluster Autoscaler)
     * HorizontalPodAutoscaler
-        * Min replicas: 10
-        * Max replicas: 20
+        * Min replicas: 40
+        * Max replicas: 60
         * CPU utilization: 70%
 * Vertical Pod Autoscaling
     * updateMode: "Auto"
@@ -82,14 +82,14 @@ Windows Virtual machines have the following specifications
 
 #### VM specifications
 * Instance Template: windows_github_actions_runner
-* Machine Type: n2-standard-2
+* Machine Type: e2-standard-2
 * Disk Size: 70 GB
 * Disk Image: [disk-image-windows-runner](https://console.cloud.google.com/compute/imagesDetail/projects/apache-beam-testing/global/images/disk-image-windows-runner?project=apache-beam-testing)
 * CPU: 2 vCPUs
 * Memory : 8 GB
 
 #### Instance group settings
-* Region: us-west1 (multizone)
+* Region: us-central1-a (multizone)
 * Scale-out metric: 70% of CPU Usage.
 * Cooldown period: 300s
 
