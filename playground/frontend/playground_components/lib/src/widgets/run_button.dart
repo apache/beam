@@ -22,7 +22,7 @@ import 'package:flutter/material.dart';
 import '../constants/sizes.dart';
 import '../controllers/playground_controller.dart';
 import '../theme/theme.dart';
-import 'periodic_rebuilder.dart';
+import 'periodic_builder.dart';
 import 'shortcut_tooltip.dart';
 
 const kMsToSec = 1000;
@@ -34,14 +34,14 @@ class RunButton extends StatelessWidget {
   final PlaygroundController playgroundController;
   final VoidCallback runCode;
   final VoidCallback cancelRun;
-  final bool disabled;
+  final bool isEnabled;
 
   const RunButton({
     super.key,
     required this.playgroundController,
     required this.runCode,
     required this.cancelRun,
-    this.disabled = false,
+    this.isEnabled = false,
   });
 
   @override
@@ -73,8 +73,8 @@ class RunButton extends StatelessWidget {
                     )
                   : const Icon(Icons.play_arrow),
               label: isRunning
-                  ? PeriodicRebuilderWidget(
-                      rebuildFrequencyMls: 1,
+                  ? PeriodicBuilderWidget(
+                      interval: const Duration(milliseconds: 1),
                       builder: () {
                         return _ButtonText(
                           isRunning: isRunning,
@@ -86,7 +86,7 @@ class RunButton extends StatelessWidget {
                       isRunning: isRunning,
                       runStartDate: runStartDate,
                     ),
-              onPressed: _onPressHandler(),
+              onPressed: isEnabled ? _onPressed : null,
             ),
           ),
         );
@@ -94,10 +94,7 @@ class RunButton extends StatelessWidget {
     );
   }
 
-  VoidCallback? _onPressHandler() {
-    if (disabled) {
-      return null;
-    }
+  VoidCallback _onPressed() {
     return !playgroundController.codeRunner.isCodeRunning ? runCode : cancelRun;
   }
 }

@@ -45,23 +45,20 @@ class PlaygroundController with ChangeNotifier {
   final ExamplesLoader examplesLoader;
 
   late final CodeRunner codeRunner;
-  final CodeRepository? _codeRepository;
 
   final _snippetEditingControllers = <Sdk, SnippetEditingController>{};
 
   Sdk? _sdk;
 
-  // TODO(alexeyinkin): Extract along with run status, https://github.com/apache/beam/issues/23248
-
   PlaygroundController({
     required this.exampleCache,
     required this.examplesLoader,
     CodeRepository? codeRepository,
-  }) : _codeRepository = codeRepository {
+  }) {
     examplesLoader.setPlaygroundController(this);
 
     codeRunner = CodeRunner(
-      codeRepository: _codeRepository,
+      codeRepository: codeRepository,
       snippetEditingController: () => snippetEditingController!,
     )..addListener(notifyListeners);
   }

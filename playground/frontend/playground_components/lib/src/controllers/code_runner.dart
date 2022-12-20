@@ -27,21 +27,23 @@ import 'snippet_editing_controller.dart';
 
 class CodeRunner extends ChangeNotifier {
   final CodeRepository? _codeRepository;
-  final ValueGetter<SnippetEditingController> _snippetEditingController;
+  final ValueGetter<SnippetEditingController> _snippetEditingControllerGetter;
+  SnippetEditingController? snippetEditingController;
 
   CodeRunner({
     required ValueGetter<SnippetEditingController> snippetEditingController,
     CodeRepository? codeRepository,
   })  : _codeRepository = codeRepository,
-        _snippetEditingController = snippetEditingController;
+        _snippetEditingControllerGetter = snippetEditingController;
 
   RunCodeResult? _result;
   StreamSubscription<RunCodeResult>? _runSubscription;
   String outputResult = '';
+  // TODO(nausharipov): Move CodeRunner.outputType into a view https://github.com/apache/beam/issues/24691
   OutputType selectedOutputFilterType = OutputType.all;
   DateTime? _runStartDate;
 
-  String get pipelineOptions => _snippetEditingController().pipelineOptions;
+  String? get pipelineOptions => snippetEditingController?.pipelineOptions;
   RunCodeResult? get result => _result;
   DateTime? get runStartDate => _runStartDate;
   bool get isCodeRunning => !(_result?.isFinished ?? true);
@@ -54,9 +56,10 @@ class CodeRunner extends ChangeNotifier {
   void runCode({void Function()? onFinish}) {
     _runStartDate = DateTime.now();
     notifyListeners();
+    snippetEditingController = _snippetEditingControllerGetter();
 
     final parsedPipelineOptions =
-        parsePipelineOptions(_snippetEditingController().pipelineOptions);
+        parsePipelineOptions(snippetEditingController!.pipelineOptions);
     if (parsedPipelineOptions == null) {
       _result = const RunCodeResult(
         status: RunCodeStatus.compileError,
@@ -66,13 +69,13 @@ class CodeRunner extends ChangeNotifier {
       return;
     }
 
-    if (!_snippetEditingController().isChanged &&
-        _snippetEditingController().selectedExample?.outputs != null) {
+    if (!snippetEditingController!.isChanged &&
+        snippetEditingController!.selectedExample?.outputs != null) {
       unawaited(_showPrecompiledResult());
     } else {
       final request = RunCodeRequest(
-        code: _snippetEditingController().codeController.fullText,
-        sdk: _snippetEditingController().sdk,
+        code: snippetEditingController!.codeController.fullText,
+        sdk: snippetEditingController!.sdk,
         pipelineOptions: parsedPipelineOptions,
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
@@ -81,6 +84,7 @@ class CodeRunner extends ChangeNotifier {
 
         if (event.isFinished && onFinish != null) {
           onFinish();
+          snippetEditingController = null;
         }
       });
       notifyListeners();
@@ -123,7 +127,7 @@ class CodeRunner extends ChangeNotifier {
   }
 
   void reset() {
-    _snippetEditingController().reset();
+    _snippetEditingControllerGetter().reset();
     outputResult = '';
     notifyListeners();
   }
@@ -140,6 +144,7 @@ class CodeRunner extends ChangeNotifier {
   }
 
   Future<void> cancelRun() async {
+    snippetEditingController = null;
     await _runSubscription?.cancel();
     final pipelineUuid = result?.pipelineUuid ?? '';
 
@@ -164,7 +169,7 @@ class CodeRunner extends ChangeNotifier {
     _result = const RunCodeResult(
       status: RunCodeStatus.preparation,
     );
-    final selectedExample = _snippetEditingController().selectedExample!;
+    final selectedExample = _snippetEditingControllerGetter().selectedExample!;
 
     notifyListeners();
     // add a little delay to improve user experience

@@ -42,17 +42,18 @@ class RunOrCancelButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return RunButton(
       playgroundController: playgroundController,
-      disabled: playgroundController.selectedExample?.isMultiFile ?? false,
+      isEnabled: playgroundController.selectedExample?.isMultiFile ?? false,
       cancelRun: () async {
         beforeCancel?.call();
-        await playgroundController.codeRunner.cancelRun().catchError(
-              (_) => NotificationManager.showError(
-                context,
-                'widgets.runOrCancelButton.notificationTitles.runCode'.tr(),
-                'widgets.runOrCancelButton.notificationTitles.cancelExecution'
-                    .tr(),
-              ),
-            );
+        try {
+          await playgroundController.codeRunner.cancelRun();
+        } on Exception catch (_) {
+          NotificationManager.showError(
+            context,
+            'widgets.runOrCancelButton.notificationTitles.runCode'.tr(),
+            'widgets.runOrCancelButton.notificationTitles.cancelExecution'.tr(),
+          );
+        }
       },
       runCode: () {
         beforeRun?.call();

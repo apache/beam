@@ -2,29 +2,28 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-class PeriodicRebuilderWidget extends StatefulWidget {
-  final int rebuildFrequencyMls;
-  final Widget Function() builder;
+class PeriodicBuilderWidget extends StatefulWidget {
+  final Duration interval;
+  final ValueGetter<Widget> builder;
 
-  const PeriodicRebuilderWidget({
+  const PeriodicBuilderWidget({
     super.key,
-    required this.rebuildFrequencyMls,
+    required this.interval,
     required this.builder,
   });
 
   @override
-  State<PeriodicRebuilderWidget> createState() =>
-      _PeriodicRebuilderWidgetState();
+  State<PeriodicBuilderWidget> createState() => _PeriodicBuilderWidgetState();
 }
 
-class _PeriodicRebuilderWidgetState extends State<PeriodicRebuilderWidget> {
+class _PeriodicBuilderWidgetState extends State<PeriodicBuilderWidget> {
   late Timer _timer;
 
   @override
   void initState() {
     super.initState();
     _timer = Timer.periodic(
-      Duration(milliseconds: widget.rebuildFrequencyMls),
+      widget.interval,
       (_) {
         setState(() {});
       },

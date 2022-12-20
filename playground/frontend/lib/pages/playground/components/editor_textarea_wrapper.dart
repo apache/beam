@@ -103,6 +103,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
   }
 
   void _handleError(BuildContext context, PlaygroundController controller) {
+    // TODO(nausharipov): Remove NotificationManager https://github.com/apache/beam/issues/24690
     NotificationManager.showError(
       context,
       AppLocalizations.of(context)!.runCode,
