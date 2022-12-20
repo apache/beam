@@ -52,15 +52,16 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Install gh cli
+      - name: Install hub
         shell: bash
         run: |
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-          && sudo apt update \
-          && sudo apt install gh -y
-          gh --version
+          HUB_VERSION=2.5.0
+          HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
+          wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
+          tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
+          sudo ./${HUB_ARTIFACTS_NAME}/install
+          echo "eval "$(hub alias -s)"" >> ~/.bashrc
+          rm -rf ${HUB_ARTIFACTS_NAME}*
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
@@ -74,7 +75,7 @@ jobs:
           mkdir -p ${{ env.JAVA_DOC }}
           mkdir -p ${{ env.WEBSITE_REPO }}
           cd $GITHUB_WORKSPACE
-          RELEASE_COMMIT="$(git rev-list --tags 'v${{github.event.inputs.RELEASE}}-RC${{ github.event.inputs.RC_NO }}' --max-count=1)"
+          RELEASE_COMMIT="$(git rev-list --tags 'v${{github.event.inputs.RELEASE}}-RC${{github.event.inputs.RC_NO}}' --max-count=1)"
           echo "RELEASE_COMMIT=${RELEASE_COMMIT}" >> $GITHUB_ENV
       - name: Set Java Version
         uses: actions/setup-java@v3
@@ -164,7 +165,7 @@ jobs:
           GITHUB_SERVER="github.com"
           ssh-keyscan -H "$GITHUB_SERVER" > "$SSH_KNOWN_HOSTS_FILE"
           export GIT_SSH_COMMAND="ssh -i "$DEPLOY_KEY_FILE" -o UserKnownHostsFile=$SSH_KNOWN_HOSTS_FILE"
-          GIT_CMD_REPOSITORY="https://${{env.API_GITHUB_TOKEN}}@$GITHUB_SERVER/MarcoRob/${{env.WEBSITE_ROOT_DIR}}.git"
+          GIT_CMD_REPOSITORY="https://${{env.SSH_DEPLOY_KEY}}@$GITHUB_SERVER/MarcoRob/${{env.WEBSITE_ROOT_DIR}}.git"
           echo ====== Change to beam-site repository and push changes ======
           cd ~/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}/${{ env.WEBSITE_ROOT_DIR }}
           git config user.name $GITHUB_ACTOR
@@ -173,3 +174,8 @@ jobs:
           git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${{ env.RELEASE_COMMIT }}."
           git push -f $GIT_CMD_REPOSITORY update_release_${{ github.event.inputs.RELEASE }}
           echo ======== Release Docs pushed into update_release_${{ github.event.inputs.RELEASE }} branch =======
+    - name: Pull Request in beam-site repository
+      run: |
+        hub pull-request -m "Publish ${{env.RELEASE}} release" -h MarcoRob:updates_release_${{env.RELEASE}} -b MarcoRob:release-docs \
+             || echo "Pull request creation did not succeed. If you created the website PR earlier it may have been updated via force-push."
+        echo "======Finished v${RELEASE}-RC${RC_NUM} creation======="
