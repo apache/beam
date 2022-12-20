@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -275,7 +274,7 @@ public class CsvIO {
      * if available followed by the {@link #getHeader()}.
      */
     @Override
-    public void open(@NonNull WritableByteChannel channel) throws IOException {
+    public void open(WritableByteChannel channel) throws IOException {
       writer =
           new PrintWriter(
               new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
