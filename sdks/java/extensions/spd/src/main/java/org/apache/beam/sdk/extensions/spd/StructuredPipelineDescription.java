@@ -123,7 +123,9 @@ public class StructuredPipelineDescription {
   public Table getTable(@Nullable String packageName, String fullTableName) throws Exception {
     // If table already exists, return it
     Table t = null;
-    if (packageName == null || "".equals(packageName)) {
+
+    // If a package name has been specified try to get it from a subprovider
+    if (packageName != null && !"".equals(packageName)) {
       t = metaTableProvider.getSubProvider(packageName).getTable(fullTableName);
     }
     if (t != null) {
