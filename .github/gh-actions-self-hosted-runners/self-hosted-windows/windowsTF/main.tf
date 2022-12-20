@@ -3,7 +3,7 @@
 provider "google" {
   project = var.project
   region  = var.region
-  #zone    = var.zone
+  zone    = var.zone
 }
 # Instance template for the Managed Instance Group
 resource "google_compute_instance_template" "windows-github-actions-runner" {
