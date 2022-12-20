@@ -22,7 +22,6 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.yaml import yaml_transform
-from apache_beam.yaml import yaml_provider
 
 
 def run(argv=None):

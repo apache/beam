@@ -16,10 +16,8 @@
 #
 
 import collections
-import json
 import logging
 import re
-import sys
 import uuid
 
 from typing import Mapping
@@ -68,14 +66,14 @@ class SafeLineLoader(SafeLoader):
       return str, (str(self), )
 
   def construct_scalar(self, node):
-    value = super(SafeLineLoader, self).construct_scalar(node)
+    value = super().construct_scalar(node)
     if isinstance(value, str):
       value = SafeLineLoader.TaggedString(value)
       value._line_ = node.start_mark.line + 1
     return value
 
   def construct_mapping(self, node, deep=False):
-    mapping = super(SafeLineLoader, self).construct_mapping(node, deep=deep)
+    mapping = super().construct_mapping(node, deep=deep)
     mapping['__line__'] = node.start_mark.line + 1
     mapping['__uuid__'] = str(uuid.uuid4())
     return mapping
@@ -94,8 +92,6 @@ class SafeLineLoader(SafeLoader):
       return str(spec)
     else:
       return spec
-
-  #    return {key: value for key, value in m.items() if not key.startswith('__')}
 
   @staticmethod
   def get_line(obj):
@@ -154,12 +150,12 @@ class Scope(object):
       candidates = self._uuid_by_name[transform_name]
       if not candidates:
         raise ValueError(
-            f'Unknown transform at line {SafeLineLoader.get_line(transform_name)}: '
-            + transform_name)
+            f'Unknown transform at line '
+            f'{SafeLineLoader.get_line(transform_name)}: {transform_name}')
       elif len(candidates) > 1:
         raise ValueError(
-            f'Ambiguous transform at line {SafeLineLoader.get_line(transform_name)}: '
-            + transform_name)
+            f'Ambiguous transform at line '
+            f'{SafeLineLoader.get_line(transform_name)}: {transform_name}')
       else:
         transform_id = only_element(candidates)
     return self.compute_outputs(transform_id)
@@ -199,13 +195,14 @@ class Scope(object):
           if key not in ('type', 'name', 'input', 'output')
       }
     try:
+      # pylint: disable=undefined-loop-variable
       return provider.create_transform(
           spec['type'], SafeLineLoader.strip_metadata(args))
     except Exception as exn:
       if isinstance(exn, TypeError):
         # Create a slightly more generic error message for argument errors.
         msg = str(exn).replace('positional', '').replace('keyword', '')
-        msg = re.sub('\S+lambda\S+', '', msg)
+        msg = re.sub(r'\S+lambda\S+', '', msg)
         msg = re.sub('  +', ' ', msg).strip()
       else:
         msg = str(exn)
@@ -278,8 +275,8 @@ def expand_leaf_transform(spec, scope):
     return {'out': outputs}
   else:
     raise ValueError(
-        f'Transform {identify_object(spec)} returned an unexpected type {type(outputs)}'
-    )
+        f'Transform {identify_object(spec)} returned an unexpected type '
+        f'{type(outputs)}')
 
 
 def expand_composite_transform(spec, scope):
@@ -404,7 +401,7 @@ def extract_name(spec):
 
 
 class YamlTransform(beam.PTransform):
-  def __init__(self, spec, providers={}):
+  def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
     self._spec = spec

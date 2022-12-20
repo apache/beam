@@ -32,7 +32,6 @@ import apache_beam as beam
 import apache_beam.io
 import apache_beam.dataframe.io
 import apache_beam.transforms.util
-from apache_beam.internal import pickler
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
 from apache_beam.typehints import schemas
@@ -133,15 +132,17 @@ class ExternalProvider(Provider):
 
 
 class RemoteProvider(ExternalProvider):
-  def __init__(self, urns, address):
-    super().__init__(urns, address)
+  _is_available = None
 
   def available(self):
-    try:
-      with ExpansionService.service(self._service):
-        return True
-    except:
-      return False
+    if self._is_available is None:
+      try:
+        with external.ExternalTransform.service(self._service) as service:
+          service.ready(1)
+          self._is_available = True
+      except Exception:
+        self._is_available = False
+    return self._is_available
 
 
 class ExternalJavaProvider(ExternalProvider):
@@ -149,6 +150,7 @@ class ExternalJavaProvider(ExternalProvider):
     super().__init__(urns, external.JavaJarExpansionService(jar))
 
   def available(self):
+    # pylint: disable=subprocess-run-check
     return subprocess.run(['which', 'java'],
                           capture_output=True).returncode == 0
 

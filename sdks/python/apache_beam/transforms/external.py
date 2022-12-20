@@ -777,6 +777,9 @@ class ExpansionAndArtifactRetrievalStub(
     return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
         self._channel, **self._kwargs)
 
+  def ready(self, timeout_sec):
+    grpc.channel_ready_future(self._channel).result(timeout=timeout_sec)
+
 
 class JavaJarExpansionService(object):
   """An expansion service based on an Java Jar file.
