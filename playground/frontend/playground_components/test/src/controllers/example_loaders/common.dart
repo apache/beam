@@ -46,7 +46,6 @@ class TestExampleLoader extends ExampleLoader {
       : example = descriptor.sdk == null
             ? null
             : Example(
-                datasets: [],
                 name: descriptor.sdk!.id,
                 path: descriptor.sdk!.id,
                 sdk: descriptor.sdk!,

@@ -70,7 +70,6 @@ class Example extends ExampleBase {
 
   const Example.empty(Sdk sdk)
       : this(
-          datasets: const [],
           name: 'Untitled Example',
           path: '',
           sdk: sdk,
