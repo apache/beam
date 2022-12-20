@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.teleport.metadata.util.MetadataUtils;
 import java.io.IOException;
 import javax.annotation.Nullable;
 
@@ -91,7 +92,7 @@ public final class TestProperties {
   }
 
   public static String artifactBucket() {
-    return getProperty(ARTIFACT_BUCKET_KEY, Type.PROPERTY, true);
+    return MetadataUtils.bucketNameOnly(getProperty(ARTIFACT_BUCKET_KEY, Type.PROPERTY, true));
   }
 
   public static String exportDataset() {
@@ -123,7 +124,7 @@ public final class TestProperties {
   }
 
   public static String stageBucket() {
-    return getProperty(STAGE_BUCKET, Type.PROPERTY, false);
+    return MetadataUtils.bucketNameOnly(getProperty(STAGE_BUCKET, Type.PROPERTY, false));
   }
 
   public static String hostIp() {
