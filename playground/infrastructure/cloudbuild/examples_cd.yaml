@@ -28,9 +28,7 @@ steps:
       - 'DNS_NAME=${_DNS_NAME}'
       - 'PROJECT_ID=$PROJECT_ID'
 
-logsBucket: 'gs://state-bucket-ex1'
 options:
-  machineType: 'E2_HIGHCPU_32'
-  logging: GCS_ONLY
+  logging: CLOUD_LOGGING_ONLY
 
 timeout: 1800s
