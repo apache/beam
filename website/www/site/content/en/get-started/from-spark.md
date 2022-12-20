@@ -332,7 +332,7 @@ with beam.Pipeline() as pipeline:
 * Learn how to read from and write to files in the [_Pipeline I/O_ section of the _Programming guide_](/documentation/programming-guide/#pipeline-io)
 * Walk through additional WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Dive in to some of our favorite [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 * If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide](/contribute).
 
