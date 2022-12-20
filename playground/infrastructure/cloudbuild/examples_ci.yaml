@@ -48,8 +48,8 @@ substitutions:
   _BEAM_ROOT_DIR: './'
   _SDK_CONFIG: 'playground/sdks.yaml'
   _BEAM_EXAMPLE_CATEGORIES: 'playground/categories.yaml'
-  _BEAM_CONCURRENCY: 4
-  _BEAM_VERSION: 2.43.0
+  _BEAM_CONCURRENCY: '4'
+  _BEAM_VERSION: '2.43.0'
   _SDKS: 'java python go'
   _ALLOWLIST: 'playground/infrastructure playground/backend'
 
