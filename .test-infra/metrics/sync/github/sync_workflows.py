@@ -13,7 +13,7 @@ This module queries GitHub to collect Beam-related workflows metrics and put the
 PostgreSQL.
 This Script is running every 3 hours in a cloud function in apache-beam-testing project.
 This cloud function is triggered by a pubsub topic.
-You can found the cloud function in the next link 
+You can find the cloud function in the next link 
 https://console.cloud.google.com/functions/details/us-central1/github_actions_workflows_dashboard_sync?env=gen1&project=apache-beam-testing
 Pub sub topic : https://console.cloud.google.com/cloudpubsub/topic/detail/github_actions_workflows_sync?project=apache-beam-testing
 Cron Job : https://console.cloud.google.com/cloudscheduler/jobs/edit/us-central1/github_actions_workflows_dashboard_sync?project=apache-beam-testing
@@ -112,20 +112,34 @@ def getToken():
         ).token
     return token
 
+def retriesRequest(request):
+    requestSucceeded = False
+    retryFactor = 1
+    while not requestSucceeded:
+        retryTime = 60 * retryFactor
+        if request.status_code != 200:
+            print('Failed to get the request with code {}'.format(request.status_code))
+            time.sleep(retryTime)
+            retryFactor = retryFactor + retryFactor
+            if retryFactor * 60 >= 3600:
+                print("Error: The request take more than an hour")
+                sys.exit(1)
+        else:
+            requestSucceeded = True
 def fetchWorkflowData():
     '''Return a json with all the workflows and the latests
     ten executions'''
     completed = False
     page = 1 
     workflows = []
-    retryFactor = 1
     try:
         while not completed:
             url = "https://api.github.com/repos/apache/beam/actions/workflows"
             queryOptions = { 'branch' : 'master', 'page': page, 'per_page' : GH_NUMBER_OF_WORKFLOWS }
             response = requests.get(url = url, params = queryOptions)
+            retriesRequest(response)
             jsonResponse = response.json()
-            if jsonResponse['total_count'] >= 100:
+            if jsonResponse['total_count'] >= GH_NUMBER_OF_WORKFLOWS:
                 page = page + 1
                 workflowsPage = jsonResponse['workflows']
                 workflows.append(workflowsPage)
@@ -145,19 +159,10 @@ def fetchWorkflowData():
             url = "https://api.github.com/repos/apache/beam/actions/workflows/"
             queryOptions = { 'branch' : 'master', 'per_page' : GH_WORKFLOWS_NUMBER_EXECUTIONS,
                         'page' :'1', 'exclude_pull_request':True }
-            #headers = {'Authorization': 'Bearer {}'.format(getToken())}
-        for workflow in WORKFLOWS_OBJECT_LIST:
-            requestSucceeded = False
-            while not requestSucceeded:
-                retryTime = 60 * retryFactor
-                response = requests.get(url = "{}{}/runs".format(url,workflow.id),
-                                params=queryOptions)
-                if response.status_code != 200:
-                    print('Failed to get the request with code {}'.format(response.status_code))
-                    time.sleep(retryTime)
-                    retryFactor = retryFactor + retryFactor
-                else:
-                    requestSucceeded = True
+        for workflow in WORKFLOWS_OBJECT_LIST:        
+            response = requests.get(url = "{}{}/runs".format(url,workflow.id),
+                        params=queryOptions)
+            retriesRequest(response)
             responseJson = response.json()
             workflowsRuns = responseJson['workflow_runs']
             for  item in workflowsRuns:
