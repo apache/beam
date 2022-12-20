@@ -65,13 +65,13 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final ExampleViewOptions viewOptions;
 
   const ExampleBase({
-    required this.datasets,
     required this.name,
     required this.path,
     required this.sdk,
     required this.type,
     this.complexity,
     this.contextLine = 1,
+    this.datasets = const [],
     this.description = '',
     this.isMultiFile = false,
     this.link,

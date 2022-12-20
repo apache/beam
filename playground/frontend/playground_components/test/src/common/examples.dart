@@ -47,7 +47,6 @@ const exampleMock2 = Example(
 
 const exampleWithoutSourceMock = ExampleBase(
   complexity: Complexity.basic,
-  datasets: [],
   description: 'description',
   name: 'Test example',
   path: 'SDK_PYTHON/Category/Name',
