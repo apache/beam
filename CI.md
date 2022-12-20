@@ -127,6 +127,11 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 
 ### Release Preparation and Validation Workflows
 
+#### Start Snapshot Build - [start_snapshot_build.yml](.github/workflows/start_snapshot_build.yml)
+| Job                   | Description                                                             | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------------|-------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Start Snapshot Build  | Creates PR against apache:master and triggers a job to build a snapshot | No               | No                    | No            | No                       |
+
 #### Choose RC Commit - [choose_rc_commit.yml](.github/workflows/choose_rc_commit.yml)
 
 | Job              | Description                                                                                         | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |

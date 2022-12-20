@@ -13,56 +13,86 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Module contains the helper for CI step.
-
-It is used to find and verify correctness if beam examples/katas/tests.
-"""
-
+import asyncio
 import logging
 from typing import List
 
-from api.v1.api_pb2 import STATUS_COMPILE_ERROR, STATUS_ERROR, STATUS_RUN_ERROR, \
-    STATUS_RUN_TIMEOUT, \
-    STATUS_VALIDATION_ERROR, STATUS_PREPARATION_ERROR
-from config import Config, Origin
+from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA
+from api.v1.api_pb2 import (
+    STATUS_COMPILE_ERROR,
+    STATUS_ERROR,
+    STATUS_RUN_ERROR,
+    STATUS_RUN_TIMEOUT,
+    STATUS_VALIDATION_ERROR,
+    STATUS_PREPARATION_ERROR,
+)
+from config import Origin, Config
 from grpc_client import GRPCClient
-from helper import Example, get_statuses
-from repository import set_dataset_path_for_examples
+from models import Example, SdkEnum
+from helper import get_statuses
 
 
 class VerifyException(Exception):
-    def __init__(self, error: str):
-        super().__init__()
-        self.msg = error
-
-    def __str__(self):
-        return self.msg
+    pass
 
 
-class CIHelper:
-    """
-    Helper for CI step.
+class Verifier:
+    """Run examples and verify the results, enrich examples with produced artifacts"""
 
-    It is used to find and verify correctness if beam examples/katas/tests.
-    """
+    _sdk: SdkEnum
+    _origin: Origin
 
-    async def verify_examples(self, examples: List[Example], origin: Origin):
+    def __init__(self, sdk: SdkEnum, origin: Origin):
+        self._sdk = sdk
+        self._origin = origin
+
+    def run_verify(self, examples: List[Example]):
         """
-        Verify correctness of beam examples.
+        Save beam examples and their output in the Google Cloud Datastore.
 
-        1. Find all beam examples starting from directory os.getenv("BEAM_ROOT_DIR")
-        2. Group code of examples by their SDK.
-        3. Run processing for single-file examples to verify examples' code.
         """
-        single_file_examples = list(filter(
-            lambda example: example.tag.multifile is False, examples))
-        set_dataset_path_for_examples(single_file_examples)
+        logging.info("Start of executing Playground examples ...")
+        asyncio.run(self._run_and_verify(examples))
+        logging.info("Finish of executing Playground examples")
+
+    async def _run_and_verify(self, examples: List[Example]):
+        """
+        Run beam examples and keep their output.
+
+        Call the backend to start code processing for the examples.
+        Then receive code output.
+
+        Args:
+            examples: beam examples that should be run
+        """
+
+        async def _populate_fields(example: Example):
+            try:
+                example.compile_output = await client.get_compile_output(
+                    example.pipeline_id
+                )
+                example.output = await client.get_run_output(example.pipeline_id)
+                example.logs = await client.get_log(example.pipeline_id)
+                if example.sdk in [SDK_JAVA, SDK_PYTHON]:
+                    example.graph = await client.get_graph(
+                        example.pipeline_id, example.filepath
+                    )
+            except Exception as e:
+                logging.error(example.url_vcs)
+                logging.error(example.compile_output)
+                raise RuntimeError(f"error in {example.tag.name}") from e
+
         async with GRPCClient() as client:
-            await get_statuses(client, single_file_examples)
-            await self._verify_examples(client, single_file_examples, origin)
+            await get_statuses(
+                client, examples
+            )  # run examples code and wait until all are executed
+            tasks = [_populate_fields(example) for example in examples]
+            await asyncio.gather(*tasks)
+            await self._verify_examples(client, examples, self._origin)
 
-    async def _verify_examples(self, client: any, examples: List[Example], origin: Origin):
+    async def _verify_examples(
+        self, client: GRPCClient, examples: List[Example], origin: Origin
+    ):
         """
         Verify statuses of beam examples and the number of found default examples.
 
@@ -93,34 +123,40 @@ class CIHelper:
                 logging.error("Example: %s has preparation error", example.filepath)
             elif example.status == STATUS_ERROR:
                 logging.error(
-                    "Example: %s has error during setup run builder", example.filepath)
+                    "Example: %s has error during setup run builder", example.filepath
+                )
             elif example.status == STATUS_RUN_TIMEOUT:
                 logging.error("Example: %s failed because of timeout", example.filepath)
             elif example.status == STATUS_COMPILE_ERROR:
                 err = await client.get_compile_output(example.pipeline_id)
                 logging.error(
-                    "Example: %s has compilation error: %s", example.filepath, err)
+                    "Example: %s has compilation error: %s", example.filepath, err
+                )
             elif example.status == STATUS_RUN_ERROR:
                 err = await client.get_run_error(example.pipeline_id)
                 logging.error(
-                    "Example: %s has execution error: %s", example.filepath, err)
+                    "Example: %s has execution error: %s", example.filepath, err
+                )
             verify_status_failed = True
 
         logging.info(
             "Number of verified Playground examples: %s / %s",
             count_of_verified,
-            len(examples))
+            len(examples),
+        )
         logging.info(
             "Number of Playground examples with some error: %s / %s",
             len(examples) - count_of_verified,
-            len(examples))
+            len(examples),
+        )
 
         if origin == Origin.PG_EXAMPLES:
             if len(default_examples) == 0:
                 logging.error("Default example not found")
                 raise VerifyException(
                     "CI step failed due to finding an incorrect number "
-                    "of default examples. Default example not found")
+                    "of default examples. Default example not found"
+                )
             if len(default_examples) > 1:
                 logging.error("Many default examples found")
                 logging.error("Examples where the default_example field is true:")
@@ -128,7 +164,8 @@ class CIHelper:
                     logging.error(example.filepath)
                 raise VerifyException(
                     "CI step failed due to finding an incorrect number "
-                    "of default examples. Many default examples found")
+                    "of default examples. Many default examples found"
+                )
 
         if verify_status_failed:
             raise VerifyException("CI step failed due to errors in the examples")
