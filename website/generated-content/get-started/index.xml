@@ -945,7 +945,7 @@ between instances are.&lt;/em>&lt;/p>
 &lt;h2 id="next-steps">Next Steps&lt;/h2>
 &lt;ul>
 &lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
-&lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite &lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;/ul>
 &lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Beam Overview</title><link>/get-started/beam-overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/beam-overview/</guid><description>
@@ -1112,7 +1112,7 @@ $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; \
 and look through the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">godoc&lt;/a>.&lt;/li>
 &lt;li>Walk through these WordCount examples in the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>.&lt;/li>
 &lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
-&lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite &lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;/ul>
 &lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Beam Quickstart for Java</title><link>/get-started/quickstart/java/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/quickstart/java/</guid><description>
@@ -1292,7 +1292,7 @@ and look through the
 &lt;li>Take a self-paced tour through our
 &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
 &lt;li>Dive in to some of our favorite
-&lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;/ul>
 &lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any
@@ -1532,7 +1532,7 @@ sequentially in the format &lt;code>counts-0000-of-0001&lt;/code>.&lt;/p>
 and look through the &lt;a href="https://beam.apache.org/releases/pydoc">Python SDK API reference&lt;/a>.&lt;/li>
 &lt;li>Walk through these WordCount examples in the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>.&lt;/li>
 &lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
-&lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite &lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;/ul>
 &lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Beam Releases</title><link>/get-started/downloads/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/downloads/</guid><description>
@@ -3812,7 +3812,7 @@ using &lt;a href="https://beam.apache.org/releases/pydoc/2.43.0/apache_beam.io.g
 &lt;ul>
 &lt;li>Walk through the Mobile Gaming examples in the &lt;a href="/get-started/mobile-gaming-example">Mobile Gaming Example Walkthrough&lt;/a>.&lt;/li>
 &lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
-&lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite &lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;/ul>
 &lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Getting started from Apache Spark</title><link>/get-started/from-spark/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/from-spark/</guid><description>
@@ -4131,7 +4131,7 @@ rather than for each distinct reduction (or requiring explicit caching of the RD
 &lt;li>Learn how to read from and write to files in the &lt;a href="/documentation/programming-guide/#pipeline-io">&lt;em>Pipeline I/O&lt;/em> section of the &lt;em>Programming guide&lt;/em>&lt;/a>&lt;/li>
 &lt;li>Walk through additional WordCount examples in the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>.&lt;/li>
 &lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
-&lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite &lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;li>If you&amp;rsquo;re interested in contributing to the Apache Beam codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/li>
 &lt;/ul>
@@ -4615,7 +4615,7 @@ View on GitHub
 &lt;ul>
 &lt;li>Walk through additional WordCount examples in the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>.&lt;/li>
 &lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
-&lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite &lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;li>If you&amp;rsquo;re interested in contributing to the Apache Beam codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/li>
 &lt;/ul>
@@ -5552,7 +5552,7 @@ and look through the
 &lt;li>Take a self-paced tour through our
 &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
 &lt;li>Dive in to some of our favorite
-&lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;/ul>
 &lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any
