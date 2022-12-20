@@ -51,17 +51,17 @@ add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu fo
 apt update > /dev/null && apt install -y docker-ce > /dev/null
 
 export \
-#ORIGIN=PG_EXAMPLES \
-#STEP=CI \
-#SUBDIRS="./learning/katas ./examples ./sdks" \
-GOOGLE_CLOUD_PROJECT=$PROJECT_ID
-#BEAM_ROOT_DIR="./" \
-#SDK_CONFIG="playground/sdks.yaml" \
-#BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
-#BEAM_CONCURRENCY=4 \
-#BEAM_VERSION=2.43.0 \
-#sdks=("java" "python" "go") \
-#allowlist=("playground/infrastructure" "playground/backend")
+ORIGIN=PG_EXAMPLES \
+STEP=CI \
+SUBDIRS="./learning/katas ./examples ./sdks" \
+GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
+BEAM_ROOT_DIR="./" \
+SDK_CONFIG="playground/sdks.yaml" \
+BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
+BEAM_CONCURRENCY=4 \
+BEAM_VERSION=2.43.0 \
+sdks=("java" "python" "go") \
+allowlist=("playground/infrastructure" "playground/backend")
 
 # Get Difference
 
