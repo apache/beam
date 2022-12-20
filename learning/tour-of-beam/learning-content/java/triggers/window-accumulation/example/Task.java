@@ -17,7 +17,7 @@
  */
 
 // beam-playground:
-//   name: ParDo
+//   name: window-accumulation
 //   description: ParDo example.
 //   multifile: false
 //   context_line: 36
