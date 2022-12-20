@@ -42,7 +42,7 @@ var (
 //	})
 //
 // Here, "short" will contain "a" and "b" at runtime.
-func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func Include(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	s = s.Scope("filter.Include")
 
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, col.Type().Type()))
@@ -60,7 +60,7 @@ func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollectio
 //	})
 //
 // Here, "long" will contain "long" and "alsolong" at runtime.
-func Exclude(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func Exclude(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	s = s.Scope("filter.Exclude")
 
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, col.Type().Type()))

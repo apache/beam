@@ -16,71 +16,36 @@
 """
 Common helper module for CI/CD Steps
 """
-
 import asyncio
 import logging
 import os
-from collections import namedtuple
-from dataclasses import dataclass, fields
+import urllib.parse
 from pathlib import PurePath
 from typing import List, Optional, Dict
+from api.v1 import api_pb2
 
 from tqdm.asyncio import tqdm
 import yaml
-from yaml import YAMLError
 
-from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
-    STATUS_VALIDATING, STATUS_PREPARING, \
-    STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
-    PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
-    PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
-from config import Config, Origin, TagFields, PrecompiledExampleType, OptionalTagFields
+from api.v1.api_pb2 import (
+    SDK_UNSPECIFIED,
+    STATUS_UNSPECIFIED,
+    Sdk,
+    STATUS_VALIDATING,
+    STATUS_PREPARING,
+    STATUS_COMPILING,
+    STATUS_EXECUTING,
+    PRECOMPILED_OBJECT_TYPE_UNIT_TEST,
+    PRECOMPILED_OBJECT_TYPE_KATA,
+    PRECOMPILED_OBJECT_TYPE_UNSPECIFIED,
+    PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+    PrecompiledObjectType,
+)
+from config import Config, TagFields, PrecompiledExampleType
 from grpc_client import GRPCClient
 
-Tag = namedtuple(
-    "Tag",
-    [
-        TagFields.name,
-        TagFields.complexity,
-        TagFields.description,
-        TagFields.multifile,
-        TagFields.categories,
-        TagFields.pipeline_options,
-        TagFields.default_example,
-        TagFields.context_line,
-        TagFields.tags
-    ],
-    defaults=(None, None, None, False, None, None, False, None, None))
+from models import Example, Tag, SdkEnum, Dataset
 
-
-@dataclass
-class Example:
-    """
-    Class which contains all information about beam example
-    """
-    name: str
-    complexity: str
-    sdk: SDK_UNSPECIFIED
-    filepath: str
-    code: str
-    status: STATUS_UNSPECIFIED
-    tag: Tag
-    link: str
-    logs: str = ""
-    type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
-    pipeline_id: str = ""
-    output: str = ""
-    compile_output: str = ""
-    graph: str = ""
-
-
-@dataclass
-class ExampleTag:
-    """
-    Class which contains all information about beam playground tag
-    """
-    tag_as_dict: Dict[str, str]
-    tag_as_string: str
 
 def _check_no_nested(subdirs: List[str]):
     """
@@ -94,8 +59,8 @@ def _check_no_nested(subdirs: List[str]):
         if dir1 in [dir2, *dir2.parents]:
             raise ValueError(f"{dir2} is a subdirectory of {dir1}")
 
-def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[str],
-                  sdk: Sdk) -> List[Example]:
+
+def find_examples(root_dir: str, subdirs: List[str], sdk: SdkEnum) -> List[Example]:
     """
     Find and return beam examples.
 
@@ -118,13 +83,12 @@ def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[
     Args:
         root_dir: project root dir
         subdirs: sub-directories where to search examples.
-        supported_categories: list of supported categories.
         sdk: sdk that using to find examples for the specific sdk.
 
     Returns:
         List of Examples.
     """
-    has_error = False
+    has_errors = False
     examples = []
     _check_no_nested(subdirs)
     for subdir in subdirs:
@@ -133,21 +97,26 @@ def find_examples(root_dir: str, subdirs: List[str], supported_categories: List[
         for root, _, files in os.walk(subdir):
             for filename in files:
                 filepath = os.path.join(root, filename)
-                error_during_check_file = _check_file(
-                    examples=examples,
-                    filename=filename,
-                    filepath=filepath,
-                    supported_categories=supported_categories,
-                    sdk=sdk)
-                has_error = has_error or error_during_check_file
-    if has_error:
+                try:
+                    example = _load_example(
+                        filename=filename, filepath=filepath, sdk=sdk
+                    )
+                    if example is not None:
+                        examples.append(example)
+                except Exception:
+                    logging.exception("error loading example at %s", filepath)
+                    has_errors = True
+    if has_errors:
         raise ValueError(
             "Some of the beam examples contain beam playground tag with "
-            "an incorrect format")
+            "an incorrect format"
+        )
     return examples
 
 
-async def get_statuses(client: GRPCClient, examples: List[Example], concurrency: int = 10):
+async def get_statuses(
+    client: GRPCClient, examples: List[Example], concurrency: int = 10
+):
     """
     Receive status and update example.status and example.pipeline_id for
     each example
@@ -177,7 +146,7 @@ async def get_statuses(client: GRPCClient, examples: List[Example], concurrency:
     await tqdm.gather(*tasks)
 
 
-def get_tag(filepath) -> Optional[ExampleTag]:
+def get_tag(filepath) -> Optional[Tag]:
     """
     Parse file by filepath and find beam tag
 
@@ -185,233 +154,123 @@ def get_tag(filepath) -> Optional[ExampleTag]:
         filepath: path of the file
 
     Returns:
-        If file contains tag, returns tag as a map.
+        If file contains tag, returns Tag object
         If file doesn't contain tag, returns None
     """
-    add_to_yaml = False
-    yaml_string = ""
-    tag_string = ""
-
     with open(filepath, encoding="utf-8") as parsed_file:
         lines = parsed_file.readlines()
 
-    for line in lines:
-        formatted_line = line.replace("//", "").replace("#",
-                                                        "").replace("\t", "    ")
-        if add_to_yaml is False:
-            if formatted_line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
-                add_to_yaml = True
-                yaml_string += formatted_line.lstrip()
-                tag_string += line
-        else:
-            yaml_with_new_string = yaml_string + formatted_line
-            try:
-                yaml.load(yaml_with_new_string, Loader=yaml.SafeLoader)
-                yaml_string += formatted_line
-                tag_string += line
-            except YAMLError:
-                break
+    line_start: Optional[int] = None
+    line_finish: Optional[int] = None
+    tag_prefix: Optional[str] = ""
+    for idx, line in enumerate(lines):
+        if line_start is None and line.endswith(Config.BEAM_PLAYGROUND_TITLE):
+            line_start = idx
+            prefix_len = len(line) - len(Config.BEAM_PLAYGROUND_TITLE)
+            tag_prefix = line[:prefix_len]
+        elif line_start and not line.startswith(tag_prefix):
+            line_finish = idx
+            break
 
-    if add_to_yaml:
-        tag_object = yaml.load(yaml_string, Loader=yaml.SafeLoader)
-        return ExampleTag(tag_object[Config.BEAM_PLAYGROUND], tag_string)
+    if not line_start or not line_finish:
+        return None
 
-    return None
+    embdedded_yaml_content = "".join(
+        line[len(tag_prefix) :] for line in lines[line_start:line_finish]
+    )
+    yml = yaml.load(embdedded_yaml_content, Loader=yaml.SafeLoader)
+    return Tag(
+        line_start=line_start, line_finish=line_finish, **yml[Config.BEAM_PLAYGROUND]
+    )
 
 
-def _check_file(examples, filename, filepath, supported_categories, sdk: Sdk):
+def _load_example(filename, filepath, sdk: SdkEnum) -> Optional[Example]:
     """
     Check file by filepath for matching to beam example. If file is beam example,
-    then add it to list of examples
 
     Args:
-        examples: list of examples.
         filename: name of the file.
         filepath: path to the file.
-        supported_categories: list of supported categories.
         sdk: sdk that using to find examples for the specific sdk.
 
     Returns:
-        True if file has beam playground tag with incorrect format.
-        False if file has correct beam playground tag.
-        False if file doesn't contains beam playground tag.
+        If the file is an example, return Example object
+        If it's not, return None
+        In case of error, raise Exception
     """
-    if filepath.endswith("infrastructure/helper.py"):
-        return False
-
-    has_error = False
+    logging.debug("inspecting file %s", filepath)
     extension = filepath.split(os.extsep)[-1]
     if extension == Config.SDK_TO_EXTENSION[sdk]:
+        logging.debug("sdk %s matched extension %s", api_pb2.Sdk.Name(sdk), extension)
         tag = get_tag(filepath)
         if tag is not None:
-            if _validate(tag.tag_as_dict, supported_categories) is False:
-                logging.error(
-                    "%s contains beam playground tag with incorrect format", filepath)
-                has_error = True
-            else:
-                examples.append(_get_example(filepath, filename, tag))
-    return has_error
+            logging.debug("playground-beam tag found")
+            return _get_example(filepath, filename, tag, sdk)
+    return None
 
 
-def get_supported_categories(categories_path: str) -> List[str]:
+# Make load_supported_categories called only once
+# to make testing easier
+_load_supported_categories = False
+
+
+def load_supported_categories(categories_path: str):
     """
-    Return list of supported categories from categories_path file
+    Load the list of supported categories from categories_path file
+    into Tag model config
 
     Args:
         categories_path: path to the file with categories.
-
-    Returns:
-        All supported categories as a list.
     """
+    global _load_supported_categories
+    if _load_supported_categories:
+        return
     with open(categories_path, encoding="utf-8") as supported_categories:
         yaml_object = yaml.load(supported_categories.read(), Loader=yaml.SafeLoader)
-        return yaml_object[TagFields.categories]
+
+    Tag.Config.supported_categories = yaml_object[TagFields.categories]
+    _load_supported_categories = True
 
 
-def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
+def _get_content(filepath: str, tag_start_line: int, tag_finish_line) -> str:
+    with open(filepath, encoding="utf-8") as parsed_file:
+        lines = parsed_file.readlines()
+        lines = lines[:tag_start_line] + lines[tag_finish_line:]
+    return "".join(lines)
+
+
+def _get_url_vcs(filepath: str) -> str:
+    """
+    Construct VCS URL from example's filepath
+    """
+    root_dir = os.getenv("BEAM_ROOT_DIR", "../..")
+    rel_path = os.path.relpath(filepath, root_dir)
+    url_vcs = "{}/{}".format(Config.URL_VCS_PREFIX, urllib.parse.quote(rel_path))
+    return url_vcs
+
+
+def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
     """
     Return an Example by filepath and filename.
 
     Args:
-         tag: tag of the example.
          filepath: path of the example's file.
          filename: name of the example's file.
+         tag: tag of the example.
 
     Returns:
         Parsed Example object.
     """
-    name = tag.tag_as_dict[TagFields.name]
-    complexity = tag.tag_as_dict[TagFields.complexity]
-    sdk = Config.EXTENSION_TO_SDK[filename.split(os.extsep)[-1]]
-    object_type = _get_object_type(filename, filepath)
-    with open(filepath, encoding="utf-8") as parsed_file:
-        content = parsed_file.read()
-    content = content.replace(tag.tag_as_string, "")
-    tag.tag_as_dict[TagFields.context_line] -= tag.tag_as_string.count("\n")
-    root_dir = os.getenv("BEAM_ROOT_DIR", "")
-    file_path_without_root = filepath.replace(root_dir, "", 1)
-    if file_path_without_root.startswith("/"):
-        link = "{}{}".format(Config.LINK_PREFIX, file_path_without_root)
-    else:
-        link = "{}/{}".format(Config.LINK_PREFIX, file_path_without_root)
-
-    example = Example(
-        name=name,
-        complexity=complexity,
-        sdk=sdk,
+    return Example(
+        sdk=SdkEnum(sdk),
+        tag=tag,
         filepath=filepath,
-        code=content,
         status=STATUS_UNSPECIFIED,
-        tag=Tag(**tag.tag_as_dict),
-        type=object_type,
-        link=link)
-
-    validate_example_fields(example)
-    return example
-
-
-def _validate(tag: dict, supported_categories: List[str]) -> bool:
-    """
-    Validate all tag's fields
-
-    Validate that tag contains all required fields and all fields have required
-    format.
-
-    Args:
-        tag: beam tag to validate.
-        supported_categories: list of supported categories.
-
-    Returns:
-        In case tag is valid, True
-        In case tag is not valid, False
-    """
-    valid = True
-    required_tag_fields = {
-        f.default
-        for f in fields(TagFields)
-        if f.default not in {o_f.default
-                             for o_f in fields(OptionalTagFields)}
-    }
-    # check that all fields exist and they have no empty value
-    for field in required_tag_fields:
-        if field not in tag:
-            logging.error(
-                "tag doesn't contain %s field: %s \n"
-                "Please, check that this field exists in the beam playground tag."
-                "If you are sure that this field exists in the tag"
-                " check the format of indenting.",
-                field,
-                tag)
-            valid = False
-        if valid is True:
-            value = tag.get(field)
-            if (value == "" or value is None) and field != TagFields.pipeline_options:
-                logging.error(
-                    "tag's value is incorrect: %s\n%s field can not be empty.",
-                    tag,
-                    field)
-                valid = False
-
-    if valid is False:
-        return valid
-
-    # check that multifile's value is boolean
-    multifile = tag.get(TagFields.multifile)
-    if str(multifile).lower() not in ["true", "false"]:
-        logging.error(
-            "tag's field multifile is incorrect: %s \n"
-            "multifile variable should be boolean format, but tag contains: %s",
-            tag,
-            multifile)
-        valid = False
-
-    # check that categories' value is a list of supported categories
-    categories = tag.get(TagFields.categories)
-    if not isinstance(categories, list):
-        logging.error(
-            "tag's field categories is incorrect: %s \n"
-            "categories variable should be list format, but tag contains: %s",
-            tag,
-            type(categories))
-        valid = False
-    else:
-        for category in categories:
-            if category not in supported_categories:
-                logging.error(
-                    "tag contains unsupported category: %s \n"
-                    "If you are sure that %s category should be placed in "
-                    "Beam Playground, you can add it to the "
-                    "`playground/categories.yaml` file",
-                    category,
-                    category)
-                valid = False
-
-    # check that context line's value is integer
-    context_line = tag.get(TagFields.context_line)
-    if not isinstance(context_line, int):
-        logging.error(
-            "Tag's field context_line is incorrect: %s \n"
-            "context_line variable should be integer format, "
-            "but tag contains: %s",
-            tag,
-            context_line)
-        valid = False
-    return valid
-
-
-def _get_name(filename: str) -> str:
-    """
-    Return name of the example by his filepath.
-
-    Get name of the example by his filename.
-
-    Args:
-        filename: filename of the beam example file.
-
-    Returns:
-        example's name.
-    """
-    return filename.split(os.extsep)[0]
+        type=_get_object_type(filename, filepath),
+        code=_get_content(filepath, tag.line_start, tag.line_finish),
+        url_vcs=_get_url_vcs(filepath),  # type: ignore
+        context_line=tag.context_line - (tag.line_finish - tag.line_start),
+    )
 
 
 async def _update_example_status(example: Example, client: GRPCClient):
@@ -428,14 +287,31 @@ async def _update_example_status(example: Example, client: GRPCClient):
         example: beam example for processing and updating status and pipeline_id.
         client: client to send requests to the server.
     """
+    datasets: List[api_pb2.Dataset] = []
+    for emulator in example.tag.emulators:
+        dataset: Dataset = example.tag.datasets[emulator.topic.source_dataset]
+
+        datasets.append(
+            api_pb2.Dataset(
+                type=api_pb2.EmulatorType.Value(
+                    f"EMULATOR_TYPE_{emulator.type.upper()}"
+                ),
+                options={"topic": emulator.topic.id},
+                dataset_path=dataset.file_name,
+            )
+        )
+
     pipeline_id = await client.run_code(
-        example.code, example.sdk, example.tag.pipeline_options)
+        example.code, example.sdk, example.tag.pipeline_options, datasets
+    )
     example.pipeline_id = pipeline_id
     status = await client.check_status(pipeline_id)
-    while status in [STATUS_VALIDATING,
-                     STATUS_PREPARING,
-                     STATUS_COMPILING,
-                     STATUS_EXECUTING]:
+    while status in [
+        STATUS_VALIDATING,
+        STATUS_PREPARING,
+        STATUS_COMPILING,
+        STATUS_EXECUTING,
+    ]:
         await asyncio.sleep(Config.PAUSE_DELAY)
         status = await client.check_status(pipeline_id)
     example.status = status
@@ -463,56 +339,20 @@ def _get_object_type(filename, filepath):
     return object_type
 
 
+class DuplicatesError(Exception):
+    pass
+
+
 def validate_examples_for_duplicates_by_name(examples: List[Example]):
     """
     Validate examples for duplicates by example name to avoid duplicates in the Cloud Datastore
     :param examples: examples from the repository for saving to the Cloud Datastore
     """
-    duplicates = {str: Example}
+    duplicates: Dict[str, Example] = {}
     for example in examples:
-        if example.name not in duplicates.keys():
-            duplicates[example.name] = example
+        if example.tag.name not in duplicates.keys():
+            duplicates[example.tag.name] = example
         else:
-            err_msg = f"Examples have duplicate names.\nDuplicates: \n - path #1: {duplicates[example.name].filepath} \n - path #2: {example.filepath}"
+            err_msg = f"Examples have duplicate names.\nDuplicates: \n - path #1: {duplicates[example.tag.name].filepath} \n - path #2: {example.filepath}"
             logging.error(err_msg)
-            raise ValidationException(err_msg)
-
-
-def validate_example_fields(example: Example):
-    """
-    Validate example fields to avoid side effects in the next step
-    :param example: example from the repository
-    """
-    if example.filepath == "":
-        err_msg = f"Example doesn't have a file path field. Example: {example}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
-    if example.name == "":
-        err_msg = f"Example doesn't have a name field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
-    if example.sdk == SDK_UNSPECIFIED:
-        err_msg = f"Example doesn't have a sdk field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
-    if example.code == "":
-        err_msg = f"Example doesn't have a code field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
-    if example.link == "":
-        err_msg = f"Example doesn't have a link field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
-    if example.complexity == "":
-        err_msg = f"Example doesn't have a complexity field. Path: {example.filepath}"
-        logging.error(err_msg)
-        raise ValidationException(err_msg)
-
-
-class ValidationException(Exception):
-    def __init__(self, error: str):
-        super().__init__()
-        self.msg = error
-
-    def __str__(self):
-        return self.msg
+            raise DuplicatesError(err_msg)

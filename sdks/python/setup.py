@@ -228,8 +228,6 @@ if __name__ == '__main__':
           'apache_beam/utils/windowed_value.py',
       ]),
       install_requires= protobuf_dependency + [
-        # Avro 1.9.2 for python3 was broken.
-        # The issue was fixed in version 1.9.2.1
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
@@ -274,7 +272,6 @@ if __name__ == '__main__':
           ],
           'test': [
             'freezegun>=0.3.12',
-            'hypothesis<7',
             'joblib>=1.0.1',
             'mock>=1.0.1,<3.0.0',
             'pandas<2.0.0',
@@ -291,6 +288,7 @@ if __name__ == '__main__':
             'psycopg2-binary>=2.8.5,<3.0.0',
             'testcontainers[mysql]>=3.0.3,<4.0.0',
             'cryptography>=36.0.0',
+            'hypothesis>5.0.0,<=7.0.0',
           ],
           'gcp': [
             'cachetools>=3.1.0,<5',

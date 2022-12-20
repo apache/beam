@@ -501,7 +501,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td>Not available</td>
     <td class="present">✔</td>
-    <td class="absent">✘</td>
+    <td class="absent">✔</td>
   </tr>
   <tr>
     <td>DatastoreIO</td>
@@ -572,6 +572,25 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>DebeziumIO</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/debezium/DebeziumIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.debezium.html">via X-language</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/debeziumio">via X-language</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
   </tr>
   <tr>
     <td>MongoDbIO</td>
