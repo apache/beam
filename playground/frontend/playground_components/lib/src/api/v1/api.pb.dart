@@ -1055,6 +1055,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..e<Complexity>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.COMPLEXITY_UNSPECIFIED, valueOf: Complexity.valueOf, enumValues: Complexity.values)
     ..pPS(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'tags')
     ..pc<Dataset>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
+    ..aOS(14, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'urlVcs')
+    ..aOS(15, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'urlNotebook')
     ..hasRequiredFields = false
   ;
 
@@ -1073,6 +1075,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     Complexity? complexity,
     $core.Iterable<$core.String>? tags,
     $core.Iterable<Dataset>? datasets,
+    $core.String? urlVcs,
+    $core.String? urlNotebook,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1113,6 +1117,12 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (datasets != null) {
       _result.datasets.addAll(datasets);
+    }
+    if (urlVcs != null) {
+      _result.urlVcs = urlVcs;
+    }
+    if (urlNotebook != null) {
+      _result.urlNotebook = urlNotebook;
     }
     return _result;
   }
@@ -1241,6 +1251,24 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(13)
   $core.List<Dataset> get datasets => $_getList(12);
+
+  @$pb.TagNumber(14)
+  $core.String get urlVcs => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set urlVcs($core.String v) { $_setString(13, v); }
+  @$pb.TagNumber(14)
+  $core.bool hasUrlVcs() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearUrlVcs() => clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get urlNotebook => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set urlNotebook($core.String v) { $_setString(14, v); }
+  @$pb.TagNumber(15)
+  $core.bool hasUrlNotebook() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearUrlNotebook() => clearField(15);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {

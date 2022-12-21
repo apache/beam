@@ -24,22 +24,22 @@ on:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum']
-
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
-
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
+    name: Go Build
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
       - uses: actions/setup-go@v3

@@ -115,3 +115,18 @@ $padding: 24px;
     @extend .table-bordered;
   }
 }
+
+.table-wrapper--equal-p {
+   td:nth-child(n) {
+     @media (max-width: $mobile) {
+       padding: $padding/4 !important;
+     }
+     padding: $padding !important;
+   }
+}
+
+.table-wrapper--pr {
+  td, th {
+    padding-right: $padding/1.5;
+  }
+}

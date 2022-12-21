@@ -92,7 +92,6 @@ import org.slf4j.LoggerFactory;
  * example usage.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
   // errorprone is released (2.11.0)
   "unused"
@@ -655,7 +654,7 @@ class KafkaExactlyOnceSink<K, V>
                 .<Integer, ShardWriter<K, V>>removalListener(
                     notification -> {
                       if (notification.getCause() != RemovalCause.EXPLICIT) {
-                        ShardWriter writer = notification.getValue();
+                        ShardWriter<K, V> writer = notification.getValue();
                         LOG.info(
                             "{} : Closing idle shard writer {} after 1 minute of idle time.",
                             writer.shard,

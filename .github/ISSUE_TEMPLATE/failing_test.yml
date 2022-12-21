@@ -64,10 +64,10 @@ body:
       label: Issue Components
       description: Which languages, SDKs, or features are related to your report? (check all that apply)
       options:
-       - label: "Component: Python"
-       - label: "Component: Java"
-       - label: "Component: Go"
-       - label: "Component: Typescript"
+       - label: "Component: Python SDK"
+       - label: "Component: Java SDK"
+       - label: "Component: Go SDK"
+       - label: "Component: Typescript SDK"
        - label: "Component: IO connector"
        - label: "Component: Beam examples"
        - label: "Component: Beam playground"

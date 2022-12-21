@@ -17,9 +17,11 @@
  */
 
 import '../../enums/complexity.dart';
+import '../example_view_options.dart';
 import '../sdk.dart';
 import 'example_loading_descriptor.dart';
 
+/// Fully contains an example data to be loaded.
 class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   /// The source code.
   final String content;
@@ -39,44 +41,33 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     super.viewOptions,
   });
 
-  static ContentExampleLoadingDescriptor? tryParse(Map eventData) {
-    final content = _tryParseContent(eventData);
+  static ContentExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {
+    final content = map['content']?.toString();
     if (content == null) {
       return null;
     }
 
-    final sdk = _tryParseSdk(eventData);
+    final sdk = Sdk.tryParse(map['sdk']);
     if (sdk == null) {
       return null;
     }
 
     return ContentExampleLoadingDescriptor(
       content: content,
-      name: _tryParseName(eventData),
+      name: map['name']?.toString(),
       sdk: sdk,
-      complexity: _parseComplexity(eventData),
+      complexity: Complexity.fromString(map['complexity']),
+      viewOptions: ExampleViewOptions.fromShortMap(map),
     );
   }
 
-  static String? _tryParseContent(Map map) {
-    return map['content']?.toString();
-  }
-
-  static String? _tryParseName(Map map) {
-    return map['name']?.toString();
-  }
-
-  static Sdk? _tryParseSdk(Map map) {
-    return Sdk.tryParse(map['sdk']);
-  }
-
-  static Complexity? _parseComplexity(Map map) {
-    final complexityString = map['complexity'];
-    return Complexity.fromString(complexityString);
-  }
-
   @override
-  List<Object> get props => [content, sdk.id];
+  List<Object?> get props => [
+        complexity,
+        content,
+        name,
+        sdk.id,
+      ];
 
   @override
   Map<String, dynamic> toJson() => {
