@@ -30,7 +30,7 @@ class EmbeddedEditor extends StatelessWidget {
     final controller = Provider.of<PlaygroundController>(context);
     final snippetController = controller.snippetEditingController;
 
-    if (snippetController == null) {
+    if (snippetController == null || snippetController.isLoading) {
       return const LoadingIndicator();
     }
 

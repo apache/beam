@@ -22,8 +22,6 @@ import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common.dart';
 
-const _fiveSec = Duration(seconds: 5);
-
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -40,11 +38,6 @@ void main() {
       await wt.pumpAndSettle();
 
       await wt.tap(find.exampleItemInDropdown(ExampleNames.aggregationMax));
-
-      // There is no animation on changing examples, so we cannot wait
-      // for the example to load.
-      // TODO(alexeyinkin): Add animation, https://github.com/apache/beam/issues/24724
-      await Future.delayed(_fiveSec);
       await wt.pumpAndSettle();
 
       expect(
