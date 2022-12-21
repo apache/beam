@@ -21,20 +21,19 @@ This file contains constants for pipeline paths, dependency locations and
 test data paths.
 """
 
-INPUT_CRITEO_SMALL = 'testdata/criteo/train10.tsv'
-INPUT_CRITEO_SMALL_100MB = 'testdata/criteo/raw/100mb/train.txt'
-INPUT_CRITEO_MEDIUM_1GB = 'testdata/criteo/raw/1gb/train.txt'
-INPUT_CRITEO_10GB = 'testdata/criteo/raw/10gb/train.txt'
+INPUT_CRITEO_SMALL = 'train10.tsv'
+INPUT_CRITEO_SMALL_100MB = '100mb/train.txt'
+INPUT_CRITEO_10GB = '10gb/train.txt'
 
 # The model is trained by running the criteo preprocessing and training.
 # The input dataset was the Criteo 10GB dataset and frequency_threshold=100 was
 # set for categorical features.
-MODEL_CRITEO_10GB = 'testdata/criteo/saved_model'
+# MODEL_CRITEO_10GB = 'testdata/criteo/saved_model'
 
 # The model is trained by running the criteo preprocessing and training.
 # The input dataset was the Criteo 10GB dataset and frequency_threshold=100 was
 # set for categorical features.
-EVAL_MODEL_CRITEO_10GB = 'testdata/criteo/saved_model/tfma'
+# EVAL_MODEL_CRITEO_10GB = 'testdata/criteo/saved_model/tfma'
 
 FREQUENCY_THRESHOLD = '5'
 ENABLE_SHUFFLE = True
