@@ -401,6 +401,8 @@ from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.external import SchemaAwareExternalTransform
+from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
@@ -2298,6 +2300,91 @@ class WriteResult:
           'result. Please see __documentation__ for available attributes.')
 
     return self.attributes[key].__get__(self, WriteResult)
+
+
+class StorageWriteToBigQuery(PTransform):
+  """Writes data to BigQuery using Storage API.
+
+  Receives a PCollection of beam.Row() elements with an 'input' tag and
+  writes the elements to BigQuery. Returns a dead-letter queue of errors
+  and failed rows represented as a PColection with an 'errors' tag.
+
+  Note: Nullable arguments are not supported.
+
+  Example:
+    with beam.Pipeline() as p:
+      items = []
+      for i in range(10):
+        items.append(beam.Row(id=i))
+
+      input_rows = p | beam.Create(items)
+
+      {'input': input_rows} | StorageWriteToBigQuery(
+        table="google.com:clouddfe:ahmedabualsaud_test.xlang_table",
+        create_disposition="",
+        write_disposition="",
+        triggering_frequency=0,
+        use_at_least_once=False))
+  """
+  URN = "beam:schematransform:org.apache.beam:bigquery_storage_write:v1"
+
+  def __init__(
+      self,
+      table,
+      create_disposition=None,
+      write_disposition=None,
+      triggering_frequency=None,
+      use_at_least_once=False,
+      expansion_service=None):
+    """Initialize a StorageWriteToBigQuery transform.
+    Args:
+      table (str): a fully-qualified table ID specified as
+        ``'PROJECT:DATASET.TABLE'``
+      create_disposition (str): a string specifying the strategy to take when
+        the table doesn't exist. Possible values are:
+
+        * :attr:`'CREATE_IF_NEEDED'`: create if does not exist.
+        * :attr:`'CREATE_NEVER'`: fail the write if does not exist.
+
+      write_disposition (str): a string specifying the strategy to take when the
+        table already contains data. Possible values are:
+
+        * :attr:`'WRITE_TRUNCATE'`: delete existing rows.
+        * :attr:`'WRITE_APPEND'`: add to existing rows.
+        * :attr:`'WRITE_EMPTY'`: fail the write if table not empty.
+
+      triggering_frequency (int): the time in seconds between write commits.
+        Should only be specified for streaming pipelines. Defaults to 5 seconds.
+      use_at_least_once (bool): use at-least-once semantics. Is cheaper and
+        provides lower latency, but will potentially duplicate records.
+    """
+    super().__init__()
+    self._table = table
+    self._create_disposition = create_disposition
+    self._write_disposition = write_disposition
+    self._triggering_frequency = triggering_frequency
+    self._use_at_least_once = use_at_least_once
+    self._expansion_service = expansion_service or \
+                              self._default_gcp_io_expansion_service()
+    self._schematransform_config = SchemaAwareExternalTransform.discover_one(
+        self._expansion_service, self.URN)
+
+  def expand(self, input):
+    external_storage_write = SchemaAwareExternalTransform(
+        self._schematransform_config.identifier,
+        table=self._table,
+        createDisposition=self._create_disposition,
+        triggeringFrequencySeconds=self._triggering_frequency,
+        useAtLeastOnceSemantics=self._use_at_least_once,
+        expansion_service=self._expansion_service,
+        writeDisposition=self._write_disposition)
+
+    return input | external_storage_write
+
+  def _default_gcp_io_expansion_service(append_args=None):
+    return BeamJarExpansionService(
+        'sdks:java:io:google-cloud-platform:expansion-service:build',
+        append_args=append_args)
 
 
 class ReadFromBigQuery(PTransform):
