@@ -18,6 +18,11 @@
 //   description: Branching example.
 //   multifile: false
 //   context_line: 34
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 

@@ -18,8 +18,15 @@
 //   description: Side-inputs example.
 //   multifile: false
 //   context_line: 35
+//   categories:
+//     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - hellobeam
 
+import java.io.Serializable;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;

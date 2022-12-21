@@ -17,6 +17,6 @@
 # under the License.
 #
 
-id: combine-per-key
-name: CombinePerKey
-taskName: combine-per-key
+id: binary-combine-fn
+name: BinaryCombineFn
+taskName: binary-combine-fn

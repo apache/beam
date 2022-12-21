@@ -15,8 +15,8 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: CoreTransformsChallenge2
-#   description: Core Transforms second motivating challenge.
+#   name: CoreTransformsSolution2
+#   description: Core Transforms second motivating solution.
 #   multifile: false
 #   context_line: 23
 #   categories:

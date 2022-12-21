@@ -19,6 +19,11 @@
 #   description: Additional outputs example.
 #   multifile: false
 #   context_line: 56
+#   categories:
+#     - Quickstart
+#   complexity: BASIC
+#   tags:
+#     - hellobeam
 
 import apache_beam as beam
 from apache_beam import pvalue

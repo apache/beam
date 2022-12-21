@@ -20,7 +20,6 @@
 id: combine
 name: Combine
 content:
-  - simple-function-combine
+  - simple-function
   - combine-fn
-  - binary-combine-fn
-  - combiner-per-key
+  - combine-per-key

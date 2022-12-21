@@ -21,7 +21,10 @@
 #   multifile: false
 #   context_line: 31
 #   categories:
-#     - Combiners
+#     - Quickstart
+#   complexity: BASIC
+#   tags:
+#     - hellobeam
 
 import apache_beam as beam
 
