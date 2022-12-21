@@ -113,7 +113,8 @@ public abstract class TemplateTestBase {
               .build();
     } else {
       LOG.warn(
-          "Both -DartifactBucket and -DstageBucket were not given. ArtifactClient will not be created automatically.");
+          "Both -DartifactBucket and -DstageBucket were not given. ArtifactClient will not be"
+              + " created automatically.");
     }
 
     credentialsProvider = FixedCredentialsProvider.create(credentials);
@@ -146,7 +147,8 @@ public abstract class TemplateTestBase {
             bucketName);
       } else {
         throw new IllegalArgumentException(
-            "-DstageBucket was not specified, so Template can not be staged. Either give a -DspecPath or provide a proper -DstageBucket for automatic staging.");
+            "-DstageBucket was not specified, so Template can not be staged. Either give a"
+                + " -DspecPath or provide a proper -DstageBucket for automatic staging.");
       }
 
       String[] mavenCmd = buildMavenStageCommand(prefix, pom, bucketName);
@@ -182,15 +184,17 @@ public abstract class TemplateTestBase {
     Template[] templateAnnotations = templateClass.getAnnotationsByType(Template.class);
     if (templateAnnotations.length == 0) {
       LOG.warn(
-          "Template mentioned in @TemplateIntegrationTest for {} does not contain a @Template annotation, skipping.",
+          "Template mentioned in @TemplateIntegrationTest for {} does not contain a @Template"
+              + " annotation, skipping.",
           getClass());
       return null;
     } else if (templateAnnotations.length == 1) {
       return templateAnnotations[0];
     } else if (templateName.isEmpty()) {
       LOG.warn(
-          "Template mentioned in @TemplateIntegrationTest for {} contains multiple @Template annotations. "
-              + "Please provide templateName field in @TemplateIntegrationTest, skipping.",
+          "Template mentioned in @TemplateIntegrationTest for {} contains multiple @Template"
+              + " annotations. Please provide templateName field in @TemplateIntegrationTest,"
+              + " skipping.",
           getClass());
       return null;
     }
@@ -200,7 +204,8 @@ public abstract class TemplateTestBase {
       }
     }
     LOG.warn(
-        "templateName does not match any Template annotations. Please recheck @TemplateIntegrationTest, skipping");
+        "templateName does not match any Template annotations. Please recheck"
+            + " @TemplateIntegrationTest, skipping");
     return null;
   }
 
@@ -219,7 +224,8 @@ public abstract class TemplateTestBase {
       pomPath = pomPath.replaceAll("/v2/.*", "/pom.xml");
     } else {
       LOG.warn(
-          "Specific module POM was not found, so scanning all modules... Stage step may take a little longer.");
+          "Specific module POM was not found, so scanning all modules... Stage step may take a"
+              + " little longer.");
       moduleBuild = ".";
     }
 

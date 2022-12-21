@@ -315,7 +315,7 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
         "SELECT TO_JSON_STRING(t) FROM `"
             + String.join(".", projectId, datasetId, tableName)
             + "` AS t"
-            + (numRows == -1 ? " LIMIT " + numRows + ";" : ";");
+            + (numRows != -1 ? " LIMIT " + numRows + ";" : ";");
     return runQuery(query);
   }
 
