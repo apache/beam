@@ -320,7 +320,7 @@ def chain_as_composite(spec):
   # are implicit.
   if 'transforms' not in spec:
     raise TypeError(
-        f"Chain at {identify_object(chain)} missing transforms property.")
+        f"Chain at {identify_object(spec)} missing transforms property.")
   has_explicit_outputs = 'output' in spec
   composite_spec = normalize_inputs_outputs(spec)
   new_transforms = []
