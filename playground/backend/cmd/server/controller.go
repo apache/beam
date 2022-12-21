@@ -26,6 +26,7 @@ import (
 	"beam.apache.org/playground/backend/internal/code_processing"
 	"beam.apache.org/playground/backend/internal/components"
 	"beam.apache.org/playground/backend/internal/db"
+	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
 	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/environment"
@@ -97,8 +98,30 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		kafkaMockCluster = kafkaMockClusters[0]
 		prepareParams = prepareParamsVal
 	}
+	sources := make([]entity.FileEntity, 0)
+	if len(info.Files) > 0 {
+		for _, file := range info.Files {
+			sources = append(sources, entity.FileEntity{
+				Name:     file.Name,
+				Content:  file.Content,
+				IsMain:   file.IsMain,
+				CntxLine: 1,
+			})
+		}
+	} else {
+		fileName, err := utils.GetFileName("", info.Code, info.Sdk)
+		if err != nil {
+			return nil, cerrors.InternalError(errorTitleRunCode, "Failed to get default filename")
+		}
+		sources = append(sources, entity.FileEntity{
+			Name:     fileName,
+			Content:  info.Code,
+			IsMain:   true,
+			CntxLine: 1,
+		})
+	}
 
-	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir(), kafkaMockCluster)
+	lc, err := life_cycle.Setup(info.Sdk, sources, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir(), kafkaMockCluster)
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
 		return nil, cerrors.InternalError("Error during preparing", "Error during setup file system for the code processing: %s", err.Error())
