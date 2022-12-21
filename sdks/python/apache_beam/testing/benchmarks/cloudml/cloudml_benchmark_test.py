@@ -15,17 +15,21 @@
 # limitations under the License.
 #
 import os
-
 import unittest
+import uuid
+
+import pytest
 
 import apache_beam.testing.benchmarks.cloudml.cloudml_benchmark_constants_lib as lib
 from apache_beam.testing.benchmarks.cloudml.pipelines import workflow
 from apache_beam.testing.test_pipeline import TestPipeline
 
-_INPUT_GCS_BUCKET_ROOT = 'gs://cloud-ml-benchmark-data-us-east/cloudml/'
+_INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/'
 _CRITEO_FEATURES_FILE = 'testdata/criteo/expected/features.tfrecord.gz'
+_OUTPUT_GCS_BUKCET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
 
 
+@pytest.mark.uses_tft
 class CloudMLTFTBenchmarkTest(unittest.TestCase):
   """
   TODOs:
@@ -38,13 +42,12 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     extra_opts = {}
     extra_opts['input'] = os.path.join(
         _INPUT_GCS_BUCKET_ROOT, lib.INPUT_CRITEO_SMALL)
-    extra_opts['output'] = '/tmp/cloudML'
+    extra_opts['output'] = os.path.join(_OUTPUT_GCS_BUKCET_ROOT, uuid.uuid4())
     extra_opts['benchmark_type'] = 'tft'
     extra_opts['classifier'] = 'criteo'
     # extra_opts['timeout'] = 3600
     extra_opts['frequency_threshold'] = lib.FREQUENCY_THRESHOLD
     extra_opts['shuffle'] = lib.ENABLE_SHUFFLE
-
     workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
     # Add assertion
 
@@ -56,19 +59,19 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     extra_opts['benchmark_type'] = 'tft'
     extra_opts['classifier'] = 'criteo'
     extra_opts['frequency_threshold'] = 0
-    extra_opts['output'] = '/tmp/cloudML/1'
+    extra_opts['output'] = os.path.join(_OUTPUT_GCS_BUKCET_ROOT, uuid.uuid4())
     workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
     # add assertion
 
   def test_cloudml_benchmark_cirteo_no_shuffle_10GB(self):
-    test_pipeline = TestPipeline(is_integration_test=False)
+    test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}
     extra_opts['input'] = os.path.join(
         _INPUT_GCS_BUCKET_ROOT, lib.INPUT_CRITEO_10GB)
     extra_opts['benchmark_type'] = 'tft'
     extra_opts['classifier'] = 'criteo'
     extra_opts['frequency_threshold'] = 0
-    extra_opts['output'] = '/tmp/cloudML/1'
+    extra_opts['output'] = os.path.join(_OUTPUT_GCS_BUKCET_ROOT, uuid.uuid4())
     # verify shuffle and shuffle service pipeline option
     extra_opts['shuffle'] = False
     extra_opts['timeout'] = 5400
@@ -82,7 +85,7 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     extra_opts['benchmark_type'] = 'tft'
     extra_opts['classifier'] = 'criteo'
     extra_opts['frequency_threshold'] = 0
-    extra_opts['output'] = '/tmp/cloudML/1'
+    extra_opts['output'] = os.path.join(_OUTPUT_GCS_BUKCET_ROOT, uuid.uuid4())
     extra_opts['timeout'] = 5400
 
   def test_cloud_ml_benchmark_criteo_fixed_10GB(self):
@@ -92,7 +95,7 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     extra_opts['benchmark_type'] = 'tft'
     extra_opts['classifier'] = 'criteo'
     extra_opts['frequency_threshold'] = 0
-    extra_opts['output'] = '/tmp/cloudML/1'
+    extra_opts['output'] = os.path.join(_OUTPUT_GCS_BUKCET_ROOT, uuid.uuid4())
     extra_opts['timeout'] = 5400
     extra_opts['num_workers'] = 50
 
