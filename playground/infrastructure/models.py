@@ -63,7 +63,7 @@ class Emulator(BaseModel):
 
 class ImportFile(BaseModel):
     name: str
-    context_line: str
+    context_line: int = 0
 
 
 class Tag(BaseModel):
@@ -136,6 +136,12 @@ class Tag(BaseModel):
         if v not in config.supported_categories:
             raise ValueError(f"Category {v} not in {config.supported_categories}")
         return v
+
+    @root_validator
+    def multifile_files(cls, values):
+        if values.get('multifile', False) and not values.get('files', []):
+            raise ValueError('multifile is True but no files defined')
+        return values
 
     @validator("filepath")
     def check_filepath_exists(cls, v: str):
