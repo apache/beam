@@ -26,7 +26,6 @@ import os
 import subprocess
 import sys
 import uuid
-from typing import Iterable
 
 import apache_beam as beam
 import apache_beam.io
@@ -277,6 +276,7 @@ def create_builtin_provider():
     ).with_output_types(named_tuple)
 
   # Or should this be posargs, args?
+  # pylint: disable=dangerous-default-value
   def fully_qualified_named_transform(constructor, args=(), kwargs={}):
     with FullyQualifiedNamedTransform.with_filter('*'):
       return constructor >> FullyQualifiedNamedTransform(
@@ -364,8 +364,9 @@ class PypiExpansionService:
     if not os.path.exists(venv):
       python_binary = os.path.join(venv, 'bin', 'python')
       subprocess.run([self._base_python, '-m', 'venv', venv], check=True)
-      subprocess.run([python_binary, '-m', 'ensurepip'])
-      subprocess.run([python_binary, '-m', 'pip', 'install'] + self._packages)
+      subprocess.run([python_binary, '-m', 'ensurepip'], check=True)
+      subprocess.run([python_binary, '-m', 'pip', 'install'] + self._packages,
+                     check=True)
       with open(venv + '-requirements.txt', 'w') as fout:
         fout.write('\n'.join(self._packages))
     return venv
