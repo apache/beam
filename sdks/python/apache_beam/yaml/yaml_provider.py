@@ -68,6 +68,8 @@ class ExternalProvider(Provider):
     return self._urns.keys()
 
   def create_transform(self, type, args):
+    if callable(self._service):
+      self._service = self._service()
     if self._schema_transforms is None:
       try:
         self._schema_transforms = [
@@ -96,11 +98,11 @@ class ExternalProvider(Provider):
     if spec.get('version', None) == 'BEAM_VERSION':
       spec['version'] = beam_version
     if type == 'jar':
-      return ExternalJavaProvider(urns, spec['jar'])
+      return ExternalJavaProvider(urns, lambda: spec['jar'])
     elif type == 'mavenJar':
       return ExternalJavaProvider(
           urns,
-          subprocess_server.JavaJarServer.path_to_maven_jar(
+          lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
               **{
                   key: value
                   for (key, value) in spec.items() if key in [
@@ -115,7 +117,7 @@ class ExternalProvider(Provider):
     elif type == 'beamJar':
       return ExternalJavaProvider(
           urns,
-          subprocess_server.JavaJarServer.path_to_beam_jar(
+          lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
               **{
                   key: value
                   for (key, value) in spec.items() if key in
@@ -146,8 +148,9 @@ class RemoteProvider(ExternalProvider):
 
 
 class ExternalJavaProvider(ExternalProvider):
-  def __init__(self, urns, jar):
-    super().__init__(urns, external.JavaJarExpansionService(jar))
+  def __init__(self, urns, jar_provider):
+    super().__init__(
+        urns, lambda: external.JavaJarExpansionService(jar_provider()))
 
   def available(self):
     # pylint: disable=subprocess-run-check
