@@ -32,5 +32,7 @@ plugins:
   opt: grpc
 - plugin: buf.build/protocolbuffers/python
   out: infrastructure
+  opt:
+   - pyi_out=infrastructure
 - plugin: buf.build/grpc/python
   out: infrastructure
