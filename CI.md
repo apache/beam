@@ -150,6 +150,11 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 |------------------------------|-----------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
 | Verify Release Build         | Verifies full life cycle of Gradle Build and all PostCommit/PreCommit tests against Release Branch on CI.                   | No               | No                    | No            | No                       |
 
+#### Build Release Candidate - [build_release_candidate_publish_docs.yml](.github/workflows/build_release_candidate_publish_docs.yml)
+| Job                                          | Description                                                | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|----------------------------------------------|------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Build Release Candidate Publish Docs         | Upload javadoc and pydoc into beam-site repository         | No               | No                    | No            | No                       |
+
 #### Git tag Release Version - [git_tag_released_version.yml](.github/workflows/git_tag_released_version.yml)
 
 | Job                             | Description                                                                                                    | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
