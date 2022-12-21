@@ -14,6 +14,7 @@
 # limitations under the License.
 import os.path
 import pytest
+from pytest_mock import MockerFixture
 from typing import Optional, List, Dict, Any
 
 from models import Example, SdkEnum, Tag
@@ -29,7 +30,7 @@ def supported_categories():
 
 
 @pytest.fixture(autouse=True)
-def mock_dataset_file_name(mocker):
+def mock_files(mocker: MockerFixture):
     def _mock_isfile(filepath):
         if filepath in [
             # mock examples & imports
@@ -45,12 +46,13 @@ def mock_dataset_file_name(mocker):
         raise FileNotFoundError(filepath)
 
     mocker.patch("os.path.isfile", side_effect=_mock_isfile)
+    mocker.patch("builtins.open", mocker.mock_open(read_data="file content"))
 
 
 @pytest.fixture
 def create_test_example(create_test_tag):
     def _create_test_example(
-        with_kafka=False, tag_meta: Optional[Dict[str, Any]] = None, **example_meta
+        is_multifile=False, with_kafka=False, tag_meta: Optional[Dict[str, Any]] = None, **example_meta
     ) -> Example:
         if tag_meta is None:
             tag_meta = {}
@@ -65,7 +67,7 @@ def create_test_example(create_test_tag):
         )
         meta.update(**example_meta)
         return Example(
-            tag=create_test_tag(with_kafka=with_kafka, **tag_meta),
+            tag=create_test_tag(is_multifile=is_multifile, with_kafka=with_kafka, **tag_meta),
             **meta,
         )
 
