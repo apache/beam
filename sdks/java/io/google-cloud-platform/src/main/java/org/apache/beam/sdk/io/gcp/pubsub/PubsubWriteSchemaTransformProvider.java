@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -52,7 +53,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.io.Providers;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -195,6 +198,15 @@ public class PubsubWriteSchemaTransformProvider
     PayloadSerializer getPayloadSerializer(Schema schema) {
       if (configuration.getFormat() == null) {
         return null;
+      }
+      String format = configuration.getFormat();
+      Set<String> availableFormats =
+          Providers.loadProviders(PayloadSerializerProvider.class).keySet();
+      if (!availableFormats.contains(format)) {
+        String availableFormatsString = String.join(",", availableFormats);
+        throw new IllegalArgumentException(
+            String.format(
+                "%s is not among the valid formats: [%s]", format, availableFormatsString));
       }
       return PayloadSerializers.getSerializer(configuration.getFormat(), schema, ImmutableMap.of());
     }
