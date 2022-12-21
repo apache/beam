@@ -25,11 +25,6 @@ import '../theme/theme.dart';
 import 'periodic_builder.dart';
 import 'shortcut_tooltip.dart';
 
-const kMsToSec = 1000;
-const kSecondsFractions = 1;
-
-const _width = 150.0;
-
 class RunButton extends StatelessWidget {
   final PlaygroundController playgroundController;
   final VoidCallback runCode;
@@ -41,8 +36,11 @@ class RunButton extends StatelessWidget {
     required this.playgroundController,
     required this.runCode,
     required this.cancelRun,
-    this.isEnabled = false,
+    this.isEnabled = true,
   });
+
+  static const _buttonTextRebuildInterval = 100;
+  static const _width = 150.0;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +72,9 @@ class RunButton extends StatelessWidget {
                   : const Icon(Icons.play_arrow),
               label: isRunning
                   ? PeriodicBuilderWidget(
-                      interval: const Duration(milliseconds: 1),
+                      interval: const Duration(
+                        milliseconds: _buttonTextRebuildInterval,
+                      ),
                       builder: () {
                         return _ButtonText(
                           isRunning: isRunning,
@@ -86,7 +86,7 @@ class RunButton extends StatelessWidget {
                       isRunning: isRunning,
                       runStartDate: runStartDate,
                     ),
-              onPressed: isEnabled ? _onPressed : null,
+              onPressed: isEnabled ? _onPressed() : null,
             ),
           ),
         );
@@ -95,7 +95,7 @@ class RunButton extends StatelessWidget {
   }
 
   VoidCallback _onPressed() {
-    return !playgroundController.codeRunner.isCodeRunning ? runCode : cancelRun;
+    return playgroundController.codeRunner.isCodeRunning ? cancelRun : runCode;
   }
 }
 
@@ -108,6 +108,9 @@ class _ButtonText extends StatelessWidget {
     required this.runStartDate,
   });
 
+  static const _msToSec = 1000;
+  static const _secondsFractions = 1;
+
   @override
   Widget build(BuildContext context) {
     final runText = 'widgets.runOrCancelButton.titles.run'.tr();
@@ -118,9 +121,9 @@ class _ButtonText extends StatelessWidget {
         DateTime.now().difference(runStartDate ?? DateTime.now());
 
     if (elapsedDuration.inMilliseconds > 0) {
-      final seconds = elapsedDuration.inMilliseconds / kMsToSec;
+      final seconds = elapsedDuration.inMilliseconds / _msToSec;
       return Text(
-        '$buttonText (${seconds.toStringAsFixed(kSecondsFractions)} s)',
+        '$buttonText (${seconds.toStringAsFixed(_secondsFractions)} s)',
       );
     }
     return Text(buttonText);

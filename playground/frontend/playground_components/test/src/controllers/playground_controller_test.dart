@@ -126,13 +126,13 @@ Future<void> main() async {
     state.addListener(() {
       expect(state.source, exampleMock1.source);
     });
-    state.codeRunner.reset();
+    state.reset();
   });
 
   test(
     'If Playground state result is empty, then resetError should break the execution',
     () {
-      state.codeRunner.resetError();
+      state.resetError();
       expect(state.codeRunner.result, null);
     },
   );

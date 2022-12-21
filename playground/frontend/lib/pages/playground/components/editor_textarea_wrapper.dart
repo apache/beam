@@ -109,6 +109,6 @@ class CodeTextAreaWrapper extends StatelessWidget {
       AppLocalizations.of(context)!.runCode,
       controller.codeRunner.result?.errorMessage ?? '',
     );
-    controller.codeRunner.resetError();
+    controller.resetError();
   }
 }

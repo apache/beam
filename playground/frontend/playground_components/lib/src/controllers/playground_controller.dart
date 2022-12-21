@@ -175,38 +175,19 @@ class PlaygroundController with ChangeNotifier {
     controller.setSource(source);
   }
 
+  void reset() {
+    snippetEditingController?.reset();
+    codeRunner.resetOutputResult();
+  }
+
+  void resetError() {
+    codeRunner.setResultAfterResetError();
+  }
+
   void setPipelineOptions(String options) {
     final controller = requireSnippetEditingController();
     controller.pipelineOptions = options;
     notifyListeners();
-  }
-
-  StreamController<int> _createExecutionTimeStream() {
-    StreamController<int>? streamController;
-    Timer? timer;
-    Duration timerInterval = const Duration(milliseconds: kExecutionTimeUpdate);
-    int ms = 0;
-
-    void stopTimer() {
-      timer?.cancel();
-      streamController?.close();
-    }
-
-    void tick(_) {
-      ms += kExecutionTimeUpdate;
-      streamController?.add(ms);
-    }
-
-    void startTimer() {
-      timer = Timer.periodic(timerInterval, tick);
-    }
-
-    streamController = StreamController<int>.broadcast(
-      onListen: startTimer,
-      onCancel: stopTimer,
-    );
-
-    return streamController;
   }
 
   Future<String> getSnippetId() {
@@ -252,7 +233,7 @@ class PlaygroundController with ChangeNotifier {
     ),
     actionIntent: const ResetIntent(),
     createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => codeRunner.reset(),
+      onInvoke: (_) => reset(),
     ),
   );
 

@@ -126,19 +126,18 @@ class CodeRunner extends ChangeNotifier {
     notifyListeners();
   }
 
-  void reset() {
-    _snippetEditingControllerGetter().reset();
+  void resetOutputResult() {
     outputResult = '';
     notifyListeners();
   }
 
-  void resetError() {
-    if (result == null) {
+  void setResultAfterResetError() {
+    if (_result == null) {
       return;
     }
     _result = RunCodeResult(
-      status: result!.status,
-      output: result!.output,
+      status: _result!.status,
+      output: _result!.output,
     );
     notifyListeners();
   }
@@ -146,7 +145,7 @@ class CodeRunner extends ChangeNotifier {
   Future<void> cancelRun() async {
     snippetEditingController = null;
     await _runSubscription?.cancel();
-    final pipelineUuid = result?.pipelineUuid ?? '';
+    final pipelineUuid = _result?.pipelineUuid ?? '';
 
     if (pipelineUuid.isNotEmpty) {
       await _codeRepository?.cancelExecution(pipelineUuid);
@@ -169,7 +168,7 @@ class CodeRunner extends ChangeNotifier {
     _result = const RunCodeResult(
       status: RunCodeStatus.preparation,
     );
-    final selectedExample = _snippetEditingControllerGetter().selectedExample!;
+    final selectedExample = snippetEditingController!.selectedExample!;
 
     notifyListeners();
     // add a little delay to improve user experience

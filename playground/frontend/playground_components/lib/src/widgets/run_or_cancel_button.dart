@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-import 'dart:async';
-
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/widgets.dart';
 
@@ -42,7 +40,7 @@ class RunOrCancelButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return RunButton(
       playgroundController: playgroundController,
-      isEnabled: playgroundController.selectedExample?.isMultiFile ?? false,
+      isEnabled: !(playgroundController.selectedExample?.isMultiFile ?? false),
       cancelRun: () async {
         beforeCancel?.call();
         try {
