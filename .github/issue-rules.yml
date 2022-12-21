@@ -26,13 +26,13 @@ rules:
 - valueFor: 'Priority'
   contains: '3'
   addLabels: ['P3']
-- contains: '[x] Component: Java'
+- contains: '[x] Component: Java SDK'
   addLabels: ['java']
-- contains: '[x] Component: Python'
+- contains: '[x] Component: Python SDK'
   addLabels: ['python']
-- contains: '[x] Component: Go'
+- contains: '[x] Component: Go SDK'
   addLabels: ['go']
-- contains: '[x] Component: Typescript'
+- contains: '[x] Component: Typescript SDK'
   addLabels: ['typescript']
 - contains: '[x] Component: IO'
   addLabels: ['io']
@@ -58,7 +58,7 @@ rules:
   addLabels: ['dataflow']
 - valueFor: 'Failure'
   contains: 'Test is flaky'
-  addLabels: ['flaky', 'tests']
+  addLabels: ['flake', 'tests']
 - valueFor: 'Failure'
   contains: 'Test is continually failing'
   addLabels: ['permared', 'failing test', 'tests']

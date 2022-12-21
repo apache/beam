@@ -42,6 +42,14 @@ final class SingleStoreUtil {
       CoderRegistry registry,
       SchemaRegistry schemaRegistry,
       Logger log) {
+    if (rowMapper instanceof SingleStoreIO.RowMapperWithCoder) {
+      try {
+        return ((SingleStoreIO.RowMapperWithCoder<OutputT>) rowMapper).getCoder();
+      } catch (Exception e) {
+        log.warn("Unable to infer a coder from RowMapper. Attempting to infer a coder from type.");
+      }
+    }
+
     TypeDescriptor<OutputT> outputType =
         TypeDescriptors.extractFromTypeParameters(
             rowMapper,

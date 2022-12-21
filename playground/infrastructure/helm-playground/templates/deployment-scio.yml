@@ -42,22 +42,22 @@ spec:
        livenessProbe:
          httpGet:
            path: /liveness
-           port: {{ .Value.healthcheck.port }}
-         initialDelaySeconds: {{ .Value.healthcheck.livInitialDelaySeconds }}
-         periodSeconds: {{ .Value.healthcheck.livPeriodSeconds }}
+           port: {{ .Values.healthcheck.port }}
+         initialDelaySeconds: {{ .Values.healthcheck.livInitialDelaySeconds }}
+         periodSeconds: {{ .Values.healthcheck.livPeriodSeconds }}
        readinessProbe:
          httpGet:
            path: /readiness
-           port: {{ .Value.healthcheck.port }}
-         initialDelaySeconds: {{ .Value.healthcheck.readInitialDelaySeconds }}
-         periodSeconds: {{ .Value.healthcheck.readPeriodSeconds }}
+           port: {{ .Values.healthcheck.port }}
+         initialDelaySeconds: {{ .Values.healthcheck.readInitialDelaySeconds }}
+         periodSeconds: {{ .Values.healthcheck.readPeriodSeconds }}
        resources:
          requests:
            memory: "1000Mi"
            cpu: "500m"
          limits:
            cpu: "1000"
-           memory: "500Mi"
+           memory: "1500Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:
