@@ -74,7 +74,7 @@ def create_test_example(create_test_tag):
 
 @pytest.fixture
 def create_test_tag():
-    def _create_test_tag(with_kafka=False, **tag_meta) -> Tag:
+    def _create_test_tag(with_kafka=False, is_multifile=False, **tag_meta) -> Tag:
         meta = {
             "name": "MOCK_NAME",
             "description": "MOCK_DESCRIPTION",
@@ -92,6 +92,14 @@ def create_test_tag():
                     }
                 ],
                 datasets={"dataset_id_1": {"format": "avro", "location": "local"}},
+            )
+        if is_multifile:
+            meta.update(
+                multifile=True,
+                files=[
+                    {"name": "utils.java"},
+                    {"name": "schema.java"}
+                ]
             )
         for k, v in tag_meta.items():
             if v is None:

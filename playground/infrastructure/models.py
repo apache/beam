@@ -62,8 +62,9 @@ class Emulator(BaseModel):
 
 
 class ImportFile(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1)
     context_line: int = 0
+    content: str = ""
 
 
 class Tag(BaseModel):
@@ -156,6 +157,7 @@ class Tag(BaseModel):
         if not os.path.isfile(local_path):
             logging.error("Import file not found: %s", local_path)
             raise FileNotFoundError(local_path)
+        v.content = open(local_path).read()
         return v
 
 

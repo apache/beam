@@ -303,9 +303,16 @@ async def _update_example_status(example: Example, client: GRPCClient):
                 dataset_path=dataset.file_name,
             )
         )
+    files: List[api_pb2.SnippetFile] = [
+        api_pb2.SnippetFile(name=example.filepath, content=example.code, is_main=True)
+    ]
+    for file in example.tag.files:
+        files.append(
+            api_pb2.SnippetFile(name=file.name, content=file.content, is_main=False)
+        )
 
     pipeline_id = await client.run_code(
-        example.code, example.sdk, example.tag.pipeline_options, datasets
+        example.code, example.sdk, example.tag.pipeline_options, datasets, files=files,
     )
     example.pipeline_id = pipeline_id
     status = await client.check_status(pipeline_id)
