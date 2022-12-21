@@ -852,7 +852,12 @@ public abstract class Row implements Serializable {
         throw new IllegalArgumentException(
             "Row expected "
                 + schema.getFieldCount()
-                + " fields. initialized with "
+                + String.format(
+                    " fields (%s).",
+                    schema.getFields().stream()
+                        .map(Object::toString)
+                        .collect(Collectors.joining(", ")))
+                + " initialized with "
                 + values.size()
                 + " fields.");
       }

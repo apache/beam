@@ -380,7 +380,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     dest);
                 return tableDestination1;
               });
-      final String tableId = tableDestination.getTableUrn();
+      final String tableId = tableDestination.getTableUrn(bigQueryOptions);
       final DatasetService datasetService = getDatasetService(pipelineOptions);
 
       Supplier<String> getOrCreateStream =

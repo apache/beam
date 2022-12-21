@@ -17,9 +17,14 @@
  */
 package org.apache.beam.sdk.io.singlestore;
 
+import com.singlestore.jdbc.SingleStoreDataSource;
+import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import javax.sql.DataSource;
 import org.apache.beam.sdk.io.common.TestRow;
 
 public class TestHelper {
@@ -65,6 +70,20 @@ public class TestHelper {
     @Override
     String getPassword() {
       return "secretPass";
+    }
+  }
+
+  public static void createDatabaseIfNotExists(
+      String serverName, Integer port, String username, String password, String databaseName)
+      throws SQLException {
+    DataSource dataSource =
+        new SingleStoreDataSource(
+            String.format(
+                "jdbc:singlestore://%s:%d/?user=%s&password=%s&allowLocalInfile=TRUE",
+                serverName, port, username, password));
+    try (Connection conn = dataSource.getConnection();
+        Statement stmt = conn.createStatement()) {
+      stmt.executeQuery(String.format("CREATE DATABASE IF NOT EXISTS %s", databaseName));
     }
   }
 }

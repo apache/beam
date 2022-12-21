@@ -26,6 +26,7 @@ import sonora.aio
 
 from api.v1 import api_pb2_grpc, api_pb2
 from config import Config
+from models import SdkEnum
 
 
 class GRPCClient:
@@ -50,7 +51,7 @@ class GRPCClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._channel.__aexit__(exc_type, exc_val, exc_tb)
 
-    async def run_code(self, code: str, sdk: api_pb2.Sdk, pipeline_options: str, datasets: List[api_pb2.Dataset]) -> str:
+    async def run_code(self, code: str, sdk: SdkEnum, pipeline_options: str, datasets: List[api_pb2.Dataset]) -> str:
         """
         Run example by his code and SDK
 
