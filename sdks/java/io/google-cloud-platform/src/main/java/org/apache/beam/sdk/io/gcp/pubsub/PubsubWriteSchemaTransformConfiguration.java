@@ -111,8 +111,11 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
     /**
      * The expected format of the Pub/Sub message.
      *
-     * <p>Used to retrieve the {@link org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer}
-     * from {@link org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers}.
+     * <p>Used to retrieve the {@link org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer} from
+     * {@link org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers}. See list of supported
+     * values by invoking {@link org.apache.beam.sdk.schemas.io.Providers#loadProviders(Class)}.
+     *
+     * <pre>{@code Providers.loadProviders(PayloadSerializer.class).keySet()}</pre>
      */
     public abstract Builder setFormat(String value);
 
