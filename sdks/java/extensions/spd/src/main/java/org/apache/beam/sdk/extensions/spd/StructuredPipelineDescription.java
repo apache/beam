@@ -126,6 +126,7 @@ public class StructuredPipelineDescription {
 
     // If a package name has been specified try to get it from a subprovider
     if (packageName != null && !"".equals(packageName)) {
+      LOG.info("Searching for " + fullTableName + " in package " + packageName);
       t = metaTableProvider.getSubProvider(packageName).getTable(fullTableName);
     }
     if (t != null) {
