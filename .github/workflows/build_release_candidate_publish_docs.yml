@@ -35,14 +35,12 @@ jobs:
   update_beam_site:
     runs-on: [self-hosted, ubuntu-20.04]
     env:
-      PYTHON_VIRTUALENV: python_staging_dir/venv
       PYTHON_DOC: python_doc
       JAVA_DOC: java_doc
       WEBSITE_REPO: beam_website_repo
       WEBSITE_UPDATE_DIR: website_update_dir
-      BEAM_WEBSITE_REPO: https://github.com/MarcoRob/beam-site.git
+      BEAM_WEBSITE_REPO: https://github.com/apache/beam-site
       WEBSITE_ROOT_DIR: beam-site
-      USER_REMOTE_URL: git@github.com:MarcoRob/beam-site.git
     steps:
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -52,20 +50,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Install hub
-        shell: bash
-        run: |
-          HUB_VERSION=2.5.0
-          HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
-          wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
-          tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
-          sudo ./${HUB_ARTIFACTS_NAME}/install
-          echo "eval "$(hub alias -s)"" >> ~/.bashrc
-          rm -rf ${HUB_ARTIFACTS_NAME}*
-      - name: Set git config
-        run: |
-          git config user.name $GITHUB_ACTOR
-          git config user.email actions@"$RUNNER_NAME".local
       - name: Setup Env
         run: |
           cd ~
@@ -88,70 +72,33 @@ jobs:
         # settings.xml file
         shell: bash
         run: rm ~/.m2/settings.xml
-      #      - name: Build Python Doc
-      #        run: |
-      #         cd $GITHUB_WORKSPACE
-      #         ./gradlew :pythonDocsPreCommit
-      #         GENERATED_PYDOC=$GITHUB_WORKSPACE/sdks/python/test-suites/tox/pycommon/build/srcs/sdks/python/target/docs/_build
-      #         echo "GENERATED_PYDOC=${GENERATED_PYDOC}" >> $GITHUB_ENV
-      #         rm -rf $GENERATED_PYDOC/.doctrees
-      #      - name: Build Java Doc
-      #        run: |
-      #          cd $GITHUB_WORKSPACE
-      #          ./gradlew :sdks:java:javadoc:aggregateJavadoc
-      #          GENERATED_JAVADOC=$GITHUB_WORKSPACE/sdks/java/javadoc/build/docs/javadoc/
-      #          echo "GENERATED_JAVADOC=${GENERATED_JAVADOC}" >> $GITHUB_ENV
       - name: Build Python Doc
         run: |
-          mkdir -p $GITHUB_WORKSPACE/pydoc
-          cd $GITHUB_WORKSPACE/pydoc
-          touch temp.txt
-          GENERATED_PYDOC=$GITHUB_WORKSPACE/pydoc
+          cd $GITHUB_WORKSPACE
+          ./gradlew :pythonDocsPreCommit
+          GENERATED_PYDOC=$GITHUB_WORKSPACE/sdks/python/test-suites/tox/pycommon/build/srcs/sdks/python/target/docs/_build
           echo "GENERATED_PYDOC=${GENERATED_PYDOC}" >> $GITHUB_ENV
+          rm -rf $GENERATED_PYDOC/.doctrees
       - name: Build Java Doc
         run: |
-          mkdir -p $GITHUB_WORKSPACE/javadoc
-          cd $GITHUB_WORKSPACE/javadoc
-          touch temp.txt
-          GENERATED_JAVADOC=$GITHUB_WORKSPACE/javadoc
+          cd $GITHUB_WORKSPACE
+          ./gradlew :sdks:java:javadoc:aggregateJavadoc
+          GENERATED_JAVADOC=$GITHUB_WORKSPACE/sdks/java/javadoc/build/docs/javadoc/
           echo "GENERATED_JAVADOC=${GENERATED_JAVADOC}" >> $GITHUB_ENV
       - name: Update Release Docs
         run: |
           cd ~/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}
           rm -rf ${{ env.WEBSITE_ROOT_DIR }}
-          git clone ${{ env.BEAM_WEBSITE_REPO }}
+          git clone ${{ env.BEAM_WEBSITE_REPO }}.git
           cd ${{ env.WEBSITE_ROOT_DIR }}
           git checkout release-docs
-          git checkout -b update_release_${{ github.event.inputs.RELEASE }} release-docs
+          git checkout -b updates_release_${{ github.event.inputs.RELEASE }} release-docs
       - name: Copy Java Doc and Python into beam-site
         run: |
           cd ~/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}/${{ env.WEBSITE_ROOT_DIR }}
-          mkdir -p javadoc/${{ github.event.inputs.RELEASE }}
-          mkdir -p pydoc/${{ github.event.inputs.RELEASE }}
+          ls
           cp -r ${{env.GENERATED_JAVADOC}} javadoc/${{ github.event.inputs.RELEASE }}
           cp -r ${{env.GENERATED_PYDOC}} pydoc/${{ github.event.inputs.RELEASE }}
-          COMMIT_MSG='"Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${{ env.RELEASE_COMMIT }}."'
-          echo "COMMIT_MSG=${COMMIT_MSG}" >> $GITHUB_ENV
-      #      - name: Push the changes to repository
-      #        run: |
-      #          cd ~/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}/${{ env.WEBSITE_ROOT_DIR }}
-      #          git config user.name $GITHUB_ACTOR
-      #          git config user.email actions@"$RUNNER_NAME".local
-      #          git add --all
-      #          git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${{ env.RELEASE_COMMIT }}."
-      #          git push -f ${{ env.USER_REMOTE_URL }}
-      #      - name: Push changes to beam-stie repository
-      #        uses: cpina/github-action-push-to-another-repository@ssh-deploy-key
-      #        env:
-      #          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
-      #          # API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
-      #        with:
-      #          source-directory: '$GITHUB_WORKSPACE/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}/${{ env.WEBSITE_ROOT_DIR }}'
-      #          destination-github-username: MarcoRob
-      #          destination-repository-name: 'beam-site'
-      #          user-email: marco.robles@wizeline.com
-      #          commit-message: ${{env.COMMIT_MSG}}
-      #          target-branch: 'update_release_${{ github.event.inputs.RELEASE }}'
       - name: Push changes to beam-site repository
         env:
           SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
@@ -165,17 +112,14 @@ jobs:
           GITHUB_SERVER="github.com"
           ssh-keyscan -H "$GITHUB_SERVER" > "$SSH_KNOWN_HOSTS_FILE"
           export GIT_SSH_COMMAND="ssh -i "$DEPLOY_KEY_FILE" -o UserKnownHostsFile=$SSH_KNOWN_HOSTS_FILE"
-          GIT_CMD_REPOSITORY="https://${{env.SSH_DEPLOY_KEY}}@$GITHUB_SERVER/MarcoRob/${{env.WEBSITE_ROOT_DIR}}.git"
           echo ====== Change to beam-site repository and push changes ======
           cd ~/${{ env.WEBSITE_UPDATE_DIR }}/${{ env.WEBSITE_REPO }}/${{ env.WEBSITE_ROOT_DIR }}
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
+          USER_REMOTE_URL=git@github.com:$GITHUB_ACTOR/beam-site.git
           git add --all
           git commit -m "Update beam-site for release ${{ github.event.inputs.RELEASE }}." -m "Content generated from commit ${{ env.RELEASE_COMMIT }}."
-          git push -f $GIT_CMD_REPOSITORY update_release_${{ github.event.inputs.RELEASE }}
-          echo ======== Release Docs pushed into update_release_${{ github.event.inputs.RELEASE }} branch =======
-    - name: Pull Request in beam-site repository
-      run: |
-        hub pull-request -m "Publish ${{env.RELEASE}} release" -h MarcoRob:updates_release_${{env.RELEASE}} -b MarcoRob:release-docs \
-             || echo "Pull request creation did not succeed. If you created the website PR earlier it may have been updated via force-push."
-        echo "======Finished v${RELEASE}-RC${RC_NUM} creation======="
+          git push -f ${USER_REMOTE_URL} updates_release_${{ github.event.inputs.RELEASE }}
+          echo ======== Release Docs pushed into updates_release_${{ github.event.inputs.RELEASE }} branch =======
+          PULL_REQUEST_URL="${{env.BEAM_WEBSITE_REPO}}/pull/new/updates_release_${{ github.event.inputs.RELEASE }}"
+          echo "You can generate manually the PR by clicking ${PULL_REQUEST_URL}"
