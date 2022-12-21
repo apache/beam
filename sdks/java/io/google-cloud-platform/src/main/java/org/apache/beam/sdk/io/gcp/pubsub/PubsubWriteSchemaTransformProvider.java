@@ -85,9 +85,9 @@ import org.joda.time.Instant;
 @Experimental(Kind.SCHEMAS)
 public class PubsubWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<PubsubWriteSchemaTransformConfiguration> {
-  private static final String API = "pubsub";
-  static final String INPUT_TAG = "INPUT";
-  static final String ERROR_TAG = "ERROR";
+  private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:pubsub_write:v1";
+  static final String INPUT_TAG = "input";
+  static final String ERROR_TAG = "error";
 
   /** Returns the expected class of the configuration. */
   @Override
@@ -104,7 +104,7 @@ public class PubsubWriteSchemaTransformProvider
   /** Implementation of the {@link SchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
-    return String.format("%s:write", API);
+    return IDENTIFIER;
   }
 
   /**
