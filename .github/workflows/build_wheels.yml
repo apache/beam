@@ -249,7 +249,7 @@ jobs:
         ]
         arch: [auto]
         include:
-          - os_python: {"os": ubuntu-latest, "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
+          - os_python: {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
