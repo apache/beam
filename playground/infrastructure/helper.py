@@ -24,6 +24,7 @@ from pathlib import PurePath
 from typing import List, Optional, Dict
 from api.v1 import api_pb2
 
+import pydantic
 from tqdm.asyncio import tqdm
 import yaml
 
@@ -98,11 +99,17 @@ def find_examples(root_dir: str, subdirs: List[str], sdk: SdkEnum) -> List[Examp
             for filename in files:
                 filepath = os.path.join(root, filename)
                 try:
-                    example = _load_example(
-                        filename=filename, filepath=filepath, sdk=sdk
-                    )
-                    if example is not None:
-                        examples.append(example)
+                    try:
+                        example = _load_example(
+                            filename=filename, filepath=filepath, sdk=sdk
+                        )
+                        if example is not None:
+                            examples.append(example)
+                    except pydantic.ValidationError as err:
+                        if len(err.errors()) > 1:
+                            raise
+                        if err.errors()[0]["msg"] == "multifile is True but no files defined":
+                            logging.warning("incomplete multifile example ignored %s", filepath)
                 except Exception:
                     logging.exception("error loading example at %s", filepath)
                     has_errors = True
