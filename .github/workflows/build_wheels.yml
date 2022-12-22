@@ -245,7 +245,7 @@ jobs:
         os_python: [
           {"os": [self-hosted, ubuntu-20.04], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
           {"os": "macos-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
-          {"os": windows-latest, "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
+          {"os": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
         ]
         arch: [auto]
         include:
