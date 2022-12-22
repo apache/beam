@@ -120,15 +120,17 @@ func createExampleEntities(ctx context.Context) ([]*datastore.Key, []*entity.Exa
 
 func createExampleEntity(ctx context.Context, name, sdk string) *entity.ExampleEntity {
 	return &entity.ExampleEntity{
-		Name:   name,
-		Sdk:    utils.GetSdkKey(ctx, sdk),
-		Descr:  "MOCK_DESCR",
-		Tags:   []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
-		Cats:   []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
-		Path:   "MOCK_PATH",
-		Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
-		Origin: constants.ExampleOrigin,
-		SchVer: utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
+		Name:        name,
+		Sdk:         utils.GetSdkKey(ctx, sdk),
+		Descr:       "MOCK_DESCR",
+		Tags:        []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
+		Cats:        []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
+		Path:        "MOCK_PATH",
+		UrlVCS:      "MOCK_URL_VCS",
+		UrlNotebook: "MOCK_URL_NOTEBOOK",
+		Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+		Origin:      constants.ExampleOrigin,
+		SchVer:      utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	}
 }
 

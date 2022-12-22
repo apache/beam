@@ -115,6 +115,9 @@
      @media (max-width: $tablet) {
        margin-bottom: 43px;
      }
+     @media (max-width: $ak-breakpoint-sm) {
+       height: 74px;
+     }
      img {
        position: absolute;
        top: 7px;
@@ -164,12 +167,6 @@
        }
        @media (max-width: $mobile) {
          font-weight: 500;
-       }
-     }
-     .list-item-description {
-       @media (max-width: $mobile) {
-         position: absolute;
-         left: 55px;
        }
      }
    }

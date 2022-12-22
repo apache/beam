@@ -19,11 +19,15 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
+import '../exceptions/catalog_loading_exception.dart';
+import '../exceptions/example_loading_exception.dart';
+import '../exceptions/snippet_saving_exception.dart';
 import '../models/category_with_examples.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
+import '../models/loading_status.dart';
 import '../models/sdk.dart';
 import '../repositories/example_repository.dart';
 import '../repositories/models/get_default_precompiled_object_request.dart';
@@ -35,13 +39,10 @@ import '../repositories/models/shared_file.dart';
 
 /// A runtime cache for examples fetched from a repository.
 class ExampleCache extends ChangeNotifier {
-  /// If set, then categories and default examples are enabled.
-  /// Otherwise examples can only be queried by paths.
-  final bool hasCatalog;
-
   final ExampleRepository _exampleRepository;
   final categoryListsBySdk = <Sdk, List<CategoryWithExamples>>{};
 
+  @visibleForTesting
   final Map<Sdk, Example> defaultExamplesBySdk = {};
 
   // TODO(alexeyinkin): Extract, https://github.com/apache/beam/issues/23249
@@ -51,55 +52,68 @@ class ExampleCache extends ChangeNotifier {
 
   Future<void> get allExamplesFuture => _allExamplesCompleter.future;
 
+  Future<void>? _allPrecompiledObjectsAttemptFuture;
+
   ExampleCache({
     required ExampleRepository exampleRepository,
-    required this.hasCatalog,
   }) : _exampleRepository = exampleRepository;
 
-  Future<void> init() async {
-    if (hasCatalog) {
-      await Future.wait([
-        _loadCategories(),
-        loadDefaultExamplesIfNot(),
-      ]);
+  Future<void> loadAllPrecompiledObjectsIfNot() async {
+    if (_allPrecompiledObjectsAttemptFuture != null) {
+      return await _allPrecompiledObjectsAttemptFuture;
+    }
+
+    try {
+      _allPrecompiledObjectsAttemptFuture = _loadAllPrecompiledObjects();
+      await _allPrecompiledObjectsAttemptFuture!;
+    } on Exception catch (ex) {
+      _allPrecompiledObjectsAttemptFuture = null;
+      throw CatalogLoadingException(ex);
     }
   }
 
-  void setSdkCategories(Map<Sdk, List<CategoryWithExamples>> map) {
-    categoryListsBySdk.addAll(map);
-    _allExamplesCompleter.complete();
+  LoadingStatus get catalogStatus {
+    if (_allPrecompiledObjectsAttemptFuture == null) {
+      return LoadingStatus.error;
+    }
+
+    if (categoryListsBySdk.isEmpty) {
+      return LoadingStatus.loading;
+    }
+
+    return LoadingStatus.done;
   }
 
   List<CategoryWithExamples> getCategories(Sdk? sdk) {
     return categoryListsBySdk[sdk] ?? [];
   }
 
-  Future<String> getExampleOutput(String path, Sdk sdk) async {
-    return _exampleRepository.getExampleOutput(
+  Future<ExampleBase> getPrecompiledObject(String path, Sdk sdk) {
+    return _exampleRepository.getPrecompiledObject(
       GetPrecompiledObjectRequest(path: path, sdk: sdk),
     );
   }
 
-  Future<String> getExampleSource(String path, Sdk sdk) async {
-    return _exampleRepository.getExampleSource(
+  Future<String> _getPrecompiledObjectOutput(String path, Sdk sdk) {
+    return _exampleRepository.getPrecompiledObjectOutput(
       GetPrecompiledObjectRequest(path: path, sdk: sdk),
     );
   }
 
-  Future<ExampleBase> getExample(String path, Sdk sdk) async {
-    return _exampleRepository.getExample(
+  Future<String> _getPrecompiledObjectCode(String path, Sdk sdk) {
+    return _exampleRepository.getPrecompiledObjectCode(
       GetPrecompiledObjectRequest(path: path, sdk: sdk),
     );
   }
 
-  Future<String> getExampleLogs(String path, Sdk sdk) async {
-    return _exampleRepository.getExampleLogs(
+  Future<String> _getPrecompiledObjectLogs(String path, Sdk sdk) {
+    return _exampleRepository.getPrecompiledObjectLogs(
       GetPrecompiledObjectRequest(path: path, sdk: sdk),
     );
   }
 
-  Future<String> getExampleGraph(String id, Sdk sdk) async {
-    return _exampleRepository.getExampleGraph(
+  Future<String> _getPrecompiledObjectGraph(String id, Sdk sdk) {
+    return _exampleRepository.getPrecompiledObjectGraph(
       GetPrecompiledObjectRequest(path: id, sdk: sdk),
     );
   }
@@ -110,31 +124,33 @@ class ExampleCache extends ChangeNotifier {
     );
 
     return Example(
-      sdk: result.sdk,
+      complexity: result.complexity,
       name: result.files.first.name,
       path: id,
-      description: '',
-      tags: [],
-      type: ExampleType.example,
+      sdk: result.sdk,
       source: result.files.first.code,
       pipelineOptions: result.pipelineOptions,
-      complexity: result.complexity,
+      type: ExampleType.example,
     );
   }
 
-  Future<String> getSnippetId({
+  Future<String> saveSnippet({
     required List<SharedFile> files,
     required Sdk sdk,
     required String pipelineOptions,
   }) async {
-    final id = await _exampleRepository.saveSnippet(
-      SaveSnippetRequest(
-        files: files,
-        sdk: sdk,
-        pipelineOptions: pipelineOptions,
-      ),
-    );
-    return id;
+    try {
+      final id = await _exampleRepository.saveSnippet(
+        SaveSnippetRequest(
+          files: files,
+          sdk: sdk,
+          pipelineOptions: pipelineOptions,
+        ),
+      );
+      return id;
+    } on Exception catch (ex) {
+      throw SnippetSavingException(ex);
+    }
   }
 
   Future<Example> loadExampleInfo(ExampleBase example) async {
@@ -143,12 +159,13 @@ class ExampleCache extends ChangeNotifier {
     }
 
     //GRPC GetPrecompiledGraph errors hotfix
+    // TODO(alexeyinkin): Remove this special case, https://github.com/apache/beam/issues/24002
     if (example.name == 'MinimalWordCount' &&
         (example.sdk == Sdk.go || example.sdk == Sdk.scio)) {
       final exampleData = await Future.wait([
-        getExampleSource(example.path, example.sdk),
-        getExampleOutput(example.path, example.sdk),
-        getExampleLogs(example.path, example.sdk),
+        _getPrecompiledObjectCode(example.path, example.sdk),
+        _getPrecompiledObjectOutput(example.path, example.sdk),
+        _getPrecompiledObjectLogs(example.path, example.sdk),
       ]);
 
       return Example.fromBase(
@@ -160,10 +177,10 @@ class ExampleCache extends ChangeNotifier {
     }
 
     final exampleData = await Future.wait([
-      getExampleSource(example.path, example.sdk),
-      getExampleOutput(example.path, example.sdk),
-      getExampleLogs(example.path, example.sdk),
-      getExampleGraph(example.path, example.sdk)
+      _getPrecompiledObjectCode(example.path, example.sdk),
+      _getPrecompiledObjectOutput(example.path, example.sdk),
+      _getPrecompiledObjectLogs(example.path, example.sdk),
+      _getPrecompiledObjectGraph(example.path, example.sdk)
     ]);
 
     return Example.fromBase(
@@ -175,55 +192,70 @@ class ExampleCache extends ChangeNotifier {
     );
   }
 
-  Future<void> _loadCategories() async {
-    final result = await _exampleRepository.getListOfExamples(
+  Future<void> _loadAllPrecompiledObjects() async {
+    final result = await _exampleRepository.getPrecompiledObjects(
       const GetPrecompiledObjectsRequest(
         sdk: null,
         category: null,
       ),
     );
 
-    setSdkCategories(result);
-  }
-
-  void changeSelectorVisibility() {
-    isSelectorOpened = !isSelectorOpened;
+    categoryListsBySdk.addAll(result);
+    _allExamplesCompleter.complete();
     notifyListeners();
   }
 
-  Future<void> loadDefaultExamples() async {
+  void setSelectorOpened(bool value) {
+    isSelectorOpened = value;
+    notifyListeners();
+  }
+
+  Future<Example?> getDefaultExampleBySdk(Sdk sdk) async {
+    await Future.wait([
+      loadAllPrecompiledObjectsIfNot(),
+      loadDefaultPrecompiledObjectsIfNot(),
+    ]);
+
+    return defaultExamplesBySdk[sdk];
+  }
+
+  Future<void> loadDefaultPrecompiledObjects() async {
     if (defaultExamplesBySdk.isNotEmpty) {
       return;
     }
 
     try {
-      await Future.wait(Sdk.known.map(_loadDefaultExample));
-    } catch (ex) {
+      await Future.wait(Sdk.known.map(_loadDefaultPrecompiledObject));
+    } on Exception catch (ex) {
       if (defaultExamplesBySdk.isEmpty) {
-        rethrow;
+        throw ExampleLoadingException(ex);
       }
       // As long as any of the examples is loaded, continue.
       print(ex);
       // TODO: Log.
+
+      notifyListeners();
+      throw ExampleLoadingException(ex);
     }
 
     notifyListeners();
   }
 
-  Future<void> _loadDefaultExample(Sdk sdk) async {
-    final exampleWithoutInfo = await _exampleRepository.getDefaultExample(
+  Future<void> _loadDefaultPrecompiledObject(Sdk sdk) async {
+    final exampleWithoutInfo =
+        await _exampleRepository.getDefaultPrecompiledObject(
       GetDefaultPrecompiledObjectRequest(sdk: sdk),
     );
 
     defaultExamplesBySdk[sdk] = await loadExampleInfo(exampleWithoutInfo);
   }
 
-  Future<void> loadDefaultExamplesIfNot() async {
+  Future<void> loadDefaultPrecompiledObjectsIfNot() async {
     if (defaultExamplesBySdk.isNotEmpty) {
       return;
     }
 
-    await loadDefaultExamples();
+    await loadDefaultPrecompiledObjects();
   }
 
   Future<ExampleBase?> getCatalogExampleByPath(String path) async {

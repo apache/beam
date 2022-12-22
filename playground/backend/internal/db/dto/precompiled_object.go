@@ -28,6 +28,8 @@ type ObjectInfo struct {
 	Categories      []string
 	PipelineOptions string
 	Link            string
+	UrlVCS          string
+	UrlNotebook     string
 	Multifile       bool
 	ContextLine     int32
 	DefaultExample  bool

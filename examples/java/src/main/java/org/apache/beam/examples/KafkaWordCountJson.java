@@ -32,14 +32,14 @@ package org.apache.beam.examples;
 //     - strings
 //     - emulator
 //   emulators:
-//      kafka:
-//          topic:
-//              id: dataset
-//              dataset: CountWords
+//      - type: kafka
+//        topic:
+//          id: dataset
+//          source_dataset: CountWords
 //   datasets:
-//      CountWords:
-//          location: local
-//          format: json
+//     CountWords:
+//       location: local
+//       format: json
 
 import java.util.Collections;
 import java.util.HashMap;
