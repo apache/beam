@@ -23,23 +23,24 @@ import InfluxDBCredentialsHelper
 
 def jobs = [
   [
-    name               : 'beam_PerformanceTests_xlang_KafkaIO_batch_Python',
-    description        : 'Runs performance tests for xlang Python KafkaIO Batch',
+    name               : 'beam_PerformanceTests_xlang_KafkaIO_Python',
+    description        : 'Runs performance tests for xlang Python KafkaIO',
     test               : 'apache_beam.io.external.xlang_kafkaio_perf_test',
-    githubTitle        : 'Python xlang KafkaIO Batch Performance Test',
-    githubTriggerPhrase: 'Run Python xlang KafkaIO Batch Performance Test',
+    githubTitle        : 'Python xlang KafkaIO Performance Test',
+    githubTriggerPhrase: 'Run Python xlang KafkaIO Performance Test',
     pipelineOptions    : [
       publish_to_big_query : true,
       metrics_dataset      : 'beam_performance',
-      metrics_table        : 'python_kafkaio_batch_results',
-      influx_measurement   : 'python_kafkaio_batch_results',
-      test_class           : 'KafkaIOBatchPerfTest',
+      metrics_table        : 'python_kafkaio_results',
+      influx_measurement   : 'python_kafkaio_results',
+      test_class           : 'KafkaIOPerfTest',
       input_options        : """'{
                                "num_records": 100000000,
                                "key_size": 10,
                                "value_size": 90
                              }'""".trim().replaceAll("\\s", ""),
-      kafka_topic          : 'beam-batch',
+      kafka_topic          : 'beam',
+      read_timeout         : '1500',
       num_workers          : '5',
       autoscaling_algorithm: 'NONE'
     ]
@@ -49,7 +50,7 @@ def jobs = [
 jobs.findAll {
   it.name in [
     // all tests that enabled
-    'beam_PerformanceTests_xlang_KafkaIO_batch_Python',
+    'beam_PerformanceTests_xlang_KafkaIO_Python',
   ]
 }.forEach { testJob -> createKafkaIOTestJob(testJob) }
 

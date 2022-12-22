@@ -22,14 +22,13 @@ import typing
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io import kafka
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test import LoadTestOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 from apache_beam.transforms.util import Reshuffle
 
 WRITE_NAMESPACE = 'write'
@@ -49,12 +48,19 @@ class KafkaIOTestOptions(LoadTestOptions):
     parser.add_argument(
         '--bootstrap_servers', help='URL TO Kafka Bootstrap service.')
 
+    parser.add_argument(
+        '--read_timeout',
+        type=int,
+        required=True,
+        help='Time to wait for the events to be processed by the read pipeline'
+        ' (in seconds)')
 
-class KafkaIOBatchPerfTest:
-  """Performance test for cross-language Kafka IO batch pipeline."""
+
+class KafkaIOPerfTest:
+  """Performance test for cross-language Kafka IO pipeline."""
   def run(self):
     write_test = _KafkaIOBatchWritePerfTest()
-    read_test = _KafkaIOBatchReadPerfTest()
+    read_test = _KafkaIOSDFReadPerfTest()
     write_test.run()
     read_test.run()
 
@@ -87,32 +93,36 @@ class _KafkaIOBatchWritePerfTest(LoadTest):
     pass
 
 
-class _KafkaIOBatchReadPerfTest(LoadTest):
+class _KafkaIOSDFReadPerfTest(LoadTest):
   def __init__(self):
     super().__init__(READ_NAMESPACE)
     self.test_options = self.pipeline.get_pipeline_options().view_as(
         KafkaIOTestOptions)
+    self.timeout_ms = self.test_options.read_timeout * 1000
     self.kafka_topic = self.test_options.kafka_topic
+    # Use streaming pipeline to read Kafka records.
+    self.pipeline.get_pipeline_options().view_as(
+        StandardOptions).streaming = True
     # otherwise see 'ValueError: Unexpected DoFn type: beam:dofn:javasdk:0.1'
     self.pipeline.not_use_test_runner_api = True
 
   def test(self):
-    output = (
+    _ = (
         self.pipeline
         | 'ReadFromKafka' >> kafka.ReadFromKafka(
             consumer_config={
                 'bootstrap.servers': self.test_options.bootstrap_servers,
                 'auto.offset.reset': 'earliest'
             },
-            topics=[self.kafka_topic],
-            max_num_records=self.input_options['num_records'])
+            topics=[self.kafka_topic])
         | 'Count records' >> beam.ParDo(CountMessages(self.metrics_namespace))
-        | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-        | 'Count' >> beam.combiners.Count.Globally())
-    assert_that(output, equal_to([self.input_options['num_records']]))
+        | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
   def cleanup(self):
-    pass
+    # assert number of records after test pipeline run
+    total_messages = self._metrics_monitor.get_counter_metric(
+        self.result, CountMessages.LABEL)
+    assert total_messages == self.input_options['num_records']
 
 
 if __name__ == '__main__':
