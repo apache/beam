@@ -21,7 +21,7 @@ Coder instances are serialized during job creation and deserialized before use. 
 Coder classes for compound types are often composed of coder classes for types contains therein. The composition of Coder instances into a coder for the compound class is the subject of the Coder Provider type, which enables automatic generic composition of Coder classes within the CoderRegistry. See Coder Provider and CoderRegistry for more information about how coders are inferred.
 
 When you write your Custom code, you inherit from Coder and you have to implement its methods.
-* `encode` - converting objects to bytes 
+* `encode` - converting objects to bytes
 * `decode` - converting bytes to objects
 * `getCoderArguments` - If it is a `Coder` for a parameterized type, returns a list of `Coders` used for each of the parameters, in the same order in which they appear in the type signature of the parameterized type.
 * `verifyDeterministic` - throw the `Coder.NonDeterministicException`, if the encoding is not deterministic.
