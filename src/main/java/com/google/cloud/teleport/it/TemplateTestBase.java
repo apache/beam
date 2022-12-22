@@ -240,7 +240,7 @@ public abstract class TemplateTestBase {
       moduleBuild,
       // Do not make all dependencies every time. Faster but requires prior `mvn install`.
       // "-am",
-      "-PtemplatesStage",
+      "-PtemplatesStage,pluginOutputDir",
       "-DskipShade",
       "-DskipTests",
       "-Dcheckstyle.skip",
