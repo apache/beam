@@ -761,6 +761,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     if (requiresStableInput) {
       // put this in front of the root FnRunner before any additional wrappers
+      KeyedStateBackend<Object> keyedBufferingBackend = getBufferingKeyedStateBackend();
       return this.bufferingDoFnRunner =
           BufferingDoFnRunner.create(
               wrappedRunner,
@@ -768,11 +769,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
               windowedInputCoder,
               windowingStrategy.getWindowFn().windowCoder(),
               getOperatorStateBackend(),
-              getBufferingKeyedStateBackend(),
+              keyedBufferingBackend,
               numConcurrentCheckpoints,
               serializedOptions,
-              () -> Locker.locked(stateBackendLock),
-              input -> FlinkKeyUtils.encodeKey(((KV) input).getKey(), (Coder) keyCoder));
+              keyedBufferingBackend != null ? () -> Locker.locked(stateBackendLock) : null,
+              keyedBufferingBackend != null
+                  ? input -> FlinkKeyUtils.encodeKey(((KV) input).getKey(), (Coder) keyCoder)
+                  : null,
+              sdkHarnessRunner::emitResults);
     }
     return wrappedRunner;
   }

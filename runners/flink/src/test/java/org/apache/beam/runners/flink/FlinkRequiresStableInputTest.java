@@ -79,6 +79,7 @@ public class FlinkRequiresStableInputTest {
   private static ListeningExecutorService flinkJobExecutor;
   private static final int PARALLELISM = 1;
   private static final long CHECKPOINT_INTERVAL = 2000L;
+  private static final long FINISH_SOURCE_INTERVAL = 3 * CHECKPOINT_INTERVAL;
 
   @BeforeClass
   public static void setup() {
@@ -123,7 +124,7 @@ public class FlinkRequiresStableInputTest {
 
   private void testParDoRequiresStableInputStateful(boolean portable) throws Exception {
     FlinkPipelineOptions opts = getFlinkOptions(portable);
-    opts.as(FlinkPipelineOptions.class).setShutdownSourcesAfterIdleMs(CHECKPOINT_INTERVAL * 2);
+    opts.as(FlinkPipelineOptions.class).setShutdownSourcesAfterIdleMs(FINISH_SOURCE_INTERVAL);
     opts.as(FlinkPipelineOptions.class).setNumberOfExecutionRetries(0);
     Pipeline pipeline = Pipeline.create(opts);
     PCollection<Integer> result =
@@ -238,7 +239,9 @@ public class FlinkRequiresStableInputTest {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setParallelism(PARALLELISM);
     options.setCheckpointingInterval(CHECKPOINT_INTERVAL);
-    options.setShutdownSourcesAfterIdleMs(CHECKPOINT_INTERVAL);
+    options.setShutdownSourcesAfterIdleMs(FINISH_SOURCE_INTERVAL);
+    options.setFinishBundleBeforeCheckpointing(true);
+    options.setMaxBundleTimeMills(100L);
     options.setStreaming(true);
     if (portable) {
       options.setRunner(CrashingRunner.class);

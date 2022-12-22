@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -76,6 +77,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
         pipelineOptions,
         keyedStateBackend,
         null,
+        null,
         null);
   }
 
@@ -88,8 +90,9 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       @Nullable KeyedStateBackend<Object> keyedStateBackend,
       int maxConcurrentCheckpoints,
       SerializablePipelineOptions pipelineOptions,
-      Supplier<Locker> locker,
-      Function<InputT, Object> keySelector)
+      @Nullable Supplier<Locker> locker,
+      @Nullable Function<InputT, Object> keySelector,
+      @Nullable Runnable finishBundleCallback)
       throws Exception {
 
     return new BufferingDoFnRunner<>(
@@ -102,7 +105,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
         pipelineOptions,
         keyedStateBackend,
         locker,
-        keyedStateBackend != null ? keySelector : null);
+        keyedStateBackend != null ? keySelector : null,
+        finishBundleCallback);
   }
 
   /** The underlying DoFnRunner that any buffered data will be handed over to eventually. */
@@ -130,6 +134,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
    * A selector of key. When non-null, this must be set to the keyed state beckend before buffering.
    */
   private final @Nullable Function<InputT, Object> keySelector;
+  /** Callable to notify about possibility to flush bundle. */
+  private final @Nullable Runnable finishBundleCallback;
 
   private BufferingDoFnRunner(
       DoFnRunner<InputT, OutputT> underlying,
@@ -141,7 +147,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       SerializablePipelineOptions pipelineOptions,
       @Nullable KeyedStateBackend keyedStateBackend,
       @Nullable Supplier<Locker> locker,
-      @Nullable Function<InputT, Object> keySelector)
+      @Nullable Function<InputT, Object> keySelector,
+      @Nullable Runnable finishBundleCallback)
       throws Exception {
 
     Preconditions.checkArgument(
@@ -173,6 +180,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
     this.keyedStateBackend = keyedStateBackend;
     this.locker = locker;
     this.keySelector = keySelector;
+    this.finishBundleCallback = finishBundleCallback;
 
     Preconditions.checkArgument(
         keySelector == null || keyedStateBackend != null,
@@ -228,7 +236,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       Instant outputTimestamp,
       TimeDomain timeDomain) {
 
-    minBufferedElementTimestamp = Math.min(outputTimestamp.getMillis(), minBufferedElementTimestamp);
+    minBufferedElementTimestamp =
+        Math.min(outputTimestamp.getMillis(), minBufferedElementTimestamp);
     try (Locker lock = locker != null ? locker.get() : null) {
       if (keySelector != null) {
         keyedStateBackend.setCurrentKey(key);
@@ -241,7 +250,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
 
   @Override
   public void finishBundle() {
-    // Do not finish a bundle, finish it later when emitting elements
+    Optional.ofNullable(finishBundleCallback).ifPresent(Runnable::run);
   }
 
   @Override
@@ -268,19 +277,22 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
     for (CheckpointIdentifier toBeAcked : allToAck) {
       BufferingElementsHandler bufferingElementsHandler =
           bufferingElementsHandlerFactory.get(toBeAcked.internalId);
-      Iterator<BufferedElement> iterator = bufferingElementsHandler.getElements().iterator();
-      boolean hasElements = iterator.hasNext();
-      if (hasElements) {
-        underlying.startBundle();
+      try (Locker lock = locker != null ? locker.get() : null) {
+        final Iterator<BufferedElement> iterator =
+            bufferingElementsHandler.getElements().iterator();
+        boolean hasElements = iterator.hasNext();
+        if (hasElements) {
+          underlying.startBundle();
+        }
+        while (iterator.hasNext()) {
+          BufferedElement bufferedElement = iterator.next();
+          bufferedElement.processWith(underlying);
+        }
+        if (hasElements) {
+          underlying.finishBundle();
+        }
+        bufferingElementsHandler.clear();
       }
-      while (iterator.hasNext()) {
-        BufferedElement bufferedElement = iterator.next();
-        bufferedElement.processWith(underlying);
-      }
-      if (hasElements) {
-        underlying.finishBundle();
-      }
-      bufferingElementsHandler.clear();
     }
     minBufferedElementTimestamp = Long.MAX_VALUE;
   }
