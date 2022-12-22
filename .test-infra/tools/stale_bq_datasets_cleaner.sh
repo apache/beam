@@ -21,7 +21,8 @@
 set -euo pipefail
 
 PROJECT=apache-beam-testing
-BQ_DATASETS=`bq --format=json --project_id=$PROJECT ls --max_results=1500 | jq -r .[].id`
+MAX_RESULT=1500
+BQ_DATASETS=`bq --project_id=$PROJECT ls --max_results=$MAX_RESULT | tail -n $MAX_RESULT | sed s/^[[:space:]]*/${PROJECT}:/`
 
 CLEANUP_DATASET_TEMPLATES=(beam_bigquery_samples_ beam_temp_dataset_ FHIR_store_ bq_query_schema_update_options_16 bq_query_to_table_16 bq_read_all_[a-z0-9]*)
 
@@ -33,11 +34,13 @@ for dataset in ${BQ_DATASETS[@]}; do
     if [[ $dataset =~ $template ]]; then
       # The BQ API reports LAST MODIFIED TIME in miliseconds, while unix works in seconds since epoch
       # thus why we need to convert to seconds.
-      LAST_MODIFIED_MS=`bq --format=json --project_id=$PROJECT show $dataset | jq -r .lastModifiedTime`
+      [[ `bq --format=json --project_id=$PROJECT show $dataset` =~ \"lastModifiedTime\":\"([0-9]+)\" ]]
+      LAST_MODIFIED_MS=${BASH_REMATCH[1]}
       LAST_MODIFIED=$(($LAST_MODIFIED_MS / 1000))
       if [[ $GRACE_PERIOD -gt $LAST_MODIFIED ]]; then
-        echo "Deleting $dataset (modified `date -d @$LAST_MODIFIED`) Command bq --project_id=$PROJECT rm -r -f $dataset"
-        bq --project_id=$PROJECT rm -r -f $dataset
+        echo "Deleting $dataset (modified `date -d @$LAST_MODIFIED`)"
+        # do not fail the script if delete dataset fail
+        bq --project_id=$PROJECT rm -r -f $dataset || true
       fi
     fi
   done
