@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "apilloud",
-    "build": "Abacn",
-    "io": "johnjcasey"
+    "java": "kileys",
+    "build": "damccorm",
+    "io": "pabloem"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
