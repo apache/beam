@@ -28,6 +28,7 @@ pythonVersion = '3.8'
 
 def posargs = project.findProperty("posargs") ?: ""
 def runDataframesTests = (posargs == "" || posargs.contains("dataframes"))
+logger.info('Running dataframes tests: ' + runDataframesTests)
 
 toxTask "formatter", "py3-yapf-check"
 check.dependsOn formatter
