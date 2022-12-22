@@ -49,8 +49,8 @@ test_1:
   metric_name: mean_load_model_latency_milli_secs
   labels:
     - run-inference
-  min_runs_between_change_points: 5 # optional parameter
-  num_runs_in_change_point_window: 7 # optional parameter
+  min_runs_between_change_points: 3 # optional parameter
+  num_runs_in_change_point_window: 30 # optional parameter
 ```
 
 **NOTE**: `test_name` should be in the format `apache_beam.foo.bar`. It should point to a single test target.

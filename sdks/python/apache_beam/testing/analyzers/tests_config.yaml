@@ -24,7 +24,7 @@ test_1:
   labels:
     - run-inference
   # Optional parameters.
-  min_runs_between_change_points: 5
+  min_runs_between_change_points: 3
   num_runs_in_change_point_window: 30
 
 test_2:
