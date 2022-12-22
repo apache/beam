@@ -93,7 +93,7 @@ class DatastoreClient:
                 )
 
                 snippet = self._to_snippet_entity(
-                    example, example_id, sdk_key, now, actual_schema_version_key, origin
+                    example, example_id, sdk_key, now, actual_schema_version_key, origin,
                 )
                 self._datastore_client.put(snippet)
                 self._datastore_client.put_multi(
@@ -265,7 +265,7 @@ class DatastoreClient:
                 "pipeOpts": self._get_pipeline_options(example),
                 "created": now,
                 "origin": origin,
-                "numberOfFiles": 1,
+                "numberOfFiles": 1 + len(example.tag.files),
                 "schVer": schema_key,
                 "complexity": f"COMPLEXITY_{example.tag.complexity}",
             }
