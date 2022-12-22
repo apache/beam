@@ -13,4 +13,4 @@ limitations under the License.
 -->
 # Logical types
 
-Users can extend the schema type system to add custom logical types that can be used as a field. A logical type is identified by a unique identifier and an argument. A logical type also specifies an underlying schema type to be used for storage, along with conversions to and from that type. As an example, a logical union can always be represented as a row with nullable fields, where the user ensures that only one of those fields is ever set at a time.
+There may be cases when you need to extend the schema type system to add custom logical types. A unique identifier and an argument identify a logical type. Apart from defining the underlying schema type for storage, you also need to implement to and from type conversions. For example, you can represent the union logical type as a row with nullable fields, with only one field set at a time.
