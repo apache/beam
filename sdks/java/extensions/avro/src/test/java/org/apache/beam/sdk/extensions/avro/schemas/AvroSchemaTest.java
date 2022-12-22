@@ -372,33 +372,25 @@ public class AvroSchemaTest {
 
   @Test
   public void testSpecificRecordSchema() {
-    assertEquals(
-        SCHEMA,
-        new org.apache.beam.sdk.schemas.AvroRecordSchema()
-            .schemaFor(TypeDescriptor.of(TestAvro.class)));
+    assertEquals(SCHEMA, new AvroRecordSchema().schemaFor(TypeDescriptor.of(TestAvro.class)));
   }
 
   @Test
   public void testPojoSchema() {
-    assertEquals(
-        POJO_SCHEMA,
-        new org.apache.beam.sdk.schemas.AvroRecordSchema()
-            .schemaFor(TypeDescriptor.of(AvroPojo.class)));
+    assertEquals(POJO_SCHEMA, new AvroRecordSchema().schemaFor(TypeDescriptor.of(AvroPojo.class)));
   }
 
   @Test
   public void testSpecificRecordToRow() {
     SerializableFunction<TestAvro, Row> toRow =
-        new org.apache.beam.sdk.schemas.AvroRecordSchema()
-            .toRowFunction(TypeDescriptor.of(TestAvro.class));
+        new AvroRecordSchema().toRowFunction(TypeDescriptor.of(TestAvro.class));
     assertEquals(ROW, toRow.apply(AVRO_SPECIFIC_RECORD));
   }
 
   @Test
   public void testRowToSpecificRecord() {
     SerializableFunction<Row, TestAvro> fromRow =
-        new org.apache.beam.sdk.schemas.AvroRecordSchema()
-            .fromRowFunction(TypeDescriptor.of(TestAvro.class));
+        new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(TestAvro.class));
     assertEquals(AVRO_SPECIFIC_RECORD, fromRow.apply(ROW));
   }
 
@@ -456,24 +448,21 @@ public class AvroSchemaTest {
   @Test
   public void testPojoRecordToRow() {
     SerializableFunction<AvroPojo, Row> toRow =
-        new org.apache.beam.sdk.schemas.AvroRecordSchema()
-            .toRowFunction(TypeDescriptor.of(AvroPojo.class));
+        new AvroRecordSchema().toRowFunction(TypeDescriptor.of(AvroPojo.class));
     assertEquals(ROW_FOR_POJO, toRow.apply(AVRO_POJO));
   }
 
   @Test
   public void testRowToPojo() {
     SerializableFunction<Row, AvroPojo> fromRow =
-        new org.apache.beam.sdk.schemas.AvroRecordSchema()
-            .fromRowFunction(TypeDescriptor.of(AvroPojo.class));
+        new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class));
     assertEquals(AVRO_POJO, fromRow.apply(ROW_FOR_POJO));
   }
 
   @Test
   public void testPojoRecordToRowSerializable() {
     SerializableUtils.ensureSerializableRoundTrip(
-        new org.apache.beam.sdk.schemas.AvroRecordSchema()
-            .toRowFunction(TypeDescriptor.of(AvroPojo.class)));
+        new AvroRecordSchema().toRowFunction(TypeDescriptor.of(AvroPojo.class)));
   }
 
   @Test

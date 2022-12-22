@@ -753,21 +753,20 @@ public class AvroIO {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> org.apache.beam.sdk.io.AvroSource<T> createSource(
+    private static <T> AvroSource<T> createSource(
         ValueProvider<String> filepattern,
         EmptyMatchTreatment emptyMatchTreatment,
         Class<T> recordClass,
         Schema schema,
-        org.apache.beam.sdk.io.AvroSource.@Nullable DatumReaderFactory<T> readerFactory) {
-      org.apache.beam.sdk.io.AvroSource<?> source =
-          org.apache.beam.sdk.io.AvroSource.from(filepattern)
-              .withEmptyMatchTreatment(emptyMatchTreatment);
+        AvroSource.@Nullable DatumReaderFactory<T> readerFactory) {
+      AvroSource<?> source =
+          AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
 
       if (readerFactory != null) {
         source = source.withDatumReaderFactory(readerFactory);
       }
       return recordClass == GenericRecord.class
-          ? (org.apache.beam.sdk.io.AvroSource<T>) source.withSchema(schema)
+          ? (AvroSource<T>) source.withSchema(schema)
           : source.withSchema(recordClass);
     }
   }
@@ -791,8 +790,7 @@ public class AvroIO {
 
     abstract boolean getInferBeamSchema();
 
-    abstract org.apache.beam.sdk.io.AvroSource.@Nullable DatumReaderFactory<T>
-        getDatumReaderFactory();
+    abstract AvroSource.@Nullable DatumReaderFactory<T> getDatumReaderFactory();
 
     abstract Builder<T> toBuilder();
 
@@ -811,8 +809,7 @@ public class AvroIO {
 
       abstract Builder<T> setInferBeamSchema(boolean infer);
 
-      abstract Builder<T> setDatumReaderFactory(
-          org.apache.beam.sdk.io.AvroSource.DatumReaderFactory<T> factory);
+      abstract Builder<T> setDatumReaderFactory(AvroSource.DatumReaderFactory<T> factory);
 
       abstract ReadFiles<T> build();
     }
@@ -844,8 +841,7 @@ public class AvroIO {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
     }
 
-    public ReadFiles<T> withDatumReaderFactory(
-        org.apache.beam.sdk.io.AvroSource.DatumReaderFactory<T> factory) {
+    public ReadFiles<T> withDatumReaderFactory(AvroSource.DatumReaderFactory<T> factory) {
       return toBuilder().setDatumReaderFactory(factory).build();
     }
 
@@ -974,12 +970,10 @@ public class AvroIO {
       implements SerializableFunction<String, FileBasedSource<T>> {
     private final Class<T> recordClass;
     private final Supplier<Schema> schemaSupplier;
-    private final org.apache.beam.sdk.io.AvroSource.DatumReaderFactory<T> readerFactory;
+    private final AvroSource.DatumReaderFactory<T> readerFactory;
 
     CreateSourceFn(
-        Class<T> recordClass,
-        String jsonSchema,
-        org.apache.beam.sdk.io.AvroSource.DatumReaderFactory<T> readerFactory) {
+        Class<T> recordClass, String jsonSchema, AvroSource.DatumReaderFactory<T> readerFactory) {
       this.recordClass = recordClass;
       this.schemaSupplier =
           Suppliers.memoize(
@@ -1083,8 +1077,7 @@ public class AvroIO {
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         return input.apply(
             org.apache.beam.sdk.io.Read.from(
-                org.apache.beam.sdk.io.AvroSource.from(getFilepattern())
-                    .withParseFn(getParseFn(), coder)));
+                AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
       }
 
       // All other cases go through FileIO + ParseFilesGenericRecords.

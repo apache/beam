@@ -260,7 +260,7 @@ public class AvroIOTest implements Serializable {
             displayData,
             hasDisplayItem(
                 "schema",
-                "{\"type\":\"record\",\"name\":\"GenericClass\",\"namespace\":\"org.apache.beam.sdk.io"
+                "{\"type\":\"record\",\"name\":\"GenericClass\",\"namespace\":\"org.apache.beam.sdk.extensions.avro.io"
                     + ".AvroIOTest$\",\"fields\":[{\"name\":\"intField\",\"type\":\"int\"},"
                     + "{\"name\":\"stringField\",\"type\":\"string\"}]}"));
         assertThat(displayData, hasDisplayItem("numShards", 100));

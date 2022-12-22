@@ -102,7 +102,40 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
-/** Utils to convert AVRO records to Beam rows. */
+/**
+ * Utils to convert AVRO records to Beam rows. Imposes a mapping between common avro types and Beam
+ * portable schemas (https://s.apache.org/beam-schemas):
+ *
+ * <pre>
+ *   Avro                Beam Field Type
+ *   INT         <-----> INT32
+ *   LONG        <-----> INT64
+ *   FLOAT       <-----> FLOAT
+ *   DOUBLE      <-----> DOUBLE
+ *   BOOLEAN     <-----> BOOLEAN
+ *   STRING      <-----> STRING
+ *   BYTES       <-----> BYTES
+ *               <------ LogicalType(urn="beam:logical_type:var_bytes:v1")
+ *   FIXED       <-----> LogicalType(urn="beam:logical_type:fixed_bytes:v1")
+ *   ARRAY       <-----> ARRAY
+ *   ENUM        <-----> LogicalType(EnumerationType)
+ *   MAP         <-----> MAP
+ *   RECORD      <-----> ROW
+ *   UNION       <-----> LogicalType(OneOfType)
+ *   LogicalTypes.Date              <-----> LogicalType(DATE)
+ *   LogicalTypes.TimestampMillis   <-----> DATETIME
+ *   LogicalTypes.Decimal           <-----> DECIMAL
+ * </pre>
+ *
+ * For SQL CHAR/VARCHAR types, an Avro schema
+ *
+ * <pre>
+ *   LogicalType({"type":"string","logicalType":"char","maxLength":MAX_LENGTH}) or
+ *   LogicalType({"type":"string","logicalType":"varchar","maxLength":MAX_LENGTH})
+ * </pre>
+ *
+ * is used.
+ */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)

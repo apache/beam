@@ -760,7 +760,7 @@ public class AvroUtilsTest {
         org.apache.avro.Schema.createRecord(
             "TestSubRecord",
             "TestSubRecord doc",
-            "org.apache.beam.sdk.schemas.utils",
+            "org.apache.beam.sdk.extensions.avro.schemas.utils",
             false,
             getAvroSubSchemaFields());
     GenericRecord record =
