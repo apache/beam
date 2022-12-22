@@ -18,7 +18,6 @@
 
 import logging
 import os
-import time
 import unittest
 
 import mock
@@ -69,7 +68,7 @@ class TestChangePointAnalysis(unittest.TestCase):
     self.multiple_change_point_series = self.single_change_point_series + [
         2
     ] * 20
-    self.timestamps = [time.time() + 5 for i in range(5)]
+    self.timestamps = list(range(5))
     self.params = {
         'test_name': 'fake_test',
         'metrics_dataset': 'fake_dataset',
@@ -156,19 +155,16 @@ class TestChangePointAnalysis(unittest.TestCase):
       get_fake_data_with_change_point)
   @mock.patch(
       'apache_beam.testing.analyzers.perf_analysis.get_existing_issues_data',
-      lambda *args,
-      **kwargs: None)
+      return_value=None)
   @mock.patch(
       'apache_beam.testing.analyzers.perf_analysis.'
       'publish_issue_metadata_to_big_query',
-      lambda *args,
-      **kwargs: None)
+      return_value=None)
   @mock.patch(
       'apache_beam.testing.analyzers.perf_analysis'
       '.create_performance_alert',
-      lambda *args,
-      **kwargs: (0, ''))
-  def test_alert_on_data_with_change_point(self):
+      return_value=(0, ''))
+  def test_alert_on_data_with_change_point(self, *args):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
         test_id=self.test_id,
@@ -184,13 +180,11 @@ class TestChangePointAnalysis(unittest.TestCase):
   @mock.patch(
       'apache_beam.testing.analyzers.perf_analysis.'
       'publish_issue_metadata_to_big_query',
-      lambda *args,
-      **kwargs: None)
+      return_value=None)
   @mock.patch(
       'apache_beam.testing.analyzers.perf_analysis.create_performance_alert',
-      lambda *args,
-      **kwargs: (0, ''))
-  def test_alert_on_data_with_reported_change_point(self):
+      return_value=(0, ''))
+  def test_alert_on_data_with_reported_change_point(self, *args):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
         test_id=self.test_id,
