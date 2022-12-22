@@ -223,7 +223,7 @@ func TestLifeCycle_CreateSourceCodeFile(t *testing.T) {
 				Paths: tt.fields.Paths,
 			}
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.args.code, IsMain: true}}
-			if err := l.CreateSourceCodeFile(sources); (err != nil) != tt.wantErr {
+			if err := l.CreateSourceCodeFiles(sources); (err != nil) != tt.wantErr {
 				t.Errorf("CreateSourceCodeFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {

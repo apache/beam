@@ -94,8 +94,8 @@ func (lc *LifeCycle) DeleteFolders() error {
 	return nil
 }
 
-// CreateSourceCodeFile creates an executable file (i.e. file.{sourceFileExtension}).
-func (lc *LifeCycle) CreateSourceCodeFile(sources []entity.FileEntity) error {
+// CreateSourceCodeFiles creates an executable file (i.e. file.{sourceFileExtension}).
+func (lc *LifeCycle) CreateSourceCodeFiles(sources []entity.FileEntity) error {
 	if _, err := os.Stat(lc.Paths.AbsoluteSourceFileFolderPath); os.IsNotExist(err) {
 		return err
 	}

@@ -98,7 +98,7 @@ func Setup(sdk pb.Sdk, sources []entity.FileEntity, pipelineId uuid.UUID, workin
 	}
 
 	// create file with code
-	err = lc.CreateSourceCodeFile(sources)
+	err = lc.CreateSourceCodeFiles(sources)
 	if err != nil {
 		logger.Errorf("%s: RunCode(): CreateSourceCodeFile(): %s\n", pipelineId, err.Error())
 		lc.DeleteFolders()

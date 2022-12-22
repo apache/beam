@@ -41,7 +41,7 @@ func Test_replace(t *testing.T) {
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
 	sources := []entity.FileEntity{{Name: "main.java", Content: codeWithPublicClass, IsMain: true}}
-	_ = lc.CreateSourceCodeFile(sources)
+	_ = lc.CreateSourceCodeFiles(sources)
 
 	type args struct {
 		args []interface{}
@@ -173,6 +173,6 @@ func createTempFileWithCode(code string) fs_tool.LifeCyclePaths {
 	_ = lc.CreateFolders()
 
 	sources := []entity.FileEntity{{Name: "main.java", Content: code, IsMain: true}}
-	_ = lc.CreateSourceCodeFile(sources)
+	_ = lc.CreateSourceCodeFiles(sources)
 	return lc.Paths
 }

@@ -293,7 +293,7 @@ func Test_Process(t *testing.T) {
 
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
 			if tt.createExecFile {
-				_ = lc.CreateSourceCodeFile(sources)
+				_ = lc.CreateSourceCodeFiles(sources)
 			}
 			if err = utils.SetToCache(tt.args.ctx, cacheService, tt.args.pipelineId, cache.Canceled, false); err != nil {
 				t.Fatal("error during set cancel flag to cache")
@@ -694,7 +694,7 @@ func prepareFiles(b *testing.B, pipelineId uuid.UUID, code string, sdk pb.Sdk) *
 		b.Fatalf("error during prepare folders: %s", err.Error())
 	}
 	sources := []entity.FileEntity{{Name: "main.java", Content: code, IsMain: true}}
-	err = lc.CreateSourceCodeFile(sources)
+	err = lc.CreateSourceCodeFiles(sources)
 	if err != nil {
 		b.Fatalf("error during prepare source code file: %s", err.Error())
 	}
@@ -900,7 +900,7 @@ func Test_validateStep(t *testing.T) {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
-			_ = lc.CreateSourceCodeFile(sources)
+			_ = lc.CreateSourceCodeFiles(sources)
 			executor := validateStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel)
 			got := syncMapLen(tt.args.validationResults)
 			if executor != nil && !reflect.DeepEqual(got, tt.want) {
@@ -989,7 +989,7 @@ func Test_prepareStep(t *testing.T) {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
-			_ = lc.CreateSourceCodeFile(sources)
+			_ = lc.CreateSourceCodeFiles(sources)
 			prepareStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel, nil)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if status != tt.expectedStatus {
@@ -1075,7 +1075,7 @@ func Test_compileStep(t *testing.T) {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
-			_ = lc.CreateSourceCodeFile(sources)
+			_ = lc.CreateSourceCodeFiles(sources)
 			compileStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.isUnitTest, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if status != tt.expectedStatus {
@@ -1181,7 +1181,7 @@ func Test_runStep(t *testing.T) {
 					t.Fatalf("error during prepare folders: %s", err.Error())
 				}
 				sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
-				_ = lc.CreateSourceCodeFile(sources)
+				_ = lc.CreateSourceCodeFiles(sources)
 			}
 			runStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.isUnitTest, tt.args.sdkEnv, tt.args.pipelineOptions, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
