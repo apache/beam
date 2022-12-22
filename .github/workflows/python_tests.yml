@@ -45,7 +45,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -70,14 +70,17 @@ jobs:
       )
     needs:
       - check_gcp_variables
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, ubuntu-20.04 ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Install python
-        uses: actions/setup-python@v4
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
         with:
-          python-version: 3.7
+          requires-py-38: false
+          requires-py-39: false
+          requires-java-8: false
+          requires-go-18: false
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
@@ -99,13 +102,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
         params: [
           {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
         ]
+        include:
+        - os: ubuntu-latest
+          params: {"py_ver": "3.10", "tox_env": "py310"}
+        exclude:
+        - os: [self-hosted,ubuntu-20.04]
+          params: {"py_ver": "3.10", "tox_env": "py310"}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -119,7 +129,7 @@ jobs:
       - name: Install tox
         run: pip install tox==3.27.1
       - name: Run tests basic unix
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        if: contains(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
       - name: Run tests basic windows
@@ -139,8 +149,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
         python: ["3.7", "3.8", "3.9", "3.10"]
+        include:
+        - os: ubuntu-latest
+          python: "3.10"
+        exclude:
+        - os: [self-hosted, ubuntu-20.04]
+          python: "3.10"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -167,8 +183,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
         python: ["3.7", "3.8", "3.9", "3.10"]
+        include:
+        - os: ubuntu-latest
+          python: "3.10"
+        exclude:
+        - os: [self-hosted, ubuntu-20.04]
+          python: "3.10"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -176,10 +198,13 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
-      - name: Install go
-        uses: actions/setup-go@v3
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
         with:
-          go-version: '1.18'
+          requires-py-37: false
+          requires-py-38: false
+          requires-py-39: false
+          requires-java-8: false
       - name: Download source from artifacts
         uses: actions/download-artifact@v3
         with:

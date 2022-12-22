@@ -45,7 +45,7 @@ jobs:
   check_env_variables:
     timeout-minutes: 5
     name: "Check environment variables"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     env:
       EVENT_NAME: ${{ github.event_name }}
       PY_VERSIONS_FULL: "cp37-* cp38-* cp39-* cp310-*"
@@ -80,7 +80,7 @@ jobs:
           echo "py-versions-full=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
 
   build_source:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     name: Build python source distribution
     outputs:
       is_rc: ${{ steps.is_rc.outputs.is_rc }}
@@ -88,10 +88,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Install python
-        uses: actions/setup-python@v4
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
         with:
-          python-version: 3.7
+          requires-py-38: false
+          requires-py-39: false
+          requires-java-8: false
+          requires-go-18: false
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: python -m pip install -r build-requirements.txt
@@ -189,9 +192,13 @@ jobs:
     needs:
       - build_source
       - check_env_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
+      - name: Install python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.7
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -205,9 +212,13 @@ jobs:
     needs:
       - prepare_gcs
       - check_env_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
+      - name: Install python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.7
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v3
         with:
@@ -232,13 +243,13 @@ jobs:
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
+          {"os": [self-hosted, ubuntu-20.04], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
           {"os": "macos-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
-          {"os": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
+          {"os": windows-latest, "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
         ]
         arch: [auto]
         include:
-          - os_python: {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
+          - os_python: {"os": ubuntu-latest, "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
@@ -321,8 +332,12 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [ubuntu-latest, macos-latest, windows-latest]
+        os : [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
     steps:
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.7
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v3
       with:
@@ -361,9 +376,13 @@ jobs:
     needs:
      - upload_wheels_to_gcs
      - check_env_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.7
     - name: Authenticate on GCP
       uses: google-github-actions/setup-gcloud@v0
       with:
@@ -379,7 +398,7 @@ jobs:
     needs:
       - build_source
       - build_wheels
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     timeout-minutes: 60
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
