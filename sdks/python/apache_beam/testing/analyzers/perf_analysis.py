@@ -47,6 +47,15 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetri
 
 
 def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
+  """
+  Args:
+   params: Dict containing parameters to run change point analysis.
+   test_id: Test id for the current test.
+   big_query_metrics_fetcher: BigQuery metrics fetcher used to fetch data for
+    change point analysis.
+  Returns:
+     bool indicating if a change point is observed and alerted on GitHub.
+  """
   if not validate_config(params.keys()):
     raise ValueError(
         f"Please make sure all these keys {constants._PERF_TEST_KEYS} "
