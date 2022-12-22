@@ -39,8 +39,8 @@ except ImportError as e:
 # mock methods.
 def get_fake_data_with_no_change_point(**kwargs):
   num_samples = 20
-  metric_values = [1 for i in range(num_samples)]
-  timestamps = [i for i in range(num_samples)]
+  metric_values = [1] * num_samples
+  timestamps = list(range(num_samples))
   return metric_values, timestamps
 
 
@@ -93,7 +93,7 @@ class TestChangePointAnalysis(unittest.TestCase):
         changepoint_to_recent_run_window, change_point_index)
     self.assertEqual(is_valid, True)
 
-  def test_is_change_point_in_invalid_window(self):
+  def test_change_point_outside_inspection_window_is_not_a_valid_alert(self):
     changepoint_to_recent_run_window = 12
     change_point_index = 14
 
@@ -122,7 +122,7 @@ class TestChangePointAnalysis(unittest.TestCase):
         min_runs_between_change_points=min_runs_between_change_points)
     self.assertTrue(is_alert)
 
-  def test_not_duplicate_change_point(self):
+  def test_duplicate_change_points_are_not_valid_alerts(self):
     change_point_index = 2
     min_runs_between_change_points = 1
     is_alert = is_perf_alert(
@@ -144,7 +144,7 @@ class TestChangePointAnalysis(unittest.TestCase):
   @mock.patch(
       'apache_beam.testing.analyzers.perf_analysis.fetch_metric_data',
       get_fake_data_with_no_change_point)
-  def test_alert_on_data_with_no_change_point(self):
+  def test_no_alerts_when_no_change_points(self):
     is_alert = analysis.run_change_point_analysis(
         params=self.params,
         test_id=self.test_id,
