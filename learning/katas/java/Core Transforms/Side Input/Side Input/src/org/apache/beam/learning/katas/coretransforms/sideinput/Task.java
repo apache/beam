@@ -22,8 +22,6 @@ package org.apache.beam.learning.katas.coretransforms.sideinput;
 //    name: SideInput
 //    description: Task from katas to enrich each Person with the country based on the city he/she lives in.
 //    multifile: true
-//    files:
-//      - name: Person.java
 //    context_line: 38
 //    categories:
 //      - Side Input
