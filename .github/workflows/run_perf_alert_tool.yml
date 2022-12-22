@@ -17,11 +17,11 @@
 
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
-name: Run performance alerting tool on Python load tests.
+name: Run performance alerting tool on Python load/performance/benchmark tests.
 
 on:
   schedule:
-    - cron: '5 * * * *' # TODO: Change the window of the cron job.
+    - cron: '5 22 * * *'
 
 jobs:
   python_run_change_point_analysis:
@@ -39,14 +39,21 @@ jobs:
         run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
       - name: Install Apache Beam
         working-directory: ./sdks/python
-        run: pip install -e .[gcp]
+        run: pip install -e .[gcp,test]
       - name: Install signal-processing-algorithms
         run: pip install signal-processing-algorithms
-      - name: Install Pandas, yaml, requests
+      - name: Install pandas, yaml, requests
         run: pip install pandas PyYAML requests
-      - name: Run Change Point Analysis.
+#      - name: Run Change Point Analysis.
+#        working-directory: ./sdks/python/apache_beam/testing/analyzers
+#        shell: bash
+#        run: python analysis.py
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run change point analysis tests.
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
-        run: python analysis.py
+        run: pytest perf_analysis_test.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
