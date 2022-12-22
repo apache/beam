@@ -48,9 +48,10 @@ const (
 	errorTitleGetDefaultExample = "Error during getting default example"
 	errorTitleRunCode           = "Error during run code"
 
-	userBadCloudPathErrMsg    = "Invalid cloud path parameter"
-	userCloudConnectionErrMsg = "Cloud connection error"
-	resourceNotFoundErrMsg    = "Resource is not found"
+	userBadCloudPathErrMsg     = "Invalid cloud path parameter"
+	userCloudConnectionErrMsg  = "Cloud connection error"
+	resourceNotFoundErrMsg     = "Resource is not found"
+	resourceInconsistentErrMsg = "Resource is not consistent"
 )
 
 // playgroundController processes `gRPC' requests from clients.
@@ -360,7 +361,7 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 	if err != nil {
 		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleCode, userBadCloudPathErrMsg)
 	}
-	codeString, err := controller.db.GetExampleCode(ctx, exampleId)
+	files, err := controller.db.GetExampleCode(ctx, exampleId)
 	if err != nil {
 		switch err {
 		case datastore.ErrNoSuchEntity:
@@ -369,7 +370,23 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 			return nil, cerrors.InternalError(errorTitleGetExampleCode, userCloudConnectionErrMsg)
 		}
 	}
-	response := pb.GetPrecompiledObjectCodeResponse{Code: codeString}
+	if len(files) == 0 {
+		return nil, cerrors.NotFoundError(errorTitleGetExampleCode, resourceNotFoundErrMsg)
+	}
+	response := pb.GetPrecompiledObjectCodeResponse{}
+	for _, file := range files {
+		response.Files = append(response.Files, &pb.SnippetFile{
+			Name:    file.Name,
+			Content: file.Content,
+			IsMain:  file.IsMain,
+		})
+		if file.IsMain {
+			response.Code = file.Content
+		}
+	}
+	if len(response.Files) == 0 || response.Code == "" {
+		return nil, cerrors.InternalError(errorTitleGetExampleCode, resourceInconsistentErrMsg)
+	}
 	return &response, nil
 }
 
