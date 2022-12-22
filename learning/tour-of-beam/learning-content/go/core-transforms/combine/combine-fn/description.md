@@ -65,7 +65,3 @@ func init() {
 ### Playground exercise
 
 You can find the full code of this example in the playground window, which you can run and experiment with.
-
-
-
-Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

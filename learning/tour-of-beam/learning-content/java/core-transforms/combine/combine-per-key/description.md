@@ -45,3 +45,18 @@ static class SumCombineFn extends Combine.BinaryCombineFn<Integer> {
         }
     }
 ```
+
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+You can use other types instead of `Integer`:
+
+```
+static class ConcateStringFn extends BinaryCombineFn<String> {
+    @Override
+    public String apply(String left, String right) {
+      return left+","+right;
+    }
+}
+```

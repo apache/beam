@@ -19,7 +19,6 @@
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
-import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -98,6 +97,29 @@ public class Task {
                     }
 
                 }));
+    }
+
+    static class WordsAlphabet {
+
+        private String alphabet;
+        private String fruit;
+        private String country;
+
+        public WordsAlphabet(String alphabet, String fruit, String country) {
+            this.alphabet = alphabet;
+            this.fruit = fruit;
+            this.country = country;
+        }
+
+        @Override
+        public String toString() {
+            return "WordsAlphabet{" +
+                    "alphabet='" + alphabet + '\'' +
+                    ", fruit='" + fruit + '\'' +
+                    ", country='" + country + '\'' +
+                    '}';
+        }
+
     }
 
     static class LogOutput<T> extends DoFn<T, T> {

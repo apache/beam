@@ -24,3 +24,18 @@ static class SumBigIntegerFn extends BinaryCombineFn<BigInteger> {
     }
 }
 ```
+
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+You can use other types instead of `BigInteger`:
+
+```
+static class SumIntegerFn extends BinaryCombineFn<Integer> {
+    @Override
+    public Integer apply(Integer left, Integer right) {
+      return left+right;
+    }
+}
+```

@@ -43,6 +43,21 @@ PCollection<Integer> wordLengths = words.apply(
              .via((String word) -> word.length()));
 ```
 
-### Description for example
+### Playground exercise
 
-At the input, the `PCollection` elements are in the form of numbers. The `applyTransform()` function uses `MapElements` and returns elements multiplied by 5.
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+You can use other types instead of `Integer`:
+
+```
+public static class SumStrings implements SerializableFunction<Iterable<String>, String> {
+  @Override
+  public String apply(Iterable<String> input) {
+    String allWords = 0;
+    for (String item : input) {
+      allWords += ","+item;
+    }
+    return allWords;
+  }
+}
+```

@@ -62,3 +62,16 @@ public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
   }
 }
 ```
+
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+You can use other structure for `Accum`:
+
+```
+public static class Accum {
+    String word = "";
+    Double vlaue = 0.0;
+}
+```

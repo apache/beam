@@ -65,6 +65,21 @@ When using ```GroupByKey``` or ```CoGroupByKey``` to group ```PCollections``` th
 
 If your pipeline attempts to use ```GroupByKey``` or CoGroupByKey to merge ```PCollections``` with incompatible windows, Beam generates an IllegalStateException error at pipeline construction time.
 
-### Description for example
+### Playground exercise
 
-A list of strings is provided. The `applyTransform()` method implements grouping by the first letter of words, which will be a list of words.
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+You can use other types instead of `Integer`:
+
+```
+public static class SumStrings implements SerializableFunction<Iterable<String>, String> {
+  @Override
+  public String apply(Iterable<String> input) {
+    String allWords = 0;
+    for (String item : input) {
+      allWords += ","+item;
+    }
+    return allWords;
+  }
+}
+```
