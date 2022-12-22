@@ -188,7 +188,7 @@ Google Cloud Dataflow. These systems support massively parallel processing.
 * Take a self-paced tour through our
   [Learning Resources](/documentation/resources/learning-resources).
 * Dive in to some of our favorite
-  [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+  [Videos and Podcasts](/get-started/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out](/community/contact-us) if you encounter any

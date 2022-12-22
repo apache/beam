@@ -29,18 +29,13 @@ from tqdm import tqdm
 
 import config
 from config import Config, Origin, PrecompiledExample, DatastoreProps
-from helper import Example
+from models import Example, SdkEnum, Dataset, Emulator
 
-from api.v1.api_pb2 import Sdk, PrecompiledObjectType
+from api.v1 import api_pb2
 
 
 class DatastoreException(Exception):
-    def __init__(self, error: str):
-        super().__init__()
-        self.msg = error
-
-    def __str__(self):
-        return self.msg
+    pass
 
 
 # Google Datastore documentation link: https://cloud.google.com/datastore/docs/concepts
@@ -64,7 +59,7 @@ class DatastoreClient:
             raise KeyError("SDK_CONFIG environment variable should be specified in os")
 
     def save_to_cloud_datastore(
-        self, examples_from_rep: List[Example], sdk: Sdk, origin: Origin
+        self, examples_from_rep: List[Example], sdk: SdkEnum, origin: Origin
     ):
         """
         Save examples, output and meta to datastore
@@ -86,8 +81,10 @@ class DatastoreClient:
         # loop through every example to save them to the Cloud Datastore
         for example in tqdm(examples_from_rep):
             with self._datastore_client.transaction():
-                sdk_key = self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(example.sdk))
-                example_id = self._make_example_id(origin, sdk, example.name)
+                sdk_key = self._get_key(
+                    DatastoreProps.SDK_KIND, api_pb2.Sdk.Name(example.sdk)
+                )
+                example_id = self._make_example_id(origin, sdk, example.tag.name)
 
                 self._datastore_client.put(
                     self._to_example_entity(
@@ -104,18 +101,13 @@ class DatastoreClient:
                 )
                 # only single-file examples are supported by now
                 self._datastore_client.put(self._to_file_entity(example, example_id))
-                if example.datasets and example.emulators:
-                    dataset = example.datasets[0]
-                    emulator = example.emulators[0]
-                    file_name = f"{dataset.name}.{dataset.format}"
-                    dataset = self._to_dataset_entity(file_name, dataset.path)
-                    self._datastore_client.put(dataset)
-
-                    dataset_nested_entity = self._to_dataset_nested_entity(
-                        file_name, example_id, emulator
+                if example.tag.datasets:
+                    self._datastore_client.put_multi(
+                        [
+                            self._to_dataset_entity(dataset_id, dataset.file_name)
+                            for dataset_id, dataset in example.tag.datasets.items()
+                        ]
                     )
-                    snippet_datasets = [dataset_nested_entity]
-                    snippet.update({"datasets": snippet_datasets})
 
                 updated_example_ids.add(example_id)
 
@@ -195,13 +187,13 @@ class DatastoreClient:
         schema_names.sort(reverse=True)
         return self._get_key(DatastoreProps.SCHEMA_KIND, schema_names[0])
 
-    def _get_all_examples(self, sdk: Sdk, origin: Origin) -> List[str]:
+    def _get_all_examples(self, sdk: SdkEnum, origin: Origin) -> List[str]:
         examples_ids_before_updating = []
         all_examples_query = self._datastore_client.query(
             kind=DatastoreProps.EXAMPLE_KIND
         )
         all_examples_query.add_filter(
-            "sdk", "=", self._get_key(DatastoreProps.SDK_KIND, Sdk.Name(sdk))
+            "sdk", "=", self._get_key(DatastoreProps.SDK_KIND, api_pb2.Sdk.Name(sdk))
         )
         all_examples_query.add_filter("origin", "=", origin)
         all_examples_query.keys_only()
@@ -222,20 +214,20 @@ class DatastoreClient:
     def _get_dataset_key(self, dataset_id: str):
         return self._get_key(DatastoreProps.DATASET_KIND, dataset_id)
 
-    def _make_example_id(self, origin: Origin, sdk: Sdk, name: str):
+    def _make_example_id(self, origin: Origin, sdk: SdkEnum, name: str):
         # ToB examples (and other related entities: snippets, files, pc_objects)
         # have origin prefix in a key
         if origin == Origin.TB_EXAMPLES:
             return config.DatastoreProps.KEY_NAME_DELIMITER.join(
                 [
                     origin,
-                    Sdk.Name(sdk),
+                    api_pb2.Sdk.Name(sdk),
                     name,
                 ]
             )
         return config.DatastoreProps.KEY_NAME_DELIMITER.join(
             [
-                Sdk.Name(sdk),
+                api_pb2.Sdk.Name(sdk),
                 name,
             ]
         )
@@ -268,9 +260,11 @@ class DatastoreClient:
                 "origin": origin,
                 "numberOfFiles": 1,
                 "schVer": schema_key,
-                "complexity": f"COMPLEXITY_{example.complexity}",
+                "complexity": f"COMPLEXITY_{example.tag.complexity}",
             }
         )
+        if example.tag.datasets:
+            snippet_entity.update({"datasets": self._snippet_datasets(example)})
         return snippet_entity
 
     def _get_pipeline_options(self, example: Example):
@@ -290,15 +284,17 @@ class DatastoreClient:
         example_entity = datastore.Entity(self._get_example_key(example_id))
         example_entity.update(
             {
-                "name": example.name,
+                "name": example.tag.name,
                 "sdk": sdk_key,
                 "descr": example.tag.description,
                 "tags": example.tag.tags,
                 "cats": example.tag.categories,
-                "path": example.link,
-                "type": PrecompiledObjectType.Name(example.type),
+                "path": example.url_vcs,  # keep for backward-compatibity, to be removed
+                "type": api_pb2.PrecompiledObjectType.Name(example.type),
                 "origin": origin,
                 "schVer": schema_key,
+                "urlVCS": example.url_vcs,
+                "urlNotebook": example.tag.url_notebook,
             }
         )
         return example_entity
@@ -347,7 +343,9 @@ class DatastoreClient:
         )
         file_entity.update(
             {
-                "name": self._get_file_name_with_extension(example.name, example.sdk),
+                "name": self._get_file_name_with_extension(
+                    example.tag.name, example.sdk
+                ),
                 "content": example.code,
                 "cntxLine": example.tag.context_line,
                 "isMain": True,
@@ -355,29 +353,32 @@ class DatastoreClient:
         )
         return file_entity
 
-    def _to_dataset_entity(self, dataset_id: str, path: str):
+    def _to_dataset_entity(self, dataset_id: str, file_name: str):
         dataset_entity = datastore.Entity(self._get_dataset_key(dataset_id))
-        dataset_entity.update({"path": path})
+        dataset_entity.update({"path": file_name})
         return dataset_entity
 
-    def _to_dataset_nested_entity(
-        self, dataset_id: str, example_id: str, emulator: config.Emulator
-    ):
-        emulator_config_as_dict = {"topic": emulator.topic.id}
-        emulator_config_as_json = json.dumps(emulator_config_as_dict)
-        nested_entity = datastore.Entity(
-            self._get_snippet_key(example_id), exclude_from_indexes=("config",)
-        )
+    def _to_dataset_nested_entity(self, dataset_id: str, emulator: Emulator):
+        nested_entity = datastore.Entity()
         nested_entity.update(
             {
                 "dataset": self._get_dataset_key(dataset_id),
-                "emulator": emulator.name,
-                "config": emulator_config_as_json,
+                "emulator": emulator.type,
+                "config": json.dumps({"topic": emulator.topic.id})
             }
         )
         return nested_entity
 
-    def _get_file_name_with_extension(self, name: str, sdk: Sdk) -> str:
+    def _snippet_datasets(self, example: Example) -> List[datastore.Entity]:
+        datasets = []
+        for emulator in example.tag.emulators:
+            dataset_nested_entity = self._to_dataset_nested_entity(
+                emulator.topic.source_dataset, emulator
+            )
+            datasets.append(dataset_nested_entity)
+        return datasets
+
+    def _get_file_name_with_extension(self, name: str, sdk: int) -> str:
         filename, file_extension = os.path.splitext(name)
         if len(file_extension) == 0:
             extension = Config.SDK_TO_EXTENSION[sdk]

@@ -367,8 +367,8 @@ class FileBasedSink(iobase.Sink):
     try:
       FileSystems.delete([init_result])
     except IOError:
-      # May have already been removed.
-      pass
+      # This error is not serious, we simply log it.
+      _LOGGER.info('Unable to delete file: %s', init_result)
 
   @staticmethod
   def _template_replace_num_shards(shard_name_template):

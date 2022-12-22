@@ -44,7 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"nullness", "rawtypes"})
+@SuppressWarnings({"nullness"})
 public class UpdateSchemaDestination<DestinationT>
     extends DoFn<
         Iterable<KV<DestinationT, WriteTables.Result>>,
@@ -61,7 +61,7 @@ public class UpdateSchemaDestination<DestinationT>
   private final Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions;
   private final BigQueryIO.Write.WriteDisposition writeDisposition;
   private final BigQueryIO.Write.CreateDisposition createDisposition;
-  private final DynamicDestinations dynamicDestinations;
+  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
 
   private static class PendingJobData {
     final BigQueryHelpers.PendingJob retryJob;
@@ -89,7 +89,7 @@ public class UpdateSchemaDestination<DestinationT>
       int maxRetryJobs,
       @Nullable String kmsKey,
       Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions,
-      DynamicDestinations dynamicDestinations) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this.loadJobProjectId = loadJobProjectId;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
     this.bqServices = bqServices;
@@ -233,7 +233,9 @@ public class UpdateSchemaDestination<DestinationT>
             .setSourceFormat("NEWLINE_DELIMITED_JSON");
     if (schemaUpdateOptions != null) {
       List<String> options =
-          schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+          schemaUpdateOptions.stream()
+              .map(BigQueryIO.Write.SchemaUpdateOption::name)
+              .collect(Collectors.toList());
       loadConfig.setSchemaUpdateOptions(options);
     }
     if (!loadConfig
@@ -254,7 +256,7 @@ public class UpdateSchemaDestination<DestinationT>
       LOG.warn("Failed to get table {} with {}", tableReference, e.toString());
       throw new RuntimeException(e);
     }
-    if (destinationTable.getSchema().equals(schema)) {
+    if (destinationTable.getSchema() == null || destinationTable.getSchema().equals(schema)) {
       return null; // no need to update schema ahead if schema is already the same
     }
     if (timePartitioning != null) {

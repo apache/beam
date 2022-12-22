@@ -182,3 +182,9 @@ request body:
 $ curl -X POST -H "Authorization: Bearer $token" \
   "https://$REGION-$PROJECT_ID.cloudfunctions.net/postUserCode?sdk=python&id=challenge1" -d @request.json
 ```
+
+### Delete user progress
+```
+$ curl -X POST -H "Authorization: Bearer $token" \
+  "https://$REGION-$PROJECT_ID.cloudfunctions.net/postDeleteProgress" -d '{}'
+```

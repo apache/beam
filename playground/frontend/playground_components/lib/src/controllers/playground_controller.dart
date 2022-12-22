@@ -19,18 +19,30 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../playground_components.dart';
+import '../cache/example_cache.dart';
+import '../models/example.dart';
+import '../models/example_base.dart';
+import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
+import '../models/example_loading_descriptors/example_loading_descriptor.dart';
+import '../models/example_loading_descriptors/examples_loading_descriptor.dart';
+import '../models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
+import '../models/intents.dart';
+import '../models/sdk.dart';
+import '../models/shortcut.dart';
+import '../repositories/code_repository.dart';
 import '../repositories/models/shared_file.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
 import 'code_runner.dart';
+import 'example_loaders/examples_loader.dart';
 import 'snippet_editing_controller.dart';
 
-const kTitleLength = 15;
+const kTitleLength = 25;
 const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
 const kTitle = 'Catalog';
@@ -40,6 +52,7 @@ const kPipelineOptionsParseError =
 const kCachedResultsLog =
     'The results of this example are taken from the Apache Beam Playground cache.\n';
 
+/// The main state object for the code and its running.
 class PlaygroundController with ChangeNotifier {
   final ExampleCache exampleCache;
   final ExamplesLoader examplesLoader;
@@ -74,8 +87,10 @@ class PlaygroundController with ChangeNotifier {
 
     final result = SnippetEditingController(sdk: sdk);
     _snippetEditingControllers[sdk] = result;
+    result.addListener(notifyListeners);
 
     if (loadDefaultIfNot) {
+      // TODO(alexeyinkin): Show loading indicator if loading.
       examplesLoader.loadDefaultIfAny(sdk);
     }
 
@@ -116,8 +131,38 @@ class PlaygroundController with ChangeNotifier {
       selectedExample?.type != ExampleType.test &&
       [Sdk.java, Sdk.python].contains(sdk);
 
+  /// If no SDK is selected, sets it to [sdk] and creates an empty state for it.
+  void setEmptyIfNoSdk(Sdk sdk) {
+    if (_sdk != null) {
+      return;
+    }
+
+    setExample(
+      Example.empty(sdk),
+      descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
+      setCurrentSdk: true,
+    );
+  }
+
+  /// If the state for [sdk] does not exists, creates an empty state for it.
+  void setEmptyIfNotExists(
+    Sdk sdk, {
+    required bool setCurrentSdk,
+  }) {
+    if (_snippetEditingControllers.containsKey(sdk)) {
+      return;
+    }
+
+    setExample(
+      Example.empty(sdk),
+      descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
+      setCurrentSdk: setCurrentSdk,
+    );
+  }
+
   void setExample(
     Example example, {
+    required ExampleLoadingDescriptor descriptor,
     required bool setCurrentSdk,
   }) {
     if (setCurrentSdk) {
@@ -127,14 +172,14 @@ class PlaygroundController with ChangeNotifier {
         loadDefaultIfNot: false,
       );
 
-      controller.selectedExample = example;
+      controller.setExample(example, descriptor: descriptor);
       _ensureSymbolsInitialized();
     } else {
       final controller = _getOrCreateSnippetEditingController(
         example.sdk,
         loadDefaultIfNot: false,
       );
-      controller.selectedExample = example;
+      controller.setExample(example, descriptor: descriptor);
     }
 
     codeRunner.clearResult();
@@ -190,16 +235,35 @@ class PlaygroundController with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String> getSnippetId() {
+  Future<UserSharedExampleLoadingDescriptor> saveSnippet() async {
     final controller = requireSnippetEditingController();
+    final code = controller.codeController.fullText;
+    final name = 'examples.userSharedName'.tr();
 
-    return exampleCache.getSnippetId(
+    final snippetId = await exampleCache.saveSnippet(
       files: [
-        SharedFile(code: controller.codeController.fullText, isMain: true),
+        SharedFile(code: code, isMain: true, name: name),
       ],
       sdk: controller.sdk,
       pipelineOptions: controller.pipelineOptions,
     );
+
+    final sharedExample = Example(
+      source: code,
+      name: name,
+      sdk: controller.sdk,
+      type: ExampleType.example,
+      path: snippetId,
+    );
+
+    final descriptor = UserSharedExampleLoadingDescriptor(
+      sdk: sharedExample.sdk,
+      snippetId: snippetId,
+    );
+
+    controller.setExample(sharedExample, descriptor: descriptor);
+
+    return descriptor;
   }
 
   /// Creates an [ExamplesLoadingDescriptor] that can recover
@@ -211,6 +275,7 @@ class PlaygroundController with ChangeNotifier {
             (controller) => controller.getLoadingDescriptor(),
           )
           .toList(growable: false),
+      initialSdk: _sdk,
     );
   }
 

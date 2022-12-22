@@ -272,7 +272,6 @@ if __name__ == '__main__':
           ],
           'test': [
             'freezegun>=0.3.12',
-            'hypothesis<7',
             'joblib>=1.0.1',
             'mock>=1.0.1,<3.0.0',
             'pandas<2.0.0',
@@ -289,6 +288,7 @@ if __name__ == '__main__':
             'psycopg2-binary>=2.8.5,<3.0.0',
             'testcontainers[mysql]>=3.0.3,<4.0.0',
             'cryptography>=36.0.0',
+            'hypothesis>5.0.0,<=7.0.0',
           ],
           'gcp': [
             'cachetools>=3.1.0,<5',
