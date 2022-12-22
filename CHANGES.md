@@ -67,7 +67,7 @@
 
 ## Breaking Changes
 
-* Python streaming pipelines and portable Python batch pipelines on Dataflow are required to
+* Go pipelines, Python streaming pipelines, and portable Python batch pipelines on Dataflow are required to
   use Runner V2. The `disable_runner_v2`, `disable_runner_v2_until_2023`, `disable_prime_runner_v2`
   experiments will raise an error during pipeline construction. Note that non-portable Python
   batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515))
