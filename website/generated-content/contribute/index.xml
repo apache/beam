@@ -2379,7 +2379,7 @@ community follows these post-commit test policies:&lt;/p>
 &lt;p>When a post-commit test fails, follow the provided steps for your situation.&lt;/p>
 &lt;h3 id="found-failing-test">I found a test failure&lt;/h3>
 &lt;ol>
-&lt;li>Create a &lt;a href="https://github.com/apache/tag-beam-it/issues/new/choose">GitHub issue&lt;/a> and assign it to yourself.&lt;/li>
+&lt;li>Create a &lt;a href="https://github.com/apache/beam/issues/new/choose">GitHub issue&lt;/a> and assign it to yourself.&lt;/li>
 &lt;/ol>
 &lt;ul>
 &lt;li>Components: testing, anything else relevant&lt;/li>
@@ -2541,9 +2541,9 @@ down to a specific test suite by clicking on it.&lt;/p>
 &lt;p>&lt;img src="/images/precommit_dashboard.png" alt="example pre-commit duration dashboard">&lt;/p>
 &lt;h2 id="triage-process">Triage Process&lt;/h2>
 &lt;ol>
-&lt;li>&lt;a href="https://github.com/apache/tag-beam-it/issues">Search for existing
+&lt;li>&lt;a href="https://github.com/apache/beam/issues">Search for existing
 issues&lt;/a>&lt;/li>
-&lt;li>Create a new issue if needed: &lt;a href="https://github.com/apache/tag-beam-it/issues/new/choose">GitHub Issues&lt;/a>&lt;/li>
+&lt;li>Create a new issue if needed: &lt;a href="https://github.com/apache/beam/issues/new/choose">GitHub Issues&lt;/a>&lt;/li>
 &lt;/ol>
 &lt;ul>
 &lt;li>Components: testing, anything else relevant&lt;/li>
@@ -3831,7 +3831,7 @@ language-independent manner&lt;/li>
 &lt;p>By inspecting transforms only through these classes, your runner will not
 depend on the particulars of the Java SDK.&lt;/p>
 &lt;h2 id="the-runner-api-protos">The Runner API protos&lt;/h2>
-&lt;p>The &lt;a href="https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/beam_runner_api.proto">Runner
+&lt;p>The &lt;a href="https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto">Runner
 API&lt;/a>
 refers to a specific manifestation of the concepts in the Beam model, as a
 protocol buffers schema. Even though you should not manipulate these messages

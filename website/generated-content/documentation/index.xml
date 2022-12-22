@@ -13411,7 +13411,7 @@ $ jar -jar /path/to/expansion_service.jar &amp;lt;PORT_NUMBER&amp;gt;&lt;/code>&
 &lt;/li>
 &lt;li>
 &lt;p>In the module, use one of the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder">&lt;code>PayloadBuilder&lt;/code>&lt;/a> classes to build the payload for the initial cross-language transform expansion request.&lt;/p>
-&lt;p>The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java &lt;code>ExternalTransformBuilder&lt;/code>. Parameter types are mapped across SDKs using a &lt;a href="https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto">Beam schema&lt;/a>. Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).&lt;/p>
+&lt;p>The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java &lt;code>ExternalTransformBuilder&lt;/code>. Parameter types are mapped across SDKs using a &lt;a href="https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/schema.proto">Beam schema&lt;/a>. Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).&lt;/p>
 &lt;p>In the following example, &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py">kafka.py&lt;/a> uses &lt;code>NamedTupleBasedPayloadBuilder&lt;/code> to build the payload. The parameters map to the Java &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java">KafkaIO.External.Configuration&lt;/a> config object defined in the previous section.&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">ReadFromKafkaSchema&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">consumer_config&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Mapping&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">]&lt;/span>
@@ -14241,7 +14241,7 @@ limitations under the License.
 &lt;ul>
 &lt;li>CDAP Streaming plugin should be based on &lt;code>Spark Receiver&lt;/code> (Spark 2.4).&lt;/li>
 &lt;li>CDAP Streaming plugin should support work with offsets.&lt;/li>
-&lt;li>Corresponding Spark Receiver should implement &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java">HasOffset&lt;/a> interface.&lt;/li>
+&lt;li>Corresponding Spark Receiver should implement &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/2/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java">HasOffset&lt;/a> interface.&lt;/li>
 &lt;li>Records should have the numeric field that represents record offset.&lt;/li>
 &lt;/ul>
 &lt;h2 id="batch-reading-using-cdapio">Batch reading using CdapIO&lt;/h2>
