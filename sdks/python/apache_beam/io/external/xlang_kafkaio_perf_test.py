@@ -22,7 +22,6 @@ import typing
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io import kafka
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test import LoadTestOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
@@ -111,7 +110,8 @@ class _KafkaIOSDFReadPerfTest(LoadTest):
                 'bootstrap.servers': self.test_options.bootstrap_servers,
                 'auto.offset.reset': 'earliest'
             },
-            topics=[self.kafka_topic])
+            topics=[self.kafka_topic],
+            expansion_service=kafka.default_io_expansion_service())
         | 'Count records' >> beam.ParDo(CountMessages(self.metrics_namespace))
         | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
