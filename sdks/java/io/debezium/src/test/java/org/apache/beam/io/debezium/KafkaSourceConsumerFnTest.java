@@ -100,7 +100,7 @@ public class KafkaSourceConsumerFnTest implements Serializable {
         .setCoder(VarIntCoder.of());
 
     pipeline.run().waitUntilFinish();
-    Assert.assertEquals(3, CounterTask.getCountTasks());
+    Assert.assertEquals(1, CounterTask.getCountTasks());
   }
 }
 

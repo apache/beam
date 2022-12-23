@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * Configuration for writing to SignleStoreDB.
+ * Configuration for writing to SingleStoreDB.
  *
  * <p>This class is meant to be used with {@link SingleStoreSchemaTransformWriteProvider}.
  */
