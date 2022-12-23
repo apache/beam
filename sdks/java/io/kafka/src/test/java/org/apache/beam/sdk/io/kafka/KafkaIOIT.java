@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
@@ -205,7 +206,6 @@ public class KafkaIOIT {
     readPipeline
         .apply("Read from unbounded Kafka", readFromKafka().withTopic(options.getKafkaTopic()))
         .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
-        .apply("Avoid fusion", Reshuffle.viaRandomKey())
         .apply("Map records to strings", MapElements.via(new MapKafkaRecordsToStrings()))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
 
@@ -220,9 +220,12 @@ public class KafkaIOIT {
     // Delete the kafka topic after test pipeline run.
     tearDownTopic(options.getKafkaTopic());
 
-    assertEquals(
-        sourceOptions.numRecords,
-        readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+    long actualRecords = readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME);
+    assertTrue(
+        String.format(
+            "actual number of records %d smaller than expected: %d.",
+            actualRecords, sourceOptions.numRecords),
+        sourceOptions.numRecords <= actualRecords);
 
     if (!options.isWithTestcontainers()) {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);

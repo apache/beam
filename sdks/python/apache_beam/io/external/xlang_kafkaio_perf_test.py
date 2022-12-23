@@ -100,9 +100,6 @@ class _KafkaIOSDFReadPerfTest(LoadTest):
         KafkaIOTestOptions)
     self.timeout_ms = self.test_options.read_timeout * 1000
     self.kafka_topic = self.test_options.kafka_topic
-    # Use streaming pipeline to read Kafka records.
-    self.pipeline.get_pipeline_options().view_as(
-        StandardOptions).streaming = True
     # otherwise see 'ValueError: Unexpected DoFn type: beam:dofn:javasdk:0.1'
     self.pipeline.not_use_test_runner_api = True
 
@@ -115,7 +112,6 @@ class _KafkaIOSDFReadPerfTest(LoadTest):
                 'auto.offset.reset': 'earliest'
             },
             topics=[self.kafka_topic])
-        | 'Avoid Fusion' >> Reshuffle()
         | 'Count records' >> beam.ParDo(CountMessages(self.metrics_namespace))
         | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
