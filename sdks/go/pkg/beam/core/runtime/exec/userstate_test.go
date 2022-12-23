@@ -138,3 +138,68 @@ func (t *testIoWriter) Write(b []byte) (int, error) {
 	t.b = b
 	return len(b), nil
 }
+
+func TestNewUserStateAdapter(t *testing.T) {
+	testCoder := &coder.Coder{
+		Kind: coder.WindowedValue,
+		T:    nil,
+		Components: []*coder.Coder{
+			{
+				Kind: coder.KV,
+				Components: []*coder.Coder{
+					{
+						Kind: coder.Double,
+					},
+					{
+						Kind: coder.Bool,
+					},
+				},
+			},
+		},
+		Custom: nil,
+		Window: &coder.WindowCoder{
+			Kind:    coder.GlobalWindow,
+			Payload: "",
+		},
+		ID: "",
+	}
+	tests := []struct {
+		name               string
+		sid                StreamID
+		c                  *coder.Coder
+		stateIDToCoder     map[string]*coder.Coder
+		stateIDToKeyCoder  map[string]*coder.Coder
+		stateIDToCombineFn map[string]*graph.CombineFn
+		adapter            UserStateAdapter
+	}{
+		{
+			name: "",
+			sid: StreamID{
+				Port:         Port{},
+				PtransformID: "",
+			},
+			c:                  testCoder,
+			stateIDToCoder:     nil,
+			stateIDToKeyCoder:  nil,
+			stateIDToCombineFn: nil,
+			adapter: &userStateAdapter{
+				sid:                StreamID{},
+				wc:                 &globalWindowEncoder{},
+				kc:                 MakeElementEncoder(coder.SkipW(testCoder).Components[0]),
+				stateIDToCoder:     nil,
+				stateIDToKeyCoder:  nil,
+				stateIDToCombineFn: nil,
+				c:                  testCoder,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			adapter := NewUserStateAdapter(test.sid, test.c, test.stateIDToCoder, test.stateIDToKeyCoder, test.stateIDToCombineFn)
+			if !reflect.DeepEqual(adapter, test.adapter) {
+				t.Errorf("NewUserStateAdapter(%v, %v, %v, %v, %v)=%v, want %v", test.sid, test.c, test.stateIDToCoder, test.stateIDToKeyCoder, test.stateIDToCombineFn, adapter, test.adapter)
+			}
+		})
+	}
+}
