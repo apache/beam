@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.spd;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.hubspot.jinjava.interpret.RenderResult;
 import com.hubspot.jinjava.interpret.TemplateError;
@@ -28,6 +29,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -39,6 +41,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
 import org.apache.beam.sdk.extensions.spd.description.Column;
 import org.apache.beam.sdk.extensions.spd.description.Model;
+import org.apache.beam.sdk.extensions.spd.description.Profile;
 import org.apache.beam.sdk.extensions.spd.description.Project;
 import org.apache.beam.sdk.extensions.spd.description.Schemas;
 import org.apache.beam.sdk.extensions.spd.description.Seed;
@@ -54,7 +57,6 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -76,7 +78,7 @@ public class StructuredPipelineDescription {
   private Map<String, StructuredModel> modelMap;
 
   @Nullable Project project = null;
-  private String target = "";
+  @Nullable Profile profile = null;
 
   public StructuredPipelineDescription(Pipeline pipeline) {
     this.pipeline = pipeline;
@@ -96,14 +98,6 @@ public class StructuredPipelineDescription {
     this.env = envBuilder.build();
   }
 
-  public void setTarget(String target) {
-    this.target = target;
-  }
-
-  public String getTarget() {
-    return target;
-  }
-
   public PCollection<Row> readFrom(String fullTableName, PBegin input) throws Exception {
     Table t = getTable(fullTableName);
     if (t == null) {
@@ -114,6 +108,10 @@ public class StructuredPipelineDescription {
 
   public Relation getRelation(String name) throws Exception {
     return new Relation(getTable(name));
+  }
+
+  public Relation getSourceRelation(String sourceName, String tableName) throws Exception {
+    return new Relation(getTable(tableName));
   }
 
   public Table getTable(String fullTableName) throws Exception {
@@ -209,22 +207,7 @@ public class StructuredPipelineDescription {
     return beamSchema.build();
   }
 
-  // TODO: figure out the real way of doing this
-  private String getFullName(Path basePath, Path subdir, String localName) {
-    Path relativePath = subdir.toAbsolutePath().relativize(basePath.toAbsolutePath());
-    LOG.info("Computing schema path for " + relativePath.toString());
-    ArrayList<String> parts = new ArrayList<>();
-    for (Path p : relativePath) {
-      String part = p.toString().trim();
-      if (!"..".equals(part) && !"".equals(part)) {
-        parts.add(part);
-      }
-    }
-    parts.add(localName);
-    return String.join(".", parts);
-  }
-
-  private void readSchemaTables(Path basePath, Path schemaPath, ObjectMapper mapper)
+  private void readSchemaTables(String[] path, Path schemaPath, ObjectMapper mapper)
       throws Exception {
 
     // Split into different groups so we can process leftover Python and SQL files
@@ -262,7 +245,7 @@ public class StructuredPipelineDescription {
           seedFiles.remove(csvPath);
           LOG.info("Found CSV at " + csvPath.toAbsolutePath().toString());
           Schema beamSchema = columnsToSchema(seed.getColumns());
-          String fullName = getFullName(basePath, schemaPath, seed.getName());
+          String fullName = seed.getName();
           LOG.info(
               "Creating csv external table "
                   + fullName
@@ -280,7 +263,6 @@ public class StructuredPipelineDescription {
         }
       }
       for (Model model : schemas.getModels()) {
-        String fullName = getFullName(basePath, schemaPath, model.getName());
         Path sqlPath = schemaPath.resolve(model.getName() + ".sql");
         if (Files.exists(sqlPath)) {
           queryFiles.remove(sqlPath);
@@ -290,10 +272,22 @@ public class StructuredPipelineDescription {
           if (modelMap.containsKey(model.getName())) {
             throw new Exception("Duplicate model " + model.getName() + " found.");
           }
-          modelMap.put(
-              model.getName(),
-              new SqlModel(
-                  fullName, model.getName(), String.join("\n", Files.readAllLines(sqlPath))));
+          SqlModel sqlModel =
+              new SqlModel(path, model.getName(), String.join("\n", Files.readAllLines(sqlPath)));
+
+          // Apply configuration hierarchically from the models structure
+          LOG.info("Attempting to merge configuration for " + String.join(".", path));
+          JsonNode config = project.models;
+          if (config != null) {
+            for (String p : path) {
+              sqlModel.mergeConfiguration(config);
+              config.path(p);
+            }
+            sqlModel.mergeConfiguration(config);
+          }
+
+          modelMap.put(model.getName(), sqlModel);
+
           continue;
         }
         Path pyPath = schemaPath.resolve(model.getName() + ".py");
@@ -316,8 +310,10 @@ public class StructuredPipelineDescription {
     }
 
     // Finally handle the subdirectories
-    for (Path path : directories) {
-      readSchemaTables(basePath, path, mapper);
+    for (Path subdir : directories) {
+      String[] newPath = Arrays.copyOf(path, path.length + 1);
+      newPath[newPath.length - 1] = subdir.getFileName().toString();
+      readSchemaTables(newPath, subdir, mapper);
     }
   }
 
@@ -326,7 +322,7 @@ public class StructuredPipelineDescription {
     for (String schemaDir : subdirs) {
       Path schemaPath = basePath.resolve(schemaDir);
       if (Files.isDirectory(schemaPath)) {
-        readSchemaTables(schemaPath, schemaPath, mapper);
+        readSchemaTables(new String[] {}, schemaPath, mapper);
       }
     }
   }
@@ -339,7 +335,11 @@ public class StructuredPipelineDescription {
     }
   }
 
-  public void loadProject(Path path) throws Exception {
+  public void loadProject(Path profilePath, Path path) throws Exception {
+    if (!Files.exists(profilePath)) {
+      throw new Exception("Profile path not found: " + profilePath);
+    }
+
     ObjectMapper mapper =
         new ObjectMapper(new YAMLFactory())
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -350,6 +350,37 @@ public class StructuredPipelineDescription {
     }
     LOG.info("Loading SPD project at " + path);
     project = mapper.readValue(Files.newBufferedReader(projectPath), Project.class);
+    if (project.profile == null || "".equals(project.profile)) {
+      throw new Exception("Project must define a profile.");
+    }
+    LOG.info("Loading profile " + project.profile + " from " + profilePath);
+    JsonNode profileNode = mapper.readTree(Files.newBufferedReader(path)).findPath(project.profile);
+    if (profileNode == null || profileNode.isEmpty()) {
+      throw new Exception("Profile " + project.profile + " not found.");
+    }
+    String target = profileNode.get("target").asText();
+    if (target == null || "".equals(target)) {
+      throw new Exception("No target specified for profile " + project.profile);
+    }
+
+    profile = new Profile();
+    profile.setTarget(target);
+
+    JsonNode outputs = profileNode.path("outputs").path(target);
+    if (outputs == null || outputs.isEmpty() || !outputs.isObject()) {
+      throw new Exception(
+          "Could not find output configuration for " + target + "in profile " + project.profile);
+    }
+    profile.setOutputs((ObjectNode) outputs);
+    JsonNode inputs = profileNode.path("inputs").path(target);
+    if (inputs != null && !inputs.isEmpty() && inputs.isObject()) {
+      profile.setInputs((ObjectNode) inputs);
+    } else {
+      LOG.info("No inputs found. Sources will be read from output configuration.");
+    }
+
+    // Load the sources according to their profile
+
     loadSchemas(path, project.seedPaths, mapper);
     loadSchemas(path, project.modelPaths, mapper);
     resolveModels();
@@ -357,42 +388,6 @@ public class StructuredPipelineDescription {
     LOG.info("Dumping tables for " + env.toString());
     for (Map.Entry<String, Table> table : metaTableProvider.getTables().entrySet()) {
       LOG.info("Table: " + table.getKey() + ", " + table.getValue().toString());
-    }
-  }
-
-  public void applyProfiles(Path path) throws Exception {
-
-    // Load up ye olde schema transforms.
-    ServiceLoader<SchemaTransformProvider> loader =
-        ServiceLoader.load(SchemaTransformProvider.class);
-    loader.forEach(
-        (provider) -> {
-          LOG.info("Found provider " + provider.identifier());
-        });
-
-    ObjectMapper mapper =
-        new ObjectMapper(new YAMLFactory())
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    if (!Files.exists(path)) {
-      throw new Exception("Profiles not found.");
-    }
-    if (project == null || "".equals(project.profile) || project.profile == null) {
-      throw new Exception("Project must be initialized with a profile.");
-    }
-    JsonNode allProfiles = mapper.readTree(Files.newBufferedReader(path));
-    JsonNode profile = allProfiles.findPath(project.profile);
-    // If target isn't set, try to set it from the profile object
-    if (target == null || "".equals(target)) {
-      this.target = profile.findPath("target").asText("");
-    }
-    if ("".equals(this.target)) {
-      throw new Exception("Unable to apply profile as target is not set properly.");
-    } else {
-      LOG.info("Applying `" + target + "` profile target.");
-    }
-    JsonNode providers = profile.findPath("outputs").findPath(target);
-    if (providers.isEmpty()) {
-      throw new Exception("Unable to locate outputs ");
     }
   }
 }

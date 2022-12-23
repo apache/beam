@@ -1,9 +1,9 @@
 profiles:
   simple_pipeline:
-    target: dev
+    target: local
+    inputs:
+      local:
+        type: bigquery
     outputs:
-      dev:
-        - type: bigquery
-          schemas:
-            - default
-            - output
+      local:
+        type: bigtable

@@ -19,13 +19,13 @@ package org.apache.beam.sdk.extensions.spd.models;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class SqlModel implements StructuredModel {
+public class SqlModel extends ConfiguredModel implements StructuredModel {
 
-  @Nullable private String path;
+  @Nullable private String[] path;
   @Nullable private String name;
   @Nullable private String rawQuery;
 
-  public SqlModel(String path, String name, String rawQuery) {
+  public SqlModel(String[] path, String name, String rawQuery) {
     this.path = path;
     this.name = name;
     this.rawQuery = rawQuery;
@@ -37,7 +37,7 @@ public class SqlModel implements StructuredModel {
 
   @Override
   public String getPath() {
-    return path == null ? "" : path;
+    return path == null ? "" : String.join(".", path);
   }
 
   @Override

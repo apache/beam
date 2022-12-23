@@ -18,13 +18,41 @@
 package org.apache.beam.sdk.extensions.spd.macros;
 
 import com.hubspot.jinjava.Jinjava;
+import com.hubspot.jinjava.interpret.RenderResult;
+import com.hubspot.jinjava.lib.fn.ELFunctionDefinition;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
 
 public class MacroContext {
   Jinjava parser;
 
+  public static String configuration(String... args) {
+    return "";
+  }
+
   public MacroContext() {
     parser = new Jinjava();
-    // Register built-in function
+    // Register built-in functions
+    parser.registerFunction(
+        new ELFunctionDefinition(
+            "", "config", MacroContext.class, "configuration", String[].class));
+    // Register graph manipulation functions
+    parser.registerFunction(
+        new ELFunctionDefinition(
+            "", "ref", GraphFunctions.class, "tableReference", String[].class));
+    parser.registerFunction(
+        new ELFunctionDefinition(
+            "", "source", GraphFunctions.class, "sourceReference", String[].class));
+  }
 
+  public RenderResult eval(String expr, Map<String, ?> binding) {
+    return parser.renderForResult(expr, binding);
+  }
+
+  public RenderResult eval(String expr, StructuredPipelineDescription spd) {
+    Map<String, Object> binding = new HashMap<>();
+    binding.put("_spd", spd);
+    return eval(expr, binding);
   }
 }

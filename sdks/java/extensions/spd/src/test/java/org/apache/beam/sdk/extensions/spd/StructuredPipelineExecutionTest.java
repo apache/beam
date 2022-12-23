@@ -37,8 +37,7 @@ public class StructuredPipelineExecutionTest {
     URL profileURL = ClassLoader.getSystemClassLoader().getResource("test_profile.yml");
     Path pipelinePath = Paths.get(pipelineURL.toURI());
     StructuredPipelineDescription spd = new StructuredPipelineDescription(pipeline);
-    spd.loadProject(pipelinePath);
-    spd.applyProfiles(Paths.get(profileURL.toURI()));
+    spd.loadProject(Paths.get(profileURL.toURI()), pipelinePath);
     LOG.info("Running pipeline");
     pipeline.run();
   }

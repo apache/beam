@@ -31,6 +31,16 @@ public class Profile {
     this.target = target;
   }
 
+  @Nullable ObjectNode inputs;
+
+  public @Nullable ObjectNode getInputs() {
+    return inputs == null ? outputs : inputs;
+  }
+
+  public void setInputs(ObjectNode inputs) {
+    this.inputs = inputs;
+  }
+
   @Nullable ObjectNode outputs;
 
   public @Nullable ObjectNode getOutputs() {

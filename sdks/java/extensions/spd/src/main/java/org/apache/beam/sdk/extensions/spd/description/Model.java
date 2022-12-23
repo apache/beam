@@ -45,10 +45,10 @@ public class Model {
 
   @Nullable
   @JsonSetter(nulls = Nulls.SKIP)
-  public ModelJavaBinding java;
+  public String type = "file";
 
-  public @Nullable ModelJavaBinding getJava() {
-    return java;
+  public String getType() {
+    return type == null ? "file" : type;
   }
 
   @Nullable

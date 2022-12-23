@@ -38,7 +38,7 @@ public class GraphFunctions {
   public static Relation sourceReference(String sourceName, String tableName) throws Exception {
     StructuredPipelineDescription spd =
         (StructuredPipelineDescription) JinjavaInterpreter.getCurrent().getContext().get("_spd");
-    return spd.getRelation(tableName);
+    return spd.getSourceRelation(sourceName, tableName);
   }
 
   public static String dataframeReference(String... args) throws Exception {
