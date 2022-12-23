@@ -101,7 +101,7 @@ task preCommit() {
     }
 }
 
-task executeCdap (type:JavaExec) {
+task executeCdapSalesforce (type:JavaExec) {
     mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()

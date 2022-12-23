@@ -20,7 +20,7 @@
 To run this example your `build.gradle` file should contain the following task to execute the pipeline:
 
 ```
-task executeCdap (type:JavaExec) {
+task executeCdapSalesforce (type:JavaExec) {
     mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()
@@ -30,10 +30,10 @@ task executeCdap (type:JavaExec) {
 
 ## Running the CdapSalesforceToTxt pipeline example
 
-Gradle 'executeCdap' task allows to run the pipeline via the following command:
+Gradle 'executeCdapSalesforce' task allows to run the pipeline via the following command:
 
 ```bash
-gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.salesforce.CdapSalesforceToTxt \
+gradle clean executeCdapSalesforce -DmainClass=org.apache.beam.examples.complete.cdap.salesforce.CdapSalesforceToTxt \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 
@@ -55,10 +55,10 @@ Please see CDAP [Salesforce Batch Source](https://github.com/data-integrations/s
 
 ## Running the TxtToCdapSalesforce pipeline example
 
-Gradle 'executeCdap' task allows to run the pipeline via the following command:
+Gradle 'executeCdapSalesforce' task allows to run the pipeline via the following command:
 
 ```bash
-gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.salesforce.TxtToCdapSalesforce \
+gradle clean executeCdapSalesforce -DmainClass=org.apache.beam.examples.complete.cdap.salesforce.TxtToCdapSalesforce \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 
@@ -84,10 +84,10 @@ Please see CDAP [Salesforce Batch Sink](https://github.com/data-integrations/sal
 
 ## Running the CdapSalesforceStreamingToTxt pipeline example
 
-Gradle 'executeCdap' task allows to run the pipeline via the following command:
+Gradle 'executeCdapSalesforce' task allows to run the pipeline via the following command:
 
 ```bash
-gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.salesforce.CdapSalesforceStreamingToTxt \
+gradle clean executeCdapSalesforce -DmainClass=org.apache.beam.examples.complete.cdap.salesforce.CdapSalesforceStreamingToTxt \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 
