@@ -17,6 +17,7 @@ package exec
 
 import (
 	"fmt"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"reflect"
 	"strings"
 	"testing"
@@ -376,6 +377,37 @@ func TestIndexToInputId(t *testing.T) {
 		actual := indexToInputId(test.in)
 		if actual != test.exp {
 			t.Errorf("can not correctly convert inputId to index. input: %v, expect: %v, acutally: %v", test.in, test.exp, actual)
+		}
+	}
+}
+
+func TestUnmarshalPort(t *testing.T) {
+	var port fnpb.RemoteGrpcPort
+
+	tests := []struct {
+		inputData   []byte
+		outputPort  Port
+		outputStr   string
+		outputError error
+	}{
+		{
+			inputData:   []byte{},
+			outputPort:  Port{URL: port.GetApiServiceDescriptor().GetUrl()},
+			outputStr:   fnpb.RemoteGrpcPort{}.CoderId,
+			outputError: nil,
+		},
+	}
+
+	for _, test := range tests {
+		port, str, err := unmarshalPort(test.inputData)
+		if err != nil && test.outputError == nil {
+			t.Errorf("There is an error where should not be")
+		} else if err != nil && err != test.outputError {
+			t.Errorf("There is an error that does not meet expectation")
+		} else if port != test.outputPort {
+			t.Errorf("The output port is not right")
+		} else if str != test.outputStr {
+			t.Errorf("The output string is not right")
 		}
 	}
 }
