@@ -195,10 +195,15 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
-      - name: Install python
-        uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
         with:
-          python-version: 3.7
+          requires-py-38: false
+          requires-py-39: false
+          requires-java-8: false
+          requires-go-18: false
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -215,10 +220,15 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
-      - name: Install python
-        uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup self-hosted
+        uses: ./.github/actions/setup-self-hosted-action
         with:
-          python-version: 3.7
+          requires-py-38: false
+          requires-py-39: false
+          requires-java-8: false
+          requires-go-18: false
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v3
         with:
@@ -252,6 +262,15 @@ jobs:
           - os_python: {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
             arch: aarch64
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Setup self-hosted
+      uses: ./.github/actions/setup-self-hosted-action
+      with:
+        requires-py-38: false
+        requires-py-39: false
+        requires-java-8: false
+        requires-go-18: false
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v3
       with:
@@ -263,10 +282,6 @@ jobs:
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
-    - name: Install Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.7
     - uses: docker/setup-qemu-action@v1
       if: ${{matrix.arch == 'aarch64'}}
       name: Set up QEMU
@@ -332,12 +347,17 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
+        os : [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
     steps:
-    - name: Install Python
-      uses: actions/setup-python@v4
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Setup self-hosted
+      uses: ./.github/actions/setup-self-hosted-action
       with:
-        python-version: 3.7
+        requires-py-38: false
+        requires-py-39: false
+        requires-java-8: false
+        requires-go-18: false
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v3
       with:
@@ -379,10 +399,15 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
-    - name: Install Python
-      uses: actions/setup-python@v4
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Setup self-hosted
+      uses: ./.github/actions/setup-self-hosted-action
       with:
-        python-version: 3.7
+        requires-py-38: false
+        requires-py-39: false
+        requires-java-8: false
+        requires-go-18: false
     - name: Authenticate on GCP
       uses: google-github-actions/setup-gcloud@v0
       with:
