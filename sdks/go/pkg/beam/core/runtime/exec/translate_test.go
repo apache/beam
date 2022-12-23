@@ -18,6 +18,7 @@ package exec
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -317,4 +318,64 @@ func makeWindowMappingFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 		return nil, fmt.Errorf("unknown window fn type %v", w.Kind)
 	}
 	return wFn, nil
+}
+
+func TestInputIdToIndex(t *testing.T) {
+	tests := []struct {
+		in  string
+		exp int
+	}{
+		{ // does not start with i
+			"90",
+			0,
+		},
+		{ // start with i
+			"i0",
+			0,
+		},
+		{
+			"i1",
+			1,
+		},
+		{
+			"i10",
+			10,
+		},
+	}
+
+	for _, test := range tests {
+		actual, err := inputIdToIndex(test.in)
+		if !strings.HasPrefix(test.in, "i") {
+			if err == nil {
+				t.Errorf("should return err when string does not has a prefix of i, but didn't")
+			}
+		} else {
+			if actual != test.exp {
+				t.Errorf("can not correctly convert inputId to index. input: %v, expect: %v, acutally: %v", test.in, test.exp, actual)
+			}
+		}
+	}
+}
+
+func TestIndexToInputId(t *testing.T) {
+	tests := []struct {
+		in  int
+		exp string
+	}{
+		{
+			1,
+			"i1",
+		},
+		{
+			1000,
+			"i1000",
+		},
+	}
+
+	for _, test := range tests {
+		actual := indexToInputId(test.in)
+		if actual != test.exp {
+			t.Errorf("can not correctly convert inputId to index. input: %v, expect: %v, acutally: %v", test.in, test.exp, actual)
+		}
+	}
 }
