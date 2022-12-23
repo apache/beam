@@ -53,29 +53,13 @@ class Workflow:
 GH_WORKFLOWS_CREATE_TABLE_QUERY = f"""
 CREATE TABLE IF NOT EXISTS {GH_WORKFLOWS_TABLE_NAME} (
     job_name text PRIMARY KEY,
-    job_yml_filename text,
-    run1 text,
-    run1Id text,
-    run2 text,
-    run2Id text,
-    run3 text,
-    run3Id text,
-    run4 text,
-    run4Id text,
-    run5 text,
-    run5Id text,
-    run6 text,
-    run6Id text,
-    run7 text,
-    run7Id text,
-    run8 text,
-    run8Id text,
-    run9 text,
-    run9Id text,
-    run10 text,
-    run10Id text
-)
-"""
+    job_yml_filename text"""
+for i in range(0,GH_WORKFLOWS_NUMBER_EXECUTIONS):
+    i = i + 1
+    GH_WORKFLOWS_CREATE_TABLE_QUERY += """,\n    run{} text,
+    run{}Id text""".format(str(i),str(i))
+GH_WORKFLOWS_CREATE_TABLE_QUERY += ")\n"
+
 def githubWorkflowsGrafanaSync(data,context):
     print('Started')
     print('Updating table with recent workflow runs')
