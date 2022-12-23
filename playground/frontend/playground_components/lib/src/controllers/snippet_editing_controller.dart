@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:math';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:get_it/get_it.dart';
@@ -103,6 +105,7 @@ class SnippetEditingController extends ChangeNotifier {
     codeController.removeListener(_onCodeControllerChanged);
     setSource(example.source);
     _applyViewOptions(viewOptions);
+    _toStartOfContextLineIfAny();
     codeController.addListener(_onCodeControllerChanged);
 
     notifyListeners();
@@ -124,6 +127,31 @@ class SnippetEditingController extends ChangeNotifier {
     if (unfolded.isNotEmpty) {
       codeController.foldOutsideSections(unfolded);
     }
+  }
+
+  void _toStartOfContextLineIfAny() {
+    final contextLine1Based = selectedExample?.contextLine;
+
+    if (contextLine1Based == null) {
+      return;
+    }
+
+    _toStartOfFullLine(max(contextLine1Based - 1, 0));
+  }
+
+  void _toStartOfFullLine(int line) {
+    if (line >= codeController.code.lines.length) {
+      return;
+    }
+
+    final fullPosition = codeController.code.lines.lines[line].textRange.start;
+    final visiblePosition = codeController.code.hiddenRanges.cutPosition(
+      fullPosition,
+    );
+
+    codeController.selection = TextSelection.collapsed(
+      offset: visiblePosition,
+    );
   }
 
   Example? get selectedExample => _selectedExample;

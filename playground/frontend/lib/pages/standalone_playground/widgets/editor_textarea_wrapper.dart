@@ -57,7 +57,6 @@ class CodeTextAreaWrapper extends StatelessWidget {
                 child: SnippetEditor(
                   controller: snippetController,
                   isEditable: true,
-                  goToContextLine: true,
                 ),
               ),
               Positioned(

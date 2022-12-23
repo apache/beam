@@ -50,6 +50,8 @@ extension ExampleTypeToString on ExampleType {
 /// These objects are fetched as lists from [ExampleRepository].
 class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final Complexity? complexity;
+
+  /// Index of the line to focus, 1-based.
   final int contextLine;
   final String description;
   final bool isMultiFile;

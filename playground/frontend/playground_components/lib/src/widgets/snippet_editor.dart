@@ -16,31 +16,120 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
+import 'dart:math';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter_code_editor/flutter_code_editor.dart';
 
 import '../controllers/snippet_editing_controller.dart';
-import 'editor_textarea.dart';
+import '../theme/theme.dart';
 
-class SnippetEditor extends StatelessWidget {
+class SnippetEditor extends StatefulWidget {
   final SnippetEditingController controller;
   final bool isEditable;
-  final bool goToContextLine;
 
-  const SnippetEditor({
+  SnippetEditor({
     required this.controller,
     required this.isEditable,
-    required this.goToContextLine,
-  });
+  }) : super(
+    // When the example is changed, will scroll to the context line again.
+    key: ValueKey(controller.selectedExample),
+  );
+
+  @override
+  State<SnippetEditor> createState() => _SnippetEditorState();
+}
+
+class _SnippetEditorState extends State<SnippetEditor> {
+  bool _didAutoFocus = false;
+  final _focusNode = FocusNode();
+  final _scrollController = ScrollController();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_didAutoFocus) {
+      _didAutoFocus = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _scrollSoCursorIsOnTop();
+        }
+      });
+    }
+  }
+
+  void _scrollSoCursorIsOnTop() {
+    _focusNode.requestFocus();
+
+    final position = max(widget.controller.codeController.selection.start, 0);
+    final characterOffset = _getLastCharacterOffset(
+      text: widget.controller.codeController.text.substring(0, position),
+      style: kLightTheme.extension<BeamThemeExtension>()!.codeRootStyle,
+    );
+
+    _scrollController.jumpTo(
+      min(
+        characterOffset.dy,
+        _scrollController.position.maxScrollExtent,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return EditorTextArea(
-      codeController: controller.codeController,
-      sdk: controller.sdk,
-      enabled: !(controller.selectedExample?.isMultiFile ?? false),
-      example: controller.selectedExample,
-      isEditable: isEditable,
-      goToContextLine: goToContextLine,
+    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
+    final isMultiFile = widget.controller.selectedExample?.isMultiFile ?? false;
+    final isEnabled = widget.isEditable && !isMultiFile;
+
+    return Semantics(
+      container: true,
+      enabled: isEnabled,
+      label: 'widgets.codeEditor.label',
+      multiline: true,
+      readOnly: isEnabled,
+      textField: true,
+      child: FocusScope(
+        node: FocusScopeNode(canRequestFocus: isEnabled),
+        child: CodeTheme(
+          data: ext.codeTheme,
+          child: Container(
+            color: ext.codeTheme.styles['root']?.backgroundColor,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: CodeField(
+                key: ValueKey(widget.controller.codeController),
+                controller: widget.controller.codeController,
+                enabled: isEnabled,
+                focusNode: _focusNode,
+                textStyle: ext.codeRootStyle,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
+}
+
+Offset _getLastCharacterOffset({
+  required String text,
+  required TextStyle style,
+}) {
+  final textPainter = TextPainter(
+    textDirection: TextDirection.ltr,
+    text: TextSpan(text: text, style: style),
+  )..layout();
+
+  return textPainter.getOffsetForCaret(
+    TextPosition(offset: text.length),
+    Rect.zero,
+  );
 }
