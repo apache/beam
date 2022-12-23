@@ -158,7 +158,7 @@ def run(argv=None, save_main_session=True):
   parser.add_argument(
       '--input',
       type=str,
-      default='gs://apache-beam-samples/game/gaming_data.csv',
+      default='gs://apache-beam-samples/game/small/gaming_data.csv',
       help='Path to the data file(s) containing game data.')
   parser.add_argument(
       '--output', type=str, required=True, help='Path to the output file(s).')
