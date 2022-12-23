@@ -115,6 +115,7 @@ class _KafkaIOSDFReadPerfTest(LoadTest):
                 'auto.offset.reset': 'earliest'
             },
             topics=[self.kafka_topic])
+        | 'Avoid Fusion' >> Reshuffle()
         | 'Count records' >> beam.ParDo(CountMessages(self.metrics_namespace))
         | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
