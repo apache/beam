@@ -355,7 +355,7 @@ packages:
       name: flutter_code_editor
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.1.11"
+    version: "0.2.1"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -418,6 +418,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  fluttertoast:
+    dependency: transitive
+    description:
+      name: fluttertoast
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "8.1.1"
   frontend_server_client:
     dependency: transitive
     description:
@@ -805,7 +812,7 @@ packages:
       name: rxdart
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.27.5"
+    version: "0.27.7"
   scrollable_positioned_list:
     dependency: transitive
     description:

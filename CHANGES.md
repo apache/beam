@@ -44,10 +44,45 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
+# [2.45.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* RunInference Wrapper with Sklearn Model Handler support added in Go SDK ([#24497](https://github.com/apache/beam/issues/23382)).
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* Python streaming pipelines and portable Python batch pipelines on Dataflow are required to
+  use Runner V2. The `disable_runner_v2`, `disable_runner_v2_until_2023`, `disable_prime_runner_v2`
+  experiments will raise an error during pipeline construction. Note that non-portable Python
+  batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515))
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.44.0] - Unreleased
 
@@ -72,6 +107,8 @@
   (Python) ([#23684](https://github.com/apache/beam/pull/23684)).
 * Pipeline Resource Hints now supported via `--resource_hints` flag (Go) ([#23990](https://github.com/apache/beam/pull/23990)).
 * Make Python SDK containers reusable on portable runners by installing dependencies to temporary venvs ([BEAM-12792](https://issues.apache.org/jira/browse/BEAM-12792)).
+* RunInference model handlers now support the specification of a custom inference function in Python ([#22572](https://github.com/apache/beam/issues/22572))
+* Support for `map_windows` urn added to Go SDK ([#24307](https://github.apache/beam/pull/24307)).
 
 ## Breaking Changes
 
@@ -83,6 +120,8 @@
   TextIO) and will now need to declare the dependency.
 * `beam-sdks-java-core` is no longer a dependency of the Java SDK Harness. Users of a portable
   runner (such as Dataflow Runner v2) will need to provide this package and its dependencies.
+* Slices now use the Beam Iterable Coder. This enables cross language use, but breaks pipeline updates
+  if a Slice type is used as a PCollection element or State API element. (Go)[#24339](https://github.com/apache/beam/issues/24339)
 
 ## Deprecations
 

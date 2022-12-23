@@ -1,27 +1,9 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
 //
 // @dart = 2.12
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+// ignore_for_file: annotate_overrides,camel_case_types,constant_identifier_names,directives_ordering,library_prefixes,non_constant_identifier_names,prefer_final_fields,return_of_invalid_type,unnecessary_const,unnecessary_import,unnecessary_this,unused_import,unused_shown_name
 
 import 'dart:core' as $core;
 
@@ -31,11 +13,81 @@ import 'api.pbenum.dart';
 
 export 'api.pbenum.dart';
 
+class Dataset extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'Dataset', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..e<EmulatorType>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: EmulatorType.EMULATOR_TYPE_UNSPECIFIED, valueOf: EmulatorType.valueOf, enumValues: EmulatorType.values)
+    ..m<$core.String, $core.String>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'options', entryClassName: 'Dataset.OptionsEntry', keyFieldType: $pb.PbFieldType.OS, valueFieldType: $pb.PbFieldType.OS, packageName: const $pb.PackageName('api.v1'))
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasetPath')
+    ..hasRequiredFields = false
+  ;
+
+  Dataset._() : super();
+  factory Dataset({
+    EmulatorType? type,
+    $core.Map<$core.String, $core.String>? options,
+    $core.String? datasetPath,
+  }) {
+    final _result = create();
+    if (type != null) {
+      _result.type = type;
+    }
+    if (options != null) {
+      _result.options.addAll(options);
+    }
+    if (datasetPath != null) {
+      _result.datasetPath = datasetPath;
+    }
+    return _result;
+  }
+  factory Dataset.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory Dataset.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  Dataset clone() => Dataset()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  Dataset copyWith(void Function(Dataset) updates) => super.copyWith((message) => updates(message as Dataset)) as Dataset; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static Dataset create() => Dataset._();
+  Dataset createEmptyInstance() => create();
+  static $pb.PbList<Dataset> createRepeated() => $pb.PbList<Dataset>();
+  @$core.pragma('dart2js:noInline')
+  static Dataset getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Dataset>(create);
+  static Dataset? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  EmulatorType get type => $_getN(0);
+  @$pb.TagNumber(1)
+  set type(EmulatorType v) { setField(1, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasType() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearType() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.Map<$core.String, $core.String> get options => $_getMap(1);
+
+  @$pb.TagNumber(3)
+  $core.String get datasetPath => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set datasetPath($core.String v) { $_setString(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasDatasetPath() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDatasetPath() => clearField(3);
+}
+
 class RunCodeRequest extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'RunCodeRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
     ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'code')
     ..e<Sdk>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
+    ..pc<Dataset>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
     ..hasRequiredFields = false
   ;
 
@@ -44,6 +96,7 @@ class RunCodeRequest extends $pb.GeneratedMessage {
     $core.String? code,
     Sdk? sdk,
     $core.String? pipelineOptions,
+    $core.Iterable<Dataset>? datasets,
   }) {
     final _result = create();
     if (code != null) {
@@ -54,6 +107,9 @@ class RunCodeRequest extends $pb.GeneratedMessage {
     }
     if (pipelineOptions != null) {
       _result.pipelineOptions = pipelineOptions;
+    }
+    if (datasets != null) {
+      _result.datasets.addAll(datasets);
     }
     return _result;
   }
@@ -104,6 +160,9 @@ class RunCodeRequest extends $pb.GeneratedMessage {
   $core.bool hasPipelineOptions() => $_has(2);
   @$pb.TagNumber(3)
   void clearPipelineOptions() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.List<Dataset> get datasets => $_getList(3);
 }
 
 class RunCodeResponse extends $pb.GeneratedMessage {
@@ -995,6 +1054,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..e<Sdk>(10, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..e<Complexity>(11, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.COMPLEXITY_UNSPECIFIED, valueOf: Complexity.valueOf, enumValues: Complexity.values)
     ..pPS(12, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'tags')
+    ..pc<Dataset>(13, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
+    ..aOS(14, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'urlVcs')
+    ..aOS(15, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'urlNotebook')
     ..hasRequiredFields = false
   ;
 
@@ -1012,6 +1074,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     Sdk? sdk,
     Complexity? complexity,
     $core.Iterable<$core.String>? tags,
+    $core.Iterable<Dataset>? datasets,
+    $core.String? urlVcs,
+    $core.String? urlNotebook,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1049,6 +1114,15 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (tags != null) {
       _result.tags.addAll(tags);
+    }
+    if (datasets != null) {
+      _result.datasets.addAll(datasets);
+    }
+    if (urlVcs != null) {
+      _result.urlVcs = urlVcs;
+    }
+    if (urlNotebook != null) {
+      _result.urlNotebook = urlNotebook;
     }
     return _result;
   }
@@ -1174,6 +1248,27 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(12)
   $core.List<$core.String> get tags => $_getList(11);
+
+  @$pb.TagNumber(13)
+  $core.List<Dataset> get datasets => $_getList(12);
+
+  @$pb.TagNumber(14)
+  $core.String get urlVcs => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set urlVcs($core.String v) { $_setString(13, v); }
+  @$pb.TagNumber(14)
+  $core.bool hasUrlVcs() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearUrlVcs() => clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get urlNotebook => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set urlNotebook($core.String v) { $_setString(14, v); }
+  @$pb.TagNumber(15)
+  $core.bool hasUrlNotebook() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearUrlNotebook() => clearField(15);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {
@@ -2037,6 +2132,7 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
     ..e<Sdk>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..e<Complexity>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'complexity', $pb.PbFieldType.OE, defaultOrMaker: Complexity.COMPLEXITY_UNSPECIFIED, valueOf: Complexity.valueOf, enumValues: Complexity.values)
+    ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'persistenceKey')
     ..hasRequiredFields = false
   ;
 
@@ -2046,6 +2142,7 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
     Sdk? sdk,
     $core.String? pipelineOptions,
     Complexity? complexity,
+    $core.String? persistenceKey,
   }) {
     final _result = create();
     if (files != null) {
@@ -2059,6 +2156,9 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
     }
     if (complexity != null) {
       _result.complexity = complexity;
+    }
+    if (persistenceKey != null) {
+      _result.persistenceKey = persistenceKey;
     }
     return _result;
   }
@@ -2112,6 +2212,15 @@ class SaveSnippetRequest extends $pb.GeneratedMessage {
   $core.bool hasComplexity() => $_has(3);
   @$pb.TagNumber(4)
   void clearComplexity() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get persistenceKey => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set persistenceKey($core.String v) { $_setString(4, v); }
+  @$pb.TagNumber(5)
+  $core.bool hasPersistenceKey() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearPersistenceKey() => clearField(5);
 }
 
 class SaveSnippetResponse extends $pb.GeneratedMessage {

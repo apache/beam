@@ -106,6 +106,7 @@ linter:
     avoid_web_libraries_in_flutter: false
     avoid_print: false
     prefer_interpolation_to_compose_strings: false
+    use_key_in_widget_constructors: false
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

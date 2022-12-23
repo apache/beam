@@ -1,0 +1,38 @@
+{
+  "properties": {
+    "objectWithTuple": {
+      "type": "object",
+      "properties": {
+        "someString": {
+          "type": "string"
+        },
+        "tupleArray": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "enum": [
+                "Street",
+                "Avenue",
+                "Boulevard"
+              ]
+            },
+            {
+              "enum": [
+                "NW",
+                "NE",
+                "SW",
+                "SE"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

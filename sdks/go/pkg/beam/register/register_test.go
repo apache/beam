@@ -44,7 +44,7 @@ func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 	emit := func(a0 int) {
 		val = a0
 	}
-	if got, want := pe.Call([]interface{}{"hello", emit})[0].(int), 5; got != want {
+	if got, want := pe.Call([]any{"hello", emit})[0].(int), 5; got != want {
 		t.Errorf("Wrapped ProcessElement call: got %v, want %v", got, want)
 	}
 	if got, want := val, 5; got != want {
@@ -58,7 +58,7 @@ func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 	emit = func(a0 int) {
 		val = a0
 	}
-	sb.Call([]interface{}{context.Background(), emit})
+	sb.Call([]any{context.Background(), emit})
 	if got, want := val, 2; got != want {
 		t.Errorf("Wrapped StartBundle call emit result: got %v, want %v", got, want)
 	}
@@ -70,7 +70,7 @@ func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 	emit = func(a0 int) {
 		val = a0
 	}
-	if got := fb.Call([]interface{}{context.Background(), emit})[0]; got != nil {
+	if got := fb.Call([]any{context.Background(), emit})[0]; got != nil {
 		t.Errorf("Wrapped FinishBundle call: got %v, want nil", got)
 	}
 	if got, want := val, 2; got != want {
@@ -80,14 +80,14 @@ func TestRegister_CompleteDoFn_WrapsStruct(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(CompleteDoFn2x1{}), no registered entry found for Setup")
 	}
-	if got := su.Call([]interface{}{context.Background()})[0]; got != nil {
+	if got := su.Call([]any{context.Background()})[0]; got != nil {
 		t.Errorf("Wrapped FinishBundle call: got %v, want nil", got)
 	}
 	td, ok := m["Teardown"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(CompleteDoFn2x1{}), no registered entry found for Teardown")
 	}
-	if got := td.Call([]interface{}{})[0]; got != nil {
+	if got := td.Call([]any{})[0]; got != nil {
 		t.Errorf("Wrapped Teardown call: got %v, want nil", got)
 	}
 }
@@ -108,7 +108,7 @@ func TestRegister_PartialDoFn_WrapsStruct(t *testing.T) {
 	emit := func(a0 int) {
 		val = a0
 	}
-	pe.Call([]interface{}{emit})
+	pe.Call([]any{emit})
 	if got, want := val, 5; got != want {
 		t.Errorf("Wrapped ProcessElement call emit result: got %v, want %v", got, want)
 	}
@@ -120,7 +120,7 @@ func TestRegister_PartialDoFn_WrapsStruct(t *testing.T) {
 	emit = func(a0 int) {
 		val = a0
 	}
-	sb.Call([]interface{}{context.Background(), emit})
+	sb.Call([]any{context.Background(), emit})
 	if got, want := val, 2; got != want {
 		t.Errorf("Wrapped StartBundle call emit result: got %v, want %v", got, want)
 	}
@@ -138,7 +138,7 @@ func TestRegister_ProcessElementDoFn_WrapsStruct(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(ProcessElementDoFn0x1{}), no registered entry found for ProcessElement")
 	}
-	if got, want := pe.Call([]interface{}{})[0].(int), 5; got != want {
+	if got, want := pe.Call([]any{})[0].(int), 5; got != want {
 		t.Errorf("Wrapped ProcessElement call: got %v, want %v", got, want)
 	}
 }
@@ -171,28 +171,28 @@ func TestCombiner_CompleteCombiner3(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for CreateAccumulator")
 	}
-	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+	if got, want := ca.Call([]any{})[0].(int), 0; got != want {
 		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
 	}
 	ai, ok := m["AddInput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for AddInput")
 	}
-	if got, want := ai.Call([]interface{}{2, CustomType{val: 3}})[0].(int), 5; got != want {
+	if got, want := ai.Call([]any{2, CustomType{val: 3}})[0].(int), 5; got != want {
 		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
 	}
 	ma, ok := m["MergeAccumulators"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+	if got, want := ma.Call([]any{2, 4})[0].(int), 6; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 	eo, ok := m["ExtractOutput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner3{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := eo.Call([]interface{}{2})[0].(CustomType2).val2, 2; got != want {
+	if got, want := eo.Call([]any{2})[0].(CustomType2).val2, 2; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 }
@@ -226,28 +226,28 @@ func TestCombiner_CompleteCombiner2(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for CreateAccumulator")
 	}
-	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+	if got, want := ca.Call([]any{})[0].(int), 0; got != want {
 		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
 	}
 	ai, ok := m["AddInput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for AddInput")
 	}
-	if got, want := ai.Call([]interface{}{2, CustomType{val: 3}})[0].(int), 5; got != want {
+	if got, want := ai.Call([]any{2, CustomType{val: 3}})[0].(int), 5; got != want {
 		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
 	}
 	ma, ok := m["MergeAccumulators"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+	if got, want := ma.Call([]any{2, 4})[0].(int), 6; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 	eo, ok := m["ExtractOutput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner2{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := eo.Call([]interface{}{2})[0].(CustomType).val, 2; got != want {
+	if got, want := eo.Call([]any{2})[0].(CustomType).val, 2; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 }
@@ -264,28 +264,28 @@ func TestCombiner_CompleteCombiner1(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for CreateAccumulator")
 	}
-	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+	if got, want := ca.Call([]any{})[0].(int), 0; got != want {
 		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
 	}
 	ai, ok := m["AddInput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for AddInput")
 	}
-	if got, want := ai.Call([]interface{}{2, 3})[0].(int), 5; got != want {
+	if got, want := ai.Call([]any{2, 3})[0].(int), 5; got != want {
 		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
 	}
 	ma, ok := m["MergeAccumulators"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+	if got, want := ma.Call([]any{2, 4})[0].(int), 6; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 	eo, ok := m["ExtractOutput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&CompleteCombiner1{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := eo.Call([]interface{}{2})[0].(int), 2; got != want {
+	if got, want := eo.Call([]any{2})[0].(int), 2; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 }
@@ -302,21 +302,21 @@ func TestCombiner_PartialCombiner2(t *testing.T) {
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found for CreateAccumulator")
 	}
-	if got, want := ca.Call([]interface{}{})[0].(int), 0; got != want {
+	if got, want := ca.Call([]any{})[0].(int), 0; got != want {
 		t.Errorf("Wrapped CreateAccumulator call: got %v, want %v", got, want)
 	}
 	ai, ok := m["AddInput"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found for AddInput")
 	}
-	if got, want := ai.Call([]interface{}{2, CustomType{val: 3}})[0].(int), 5; got != want {
+	if got, want := ai.Call([]any{2, CustomType{val: 3}})[0].(int), 5; got != want {
 		t.Errorf("Wrapped AddInput call: got %v, want %v", got, want)
 	}
 	ma, ok := m["MergeAccumulators"]
 	if !ok {
 		t.Fatalf("reflectx.WrapMethods(&PartialCombiner2{}), no registered entry found for MergeAccumulators")
 	}
-	if got, want := ma.Call([]interface{}{2, 4})[0].(int), 6; got != want {
+	if got, want := ma.Call([]any{2, 4})[0].(int), 6; got != want {
 		t.Errorf("Wrapped MergeAccumulators call: got %v, want %v", got, want)
 	}
 }
@@ -519,12 +519,12 @@ func (c *callerCustomTypeГint) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerCustomTypeГint) Call(args []interface{}) []interface{} {
+func (c *callerCustomTypeГint) Call(args []any) []any {
 	out0 := c.fn(args[0].(CustomType))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *callerCustomTypeГint) Call1x1(arg0 interface{}) interface{} {
+func (c *callerCustomTypeГint) Call1x1(arg0 any) any {
 	return c.fn(arg0.(CustomType))
 }
 
@@ -540,26 +540,26 @@ func (c *callerCustomType2CustomType2ГCustomType2) Type() reflect.Type {
 	return reflect.TypeOf(c.fn)
 }
 
-func (c *callerCustomType2CustomType2ГCustomType2) Call(args []interface{}) []interface{} {
+func (c *callerCustomType2CustomType2ГCustomType2) Call(args []any) []any {
 	out0 := c.fn(args[0].(CustomType2), args[0].(CustomType2))
-	return []interface{}{out0}
+	return []any{out0}
 }
 
-func (c *callerCustomType2CustomType2ГCustomType2) Call2x1(arg0, arg1 interface{}) interface{} {
+func (c *callerCustomType2CustomType2ГCustomType2) Call2x1(arg0, arg1 any) any {
 	return c.fn(arg0.(CustomType2), arg1.(CustomType2))
 }
 
-func funcMakerCustomTypeГint(fn interface{}) reflectx.Func {
+func funcMakerCustomTypeГint(fn any) reflectx.Func {
 	f := fn.(func(CustomType) int)
 	return &callerCustomTypeГint{fn: f}
 }
 
-func funcMakerCustomType2CustomType2ГCustomType2(fn interface{}) reflectx.Func {
+func funcMakerCustomType2CustomType2ГCustomType2(fn any) reflectx.Func {
 	f := fn.(func(CustomType2, CustomType2) CustomType2)
 	return &callerCustomType2CustomType2ГCustomType2{fn: f}
 }
 
-func wrapMakerFoo(fn interface{}) map[string]reflectx.Func {
+func wrapMakerFoo(fn any) map[string]reflectx.Func {
 	dfn := fn.(*Foo)
 	return map[string]reflectx.Func{
 		"ProcessElement": reflectx.MakeFunc(func(a0 CustomType) int { return dfn.ProcessElement(a0) }),
@@ -632,13 +632,13 @@ func BenchmarkMethodCalls(b *testing.B) {
 
 	var aFunc reflectx.Func
 	var aFn *graph.Fn
-	var aME interface{}
+	var aME any
 	var aFnCall int
 	var aFnCall2 CustomType2
 	var aFunc1x1 reflectx.Func1x1
 	var aFunc2x1 reflectx.Func2x1
-	funcIn := []interface{}{CustomType{val: 4}}
-	funcIn2 := []interface{}{CustomType2{val2: 4}, CustomType2{val2: 3}}
+	funcIn := []any{CustomType{val: 4}}
+	funcIn2 := []any{CustomType2{val2: 4}, CustomType2{val2: 3}}
 
 	// We need to do this registration just to get it to not panic when encoding the multi-edge with no additional optimization.
 	// This is currently required of users anyways

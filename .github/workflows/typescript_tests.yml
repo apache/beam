@@ -25,28 +25,26 @@ on:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*', 'javascript']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*', 'javascript']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/typescript/**']
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
-
 jobs:
-
   typescript_unit_tests:
     name: 'TypeScript Unit Tests'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted, windows-server-2019]]
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v3
         with:
           persist-credentials: false
@@ -61,30 +59,29 @@ jobs:
         working-directory: ./sdks/typescript
       - run: npm run prettier-check
         working-directory: ./sdks/typescript
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: contains(matrix.os, 'ubuntu-20.04')
 #      - run: npm run codecovTest
 #        working-directory: ./sdks/typescript
 #        if: ${{ matrix.os == 'ubuntu-latest' }}
       - run: npm test
         working-directory: ./sdks/typescript
 #        if: ${{ matrix.os != 'ubuntu-latest' }}
-
   typescript_xlang_tests:
     name: 'TypeScript xlang Tests'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     strategy:
       fail-fast: false
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
-      - name: Install node
+      - name: Install Node
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Install python
+      - name: Install Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.8
@@ -170,4 +167,4 @@ jobs:
           BEAM_SERVICE_OVERRIDES: '{"python:*": "python"}'
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
-          GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
+          GCP_TESTING_BUCKET: 'gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp'

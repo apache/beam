@@ -87,10 +87,24 @@ Prerequisites:
     * Cloud Functions API
     * Firebase Admin API
     * Secret Manager API
+ - existing setup of Playground backend in a project
+   * (output) GKE_CLUSTER_NAME (`playground` by default)
+   * (output) GKE_ZONE, like `us-east1-b`
  - set environment variables:
    * PROJECT_ID: GCP id
    * REGION: the region, "us-central1" fe
- - existing setup of Playground backend in a project
+   * PLAYGROUND_ROUTER_HOST: router serving Playground Router GRPC API
+
+__To discover Router host:__
+```
+# setup kubectl credentials
+gcloud container clusters get-credentials $GKE_CLUSTER_NAME --zone $GKE_ZONE --project $PROJECT_ID
+
+# get external host:port of a backend-router-grpc service
+PLAYGROUND_ROUTER_HOST=$(kubectl get svc -l "app=backend-router-grpc" \
+    -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}:{.items[0].spec.ports[0].port}'\
+)
+```
 
 1. Deploy Datastore indexes (but don't delete existing Playground indexes!)
 ```
@@ -103,7 +117,7 @@ for endpoint in getSdkList getContentTree getUnitContent getUserProgress postUni
 gcloud functions deploy $endpoint --entry-point $endpoint \
   --region $REGION --runtime go116 --allow-unauthenticated \
   --trigger-http \
-  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID"
+  --set-env-vars="DATASTORE_PROJECT_ID=$PROJECT_ID,GOOGLE_PROJECT_ID=$PROJECT_ID,PLAYGROUND_ROUTER_HOST=$PLAYGROUND_ROUTER_HOST"
 done
 
 ```
@@ -167,4 +181,10 @@ request body:
 ```
 $ curl -X POST -H "Authorization: Bearer $token" \
   "https://$REGION-$PROJECT_ID.cloudfunctions.net/postUserCode?sdk=python&id=challenge1" -d @request.json
+```
+
+### Delete user progress
+```
+$ curl -X POST -H "Authorization: Bearer $token" \
+  "https://$REGION-$PROJECT_ID.cloudfunctions.net/postDeleteProgress" -d '{}'
 ```

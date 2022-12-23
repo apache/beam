@@ -18,6 +18,11 @@
 # TODO(https://github.com/apache/beam/issues/20051): Consider PEP-517/PEP-518 instead of this file.
 
 setuptools
+# grpcio-tools depends on grpcio and the grpcio>1.50.0 results in error(ImportModuleError six)
+# when installing Apache Beam source via pip install -e .
+# Adding six as part of build dependencies.
+# https://github.com/apache/beam/issues/24432
+six
 wheel>=0.36.0
 
 grpcio-tools==1.37.0
