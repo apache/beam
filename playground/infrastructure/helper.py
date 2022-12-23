@@ -110,6 +110,8 @@ def find_examples(root_dir: str, subdirs: List[str], sdk: SdkEnum) -> List[Examp
                             raise
                         if err.errors()[0]["msg"] == "multifile is True but no files defined":
                             logging.warning("incomplete multifile example ignored %s", filepath)
+                            continue
+                        raise
                 except Exception:
                     logging.exception("error loading example at %s", filepath)
                     has_errors = True
