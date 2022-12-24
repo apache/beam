@@ -413,7 +413,63 @@ func TestUnmarshalPort(t *testing.T) {
 }
 
 func TestUnmarshalPlan(t *testing.T) {
+	transform := pipepb.PTransform{
+		Spec: &pipepb.FunctionSpec{
+			Urn: urnDataSource,
+		},
+		Outputs: map[string]string{},
+	}
+	tests := []struct {
+		name        string
+		inputDesc   *fnpb.ProcessBundleDescriptor
+		outputPlan  *Plan
+		outputError error
+	}{
+		{
+			name: "test_no_root_units",
+			inputDesc: &fnpb.ProcessBundleDescriptor{
+				Id:         "",
+				Transforms: map[string]*pipepb.PTransform{},
+			},
+			outputPlan:  nil,
+			outputError: errors.Errorf("no root units"),
+		},
+		{
+			name: "test_zero_transform",
+			inputDesc: &fnpb.ProcessBundleDescriptor{
+				Id: "",
+				Transforms: map[string]*pipepb.PTransform{
+					"": {},
+				},
+			},
+			outputPlan:  nil,
+			outputError: errors.Errorf("no root units"),
+		},
+		{
+			name: "test_transform_outputs_length_not_one",
+			inputDesc: &fnpb.ProcessBundleDescriptor{
+				Id: "",
+				Transforms: map[string]*pipepb.PTransform{
+					"": &transform,
+				},
+			},
+			outputPlan:  nil,
+			outputError: errors.Errorf("expected one output from DataSource, got %v", transform.GetOutputs()),
+		},
+	}
 
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			plan, err := UnmarshalPlan(test.inputDesc)
+			if err != nil && test.outputError == nil {
+				t.Errorf("There is an error where should not be, inputDesc: %v, outputError: %v", test.inputDesc, err)
+			} else if err != nil && !reflect.DeepEqual(err, test.outputError) {
+				t.Errorf("There is an error that does not meet expectation, inputDesc: %v, expected outputError: %v, acutally outputError: %v", test.inputDesc, test.outputError, err)
+			} else if !reflect.DeepEqual(plan, test.outputPlan) {
+				t.Errorf("The output builder is not right, inputDesc: %v, expected outputPlan: %v, acutally outputPlan: %v", test.inputDesc, test.outputPlan, plan)
+			}
+		})
+	}
 }
 
 func TestNewBuilder(t *testing.T) {
