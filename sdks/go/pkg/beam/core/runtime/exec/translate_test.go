@@ -411,3 +411,56 @@ func TestUnmarshalPort(t *testing.T) {
 		}
 	}
 }
+
+func TestUnmarshalPlan(t *testing.T) {
+
+}
+
+func TestNewBuilder(t *testing.T) {
+	descriptor := fnpb.ProcessBundleDescriptor{
+		Id:                        "",
+		Transforms:                map[string]*pipepb.PTransform{},
+		Pcollections:              nil,
+		WindowingStrategies:       nil,
+		Coders:                    nil,
+		Environments:              nil,
+		StateApiServiceDescriptor: nil,
+		TimerApiServiceDescriptor: nil,
+	}
+	tests := []struct {
+		name          string
+		inputDesc     *fnpb.ProcessBundleDescriptor
+		outputBuilder *builder
+		outputError   error
+	}{
+		{
+			name:      "test_1",
+			inputDesc: &descriptor,
+			outputBuilder: &builder{
+				desc:      &descriptor,
+				coders:    graphx.NewCoderUnmarshaller(descriptor.GetCoders()),
+				prev:      make(map[string]int),
+				succ:      make(map[string][]linkID),
+				windowing: make(map[string]*window.WindowingStrategy),
+				nodes:     make(map[string]*PCollection),
+				links:     make(map[linkID]Node),
+				units:     nil,
+				idgen:     &GenID{},
+			},
+			outputError: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			b, err := newBuilder(test.inputDesc)
+			if err != nil && test.outputError == nil {
+				t.Errorf("There is an error where should not be, inputDesc: %v", test.inputDesc)
+			} else if err != nil && err != test.outputError {
+				t.Errorf("There is an error that does not meet expectation, inputDesc: %v, expected outputError: %v, acutally outputError: %v", test.inputDesc, test.outputError, err)
+			} else if !reflect.DeepEqual(b, test.outputBuilder) {
+				t.Errorf("The output builder is not right, inputDesc: %v, expected outputBuilder: %v, acutally outputBuilder: %v", test.inputDesc, test.outputBuilder, b)
+			}
+		})
+	}
+}
