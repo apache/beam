@@ -25,6 +25,8 @@ import com.google.bigtable.v2.Cell;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Shorts;
@@ -95,11 +97,12 @@ class CellValueParser implements Serializable {
       case DATETIME:
         return byteString(value.toString().getBytes(UTF_8));
       case LOGICAL_TYPE:
-        String identifier = checkArgumentNotNull(type.getLogicalType()).getIdentifier();
-        if ("SqlCharType".equals(identifier)) {
-          return byteString(((String) value).getBytes(UTF_8));
+        LogicalType<?, ?> logicalType = checkArgumentNotNull(type.getLogicalType());
+        if (logicalType instanceof PassThroughLogicalType) {
+          return valueToByteString(value, logicalType.getBaseType());
         } else {
-          throw new IllegalStateException("Unsupported logical type: " + identifier);
+          throw new IllegalStateException(
+              "Unsupported logical type: " + logicalType.getIdentifier());
         }
       default:
         throw new IllegalStateException("Unsupported type: " + type.getTypeName());

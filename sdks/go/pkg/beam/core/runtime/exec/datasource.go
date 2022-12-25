@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // DataSource is a Root execution unit.
@@ -324,7 +325,7 @@ func (n *DataSource) Down(ctx context.Context) error {
 }
 
 func (n *DataSource) String() string {
-	return fmt.Sprintf("DataSource[%v, %v] Coder:%v Out:%v", n.SID, n.Name, n.Coder, n.Out.ID())
+	return fmt.Sprintf("DataSource[%v, %v] Out:%v Coder:%v ", n.SID, n.Name, n.Out.ID(), n.Coder)
 }
 
 // incrementIndexAndCheckSplit increments DataSource.index by one and checks if
@@ -453,7 +454,7 @@ func (n *DataSource) Checkpoint() (SplitResult, time.Duration, bool, error) {
 // sent to this DataSource, and is used to be able to perform accurate splits
 // even if the DataSource has not yet received all its elements. A bufSize of
 // 0 or less indicates that its unknown, and so uses the current known size.
-func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitResult, error) {
+func (n *DataSource) Split(ctx context.Context, splits []int64, frac float64, bufSize int64) (SplitResult, error) {
 	if n == nil {
 		return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, DataSource not initialized", splits)
 	}
@@ -498,7 +499,8 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 	}
 	s, fr, err := splitHelper(n.index, bufSize, currProg, splits, frac, su != nil)
 	if err != nil {
-		return SplitResult{}, err
+		log.Infof(ctx, "Unsuccessful split: %v", err)
+		return SplitResult{Unsuccessful: true}, nil
 	}
 
 	// No fraction returned, perform channel split.

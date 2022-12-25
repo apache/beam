@@ -38,13 +38,16 @@ func DownloadCatalogsWithMockData(ctx context.Context) {
 	client, closeClientFunc := createDatastoreClient(ctx)
 	defer closeClientFunc()
 
+	datasetKeys, datasets := createDatasetEntities(ctx)
+	saveEntities(ctx, client, datasetKeys, datasets)
+
 	sdkKeys, sdks := createSDKEntities(ctx)
 	saveEntities(ctx, client, sdkKeys, sdks)
 
 	exampleKeys, examples := createExampleEntities(ctx)
 	saveEntities(ctx, client, exampleKeys, examples)
 
-	snippetKeys, snippets := createSnippetEntities(ctx, examples)
+	snippetKeys, snippets := createSnippetEntities(ctx, examples, datasetKeys)
 	saveEntities(ctx, client, snippetKeys, snippets)
 
 	fileKeys, files := createFileEntities(ctx, examples)
@@ -58,8 +61,9 @@ func RemoveCatalogsWithMockData(ctx context.Context) {
 	client, closeClientFunc := createDatastoreClient(ctx)
 	defer closeClientFunc()
 
+	datasetKeys, _ := createDatasetEntities(ctx)
 	exampleKeys, examples := createExampleEntities(ctx)
-	snippetKeys, _ := createSnippetEntities(ctx, examples)
+	snippetKeys, _ := createSnippetEntities(ctx, examples, datasetKeys)
 	fileKeys, _ := createFileEntities(ctx, examples)
 	objKeys, _ := createPCObjEntities(ctx, examples)
 
@@ -67,6 +71,15 @@ func RemoveCatalogsWithMockData(ctx context.Context) {
 	deleteEntities(ctx, client, snippetKeys)
 	deleteEntities(ctx, client, fileKeys)
 	deleteEntities(ctx, client, objKeys)
+	deleteEntities(ctx, client, datasetKeys)
+}
+
+func createDatasetEntities(ctx context.Context) ([]*datastore.Key, []*entity.DatasetEntity) {
+	dataset := &entity.DatasetEntity{
+		Path: "MOCK_LINK",
+	}
+	key := utils.GetDatasetKey(ctx, "MOCK_DATASET")
+	return []*datastore.Key{key}, []*entity.DatasetEntity{dataset}
 }
 
 func createSDKEntities(ctx context.Context) ([]*datastore.Key, []*entity.SDKEntity) {
@@ -88,7 +101,7 @@ func createSDKEntities(ctx context.Context) ([]*datastore.Key, []*entity.SDKEnti
 }
 
 func createExampleEntities(ctx context.Context) ([]*datastore.Key, []*entity.ExampleEntity) {
-	names := []string{"MOCK_DEFAULT_EXAMPLE", "MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3"}
+	names := []string{"MOCK_DEFAULT_EXAMPLE", "MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3", "MOCK_NAME_DATASET"}
 	keys := make([]*datastore.Key, 0)
 	examples := make([]*entity.ExampleEntity, 0)
 	for _, sdk := range pb.Sdk_name {
@@ -107,19 +120,21 @@ func createExampleEntities(ctx context.Context) ([]*datastore.Key, []*entity.Exa
 
 func createExampleEntity(ctx context.Context, name, sdk string) *entity.ExampleEntity {
 	return &entity.ExampleEntity{
-		Name:   name,
-		Sdk:    utils.GetSdkKey(ctx, sdk),
-		Descr:  "MOCK_DESCR",
-		Tags:   []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
-		Cats:   []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
-		Path:   "MOCK_PATH",
-		Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
-		Origin: constants.ExampleOrigin,
-		SchVer: utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
+		Name:        name,
+		Sdk:         utils.GetSdkKey(ctx, sdk),
+		Descr:       "MOCK_DESCR",
+		Tags:        []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
+		Cats:        []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
+		Path:        "MOCK_PATH",
+		UrlVCS:      "MOCK_URL_VCS",
+		UrlNotebook: "MOCK_URL_NOTEBOOK",
+		Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+		Origin:      constants.ExampleOrigin,
+		SchVer:      utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	}
 }
 
-func createSnippetEntities(ctx context.Context, examples []*entity.ExampleEntity) ([]*datastore.Key, []*entity.SnippetEntity) {
+func createSnippetEntities(ctx context.Context, examples []*entity.ExampleEntity, datasetKeys []*datastore.Key) ([]*datastore.Key, []*entity.SnippetEntity) {
 	keys := make([]*datastore.Key, 0)
 	snippets := make([]*entity.SnippetEntity, 0)
 	now := time.Now()
@@ -134,10 +149,16 @@ func createSnippetEntities(ctx context.Context, examples []*entity.ExampleEntity
 			NumberOfFiles: 1,
 			Complexity:    pb.Complexity_COMPLEXITY_MEDIUM.String(),
 		}
+		if example.Name == "MOCK_NAME_DATASET" {
+			snippet.Datasets = append(snippet.Datasets, &entity.DatasetNestedEntity{
+				Config:   "{\"topic\": \"topic_name_1\"}",
+				Dataset:  datasetKeys[0],
+				Emulator: "kafka",
+			})
+		}
 		keys = append(keys, key)
 		snippets = append(snippets, snippet)
 	}
-
 	return keys, snippets
 }
 

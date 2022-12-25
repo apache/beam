@@ -18,6 +18,7 @@
 """Unit tests for pytorch_type_compabitility."""
 
 import unittest
+from typing import Any
 
 import pytest
 from parameterized import parameterized
@@ -132,6 +133,33 @@ class PytorchBatchConverterTest(unittest.TestCase):
 
   def test_hash(self):
     self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
+
+
+class PytorchBatchConverterErrorsTest(unittest.TestCase):
+  @parameterized.expand([
+      (
+          Any,
+          PytorchTensor[torch.int64, ()],
+          (
+              r'batch type must be torch\.Tensor or '
+              r'beam\.typehints\.pytorch_type_compatibility.PytorchTensor'),
+      ),
+      (
+          PytorchTensor[torch.int64, (3, N, 2)],
+          PytorchTensor[torch.int64, (3, 7)],
+          r'Could not align batch type\'s batch dimension',
+      ),
+      (
+          PytorchTensor[torch.int64, (N, 10)],
+          PytorchTensor[torch.float32, (10, )],
+          r'batch type and element type must have equivalent dtypes',
+      ),
+  ])
+  def test_construction_errors(
+      self, batch_typehint, element_typehint, error_regex):
+    with self.assertRaisesRegex(TypeError, error_regex):
+      BatchConverter.from_typehints(
+          element_type=element_typehint, batch_type=batch_typehint)
 
 
 if __name__ == '__main__':

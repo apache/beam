@@ -33,7 +33,7 @@ import (
 func TestNewDoFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn any
 			opt func(*config)
 		}{
 			{dfn: func(string) int { return 0 }, opt: NumMainInputs(MainSingle)},
@@ -78,7 +78,7 @@ func TestNewDoFn(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			dfn       interface{}
+			dfn       any
 			numInputs int
 		}{
 			// Validate main inputs.
@@ -149,7 +149,7 @@ func TestNewDoFn(t *testing.T) {
 	// inputs is unknown, but fails when it's specified.
 	t.Run("invalidWithKnownKvs", func(t *testing.T) {
 		tests := []struct {
-			dfn  interface{}
+			dfn  any
 			main mainInputs
 		}{
 			{dfn: func(int) int { return 0 }, main: MainKv}, // Not enough inputs.
@@ -185,7 +185,7 @@ func TestNewDoFn(t *testing.T) {
 func TestNewDoFnSdf(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn  interface{}
+			dfn  any
 			main mainInputs
 		}{
 			{dfn: &GoodSdf{}, main: MainSingle},
@@ -207,7 +207,7 @@ func TestNewDoFnSdf(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn any
 		}{
 			// Validate missing SDF methods cause errors.
 			{dfn: &BadSdfMissingMethods{}},
@@ -268,7 +268,7 @@ func TestNewDoFnSdf(t *testing.T) {
 func TestNewDoFnWatermarkEstimating(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn  interface{}
+			dfn  any
 			main mainInputs
 		}{
 			{dfn: &GoodWatermarkEstimating{}, main: MainSingle},
@@ -292,7 +292,7 @@ func TestNewDoFnWatermarkEstimating(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn any
 		}{
 			{dfn: &BadWatermarkEstimatingNonSdf{}},
 			{dfn: &BadWatermarkEstimatingCreateWatermarkEstimatorReturnType{}},
@@ -338,7 +338,7 @@ func TestNewDoFnWatermarkEstimating(t *testing.T) {
 func TestNewCombineFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			cfn interface{}
+			cfn any
 		}{
 			{cfn: func(int, int) int { return 0 }},
 			{cfn: func(string, string) string { return "" }},
@@ -363,7 +363,7 @@ func TestNewCombineFn(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		tests := []struct {
-			cfn interface{}
+			cfn any
 		}{
 			// Validate MergeAccumulator errors
 			{cfn: func() int { return 0 }},
@@ -409,7 +409,7 @@ func TestNewCombineFn(t *testing.T) {
 
 func TestNewFn_DoFn(t *testing.T) {
 	// Validate wrap fallthrough
-	reflectx.RegisterStructWrapper(reflect.TypeOf((*GoodDoFn)(nil)).Elem(), func(fn interface{}) map[string]reflectx.Func {
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*GoodDoFn)(nil)).Elem(), func(fn any) map[string]reflectx.Func {
 		gdf := fn.(*GoodDoFn)
 		return map[string]reflectx.Func{
 			processElementName: reflectx.MakeFunc1x1(func(v int) int {
@@ -888,13 +888,13 @@ func (fn *BadDoFnAmbiguousSideInput) FinishBundle(bool) {
 type RestT struct{}
 type RTrackerT struct{}
 
-func (rt *RTrackerT) TryClaim(interface{}) bool {
+func (rt *RTrackerT) TryClaim(any) bool {
 	return true
 }
 func (rt *RTrackerT) GetError() error {
 	return nil
 }
-func (rt *RTrackerT) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *RTrackerT) TrySplit(fraction float64) (any, any, error) {
 	return nil, nil, nil
 }
 func (rt *RTrackerT) GetProgress() (float64, float64) {
@@ -903,7 +903,7 @@ func (rt *RTrackerT) GetProgress() (float64, float64) {
 func (rt *RTrackerT) IsDone() bool {
 	return true
 }
-func (rt *RTrackerT) GetRestriction() interface{} {
+func (rt *RTrackerT) GetRestriction() any {
 	return nil
 }
 func (rt *RTrackerT) IsBounded() bool {
@@ -912,13 +912,13 @@ func (rt *RTrackerT) IsBounded() bool {
 
 type RTracker2T struct{}
 
-func (rt *RTracker2T) TryClaim(interface{}) bool {
+func (rt *RTracker2T) TryClaim(any) bool {
 	return false
 }
 func (rt *RTracker2T) GetError() error {
 	return nil
 }
-func (rt *RTracker2T) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *RTracker2T) TrySplit(fraction float64) (any, any, error) {
 	return nil, nil, nil
 }
 func (rt *RTracker2T) GetProgress() (float64, float64) {
@@ -927,7 +927,7 @@ func (rt *RTracker2T) GetProgress() (float64, float64) {
 func (rt *RTracker2T) IsDone() bool {
 	return true
 }
-func (rt *RTracker2T) GetRestriction() interface{} {
+func (rt *RTracker2T) GetRestriction() any {
 	return nil
 }
 

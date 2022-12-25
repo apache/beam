@@ -109,9 +109,10 @@ type TbUnitProgress struct {
 	Key *datastore.Key `datastore:"__key__"`
 	Sdk *datastore.Key `datastore:"sdk"`
 
-	UnitID      string `datastore:"unitId"`
-	IsCompleted bool   `datastore:"isCompleted"`
-	SnippetId   string `datastore:"snippetId"`
+	UnitID         string `datastore:"unitId"`
+	IsCompleted    bool   `datastore:"isCompleted"`
+	SnippetId      string `datastore:"snippetId"`
+	PersistenceKey string `datastore:"persistenceKey,noindex"`
 }
 
 type PgSnippets struct {

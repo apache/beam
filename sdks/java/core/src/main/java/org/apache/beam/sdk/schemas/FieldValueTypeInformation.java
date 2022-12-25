@@ -54,10 +54,10 @@ public abstract class FieldValueTypeInformation implements Serializable {
   public abstract boolean isNullable();
 
   /** Returns the field type. */
-  public abstract TypeDescriptor getType();
+  public abstract TypeDescriptor<?> getType();
 
   /** Returns the raw class type. */
-  public abstract Class getRawType();
+  public abstract Class<?> getRawType();
 
   public abstract @Nullable Field getField();
 
@@ -84,9 +84,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
     public abstract Builder setNullable(boolean nullable);
 
-    public abstract Builder setType(TypeDescriptor type);
+    public abstract Builder setType(TypeDescriptor<?> type);
 
-    public abstract Builder setRawType(Class type);
+    public abstract Builder setRawType(Class<?> type);
 
     public abstract Builder setField(@Nullable Field field);
 
@@ -120,7 +120,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   public static FieldValueTypeInformation forField(Field field, int index) {
-    TypeDescriptor type = TypeDescriptor.of(field.getGenericType());
+    TypeDescriptor<?> type = TypeDescriptor.of(field.getGenericType());
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(getNameOverride(field.getName(), field))
         .setNumber(getNumberOverride(index, field))
@@ -177,7 +177,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
       throw new RuntimeException("Getter has wrong prefix " + method.getName());
     }
 
-    TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
+    TypeDescriptor<?> type = TypeDescriptor.of(method.getGenericReturnType());
     boolean nullable = hasNullableReturnType(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(getNameOverride(name, method))
@@ -246,7 +246,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
       throw new RuntimeException("Setter has wrong prefix " + method.getName());
     }
 
-    TypeDescriptor type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
+    TypeDescriptor<?> type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
     boolean nullable = hasSingleNullableParameter(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
@@ -269,9 +269,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
     return getIterableComponentType(TypeDescriptor.of(field.getGenericType()));
   }
 
-  static @Nullable FieldValueTypeInformation getIterableComponentType(TypeDescriptor valueType) {
+  static @Nullable FieldValueTypeInformation getIterableComponentType(TypeDescriptor<?> valueType) {
     // TODO: Figure out nullable elements.
-    TypeDescriptor componentType = ReflectUtils.getIterableComponentType(valueType);
+    TypeDescriptor<?> componentType = ReflectUtils.getIterableComponentType(valueType);
     if (componentType == null) {
       return null;
     }
@@ -306,7 +306,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   private static @Nullable FieldValueTypeInformation getMapValueType(
-      TypeDescriptor typeDescriptor) {
+      TypeDescriptor<?> typeDescriptor) {
     return getMapType(typeDescriptor, 1);
   }
 
@@ -314,7 +314,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
   // Otherwise returns a null reference.
   @SuppressWarnings("unchecked")
   private static @Nullable FieldValueTypeInformation getMapType(
-      TypeDescriptor valueType, int index) {
+      TypeDescriptor<?> valueType, int index) {
     TypeDescriptor mapType = ReflectUtils.getMapType(valueType, index);
     if (mapType == null) {
       return null;

@@ -84,7 +84,7 @@ type beamCtx struct {
 // Value implements the Context interface Value method for beamCtx.
 // The implementation lifts the stored values for metrics keys to the
 // top level beamCtx for faster lookups.
-func (ctx *beamCtx) Value(key interface{}) interface{} {
+func (ctx *beamCtx) Value(key any) any {
 	switch key {
 	case counterSetKey:
 		if ctx.cs == nil {
@@ -525,9 +525,10 @@ type SingleResult interface {
 }
 
 // Query allows metrics querying with filter. The filter takes the form of predicate function. Example:
-//   qr = pr.Metrics().Query(func(mr beam.MetricResult) bool {
-//       return sr.Namespace() == test.namespace
-//   })
+//
+//	qr = pr.Metrics().Query(func(mr beam.MetricResult) bool {
+//	    return sr.Namespace() == test.namespace
+//	})
 func (mr Results) Query(f func(SingleResult) bool) QueryResults {
 	counters := []CounterResult{}
 	distributions := []DistributionResult{}
@@ -889,7 +890,7 @@ func MergeMsecs(
 // This is same as what metrics.dumperExtractor and metrics.dumpTo would do together.
 func ResultsExtractor(ctx context.Context) Results {
 	store := GetStore(ctx)
-	m := make(map[Labels]interface{})
+	m := make(map[Labels]any)
 	e := &Extractor{
 		SumInt64: func(l Labels, v int64) {
 			m[l] = &counter{value: v}

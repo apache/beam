@@ -37,6 +37,10 @@ class BlobStorageFileSystem(FileSystem):
   CHUNK_SIZE = blobstorageio.MAX_BATCH_OPERATION_SIZE
   AZURE_FILE_SYSTEM_PREFIX = 'azfs://'
 
+  def __init__(self, pipeline_options):
+    super().__init__(pipeline_options)
+    self._pipeline_options = pipeline_options
+
   @classmethod
   def scheme(cls):
     """URI scheme for the FileSystem
@@ -118,11 +122,14 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, (size, updated) in blobstorageio.BlobStorageIO() \
-        .list_prefix(dir_or_prefix, with_metadata=True).items():
+      for path, (size, updated) in self._blobstorageIO().list_files(
+          dir_or_prefix, with_metadata=True):
         yield FileMetadata(path, size, updated)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
+
+  def _blobstorageIO(self):
+    return blobstorageio.BlobStorageIO(pipeline_options=self._pipeline_options)
 
   def _path_open(
       self,
@@ -134,8 +141,7 @@ class BlobStorageFileSystem(FileSystem):
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
-    raw_file = blobstorageio.BlobStorageIO().open(
-        path, mode, mime_type=mime_type)
+    raw_file = self._blobstorageIO().open(path, mode, mime_type=mime_type)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)
@@ -190,7 +196,7 @@ class BlobStorageFileSystem(FileSystem):
       message = 'Unable to copy unequal number of sources and destinations.'
       raise BeamIOError(message)
     src_dest_pairs = list(zip(source_file_names, destination_file_names))
-    return blobstorageio.BlobStorageIO().copy_paths(src_dest_pairs)
+    return self._blobstorageIO().copy_paths(src_dest_pairs)
 
   def rename(self, source_file_names, destination_file_names):
     """Rename the files at the source list to the destination list.
@@ -207,7 +213,7 @@ class BlobStorageFileSystem(FileSystem):
       message = 'Unable to rename unequal number of sources and destinations.'
       raise BeamIOError(message)
     src_dest_pairs = list(zip(source_file_names, destination_file_names))
-    results = blobstorageio.BlobStorageIO().rename_files(src_dest_pairs)
+    results = self._blobstorageIO().rename_files(src_dest_pairs)
     # Retrieve exceptions.
     exceptions = {(src, dest): error
                   for (src, dest, error) in results if error is not None}
@@ -223,7 +229,7 @@ class BlobStorageFileSystem(FileSystem):
     Returns: boolean flag indicating if path exists
     """
     try:
-      return blobstorageio.BlobStorageIO().exists(path)
+      return self._blobstorageIO().exists(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Exists operation failed", {path: e})
 
@@ -239,7 +245,7 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if path doesn't exist.
     """
     try:
-      return blobstorageio.BlobStorageIO().size(path)
+      return self._blobstorageIO().size(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Size operation failed", {path: e})
 
@@ -255,7 +261,7 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if path doesn't exist.
     """
     try:
-      return blobstorageio.BlobStorageIO().last_updated(path)
+      return self._blobstorageIO().last_updated(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Last updated operation failed", {path: e})
 
@@ -272,7 +278,7 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
-      return blobstorageio.BlobStorageIO().checksum(path)
+      return self._blobstorageIO().checksum(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Checksum operation failed", {path, e})
 
@@ -289,7 +295,7 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
-      file_metadata = blobstorageio.BlobStorageIO()._status(path)
+      file_metadata = self._blobstorageIO()._status(path)
       return FileMetadata(
           path, file_metadata['size'], file_metadata['last_updated'])
     except Exception as e:  # pylint: disable=broad-except
@@ -305,7 +311,7 @@ class BlobStorageFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if any of the delete operations fail
     """
-    results = blobstorageio.BlobStorageIO().delete_paths(paths)
+    results = self._blobstorageIO().delete_paths(paths)
     # Retrieve exceptions.
     exceptions = {
         path: error

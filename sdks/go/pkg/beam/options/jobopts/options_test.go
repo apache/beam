@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
 )
 
 func TestGetEndpoint(t *testing.T) {
@@ -68,32 +69,41 @@ func TestGetJobName(t *testing.T) {
 	}
 }
 
-func TestGetEnvironamentUrn(t *testing.T) {
+// Also tests IsLoopback because it uses the same flag.
+func TestGetEnvironmentUrn(t *testing.T) {
 	tests := []struct {
-		env string
-		urn string
+		env        string
+		urn        string
+		isLoopback bool
 	}{
 		{
 			"PROCESS",
 			"beam:env:process:v1",
+			false,
 		},
 		{
 			"DOCKER",
 			"beam:env:docker:v1",
+			false,
 		},
 		{
 			"LOOPBACK",
 			"beam:env:external:v1",
+			true,
 		},
 		{
 			"",
 			"beam:env:docker:v1",
+			false,
 		},
 	}
 	for _, test := range tests {
 		EnvironmentType = &test.env
-		if gotUrn := GetEnvironmentUrn(context.Background()); gotUrn != test.urn {
-			t.Errorf("GetEnvironmentUrn(ctx) = %v, want %v", gotUrn, test.urn)
+		if got, want := GetEnvironmentUrn(context.Background()), test.urn; got != want {
+			t.Errorf("GetEnvironmentUrn(%v) = %v, want %v", test.env, got, want)
+		}
+		if got, want := IsLoopback(), test.isLoopback; got != want {
+			t.Errorf("IsLoopback(%v) = %v, want %v", test.env, got, want)
 		}
 	}
 }
@@ -109,7 +119,7 @@ func TestGetEnvironmentConfig(t *testing.T) {
 		},
 		{
 			"",
-			"apache/beam_go_sdk:" + core.SdkVersion,
+			core.DefaultDockerImage,
 		},
 	}
 	for _, test := range tests {
@@ -127,5 +137,35 @@ func TestGetSdkImageOverrides(t *testing.T) {
 	want := map[string]string{".*beam_go_sdk.*": "apache/beam_go_sdk:testing"}
 	if got := GetSdkImageOverrides(); reflect.DeepEqual(got, want) {
 		t.Errorf("GetSdkImageOverrides() = %v, want %v", got, want)
+	}
+}
+
+func TestGetPipelineResourceHints(t *testing.T) {
+	var hints stringSlice
+	hints.Set("min_ram=2GB")
+	hints.Set("beam:resources:min_ram_bytes:v1=16GB")
+	hints.Set("beam:resources:accelerator:v1=cheetah")
+	hints.Set("accelerator=pedal_to_the_metal")
+	hints.Set("beam:resources:novel_execution:v1=jaguar")
+	hints.Set("min_ram=1GB")
+	ResourceHints = hints
+
+	want := resource.NewHints(resource.ParseMinRAM("1GB"), resource.Accelerator("pedal_to_the_metal"), stringHint{
+		urn:   "beam:resources:novel_execution:v1",
+		value: "jaguar",
+	})
+	if got := GetPipelineResourceHints(); !got.Equal(want) {
+		t.Errorf("GetPipelineResourceHints() = %v, want %v", got, want)
+	}
+}
+
+func TestGetExperiements(t *testing.T) {
+	*Experiments = ""
+	if got, want := GetExperiments(), []string(nil); !reflect.DeepEqual(got, want) {
+		t.Errorf("GetExperiments(\"\") = %v, want %v", got, want)
+	}
+	*Experiments = "better,faster,stronger"
+	if got, want := GetExperiments(), []string{"better", "faster", "stronger"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("GetExperiments(\"\") = %v, want %v", got, want)
 	}
 }

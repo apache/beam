@@ -69,7 +69,6 @@ public abstract class UuidDeduplicationOptions implements Serializable {
     return builder;
   }
 
-  @CanIgnoreReturnValue
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setUuidExtractor(
@@ -84,6 +83,7 @@ public abstract class UuidDeduplicationOptions implements Serializable {
      *     .withTimeDomain(TimeDomain.PROCESSING_TIME));
      * }</pre>
      */
+    @CanIgnoreReturnValue
     public abstract Builder setDeduplicate(
         Deduplicate.KeyedValues<Uuid, SequencedMessage> deduplicate);
 
