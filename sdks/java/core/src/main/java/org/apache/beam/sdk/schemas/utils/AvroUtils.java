@@ -76,6 +76,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
@@ -98,7 +99,41 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
-/** Utils to convert AVRO records to Beam rows. */
+/**
+ * Utils to convert AVRO records to Beam rows. Imposes a mapping between common avro types and Beam
+ * portable schemas (https://s.apache.org/beam-schemas):
+ *
+ * <pre>
+ *   Avro                Beam Field Type
+ *   INT         <-----> INT32
+ *   LONG        <-----> INT64
+ *   FLOAT       <-----> FLOAT
+ *   DOUBLE      <-----> DOUBLE
+ *   BOOLEAN     <-----> BOOLEAN
+ *   STRING      <-----> STRING
+ *   BYTES       <-----> BYTES
+ *               <------ LogicalType(urn="beam:logical_type:var_bytes:v1")
+ *   FIXED       <-----> LogicalType(urn="beam:logical_type:fixed_bytes:v1")
+ *   ARRAY       <-----> ARRAY
+ *   ENUM        <-----> LogicalType(EnumerationType)
+ *   MAP         <-----> MAP
+ *   RECORD      <-----> ROW
+ *   UNION       <-----> LogicalType(OneOfType)
+ *   LogicalTypes.Date              <-----> LogicalType(DATE)
+ *                                  <------ LogicalType(urn="beam:logical_type:date:v1")
+ *   LogicalTypes.TimestampMillis   <-----> DATETIME
+ *   LogicalTypes.Decimal           <-----> DECIMAL
+ * </pre>
+ *
+ * For SQL CHAR/VARCHAR types, an Avro schema
+ *
+ * <pre>
+ *   LogicalType({"type":"string","logicalType":"char","maxLength":MAX_LENGTH}) or
+ *   LogicalType({"type":"string","logicalType":"varchar","maxLength":MAX_LENGTH})
+ * </pre>
+ *
+ * is used.
+ */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
@@ -933,7 +968,7 @@ public class AvroUtils {
                   oneOfType.getOneOfSchema().getFields().stream()
                       .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
                       .collect(Collectors.toList()));
-        } else if ("DATE".equals(identifier)) {
+        } else if ("DATE".equals(identifier) || SqlTypes.DATE.getIdentifier().equals(identifier)) {
           baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
         } else if ("TIME".equals(identifier)) {
           baseType = LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
@@ -1061,7 +1096,11 @@ public class AvroUtils {
                 oneOfValue.getValue());
           }
         } else if ("DATE".equals(identifier)) {
+          // "Date" is backed by joda.time.Instant
           return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
+        } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+          // portable SqlTypes.DATE is backed by java.time.LocalDate
+          return ((java.time.LocalDate) value).toEpochDay();
         } else if ("TIME".equals(identifier)) {
           return (int) ((Instant) value).getMillis();
         } else {
@@ -1141,6 +1180,8 @@ public class AvroUtils {
         if (value instanceof ReadableInstant) {
           int epochDays = Days.daysBetween(Instant.EPOCH, (ReadableInstant) value).getDays();
           return convertDateStrict(epochDays, fieldType);
+        } else if (value instanceof java.time.LocalDate) {
+          return convertDateStrict((int) ((java.time.LocalDate) value).toEpochDay(), fieldType);
         } else {
           return convertDateStrict((Integer) value, fieldType);
         }

@@ -62,19 +62,47 @@ cd beam
 
 ## Run local environment using docker compose
 
-```
+### Router only
+
+Start:
+
+```bash
 cd beam
 ./gradlew playground:backend:containers:router:dockerComposeLocalUp
 ```
 
-## Stop containers and removes containers created by dockerComposeLocalUp
+Stop:
 
-```
+```bash
 cd beam
 ./gradlew playground:backend:containers:router:dockerComposeLocalDown
 ```
 
-## Run the method to remove unused code snippets from the Cloud Datastore. Unused snippets are snippets that are out of date. If the last visited date property less or equals than the current date minus dayDiff parameter then a snippet is out of date
+### Router, runners, and frontend
+
+1. Edit `/playground/frontend/lib/config.g.dart` to set your local backend host and ports
+found in `/playground/docker-compose.local.yaml`.
+2. To start, run:
+
+```bash
+cd beam
+./gradlew playground:dockerComposeLocalUp
+```
+
+3. To stop, run:
+
+```bash
+cd beam
+./gradlew playground:dockerComposeLocalDown
+```
+
+If you do not need particular runners, comment out:
+1. Dependencies on them in `/playground/build.gradle.kts` in `dockerComposeLocalUp` task.
+2. Their Docker image configurations in `/playground/docker-compose.local.yaml`.
+
+## Removing old snippets
+
+Run the method to remove unused code snippets from the Cloud Datastore. Unused snippets are snippets that are out of date. If the last visited date property less or equals than the current date minus dayDiff parameter then a snippet is out of date
 
 ```
 cd beam

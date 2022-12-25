@@ -33,16 +33,16 @@ type wc struct {
 
 func TestCreate(t *testing.T) {
 	tests := []struct {
-		values []interface{}
+		values []any
 	}{
-		{[]interface{}{1, 2, 3}},
-		{[]interface{}{"1", "2", "3"}},
-		{[]interface{}{float32(0.1), float32(0.2), float32(0.3)}},
-		{[]interface{}{float64(0.1), float64(0.2), float64(0.3)}},
-		{[]interface{}{uint(1), uint(2), uint(3)}},
-		{[]interface{}{false, true, true, false, true}},
-		{[]interface{}{wc{"a", 23}, wc{"b", 42}, wc{"c", 5}}},
-		{[]interface{}{&testProto{}, &testProto{stringValue("test")}}}, // Test for BEAM-4401
+		{[]any{1, 2, 3}},
+		{[]any{"1", "2", "3"}},
+		{[]any{float32(0.1), float32(0.2), float32(0.3)}},
+		{[]any{float64(0.1), float64(0.2), float64(0.3)}},
+		{[]any{uint(1), uint(2), uint(3)}},
+		{[]any{false, true, true, false, true}},
+		{[]any{wc{"a", 23}, wc{"b", 42}, wc{"c", 5}}},
+		{[]any{&testProto{}, &testProto{stringValue("test")}}}, // Test for BEAM-4401
 	}
 
 	for _, test := range tests {
@@ -58,7 +58,7 @@ func TestCreate(t *testing.T) {
 
 func TestCreateList(t *testing.T) {
 	tests := []struct {
-		values interface{}
+		values any
 	}{
 		{[]int{1, 2, 3}},
 		{[]string{"1", "2", "3"}},
@@ -74,7 +74,7 @@ func TestCreateList(t *testing.T) {
 		p, s := beam.NewPipelineWithRoot()
 		c := beam.CreateList(s, test.values)
 
-		var values []interface{}
+		var values []any
 		v := reflect.ValueOf(test.values)
 		for i := 0; i < v.Len(); i++ {
 			values = append(values, v.Index(i).Interface())
@@ -89,7 +89,7 @@ func TestCreateList(t *testing.T) {
 
 func TestCreateEmptyList(t *testing.T) {
 	tests := []struct {
-		values interface{}
+		values any
 	}{
 		{[]int{}},
 		{[]string{}},

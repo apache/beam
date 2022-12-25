@@ -16,11 +16,15 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
+import 'package:playground/constants/params.dart';
 import 'package:playground/modules/messages/handlers/abstract_message_handler.dart';
 import 'package:playground/modules/messages/models/abstract_message.dart';
 import 'package:playground/modules/messages/models/set_content_message.dart';
 import 'package:playground_components/playground_components.dart';
 
+/// A handler for [SetContentMessage].
 class SetContentMessageHandler extends AbstractMessageHandler {
   final PlaygroundController playgroundController;
 
@@ -34,11 +38,21 @@ class SetContentMessageHandler extends AbstractMessageHandler {
       return MessageHandleResult.notHandled;
     }
 
-    _handle(message);
+    unawaited(_handle(message));
     return MessageHandleResult.handled;
   }
 
-  void _handle(SetContentMessage message) {
-    playgroundController.examplesLoader.load(message.descriptor);
+  Future<void> _handle(SetContentMessage message) async {
+    final descriptor = message.descriptor;
+
+    try {
+      await playgroundController.examplesLoader.load(descriptor);
+    } on Exception catch (ex) {
+      PlaygroundComponents.toastNotifier.addException(ex);
+
+      playgroundController.setEmptyIfNoSdk(
+        descriptor.initialSdk ?? defaultSdk,
+      );
+    }
   }
 }

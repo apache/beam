@@ -70,6 +70,7 @@ tasks {
         mustRunAfter(":playground:terraform:terraformInit")
         var project_id = "unknown"
         var environment = "unknown"
+        var region = "unknown"
         if (project.hasProperty("project_id")) {
             project_id = project.property("project_id") as String
         }
@@ -81,6 +82,7 @@ tasks {
             "-lock=false",
             "-var=project_id=$project_id",
             "-var=environment=$environment",
+            "-var=region=$region",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
                 "-var-file=./environment/$environment/terraform.tfvars"
             } else {
@@ -246,7 +248,7 @@ tasks {
 }
 
 /* set Docker Registry to params from Inf */
-task("setDockerRegistry") {
+tasks.register("setDockerRegistry") {
     group = "deploy"
     //get Docker Registry
     dependsOn(":playground:terraform:terraformInit")
@@ -263,13 +265,13 @@ task("setDockerRegistry") {
     }
 }
 
-task("readState") {
+tasks.register("readState") {
     group = "deploy"
     dependsOn(":playground:terraform:terraformInit")
     dependsOn(":playground:terraform:terraformRef")
 }
 
-task("pushBack") {
+tasks.register("pushBack") {
     group = "deploy"
     dependsOn(":playground:backend:containers:go:dockerTagsPush")
     dependsOn(":playground:backend:containers:java:dockerTagsPush")
@@ -278,61 +280,35 @@ task("pushBack") {
     dependsOn(":playground:backend:containers:router:dockerTagsPush")
 }
 
-task("pushFront") {
+tasks.register("pushFront") {
     group = "deploy"
     dependsOn(":playground:frontend:dockerTagsPush")
 }
 
-task("prepareConfig") {
+tasks.register("prepareConfig") {
     group = "deploy"
     doLast {
-        var playgroundBackendUrl = ""
-        var playgroundBackendJavaRouteUrl = ""
-        var playgroundBackendGoRouteUrl = ""
-        var playgroundBackendPythonRouteUrl = ""
-        var playgroundBackendScioRouteUrl = ""
-        var stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "router-server-url")
-            standardOutput = stdout
-        }
-        playgroundBackendUrl = stdout.toString().trim().replace("\"", "")
-        stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "go-server-url")
-            standardOutput = stdout
-        }
-        playgroundBackendGoRouteUrl = stdout.toString().trim().replace("\"", "")
-        stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "java-server-url")
-            standardOutput = stdout
-        }
-        playgroundBackendJavaRouteUrl = stdout.toString().trim().replace("\"", "")
-        stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "python-server-url")
-            standardOutput = stdout
-        }
-        playgroundBackendPythonRouteUrl = stdout.toString().trim().replace("\"", "")
-        stdout = ByteArrayOutputStream()
-        exec {
-            commandLine = listOf("terraform", "output", "scio-server-url")
-            standardOutput = stdout
-        }
-        playgroundBackendScioRouteUrl = stdout.toString().trim().replace("\"", "")
-        val configFileName = "gradle.properties"
+        var dns_name = ""
+        if (project.hasProperty("dns-name")) {
+        dns_name = project.property("dns-name") as String
+          }
+        val configFileName = "config.g.dart"
         val modulePath = project(":playground:frontend").projectDir.absolutePath
-        var file = File(modulePath + "/" + configFileName)
+        var file = File("$modulePath/lib/$configFileName")
 
         file.writeText(
-            """${licenseText}
-playgroundBackendUrl=${playgroundBackendUrl}
-analyticsUA=UA-73650088-1
-playgroundBackendJavaRouteUrl=${playgroundBackendJavaRouteUrl}
-playgroundBackendGoRouteUrl=${playgroundBackendGoRouteUrl}
-playgroundBackendPythonRouteUrl=${playgroundBackendPythonRouteUrl}
-playgroundBackendScioRouteUrl=${playgroundBackendScioRouteUrl}
+            """
+const String kAnalyticsUA = 'UA-73650088-2';
+const String kApiClientURL =
+      'https://router.${dns_name}';
+const String kApiJavaClientURL =
+      'https://java.${dns_name}';
+const String kApiGoClientURL =
+      'https://go.${dns_name}';
+const String kApiPythonClientURL =
+      'https://python.${dns_name}';
+const String kApiScioClientURL =
+      'https://scio.${dns_name}';
 """
         )
         try {
@@ -348,36 +324,47 @@ playgroundBackendScioRouteUrl=${playgroundBackendScioRouteUrl}
     }
 }
 /* initialization infrastructure */
-task("InitInfrastructure") {
+tasks.register("InitInfrastructure") {
     group = "deploy"
     description = "initialization infrastructure"
     val init = tasks.getByName("terraformInit")
     val apply = tasks.getByName("terraformApplyInf")
+    val prepare = tasks.getByName("prepareConfig")
     dependsOn(init)
     dependsOn(apply)
+    dependsOn(prepare)
     apply.mustRunAfter(init)
+    prepare.mustRunAfter(apply)
+}
+
+tasks.register("indexcreate") {
+    group = "deploy"
+    val indexpath = "../index.yaml"
+    doLast{
+    exec {
+        executable("gcloud")
+    args("app", "deploy", indexpath)
+    }
+   }
 }
 
 /* build, push, deploy Frontend app */
-task("deployFrontend") {
+tasks.register("deployFrontend") {
     group = "deploy"
     description = "deploy Frontend app"
     val read = tasks.getByName("readState")
-    val prepare = tasks.getByName("prepareConfig")
     val push = tasks.getByName("pushFront")
     val deploy = tasks.getByName("terraformApplyAppFront")
     dependsOn(read)
     Thread.sleep(10)
-    prepare.mustRunAfter(read)
-    dependsOn(prepare)
-    push.mustRunAfter(prepare)
+    push.mustRunAfter(read)
     deploy.mustRunAfter(push)
     dependsOn(push)
     dependsOn(deploy)
 }
 
 /* build, push, deploy Backend app */
-task("deployBackend") {
+tasks.register("deployBackend") {
     group = "deploy"
     description = "deploy Backend app"
     //TODO please add default tag from project_environment property
@@ -393,5 +380,123 @@ task("deployBackend") {
     deploy.mustRunAfter(push)
     dependsOn(push)
     dependsOn(deploy)
+}
+
+tasks.register("takeConfig") {
+  group = "deploy"
+  doLast {
+   var ipaddr = ""
+   var redis = ""
+   var proj = ""
+   var registry = ""
+   var ipaddrname = ""
+   var d_tag = ""
+   var dns_name = ""
+   var stdout = ByteArrayOutputStream()
+   if (project.hasProperty("dns-name")) {
+   dns_name = project.property("dns-name") as String
+      }
+   if (project.hasProperty("docker-tag")) {
+        d_tag = project.property("docker-tag") as String
+   }
+   exec {
+       commandLine = listOf("terraform", "output", "playground_static_ip_address")
+       standardOutput = stdout
+   }
+   ipaddr = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+
+   exec {
+       commandLine = listOf("terraform", "output", "playground_redis_ip")
+       standardOutput = stdout
+   }
+   redis = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+   exec {
+       commandLine = listOf("terraform", "output", "playground_gke_project")
+       standardOutput = stdout
+   }
+   proj = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+   exec {
+       commandLine = listOf("terraform", "output", "docker-repository-root")
+       standardOutput = stdout
+   }
+   registry = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+   exec {
+       commandLine = listOf("terraform", "output", "playground_static_ip_address_name")
+       standardOutput = stdout
+   }
+   ipaddrname = stdout.toString().trim().replace("\"", "")
+   stdout = ByteArrayOutputStream()
+
+   val configFileName = "values.yaml"
+   val modulePath = project(":playground").projectDir.absolutePath
+   val file = File("$modulePath/infrastructure/helm-playground/$configFileName")
+       val lines = file.readLines()
+    val endOfSlice = lines.indexOfFirst { it.contains("static_ip") }
+    if (endOfSlice != -1) {
+        val oldContent = lines.slice(0 until endOfSlice)
+        val flagDelete = file.delete()
+        if (!flagDelete) {
+            throw kotlin.RuntimeException("Deleting file failed")
+        }
+        val sb = kotlin.text.StringBuilder()
+        val lastLine = oldContent[oldContent.size - 1]
+        oldContent.forEach {
+            if (it == lastLine) {
+                sb.append(it)
+            } else {
+                sb.appendLine(it)
+            }
+        }
+        file.writeText(sb.toString())
+    }
+   file.appendText("""
+static_ip: ${ipaddr}
+redis_ip: ${redis}:6379
+project_id: ${proj}
+registry: ${registry}
+static_ip_name: ${ipaddrname}
+tag: $d_tag
+dns_name: ${dns_name}
+    """)
+ }
+}
+
+tasks.register("helmRelease") {
+    group = "deploy"
+    val modulePath = project(":playground").projectDir.absolutePath
+    val hdir = File("$modulePath/infrastructure/helm-playground/")
+    doLast{
+    exec {
+        executable("helm")
+    args("install", "playground", "$hdir")
+    }
+   }
+}
+tasks.register("gkebackend") {
+  group = "deploy"
+  val initTask = tasks.getByName("terraformInit")
+  val docRegTask = tasks.getByName("setDockerRegistry")
+  val takeConfigTask = tasks.getByName("takeConfig")
+  val pushBackTask = tasks.getByName("pushBack")
+  val pushFrontTask = tasks.getByName("pushFront")
+  val indexcreateTask = tasks.getByName("indexcreate")
+  val helmTask = tasks.getByName("helmRelease")
+  dependsOn(initTask)
+  dependsOn(docRegTask)
+  dependsOn(takeConfigTask)
+  dependsOn(pushBackTask)
+  dependsOn(pushFrontTask)
+  dependsOn(indexcreateTask)
+  dependsOn(helmTask)
+  docRegTask.mustRunAfter(initTask)
+  takeConfigTask.mustRunAfter(docRegTask)
+  pushBackTask.mustRunAfter(takeConfigTask)
+  pushFrontTask.mustRunAfter(pushBackTask)
+  indexcreateTask.mustRunAfter(pushFrontTask)
+  helmTask.mustRunAfter(indexcreateTask)
 }
 

@@ -20,3 +20,7 @@
 output "gke_name" {
   value = google_container_cluster.playground-gke.name
 }
+
+output "playground_gke_project" {
+  value = google_container_cluster.playground-gke.project
+}

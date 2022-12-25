@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -45,6 +46,7 @@ import (
 	"beam.apache.org/playground/backend/internal/db/schema"
 	"beam.apache.org/playground/backend/internal/db/schema/migration"
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/tests/test_cleaner"
 	"beam.apache.org/playground/backend/internal/tests/test_data"
 	"beam.apache.org/playground/backend/internal/tests/test_utils"
@@ -94,6 +96,8 @@ func setup() *grpc.Server {
 	if err != nil {
 		panic(err)
 	}
+
+	logger.SetupLogger(ctx, "local", "some_google_project_id")
 
 	// setup cache
 	cacheService = local.New(ctx)
@@ -965,6 +969,70 @@ func TestPlaygroundController_GetSnippet(t *testing.T) {
 	}
 }
 
+func makeSaveSnippetRequest() *pb.SaveSnippetRequest {
+	return &pb.SaveSnippetRequest{
+		Files: []*pb.SnippetFile{
+			{Name: "main.py", Content: "import sys; sys.exit(0)", IsMain: true},
+		},
+		Sdk:             pb.Sdk_SDK_PYTHON,
+		PipelineOptions: "some pipe opts",
+		PersistenceKey:  "persistent_key_1",
+	}
+}
+
+func TestPlaygroundController_SaveSnippetPersistent(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	client, closeFunc := getPlaygroundServiceClient(ctx, t)
+	defer closeFunc()
+	snip := makeSaveSnippetRequest()
+
+	t.Log("SaveSnippet, insert 1st version")
+	resp1, err := client.SaveSnippet(ctx, snip)
+	if err != nil {
+		t.Fatalf("1st SaveSnippet failed: %v", err)
+	}
+
+	t.Log("GetSnippet by 1st snippet_id")
+	content, err := client.GetSnippet(ctx, &pb.GetSnippetRequest{Id: resp1.Id})
+	if err != nil {
+		t.Fatalf("1st GetSnippet() error = %v", err)
+	}
+	assert.Equal(t, content.Files[0].Content, snip.Files[0].Content)
+	assert.Equal(t, content.PipelineOptions, snip.PipelineOptions)
+	assert.Equal(t, content.Sdk, snip.Sdk)
+
+	t.Log("PutSnippet: insert 2nd version")
+	snip.Files[0].Content = "some new content"
+	snip.PipelineOptions = "new pipeline opts"
+	resp2, err := client.SaveSnippet(ctx, snip)
+	if err != nil {
+		t.Fatalf("2nd SaveSnippet failed: %v", err)
+	}
+
+	if resp2.Id == resp1.Id {
+		t.Error("snippet_id is the same")
+	}
+
+	t.Log("GetSnippet 1st version: not found")
+	_, err = client.GetSnippet(ctx, &pb.GetSnippetRequest{Id: resp1.Id})
+	if err == nil {
+		t.Fatal("1st snippet not deleted")
+	}
+
+	t.Log("GetSnippet 2nd version")
+	content, err = client.GetSnippet(ctx, &pb.GetSnippetRequest{Id: resp2.Id})
+	if err != nil {
+		t.Fatalf("get 2nd snippet: %v", err)
+	}
+	assert.Equal(t, content.Files[0].Content, snip.Files[0].Content)
+	assert.Equal(t, content.PipelineOptions, snip.PipelineOptions)
+	assert.Equal(t, content.Sdk, snip.Sdk)
+
+	t.Log("cleanup 2nd version only")
+	test_cleaner.CleanFiles(ctx, t, resp2.Id, 1)
+	test_cleaner.CleanSnippet(ctx, t, resp2.Id)
+}
+
 func TestPlaygroundController_GetPrecompiledObjects(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
 	client, closeFunc := getPlaygroundServiceClient(ctx, t)
@@ -994,14 +1062,27 @@ func TestPlaygroundController_GetPrecompiledObjects(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := client.GetPrecompiledObjects(ctx, tt.args.info)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("PlaygroundController_GetPrecompiledObjects() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("PlaygroundController_GetPrecompiledObjects() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if len(got.SdkCategories) == 0 ||
 				got.SdkCategories[0].Sdk != tt.wantSdk ||
 				len(got.SdkCategories[0].Categories) == 0 {
-				t.Error("PlaygroundController_GetPrecompiledObjects() unexpected result")
+				t.Fatalf("PlaygroundController_GetPrecompiledObjects() unexpected result")
 			}
+			pcWithDataset := new(pb.PrecompiledObject)
+			for _, cat := range got.SdkCategories[0].Categories {
+				for _, pc := range cat.PrecompiledObjects {
+					if len(pc.Datasets) != 0 {
+						pcWithDataset = pc
+					}
+				}
+			}
+			expectedDataset := &pb.Dataset{
+				Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+				Options:     map[string]string{"topic": "topic_name_1"},
+				DatasetPath: "MOCK_LINK",
+			}
+			assert.Equal(t, expectedDataset, pcWithDataset.Datasets[0])
 		})
 	}
 }
@@ -1019,6 +1100,7 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 		name    string
 		args    args
 		wantErr bool
+		check   func(response *pb.GetPrecompiledObjectResponse)
 	}{
 		{
 			name: "Getting an example in the usual case",
@@ -1027,6 +1109,59 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 				info: &pb.GetPrecompiledObjectRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
 			},
 			wantErr: false,
+			check: func(response *pb.GetPrecompiledObjectResponse) {
+				expected := &pb.PrecompiledObject{
+					Sdk:             pb.Sdk_SDK_JAVA,
+					Multifile:       false,
+					CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE",
+					Name:            "MOCK_DEFAULT_EXAMPLE",
+					Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+					ContextLine:     10,
+					PipelineOptions: "MOCK_P_OPTS",
+					Link:            "MOCK_PATH",
+					UrlVcs:          "MOCK_URL_VCS",
+					UrlNotebook:     "MOCK_URL_NOTEBOOK",
+					Description:     "MOCK_DESCR",
+					DefaultExample:  true,
+					Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+					Tags:            []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
+				}
+				assert.Equal(t, expected, response.PrecompiledObject)
+			},
+		},
+		{
+			name: "Getting an example with a dataset",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetPrecompiledObjectRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME_DATASET"},
+			},
+			wantErr: false,
+			check: func(response *pb.GetPrecompiledObjectResponse) {
+				expected := &pb.PrecompiledObject{
+					Sdk:             pb.Sdk_SDK_JAVA,
+					Multifile:       false,
+					CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME_DATASET",
+					Name:            "MOCK_NAME_DATASET",
+					Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+					ContextLine:     10,
+					PipelineOptions: "MOCK_P_OPTS",
+					Link:            "MOCK_PATH",
+					UrlVcs:          "MOCK_URL_VCS",
+					UrlNotebook:     "MOCK_URL_NOTEBOOK",
+					Description:     "MOCK_DESCR",
+					DefaultExample:  false,
+					Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+					Tags:            []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
+					Datasets: []*pb.Dataset{
+						{
+							DatasetPath: "MOCK_LINK",
+							Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+							Options:     map[string]string{"topic": "topic_name_1"},
+						},
+					},
+				}
+				assert.Equal(t, expected, response.PrecompiledObject)
+			},
 		},
 	}
 
@@ -1034,21 +1169,9 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := client.GetPrecompiledObject(ctx, tt.args.info)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("PlaygroundController_GetPrecompiledObject() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("PlaygroundController_GetPrecompiledObject() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if got.PrecompiledObject.Multifile != false ||
-				got.PrecompiledObject.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE" ||
-				got.PrecompiledObject.Name != "MOCK_DEFAULT_EXAMPLE" ||
-				got.PrecompiledObject.Type != pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE ||
-				got.PrecompiledObject.ContextLine != 10 ||
-				got.PrecompiledObject.PipelineOptions != "MOCK_P_OPTS" ||
-				got.PrecompiledObject.Link != "MOCK_PATH" ||
-				got.PrecompiledObject.Description != "MOCK_DESCR" ||
-				!got.PrecompiledObject.DefaultExample ||
-				got.PrecompiledObject.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
-				t.Error("PlaygroundController_GetPrecompiledObject() unexpected result")
-			}
+			tt.check(got)
 		})
 	}
 }

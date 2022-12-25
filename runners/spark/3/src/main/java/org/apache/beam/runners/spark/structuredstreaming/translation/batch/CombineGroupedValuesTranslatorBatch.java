@@ -37,7 +37,7 @@ import org.apache.spark.sql.expressions.Aggregator;
  * <p>This doesn't require a Spark {@link Aggregator}. Instead it can directly use the respective
  * {@link CombineFn} to reduce each iterable of values into an aggregated output value.
  */
-public class CombineGroupedValuesTranslatorBatch<K, InT, AccT, OutT>
+class CombineGroupedValuesTranslatorBatch<K, InT, AccT, OutT>
     extends TransformTranslator<
         PCollection<? extends KV<K, ? extends Iterable<InT>>>,
         PCollection<KV<K, OutT>>,

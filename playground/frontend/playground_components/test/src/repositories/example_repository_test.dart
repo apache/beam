@@ -43,7 +43,7 @@ void main() {
       when(client.getPrecompiledObjects(kGetPrecompiledObjectsRequest))
           .thenAnswer((_) async => kGetPrecompiledObjectsResponse);
       expect(
-        await repo.getListOfExamples(kGetPrecompiledObjectsRequest),
+        await repo.getPrecompiledObjects(kGetPrecompiledObjectsRequest),
         kGetPrecompiledObjectsResponse.categories,
       );
       verify(client.getPrecompiledObjects(kGetPrecompiledObjectsRequest)).called(1);
@@ -56,7 +56,7 @@ void main() {
       when(client.getDefaultPrecompiledObject(kGetDefaultPrecompiledObjectRequest))
           .thenAnswer((_) async => kGetDefaultPrecompiledObjectResponse);
       expect(
-        await repo.getDefaultExample(kGetDefaultPrecompiledObjectRequest),
+        await repo.getDefaultPrecompiledObject(kGetDefaultPrecompiledObjectRequest),
         kGetDefaultPrecompiledObjectResponse.example,
       );
       verify(client.getDefaultPrecompiledObject(kGetDefaultPrecompiledObjectRequest)).called(1);
@@ -69,7 +69,7 @@ void main() {
       when(client.getPrecompiledObjectCode(kRequestForExampleInfo))
           .thenAnswer((_) async => kGetPrecompiledObjectCodeResponse);
       expect(
-        await repo.getExampleSource(kRequestForExampleInfo),
+        await repo.getPrecompiledObjectCode(kRequestForExampleInfo),
         kGetPrecompiledObjectCodeResponse.code,
       );
       verify(client.getPrecompiledObjectCode(kRequestForExampleInfo)).called(1);
@@ -82,7 +82,7 @@ void main() {
       when(client.getPrecompiledObjectOutput(kRequestForExampleInfo))
           .thenAnswer((_) async => kOutputResponse);
       expect(
-        await repo.getExampleOutput(kRequestForExampleInfo),
+        await repo.getPrecompiledObjectOutput(kRequestForExampleInfo),
         kOutputResponse.output,
       );
       verify(client.getPrecompiledObjectOutput(kRequestForExampleInfo)).called(1);
@@ -95,7 +95,7 @@ void main() {
       when(client.getPrecompiledObjectLogs(kRequestForExampleInfo))
           .thenAnswer((_) async => kOutputResponse);
       expect(
-        await repo.getExampleLogs(kRequestForExampleInfo),
+        await repo.getPrecompiledObjectLogs(kRequestForExampleInfo),
         kOutputResponse.output,
       );
       verify(client.getPrecompiledObjectLogs(kRequestForExampleInfo)).called(1);
@@ -108,7 +108,7 @@ void main() {
       when(client.getPrecompiledObjectGraph(kRequestForExampleInfo))
           .thenAnswer((_) async => kOutputResponse);
       expect(
-        await repo.getExampleGraph(kRequestForExampleInfo),
+        await repo.getPrecompiledObjectGraph(kRequestForExampleInfo),
         kOutputResponse.output,
       );
       verify(client.getPrecompiledObjectGraph(kRequestForExampleInfo)).called(1);
@@ -121,7 +121,7 @@ void main() {
       when(client.getPrecompiledObject(kRequestForExampleInfo))
           .thenAnswer((_) async => kGetDefaultPrecompiledObjectResponse);
       expect(
-        await repo.getExample(kRequestForExampleInfo),
+        await repo.getPrecompiledObject(kRequestForExampleInfo),
         kGetDefaultPrecompiledObjectResponse.example,
       );
       verify(client.getPrecompiledObject(kRequestForExampleInfo)).called(1);
