@@ -4,6 +4,22 @@
  * TODO: improve plural names in lists (look weird in Java)
  * e.g. getOutputsMap, addCodersBuilder
  *
- * TODO: gRPC/proto field names collide with Java/Python syntax e.g. "class" (Java), "output" (Python)
+ * @todo: gRPC/proto field names collide with Java/Python syntax e.g. "class" (Java), "output" (Python)
  */
 syntax = "proto3";
+/**
+ * @todo: think about unifying common components in another package plus language namespaces for re-use with Runner API
+ */
+
+package org.apache.beam.model.fn_execution.v1;
+
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1;fnexecution_v1";
+option java_package = "org.apache.beam.model.fnexecution.v1";
+option java_outer_classname = "BeamFnApi";
+
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/endpoints.proto";
+import "org/apache/beam/model/pipeline/v1/metrics.proto";
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamap.proto";
+import "google/protobuf/duration.proto";
