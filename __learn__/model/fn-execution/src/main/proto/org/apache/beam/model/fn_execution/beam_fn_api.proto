@@ -21,5 +21,19 @@ import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
 import "org/apache/beam/model/pipeline/v1/endpoints.proto";
 import "org/apache/beam/model/pipeline/v1/metrics.proto";
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/timestamap.proto";
+import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+
+// A descriptor, via the Beam Fn Data API, for connecting to a remote port
+// Enables communication between two environments (e.g. between SDK and the runner)
+// this is a Stable API
+message RemoteGrpcPort {
+  // A compulsory API descriptor that describes where to connect to including any authentication required
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor
+    api_service_descriptor = 1;
+
+  // compulsory Coder (for encoding/decoding data sent over this port) ID
+  string coder_id = 2;
+}
+
+
