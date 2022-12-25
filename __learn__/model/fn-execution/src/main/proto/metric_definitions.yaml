@@ -16,7 +16,15 @@
 - annotations:
     description: A pardo's finish bundle function's total estimated execution time
     unit: msecs
-  - label: PTRANSFORM
+  labels:
+  - PTRANSFORM
+  type: beam:metrics:SumInt64
+  urn: beam:metric:pardo_execution_time:process_bundle_msecs:v1
+- annotations:
+    description: The finish bundle function total estimated execution time in a pardo
+    unit: msecs
+  labels:
+  - PTRANSFORM
   type: beam:metrics:SumInt64
   urn: beam:metric:pardo_execution_time:finish_bundle_msecs:v1
 - annotations:
