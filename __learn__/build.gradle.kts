@@ -194,8 +194,10 @@ tasks.register("javaPreCommit") {
 
   // go granular by inlining :sdks:java:core:buildDependents
   dependsOn(":beam-validate-runner:build") 
+  dependsOn(":examples:java:build")
   dependsOn(":examples:java:twitter:build")
   dependsOn(":examples:kotlin:build")
+  dependsOn(":examples:multi-language:build")
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
   dependsOn(":model:pipeline:build")
