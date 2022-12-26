@@ -434,6 +434,7 @@ __all__ = [
     'BigQueryQueryPriority',
     'WriteToBigQuery',
     'WriteResult',
+    'StorageWriteToBigQuery',
     'ReadFromBigQuery',
     'ReadFromBigQueryRequest',
     'ReadAllFromBigQuery',
@@ -2301,6 +2302,8 @@ class WriteResult:
 
     return self.attributes[key].__get__(self, WriteResult)
 
+def _default_io_expansion_service(append_args=None):
+  return BeamJarExpansionService('sdks:java:io:google-cloud-platform:expansion-service:build', append_args=append_args)
 
 class StorageWriteToBigQuery(PTransform):
   """Writes data to BigQuery using Storage API.
@@ -2338,25 +2341,26 @@ class StorageWriteToBigQuery(PTransform):
       expansion_service=None):
     """Initialize a StorageWriteToBigQuery transform.
     Args:
-      table (str): a fully-qualified table ID specified as
+      :param table (str): a fully-qualified table ID specified as
         ``'PROJECT:DATASET.TABLE'``
-      create_disposition (str): a string specifying the strategy to take when
-        the table doesn't exist. Possible values are:
+      :param create_disposition (str): a string specifying the strategy to
+        take when the table doesn't exist. Possible values are:
 
         * :attr:`'CREATE_IF_NEEDED'`: create if does not exist.
         * :attr:`'CREATE_NEVER'`: fail the write if does not exist.
 
-      write_disposition (str): a string specifying the strategy to take when the
-        table already contains data. Possible values are:
+      :param write_disposition (str): a string specifying the strategy to take
+        when the table already contains data. Possible values are:
 
         * :attr:`'WRITE_TRUNCATE'`: delete existing rows.
         * :attr:`'WRITE_APPEND'`: add to existing rows.
         * :attr:`'WRITE_EMPTY'`: fail the write if table not empty.
 
-      triggering_frequency (int): the time in seconds between write commits.
-        Should only be specified for streaming pipelines. Defaults to 5 seconds.
-      use_at_least_once (bool): use at-least-once semantics. Is cheaper and
-        provides lower latency, but will potentially duplicate records.
+      :param triggering_frequency (int): the time in seconds between write
+        commits. Should only be specified for streaming pipelines. Defaults
+        to 5 seconds.
+      :param use_at_least_once (bool): use at-least-once semantics. Is cheaper
+        and provides lower latency, but will potentially duplicate records.
     """
     super().__init__()
     self._table = table
@@ -2364,27 +2368,21 @@ class StorageWriteToBigQuery(PTransform):
     self._write_disposition = write_disposition
     self._triggering_frequency = triggering_frequency
     self._use_at_least_once = use_at_least_once
-    self._expansion_service = expansion_service or \
-                              self._default_gcp_io_expansion_service()
+    self._expansion_service = expansion_service or _default_io_expansion_service()
     self._schematransform_config = SchemaAwareExternalTransform.discover_one(
         self._expansion_service, self.URN)
 
   def expand(self, input):
     external_storage_write = SchemaAwareExternalTransform(
         self._schematransform_config.identifier,
+        expansion_service=self._expansion_service,
         table=self._table,
         createDisposition=self._create_disposition,
         triggeringFrequencySeconds=self._triggering_frequency,
         useAtLeastOnceSemantics=self._use_at_least_once,
-        expansion_service=self._expansion_service,
         writeDisposition=self._write_disposition)
 
     return input | external_storage_write
-
-  def _default_gcp_io_expansion_service(append_args=None):
-    return BeamJarExpansionService(
-        'sdks:java:io:google-cloud-platform:expansion-service:build',
-        append_args=append_args)
 
 
 class ReadFromBigQuery(PTransform):
