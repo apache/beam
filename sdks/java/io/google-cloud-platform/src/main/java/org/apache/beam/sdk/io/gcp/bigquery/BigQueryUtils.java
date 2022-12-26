@@ -70,6 +70,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -263,6 +264,7 @@ public class BigQueryUtils {
           .put(SqlTypes.DATE.getIdentifier(), StandardSQLTypeName.DATE)
           .put(SqlTypes.TIME.getIdentifier(), StandardSQLTypeName.TIME)
           .put(SqlTypes.DATETIME.getIdentifier(), StandardSQLTypeName.DATETIME)
+          .put(SqlTypes.TIMESTAMP.getIdentifier(), StandardSQLTypeName.TIMESTAMP)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
           .put("Enum", StandardSQLTypeName.STRING)
           .build();
@@ -389,7 +391,7 @@ public class BigQueryUtils {
       FieldType type = schemaField.getType();
 
       TableFieldSchema field = new TableFieldSchema().setName(schemaField.getName());
-      if (schemaField.getDescription() != null && !"".equals(schemaField.getDescription())) {
+      if (!Strings.isNullOrEmpty(schemaField.getDescription())) {
         field.setDescription(schemaField.getDescription());
       }
 
@@ -516,7 +518,7 @@ public class BigQueryUtils {
     return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
   }
 
-  /** Convert a BigQuery TableRow to a Beam Row. */
+  /** Convert a Beam Row to a BigQuery TableRow. */
   public static TableRow toTableRow(Row row) {
     TableRow output = new TableRow();
     for (int i = 0; i < row.getFieldCount(); i++) {
