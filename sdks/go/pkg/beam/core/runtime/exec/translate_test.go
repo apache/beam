@@ -184,7 +184,7 @@ func TestMayFixDataSourceCoder(t *testing.T) {
 	}
 }
 
-func TestUnmarshallWindowFn(t *testing.T) {
+func TestUnmarshalWindowFn(t *testing.T) {
 	tests := []struct {
 		name  string
 		winFn *window.Fn

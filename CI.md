@@ -150,6 +150,12 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 |------------------------------|-----------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
 | Verify Release Build         | Verifies full life cycle of Gradle Build and all PostCommit/PreCommit tests against Release Branch on CI.                   | No               | No                    | No            | No                       |
 
+#### Git tag Release Version - [git_tag_released_version.yml](.github/workflows/git_tag_released_version.yml)
+
+| Job                             | Description                                                                                                    | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|---------------------------------|----------------------------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Git Tag Release Version         | Create and push a new tag for the released version by copying the tag for the final release candidate.         | No               | No                    | No            | No                       |
+
 #### Run RC Validation - [run_rc_validation.yml](.github/workflows/run_rc_validation.yml)
 
 | Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |

@@ -23,5 +23,5 @@ from a [CDAP plugin](https://github.com/data-integrations) and write data into .
 Supported CDAP plugins:
 - [ServiceNow](https://github.com/data-integrations/servicenow-plugins). More info in the ServiceNow example [README](servicenow/src/main/java/org/apache/beam/examples/complete/cdap/servicenow/README.md).
 - [Salesforce](https://github.com/data-integrations/salesforce)
-- [Hubspot](https://github.com/data-integrations/hubspot)
-- [Zendesk](https://github.com/data-integrations/zendesk). More info in the ServiceNow example [README](zendesk/src/main/java/org/apache/beam/examples/complete/cdap/zendesk/README.md).
+- [Hubspot](https://github.com/data-integrations/hubspot). More info in the Hubspot example [README](hubspot/src/main/java/org/apache/beam/examples/complete/cdap/hubspot/README.md).
+- [Zendesk](https://github.com/data-integrations/zendesk). More info in the Zendesk example [README](zendesk/src/main/java/org/apache/beam/examples/complete/cdap/zendesk/README.md).
