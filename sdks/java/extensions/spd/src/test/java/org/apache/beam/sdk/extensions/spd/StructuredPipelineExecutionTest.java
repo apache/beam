@@ -20,7 +20,9 @@ package org.apache.beam.sdk.extensions.spd;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -40,5 +42,9 @@ public class StructuredPipelineExecutionTest {
     spd.loadProject(Paths.get(profileURL.toURI()), pipelinePath);
     LOG.info("Running pipeline");
     pipeline.run();
+    List<Row> rows = spd.getTestTableRows("simple_aggregation");
+    for (Row r : rows) {
+      LOG.info("Got row: " + r);
+    }
   }
 }

@@ -19,17 +19,24 @@ package org.apache.beam.sdk.extensions.spd.description;
 
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
+import com.fasterxml.jackson.databind.JsonNode;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.List;
 
 @SuppressFBWarnings
-public class Table {
+public class TableDesc {
 
   @Nullable
   @JsonSetter(nulls = Nulls.FAIL)
   public String name;
+
+  @Nullable public String description;
+
+  @Nullable public String loaded_at_field;
+
+  @Nullable public JsonNode external;
 
   @Nullable
   @JsonSetter(nulls = Nulls.AS_EMPTY)

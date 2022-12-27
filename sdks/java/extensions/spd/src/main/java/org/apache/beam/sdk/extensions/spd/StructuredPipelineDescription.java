@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.annotations.VisibleForTesting;
 import com.hubspot.jinjava.interpret.RenderResult;
 import com.hubspot.jinjava.interpret.TemplateError;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -34,6 +35,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -45,6 +47,10 @@ import org.apache.beam.sdk.extensions.spd.description.Profile;
 import org.apache.beam.sdk.extensions.spd.description.Project;
 import org.apache.beam.sdk.extensions.spd.description.Schemas;
 import org.apache.beam.sdk.extensions.spd.description.Seed;
+import org.apache.beam.sdk.extensions.spd.description.Source;
+import org.apache.beam.sdk.extensions.spd.description.TableDesc;
+import org.apache.beam.sdk.extensions.spd.macros.MacroContext;
+import org.apache.beam.sdk.extensions.spd.models.ConfiguredModel;
 import org.apache.beam.sdk.extensions.spd.models.PTransformModel;
 import org.apache.beam.sdk.extensions.spd.models.PythonModel;
 import org.apache.beam.sdk.extensions.spd.models.SqlModel;
@@ -55,6 +61,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.PythonCallableSource;
@@ -76,6 +83,7 @@ public class StructuredPipelineDescription {
   private BeamSqlEnv env;
   private PCollectionTableProvider tableMap;
   private Map<String, StructuredModel> modelMap;
+  private Map<String, TableProvider> materializers;
 
   @Nullable Project project = null;
   @Nullable Profile profile = null;
@@ -84,18 +92,41 @@ public class StructuredPipelineDescription {
     this.pipeline = pipeline;
     this.tableMap = new PCollectionTableProvider("spd");
     this.modelMap = new HashMap<>();
+    this.materializers = new HashMap<>();
     this.metaTableProvider = new InMemoryMetaStore();
     BeamSqlEnvBuilder envBuilder = BeamSqlEnv.builder(this.metaTableProvider);
     envBuilder.autoLoadUserDefinedFunctions();
-    ServiceLoader.load(TableProvider.class).forEach(metaTableProvider::registerProvider);
+    ServiceLoader.load(TableProvider.class)
+        .forEach(
+            (provider) -> {
+              LOG.info("Registering table provider " + provider.getTableType() + ".");
+              metaTableProvider.registerProvider(provider);
+              materializers.put(provider.getTableType(), provider);
+            });
     metaTableProvider.registerProvider(tableMap);
-    // envBuilder.setCurrentSchema("spd");
     envBuilder.setQueryPlannerClassName(
         MoreObjects.firstNonNull(
             DEFAULT_PLANNER,
             this.pipeline.getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
     envBuilder.setPipelineOptions(this.pipeline.getOptions());
     this.env = envBuilder.build();
+  }
+
+  public void materializeTo(String fullTableName, PCollection<Row> source) throws Exception {
+    ObjectNode p = profile.getOutputs();
+    if (p == null) {
+      throw new Exception("No outputs defined in profile for target " + profile.getTarget() + "?");
+    }
+    String tableType = "" + p.path("type").asText();
+    LOG.info("Materizializing " + fullTableName + " to " + tableType);
+    TableProvider provider = materializers.get(tableType);
+    if (provider == null) {
+      throw new Exception("Unable to materialize to a destination of type `" + tableType + "`");
+    }
+    Table t =
+        Table.builder().name(fullTableName).type(tableType).schema(source.getSchema()).build();
+    provider.createTable(t);
+    provider.buildBeamSqlTable(t).buildIOWriter(source);
   }
 
   public PCollection<Row> readFrom(String fullTableName, PBegin input) throws Exception {
@@ -111,7 +142,7 @@ public class StructuredPipelineDescription {
   }
 
   public Relation getSourceRelation(String sourceName, String tableName) throws Exception {
-    return new Relation(getTable(tableName));
+    return new Relation(getTable(sourceName + "_" + tableName));
   }
 
   public Table getTable(String fullTableName) throws Exception {
@@ -123,23 +154,23 @@ public class StructuredPipelineDescription {
     Table t = null;
 
     // If a package name has been specified try to get it from a subprovider
+    // otherwise get it from the root
     if (packageName != null && !"".equals(packageName)) {
       LOG.info("Searching for " + fullTableName + " in package " + packageName);
       t = metaTableProvider.getSubProvider(packageName).getTable(fullTableName);
+    } else {
+      t = metaTableProvider.getTable(fullTableName);
     }
     if (t != null) {
       return t;
     }
-
+    MacroContext context = new MacroContext();
     StructuredModel model = modelMap.get(fullTableName);
     if (model == null) {
       throw new Exception("Model " + fullTableName + " doesn't exist.");
     }
-    Map<String, Object> me = new HashMap<>();
-    me.put("_spd", this);
     if (model instanceof SqlModel) {
-      RenderResult result =
-          JinjaFunctions.getDefault().renderForResult(((SqlModel) model).getRawQuery(), me);
+      RenderResult result = context.eval(((SqlModel) model).getRawQuery(), this);
       if (result.hasErrors()) {
         for (TemplateError error : result.getErrors()) {
           throw error.getException();
@@ -151,7 +182,7 @@ public class StructuredPipelineDescription {
     } else if (model instanceof PTransformModel) {
       PTransformModel ptm = (PTransformModel) model;
 
-      RenderResult inputResult = JinjaFunctions.getDefault().renderForResult(ptm.getInput(), me);
+      RenderResult inputResult = context.eval(ptm.getInput(), this);
       if (inputResult.hasErrors()) {
         for (TemplateError error : inputResult.getErrors()) {
           throw error.getException();
@@ -162,7 +193,7 @@ public class StructuredPipelineDescription {
       metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
     } else if (model instanceof PythonModel) {
       PythonModel pymodel = (PythonModel) model;
-      RenderResult result = JinjaFunctions.getDefault().renderForResult(pymodel.getRawPy(), me);
+      RenderResult result = context.eval(pymodel.getRawPy(), this);
       if (result.hasErrors()) {
         for (TemplateError error : result.getErrors()) {
           throw error.getException();
@@ -207,6 +238,27 @@ public class StructuredPipelineDescription {
     return beamSchema.build();
   }
 
+  private void mergeConfiguration(String[] basePath, ObjectNode baseConfig, ConfiguredModel model) {
+    // Apply configuration hierarchically from the models structure
+    String[] path = Arrays.copyOf(basePath, basePath.length + 1);
+    path[path.length - 1] = model.getName();
+
+    if (baseConfig != null) {
+      // TODO: Need to convert fields under "config"
+      model.mergeConfiguration(baseConfig);
+    }
+
+    LOG.info("Attempting to merge configuration for " + String.join(".", path));
+    JsonNode config = project.models;
+    if (config != null) {
+      for (String p : path) {
+        model.mergeConfiguration(config);
+        config = config.path(p);
+      }
+      model.mergeConfiguration(config);
+    }
+  }
+
   private void readSchemaTables(String[] path, Path schemaPath, ObjectMapper mapper)
       throws Exception {
 
@@ -239,6 +291,21 @@ public class StructuredPipelineDescription {
     for (Path file : configFiles) {
       LOG.info("Processing schemas in " + file.toString());
       Schemas schemas = mapper.readValue(Files.newBufferedReader(file), Schemas.class);
+      for (Source source : schemas.getSources()) {
+        String tableType = "" + profile.getInputs().path("type").asText();
+        LOG.info("Adding source " + source.name + " tables as " + tableType);
+        for (TableDesc desc : source.getTables()) {
+          LOG.info("Registering table " + desc.name);
+          Schema beamSchema = columnsToSchema(desc.getColumns());
+          metaTableProvider.createTable(
+              Table.builder()
+                  .type(tableType)
+                  .schema(beamSchema)
+                  .name(source.name + "_" + desc.name)
+                  .build());
+        }
+      }
+
       for (Seed seed : schemas.getSeeds()) {
         Path csvPath = schemaPath.resolve(seed.getName() + ".csv");
         if (Files.exists(csvPath)) {
@@ -274,20 +341,8 @@ public class StructuredPipelineDescription {
           }
           SqlModel sqlModel =
               new SqlModel(path, model.getName(), String.join("\n", Files.readAllLines(sqlPath)));
-
-          // Apply configuration hierarchically from the models structure
-          LOG.info("Attempting to merge configuration for " + String.join(".", path));
-          JsonNode config = project.models;
-          if (config != null) {
-            for (String p : path) {
-              sqlModel.mergeConfiguration(config);
-              config.path(p);
-            }
-            sqlModel.mergeConfiguration(config);
-          }
-
+          mergeConfiguration(path, model.getConfig(), sqlModel);
           modelMap.put(model.getName(), sqlModel);
-
           continue;
         }
         Path pyPath = schemaPath.resolve(model.getName() + ".py");
@@ -328,10 +383,27 @@ public class StructuredPipelineDescription {
   }
 
   private void resolveModels() throws Exception {
-    Set<String> models = modelMap.keySet();
-    for (String fullTableName : models) {
-      LOG.info("Finding table " + fullTableName);
-      getTable(fullTableName);
+    MacroContext context = new MacroContext();
+    PBegin begin = pipeline.begin();
+
+    int materializeCount = 0;
+    for (Entry<String, StructuredModel> model : modelMap.entrySet()) {
+      if (model.getValue() instanceof ConfiguredModel) {
+        ConfiguredModel m = (ConfiguredModel) model.getValue();
+        String materialized = m.getMaterializedConfig(context, this);
+        LOG.info("Attempting to materialize " + m.getName() + " as " + materialized);
+        if ("table".equals(materialized)) {
+          if (!m.getEnabledConfig(context, this)) {
+            LOG.info(m.getName() + " has been disabled. No materialization.");
+            continue;
+          }
+          materializeTo(m.getName(), readFrom(m.getName(), begin));
+          materializeCount++;
+        }
+      }
+    }
+    if (materializeCount == 0) {
+      throw new Exception("Project must materialize at least one table to be executable.");
     }
   }
 
@@ -354,7 +426,8 @@ public class StructuredPipelineDescription {
       throw new Exception("Project must define a profile.");
     }
     LOG.info("Loading profile " + project.profile + " from " + profilePath);
-    JsonNode profileNode = mapper.readTree(Files.newBufferedReader(path)).findPath(project.profile);
+    JsonNode profileNode =
+        mapper.readTree(Files.newBufferedReader(profilePath)).findPath(project.profile);
     if (profileNode == null || profileNode.isEmpty()) {
       throw new Exception("Profile " + project.profile + " not found.");
     }
@@ -377,9 +450,8 @@ public class StructuredPipelineDescription {
       profile.setInputs((ObjectNode) inputs);
     } else {
       LOG.info("No inputs found. Sources will be read from output configuration.");
+      profile.setInputs(profile.getOutputs());
     }
-
-    // Load the sources according to their profile
 
     loadSchemas(path, project.seedPaths, mapper);
     loadSchemas(path, project.modelPaths, mapper);
@@ -389,5 +461,17 @@ public class StructuredPipelineDescription {
     for (Map.Entry<String, Table> table : metaTableProvider.getTables().entrySet()) {
       LOG.info("Table: " + table.getKey() + ", " + table.getValue().toString());
     }
+  }
+
+  @VisibleForTesting
+  List<Row> getTestTableRows(String tableName) {
+    TestTableProvider provider = (TestTableProvider) this.materializers.get("test");
+    return provider.tableRows(tableName);
+  }
+
+  @VisibleForTesting
+  void addTestTableRows(String tableName, Row... rows) {
+    TestTableProvider provider = (TestTableProvider) this.metaTableProvider.getSubProvider("test");
+    provider.addRows(tableName, rows);
   }
 }

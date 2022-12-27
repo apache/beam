@@ -1,9 +1,9 @@
 profiles:
   simple_pipeline:
-    target: local
-    inputs:
-      local:
-        type: bigquery
+    target: test
+    runners:
+      test:
+        type: direct
     outputs:
-      local:
-        type: bigtable
+      test:
+        type: test

@@ -1,1 +1,1 @@
-SELECT id AS id,(first || ' ' || last) AS full_name,wins FROM {{ ref('very_simple_table') }} WHERE wins > 0
+SELECT a.id AS id,(first || ' ' || last) AS full_name,wins FROM {{ source('simple_pipeline','test_rows') }} AS a JOIN {{ ref('very_simple_table') }} AS b ON a.id = b.id WHERE wins > 0

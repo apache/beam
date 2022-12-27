@@ -22,12 +22,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class SqlModel extends ConfiguredModel implements StructuredModel {
 
   @Nullable private String[] path;
-  @Nullable private String name;
   @Nullable private String rawQuery;
 
   public SqlModel(String[] path, String name, String rawQuery) {
+    super(name);
     this.path = path;
-    this.name = name;
     this.rawQuery = rawQuery;
   }
 
@@ -38,10 +37,5 @@ public class SqlModel extends ConfiguredModel implements StructuredModel {
   @Override
   public String getPath() {
     return path == null ? "" : String.join(".", path);
-  }
-
-  @Override
-  public String getName() {
-    return name == null ? "" : name;
   }
 }

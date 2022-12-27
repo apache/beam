@@ -32,13 +32,15 @@ public class Source {
 
   @Nullable public String description;
 
+  @Nullable public String database;
   @Nullable public String schema;
+  @Nullable public String loaded_at_field;
 
   @Nullable
   @JsonSetter(nulls = Nulls.AS_EMPTY)
-  public List<Table> tables = Arrays.asList();
+  public List<TableDesc> tables = Arrays.asList();
 
-  public List<Table> getTables() {
+  public List<TableDesc> getTables() {
     return tables == null ? Arrays.asList() : tables;
   }
 }

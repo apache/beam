@@ -19,33 +19,43 @@ package org.apache.beam.sdk.extensions.spd.models;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.hubspot.jinjava.interpret.RenderResult;
+import com.hubspot.jinjava.interpret.TemplateError;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
+import org.apache.beam.sdk.extensions.spd.macros.MacroContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConfiguredModel {
   private static final Logger LOG = LoggerFactory.getLogger(ConfiguredModel.class);
 
-  public static String MATERIALIZED_CONFIG = "materialized";
-  public static String SQL_HEADER_CONFIG = "sql_header";
-  public static String ENABLED_CONFIG = "enabled";
-  public static String TAGS_CONFIG = "tags";
-  public static String PRE_HOOK_CONFIG = "pre-hook";
-  public static String POST_HOOK_CONFIG = "post-hook";
-  public static String DATABASE_CONFIG = "database";
-  public static String SCHEMA_CONFIG = "schema";
-  public static String ALIAS_CONFIG = "alias";
-  public static String PERSIST_DOCS_CONFIG = "persis_docs";
-  public static String FULL_REFRESH_CONFIG = "full_refresh";
-  public static String META_CONFIG = "meta";
-  public static String GRANTS_CONFIG = "grants";
+  public static final String MATERIALIZED_CONFIG = "materialized";
+  public static final String SQL_HEADER_CONFIG = "sql_header";
+  public static final String ENABLED_CONFIG = "enabled";
+  public static final String TAGS_CONFIG = "tags";
+  public static final String PRE_HOOK_CONFIG = "pre-hook";
+  public static final String POST_HOOK_CONFIG = "post-hook";
+  public static final String DATABASE_CONFIG = "database";
+  public static final String SCHEMA_CONFIG = "schema";
+  public static final String ALIAS_CONFIG = "alias";
+  public static final String PERSIST_DOCS_CONFIG = "persis_docs";
+  public static final String FULL_REFRESH_CONFIG = "full_refresh";
+  public static final String META_CONFIG = "meta";
+  public static final String GRANTS_CONFIG = "grants";
 
+  String name;
   Map<String, Object> config;
 
-  public ConfiguredModel() {
-    config = new HashMap<>();
+  public ConfiguredModel(String name, Map<String, Object> config) {
+    this.name = name;
+    this.config = config;
+  }
+
+  public ConfiguredModel(String name) {
+    this(name, new HashMap<>());
   }
 
   public void mergeConfiguration(ObjectNode newConfig) {
@@ -64,7 +74,12 @@ public class ConfiguredModel {
       } else if (SQL_HEADER_CONFIG.equals(name)) {
         config.put(SQL_HEADER_CONFIG, newConfig.get(field).asText());
       } else if (ENABLED_CONFIG.equals(name)) {
-        config.put(ENABLED_CONFIG, newConfig.get(field).asBoolean());
+        JsonNode node = newConfig.get(field);
+        if (node.isBoolean()) {
+          config.put(ENABLED_CONFIG, node.asBoolean());
+        } else {
+          config.put(ENABLED_CONFIG, node.asText());
+        }
       } else if (TAGS_CONFIG.equals(name)) {
         LOG.warn("Setting " + TAGS_CONFIG + " not supported.");
       } else if (PRE_HOOK_CONFIG.equals(name)) {
@@ -97,5 +112,48 @@ public class ConfiguredModel {
 
   public Map<String, Object> getConfig() {
     return config;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public boolean getEnabledConfig(MacroContext context, StructuredPipelineDescription spd)
+      throws Exception {
+    Object val = config.get(ENABLED_CONFIG);
+    if (val == null) {
+      return true;
+    } else if (val instanceof Boolean) {
+      return (Boolean) val;
+    } else {
+      RenderResult result = context.eval("" + val, spd);
+      if (result.hasErrors()) {
+        for (TemplateError error : result.getErrors()) {
+          throw error.getException();
+        }
+      }
+      // TODO: Implement macro support
+      return true;
+    }
+  }
+
+  public String getMaterializedConfig(MacroContext context, StructuredPipelineDescription spd)
+      throws Exception {
+    Object val = config.get(MATERIALIZED_CONFIG);
+    if (val == null) {
+      return "ephemeral";
+    } else {
+      RenderResult result = context.eval("" + val, spd);
+      if (result.hasErrors()) {
+        for (TemplateError error : result.getErrors()) {
+          throw error.getException();
+        }
+      }
+      return result.getOutput();
+    }
   }
 }

@@ -1,3 +1,13 @@
+sources:
+- name: simple_pipeline
+  tables:
+  - name: test_rows
+    columns:
+    - name: id
+      data_type: STRING
+    - name: wins
+      data_type: INT64
+
 seeds:
   - name: very_simple_table
     columns:
@@ -7,5 +17,3 @@ seeds:
         data_type: STRING
       - name: last
         data_type: STRING
-      - name: wins
-        data_type: INT64

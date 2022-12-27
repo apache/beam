@@ -3,3 +3,8 @@ version: 1.0
 
 profile: simple_pipeline
 
+
+models:
+  example:
+    simple_aggregation:
+      +materialized: table

@@ -25,6 +25,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
 
 public class MacroContext {
+
   Jinjava parser;
 
   public static String configuration(String... args) {
@@ -43,7 +44,7 @@ public class MacroContext {
             "", "ref", GraphFunctions.class, "tableReference", String[].class));
     parser.registerFunction(
         new ELFunctionDefinition(
-            "", "source", GraphFunctions.class, "sourceReference", String[].class));
+            "", "source", GraphFunctions.class, "sourceReference", String.class, String.class));
   }
 
   public RenderResult eval(String expr, Map<String, ?> binding) {
