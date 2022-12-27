@@ -23,7 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'Python',
     gradleTask: ':pythonPreCommit',
     gradleSwitches: [
-      '-Pposargs=./*.py' // All other tests are covered by different jobs.
+      '-Pposargs=apache_beam/*.py' // All other tests are covered by different jobs.
     ],
     timeoutMins: 180,
     triggerPathPatterns: [
