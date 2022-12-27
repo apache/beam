@@ -45,9 +45,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
@@ -55,6 +58,8 @@ import org.junit.runners.JUnit4;
 })
 /** Unit tests form {@link BeamRowToStorageApiProto}. */
 public class BeamRowToStorageApiProtoTest {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamRowToStorageApiProtoTest.class);
+
   private static final EnumerationType TEST_ENUM =
       EnumerationType.create("ONE", "TWO", "RED", "BLUE");
   private static final Schema BASE_SCHEMA =
@@ -78,7 +83,8 @@ public class BeamRowToStorageApiProtoTest {
           .addField(
               "sqlTimestampValue", FieldType.logicalType(SqlTypes.TIMESTAMP).withNullable(true))
           .addField(
-              "sqlTimestampMicrosValue", FieldType.logicalType(SqlTypes.TIMESTAMP).withNullable(true))
+              "sqlTimestampMicrosValue",
+              FieldType.logicalType(SqlTypes.TIMESTAMP).withNullable(true))
           .addField("enumValue", FieldType.logicalType(TEST_ENUM).withNullable(true))
           .build();
 
@@ -239,7 +245,8 @@ public class BeamRowToStorageApiProtoTest {
           .withFieldValue("sqlTimeValue", LocalTime.now())
           .withFieldValue("sqlDatetimeValue", LocalDateTime.now())
           .withFieldValue("sqlTimestampValue", java.time.Instant.now())
-          .withFieldValue("sqlTimestampMicrosValue", java.time.Instant.now().plus(123, ChronoUnit.MICROS))
+          .withFieldValue(
+              "sqlTimestampMicrosValue", java.time.Instant.now().plus(123, ChronoUnit.MICROS))
           .withFieldValue("enumValue", TEST_ENUM.valueOf("RED"))
           .build();
   private static final Map<String, Object> BASE_PROTO_EXPECTED_FIELDS =
@@ -280,8 +287,7 @@ public class BeamRowToStorageApiProtoTest {
               "sqltimestampmicrosvalue",
               ChronoUnit.MICROS.between(
                   java.time.Instant.EPOCH,
-                  BASE_ROW.getLogicalTypeValue("sqlTimestampMicrosValue", java.time.Instant.class)
-              ))
+                  BASE_ROW.getLogicalTypeValue("sqlTimestampMicrosValue", java.time.Instant.class)))
           .put("enumvalue", "RED")
           .build();
 
@@ -408,5 +414,12 @@ public class BeamRowToStorageApiProtoTest {
             .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
     DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
     assertBaseRecord(nestedMsg);
+  }
+
+  @Test
+  public void testInstant() throws Exception {
+    java.time.Instant now = java.time.Instant.now();
+    LOG.info("Instant now: {}", now);
+    System.out.println(String.format("Instant:  %s", now));
   }
 }
