@@ -38,6 +38,7 @@ from typing import Mapping
 from typing import Optional
 from typing import Union
 
+import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -408,8 +409,10 @@ class ConsoleMetricsPublisher(MetricsPublisher):
 class BigQueryMetricsPublisher(MetricsPublisher):
   """A :class:`BigQueryMetricsPublisher` publishes collected metrics
   to BigQuery output."""
-  def __init__(self, project_name, table, dataset):
-    self.bq = BigQueryClient(project_name, table, dataset)
+  def __init__(self, project_name, table, dataset, bq_schema=None):
+    if not bq_schema:
+      bq_schema = SCHEMA
+    self.bq = BigQueryClient(project_name, table, dataset, bq_schema)
 
   def publish(self, results):
     outputs = self.bq.save(results)
@@ -424,7 +427,8 @@ class BigQueryMetricsPublisher(MetricsPublisher):
 class BigQueryClient(object):
   """A :class:`BigQueryClient` publishes collected metrics to
   BigQuery output."""
-  def __init__(self, project_name, table, dataset):
+  def __init__(self, project_name, table, dataset, bq_schema=None):
+    self.schema = bq_schema
     self._namespace = table
     self._client = bigquery.Client(project=project_name)
     self._schema_names = self._get_schema_names()
@@ -432,10 +436,10 @@ class BigQueryClient(object):
     self._get_or_create_table(schema, dataset)
 
   def _get_schema_names(self):
-    return [schema['name'] for schema in SCHEMA]
+    return [schema['name'] for schema in self.schema]
 
   def _prepare_schema(self):
-    return [SchemaField(**row) for row in SCHEMA]
+    return [SchemaField(**row) for row in self.schema]
 
   def _get_or_create_table(self, bq_schemas, dataset):
     if self._namespace == '':
@@ -620,3 +624,13 @@ class AssignTimestamps(beam.DoFn):
   def process(self, element):
     yield self.timestamp_val_fn(
         element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))
+
+
+class BigQueryMetricsFetcher:
+  def __init__(self):
+    self.client = bigquery.Client()
+
+  def fetch(self, query) -> pd.DataFrame:
+    query_job = self.client.query(query=query)
+    result = query_job.result()
+    return result.to_dataframe()

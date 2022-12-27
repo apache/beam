@@ -24,6 +24,7 @@ from pathlib import PurePath
 from typing import List, Optional, Dict
 from api.v1 import api_pb2
 
+import pydantic
 from tqdm.asyncio import tqdm
 import yaml
 
@@ -98,11 +99,19 @@ def find_examples(root_dir: str, subdirs: List[str], sdk: SdkEnum) -> List[Examp
             for filename in files:
                 filepath = os.path.join(root, filename)
                 try:
-                    example = _load_example(
-                        filename=filename, filepath=filepath, sdk=sdk
-                    )
-                    if example is not None:
-                        examples.append(example)
+                    try:
+                        example = _load_example(
+                            filename=filename, filepath=filepath, sdk=sdk
+                        )
+                        if example is not None:
+                            examples.append(example)
+                    except pydantic.ValidationError as err:
+                        if len(err.errors()) > 1:
+                            raise
+                        if err.errors()[0]["msg"] == "multifile is True but no files defined":
+                            logging.warning("incomplete multifile example ignored %s", filepath)
+                            continue
+                        raise
                 except Exception:
                     logging.exception("error loading example at %s", filepath)
                     has_errors = True
@@ -180,7 +189,10 @@ def get_tag(filepath) -> Optional[Tag]:
     )
     yml = yaml.load(embdedded_yaml_content, Loader=yaml.SafeLoader)
     return Tag(
-        line_start=line_start, line_finish=line_finish, **yml[Config.BEAM_PLAYGROUND]
+        filepath=filepath,
+        line_start=line_start,
+        line_finish=line_finish,
+        **yml[Config.BEAM_PLAYGROUND],
     )
 
 
@@ -300,9 +312,16 @@ async def _update_example_status(example: Example, client: GRPCClient):
                 dataset_path=dataset.file_name,
             )
         )
+    files: List[api_pb2.SnippetFile] = [
+        api_pb2.SnippetFile(name=example.filepath, content=example.code, is_main=True)
+    ]
+    for file in example.tag.files:
+        files.append(
+            api_pb2.SnippetFile(name=file.name, content=file.content, is_main=False)
+        )
 
     pipeline_id = await client.run_code(
-        example.code, example.sdk, example.tag.pipeline_options, datasets
+        example.code, example.sdk, example.tag.pipeline_options, datasets, files=files,
     )
     example.pipeline_id = pipeline_id
     status = await client.check_status(pipeline_id)

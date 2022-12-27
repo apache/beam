@@ -29,6 +29,11 @@ import (
 	"beam.apache.org/playground/backend/internal/logger"
 )
 
+type IDMeta struct {
+	Salt     string
+	IdLength int8
+}
+
 type FileEntity struct {
 	Name     string `datastore:"name"`
 	Content  string `datastore:"content,noindex"`

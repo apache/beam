@@ -98,7 +98,7 @@ task preCommit() {
     }
 }
 
-task executeCdap (type:JavaExec) {
+task executeCdapServiceNow (type:JavaExec) {
     mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()
