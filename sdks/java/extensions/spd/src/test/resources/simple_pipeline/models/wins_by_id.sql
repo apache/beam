@@ -1,0 +1,1 @@
+SELECT id,SUM(wins) AS wins FROM {{ source('simple_pipeline','test_rows') }} GROUP BY id

@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.common.annotations.VisibleForTesting;
 import com.hubspot.jinjava.interpret.RenderResult;
 import com.hubspot.jinjava.interpret.TemplateError;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -61,7 +60,6 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.PythonCallableSource;
@@ -88,7 +86,7 @@ public class StructuredPipelineDescription {
   @Nullable Project project = null;
   @Nullable Profile profile = null;
 
-  public StructuredPipelineDescription(Pipeline pipeline) {
+  public StructuredPipelineDescription(Pipeline pipeline, TableProvider... providers) {
     this.pipeline = pipeline;
     this.tableMap = new PCollectionTableProvider("spd");
     this.modelMap = new HashMap<>();
@@ -96,12 +94,24 @@ public class StructuredPipelineDescription {
     this.metaTableProvider = new InMemoryMetaStore();
     BeamSqlEnvBuilder envBuilder = BeamSqlEnv.builder(this.metaTableProvider);
     envBuilder.autoLoadUserDefinedFunctions();
+
+    HashSet<String> overriddenProviders = new HashSet<>();
+    for (TableProvider p : providers) {
+      overriddenProviders.add(p.getTableType());
+      metaTableProvider.registerProvider(p);
+      materializers.put(p.getTableType(), p);
+    }
+
     ServiceLoader.load(TableProvider.class)
         .forEach(
             (provider) -> {
-              LOG.info("Registering table provider " + provider.getTableType() + ".");
-              metaTableProvider.registerProvider(provider);
-              materializers.put(provider.getTableType(), provider);
+              if (!overriddenProviders.contains(provider.getTableType())) {
+                LOG.info("Registering table provider " + provider.getTableType() + ".");
+                metaTableProvider.registerProvider(provider);
+                materializers.put(provider.getTableType(), provider);
+              } else {
+                LOG.info("Skipping auto-registration of provider for " + provider.getTableType());
+              }
             });
     metaTableProvider.registerProvider(tableMap);
     envBuilder.setQueryPlannerClassName(
@@ -297,12 +307,19 @@ public class StructuredPipelineDescription {
         for (TableDesc desc : source.getTables()) {
           LOG.info("Registering table " + desc.name);
           Schema beamSchema = columnsToSchema(desc.getColumns());
-          metaTableProvider.createTable(
-              Table.builder()
-                  .type(tableType)
-                  .schema(beamSchema)
-                  .name(source.name + "_" + desc.name)
-                  .build());
+          Table existingTable = metaTableProvider.getTable(source.name + "_" + desc.name);
+          if (existingTable != null) {
+            if (!existingTable.getSchema().assignableTo(beamSchema)) {
+              throw new Exception("Mismatch between source schema and defined schema");
+            }
+          } else {
+            metaTableProvider.createTable(
+                Table.builder()
+                    .type(tableType)
+                    .schema(beamSchema)
+                    .name(source.name + "_" + desc.name)
+                    .build());
+          }
         }
       }
 
@@ -360,7 +377,18 @@ public class StructuredPipelineDescription {
     }
     if (queryFiles.size() > 0) {
       for (Path file : queryFiles) {
-        LOG.info("Loading model " + file.toAbsolutePath().toString());
+        if (file.getFileName().toString().endsWith(".sql")) {
+          LOG.info("Found SQL at " + file.toAbsolutePath().toString());
+          String name = file.getFileName().toString().replace(".sql", "");
+          if (modelMap.containsKey(name)) {
+            throw new Exception("Duplicate model " + name + " found.");
+          }
+          SqlModel sqlModel = new SqlModel(path, name, String.join("\n", Files.readAllLines(file)));
+          mergeConfiguration(path, null, sqlModel);
+          modelMap.put(name, sqlModel);
+          continue;
+        }
+        LOG.info("Unable to determine  model for " + file.toAbsolutePath().toString());
       }
     }
 
@@ -461,17 +489,5 @@ public class StructuredPipelineDescription {
     for (Map.Entry<String, Table> table : metaTableProvider.getTables().entrySet()) {
       LOG.info("Table: " + table.getKey() + ", " + table.getValue().toString());
     }
-  }
-
-  @VisibleForTesting
-  List<Row> getTestTableRows(String tableName) {
-    TestTableProvider provider = (TestTableProvider) this.materializers.get("test");
-    return provider.tableRows(tableName);
-  }
-
-  @VisibleForTesting
-  void addTestTableRows(String tableName, Row... rows) {
-    TestTableProvider provider = (TestTableProvider) this.metaTableProvider.getSubProvider("test");
-    provider.addRows(tableName, rows);
   }
 }

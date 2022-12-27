@@ -20,7 +20,11 @@ package org.apache.beam.sdk.extensions.spd;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
+import java.util.Map.Entry;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
@@ -38,13 +42,52 @@ public class StructuredPipelineExecutionTest {
     URL pipelineURL = ClassLoader.getSystemClassLoader().getResource("simple_pipeline");
     URL profileURL = ClassLoader.getSystemClassLoader().getResource("test_profile.yml");
     Path pipelinePath = Paths.get(pipelineURL.toURI());
-    StructuredPipelineDescription spd = new StructuredPipelineDescription(pipeline);
+
+    // Test Table Provider
+    TestTableProvider testProvider = new TestTableProvider();
+    testProvider.createTable(
+        Table.builder()
+            .type("test")
+            .name("simple_pipeline_test_rows")
+            .schema(
+                Schema.builder()
+                    .addField("id", FieldType.STRING)
+                    .addField("wins", FieldType.INT64)
+                    .build())
+            .build());
+    Schema rowSchema = testProvider.getTable("simple_pipeline_test_rows").getSchema();
+    LOG.info("Adding test rows to simple_pipeline_test_rows with schema " + rowSchema);
+    testProvider.addRows(
+        "simple_pipeline_test_rows",
+        row(rowSchema, "1", 10L),
+        row(rowSchema, "2", 9L),
+        row(rowSchema, "3", 18L),
+        row(rowSchema, "4", 33L),
+        row(rowSchema, "1", 10L),
+        row(rowSchema, "5", 0L));
+
+    StructuredPipelineDescription spd = new StructuredPipelineDescription(pipeline, testProvider);
     spd.loadProject(Paths.get(profileURL.toURI()), pipelinePath);
+
+    for (Entry<String, Table> e : testProvider.getTables().entrySet()) {
+      LOG.info("Rows in table " + e.getKey());
+      LOG.info("" + e.getValue());
+      for (Row row : testProvider.tableRows(e.getKey())) {
+        LOG.info("" + row);
+      }
+    }
     LOG.info("Running pipeline");
     pipeline.run();
-    List<Row> rows = spd.getTestTableRows("simple_aggregation");
-    for (Row r : rows) {
-      LOG.info("Got row: " + r);
+    for (Entry<String, Table> e : testProvider.getTables().entrySet()) {
+      LOG.info("Rows in table " + e.getKey());
+      LOG.info("" + e.getValue());
+      for (Row row : testProvider.tableRows(e.getKey())) {
+        LOG.info("" + row);
+      }
     }
+  }
+
+  private static Row row(Schema schema, Object... objects) {
+    return Row.withSchema(schema).addValues(objects).build();
   }
 }
