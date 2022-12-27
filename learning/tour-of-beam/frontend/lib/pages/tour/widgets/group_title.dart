@@ -23,7 +23,6 @@ import 'package:playground_components/playground_components.dart';
 import '../../../cache/unit_progress.dart';
 import '../../../models/group.dart';
 import '../../../models/node.dart';
-import '../controllers/completion.dart';
 import 'completeness_indicator.dart';
 
 class GroupTitleWidget extends StatelessWidget {
@@ -61,15 +60,14 @@ class _GroupProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unitsCompletionController =
-        GetIt.instance.get<UnitsCompletionController>();
+    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
 
     return AnimatedBuilder(
-      animation: unitsCompletionController,
+      animation: unitProgressCache,
       builder: (context, child) {
         final progress = _getGroupProgress(
           group.nodes,
-          unitsCompletionController.getCompletedUnits(),
+          unitProgressCache.getCompletedUnits(),
         );
 
         if (progress == 1) {

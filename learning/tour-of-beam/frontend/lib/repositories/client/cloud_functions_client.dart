@@ -111,31 +111,27 @@ class CloudFunctionsTobClient extends TobClient {
   Future<void> postUserCode(String sdkId, String unitId, String code) async {
     final token = await GetIt.instance.get<AuthNotifier>().getToken();
     if (token == null) {
-      return null;
+      return;
     }
-    try {
-      final json = await http.post(
-        Uri.parse(
-          '$cloudFunctionsBaseUrl/postUserCode?sdk=$sdkId&id=$unitId',
-        ),
-        headers: {
-          HttpHeaders.authorizationHeader: 'Bearer $token',
-        },
-        body: jsonEncode({
-          'files': [
-            {
-              'content': code,
-              'isMain': true,
-              'name': 'Does this name matter?',
-            },
-          ],
-          'pipelineOptions': '',
-        }),
-      );
-      print(['puc', json.statusCode]);
-      final map = jsonDecode(utf8.decode(json.bodyBytes));
-    } catch (e) {
-      print(['puce', e]);
-    }
+
+    final json = await http.post(
+      Uri.parse(
+        '$cloudFunctionsBaseUrl/postUserCode?sdk=$sdkId&id=$unitId',
+      ),
+      headers: {
+        HttpHeaders.authorizationHeader: 'Bearer $token',
+      },
+      body: jsonEncode({
+        'files': [
+          {
+            'content': code,
+            'isMain': true,
+            'name': 'Does this name matter?',
+          },
+        ],
+        'pipelineOptions': '',
+      }),
+    );
+    final map = jsonDecode(utf8.decode(json.bodyBytes));
   }
 }

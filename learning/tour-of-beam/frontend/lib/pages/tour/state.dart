@@ -32,21 +32,19 @@ import '../../models/unit.dart';
 import '../../models/unit_content.dart';
 import '../../repositories/client/client.dart';
 import '../../state.dart';
-import 'controllers/completion.dart';
 import 'controllers/content_tree.dart';
-import 'controllers/snippets.dart';
 import 'controllers/unit.dart';
 import 'path.dart';
 
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
+  static const _saveDebounceDuration = Duration(seconds: 2);
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
   UnitController? currentUnitController;
-  final UnitSnippetsController unitSnippetsController;
   final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _authNotifier = GetIt.instance.get<AuthNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
-  final _unitProgressCache = GetIt.instance.get<UnitsProgressCache>();
+  final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
 
   TourNotifier({
@@ -56,17 +54,17 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
           initialSdkId: initialSdkId,
           initialTreeIds: initialTreeIds,
         ),
-        unitSnippetsController = UnitSnippetsController(),
         playgroundController = _createPlaygroundController(initialSdkId) {
     contentTreeController.addListener(_onUnitChanged);
     _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onUnitProgressChanged);
+    _setCodeControllerListener();
+    _onUnitChanged();
+  }
 
-    final saveDebounce = debounce(
-      _save,
-      const Duration(seconds: 2),
-    );
+  void _setCodeControllerListener() {
+    final saveDebounce = debounce(_save, _saveDebounceDuration);
 
     playgroundController.setSdk(Sdk.parseOrCreate(_appNotifier.sdkId!));
     playgroundController.snippetEditingController?.codeController.addListener(
@@ -74,33 +72,19 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         if (_authNotifier.isAuthenticated &&
             (playgroundController.snippetEditingController?.isChanged ??
                 false)) {
-          print([
-            'changed',
-          ]);
           saveDebounce();
         }
       },
     );
-
-    _onUnitChanged();
   }
 
   Future<void> _save() async {
-    print([
-      'save',
-    ]);
     final client = GetIt.instance.get<TobClient>();
-
     await client.postUserCode(
       currentUnitController!.sdkId,
       currentUnitController!.unitId,
       playgroundController.snippetEditingController!.codeController.rawText,
     );
-
-    // final snippetId =
-    //     _unitProgressCache.unitUserSnippets[currentUnitController!.unitId]!;
-
-    // await _setPlaygroundSnippet(snippetId);
   }
 
   @override
@@ -185,20 +169,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   Future<void> _setCurrentSnippet(UnitContentModel unit) async {
     await _unitProgressCache.updateUnitsProgress();
-    print([
-      'set current snippet',
-      unit.id,
-    ]);
     final snippetId =
-        unitSnippetsController.getUnitSnippets()[unit.id] ?? unit.taskSnippetId;
+        _unitProgressCache.getUnitSnippets()[unit.id] ?? unit.taskSnippetId;
     await _setPlaygroundSnippet(snippetId);
   }
 
   Future<void> _setPlaygroundSnippet(String? snippetId) async {
-    print([
-      'sps',
-      snippetId,
-    ]);
     if (snippetId == null) {
       await _emptyPlayground();
       return;
@@ -274,8 +250,3 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     super.dispose();
   }
 }
-
-/// load the default snippet
-/// show user snippet if there is one
-/// user changes code
-/// save code after 5 sec of inaction

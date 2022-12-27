@@ -20,16 +20,23 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import '../auth/notifier.dart';
+import '../enums/unit_completion.dart';
 import '../models/unit_progress.dart';
 import '../repositories/models/get_user_progress_response.dart';
 import '../state.dart';
 import 'cache.dart';
 
-class UnitsProgressCache extends Cache {
-  UnitsProgressCache({required super.client});
+class UnitProgressCache extends Cache {
+  UnitProgressCache({required super.client});
 
   var _unitsProgress = <UnitProgressModel>[];
   Future<GetUserProgressResponse?>? _future;
+
+  final _completedUnitIds = <String>{};
+  final _updatingUnitIds = <String>{};
+
+  final _unitSnippets = <String, String?>{};
 
   Future<void> updateUnitsProgress() async {
     final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
@@ -55,9 +62,65 @@ class UnitsProgressCache extends Cache {
     } else {
       _unitsProgress = [];
     }
-    print([
-      'loaded units progress',
-    ]);
     notifyListeners();
+  }
+
+  // Completion
+
+  Set<String> getUpdatingUnitIds() => _updatingUnitIds;
+
+  Set<String> getCompletedUnits() {
+    _completedUnitIds.clear();
+    for (final unitProgress in getUnitsProgress()) {
+      if (unitProgress.isCompleted) {
+        _completedUnitIds.add(unitProgress.id);
+      }
+    }
+    return _completedUnitIds;
+  }
+
+  void addUpdatingUnitId(String unitId) {
+    _updatingUnitIds.add(unitId);
+    notifyListeners();
+  }
+
+  void clearUpdatingUnitId(String unitId) {
+    _updatingUnitIds.remove(unitId);
+    notifyListeners();
+  }
+
+  bool canCompleteUnit(String? unitId) {
+    if (unitId == null) {
+      return false;
+    }
+    return _getUnitCompletion(unitId) == UnitCompletion.uncompleted;
+  }
+
+  bool isUnitCompleted(String? unitId) {
+    return getCompletedUnits().contains(unitId);
+  }
+
+  UnitCompletion _getUnitCompletion(String unitId) {
+    final authNotifier = GetIt.instance.get<AuthNotifier>();
+    if (!authNotifier.isAuthenticated) {
+      return UnitCompletion.unauthenticated;
+    }
+    if (_updatingUnitIds.contains(unitId)) {
+      return UnitCompletion.updating;
+    }
+    if (isUnitCompleted(unitId)) {
+      return UnitCompletion.completed;
+    }
+    return UnitCompletion.uncompleted;
+  }
+
+  // Snippets
+
+  Map<String, String?> getUnitSnippets() {
+    _unitSnippets.clear();
+    for (final unitProgress in getUnitsProgress()) {
+      _unitSnippets[unitProgress.id] = unitProgress.userSnippetId;
+    }
+    return _unitSnippets;
   }
 }
