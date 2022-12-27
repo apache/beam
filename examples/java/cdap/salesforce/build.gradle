@@ -26,13 +26,13 @@ plugins {
 
 applyJavaNature(
         exportJavadoc: false,
-        automaticModuleName: 'org.apache.beam.examples.complete.cdap.zendesk',
+        automaticModuleName: 'org.apache.beam.examples.complete.cdap.salesforce',
 )
 
-description = "Apache Beam :: Examples :: Java :: CDAP :: Zendesk"
+description = "Apache Beam :: Examples :: Java :: CDAP :: Salesforce"
 ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for processing virtually any size data. This
-artifact includes CDAP Zendesk Apache Beam Java SDK examples."""
+artifact includes CDAP Salesforce Apache Beam Java SDK examples."""
 
 /** Define the list of runners which execute a precommit test.
  * Some runners are run from separate projects, see the preCommit task below
@@ -54,7 +54,10 @@ dependencies {
     implementation library.java.cdap_etl_api
     permitUnusedDeclared library.java.cdap_etl_api
     implementation library.java.cdap_hydrator_common
-    implementation library.java.cdap_plugin_zendesk
+    //TODO: modify to 'implementation library.java.cdap_plugin_salesforce',
+    // when new release with HasOffset interface will be published
+    implementation "com.akvelon:cdap-salesforce-plugins:1.5.0"
+    implementation library.java.google_code_gson
     implementation library.java.hadoop_common
     implementation library.java.slf4j_api
     implementation library.java.vendored_guava_26_0_jre
@@ -63,8 +66,8 @@ dependencies {
     // Add dependencies for the PreCommit configurations
     // For each runner a project level dependency on the examples project.
     for (String runner : preCommitRunners) {
-        delegate.add(runner + "PreCommit", project(":examples:java:cdap:zendesk"))
-        delegate.add(runner + "PreCommit", project(path: ":examples:java:cdap:zendesk", configuration: "testRuntimeMigration"))
+        delegate.add(runner + "PreCommit", project(":examples:java:cdap:salesforce"))
+        delegate.add(runner + "PreCommit", project(path: ":examples:java:cdap:salesforce", configuration: "testRuntimeMigration"))
     }
     directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
     flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
@@ -98,7 +101,7 @@ task preCommit() {
     }
 }
 
-task executeCdapZendesk (type:JavaExec) {
+task executeCdapSalesforce (type:JavaExec) {
     mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()

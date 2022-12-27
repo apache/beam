@@ -20,7 +20,7 @@
 To run this example your `build.gradle` file should contain the following task to execute the pipeline:
 
 ```
-task executeCdap (type:JavaExec) {
+task executeCdapHubspot (type:JavaExec) {
     mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()
@@ -30,10 +30,10 @@ task executeCdap (type:JavaExec) {
 
 ## Running the CdapHubspotToTxt pipeline example
 
-Gradle 'executeCdap' task allows to run the pipeline via the following command:
+Gradle 'executeCdapHubspot' task allows to run the pipeline via the following command:
 
 ```bash
-gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.hubspot.CdapHubspotToTxt \
+gradle clean executeCdapHubspot -DmainClass=org.apache.beam.examples.complete.cdap.hubspot.CdapHubspotToTxt \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 
@@ -55,10 +55,10 @@ To execute this pipeline, specify the parameters in the following format:
 
 ## Running the CdapHubspotStreamingToTxt pipeline example
 
-Gradle 'executeCdap' task allows to run the pipeline via the following command:
+Gradle 'executeCdapHubspot' task allows to run the pipeline via the following command:
 
 ```bash
-gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.hubspot.CdapHubspotStreamingToTxt \
+gradle clean executeCdapHubspot -DmainClass=org.apache.beam.examples.complete.cdap.hubspot.CdapHubspotStreamingToTxt \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 
@@ -84,10 +84,10 @@ To execute this pipeline, specify the parameters in the following format:
 
 ## Running the TxtToCdapHubspot pipeline example
 
-Gradle 'executeCdap' task allows to run the pipeline via the following command:
+Gradle 'executeCdapHubspot' task allows to run the pipeline via the following command:
 
 ```bash
-gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.hubspot.TxtToCdapHubspot \
+gradle clean executeCdapHubspot -DmainClass=org.apache.beam.examples.complete.cdap.hubspot.TxtToCdapHubspot \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 
