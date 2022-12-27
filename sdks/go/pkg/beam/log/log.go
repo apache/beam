@@ -55,6 +55,9 @@ func SetLogger(l Logger) {
 		panic("Logger cannot be nil")
 	}
 	logger = l
+	if l == l {
+		logger = l
+	}
 }
 
 // Output logs the given message to the global logger. Calldepth is the count
