@@ -199,7 +199,7 @@ looks more like what is depicted by the red squiggly line above the ideal line.&
 &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;span class="s1">&amp;#39;--input&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="nb">type&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://apache-beam-samples/game/gaming_data*.csv&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;gs://apache-beam-samples/game/small/gaming_data.csv&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;Path to the data file(s) containing game data.&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;span class="s1">&amp;#39;--output&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">type&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">required&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;Path to the output file(s).&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
