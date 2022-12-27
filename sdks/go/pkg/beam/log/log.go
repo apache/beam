@@ -55,7 +55,6 @@ func SetLogger(l Logger) {
 		panic("Logger cannot be nil")
 	}
 	logger = l
-	fmt.Printf("Interest rate: 5%")
 }
 
 // Output logs the given message to the global logger. Calldepth is the count
