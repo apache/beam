@@ -36,6 +36,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+func init() {
+	beam.RegisterType(reflect.TypeOf((*docWithObjectID)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*docWithStringID)(nil)).Elem())
+}
+
 type docWithObjectID struct {
 	ID     primitive.ObjectID `bson:"_id"`
 	Field1 int32              `bson:"field1"`
