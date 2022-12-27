@@ -72,7 +72,6 @@ var (
 	tempLocation           = flag.String("temp_location", "", "Temp location (optional)")
 	machineType            = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	minCPUPlatform         = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
-	workerJar              = flag.String("dataflow_worker_jar", "", "(deprecated) Dataflow worker jar. Passing in this flag is a no-op. (optional)")
 	workerRegion           = flag.String("worker_region", "", "Dataflow worker region (optional)")
 	workerZone             = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
 	dataflowServiceOptions = flag.String("dataflow_service_options", "", "Comma separated list of additional job modes and configurations (optional)")
