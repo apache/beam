@@ -19,11 +19,9 @@ import collections
 import logging
 import re
 import uuid
-
-from typing import Mapping
-from typing import Iterable
-
 import yaml
+from typing import Iterable
+from typing import Mapping
 from yaml.loader import SafeLoader
 
 import apache_beam as beam

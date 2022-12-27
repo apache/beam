@@ -26,22 +26,21 @@ import os
 import subprocess
 import sys
 import uuid
+import yaml
+from yaml.loader import SafeLoader
 
 import apache_beam as beam
-import apache_beam.io
 import apache_beam.dataframe.io
+import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
+from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
-from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.version import __version__ as beam_version
-
-import yaml
-from yaml.loader import SafeLoader
 
 
 class Provider:
