@@ -51,7 +51,13 @@ class GRPCClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._channel.__aexit__(exc_type, exc_val, exc_tb)
 
-    async def run_code(self, code: str, sdk: SdkEnum, pipeline_options: str, datasets: List[api_pb2.Dataset]) -> str:
+    async def run_code(self, 
+        code: str,
+        sdk: SdkEnum,
+        pipeline_options: str,
+        datasets: List[api_pb2.Dataset],
+        files: List[api_pb2.SnippetFile],
+        ) -> str:
         """
         Run example by his code and SDK
 
@@ -70,7 +76,7 @@ class GRPCClient:
             raise Exception(
                 f'Incorrect sdk: must be from this pool: {", ".join(sdks)}')
         request = api_pb2.RunCodeRequest(
-            code=code, sdk=sdk, pipeline_options=pipeline_options, datasets=datasets)
+            code=code, sdk=sdk, pipeline_options=pipeline_options, datasets=datasets, files=files)
         response = await self._stub.RunCode(request, **self._kwargs)
         return response.pipeline_uuid
 

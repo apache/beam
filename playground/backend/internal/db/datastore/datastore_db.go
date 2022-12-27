@@ -17,7 +17,6 @@ package datastore
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -397,25 +396,28 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 	}), err
 }
 
-func (d *Datastore) GetExampleCode(ctx context.Context, id string) (string, error) {
+func (d *Datastore) GetExampleCode(ctx context.Context, id string) ([]*entity.FileEntity, error) {
+	files := make([]*entity.FileEntity, 0)
 	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
 	if err != nil {
 		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
-		return "", err
+		return files, err
 	}
 	defer rollback(tx)
 
-	fileKey := utils.GetFileKey(ctx, id, 0)
-	var file = new(entity.FileEntity)
-	if err = tx.Get(fileKey, file); err != nil {
-		if err == datastore.ErrNoSuchEntity {
-			logger.Warnf("error during getting example code by identifier, err: %s", err.Error())
-			return "", err
-		}
-		logger.Errorf("error during getting example code by identifier, err: %s", err.Error())
-		return "", err
+	// Get number of files
+	snpKey := utils.GetSnippetKey(ctx, id)
+	var snippet = new(entity.SnippetEntity)
+	if err = tx.Get(snpKey, snippet); err != nil {
+		logger.Errorf("error during getting snippet by identifier, err: %s", err.Error())
+		return nil, err
 	}
-	return file.Content, nil
+
+	fileKeys := make([]*datastore.Key, 0, snippet.NumberOfFiles)
+	for idx := 0; idx < snippet.NumberOfFiles; idx++ {
+		fileKeys = append(fileKeys, utils.GetFileKey(ctx, id, idx))
+	}
+	return getEntities[entity.FileEntity](tx, fileKeys)
 }
 
 func (d *Datastore) GetExampleOutput(ctx context.Context, id string) (string, error) {
@@ -519,27 +521,26 @@ func rollback(tx *datastore.Transaction) {
 	}
 }
 
-func getEntities[V entity.DatastoreEntity](tx *datastore.Transaction, keys []*datastore.Key) ([]*V, error) {
-	var entitiesWithNils = make([]*V, len(keys))
-	entities := make([]*V, 0)
+// generic wrapper around GetMulti & filtering nil elements
+func getEntities[V any](tx *datastore.Transaction, keys []*datastore.Key) ([]*V, error) {
+	entitiesWithNils := make([]*V, len(keys))
+	entitiesNotNil := make([]*V, 0)
 	if err := tx.GetMulti(keys, entitiesWithNils); err != nil {
 		if errorsVal, ok := err.(datastore.MultiError); ok {
-			for _, errVal := range errorsVal {
-				if errors.Is(datastore.ErrNoSuchEntity, errVal) {
-					for _, entityVal := range entitiesWithNils {
-						if entityVal != nil {
-							entities = append(entities, entityVal)
-						}
-					}
-					break
+			for idx, errVal := range errorsVal {
+				if errVal == nil {
+					entitiesNotNil = append(entitiesNotNil, entitiesWithNils[idx])
+					continue
 				}
+
+				logger.Warnf("Key %v not found: %s\n", keys[idx], errVal)
 			}
 		} else {
 			logger.Errorf("error during the getting entities, err: %s\n", err.Error())
 			return nil, err
 		}
 	} else {
-		entities = entitiesWithNils
+		entitiesNotNil = entitiesWithNils
 	}
-	return entities, nil
+	return entitiesNotNil, nil
 }
