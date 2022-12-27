@@ -14,8 +14,6 @@ limitations under the License.
 
 # Select
 
-The `Select` transform allows one to easily project out only the fields of interest. The resulting `PCollection` has a schema containing each selected field as a top-level field. Both top-level and nested fields can be selected.
+The `Select` transform allows one to easily project out only the fields of interest. The resulting PCollection has a schema containing each selected field as a top-level field. You can choose both top-level and nested fields.
 
-The output of this transform is of type Row, though that can be converted into any other type with matching schema using the `Convert` transform.
-
-Sometimes different nested rows will have fields with the same name. Selecting multiple of these fields would result in a name conflict, as all selected fields are put in the same row schema. When this situation arises, the Select.withFieldNameAs builder method can be used to provide an alternate name for the selected field.
+The output of this transform is of type `Row`, which you can convert into any other type with matching schema using the `Convert` transform.

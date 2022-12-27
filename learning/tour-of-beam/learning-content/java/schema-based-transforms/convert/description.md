@@ -25,7 +25,3 @@ PCollection<Row> convertedToRow = userPCollection.apply(Convert.toRows());
 ### Playground exercise
 
 You can find the complete code of this example in the playground window you can run and experiment with.
-
-One of the differences you will notice is that it also contains the part to output `PCollection` elements to the console.
-
-Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.

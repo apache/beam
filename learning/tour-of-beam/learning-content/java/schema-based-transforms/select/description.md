@@ -14,15 +14,13 @@ limitations under the License.
 
 # Select
 
-The `Select` transform allows one to easily project out only the fields of interest. The resulting `PCollection` has a schema containing each selected field as a top-level field. Both top-level and nested fields can be selected.
+The `Select` transform allows one to easily project out only the fields of interest. The resulting `PCollection` has a schema containing each selected field as a top-level field. You can choose both top-level and nested fields.
 
-The output of this transform is of type Row, though that can be converted into any other type with matching schema using the `Convert` transform.
-
-Sometimes different nested rows will have fields with the same name. Selecting multiple of these fields would result in a name conflict, as all selected fields are put in the same row schema. When this situation arises, the Select.withFieldNameAs builder method can be used to provide an alternate name for the selected field.
+The output of this transform is of type Row, which you can convert into any other type with matching schema using the `Convert` transform.
 
 ### Top-level fields
 
-In order to select a field at the top level of a schema, the name of the field is specified. For example, to select just the user ids from a `PCollection` of purchases one would write (using the Select transform).
+To select a field at the top level of a schema, you need to specify their names. For example, using the following code, you can choose just user ids from a `PCollection` of purchases:
 
 ```
 PCollection<Row> rows = purchases.apply(Select.fieldNames("userId", "shippingAddress.postCode"));
@@ -37,17 +35,19 @@ userId           STRING
 
 ### Nested fields
 
-Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the shipping address one would write.
+Individual nested fields can be specified using the dot operator. For example, you can select just the postal code from the shipping address using the following:
 
 ```
-PCollection<Row> rows = purchases.apply(Select.fieldNames("shippingAddress.postCode"));
+PCollection<Row> rows = input.apply(Select.fieldNames("shippingAddress.userId","shippingAddress.postCode","shippingAddress.email"));
 ```
 
 Will result in the following schema:
 
 ```
 Field Name       Field Type
+userId           INT64
 postCode         STRING
+email         STRING
 ```
 
 ### Wildcards
@@ -116,7 +116,3 @@ transactions_purchaseAmount         ARRAY[DOUBLE]
 ### Playground exercise
 
 You can find the complete code of this example in the playground window you can run and experiment with.
-
-One of the differences you will notice is that it also contains the part to output `PCollection` elements to the console.
-
-Do you also notice in what order elements of PCollection appear in the console? Why is that? You can also run the example several times to see if the output stays the same or changes.

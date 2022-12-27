@@ -153,5 +153,3 @@ You can also use `@SchemaFieldName` and `@SchemaIgnore` annotations to specify d
 ### Playground exercise
 
 You can find the complete code of this example in the playground window you can run and experiment with.
-
-One of the differences you will notice is that it also contains the part to output `PCollection` elements to the console.
