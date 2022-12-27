@@ -30,7 +30,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -185,23 +184,21 @@ public class ProcessBundleBenchmark {
     }
 
     @TearDown
-    public void tearDown() throws Exception {
-      controlServer.close();
-      stateServer.close();
-      dataServer.close();
-      loggingServer.close();
-      controlClient.close();
-      sdkHarnessExecutor.shutdownNow();
-      serverExecutor.shutdownNow();
+    public void tearDown() {
       try {
+        controlServer.close();
+        stateServer.close();
+        dataServer.close();
+        loggingServer.close();
+        controlClient.close();
         sdkHarnessExecutorFuture.get();
-      } catch (ExecutionException e) {
-        if (e.getCause() instanceof RuntimeException
-            && e.getCause().getCause() instanceof InterruptedException) {
-          // expected
-        } else {
-          throw e;
-        }
+      } catch (InterruptedException ignored) {
+        Thread.currentThread().interrupt();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      } finally {
+        sdkHarnessExecutor.shutdownNow();
+        serverExecutor.shutdownNow();
       }
     }
   }

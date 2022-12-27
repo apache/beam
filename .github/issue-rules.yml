@@ -58,7 +58,7 @@ rules:
   addLabels: ['dataflow']
 - valueFor: 'Failure'
   contains: 'Test is flaky'
-  addLabels: ['flaky', 'tests']
+  addLabels: ['flake', 'tests']
 - valueFor: 'Failure'
   contains: 'Test is continually failing'
   addLabels: ['permared', 'failing test', 'tests']
