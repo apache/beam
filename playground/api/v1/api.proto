@@ -59,12 +59,24 @@ enum Complexity {
   COMPLEXITY_ADVANCED = 3;
 }
 
+enum EmulatorType {
+  EMULATOR_TYPE_UNSPECIFIED = 0;
+  EMULATOR_TYPE_KAFKA = 1;
+}
+
+message Dataset {
+  EmulatorType type = 1;
+  map<string, string> options = 2;
+  string dataset_path = 3;
+}
+
 // RunCodeRequest represents a code text and options of SDK which executes the code.
 message RunCodeRequest {
   string code = 1;
   Sdk sdk = 2;
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
+  repeated Dataset datasets = 4;
 }
 
 // RunCodeResponse contains information of the pipeline uuid.
@@ -168,7 +180,7 @@ message PrecompiledObject{
   string description = 3;
   PrecompiledObjectType type = 4;
   string pipeline_options = 5;
-  // Link to the example in the Beam repository
+  // TODO mark reserved after #24402 update sequence is done
   string link = 6;
   bool multifile = 7;
   int32 context_line = 8;
@@ -176,6 +188,11 @@ message PrecompiledObject{
   Sdk sdk = 10;
   Complexity complexity = 11;
   repeated string tags = 12;
+  repeated Dataset datasets = 13;
+  
+// Link to the example in the Beam repository
+  string url_vcs = 14;
+  string url_notebook = 15;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk

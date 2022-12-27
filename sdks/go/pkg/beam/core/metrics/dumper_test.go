@@ -25,7 +25,7 @@ import (
 
 func TestDumperExtractor(t *testing.T) {
 	var got []string
-	printer := func(format string, args ...interface{}) {
+	printer := func(format string, args ...any) {
 		got = append(got, fmt.Sprintf(format, args...))
 	}
 

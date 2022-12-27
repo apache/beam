@@ -1062,14 +1062,27 @@ func TestPlaygroundController_GetPrecompiledObjects(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := client.GetPrecompiledObjects(ctx, tt.args.info)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("PlaygroundController_GetPrecompiledObjects() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("PlaygroundController_GetPrecompiledObjects() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if len(got.SdkCategories) == 0 ||
 				got.SdkCategories[0].Sdk != tt.wantSdk ||
 				len(got.SdkCategories[0].Categories) == 0 {
-				t.Error("PlaygroundController_GetPrecompiledObjects() unexpected result")
+				t.Fatalf("PlaygroundController_GetPrecompiledObjects() unexpected result")
 			}
+			pcWithDataset := new(pb.PrecompiledObject)
+			for _, cat := range got.SdkCategories[0].Categories {
+				for _, pc := range cat.PrecompiledObjects {
+					if len(pc.Datasets) != 0 {
+						pcWithDataset = pc
+					}
+				}
+			}
+			expectedDataset := &pb.Dataset{
+				Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+				Options:     map[string]string{"topic": "topic_name_1"},
+				DatasetPath: "MOCK_LINK",
+			}
+			assert.Equal(t, expectedDataset, pcWithDataset.Datasets[0])
 		})
 	}
 }
@@ -1087,6 +1100,7 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 		name    string
 		args    args
 		wantErr bool
+		check   func(response *pb.GetPrecompiledObjectResponse)
 	}{
 		{
 			name: "Getting an example in the usual case",
@@ -1095,6 +1109,59 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 				info: &pb.GetPrecompiledObjectRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
 			},
 			wantErr: false,
+			check: func(response *pb.GetPrecompiledObjectResponse) {
+				expected := &pb.PrecompiledObject{
+					Sdk:             pb.Sdk_SDK_JAVA,
+					Multifile:       false,
+					CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE",
+					Name:            "MOCK_DEFAULT_EXAMPLE",
+					Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+					ContextLine:     10,
+					PipelineOptions: "MOCK_P_OPTS",
+					Link:            "MOCK_PATH",
+					UrlVcs:          "MOCK_URL_VCS",
+					UrlNotebook:     "MOCK_URL_NOTEBOOK",
+					Description:     "MOCK_DESCR",
+					DefaultExample:  true,
+					Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+					Tags:            []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
+				}
+				assert.Equal(t, expected, response.PrecompiledObject)
+			},
+		},
+		{
+			name: "Getting an example with a dataset",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetPrecompiledObjectRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME_DATASET"},
+			},
+			wantErr: false,
+			check: func(response *pb.GetPrecompiledObjectResponse) {
+				expected := &pb.PrecompiledObject{
+					Sdk:             pb.Sdk_SDK_JAVA,
+					Multifile:       false,
+					CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME_DATASET",
+					Name:            "MOCK_NAME_DATASET",
+					Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+					ContextLine:     10,
+					PipelineOptions: "MOCK_P_OPTS",
+					Link:            "MOCK_PATH",
+					UrlVcs:          "MOCK_URL_VCS",
+					UrlNotebook:     "MOCK_URL_NOTEBOOK",
+					Description:     "MOCK_DESCR",
+					DefaultExample:  false,
+					Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+					Tags:            []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
+					Datasets: []*pb.Dataset{
+						{
+							DatasetPath: "MOCK_LINK",
+							Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+							Options:     map[string]string{"topic": "topic_name_1"},
+						},
+					},
+				}
+				assert.Equal(t, expected, response.PrecompiledObject)
+			},
 		},
 	}
 
@@ -1102,21 +1169,9 @@ func TestPlaygroundController_GetPrecompiledObject(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := client.GetPrecompiledObject(ctx, tt.args.info)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("PlaygroundController_GetPrecompiledObject() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("PlaygroundController_GetPrecompiledObject() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if got.PrecompiledObject.Multifile != false ||
-				got.PrecompiledObject.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE" ||
-				got.PrecompiledObject.Name != "MOCK_DEFAULT_EXAMPLE" ||
-				got.PrecompiledObject.Type != pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE ||
-				got.PrecompiledObject.ContextLine != 10 ||
-				got.PrecompiledObject.PipelineOptions != "MOCK_P_OPTS" ||
-				got.PrecompiledObject.Link != "MOCK_PATH" ||
-				got.PrecompiledObject.Description != "MOCK_DESCR" ||
-				!got.PrecompiledObject.DefaultExample ||
-				got.PrecompiledObject.Complexity != pb.Complexity_COMPLEXITY_MEDIUM {
-				t.Error("PlaygroundController_GetPrecompiledObject() unexpected result")
-			}
+			tt.check(got)
 		})
 	}
 }

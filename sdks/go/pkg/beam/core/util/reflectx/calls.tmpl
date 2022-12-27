@@ -35,7 +35,7 @@ import (
 {{range $out := upto 5}}
 type Func{{$in}}x{{$out}} interface {
     Func
-    Call{{$in}}x{{$out}}({{mktuple $in "interface{}"}}) ({{mktuple $out "interface{}"}})
+    Call{{$in}}x{{$out}}({{mktuple $in "any"}}) ({{mktuple $out "any"}})
 }
 
 type shimFunc{{$in}}x{{$out}} struct {
@@ -50,12 +50,12 @@ func (c *shimFunc{{$in}}x{{$out}}) Type() reflect.Type {
    return c.inner.Type()
 }
 
-func (c *shimFunc{{$in}}x{{$out}}) Call(args []interface{}) []interface{} {
+func (c *shimFunc{{$in}}x{{$out}}) Call(args []any) []any {
    return c.inner.Call(args)
 }
 
-func (c *shimFunc{{$in}}x{{$out}}) Call{{$in}}x{{$out}}({{mkargs $in "arg%v" "interface{}"}}) ({{mktuple $out "interface{}"}}) {
-   ret := c.inner.Call([]interface{}{ {{mktuplef $in "arg%v"}} })
+func (c *shimFunc{{$in}}x{{$out}}) Call{{$in}}x{{$out}}({{mkargs $in "arg%v" "any"}}) ({{mktuple $out "any"}}) {
+   ret := c.inner.Call([]any{ {{mktuplef $in "arg%v"}} })
    _ = ret
    return {{mktuplef $out "ret[%v]"}}
 }
@@ -70,7 +70,7 @@ func ToFunc{{$in}}x{{$out}}(c Func) Func{{$in}}x{{$out}} {
     return &shimFunc{{$in}}x{{$out}}{inner: c}
 }
 
-func MakeFunc{{$in}}x{{$out}}(fn interface{}) Func{{$in}}x{{$out}} {
+func MakeFunc{{$in}}x{{$out}}(fn any) Func{{$in}}x{{$out}} {
     return ToFunc{{$in}}x{{$out}}(MakeFunc(fn))
 }
 {{end}}

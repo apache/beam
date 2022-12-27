@@ -1001,6 +1001,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       additional details such as the number of bytes for keys and values is known for the key
    *       range.
    * </ul>
+   *
+   * <p>Must be thread safe. Will be invoked concurrently during bundle processing due to runner
+   * initiated splitting and progress estimation.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)

@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../generated/assets.gen.dart';
+import '../../../assets/assets.gen.dart';
 import '../../../models/unit.dart';
 import '../controllers/content_tree.dart';
 import 'tour_progress_indicator.dart';
@@ -35,17 +35,33 @@ class UnitWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClickableWidget(
-      onTap: () => contentTreeController.onNodeTap(unit),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
-        child: Row(
-          children: [
-            TourProgressIndicator(assetPath: Assets.svg.unitProgress0),
-            Expanded(child: Text(unit.title)),
-          ],
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: contentTreeController,
+      builder: (context, child) {
+        final isSelected = contentTreeController.currentNode?.id == unit.id;
+
+        return ClickableWidget(
+          onTap: () => contentTreeController.openNode(unit),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isSelected ? Theme.of(context).selectedRowColor : null,
+              borderRadius: BorderRadius.circular(BeamSizes.size3),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: BeamSizes.size10),
+            child: Row(
+              children: [
+                TourProgressIndicator(
+                  assetPath: Assets.svg.unitProgress0,
+                  isSelected: isSelected,
+                ),
+                Expanded(
+                  child: Text(unit.title),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

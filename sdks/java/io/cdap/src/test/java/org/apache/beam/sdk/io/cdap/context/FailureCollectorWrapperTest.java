@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.cdap.context;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
+import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import java.util.ArrayList;
@@ -89,5 +90,28 @@ public class FailureCollectorWrapperTest {
     assertEquals(1, exceptionCollector.size());
     assertEquals(errorMessage, exceptionCollector.get(0).getMessage());
     assertEquals(0, emptyExceptionCollector.size());
+  }
+
+  /**
+   * Should skip schema field validation errors because they are CDAP oriented and don't affect
+   * anything in our case.
+   */
+  @Test
+  public void shouldNotThrowForSchemaFieldValidation() {
+    /** arrange */
+    FailureCollectorWrapper failureCollectorWrapper = new FailureCollectorWrapper();
+
+    /** act */
+    RuntimeException error = new RuntimeException("An error with cause has occurred");
+    failureCollectorWrapper.addFailure(error.getMessage(), null);
+    ValidationFailure failure = failureCollectorWrapper.getValidationFailures().get(0);
+    ValidationFailure.Cause cause = new ValidationFailure.Cause();
+    cause.addAttribute(
+        CauseAttributes.INPUT_SCHEMA_FIELD, BatchContextImpl.DEFAULT_SCHEMA_FIELD_NAME);
+    failure.getCauses().add(cause);
+
+    /** assert */
+    failureCollectorWrapper.getOrThrowException();
+    assertEquals(0, failureCollectorWrapper.getValidationFailures().size());
   }
 }

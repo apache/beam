@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -278,6 +279,11 @@ public class PubsubJsonClient extends PubsubClient {
   }
 
   @Override
+  public void createTopic(TopicPath topic, SchemaPath schema) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void deleteTopic(TopicPath topic) throws IOException {
     pubsub.projects().topics().delete(topic.getPath()).execute(); // ignore Empty result.
   }
@@ -357,5 +363,41 @@ public class PubsubJsonClient extends PubsubClient {
   @Override
   public boolean isEOF() {
     return false;
+  }
+
+  /** Create {@link com.google.api.services.pubsub.model.Schema} from resource path. */
+  @Override
+  public void createSchema(
+      SchemaPath schemaPath, String resourcePath, com.google.pubsub.v1.Schema.Type type)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  /** Delete {@link SchemaPath}. */
+  @Override
+  public void deleteSchema(SchemaPath schemaPath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  /** Return {@link SchemaPath} from {@link TopicPath} if exists. */
+  @Override
+  public SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
+    Topic topic = pubsub.projects().topics().get(topicPath.getPath()).execute();
+    if (topic.getSchemaSettings() == null) {
+      return null;
+    }
+    String schemaPath = topic.getSchemaSettings().getSchema();
+    if (schemaPath.equals(SchemaPath.DELETED_SCHEMA_PATH)) {
+      return null;
+    }
+    return PubsubClient.schemaPathFromPath(schemaPath);
+  }
+
+  /** Return a Beam {@link Schema} from the Pub/Sub schema resource, if exists. */
+  @Override
+  public Schema getSchema(SchemaPath schemaPath) throws IOException {
+    com.google.api.services.pubsub.model.Schema pubsubSchema =
+        pubsub.projects().schemas().get(schemaPath.getPath()).execute();
+    return fromPubsubSchema(pubsubSchema);
   }
 }

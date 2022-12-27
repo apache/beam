@@ -43,9 +43,6 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
   task "preCommitIT${suffix}" {
     dependsOn 'installGcpTest'
     dependsOn ':sdks:python:sdist'
-    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-    def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
     doLast {
       // Basic integration tests to run in PreCommit
@@ -64,17 +61,14 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
       def argMap = [
               "test_opts"   : testOpts,
               "sdk_location": files(configurations.distTarBall.files).singleFile,
-              "worker_jar"  : dataflowWorkerJar,
               "suite"       : "preCommitIT-df${pythonSuffix}",
       ]
 
-      if (runnerV2) {
-        argMap.put("runner_v2", "true")
-        // KMS is not supported for streaming engine.
-        argMap.put("kms_key_name", "\"\"")
-      }
       if (streaming){
         argMap.put("streaming", "true")
+        argMap.put("runner_v2", "true")
+      } else if (runnerV2) {
+        argMap.put("runner_v2", "true")
       }
 
       def cmdArgs = mapToArgString(argMap)
@@ -104,16 +98,12 @@ task preCommitIT_V2{
 task postCommitIT {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
-        "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "it_postcommit"
     ]
@@ -148,16 +138,12 @@ task postCommitSickbay {
 task spannerioIT {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
-        "worker_jar": dataflowWorkerJar,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "spannerio_it"
     ]
@@ -210,12 +196,9 @@ task examples {
 task validatesRunnerBatchTests {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
   def argMap = [
           "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
-          "worker_jar"  : dataflowWorkerJar,
           "sdk_location": files(configurations.distTarBall.files).singleFile,
           "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
           "collect": "it_validatesrunner and not no_sickbay_batch"
@@ -223,8 +206,6 @@ task validatesRunnerBatchTests {
 
   if (project.hasProperty('useRunnerV2')) {
     argMap.put("runner_v2", "true")
-    // KMS is not supported for streaming engine.
-    argMap.put("kms_key_name", "\"\"")
   }
 
   if (project.hasProperty('disableRunnerV2')) {
@@ -243,9 +224,6 @@ task validatesRunnerBatchTests {
 task validatesRunnerStreamingTests {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   // TODO(BEAM-3544,https://github.com/apache/beam/issues/19012): Disable tests with 'sickbay-streaming' tag.
   // Execute tests with xdists
@@ -254,15 +232,10 @@ task validatesRunnerStreamingTests {
                 "test_opts": basicPytestOpts + ["--numprocesses=8"],
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
-                "worker_jar": dataflowWorkerJar,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
-                "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist"
+                "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist",
+                "runner_v2": "true",
                 ]
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-      // KMS is not supported for streaming engine.
-      argMap.put("kms_key_name", "\"\"")
-    }
 
     def cmdArgs = mapToArgString(argMap)
     exec {
@@ -277,15 +250,10 @@ task validatesRunnerStreamingTests {
                 "test_opts": basicPytestOpts,
                 "streaming": "true",
                 "sdk_location": files(configurations.distTarBall.files).singleFile,
-                "worker_jar": dataflowWorkerJar,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
-                "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist"
+                "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist",
+                "runner_v2": "true",
                 ]
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-      // KMS is not supported for streaming engine.
-      argMap.put("kms_key_name", "\"\"")
-    }
 
     def cmdArgs = mapToArgString(argMap)
     exec {
