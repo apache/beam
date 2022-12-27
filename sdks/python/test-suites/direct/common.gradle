@@ -234,7 +234,7 @@ task sklearnInferenceTest {
   doFirst {
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && pip install -r scikit-learn<1.2.0"
+        args '-c', ". ${envdir}/bin/activate && pip install 'scikit-learn<1.2.0'"
       }
     }
   doLast {
