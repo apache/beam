@@ -38,8 +38,13 @@ DB_PASSWORD = os.environ['DB_PASS']
 GH_WORKFLOWS_TABLE_NAME = "github_workflows"
 # Number of workflows that fetch github API
 GH_NUMBER_OF_WORKFLOWS = 100  
+#  The number of workflows executions is limited to ten because the dashboard
+#  only shows ten runs per workflows. Also is imporant take in count the
+#  Github API rate limit, is the number of executions increase,  we may have 
+#  problems with the rate limit
 GH_WORKFLOWS_NUMBER_EXECUTIONS = 10
 WORKFLOWS_OBJECT_LIST = []
+
 
 class Workflow:
     def __init__(self,id,name,filename):
