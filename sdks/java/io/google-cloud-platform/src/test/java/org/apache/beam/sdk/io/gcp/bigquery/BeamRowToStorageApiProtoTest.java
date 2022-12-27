@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
@@ -76,6 +77,8 @@ public class BeamRowToStorageApiProtoTest {
           .addField("sqlDatetimeValue", FieldType.logicalType(SqlTypes.DATETIME).withNullable(true))
           .addField(
               "sqlTimestampValue", FieldType.logicalType(SqlTypes.TIMESTAMP).withNullable(true))
+          .addField(
+              "sqlTimestampMicrosValue", FieldType.logicalType(SqlTypes.TIMESTAMP).withNullable(true))
           .addField("enumValue", FieldType.logicalType(TEST_ENUM).withNullable(true))
           .build();
 
@@ -202,8 +205,15 @@ public class BeamRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("enumvalue")
+                  .setName("sqltimestampmicrosvalue")
                   .setNumber(18)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("enumvalue")
+                  .setNumber(19)
                   .setType(Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -229,6 +239,7 @@ public class BeamRowToStorageApiProtoTest {
           .withFieldValue("sqlTimeValue", LocalTime.now())
           .withFieldValue("sqlDatetimeValue", LocalDateTime.now())
           .withFieldValue("sqlTimestampValue", java.time.Instant.now())
+          .withFieldValue("sqlTimestampMicrosValue", java.time.Instant.now().plus(123, ChronoUnit.MICROS))
           .withFieldValue("enumValue", TEST_ENUM.valueOf("RED"))
           .build();
   private static final Map<String, Object> BASE_PROTO_EXPECTED_FIELDS =
@@ -265,6 +276,12 @@ public class BeamRowToStorageApiProtoTest {
                       .getLogicalTypeValue("sqlTimestampValue", java.time.Instant.class)
                       .toEpochMilli()
                   * 1000)
+          .put(
+              "sqltimestampmicrosvalue",
+              ChronoUnit.MICROS.between(
+                  java.time.Instant.EPOCH,
+                  BASE_ROW.getLogicalTypeValue("sqlTimestampMicrosValue", java.time.Instant.class)
+              ))
           .put("enumvalue", "RED")
           .build();
 
