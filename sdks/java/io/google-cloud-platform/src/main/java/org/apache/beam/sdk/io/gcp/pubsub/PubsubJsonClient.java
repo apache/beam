@@ -365,7 +365,7 @@ public class PubsubJsonClient extends PubsubClient {
     return false;
   }
 
-  /** Create {@link com.google.api.services.pubsub.model.Schema} from resource path. */
+  /** Create {@link com.google.api.services.pubsub.model.Schema} from Schema definition content. */
   @Override
   public void createSchema(
       SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)

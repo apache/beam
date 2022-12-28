@@ -431,7 +431,7 @@ public class PubsubGrpcClient extends PubsubClient {
     return false;
   }
 
-  /** Create {@link com.google.pubsub.v1.Schema} from resource path. */
+  /** Create {@link com.google.pubsub.v1.Schema} from Schema definition content. */
   @Override
   public void createSchema(
       SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)
