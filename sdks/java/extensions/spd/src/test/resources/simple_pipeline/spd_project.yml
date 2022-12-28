@@ -6,7 +6,7 @@ profile: simple_pipeline
 
 models:
   python:
-    +materialized: ephemeral
+    +materialized: table
   wins_by_id:
     +materialized: table
   example:

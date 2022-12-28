@@ -214,7 +214,7 @@ public class StructuredPipelineDescription {
         LOG.info("Python primary relation is "+primary.toString());
         PCollection<Row> pcollection =
             readFrom(primary.getTable().getName(), pipeline.begin())
-                .apply(DataframeTransform.of(result.getOutput()));
+                .apply(DataframeTransform.of(result.getOutput()).withIndexes());
         metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
       } else {
         throw new Exception("Python model is not associated with an input table");
