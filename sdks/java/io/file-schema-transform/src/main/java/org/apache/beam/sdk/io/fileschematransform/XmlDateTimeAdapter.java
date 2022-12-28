@@ -23,6 +23,7 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
+/** An {@link XmlAdapter} for {@link DateTime}s. */
 class XmlDateTimeAdapter extends XmlAdapter<String, DateTime> implements Serializable {
   private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.basicDateTime();
 

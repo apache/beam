@@ -298,6 +298,7 @@ public final class FileWriteSchemaTransformFormatProviders {
       };
     }
 
+    /** A {@link SerializableFunction} for converting {@link Row}s to {@link XmlRowAdapter}s. */
     static class RowToXmlFn implements SerializableFunction<Row, XmlRowAdapter> {
 
       @Override

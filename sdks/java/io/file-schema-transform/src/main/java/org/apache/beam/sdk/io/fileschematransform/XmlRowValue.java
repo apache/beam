@@ -205,10 +205,20 @@ class XmlRowValue implements Serializable {
         Optional.ofNullable(that.getNestedValue());
     Optional<HashMap<String, XmlRowValue>> nestedValue = Optional.ofNullable(getNestedValue());
 
-    return primitiveValue.equals(thatPrimitiveValue)
-        && valueList.equals(thatValueList)
-        && dateTime.equals(thatPrimitiveDateTime)
-        && nestedValue.equals(thatNestedValue);
+    return equals(primitiveValue, thatPrimitiveValue)
+        && equals(dateTime, thatPrimitiveDateTime)
+        && equals(valueList, thatValueList)
+        && equals(nestedValue, thatNestedValue);
+  }
+
+  private static <T> boolean equals(Optional<T> a, Optional<T> b) {
+    if (a.isPresent() && b.isPresent()) {
+      return a.get().equals(b.get());
+    }
+    if (!a.isPresent() && !b.isPresent()) {
+      return true;
+    }
+    return false;
   }
 
   @Override

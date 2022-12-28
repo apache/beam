@@ -58,13 +58,12 @@ public abstract class FileWriteSchemaTransformConfiguration {
    */
   public abstract String getFormat();
 
-  /** Specifies a common prefix to use for all generated filenames. */
+  /** A common prefix to use for all generated filenames. */
   public abstract String getFilenamePrefix();
 
   /**
-   * Specifies to compress all generated shard files by default, append the respective extension to
-   * the filename. See {@link org.apache.beam.sdk.io.Compression} for expected values, though
-   * stringified in all lowercase format.
+   * The compression of all generated shard files. By default, appends the respective extension to
+   * the filename. See {@link org.apache.beam.sdk.io.Compression} for expected values.
    */
   @Nullable
   public abstract String getCompression();
@@ -96,19 +95,15 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @AutoValue.Builder
   public abstract static class Builder {
 
-    /**
-     * The format of the file content. Used as String key lookup of {@link
-     * FileWriteSchemaTransformFormatProviders#loadProviders()}.
-     */
+    /** The format of the file content. See {@link #getFormat()} for more details. */
     public abstract Builder setFormat(String value);
 
-    /** Specifies a common prefix to use for all generated filenames. */
+    /** A common prefix to use for all generated filenames. */
     public abstract Builder setFilenamePrefix(String value);
 
     /**
-     * Specifies to compress all generated shard files by default, append the respective extension
-     * to the filename. See {@link org.apache.beam.sdk.io.Compression} for expected values, though
-     * stringified in all lowercase format.
+     * The file {@link org.apache.beam.sdk.io.Compression} See {@link #getCompression()} for more
+     * details.
      */
     public abstract Builder setCompression(String value);
 
