@@ -16,22 +16,10 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground/main.dart' as app;
-import 'package:playground/modules/examples/example_selector.dart';
 
 Future<void> init(WidgetTester wt) async {
   app.main();
   await wt.pumpAndSettle();
-}
-
-extension CommonFindersExtension on CommonFinders {
-  Finder exampleSelector() {
-    return byType(ExampleSelector);
-  }
-
-  Finder exampleItemInDropdown(String name) {
-    return widgetWithText(GestureDetector, name);
-  }
 }

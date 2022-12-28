@@ -16,27 +16,17 @@
  * limitations under the License.
  */
 
-extension StringCodeExtension on String {
-  /// Returns the visible text mimicking the flutter_code_editor's folding of
-  /// license.
-  String foldJavaLicense() {
-    return replaceFirstMapped(
-      RegExp(r'^(/\*)(.*?\*/)(.*)$', dotAll: true),
-      (m) => '${m[1]}${m[3]}',
-    );
-  }
+import 'package:flutter_code_editor/flutter_code_editor.dart';
+import 'package:highlight/highlight_core.dart';
 
-  /// Returns the visible text mimicking the flutter_code_editor's folding of
-  /// sequential imports.
-  String foldJavaImports() {
-    final packageRegExp = RegExp('^package .*?\n', multiLine: true);
-    final cutStart = indexOf(packageRegExp) +
-        (packageRegExp.firstMatch(this)?[0]?.length ?? 0);
+String foldLicenseAndImports(String text, Mode language) {
+  final controller = CodeController(
+    text: text,
+    language: language,
+  );
 
-    final importRegExp = RegExp('^import .*?\n', multiLine: true);
-    final lastImportStart = lastIndexOf(importRegExp);
+  controller.foldCommentAtLineZero();
+  controller.foldImports();
 
-    return substring(0, cutStart) +
-        substring(lastImportStart).replaceFirst(importRegExp, '');
-  }
+  return controller.text;
 }

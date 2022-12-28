@@ -16,34 +16,28 @@
  * limitations under the License.
  */
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
+import 'package:playground/modules/examples/example_selector.dart';
+import 'package:playground/modules/sdk/components/sdk_selector.dart';
+import 'package:playground/modules/sdk/components/sdk_selector_row.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
-import 'common.dart';
+extension CommonFindersExtension on CommonFinders {
+  Finder exampleItemInDropdown(String name) {
+    return widgetWithText(GestureDetector, name);
+  }
 
-void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  Finder exampleSelector() {
+    return byType(ExampleSelector);
+  }
 
-  group('Integration.', () {
-    testWidgets('Change example', (WidgetTester wt) async {
-      await init(wt);
+  Finder sdkItemInDropdown(Sdk sdk) {
+    return find.byType(SdkSelectorRow).and(find.byKey(ValueKey(sdk)));
+  }
 
-      expect(
-        wt.findOneCodeController().lastTextSpan!.toPlainText(),
-        await Examples.getJavaVisibleText(ExamplePaths.javaMinimalWordCount),
-      );
-
-      await wt.tap(find.exampleSelector());
-      await wt.pumpAndSettle();
-
-      await wt.tap(find.exampleItemInDropdown(ExampleNames.aggregationMax));
-      await wt.pumpAndSettle();
-
-      expect(
-        wt.findOneCodeController().lastTextSpan!.toPlainText(),
-        await Examples.getJavaVisibleText(ExamplePaths.javaAggregationMax),
-      );
-    });
-  });
+  Finder sdkSelector() {
+    return byType(SDKSelector);
+  }
 }

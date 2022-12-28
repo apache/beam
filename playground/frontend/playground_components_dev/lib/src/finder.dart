@@ -16,12 +16,26 @@
  * limitations under the License.
  */
 
-export 'src/common_finders.dart';
-export 'src/example_names.dart';
-export 'src/example_outputs.dart';
-export 'src/example_paths.dart';
-export 'src/examples.dart';
-export 'src/expect.dart';
-export 'src/finder.dart';
-export 'src/string.dart';
-export 'src/widget_tester.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+extension FinderExtension on Finder {
+  // TODO(alexeyinkin): Push to Flutter or wait for them to make their own, https://github.com/flutter/flutter/issues/117675
+  Finder and(Finder another) {
+    return _AndFinder(this, another);
+  }
+}
+
+class _AndFinder extends ChainedFinder {
+  _AndFinder(super.parent, this.another);
+
+  final Finder another;
+
+  @override
+  String get description => '${parent.description} AND ${another.description}';
+
+  @override
+  Iterable<Element> filter(Iterable<Element> parentCandidates) {
+    return another.apply(parentCandidates);
+  }
+}

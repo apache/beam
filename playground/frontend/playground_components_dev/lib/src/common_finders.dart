@@ -17,38 +17,38 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:flutter_code_editor/flutter_code_editor.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
-class SdkSelectorRow extends StatelessWidget {
-  final Sdk sdk;
-  final VoidCallback onSelect;
+extension CommonFindersExtension on CommonFinders {
+  Finder codeField() {
+    return byType(CodeField);
+  }
 
-  SdkSelectorRow({
-    required this.sdk,
-    required this.onSelect,
-  }) : super(key: ValueKey(sdk));
+  Finder graphTab() {
+    // TODO(alexeyinkin): Use keys when output tabs get to use enum, https://github.com/apache/beam/issues/22663
+    return widgetWithText(OutputTab, 'Graph');
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      style: ButtonStyle(
-        textStyle: MaterialStateProperty.all<TextStyle>(
-          const TextStyle(fontWeight: kNormalWeight),
-        ),
-        alignment: Alignment.centerLeft,
-        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-          const RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
-          ),
-        ),
-      ),
-      onPressed: onSelect,
-      child: Padding(
-        padding: const EdgeInsets.all(kLgSpacing),
-        child: Text(sdk.title),
-      ),
+  Finder outputArea() {
+    return byType(OutputArea);
+  }
+
+  Finder outputSelectableText() {
+    final outputArea = find.outputArea();
+    return find.descendant(
+      of: outputArea,
+      matching: find.byType(SelectableText),
     );
+  }
+
+  Finder resultTab() {
+    // TODO(alexeyinkin): Use keys when output tabs get to use enum, https://github.com/apache/beam/issues/22663
+    return widgetWithText(OutputTab, 'Result');
+  }
+
+  Finder runOrCancelButton() {
+    return byType(RunOrCancelButton);
   }
 }

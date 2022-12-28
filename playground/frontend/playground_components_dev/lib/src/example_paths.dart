@@ -21,4 +21,9 @@ class ExamplePaths {
       '/learning/katas/java/Common Transforms/Aggregation/Max/src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java';
   static const javaMinimalWordCount =
       '/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java';
+
+  static const pythonAggregationMean =
+      '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py';
+  static const pythonMinimalWordCountWithMetrics =
+      '/sdks/python/apache_beam/examples/wordcount_with_metrics.py';
 }

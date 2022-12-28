@@ -183,11 +183,11 @@ ext.deleteFilesByRegExp = { re ->
 }
 
 tasks.register("integrationTest") {
-  dependsOn("integrationTest_standalone_change_example")
+  dependsOn("integrationTest_standalone_change_example_sdk_run")
 }
 
-tasks.register("integrationTest_standalone_change_example") {
-  runIntegrationTest("standalone_change_example", "/")
+tasks.register("integrationTest_standalone_change_example_sdk_run") {
+  runIntegrationTest("standalone_change_example_sdk_run", "/")
 }
 
 void runIntegrationTest(String path, String url) {

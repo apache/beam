@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-export 'src/common_finders.dart';
-export 'src/example_names.dart';
-export 'src/example_outputs.dart';
-export 'src/example_paths.dart';
-export 'src/examples.dart';
-export 'src/expect.dart';
-export 'src/finder.dart';
-export 'src/string.dart';
-export 'src/widget_tester.dart';
+class ExampleOutputs {
+  static const javaAggregationMaxTail = 'INFO: 10\n';
+
+  static const pythonAggregationMeanContains =
+      '16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]';
+
+  static const pythonWordCountWithMetricsTail = 'average word length: 4\n';
+}

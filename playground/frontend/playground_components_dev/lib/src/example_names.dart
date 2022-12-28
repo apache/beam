@@ -18,4 +18,5 @@
 
 class ExampleNames {
   static const aggregationMax = 'AggregationMax';
+  static const aggregationMean = 'AggregationMean';
 }

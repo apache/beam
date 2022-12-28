@@ -16,14 +16,32 @@
  * limitations under the License.
  */
 
+import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:playground_components/playground_components.dart';
+
+import 'common_finders.dart';
 
 extension WidgetTesterExtension on WidgetTester {
   CodeController findOneCodeController() {
-    final codeField = find.byType(CodeField);
+    final codeField = find.codeField();
     expect(codeField, findsOneWidget);
 
     return widget<CodeField>(codeField).controller;
+  }
+
+  TabController findOutputTabController() {
+    final outputTabs = find.byType(OutputTabs);
+    expect(outputTabs, findsOneWidget);
+
+    return widget<OutputTabs>(outputTabs).tabController;
+  }
+
+  String? findOutputText() {
+    final selectableText = find.outputSelectableText();
+    expect(selectableText, findsOneWidget);
+
+    return widget<SelectableText>(selectableText).data;
   }
 }

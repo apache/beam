@@ -26,8 +26,9 @@ environment:
 
 dependencies:
   flutter: { sdk: flutter }
-  flutter_code_editor: ^0.2.3
+  flutter_code_editor: ^0.2.4
   flutter_test: { sdk: flutter }
+  highlight: ^0.7.0
   http: ^0.13.5
   playground_components: { path: ../playground_components }
   total_lints: ^2.18.0
