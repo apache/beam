@@ -106,12 +106,16 @@ func (s *Loopback) StopWorker(ctx context.Context, req *fnpb.StopWorkerRequest) 
 // Stop terminates the service and stops all workers.
 func (s *Loopback) Stop(ctx context.Context) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	log.Infof(ctx, "stopping Loopback, and %d workers", len(s.workers))
 	s.workers = map[string]context.CancelFunc{}
 	s.lis.Close()
 	s.rootCancel()
+
+	// There can be a deadlock between the StopWorker RPC and GracefulStop
+	// which waits for all RPCs to finish, so it must be outside the critical section.
+	s.mu.Unlock()
+
 	s.grpcServer.GracefulStop()
 	return nil
 }
