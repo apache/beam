@@ -27,31 +27,31 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 
 /**
- * GenerateTopicPartitions is a straightforward DoFn designed to take the list of topics provided
- * in its configuration, and yield all the current {@link TopicPartition}s for those topics
+ * GenerateTopicPartitions is a straightforward DoFn designed to take the list of topics provided in
+ * its configuration, and yield all the current {@link TopicPartition}s for those topics
  *
- * It consumes a byte[], but this is from an Impulse, and is just used to start the processing.
+ * <p>It consumes a byte[], but this is from an Impulse, and is just used to start the processing.
  *
- * Because this process happens once and is bounded by the number of current TopicPartitions, there
- * is no need to leverage advanced features for performance, stability, or correctness.
+ * <p>Because this process happens once and is bounded by the number of current TopicPartitions,
+ * there is no need to leverage advanced features for performance, stability, or correctness.
  */
 public class GenerateTopicPartitions extends DoFn<byte[], TopicPartition> {
   final Map<String, Object> consumerConfig;
   final List<String> topics;
 
-  GenerateTopicPartitions(Map<String,Object> consumerConfig, List<String> topics) {
-    this.consumerConfig=consumerConfig;
-    this.topics=topics;
+  GenerateTopicPartitions(Map<String, Object> consumerConfig, List<String> topics) {
+    this.consumerConfig = consumerConfig;
+    this.topics = topics;
   }
 
   @ProcessElement
   public void processElement(OutputReceiver<TopicPartition> receiver) {
-      try (Consumer<?, ?> consumer = new KafkaConsumer<Object, Object>(consumerConfig)) {
-        for (String topic : Preconditions.checkStateNotNull(topics)) {
-          for (PartitionInfo p : consumer.partitionsFor(topic)) {
-            receiver.output(new TopicPartition(p.topic(),p.partition()));
-          }
+    try (Consumer<?, ?> consumer = new KafkaConsumer<Object, Object>(consumerConfig)) {
+      for (String topic : Preconditions.checkStateNotNull(topics)) {
+        for (PartitionInfo p : consumer.partitionsFor(topic)) {
+          receiver.output(new TopicPartition(p.topic(), p.partition()));
         }
       }
+    }
   }
 }

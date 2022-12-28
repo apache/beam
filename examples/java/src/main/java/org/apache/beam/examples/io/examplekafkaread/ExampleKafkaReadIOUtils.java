@@ -27,14 +27,18 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 public class ExampleKafkaReadIOUtils {
   static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
       ImmutableMap.of(
-          ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
-          ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
-          ConsumerConfig.RECEIVE_BUFFER_CONFIG, 512 * 1024,
+          ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+          ByteArrayDeserializer.class.getName(),
+          ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+          ByteArrayDeserializer.class.getName(),
+          ConsumerConfig.RECEIVE_BUFFER_CONFIG,
+          512 * 1024,
           // default to latest offset when we are not resuming.
-          ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest",
+          ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+          "latest",
           // disable auto commit of offsets. we don't require group_id. could be enabled by user.
-          ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,false);
-
+          ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+          false);
 
   static Map<String, Object> getOffsetConsumerConfig(
       String name, Map<String, Object> consumerConfig) {
@@ -65,7 +69,6 @@ public class ExampleKafkaReadIOUtils {
     return offsetConsumerConfig;
   }
 
-
   /**
    * Returns a new config map which is merge of current config and updates. Verifies the updates do
    * not includes ignored properties.
@@ -78,5 +81,4 @@ public class ExampleKafkaReadIOUtils {
 
     return config;
   }
-
 }

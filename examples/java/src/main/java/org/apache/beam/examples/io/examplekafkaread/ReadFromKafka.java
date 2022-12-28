@@ -40,8 +40,8 @@ import org.joda.time.Instant;
  * Because the element here is a topic partition, there can be any number of KV pairs per element.
  * As such, we mark this as {@link UnboundedPerElement}.
  *
- * Note, although base {@link org.apache.beam.sdk.io.kafka.KafkaIO} does provide an @GetSize method,
- * it is not required for a Kafka based IO to function properly. Because both IOs use an
+ * <p>Note, although base {@link org.apache.beam.sdk.io.kafka.KafkaIO} does provide an @GetSize
+ * method, it is not required for a Kafka based IO to function properly. Because both IOs use an
  * OffsetRangeTracker, the size of work remaining can be computed using that trackers built-in
  * getProgress function. In KafkaIO, this is enhanced providing a @GetSize method that improves the
  * estimate by keeping track of the size of the Kafka elements, but that is not strictly necessary.
@@ -52,7 +52,7 @@ public class ReadFromKafka extends DoFn<TopicPartition, KV<byte[], byte[]>> {
 
   final Map<String, Object> consumerConfig;
 
-  public ReadFromKafka(Map<String, Object> consumerConfig){
+  public ReadFromKafka(Map<String, Object> consumerConfig) {
     this.consumerConfig = consumerConfig;
   }
 
@@ -64,7 +64,8 @@ public class ReadFromKafka extends DoFn<TopicPartition, KV<byte[], byte[]>> {
    */
   @GetInitialRestriction
   public OffsetRange initialRestriction(@Element TopicPartition topicPartition) {
-    try (Consumer<byte[], byte[]> offsetConsumer = new KafkaConsumer<byte[], byte[]>(consumerConfig)) {
+    try (Consumer<byte[], byte[]> offsetConsumer =
+        new KafkaConsumer<byte[], byte[]>(consumerConfig)) {
       offsetConsumer.assign(ImmutableList.of(topicPartition));
       long startOffset = offsetConsumer.position(topicPartition);
 
@@ -77,7 +78,7 @@ public class ReadFromKafka extends DoFn<TopicPartition, KV<byte[], byte[]>> {
    * reflect this. As such, we use a {@link GrowableOffsetRangeTracker} to poll Kafka and see how
    * far out the end of the range is.
    *
-   * If the restriction provided by the runner has a getTo() of Long.MAX_VALUE, we don't need to
+   * <p>If the restriction provided by the runner has a getTo() of Long.MAX_VALUE, we don't need to
    * query Kafka to know how far out to grab our restriction.
    */
   @NewTracker
@@ -90,8 +91,7 @@ public class ReadFromKafka extends DoFn<TopicPartition, KV<byte[], byte[]>> {
         new ExampleKafkaReadOffsetEstimator(
             new KafkaConsumer<byte[], byte[]>(
                 ExampleKafkaReadIOUtils.getOffsetConsumerConfig(
-                    "tracker-" + topicPartition,
-                    consumerConfig)),
+                    "tracker-" + topicPartition, consumerConfig)),
             topicPartition);
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetPoller);
   }
@@ -122,11 +122,11 @@ public class ReadFromKafka extends DoFn<TopicPartition, KV<byte[], byte[]>> {
       @Element TopicPartition topicPartition,
       RestrictionTracker<OffsetRange, Long> tracker,
       WatermarkEstimator<Instant> watermarkEstimator,
-      OutputReceiver<KV<byte[], byte[]>> receiver){
+      OutputReceiver<KV<byte[], byte[]>> receiver) {
     try (Consumer<byte[], byte[]> consumer = new KafkaConsumer<byte[], byte[]>(consumerConfig)) {
       consumer.assign(ImmutableList.of(topicPartition));
       long startOffset = tracker.currentRestriction().getFrom();
-      //Seek to the lowest element for the restriction before we poll
+      // Seek to the lowest element for the restriction before we poll
       consumer.seek(topicPartition, startOffset);
       ConsumerRecords<byte[], byte[]> rawRecords = ConsumerRecords.empty();
 
@@ -135,28 +135,27 @@ public class ReadFromKafka extends DoFn<TopicPartition, KV<byte[], byte[]>> {
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
-          //If we receive no records, we still should update the watermark. This ensures that
-          //watermark driven logic continues to work downstream, even if the data on Kafka is sparse
+          // If we receive no records, we still should update the watermark. This ensures that
+          // watermark driven logic continues to work downstream, even if the data on Kafka is
+          // sparse
           ((ManualWatermarkEstimator<Instant>) watermarkEstimator).setWatermark(Instant.now());
 
-          //We continue processing, as there is still work to be done in the range of the tracker
+          // We continue processing, as there is still work to be done in the range of the tracker
           return ProcessContinuation.resume();
         }
         for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
           if (!tracker.tryClaim(rawRecord.offset())) {
-            //Because we poll from Kafka, as opposed to querying for specific rows, we may receive
-            //records that are beyond the scope of the tracker. If we do, we need to not process
-            //those records, and we return stop() to indicate that we are done with that tracker
+            // Because we poll from Kafka, as opposed to querying for specific rows, we may receive
+            // records that are beyond the scope of the tracker. If we do, we need to not process
+            // those records, and we return stop() to indicate that we are done with that tracker
             return ProcessContinuation.stop();
           }
-          //If we are able to claim the record, update the watermark, and output the KV pair.
+          // If we are able to claim the record, update the watermark, and output the KV pair.
           Instant now = Instant.now();
           ((ManualWatermarkEstimator<Instant>) watermarkEstimator).setWatermark(now);
           receiver.outputWithTimestamp(KV.of(rawRecord.key(), rawRecord.value()), now);
         }
       }
     }
-
   }
-
 }

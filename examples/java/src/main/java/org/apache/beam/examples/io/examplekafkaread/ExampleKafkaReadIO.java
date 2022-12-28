@@ -39,20 +39,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
 /**
- * An example unbounded SDF IO, using Kafka as an underlying source.
- * This IO deliberately has a minimal set of Kafka features, and exists as an example of how to
- * write an unbounded SDF source.
+ * An example unbounded SDF IO, using Kafka as an underlying source. This IO deliberately has a
+ * minimal set of Kafka features, and exists as an example of how to write an unbounded SDF source.
  *
- * This IO should not be used in pipelines, and has no guarantees for quality, correctness, or
+ * <p>This IO should not be used in pipelines, and has no guarantees for quality, correctness, or
  * performance.
  *
- * This IO was generated as a pared down version of KafkaIO, and should act to consume KV<byte[],byte[]> pairs from Kafka
- * In practice, this IO would be used thusly:
- * pipeline
- *   .apply(ExampleKafkaReadIO.read()
- *     .withBootstrapServers("broker_1:9092,broker_2:9092")
- *     .withTopics(ImmutableList.of("my_topic")))
- *   .apply(Some Other Transforms);
+ * <p>This IO was generated as a pared down version of KafkaIO, and should act to consume
+ * KV<byte[],byte[]> pairs from Kafka In practice, this IO would be used thusly: pipeline
+ * .apply(ExampleKafkaReadIO.read() .withBootstrapServers("broker_1:9092,broker_2:9092")
+ * .withTopics(ImmutableList.of("my_topic"))) .apply(Some Other Transforms);
  */
 public class ExampleKafkaReadIO {
 
@@ -65,8 +61,7 @@ public class ExampleKafkaReadIO {
 
   @AutoValue
   @AutoValue.CopyAnnotations
-  public abstract static class Read
-      extends PTransform<PBegin, PCollection<KV<byte[],byte[]>>> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<KV<byte[], byte[]>>> {
 
     @Pure
     abstract Map<String, Object> getConsumerConfig();
@@ -87,24 +82,23 @@ public class ExampleKafkaReadIO {
     }
 
     /**
-     * This expand method is characteristic of many top level expands for IOs.
-     * It validates required parameters and configurations, and then it applies a series of DoFns to
-     * actually execute the read or write. It is typical to have multiple DoFns here, as frequently
-     * an IO needs to determine what to read from the configuration before it actually reads.
-     * In this case, we are provided a topic name, but Kafka further divides its topics into partitions.
-     * As such, {@link GenerateTopicPartitions} exists to query Kafka for this detail, yielding one
-     * or more {@link org.apache.kafka.common.TopicPartition}s for every topic name.
+     * This expand method is characteristic of many top level expands for IOs. It validates required
+     * parameters and configurations, and then it applies a series of DoFns to actually execute the
+     * read or write. It is typical to have multiple DoFns here, as frequently an IO needs to
+     * determine what to read from the configuration before it actually reads. In this case, we are
+     * provided a topic name, but Kafka further divides its topics into partitions. As such, {@link
+     * GenerateTopicPartitions} exists to query Kafka for this detail, yielding one or more {@link
+     * org.apache.kafka.common.TopicPartition}s for every topic name.
      */
     @Override
     public PCollection<KV<byte[], byte[]>> expand(@NonNull PBegin input) {
       checkArgument(
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      checkArgument(
-          getTopics() != null && getTopics().size() > 0,
-          "withTopics() is required");
-      return input.apply(Impulse.create())
-          .apply(ParDo.of(new GenerateTopicPartitions(getConsumerConfig(),getTopics())))
+      checkArgument(getTopics() != null && getTopics().size() > 0, "withTopics() is required");
+      return input
+          .apply(Impulse.create())
+          .apply(ParDo.of(new GenerateTopicPartitions(getConsumerConfig(), getTopics())))
           .apply(ParDo.of(new ReadFromKafka(getConsumerConfig())));
     }
 
@@ -114,9 +108,7 @@ public class ExampleKafkaReadIO {
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
-    /**
-     * Sets a list of topics to read from. All the partitions from each of the topics are read.
-     */
+    /** Sets a list of topics to read from. All the partitions from each of the topics are read. */
     public ExampleKafkaReadIO.Read withTopics(List<String> topics) {
       return toBuilder().setTopics(ImmutableList.copyOf(topics)).build();
     }
@@ -125,7 +117,8 @@ public class ExampleKafkaReadIO {
      * Update configuration for the backend main consumer. Note that the default consumer properties
      * will not be completely overridden. This method only updates the value which has the same key.
      *
-     * <p>In {@link ExampleKafkaReadIO#read()}, there are two consumers running in the backend actually:<br>
+     * <p>In {@link ExampleKafkaReadIO#read()}, there are two consumers running in the backend
+     * actually:<br>
      * 1. the main consumer, which reads data from kafka;<br>
      * 2. the secondary offset consumer, which is used to estimate backlog, by fetching latest
      * offset;<br>
@@ -134,10 +127,9 @@ public class ExampleKafkaReadIO {
      * ExampleKafkaReadIOUtils#DEFAULT_CONSUMER_PROPERTIES}.
      */
     public ExampleKafkaReadIO.Read withConsumerConfigUpdates(Map<String, Object> configUpdates) {
-      Map<String, Object> config = ExampleKafkaReadIOUtils.updateKafkaProperties(getConsumerConfig(), configUpdates);
+      Map<String, Object> config =
+          ExampleKafkaReadIOUtils.updateKafkaProperties(getConsumerConfig(), configUpdates);
       return toBuilder().setConsumerConfig(config).build();
     }
-
-    }
-
+  }
 }

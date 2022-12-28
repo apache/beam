@@ -30,11 +30,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This estimator computes an estimate of how much work is remaining by using a separate consumer.
- * This consumer seeks to the end of the topic partition, and then returns the position.
- * The separate consumer is used in order to ensure we don't disrupt the primary consumer, which is
+ * This consumer seeks to the end of the topic partition, and then returns the position. The
+ * separate consumer is used in order to ensure we don't disrupt the primary consumer, which is
  * reading messages from the current position.
  */
-public class ExampleKafkaReadOffsetEstimator implements GrowableOffsetRangeTracker.RangeEndEstimator {
+public class ExampleKafkaReadOffsetEstimator
+    implements GrowableOffsetRangeTracker.RangeEndEstimator {
   private static final Logger LOG = LoggerFactory.getLogger(ExampleKafkaReadOffsetEstimator.class);
 
   private final Consumer<byte[], byte[]> offsetConsumer;
@@ -70,5 +71,3 @@ public class ExampleKafkaReadOffsetEstimator implements GrowableOffsetRangeTrack
     return memoizedBacklog.get();
   }
 }
-
-
