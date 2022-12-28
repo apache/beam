@@ -144,11 +144,11 @@ multi-element data set. A Beam pipeline needs a source of data to populate an
 initial `PCollection`. The source can be bounded (with a known, fixed size) or
 unbounded (with unlimited size).
 
-This example uses the 
+This example uses the
 [`Create`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Create)
 method to create a `PCollection` from an in-memory array of strings. The
 resulting `PCollection` contains the strings "Hello", "World!", and a
-user-provided input string. 
+user-provided input string.
 
 ```python
 pipeline
