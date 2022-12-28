@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/structx"
 	"go.mongodb.org/mongo-driver/bson"
@@ -56,19 +57,19 @@ func init() {
 // WithReadBucketAuto(true).
 //
 // The Read transform has the required parameters:
-// 	- s: the scope of the pipeline
-// 	- uri: the MongoDB connection string
-// 	- database: the MongoDB database to read from
-// 	- collection: the MongoDB collection to read from
-// 	- t: the type of the elements in the collection
+//   - s: the scope of the pipeline
+//   - uri: the MongoDB connection string
+//   - database: the MongoDB database to read from
+//   - collection: the MongoDB collection to read from
+//   - t: the type of the elements in the collection
 //
 // The Read transform takes a variadic number of ReadOptionFn which can set the ReadOption fields:
-// 	- BucketAuto: whether to use the bucketAuto aggregation to split the collection into bundles.
-// 	  Defaults to false
-// 	- Filter: a bson.M map that is used to filter the documents in the collection. Defaults to nil,
-// 	  which means no filter is applied
-// 	- BundleSize: the size in bytes to bundle the documents into when reading. Defaults to
-// 	  64 * 1024 * 1024 (64 MB)
+//   - BucketAuto: whether to use the bucketAuto aggregation to split the collection into bundles.
+//     Defaults to false
+//   - Filter: a bson.M map that is used to filter the documents in the collection. Defaults to nil,
+//     which means no filter is applied
+//   - BundleSize: the size in bytes to bundle the documents into when reading. Defaults to
+//     64 * 1024 * 1024 (64 MB)
 func Read(
 	s beam.Scope,
 	uri string,
@@ -384,7 +385,7 @@ func (fn *readFn) ProcessElement(
 	ctx context.Context,
 	elem bson.M,
 	emit func(beam.Y),
-) error {
+) (err error) {
 	projection := inferProjection(fn.Type.T, bsonTag)
 
 	filter, err := decodeBSONMap(fn.Filter)
@@ -399,7 +400,18 @@ func (fn *readFn) ProcessElement(
 		return err
 	}
 
-	defer cursor.Close(ctx)
+	defer func() {
+		closeErr := cursor.Close(ctx)
+
+		if err != nil {
+			if closeErr != nil {
+				log.Errorf(ctx, "error closing cursor: %v", closeErr)
+			}
+			return
+		}
+
+		err = closeErr
+	}()
 
 	for cursor.Next(ctx) {
 		value, err := decodeDocument(cursor, fn.Type.T)
@@ -410,7 +422,7 @@ func (fn *readFn) ProcessElement(
 		emit(value)
 	}
 
-	return nil
+	return cursor.Err()
 }
 
 func inferProjection(t reflect.Type, tagKey string) bson.D {
