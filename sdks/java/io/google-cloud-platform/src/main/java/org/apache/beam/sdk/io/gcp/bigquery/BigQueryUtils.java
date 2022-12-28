@@ -263,6 +263,7 @@ public class BigQueryUtils {
           .put(SqlTypes.DATE.getIdentifier(), StandardSQLTypeName.DATE)
           .put(SqlTypes.TIME.getIdentifier(), StandardSQLTypeName.TIME)
           .put(SqlTypes.DATETIME.getIdentifier(), StandardSQLTypeName.DATETIME)
+          .put(SqlTypes.TIMESTAMP.getIdentifier(), StandardSQLTypeName.TIMESTAMP)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
           .put("Enum", StandardSQLTypeName.STRING)
           .build();
