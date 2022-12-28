@@ -123,7 +123,7 @@ def generate_urn_files(out_dir, api_path):
   This is executed at build time rather than dynamically on import to ensure
   that it is compatible with static type checkers like mypy.
   """
-  import google.protobuf.pyext._message as pyext_message
+  from google._upb import _message as pyext_message
   from google.protobuf import message
 
   class Context(object):
