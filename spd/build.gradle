@@ -1,0 +1,29 @@
+plugins {
+    id 'java'
+    id 'org.apache.beam.module'
+    id 'com.github.johnrengelman.shadow'
+}
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.spd',
+        exportJavadoc: false,
+        validateShadowJar: false,
+        shadowClosure: {},
+)
+provideIntegrationTestingDependencies()
+
+description = "Apache Beam :: Structured Pipeline Descriptions"
+ext.summary = "Structured Pipeline Descriptions (SPD) for Beam"
+
+dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.slf4j_api
+    implementation project(path: ":sdks:java:extensions:spd")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+
+    testImplementation library.java.junit
+    testImplementation library.java.hamcrest
+    testRuntimeOnly library.java.slf4j_jdk14
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+
+}

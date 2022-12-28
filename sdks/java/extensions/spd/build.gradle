@@ -46,8 +46,11 @@ dependencies {
     implementation "com.hubspot.jinjava:jinjava:$jinjava_version"
     implementation "org.eclipse.jgit:org.eclipse.jgit:$jgit_version"
     implementation 'org.jetbrains:annotations:20.1.0'
+
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly project(path: ":runners:portability:java")
+
 }

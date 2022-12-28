@@ -211,7 +211,7 @@ public class StructuredPipelineDescription {
       }
       if (rel.size() > 0) {
         Relation primary = rel.get(0);
-        LOG.info("Python primary relation is "+primary.toString());
+        LOG.info("Python primary relation is " + primary.toString());
         PCollection<Row> pcollection =
             readFrom(primary.getTable().getName(), pipeline.begin())
                 .apply(DataframeTransform.of(result.getOutput()).withIndexes());
