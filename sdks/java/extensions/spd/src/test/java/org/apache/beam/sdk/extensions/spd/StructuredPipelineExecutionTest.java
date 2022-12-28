@@ -23,6 +23,8 @@ import java.nio.file.Paths;
 import java.util.Map.Entry;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -35,7 +37,13 @@ import org.slf4j.LoggerFactory;
 public class StructuredPipelineExecutionTest {
   private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineExecutionTest.class);
 
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(pipelineOptions());
+
+  private static PipelineOptions pipelineOptions() {
+    PipelineOptions p = TestPipeline.testingPipelineOptions();
+    p.setStableUniqueNames(CheckEnabled.OFF);
+    return p;
+  }
 
   @Test
   public void testSimplePipeline() throws Exception {

@@ -20,8 +20,11 @@ package org.apache.beam.sdk.extensions.spd.macros;
 import com.hubspot.jinjava.Jinjava;
 import com.hubspot.jinjava.interpret.RenderResult;
 import com.hubspot.jinjava.lib.fn.ELFunctionDefinition;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.spd.Relation;
 import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
 
 public class MacroContext {
@@ -51,9 +54,14 @@ public class MacroContext {
     return parser.renderForResult(expr, binding);
   }
 
-  public RenderResult eval(String expr, StructuredPipelineDescription spd) {
+  public RenderResult eval(String expr, StructuredPipelineDescription spd, List<Relation> tables) {
     Map<String, Object> binding = new HashMap<>();
     binding.put("_spd", spd);
+    binding.put("_rel", tables);
     return eval(expr, binding);
+  }
+
+  public RenderResult eval(String expr, StructuredPipelineDescription spd) {
+    return eval(expr, spd, new ArrayList<>());
   }
 }

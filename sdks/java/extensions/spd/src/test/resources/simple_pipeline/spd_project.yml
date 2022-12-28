@@ -5,8 +5,10 @@ profile: simple_pipeline
 
 
 models:
-  wins_by_id:
+  python:
     +materialized: ephemeral
+  wins_by_id:
+    +materialized: table
   example:
     simple_aggregation:
       +materialized: table

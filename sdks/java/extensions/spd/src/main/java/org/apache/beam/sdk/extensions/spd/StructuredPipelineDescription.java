@@ -39,7 +39,7 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
+import org.apache.beam.sdk.extensions.python.transforms.DataframeTransform;
 import org.apache.beam.sdk.extensions.spd.description.Column;
 import org.apache.beam.sdk.extensions.spd.description.Model;
 import org.apache.beam.sdk.extensions.spd.description.Profile;
@@ -62,7 +62,6 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -144,7 +143,7 @@ public class StructuredPipelineDescription {
     if (t == null) {
       throw new Exception("No table named " + fullTableName);
     }
-    return tableMap.buildBeamSqlTable(t).buildIOReader(input);
+    return metaTableProvider.buildBeamSqlTable(t).buildIOReader(input);
   }
 
   public Relation getRelation(String name) throws Exception {
@@ -203,17 +202,23 @@ public class StructuredPipelineDescription {
       metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
     } else if (model instanceof PythonModel) {
       PythonModel pymodel = (PythonModel) model;
-      RenderResult result = context.eval(pymodel.getRawPy(), this);
+      ArrayList<Relation> rel = new ArrayList<>();
+      RenderResult result = context.eval(pymodel.getRawPy(), this, rel);
       if (result.hasErrors()) {
         for (TemplateError error : result.getErrors()) {
           throw error.getException();
         }
       }
-      pipeline
-          .begin()
-          .apply(
-              PythonExternalTransform.from("__callable__")
-                  .withArgs(PythonCallableSource.of(result.getOutput())));
+      if (rel.size() > 0) {
+        Relation primary = rel.get(0);
+        LOG.info("Python primary relation is "+primary.toString());
+        PCollection<Row> pcollection =
+            readFrom(primary.getTable().getName(), pipeline.begin())
+                .apply(DataframeTransform.of(result.getOutput()));
+        metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
+      } else {
+        throw new Exception("Python model is not associated with an input table");
+      }
     }
     return metaTableProvider.getTable(fullTableName);
   }
@@ -387,6 +392,17 @@ public class StructuredPipelineDescription {
           mergeConfiguration(path, null, sqlModel);
           modelMap.put(name, sqlModel);
           continue;
+        }
+        if (file.getFileName().toString().endsWith(".py")) {
+          LOG.info("Found Python at " + file.toAbsolutePath().toString());
+          String name = file.getFileName().toString().replace(".py", "");
+          if (modelMap.containsKey(name)) {
+            throw new Exception("Duplicate model " + name + "found.");
+          }
+          PythonModel pyModel =
+              new PythonModel(path, name, String.join("\n", Files.readAllLines(file)));
+          mergeConfiguration(path, null, pyModel);
+          modelMap.put(name, pyModel);
         }
         LOG.info("Unable to determine  model for " + file.toAbsolutePath().toString());
       }

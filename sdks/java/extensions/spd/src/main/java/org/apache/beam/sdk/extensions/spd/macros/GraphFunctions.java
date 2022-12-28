@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.spd.macros;
 
 import com.hubspot.jinjava.interpret.JinjavaInterpreter;
+import java.util.List;
 import org.apache.beam.sdk.extensions.spd.Relation;
 import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
 import org.slf4j.Logger;
@@ -29,16 +30,22 @@ public class GraphFunctions {
   public static Relation tableReference(String... args) throws Exception {
     StructuredPipelineDescription spd =
         (StructuredPipelineDescription) JinjavaInterpreter.getCurrent().getContext().get("_spd");
+    List<Relation> rel = (List<Relation>) JinjavaInterpreter.getCurrent().getContext().get("_rel");
     //  String packageName = args.length == 1 ? "default" : args[0];
     String tableName = args.length == 1 ? args[0] : args[1];
     LOG.info("Trying to find relation " + tableName);
-    return spd.getRelation(tableName);
+    Relation r = spd.getRelation(tableName);
+    rel.add(r);
+    return r;
   }
 
   public static Relation sourceReference(String sourceName, String tableName) throws Exception {
     StructuredPipelineDescription spd =
         (StructuredPipelineDescription) JinjavaInterpreter.getCurrent().getContext().get("_spd");
-    return spd.getSourceRelation(sourceName, tableName);
+    List<Relation> rel = (List<Relation>) JinjavaInterpreter.getCurrent().getContext().get("_rel");
+    Relation r = spd.getSourceRelation(sourceName, tableName);
+    rel.add(r);
+    return r;
   }
 
   public static String dataframeReference(String... args) throws Exception {

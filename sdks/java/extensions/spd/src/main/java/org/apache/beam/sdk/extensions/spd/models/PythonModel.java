@@ -17,26 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.spd.models;
 
-public class PythonModel implements StructuredModel {
+public class PythonModel extends ConfiguredModel implements StructuredModel {
 
-  private String path;
-  private String name;
+  private String[] path;
   private String rawPy;
 
-  public PythonModel(String path, String name, String rawPy) {
+  public PythonModel(String[] path, String name, String rawPy) {
+    super(name);
     this.path = path;
-    this.name = name;
     this.rawPy = rawPy;
   }
 
   @Override
   public String getPath() {
-    return path;
-  }
-
-  @Override
-  public String getName() {
-    return name;
+    return path == null ? "" : String.join(".", path);
   }
 
   public String getRawPy() {
