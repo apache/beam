@@ -146,6 +146,8 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+          // SingleOut will only ever emmit the mainOutput. Though, there might be additional
+          // outputs which are skipped if unused to avoid caching.
           if (mainOutput.equals(tag)) {
             buffer.add((WindowedValue<OutT>) output);
           }
@@ -178,6 +180,7 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+          // Additional unused outputs can be skipped here. In that case columnIdx is null.
           Integer columnIdx = tagColIdx.get(tag.getId());
           if (columnIdx != null) {
             buffer.add(tuple(columnIdx, (WindowedValue<OutT>) output));
