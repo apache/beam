@@ -2334,9 +2334,9 @@ class StorageWriteToBigQuery(PTransform):
   def __init__(
       self,
       table,
-      create_disposition=None,
-      write_disposition=None,
-      triggering_frequency=None,
+      create_disposition="",
+      write_disposition="",
+      triggering_frequency=0,
       use_at_least_once=False,
       expansion_service=None):
     """Initialize a StorageWriteToBigQuery transform.
