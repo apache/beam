@@ -48,11 +48,11 @@ dependencies {
 dependencies {
   testImplementation("org.testcontainers:azure:${cosmosContainerVersion}")
   testImplementation("com.outr:scribe_2.12:3.10.4")
+  testImplementation("com.outr:scribe-slf4j_2.12:3.10.5")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.mockito_core
   testImplementation("org.junit.vintage:junit-vintage-engine:${junitVersion}")
   testRuntimeOnly("org.apache.logging.log4j:log4j-api:$log4jVersion")
   testRuntimeOnly("org.apache.logging.log4j:log4j-core:$log4jVersion")
-  testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
