@@ -56,16 +56,16 @@ func init() {
 // inserted id values with type K.
 //
 // The Write transform has the required parameters:
-// 	- s: the scope of the pipeline
-// 	- uri: the MongoDB connection string
-// 	- database: the MongoDB database to write to
-// 	- collection: the MongoDB collection to write to
-// 	- col: the PCollection to write to MongoDB
+//   - s: the scope of the pipeline
+//   - uri: the MongoDB connection string
+//   - database: the MongoDB database to write to
+//   - collection: the MongoDB collection to write to
+//   - col: the PCollection to write to MongoDB
 //
 // The Write transform takes a variadic number of WriteOptionFn which can set the WriteOption
 // fields:
-// 	- BatchSize: the number of documents to write in a single batch. Defaults to 1000
-// 	- Ordered: whether to execute the writes in order. Defaults to true
+//   - BatchSize: the number of documents to write in a single batch. Defaults to 1000
+//   - Ordered: whether to execute the writes in order. Defaults to true
 func Write(
 	s beam.Scope,
 	uri string,
