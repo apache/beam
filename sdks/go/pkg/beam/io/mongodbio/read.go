@@ -354,8 +354,10 @@ func idFiltersFromSplits(splitKeys []splitKey) []bson.M {
 
 type readFn struct {
 	mongoDBFn
-	Filter []byte
-	Type   beam.EncodedType
+	Filter     []byte
+	Type       beam.EncodedType
+	projection bson.D
+	filter     bson.M
 }
 
 func newReadFn(
@@ -381,21 +383,45 @@ func newReadFn(
 	}
 }
 
-func (fn *readFn) ProcessElement(
-	ctx context.Context,
-	elem bson.M,
-	emit func(beam.Y),
-) (err error) {
-	projection := inferProjection(fn.Type.T, bsonTag)
+func (fn *readFn) Setup(ctx context.Context) error {
+	if err := fn.mongoDBFn.Setup(ctx); err != nil {
+		return err
+	}
 
 	filter, err := decodeBSONMap(fn.Filter)
 	if err != nil {
 		return err
 	}
 
-	mergedFilter := mergeFilters(elem, filter)
+	fn.filter = filter
+	fn.projection = inferProjection(fn.Type.T, bsonTag)
 
-	cursor, err := fn.findDocuments(ctx, projection, mergedFilter)
+	return nil
+}
+
+func inferProjection(t reflect.Type, tagKey string) bson.D {
+	names := structx.InferFieldNames(t, tagKey)
+	if len(names) == 0 {
+		panic("mongodbio.inferProjection: no names to infer projection from")
+	}
+
+	projection := make(bson.D, len(names))
+
+	for i, name := range names {
+		projection[i] = bson.E{Key: name, Value: 1}
+	}
+
+	return projection
+}
+
+func (fn *readFn) ProcessElement(
+	ctx context.Context,
+	elem bson.M,
+	emit func(beam.Y),
+) (err error) {
+	mergedFilter := mergeFilters(elem, fn.filter)
+
+	cursor, err := fn.findDocuments(ctx, fn.projection, mergedFilter)
 	if err != nil {
 		return err
 	}
@@ -423,21 +449,6 @@ func (fn *readFn) ProcessElement(
 	}
 
 	return cursor.Err()
-}
-
-func inferProjection(t reflect.Type, tagKey string) bson.D {
-	names := structx.InferFieldNames(t, tagKey)
-	if len(names) == 0 {
-		panic("mongodbio.inferProjection: no names to infer projection from")
-	}
-
-	projection := make(bson.D, len(names))
-
-	for i, name := range names {
-		projection[i] = bson.E{Key: name, Value: 1}
-	}
-
-	return projection
 }
 
 func mergeFilters(idFilter bson.M, customFilter bson.M) bson.M {
