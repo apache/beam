@@ -508,7 +508,7 @@ public abstract class PubsubClient implements Closeable {
 
   /** Create {@link com.google.api.services.pubsub.model.Schema} from resource path. */
   public abstract void createSchema(
-      SchemaPath schemaPath, String resourcePath, com.google.pubsub.v1.Schema.Type type)
+      SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)
       throws IOException;
 
   /** Delete {@link SchemaPath}. */
