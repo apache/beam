@@ -26,10 +26,6 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.8'
 
-def posargs = project.findProperty("posargs") ?: ""
-def runDataframesTests = (posargs == "" || posargs.contains("dataframes"))
-logger.info('Running dataframes tests: ' + runDataframesTests)
-
 toxTask "formatter", "py3-yapf-check"
 check.dependsOn formatter
 
@@ -38,8 +34,12 @@ apply from: "../common.gradle"
 // TODO(https://github.com/apache/beam/issues/20051): Remove this once tox uses isolated builds.
 testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
 
+// TODO(BEAM-12000): Move tasks that aren't specific to 3.8 to Py 3.9.
+def posargs = project.findProperty("posargs") ?: ""
+def runDataframesTests = (posargs == "" || posargs.contains("dataframes"))
+logger.info('Running dataframes tests: ' + runDataframesTests)
+
 // Create a test task for each major version of pyarrow
-// TODO(BEAM-12000): Move these to Py 3.9.
 toxTask "testPy38pyarrow-0", "py38-pyarrow-0", "${posargs}"
 test.dependsOn "testPy38pyarrow-0"
 preCommitPy38.dependsOn "testPy38pyarrow-0"
