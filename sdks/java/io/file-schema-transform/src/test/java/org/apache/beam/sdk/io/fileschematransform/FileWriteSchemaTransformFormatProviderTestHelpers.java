@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.fileschematransform;
 import org.junit.rules.TemporaryFolder;
 
 class FileWriteSchemaTransformFormatProviderTestHelpers {
+  static final FileWriteSchemaTransformFormatProviderTestData DATA =
+      new FileWriteSchemaTransformFormatProviderTestData();
+
   static String prefix(TemporaryFolder tmpFolder, String to) {
     return tmpFolder.getRoot().getAbsolutePath() + "/" + to;
   }

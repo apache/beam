@@ -17,23 +17,27 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import java.io.Serializable;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
+import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 
-/** An {@link XmlAdapter} for {@link DateTime}s. */
-class XmlDateTimeAdapter extends XmlAdapter<String, DateTime> implements Serializable {
-  private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.dateTime();
+/** A {@link FileWriteSchemaTransformFormatProvider} for CSV format. */
+@AutoService(FileWriteSchemaTransformFormatProvider.class)
+public class CsvWriteSchemaTransformFormatProvider
+    implements FileWriteSchemaTransformFormatProvider {
 
   @Override
-  public DateTime unmarshal(String v) throws Exception {
-    return DateTime.parse(v, FORMATTER);
+  public String identifier() {
+    return FileWriteSchemaTransformFormatProviders.CSV;
   }
 
   @Override
-  public String marshal(DateTime v) throws Exception {
-    return v.toString(FORMATTER);
+  public PTransform<PCollection<Row>, PDone> buildTransform(
+      FileWriteSchemaTransformConfiguration configuration, Schema schema) {
+    // TODO(https://github.com/apache/beam/issues/24469)
+    throw new UnsupportedOperationException();
   }
 }

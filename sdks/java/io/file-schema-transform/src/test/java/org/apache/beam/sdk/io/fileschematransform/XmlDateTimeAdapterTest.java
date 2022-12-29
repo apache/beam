@@ -17,23 +17,27 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import java.io.Serializable;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import static org.junit.Assert.assertEquals;
+
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
+import org.joda.time.Instant;
+import org.junit.Test;
 
-/** An {@link XmlAdapter} for {@link DateTime}s. */
-class XmlDateTimeAdapter extends XmlAdapter<String, DateTime> implements Serializable {
-  private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.dateTime();
+/** Tests for {@link XmlDateTimeAdapter}. */
+public class XmlDateTimeAdapterTest {
 
-  @Override
-  public DateTime unmarshal(String v) throws Exception {
-    return DateTime.parse(v, FORMATTER);
+  @Test
+  public void unmarshal() throws Exception {
+    XmlDateTimeAdapter adapter = new XmlDateTimeAdapter();
+    String dateTimeInput = "2022-12-29T21:04:51.171Z";
+    assertEquals(
+        Instant.ofEpochMilli(1672347891171L).toDateTime(), adapter.unmarshal(dateTimeInput));
   }
 
-  @Override
-  public String marshal(DateTime v) throws Exception {
-    return v.toString(FORMATTER);
+  @Test
+  public void marshal() throws Exception {
+    XmlDateTimeAdapter adapter = new XmlDateTimeAdapter();
+    DateTime dateTime = Instant.ofEpochMilli(1672347891171L).toDateTime();
+    assertEquals("2022-12-29T21:04:51.171Z", adapter.marshal(dateTime));
   }
 }

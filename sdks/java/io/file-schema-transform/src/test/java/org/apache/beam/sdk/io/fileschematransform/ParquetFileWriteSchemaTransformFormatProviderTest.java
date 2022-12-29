@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DOUBLY_NESTED_D
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_SCHEMA;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.DATA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.prefix;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.PARQUET;
 
@@ -44,15 +45,12 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link FileWriteSchemaTransformFormatProviders.Parquet}. */
+/** Tests for {@link ParquetWriteSchemaTransformFormatProvider}. */
 @RunWith(JUnit4.class)
 public class ParquetFileWriteSchemaTransformFormatProviderTest {
 
   private static final FileWriteSchemaTransformFormatProvider PROVIDER =
       FileWriteSchemaTransformFormatProviders.loadProviders().get(PARQUET);
-
-  private static final FileWriteSchemaTransformFormatProviderTestData DATA =
-      new FileWriteSchemaTransformFormatProviderTestData();
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 

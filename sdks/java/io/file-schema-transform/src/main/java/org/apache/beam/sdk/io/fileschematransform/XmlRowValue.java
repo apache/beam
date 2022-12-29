@@ -36,6 +36,13 @@ import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
 
+/**
+ * Implements an {@link XmlType} of {@link Row} values for compatible use with {@link
+ * javax.xml.bind.JAXBContext}. {@link XmlRowValue} allows {@link
+ * XmlWriteSchemaTransformFormatProvider} to convert {@link Row} values to XML strings with no
+ * knowledge of the original Java class. {@link #setValue(String, Row)} serves as the algorithm's
+ * entry point.
+ */
 @XmlType
 class XmlRowValue implements Serializable {
   @Nullable private Object primitiveValue = null;
@@ -46,12 +53,20 @@ class XmlRowValue implements Serializable {
 
   @Nullable private HashMap<String, XmlRowValue> nestedValue = null;
 
+  /**
+   * A {@link Row}'s value for a primitive type such as {@link FieldType#STRING}, {@link
+   * FieldType#DOUBLE}, etc.
+   */
   @XmlElement(name = "value")
   @Nullable
   Object getPrimitiveValue() {
     return primitiveValue;
   }
 
+  /**
+   * A {@link Row}'s value for a {@link FieldType#DATETIME}, converted using {@link
+   * XmlDateTimeAdapter}.
+   */
   @XmlElement(name = "value")
   @XmlJavaTypeAdapter(XmlDateTimeAdapter.class)
   @Nullable
@@ -59,12 +74,14 @@ class XmlRowValue implements Serializable {
     return dateTimeValue;
   }
 
+  /** A {@link Row}'s value for a {@link TypeName#ARRAY} or {@link TypeName#ITERABLE} type. */
   @XmlElement(name = "array")
   @Nullable
   ArrayList<XmlRowValue> getValueList() {
     return valueList;
   }
 
+  /** A {@link Row}'s value for a nested {@link TypeName#ROW} value. */
   @XmlElement(name = "row")
   @Nullable
   HashMap<String, XmlRowValue> getNestedValue() {
@@ -79,6 +96,13 @@ class XmlRowValue implements Serializable {
     this.valueList = valueList;
   }
 
+  /**
+   * The entry point for parsing a {@link Row} record and its value mapped from the key. Primitive
+   * types populate {@link #setPrimitiveValue(Object)}. {@link FieldType#DATETIME} values populate
+   * {@link #setDateTimeValue(ReadableDateTime)}. {@link TypeName#ARRAY} or {@link
+   * TypeName#ITERABLE} values populate {@link #setArrayValue(String, Field, Row)} and {@link
+   * TypeName#ROW} nested values populate {@link #setNestedValue(Row)}.
+   */
   void setValue(String key, Row parent) {
     Schema schema = parent.getSchema();
     Field field = schema.getField(key);
@@ -223,8 +247,16 @@ class XmlRowValue implements Serializable {
 
   @Override
   public int hashCode() {
-    int result = Optional.ofNullable(getPrimitiveValue()).hashCode();
-    result = 31 * result + Optional.ofNullable(getValueList()).hashCode();
+    // resolves dereference of possibly-null reference
+    Optional<Object> primitive = Optional.ofNullable(getPrimitiveValue());
+    Optional<ArrayList<XmlRowValue>> list = Optional.ofNullable(getValueList());
+    Optional<DateTime> dateTime = Optional.ofNullable(getDateTimeValue());
+    Optional<HashMap<String, XmlRowValue>> nested = Optional.ofNullable(getNestedValue());
+
+    int result = primitive.hashCode();
+    result = 31 * result + list.hashCode();
+    result = 31 * result + dateTime.hashCode();
+    result = 31 * result + nested.hashCode();
     return result;
   }
 

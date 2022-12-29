@@ -17,23 +17,14 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import java.io.Serializable;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
+import static org.junit.Assert.assertEquals;
 
-/** An {@link XmlAdapter} for {@link DateTime}s. */
-class XmlDateTimeAdapter extends XmlAdapter<String, DateTime> implements Serializable {
-  private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.dateTime();
+import org.junit.Test;
 
-  @Override
-  public DateTime unmarshal(String v) throws Exception {
-    return DateTime.parse(v, FORMATTER);
-  }
+public class XmlRowAdapterTest {
 
-  @Override
-  public String marshal(DateTime v) throws Exception {
-    return v.toString(FORMATTER);
+  @Test
+  public void wrapRow() {
+    assertEquals(1, 1);
   }
 }

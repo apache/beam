@@ -26,17 +26,17 @@ import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
-import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.Xml;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 
 /**
  * Wraps a {@link Row} for compatible use with {@link javax.xml.bind.JAXBContext}. {@link
- * XmlRowAdapter} allows {@link Xml} to convert {@link Row} to XML strings with no knowledge of the
- * original Java class. {@link javax.xml.bind.Marshaller} requires Java classes to be annotated with
- * {@link XmlRootElement}, preventing the {@link javax.xml.bind.Marshaller#marshal(Object, Writer)}
- * of {@link Row}s directly. {@link XmlRowAdapter} exposes the String key and Object value pairs of
- * the {@link Row} to the {@link javax.xml.bind.Marshaller}.
+ * XmlRowAdapter} allows {@link XmlWriteSchemaTransformFormatProvider} to convert {@link Row} to XML
+ * strings with no knowledge of the original Java class. {@link javax.xml.bind.Marshaller} requires
+ * Java classes to be annotated with {@link XmlRootElement}, preventing the {@link
+ * javax.xml.bind.Marshaller#marshal(Object, Writer)} of {@link Row}s directly. {@link
+ * XmlRowAdapter} exposes the String key and Object value pairs of the {@link Row} to the {@link
+ * javax.xml.bind.Marshaller}.
  */
 @XmlRootElement(name = "row")
 @XmlAccessorType(XmlAccessType.PROPERTY)
