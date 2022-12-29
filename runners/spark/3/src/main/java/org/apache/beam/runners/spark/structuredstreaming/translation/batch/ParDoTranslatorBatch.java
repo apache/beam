@@ -34,6 +34,7 @@ import java.util.Map.Entry;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
@@ -114,6 +115,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     Dataset<WindowedValue<InputT>> inputDs = cxt.getDataset(input);
     SideInputReader sideInputReader =
         createSideInputReader(transform.getSideInputs().values(), cxt);
+    MetricsAccumulator metrics = MetricsAccumulator.getInstance(cxt.getSparkSession());
 
     TupleTag<OutputT> mainOut = transform.getMainOutputTag();
     // Filter out unconsumed PCollections (except mainOut) to potentially avoid the costs of caching
@@ -135,6 +137,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
               cxt.getOptionsSupplier(),
               input,
               sideInputReader,
+              metrics,
               tagColIdx);
 
       // FIXME What's the strategy to unpersist Datasets / RDDs?
@@ -186,7 +189,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
       PCollection<OutputT> output = cxt.getOutput(mainOut);
       DoFnPartitionIteratorFactory<InputT, ?, WindowedValue<OutputT>> doFnMapper =
           DoFnPartitionIteratorFactory.singleOutput(
-              cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader);
+              cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader, metrics);
 
       Dataset<WindowedValue<OutputT>> mainDS =
           inputDs.mapPartitions(doFnMapper, cxt.windowedEncoder(output.getCoder()));
