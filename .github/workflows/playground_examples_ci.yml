@@ -45,7 +45,5 @@ jobs:
       subdirs: ./learning/katas ./examples ./sdks
       # unfortunately, there's no input type for list
       allowlist: |
-        .github/workflows/playground_examples_ci_reusable.yml \
-        .github/workflows/playground_examples_ci.yml \
         playground/backend \
         playground/infrastructure \
