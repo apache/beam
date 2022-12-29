@@ -55,7 +55,8 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final int contextLine;
   final String description;
   final bool isMultiFile;
-  final String? link;
+  final String? urlNotebook;
+  final String? urlVcs;
   final String name;
   final String path;
   final String pipelineOptions;
@@ -73,7 +74,8 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
     this.contextLine = 1,
     this.description = '',
     this.isMultiFile = false,
-    this.link,
+    this.urlNotebook,
+    this.urlVcs,
     this.pipelineOptions = '',
     this.tags = const [],
     this.viewOptions = ExampleViewOptions.empty,

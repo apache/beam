@@ -333,7 +333,8 @@ class GrpcExampleClient implements ExampleClient {
       contextLine: example.contextLine,
       pipelineOptions: example.pipelineOptions,
       isMultiFile: example.multifile,
-      link: example.link,
+      urlNotebook: example.urlNotebook,
+      urlVcs: example.urlVcs,
       complexity: example.complexity.model,
     );
   }
@@ -344,11 +345,13 @@ class GrpcExampleClient implements ExampleClient {
     final sharedFilesList = <SharedFile>[];
 
     for (final item in snippetFileList) {
-      sharedFilesList.add(SharedFile(
-        code: item.content,
-        isMain: item.isMain,
-        name: item.name,
-      ));
+      sharedFilesList.add(
+        SharedFile(
+          code: item.content,
+          isMain: item.isMain,
+          name: item.name,
+        ),
+      );
     }
 
     return sharedFilesList;

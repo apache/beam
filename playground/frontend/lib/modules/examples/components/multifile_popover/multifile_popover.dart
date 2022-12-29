@@ -17,13 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/assets.dart';
+import 'package:playground/components/link_button.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 const kMultifileWidth = 300.0;
 
@@ -35,13 +33,16 @@ class MultifilePopover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     AppLocalizations appLocale = AppLocalizations.of(context)!;
+    final hasGithubLink = example.urlVcs?.isNotEmpty ?? false;
+    final hasNotebookLink = example.urlNotebook?.isNotEmpty ?? false;
     return SizedBox(
       width: kMultifileWidth,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(kLgSpacing),
-          child: Wrap(
-            runSpacing: kMdSpacing,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 appLocale.multifile,
@@ -50,14 +51,11 @@ class MultifilePopover extends StatelessWidget {
                   fontWeight: kBoldWeight,
                 ),
               ),
+              const SizedBox(height: kMdSpacing),
               Text(appLocale.multifileWarning),
-              TextButton.icon(
-                icon: SvgPicture.asset(kGithubIconAsset),
-                onPressed: () {
-                  launchUrl(Uri.parse(example.link ?? ''));
-                },
-                label: Text(appLocale.viewOnGithub),
-              ),
+              const SizedBox(height: kMdSpacing),
+              if (hasGithubLink) LinkButton.github(example.urlVcs ?? ''),
+              if (hasNotebookLink) LinkButton.colab(example.urlNotebook ?? ''),
             ],
           ),
         ),

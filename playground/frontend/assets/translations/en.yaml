@@ -19,3 +19,5 @@ intents:
   playground:
     clearOutput: 'Clear Output'
     newExample: 'New Example'
+    openGoogleColab: 'Open in Google Colab'
+    viewOnGithub: 'View on GitHub'

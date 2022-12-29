@@ -23,6 +23,7 @@ const kOutputRightIconAsset = 'output_right.svg';
 const kOutputLeftIconAsset = 'output_left.svg';
 const kShortcutsIconAsset = 'shortcuts.svg';
 const kGithubIconAsset = 'github.svg';
+const kColabIconAsset = 'colab.svg';
 const kBeamIconAsset = 'beam.png';
 const kBeamLgIconAsset = 'beam_lg.png';
 const kThumbUpIconAsset = 'thumb_up.svg';
