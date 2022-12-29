@@ -191,6 +191,8 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 	rest := elm.Elm2.(*FullValue).Elm
 	ws := elm.Elm2.(*FullValue).Elm2
 
+	// If receiving directly from a datasource,
+	// the element may not be wrapped in a *FullValue
 	mainElm := convertIfNeeded(elm.Elm, &FullValue{})
 
 	splitRests := n.splitInv.Invoke(mainElm, rest)
