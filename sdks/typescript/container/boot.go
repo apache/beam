@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
@@ -158,7 +159,6 @@ func main() {
 
 	args := []string{
 		entrypoint,
-		"--id=" + *id,
 		"--logging_endpoint=" + *loggingEndpoint,
 		"--control_endpoint=" + *controlEndpoint,
 		"--semi_persist_dir=" + *semiPersistDir,
@@ -169,13 +169,14 @@ func main() {
 		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
 	}
 
-  workerIds := append([]string{*workerId}, info.GetSiblingWorkerIds()...)
+  workerIds := append([]string{*id}, info.GetSiblingWorkerIds()...)
 	var wg sync.WaitGroup
 	wg.Add(len(workerIds))
 	for _, workerId := range workerIds {
 		go func(workerId string) {
-			log.Printf("Executing: python %v", strings.Join(args, " "))
-			log.Fatalf("User program exited: %v", execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, "npx", args...))
+		  workerArgs := append(append([]string{}, args...), "--id=" + workerId)
+			log.Printf("Executing: npx %v", strings.Join(workerArgs, " "))
+			log.Fatalf("User program exited: %v", execx.Execute("npx", workerArgs...))
 		}(workerId)
 	}
 	wg.Wait()
