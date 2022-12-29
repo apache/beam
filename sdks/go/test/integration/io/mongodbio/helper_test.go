@@ -29,7 +29,8 @@ import (
 
 const (
 	mongoImage = "mongo:6.0.3"
-	mongoPort  = "27017"
+	mongoPort  = "27017/tcp"
+	maxRetries = 5
 )
 
 func setUpTestContainer(ctx context.Context, t *testing.T) string {
@@ -39,7 +40,8 @@ func setUpTestContainer(ctx context.Context, t *testing.T) string {
 		ctx,
 		t,
 		mongoImage,
-		containers.WithPorts([]string{mongoPort + "/tcp"}),
+		maxRetries,
+		containers.WithPorts([]string{mongoPort}),
 	)
 
 	return containers.Port(ctx, t, container, mongoPort)
