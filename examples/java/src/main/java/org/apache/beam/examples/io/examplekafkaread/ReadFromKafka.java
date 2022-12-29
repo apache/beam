@@ -34,6 +34,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
 /**
@@ -52,7 +53,7 @@ public class ReadFromKafka extends DoFn<TopicPartition, KV<byte[], byte[]>> {
 
   final Map<String, Object> consumerConfig;
 
-  public ReadFromKafka(Map<String, Object> consumerConfig) {
+  public ReadFromKafka(@NonNull Map<String, Object> consumerConfig) {
     this.consumerConfig = consumerConfig;
   }
 

@@ -25,6 +25,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * GenerateTopicPartitions is a straightforward DoFn designed to take the list of topics provided in
@@ -39,7 +40,7 @@ public class GenerateTopicPartitions extends DoFn<byte[], TopicPartition> {
   final Map<String, Object> consumerConfig;
   final List<String> topics;
 
-  GenerateTopicPartitions(Map<String, Object> consumerConfig, List<String> topics) {
+  GenerateTopicPartitions(@NonNull Map<String, Object> consumerConfig, @NonNull List<String> topics) {
     this.consumerConfig = consumerConfig;
     this.topics = topics;
   }
