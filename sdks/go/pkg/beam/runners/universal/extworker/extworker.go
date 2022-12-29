@@ -65,6 +65,12 @@ func (s *Loopback) StartWorker(ctx context.Context, req *fnpb.StartWorkerRequest
 	log.Infof(ctx, "starting worker %v", req.GetWorkerId())
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.workers == nil {
+		return &fnpb.StartWorkerResponse{
+			Error: fmt.Sprintf("worker pool shutting down"),
+		}, nil
+	}
+
 	if _, ok := s.workers[req.GetWorkerId()]; ok {
 		return &fnpb.StartWorkerResponse{
 			Error: fmt.Sprintf("worker with ID %q already exists", req.GetWorkerId()),
@@ -92,6 +98,10 @@ func (s *Loopback) StopWorker(ctx context.Context, req *fnpb.StopWorkerRequest) 
 	log.Infof(ctx, "stopping worker %v", req.GetWorkerId())
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.workers == nil {
+		// Worker pool is already shutting down, so no action is needed.
+		return &fnpb.StopWorkerResponse{}, nil
+	}
 	if cancelfn, ok := s.workers[req.GetWorkerId()]; ok {
 		cancelfn()
 		delete(s.workers, req.GetWorkerId())
@@ -108,7 +118,7 @@ func (s *Loopback) Stop(ctx context.Context) error {
 	s.mu.Lock()
 
 	log.Infof(ctx, "stopping Loopback, and %d workers", len(s.workers))
-	s.workers = map[string]context.CancelFunc{}
+	s.workers = nil
 	s.rootCancel()
 
 	// There can be a deadlock between the StopWorker RPC and GracefulStop
