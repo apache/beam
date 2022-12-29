@@ -144,6 +144,6 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
         : spec.query().get()
             + (hasRingRange
                 ? spec.query().get().toUpperCase().contains("WHERE") ? " AND " : " WHERE "
-                :  "");
+                : "");
   }
 }
