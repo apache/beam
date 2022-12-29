@@ -120,7 +120,7 @@ func main() {
 		}
 		defer f.Close()
 		f.WriteString("{\n")
-		f.WriteString("  \"name\": \"beam-worker\",\n  \"version\": \"1.0\",\n")
+		f.WriteString("  \"name\": \"beam-worker\",\n  \"version\": \"1.0.0\",\n")
 		f.WriteString("  \"overrides\": {\n")
 		needsComma := false
 		for pkg, path := range npmOverrides {
