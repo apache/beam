@@ -28,6 +28,8 @@ CLEANUP_DATASET_TEMPLATES=(beam_bigquery_samples_ beam_temp_dataset_ FHIR_store_
 
 # A grace period of 5 days
 GRACE_PERIOD=$((`date +%s` - 24 * 3600 * 5))
+# count number of failed api calls
+declare -i failed_calls=0
 
 for dataset in ${BQ_DATASETS[@]}; do
   for template in ${CLEANUP_DATASET_TEMPLATES[@]}; do
@@ -38,10 +40,18 @@ for dataset in ${BQ_DATASETS[@]}; do
       LAST_MODIFIED_MS=${BASH_REMATCH[1]}
       LAST_MODIFIED=$(($LAST_MODIFIED_MS / 1000))
       if [[ $GRACE_PERIOD -gt $LAST_MODIFIED ]]; then
-        echo "Deleting $dataset (modified `date -d @$LAST_MODIFIED`)"
-        # do not fail the script if delete dataset fail
-        bq --project_id=$PROJECT rm -r -f $dataset || true
+        if bq --project_id=$PROJECT rm -r -f $dataset; then
+          echo "Deleted $dataset (modified `date -d @$LAST_MODIFIED`)"
+        else
+          failed_calls+=1
+        fi
       fi
     fi
   done
 done
+
+# fail the script if failed_calls is nonzero
+if [[ failed_calls -ne 0 ]]; then
+  echo "Failed delete $failed_calls datasets"
+  exit 1
+fi
