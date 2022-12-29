@@ -80,7 +80,7 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Avoids Cassandra syntax error when user-defined query has no where clause in it (Java/Python) ([#24829](https://github.com/apache/beam/issues/24829)).
 
 ## Known Issues
 
