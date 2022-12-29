@@ -109,7 +109,6 @@ func (s *Loopback) Stop(ctx context.Context) error {
 
 	log.Infof(ctx, "stopping Loopback, and %d workers", len(s.workers))
 	s.workers = map[string]context.CancelFunc{}
-	s.lis.Close()
 	s.rootCancel()
 
 	// There can be a deadlock between the StopWorker RPC and GracefulStop
