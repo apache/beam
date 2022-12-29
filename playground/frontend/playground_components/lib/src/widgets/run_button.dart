@@ -49,6 +49,7 @@ class RunButton extends StatelessWidget {
       builder: (context, child) {
         final isRunning = playgroundController.codeRunner.isCodeRunning;
         final runStartDate = playgroundController.codeRunner.runStartDate;
+        final runStopDate = playgroundController.codeRunner.runStopDate;
 
         return SizedBox(
           width: _width,
@@ -79,12 +80,14 @@ class RunButton extends StatelessWidget {
                         return _ButtonText(
                           isRunning: isRunning,
                           runStartDate: runStartDate,
+                          runStopDate: runStopDate,
                         );
                       },
                     )
                   : _ButtonText(
                       isRunning: isRunning,
                       runStartDate: runStartDate,
+                      runStopDate: runStopDate,
                     ),
               onPressed: isEnabled ? _onPressed() : null,
             ),
@@ -102,10 +105,12 @@ class RunButton extends StatelessWidget {
 class _ButtonText extends StatelessWidget {
   final bool isRunning;
   final DateTime? runStartDate;
+  final DateTime? runStopDate;
 
   const _ButtonText({
     required this.isRunning,
     required this.runStartDate,
+    required this.runStopDate,
   });
 
   static const _msToSec = 1000;
@@ -116,9 +121,10 @@ class _ButtonText extends StatelessWidget {
     final runText = 'widgets.runOrCancelButton.titles.run'.tr();
     final cancelText = 'widgets.runOrCancelButton.titles.cancel'.tr();
     final buttonText = isRunning ? cancelText : runText;
+    final runStopDateOrNow = runStopDate ?? DateTime.now();
 
     final elapsedDuration =
-        DateTime.now().difference(runStartDate ?? DateTime.now());
+        runStopDateOrNow.difference(runStartDate ?? DateTime.now());
 
     if (elapsedDuration.inMilliseconds > 0) {
       final seconds = elapsedDuration.inMilliseconds / _msToSec;

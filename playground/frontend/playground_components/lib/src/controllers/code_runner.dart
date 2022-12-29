@@ -42,10 +42,12 @@ class CodeRunner extends ChangeNotifier {
   // TODO(nausharipov): Move CodeRunner.outputType into a view https://github.com/apache/beam/issues/24691
   OutputType selectedOutputFilterType = OutputType.all;
   DateTime? _runStartDate;
+  DateTime? _runStopDate;
 
   String? get pipelineOptions => snippetEditingController?.pipelineOptions;
   RunCodeResult? get result => _result;
   DateTime? get runStartDate => _runStartDate;
+  DateTime? get runStopDate => _runStopDate;
   bool get isCodeRunning => !(_result?.isFinished ?? true);
 
   void clearResult() {
@@ -55,6 +57,7 @@ class CodeRunner extends ChangeNotifier {
 
   void runCode({void Function()? onFinish}) {
     _runStartDate = DateTime.now();
+    _runStopDate = null;
     notifyListeners();
     snippetEditingController = _snippetEditingControllerGetter();
 
@@ -65,6 +68,7 @@ class CodeRunner extends ChangeNotifier {
         status: RunCodeStatus.compileError,
         errorMessage: kPipelineOptionsParseError,
       );
+      _runStopDate = DateTime.now();
       notifyListeners();
       return;
     }
@@ -82,9 +86,12 @@ class CodeRunner extends ChangeNotifier {
         _result = event;
         filterOutput(selectedOutputFilterType);
 
-        if (event.isFinished && onFinish != null) {
-          onFinish();
+        if (event.isFinished) {
+          if (onFinish != null) {
+            onFinish();
+          }
           snippetEditingController = null;
+          _runStopDate = DateTime.now();
         }
       });
       notifyListeners();
@@ -161,6 +168,7 @@ class CodeRunner extends ChangeNotifier {
     final log = _result?.log ?? '';
     final output = _result?.output ?? '';
     setOutputResult(log + output);
+    _runStopDate = DateTime.now();
     notifyListeners();
   }
 
@@ -183,6 +191,7 @@ class CodeRunner extends ChangeNotifier {
     );
 
     filterOutput(selectedOutputFilterType);
+    _runStopDate = DateTime.now();
     notifyListeners();
   }
 }
