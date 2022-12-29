@@ -60,51 +60,6 @@ class XmlRowAdapter implements Serializable {
     }
   }
 
-  // private Object getValue(String key, Field field, Row row) {
-  //   switch (field.getType().getTypeName()) {
-  //     case ROW:
-  //       return getRowValue(key, row);
-  //     case BOOLEAN:
-  //     case BYTE:
-  //     case FLOAT:
-  //     case INT16:
-  //     case INT32:
-  //     case INT64:
-  //     case STRING:
-  //     case DOUBLE:
-  //     case DECIMAL:
-  //       return row.getValue(key);
-  //     case MAP:
-  //       return getMapValue(key, row);
-  //     case ARRAY:
-  //       return getArrayValue(key, row);
-  //     default:
-  //       throw new IllegalStateException(
-  //           String.format("%s of %s is not supported", key,
-  // field.getType().getTypeName().name()));
-  //   }
-  // }
-
-  // private Object getArrayValue(String key, Row parent) {
-  //   Optional<Collection<?>> array = Optional.ofNullable(parent.getArray(key));
-  //   checkState(array.isPresent());
-  //   return array.get();
-  // }
-
-  // private Object getMapValue(String key, Row parent) {
-  //   Optional<Map<?, ?>> map = Optional.ofNullable(parent.getMap(key));
-  //   checkState(map.isPresent());
-  //   return map.get();
-  // }
-
-  // private Object getRowValue(String key, Row parent) {
-  //   Optional<Row> child = Optional.ofNullable(parent.getRow(key));
-  //   checkState(child.isPresent());
-  //   XmlRowAdapter wrapper = new XmlRowAdapter();
-  //   wrapper.wrapRow(child.get());
-  //   return wrapper.record;
-  // }
-
   /**
    * Exposes the copied {@link Row} data to the {@link javax.xml.bind.Marshaller} via the {@link
    * XmlElement} annotation.
