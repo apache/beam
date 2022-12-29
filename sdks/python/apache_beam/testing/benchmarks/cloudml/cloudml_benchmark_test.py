@@ -24,7 +24,7 @@ import apache_beam.testing.benchmarks.cloudml.cloudml_benchmark_constants_lib as
 from apache_beam.testing.benchmarks.cloudml.pipelines import workflow
 from apache_beam.testing.test_pipeline import TestPipeline
 
-_INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/'
+_INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
 _CRITEO_FEATURES_FILE = 'testdata/criteo/expected/features.tfrecord.gz'
 _OUTPUT_GCS_BUKCET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
 
