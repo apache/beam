@@ -47,7 +47,7 @@ def pack = tasks.register("pack") {
     // Build artifact
     exec {
       executable 'sh'
-      args '-c', "npm run build && npm pack --pack-destination ${buildDir}"
+      args '-c', "npm install && npm run build && npm pack --pack-destination ${buildDir}"
     }
 
     def collection = fileTree(buildDir){ include "**/*${project.version}*.tgz" exclude 'srcs/**'}
