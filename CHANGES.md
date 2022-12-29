@@ -68,10 +68,11 @@
 
 ## Breaking Changes
 
-* Go pipelines, Python streaming pipelines, and portable Python batch pipelines on Dataflow are required to
-  use Runner V2. The `disable_runner_v2`, `disable_runner_v2_until_2023`, `disable_prime_runner_v2`
-  experiments will raise an error during pipeline construction. You can no longer specify the Dataflow worker
-  jar override. Note that non-portable Python batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515)).
+* Portable Java pipelines, Go pipelines, Python streaming pipelines, and portable Python batch
+  pipelines on Dataflow are required to use Runner V2. The `disable_runner_v2`,
+  `disable_runner_v2_until_2023`, `disable_prime_runner_v2` experiments will raise an error during
+  pipeline construction. You can no longer specify the Dataflow worker jar override. Note that
+  non-portable Java jobs and non-portable Python batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515)).
 
 ## Deprecations
 
