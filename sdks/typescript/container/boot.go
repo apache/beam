@@ -169,12 +169,12 @@ func main() {
 		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
 	}
 
-  workerIds := append([]string{*id}, info.GetSiblingWorkerIds()...)
+	workerIds := append([]string{*id}, info.GetSiblingWorkerIds()...)
 	var wg sync.WaitGroup
 	wg.Add(len(workerIds))
 	for _, workerId := range workerIds {
 		go func(workerId string) {
-		  workerArgs := append(append([]string{}, args...), "--id=" + workerId)
+			workerArgs := append(append([]string{}, args...), "--id="+workerId)
 			log.Printf("Executing: npx %v", strings.Join(workerArgs, " "))
 			log.Fatalf("User program exited: %v", execx.Execute("npx", workerArgs...))
 		}(workerId)
