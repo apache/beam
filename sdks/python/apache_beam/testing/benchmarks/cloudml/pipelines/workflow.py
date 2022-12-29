@@ -199,11 +199,7 @@ def parse_known_args(argv):
       default=5,  # TODO: Align default with TFT (ie 0).
       help='Threshold for minimum number of unique values for a category.')
   parser.add_argument(
-      '--no_shuffle',
-      dest='shuffle',
-      default=True,
-      action='store_false',
-      help='Skips shuffling the data.')
+      'shuffle', dest='shuffle', default=True, help='Skips shuffling the data.')
   parser.add_argument(
       '--benchmark_type',
       dest='benchmark_type',
