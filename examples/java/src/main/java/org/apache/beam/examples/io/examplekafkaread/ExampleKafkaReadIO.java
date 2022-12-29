@@ -35,7 +35,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
 /**
@@ -67,7 +66,7 @@ public class ExampleKafkaReadIO {
     abstract Map<String, Object> getConsumerConfig();
 
     @Pure
-    abstract @Nullable List<String> getTopics();
+    abstract List<String> getTopics();
 
     abstract Read.Builder toBuilder();
 
