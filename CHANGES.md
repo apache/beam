@@ -64,9 +64,8 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Adding override of allowed TLS algorithms (Java), now maintaining the disabled/legacy algorithms
-  present in 2.43.0 (up to 1.8.0_151, 11.0.9, 17.0.2 for respective Java versions). This primarily
-  re-enables TLSv1 and TLSv1.1 for Java 8 and Java 11 by default, and gives control over this
-  property for JVMs in the future.
+  present in 2.43.0 (up to 1.8.0_342, 11.0.16, 17.0.2 for respective Java versions). This is accompanied
+  by an explicit re-enabling of TLSv1 and TLSv1.1 for Java 8 and Java 11.
 
 ## Breaking Changes
 
