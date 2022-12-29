@@ -4,6 +4,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/sql/sqlx"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -37,14 +38,10 @@ func TestInput(t *testing.T) {
 	tests := []struct {
 		name string
 		in   beam.PCollection
-		out  Option
 	}{
 		{
 			name: name1,
 			in:   collection1,
-			out: func(o sqlx.Options) {
-				o.(*options).inputs[name1] = collection1
-			},
 		},
 	}
 
@@ -52,11 +49,11 @@ func TestInput(t *testing.T) {
 	for _, test := range tests {
 		option := Input(test.name, test.in)
 		if option == nil {
-			t.Errorf("Execting funtion Input failed")
+			t.Errorf("%v return a nil value, which is not expected", runtime.FuncForPC(reflect.ValueOf(TestInput).Pointer()).Name())
 		}
 		option(o)
 		if o.inputs == nil || !reflect.DeepEqual(o.inputs[test.name], test.in) {
-			t.Errorf("Execting funtion Input failed")
+			t.Errorf("%v did not modify inputs, which is not expected. Expected: %v. Got: %v", runtime.FuncForPC(reflect.ValueOf(TestExpansionAddr).Pointer()).Name(), test.in, o.inputs[test.name])
 		}
 	}
 }
@@ -65,13 +62,9 @@ func TestDialect(t *testing.T) {
 	dialect1 := "this is a string"
 	tests := []struct {
 		dialect string
-		out     Option
 	}{
 		{
 			dialect: dialect1,
-			out: func(o sqlx.Options) {
-				o.(*options).dialect = dialect1
-			},
 		},
 	}
 
@@ -79,11 +72,11 @@ func TestDialect(t *testing.T) {
 	for _, test := range tests {
 		option := Dialect(test.dialect)
 		if option == nil {
-			t.Errorf("Execting funtion Dialect failed")
+			t.Errorf("%v return a nil value, which is not expected", runtime.FuncForPC(reflect.ValueOf(TestDialect).Pointer()).Name())
 		}
 		option(o)
 		if !reflect.DeepEqual(o.dialect, test.dialect) {
-			t.Errorf("Execting funtion Input failed")
+			t.Errorf("%v did not modify dialect, which is not expected. Expected: %v. Got: %v", runtime.FuncForPC(reflect.ValueOf(TestExpansionAddr).Pointer()).Name(), test.dialect, o.dialect)
 		}
 	}
 }
@@ -100,13 +93,13 @@ func TestExpansionAddr(t *testing.T) {
 
 	o := &options{}
 	for _, test := range tests {
-		option := Dialect(test.addr)
+		option := ExpansionAddr(test.addr)
 		if option == nil {
-			t.Errorf("Execting funtion Dialect failed")
+			t.Errorf("%v return a nil value, which is not expected", runtime.FuncForPC(reflect.ValueOf(TestExpansionAddr).Pointer()).Name())
 		}
 		option(o)
 		if !reflect.DeepEqual(o.expansionAddr, test.addr) {
-			t.Errorf("Execting funtion Input failed")
+			t.Errorf("%v did not modify expansionAddr, which is not expected. Expected: %v. Got: %v", runtime.FuncForPC(reflect.ValueOf(TestExpansionAddr).Pointer()).Name(), test.addr, o.expansionAddr)
 		}
 	}
 }
