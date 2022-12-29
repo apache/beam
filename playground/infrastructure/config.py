@@ -62,6 +62,7 @@ class Config:
     URL_VCS_PREFIX = "https://github.com/apache/beam/blob/master"
     GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
     SDK_CONFIG = os.getenv("SDK_CONFIG", "../../playground/sdks.yaml")
+    DEFAULT_NAMESPACE = "Playground"
 
 
 @dataclass(frozen=True)

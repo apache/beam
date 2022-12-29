@@ -20,7 +20,7 @@ import pytest
 from mock.mock import call
 from google.cloud import datastore
 
-from config import Origin
+from config import Origin, Config
 from datastore_client import DatastoreClient, DatastoreException
 from models import SdkEnum
 from test_utils import _get_examples
@@ -44,7 +44,7 @@ def test_save_to_cloud_datastore_when_schema_version_not_found(
         match="Schema versions not found. Schema versions must be downloaded during application startup",
     ):
         examples = _get_examples(1)
-        client = DatastoreClient()
+        client = DatastoreClient(Config.DEFAULT_NAMESPACE)
         client.save_to_cloud_datastore(examples, SdkEnum.JAVA, Origin.PG_EXAMPLES)
 
 
@@ -56,7 +56,7 @@ def test_save_to_cloud_datastore_when_google_cloud_project_id_not_set():
         KeyError,
         match="GOOGLE_CLOUD_PROJECT environment variable should be specified in os",
     ):
-        DatastoreClient()
+        DatastoreClient(Config.DEFAULT_NAMESPACE)
 
 
 @pytest.mark.parametrize("is_multifile", [False, True])
@@ -68,6 +68,7 @@ def test_save_to_cloud_datastore_when_google_cloud_project_id_not_set():
         pytest.param(Origin.TB_EXAMPLES, "TB_EXAMPLES_", id="TB_EXAMPLES"),
     ],
 )
+@pytest.mark.parametrize("namespace", [Config.DEFAULT_NAMESPACE, "Staging"])
 @mock.patch("datastore_client.DatastoreClient._get_all_examples")
 @mock.patch("datastore_client.DatastoreClient._get_actual_schema_version_key")
 @mock.patch("config.Config.GOOGLE_CLOUD_PROJECT")
@@ -82,6 +83,7 @@ def test_save_to_cloud_datastore_in_the_usual_case(
     key_prefix,
     with_kafka,
     is_multifile,
+    namespace,
 ):
     """
     Test saving examples to the cloud datastore in the usual case
@@ -93,8 +95,9 @@ def test_save_to_cloud_datastore_in_the_usual_case(
     mock_config_project.return_value = "MOCK_PROJECT_ID"
 
     examples = [create_test_example(is_multifile=is_multifile, with_kafka=with_kafka)]
-    client = DatastoreClient()
+    client = DatastoreClient(namespace)
     client.save_to_cloud_datastore(examples, SdkEnum.JAVA, origin)
+    mock_client.assert_called_once_with(namespace=namespace, project=mock_config_project)
     mock_client.assert_called_once()
     mock_get_schema.assert_called_once()
     mock_get_examples.assert_called_once()

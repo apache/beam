@@ -44,10 +44,10 @@ class DatastoreClient:
 
     _datastore_client: datastore.Client
 
-    def __init__(self):
+    def __init__(self, namespace: str):
         self._check_envs()
         self._datastore_client = datastore.Client(
-            namespace=DatastoreProps.NAMESPACE, project=Config.GOOGLE_CLOUD_PROJECT
+            namespace=namespace, project=Config.GOOGLE_CLOUD_PROJECT
         )
 
     def _check_envs(self):
