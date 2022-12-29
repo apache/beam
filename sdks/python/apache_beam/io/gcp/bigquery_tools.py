@@ -794,6 +794,12 @@ class BigQueryWrapper(object):
       return dataset
     except HttpError as exn:
       if exn.status_code == 404:
+        _LOGGER.info(
+            'Dataset %s:%s does not exist so we will create it as temporary '
+            'with location=%s',
+            project_id,
+            dataset_id,
+            location)
         dataset_reference = bigquery.DatasetReference(
             projectId=project_id, datasetId=dataset_id)
         dataset = bigquery.Dataset(datasetReference=dataset_reference)
