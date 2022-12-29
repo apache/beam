@@ -71,7 +71,7 @@ def check_sdk_examples(paths: List[PurePath], sdk: Sdk, root_dir: str) -> bool:
     """
     Determine if any of the files is an example of a given SDK
     - has appropriate suffix: *.(go|java|python|scala)
-    - has an embedded beam-playground yaml
+    - has an embedded beam-playground yaml tag
     """
     for path in paths:
         logging.debug("check for example tag: %s", path)

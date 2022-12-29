@@ -157,7 +157,7 @@ async def get_statuses(
 
 def get_tag(filepath) -> Optional[Tag]:
     """
-    Parse file by filepath and find beam tag test
+    Parse file by filepath and find beam tag
 
     Args:
         filepath: path of the file
