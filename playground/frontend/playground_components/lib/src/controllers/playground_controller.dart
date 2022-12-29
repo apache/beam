@@ -220,7 +220,8 @@ class PlaygroundController with ChangeNotifier {
     controller.setSource(source);
   }
 
-  void reset() {
+  Future<void> reset() async {
+    await codeRunner.cancelRun();
     snippetEditingController?.reset();
     codeRunner.resetOutputResult();
   }
