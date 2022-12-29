@@ -17,29 +17,7 @@
  */
 package org.apache.beam.examples;
 
-// beam-playground:
-//   name: KafkaWordCountAvro
-//   description: Test example with Apache Kafka
-//   multifile: false
-//   context_line: 55
-//   categories:
-//     - Filtering
-//     - Options
-//     - Quickstart
-//   complexity: MEDIUM
-//   tags:
-//     - filter
-//     - strings
-//     - emulator
-//   emulators:
-//      - type: kafka
-//        topic:
-//          id: dataset
-//          source_dataset: CountWords
-//   datasets:
-//     CountWords:
-//       location: local
-//       format: avro
+
 
 import java.util.Collections;
 import java.util.HashMap;
