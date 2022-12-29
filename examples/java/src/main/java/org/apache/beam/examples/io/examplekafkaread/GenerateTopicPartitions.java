@@ -40,7 +40,8 @@ public class GenerateTopicPartitions extends DoFn<byte[], TopicPartition> {
   final Map<String, Object> consumerConfig;
   final List<String> topics;
 
-  GenerateTopicPartitions(@NonNull Map<String, Object> consumerConfig, @NonNull List<String> topics) {
+  GenerateTopicPartitions(
+      @NonNull Map<String, Object> consumerConfig, @NonNull List<String> topics) {
     this.consumerConfig = consumerConfig;
     this.topics = topics;
   }
