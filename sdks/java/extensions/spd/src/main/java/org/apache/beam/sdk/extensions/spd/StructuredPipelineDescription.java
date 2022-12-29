@@ -38,6 +38,8 @@ import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Stream;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.python.transforms.DataframeTransform;
 import org.apache.beam.sdk.extensions.spd.description.Column;
@@ -52,6 +54,7 @@ import org.apache.beam.sdk.extensions.spd.macros.MacroContext;
 import org.apache.beam.sdk.extensions.spd.models.ConfiguredModel;
 import org.apache.beam.sdk.extensions.spd.models.PTransformModel;
 import org.apache.beam.sdk.extensions.spd.models.PythonModel;
+import org.apache.beam.sdk.extensions.spd.models.ScriptEngineModel;
 import org.apache.beam.sdk.extensions.spd.models.SqlModel;
 import org.apache.beam.sdk.extensions.spd.models.StructuredModel;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -82,6 +85,7 @@ public class StructuredPipelineDescription {
   private Map<String, StructuredModel> modelMap;
   private Map<String, TableProvider> materializers;
   private Map<String, String> expansionServices;
+  private ScriptEngineManager manager;
 
   @Nullable Project project = null;
   @Nullable Profile profile = null;
@@ -121,6 +125,8 @@ public class StructuredPipelineDescription {
             this.pipeline.getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
     envBuilder.setPipelineOptions(this.pipeline.getOptions());
     this.env = envBuilder.build();
+
+    manager = new ScriptEngineManager();
   }
 
   public void registerExpansionService(String name, String location) {
@@ -392,9 +398,13 @@ public class StructuredPipelineDescription {
     }
     if (queryFiles.size() > 0) {
       for (Path file : queryFiles) {
-        if (file.getFileName().toString().endsWith(".sql")) {
+        String fileName = file.getFileName().toString();
+        int extPos = fileName.lastIndexOf(".");
+        String extension = fileName.substring(extPos+1);
+        String name = fileName.substring(0, extPos);
+
+        if ("sql".equals(extension)) {
           LOG.info("Found SQL at " + file.toAbsolutePath().toString());
-          String name = file.getFileName().toString().replace(".sql", "");
           if (modelMap.containsKey(name)) {
             throw new Exception("Duplicate model " + name + " found.");
           }
@@ -403,9 +413,8 @@ public class StructuredPipelineDescription {
           modelMap.put(name, sqlModel);
           continue;
         }
-        if (file.getFileName().toString().endsWith(".py")) {
+        if ("py".equals(extension)) {
           LOG.info("Found Python at " + file.toAbsolutePath().toString());
-          String name = file.getFileName().toString().replace(".py", "");
           if (modelMap.containsKey(name)) {
             throw new Exception("Duplicate model " + name + "found.");
           }
@@ -413,6 +422,17 @@ public class StructuredPipelineDescription {
               new PythonModel(path, name, String.join("\n", Files.readAllLines(file)));
           mergeConfiguration(path, null, pyModel);
           modelMap.put(name, pyModel);
+        }
+
+        ScriptEngine engine = manager.getEngineByExtension(extension);
+        if (engine != null) {
+          LOG.info("Found ScriptEngine for " + file.toAbsolutePath().toString());
+          ScriptEngineModel scriptModel =
+              new ScriptEngineModel(
+                  path, name, engine, String.join("\n", Files.readAllLines(file)));
+          mergeConfiguration(path, null, scriptModel);
+          modelMap.put(name, scriptModel);
+          continue;
         }
         LOG.info("Unable to determine  model for " + file.toAbsolutePath().toString());
       }
