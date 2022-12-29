@@ -81,6 +81,7 @@ public class StructuredPipelineDescription {
   private PCollectionTableProvider tableMap;
   private Map<String, StructuredModel> modelMap;
   private Map<String, TableProvider> materializers;
+  private Map<String, String> expansionServices;
 
   @Nullable Project project = null;
   @Nullable Profile profile = null;
@@ -89,6 +90,7 @@ public class StructuredPipelineDescription {
     this.pipeline = pipeline;
     this.tableMap = new PCollectionTableProvider("spd");
     this.modelMap = new HashMap<>();
+    this.expansionServices = new HashMap<>();
     this.materializers = new HashMap<>();
     this.metaTableProvider = new InMemoryMetaStore();
     BeamSqlEnvBuilder envBuilder = BeamSqlEnv.builder(this.metaTableProvider);
@@ -119,6 +121,10 @@ public class StructuredPipelineDescription {
             this.pipeline.getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
     envBuilder.setPipelineOptions(this.pipeline.getOptions());
     this.env = envBuilder.build();
+  }
+
+  public void registerExpansionService(String name, String location) {
+    expansionServices.put(name, location);
   }
 
   public void materializeTo(String fullTableName, PCollection<Row> source) throws Exception {
@@ -212,9 +218,13 @@ public class StructuredPipelineDescription {
       if (rel.size() > 0) {
         Relation primary = rel.get(0);
         LOG.info("Python primary relation is " + primary.toString());
+
         PCollection<Row> pcollection =
             readFrom(primary.getTable().getName(), pipeline.begin())
-                .apply(DataframeTransform.of(result.getOutput()).withIndexes());
+                .apply(
+                    DataframeTransform.of(result.getOutput())
+                        .withIndexes()
+                        .withExpansionService(expansionServices.getOrDefault("python", "")));
         metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
       } else {
         throw new Exception("Python model is not associated with an input table");

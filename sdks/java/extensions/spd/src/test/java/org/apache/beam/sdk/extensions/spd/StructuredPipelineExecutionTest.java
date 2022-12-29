@@ -21,16 +21,20 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map.Entry;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.runners.portability.PortableRunner;
 import org.apache.beam.sdk.extensions.python.PythonService;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,34 +42,35 @@ import org.slf4j.LoggerFactory;
 public class StructuredPipelineExecutionTest {
   private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineExecutionTest.class);
 
-  /*
   @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(pipelineOptions());
 
   private static PipelineOptions pipelineOptions() {
     PipelineOptions p = TestPipeline.testingPipelineOptions();
+    p.setRunner(PortableRunner.class);
     p.setStableUniqueNames(CheckEnabled.OFF);
     return p;
   }
-  */
 
   @Test
   public void testSimplePipeline() throws Exception {
-
 
     URL pipelineURL = ClassLoader.getSystemClassLoader().getResource("simple_pipeline");
     URL profileURL = ClassLoader.getSystemClassLoader().getResource("test_profile.yml");
     Path pipelinePath = Paths.get(pipelineURL.toURI());
 
-    int port = PythonService.findAvailablePort();
-    ImmutableList.Builder<String> args = ImmutableList.builder();
-    args.add("-p " + port);
-    PythonService pyRunner = new PythonService("apache_beam.runners.portability.local_job_service_main", args.build());
-    try (AutoCloseable p = pyRunner.start()) {
-      PythonService.waitForPort("localhost", port, 15000);
-
-      Pipeline pipeline = Pipeline.create(PipelineOptionsFactory.fromArgs("--runner=PortableRunner","--jobEndpoint=localhost:"+port).as(PipelineOptions.class));
-
-
+    // Start up the Expansion Service
+    int expansionPort = PythonService.findAvailablePort();
+    ImmutableList.Builder<String> eargs = ImmutableList.builder();
+    eargs.add(
+        "--port=" + expansionPort,
+        "--environment_type=beam:env:embedded_python:v1",
+        "--environment_config={}",
+        "--fully_qualified_name_glob=*",
+        "--pickle_library=cloudpickle");
+    PythonService expansionService =
+        new PythonService("apache_beam.runners.portability.expansion_service_main", eargs.build());
+    try (AutoCloseable x = expansionService.start()) {
+      PythonService.waitForPort("localhost", expansionPort, 15000);
       // Test Table Provider
       TestTableProvider testProvider = new TestTableProvider();
       testProvider.createTable(
@@ -90,6 +95,7 @@ public class StructuredPipelineExecutionTest {
           row(rowSchema, "5", 0L));
 
       StructuredPipelineDescription spd = new StructuredPipelineDescription(pipeline, testProvider);
+      spd.registerExpansionService("python", "localhost:" + expansionPort);
       spd.loadProject(Paths.get(profileURL.toURI()), pipelinePath);
 
       for (Entry<String, Table> e : testProvider.getTables().entrySet()) {
@@ -99,8 +105,22 @@ public class StructuredPipelineExecutionTest {
           LOG.info("" + row);
         }
       }
-      LOG.info("Running pipeline");
-      pipeline.run();
+      LOG.info("----------------------- RUN PIPELINE -------------------------------");
+      int port = PythonService.findAvailablePort();
+      ImmutableList.Builder<String> args = ImmutableList.builder();
+      args.add("--port=" + port);
+      PythonService pyRunner =
+          new PythonService("apache_beam.runners.portability.local_job_service_main", args.build());
+      try (AutoCloseable p = pyRunner.start()) {
+        PythonService.waitForPort("localhost", port, 15000);
+        PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+        options.setRunner(PortableRunner.class);
+        options.setDefaultEnvironmentType("LOOPBACK");
+        options.setJobEndpoint("localhost:" + port);
+        PortableRunner runner = PortableRunner.fromOptions(options);
+        runner.run(pipeline).waitUntilFinish();
+      }
+      LOG.info("-------------------------DONE PIPELINE-------------------------------");
       for (Entry<String, Table> e : testProvider.getTables().entrySet()) {
         LOG.info("Rows in table " + e.getKey());
         LOG.info("" + e.getValue());
