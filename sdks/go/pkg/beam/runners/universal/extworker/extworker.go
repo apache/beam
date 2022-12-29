@@ -67,7 +67,7 @@ func (s *Loopback) StartWorker(ctx context.Context, req *fnpb.StartWorkerRequest
 	defer s.mu.Unlock()
 	if s.workers == nil {
 		return &fnpb.StartWorkerResponse{
-			Error: fmt.Sprintf("worker pool shutting down"),
+			Error: "worker pool shutting down",
 		}, nil
 	}
 
