@@ -67,7 +67,7 @@ jobs:
           if [ -z "$BASE_REF" ] || [ "$BASE_REF" == "master" ]; then
             BASE_REF=origin/master
           fi
-          DIFF=$(git diff --name-only --diff-filter=d $BASE_REF $GITHUB_SHA | tr '\n' ' ')
+          DIFF=$(git diff --name-only $BASE_REF $GITHUB_SHA | tr '\n' ' ')
           echo "example_diff=$DIFF" >> $GITHUB_OUTPUT
       - id: check_has_example
         name: has Examples
