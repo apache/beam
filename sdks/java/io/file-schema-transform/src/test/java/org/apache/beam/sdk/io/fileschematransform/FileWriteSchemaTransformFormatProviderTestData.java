@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TimeContaining;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 
+/** Shared {@link SchemaAwareJavaBeans} data to be used across various tests. */
 class FileWriteSchemaTransformFormatProviderTestData {
   final List<AllPrimitiveDataTypes> allPrimitiveDataTypesList =
       Arrays.asList(

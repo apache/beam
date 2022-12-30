@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.fileschematransform;
 
 import org.junit.rules.TemporaryFolder;
 
+/** Shared methods and data to be used among tests. */
 class FileWriteSchemaTransformFormatProviderTestHelpers {
   static final FileWriteSchemaTransformFormatProviderTestData DATA =
       new FileWriteSchemaTransformFormatProviderTestData();
