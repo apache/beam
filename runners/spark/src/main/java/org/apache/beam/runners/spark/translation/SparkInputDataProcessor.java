@@ -41,6 +41,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterator
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.LinkedListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.Tuple2;
 
 /** Processes Spark partitions using Beam's {@link org.apache.beam.runners.core.DoFnRunner}. */
@@ -119,7 +120,13 @@ class SyncSparkInputDataProcessor<FnInputT, FnOutputT>
     }
 
     private <K, V> Function<Map.Entry<K, V>, Tuple2<K, V>> entryToTupleFn() {
-      return en -> new Tuple2<>(en.getKey(), en.getValue());
+      return en -> {
+        if (en == null) {
+          return null;
+        } else {
+          return new Tuple2<>(en.getKey(), en.getValue());
+        }
+      };
     }
 
     @Override
@@ -306,9 +313,9 @@ class AsyncSparkInputDataProcessor<FnInputT, FnOutputT>
                 .setNameFormat("async-in/out-iterator-%d")
                 .setDaemon(true)
                 .build());
-    private Future<?> consumeTask = null;
+    private @Nullable Future<?> consumeTask = null;
 
-    private volatile RuntimeException inputConsumeFailure = null;
+    private volatile @Nullable RuntimeException inputConsumeFailure = null;
 
     AsyncInOutIterator(
         Iterator<WindowedValue<InputT>> iterator, SparkProcessContext<K, InputT, OutputT> ctx) {
@@ -355,9 +362,10 @@ class AsyncSparkInputDataProcessor<FnInputT, FnOutputT>
 
       while (true) {
         boolean hasNext = outputIterator.hasNext();
-        if (inputConsumeFailure != null) {
+        RuntimeException failure = inputConsumeFailure;
+        if (failure != null) {
           executorService.shutdown();
-          throw inputConsumeFailure;
+          throw failure;
         }
 
         if (hasNext) {
