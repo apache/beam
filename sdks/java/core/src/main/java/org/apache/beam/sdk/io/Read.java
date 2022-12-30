@@ -21,10 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -270,6 +272,8 @@ public class Read {
     private static final Logger LOG = LoggerFactory.getLogger(BoundedSourceAsSDFWrapperFn.class);
     private static final long DEFAULT_DESIRED_BUNDLE_SIZE_BYTES = 64 * (1 << 20);
 
+    private final ArrayDeque<Closeable> restrictionTrackerStack = new ArrayDeque<>(5);
+
     @GetInitialRestriction
     public BoundedSourceT initialRestriction(@Element BoundedSourceT element) {
       return element;
@@ -304,7 +308,10 @@ public class Read {
     @NewTracker
     public RestrictionTracker<BoundedSourceT, TimestampedValue<T>[]> restrictionTracker(
         @Restriction BoundedSourceT restriction, PipelineOptions pipelineOptions) {
-      return new BoundedSourceAsSDFRestrictionTracker<>(restriction, pipelineOptions);
+      final BoundedSourceAsSDFRestrictionTracker rt =
+          new BoundedSourceAsSDFRestrictionTracker<>(restriction, pipelineOptions);
+      restrictionTrackerStack.addFirst(rt);
+      return rt;
     }
 
     @ProcessElement
@@ -323,13 +330,25 @@ public class Read {
       return SnappyCoder.of(SerializableCoder.of(new TypeDescriptor<BoundedSourceT>() {}));
     }
 
+    @Teardown
+    public void tearDown() {
+      while (!restrictionTrackerStack.isEmpty()) {
+        try {
+          final Closeable rt = restrictionTrackerStack.removeFirst();
+          rt.close();
+        } catch (IOException e) {
+          LOG.error("Failed to close BoundedReader due to failure processing bundle.", e);
+        }
+      }
+    }
+
     /**
      * A fake restriction tracker which adapts to the {@link BoundedSource} API. The restriction
      * object is used to advance the underlying source and to "return" the current element.
      */
     private static class BoundedSourceAsSDFRestrictionTracker<
             BoundedSourceT extends BoundedSource<T>, T>
-        extends RestrictionTracker<BoundedSourceT, TimestampedValue<T>[]> {
+        extends RestrictionTracker<BoundedSourceT, TimestampedValue<T>[]> implements Closeable {
       private final BoundedSourceT initialRestriction;
       private final PipelineOptions pipelineOptions;
       private BoundedSource.BoundedReader<T> currentReader;
@@ -390,13 +409,10 @@ public class Read {
       }
 
       @Override
-      protected void finalize() throws Throwable {
+      public void close() throws IOException {
         if (currentReader != null) {
-          try {
-            currentReader.close();
-          } catch (IOException e) {
-            LOG.error("Failed to close BoundedReader due to failure processing bundle.", e);
-          }
+          currentReader.close();
+          currentReader = null;
         }
       }
 
