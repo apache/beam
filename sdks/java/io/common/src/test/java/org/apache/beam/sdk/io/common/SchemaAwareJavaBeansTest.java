@@ -38,6 +38,7 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingT
 import static org.junit.Assert.assertEquals;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -77,7 +78,11 @@ public class SchemaAwareJavaBeansTest {
 
   @Test
   public void timeContainingRowFns() {
-    TimeContaining element = timeContaining(Instant.ofEpochMilli(1L));
+    TimeContaining element =
+        timeContaining(
+            Instant.ofEpochMilli(1L),
+            Arrays.asList(
+                Instant.ofEpochMilli(2L), Instant.ofEpochMilli(3L), Instant.ofEpochMilli(4L)));
     Row row = timeContainingToRowFn().apply(element);
     assertEquals(element, timeContainingFromRowFn().apply(row));
   }

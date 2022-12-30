@@ -167,7 +167,8 @@ class XmlRowValue implements Serializable {
       case DATETIME:
         for (Object element : iterable.get()) {
           XmlRowValue value = new XmlRowValue();
-          value.setDateTimeValue((ReadableDateTime) element);
+          value.setDateTimeValue(((Instant) element).toDateTime());
+          safeValueList.get().add(value);
         }
         return;
       case ROW:

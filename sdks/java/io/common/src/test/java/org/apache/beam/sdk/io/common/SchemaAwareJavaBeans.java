@@ -81,8 +81,11 @@ public class SchemaAwareJavaBeans {
   }
 
   /** Convenience method for {@link TimeContaining} instantiation. */
-  public static TimeContaining timeContaining(Instant instant) {
-    return new AutoValue_SchemaAwareJavaBeans_TimeContaining.Builder().setInstant(instant).build();
+  public static TimeContaining timeContaining(Instant instant, List<Instant> instantList) {
+    return new AutoValue_SchemaAwareJavaBeans_TimeContaining.Builder()
+        .setInstant(instant)
+        .setInstantList(instantList)
+        .build();
   }
 
   /** Convenience method for {@link ArrayPrimitiveDataTypes} instantiation. */
@@ -378,12 +381,16 @@ public class SchemaAwareJavaBeans {
 
     public abstract Instant getInstant();
 
+    public abstract List<Instant> getInstantList();
+
     public abstract Builder toBuilder();
 
     @AutoValue.Builder
     public abstract static class Builder {
 
       public abstract Builder setInstant(Instant value);
+
+      public abstract Builder setInstantList(List<Instant> value);
 
       public abstract TimeContaining build();
     }

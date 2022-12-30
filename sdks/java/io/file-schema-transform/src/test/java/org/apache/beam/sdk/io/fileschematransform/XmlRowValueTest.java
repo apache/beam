@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.fileschematransform;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.DATA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
+import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
 import org.junit.Test;
 
@@ -224,6 +226,7 @@ public class XmlRowValueTest {
   @Test
   public void timeContaining() {
     String instant = "instant";
+    String instantList = "instantList";
     for (Row row : DATA.timeContainingRows) {
       XmlRowValue instantValue = new XmlRowValue();
       instantValue.setValue(instant, row);
@@ -232,11 +235,27 @@ public class XmlRowValueTest {
       assertTrue(instant, expected.isPresent());
       assertTrue(instant, actual.isPresent());
       assertEquals(instant, expected.get().getMillis(), actual.get().getMillis());
+
+      XmlRowValue instantListValue = new XmlRowValue();
+      instantListValue.setValue(instantList, row);
+      Optional<Collection<Instant>> expectedList = Optional.ofNullable(row.getArray(instantList));
+      Optional<List<XmlRowValue>> actualList = Optional.ofNullable(instantListValue.getValueList());
+      assertTrue(instantList, expectedList.isPresent());
+      assertTrue(instantList, actualList.isPresent());
+      assertFalse(instantList, expectedList.get().isEmpty());
+      assertFalse(instantList, actualList.get().isEmpty());
+
+      assertEquals(
+          instantList,
+          expectedList.get().stream().map(Instant::getMillis).collect(Collectors.toList()),
+          dateTimes(actualList.get()).stream()
+              .map(DateTime::getMillis)
+              .collect(Collectors.toList()));
     }
   }
 
   @Test
-  public void singlyNestedDataTypesNoRepeatRows() {
+  public void singlyNestedDataTypesNoRepeat() {
     String allPrimitiveDataTypes = "allPrimitiveDataTypes";
     String allPrimitiveDataTypesList = "allPrimitiveDataTypesList";
     for (Row row : DATA.singlyNestedDataTypesNoRepeatRows) {
@@ -244,7 +263,7 @@ public class XmlRowValueTest {
       allPrimitiveDataTypesValue.setValue(allPrimitiveDataTypes, row);
       Optional<Row> expectedAllPrimitiveDataTypes =
           Optional.ofNullable(row.getRow(allPrimitiveDataTypes));
-      Optional<HashMap<String, XmlRowValue>> actualAllPrimitiveDataTypes =
+      Optional<Map<String, XmlRowValue>> actualAllPrimitiveDataTypes =
           Optional.ofNullable(allPrimitiveDataTypesValue.getNestedValue());
       assertTrue(allPrimitiveDataTypes, expectedAllPrimitiveDataTypes.isPresent());
       assertTrue(allPrimitiveDataTypes, actualAllPrimitiveDataTypes.isPresent());
@@ -276,7 +295,7 @@ public class XmlRowValueTest {
       allPrimitiveDataTypesValue.setValue(allPrimitiveDataTypes, row);
       Optional<Row> expectedAllPrimitiveDataTypes =
           Optional.ofNullable(row.getRow(allPrimitiveDataTypes));
-      Optional<HashMap<String, XmlRowValue>> actualAllPrimitiveDataTypes =
+      Optional<Map<String, XmlRowValue>> actualAllPrimitiveDataTypes =
           Optional.ofNullable(allPrimitiveDataTypesValue.getNestedValue());
       assertTrue(allPrimitiveDataTypes, expectedAllPrimitiveDataTypes.isPresent());
       assertTrue(allPrimitiveDataTypes, actualAllPrimitiveDataTypes.isPresent());
@@ -300,6 +319,34 @@ public class XmlRowValueTest {
           allPrimitiveDataTypesList,
           valuesList(expectedAllPrimitiveDataTypesList.get()),
           valuesList(actualAllPrimitiveDataTypesList.get()));
+    }
+  }
+
+  @Test
+  public void doublyNestedDataTypesNoRepeat() {
+    String singlyNestedDataTypes = "singlyNestedDataTypes";
+    String allPrimitiveDataTypes = "allPrimitiveDataTypes";
+    String allPrimitiveDataTypesList = "allPrimitiveDataTypesList";
+    for (Row row : DATA.doublyNestedDataTypesNoRepeatRows) {
+      XmlRowValue singlyNestedDataTypesValue = new XmlRowValue();
+      singlyNestedDataTypesValue.setValue(singlyNestedDataTypes, row);
+      Optional<Row> expectedSinglyNestedDataTypesValue =
+          Optional.ofNullable(row.getRow(singlyNestedDataTypes));
+      Optional<Map<String, XmlRowValue>> actualSinglyNestedDataTypesValue =
+          Optional.ofNullable(singlyNestedDataTypesValue.getNestedValue());
+      assertTrue(singlyNestedDataTypes, expectedSinglyNestedDataTypesValue.isPresent());
+      assertTrue(singlyNestedDataTypes, actualSinglyNestedDataTypesValue.isPresent());
+      assertNotNull(
+          singlyNestedDataTypes,
+          expectedSinglyNestedDataTypesValue.get().getValue(allPrimitiveDataTypes));
+      assertNotNull(
+          singlyNestedDataTypes, actualSinglyNestedDataTypesValue.get().get(allPrimitiveDataTypes));
+      assertNotNull(
+          singlyNestedDataTypes,
+          expectedSinglyNestedDataTypesValue.get().getValue(allPrimitiveDataTypesList));
+      assertNotNull(
+          singlyNestedDataTypes,
+          actualSinglyNestedDataTypesValue.get().get(allPrimitiveDataTypesList));
     }
   }
 
@@ -329,6 +376,15 @@ public class XmlRowValueTest {
     for (XmlRowValue item : nestedList) {
       Optional<Map<String, XmlRowValue>> nestedValues = Optional.ofNullable(item.getNestedValue());
       nestedValues.ifPresent(stringXmlRowValueMap -> result.add(values(stringXmlRowValueMap)));
+    }
+    return result;
+  }
+
+  private static List<DateTime> dateTimes(List<XmlRowValue> dateTimeValues) {
+    List<DateTime> result = new ArrayList<>();
+    for (XmlRowValue item : dateTimeValues) {
+      Optional<DateTime> value = Optional.ofNullable(item.getDateTimeValue());
+      value.ifPresent(result::add);
     }
     return result;
   }

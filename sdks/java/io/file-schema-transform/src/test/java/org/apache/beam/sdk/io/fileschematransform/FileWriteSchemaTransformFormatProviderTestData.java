@@ -79,8 +79,11 @@ class FileWriteSchemaTransformFormatProviderTestData {
 
   final List<TimeContaining> timeContainingList =
       Arrays.asList(
-          timeContaining(Instant.ofEpochMilli(1L)),
-          timeContaining(Instant.ofEpochMilli(Long.MAX_VALUE - 2L)));
+          timeContaining(
+              Instant.ofEpochMilli(1L), Collections.singletonList(Instant.ofEpochMilli(2L))),
+          timeContaining(
+              Instant.ofEpochMilli(Long.MAX_VALUE - 2L),
+              Arrays.asList(Instant.ofEpochMilli(3L), Instant.ofEpochMilli(4L))));
 
   final List<Row> timeContainingRows =
       timeContainingList.stream().map(timeContainingToRowFn()::apply).collect(Collectors.toList());
