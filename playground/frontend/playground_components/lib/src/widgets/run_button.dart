@@ -72,6 +72,8 @@ class RunButton extends StatelessWidget {
                     )
                   : const Icon(Icons.play_arrow),
               label: isRunning
+                  // TODO(nausharipov): fix bug
+                  // It is also rebuilt on every codeRunner notification
                   ? PeriodicBuilderWidget(
                       interval: const Duration(
                         milliseconds: _buttonTextRebuildInterval,
@@ -114,7 +116,7 @@ class _ButtonText extends StatelessWidget {
   });
 
   static const _msToSec = 1000;
-  static const _secondsFractions = 1;
+  static const _secondsFractionDigits = 1;
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +131,7 @@ class _ButtonText extends StatelessWidget {
     if (elapsedDuration.inMilliseconds > 0) {
       final seconds = elapsedDuration.inMilliseconds / _msToSec;
       return Text(
-        '$buttonText (${seconds.toStringAsFixed(_secondsFractions)} s)',
+        '$buttonText (${seconds.toStringAsFixed(_secondsFractionDigits)} s)',
       );
     }
     return Text(buttonText);

@@ -114,6 +114,6 @@ class CodeTextAreaWrapper extends StatelessWidget {
         type: ToastType.error,
       ),
     );
-    controller.resetError();
+    controller.resetErrorMessageText();
   }
 }

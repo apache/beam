@@ -152,7 +152,7 @@ Future<void> main() async {
     test(
       'If Playground state result is empty, then resetError should break the execution',
       () {
-        controller.resetError();
+        controller.resetErrorMessageText();
         expect(controller.codeRunner.result, null);
       },
     );

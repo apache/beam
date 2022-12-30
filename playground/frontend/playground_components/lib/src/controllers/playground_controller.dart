@@ -229,7 +229,7 @@ class PlaygroundController with ChangeNotifier {
   }
 
   void resetErrorMessageText() {
-    codeRunner.setResultAfterResetError();
+    codeRunner.resetErrorMessageText();
   }
 
   void setPipelineOptions(String options) {

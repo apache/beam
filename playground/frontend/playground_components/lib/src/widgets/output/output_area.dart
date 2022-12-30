@@ -17,8 +17,9 @@
  */
 
 import 'package:flutter/material.dart';
-import '../../../playground_components.dart';
 
+import '../../controllers/playground_controller.dart';
+import '../../models/outputs.dart';
 import 'graph/graph.dart';
 import 'output_result.dart';
 
@@ -37,13 +38,14 @@ class OutputArea extends StatelessWidget {
   String _getResultOutput() {
     final outputType =
         playgroundController.outputTypeController.outputFilterType;
-    if (outputType == OutputType.log) {
-      return playgroundController.codeRunner.resultLog;
+    switch (outputType) {
+      case OutputType.log:
+        return playgroundController.codeRunner.resultLog;
+      case OutputType.output:
+        return playgroundController.codeRunner.resultOutput;
+      case OutputType.all:
+        return playgroundController.codeRunner.resultLogOutput;
     }
-    if (outputType == OutputType.output) {
-      return playgroundController.codeRunner.resultOutput;
-    }
-    return playgroundController.codeRunner.resultLogOutput;
   }
 
   @override
