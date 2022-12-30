@@ -40,7 +40,7 @@ locations.apply(Filter
 
 ### Multiple fields filter
 
-Predicates that require examining multiple fields at once are also supported. For example, consider the following class representing a user account:
+You can also use multiple fields inside the filtering predicate. For example, consider the following schema type representing user account:
 
 ```
 class UserAccount {
@@ -50,7 +50,7 @@ class UserAccount {
 }
 ```
 
-Say you want to examine only users who`s total spend is above $100. You could write:
+Let's say you'd like to process only users who's total spend is over $100. You could write:
 
 ```
 PCollection<UserAccount> users = readUsers();

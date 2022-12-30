@@ -14,11 +14,42 @@ limitations under the License.
 
 # Coder
 
-A Coder<T> defines how to encode and decode values of type T into byte streams.
+A `Coder<T>` defines how to encode and decode values of type `T` into byte streams.
 
-Coder instances are serialized during job creation and deserialized before use. This will generally be performed by serializing the object via Java Serialization.
+> Note that coders are unrelated to parsing or formatting data when interacting with external data sources or sinks. You need to do such parsing or formatting explicitly, using transforms such as `ParDo` or `MapElements`.
 
-Coder classes for compound types are often composed of coder classes for types contains therein. The composition of Coder instances into a coder for the compound class is the subject of the Coder Provider type, which enables automatic generic composition of Coder classes within the CoderRegistry. See Coder Provider and CoderRegistry for more information about how coders are inferred.
+The Beam SDK requires a coder for every PCollection in your pipeline. In many cases, Beam can automatically infer the Coder for type in `PCollection` and use predefined coders to perform encoding and decoding. However, in some cases, you will need to specify the Coder explicitly or create a Coder for custom types.
+
+To set the `Coder` for `PCollection`, you need to call `PCollection.setCoder`. You can also get the Coder associated with PCollection using the `PCollection.getCoder` method.
+
+### CoderRegistry
+
+When Beam tries to infer Coder for `PCollection`, it uses mappings stored in the `CoderRegistry` object associated with `PCollection`. You can access the `CoderRegistry` for a given pipeline using the method `Pipeline.getCoderRegistry` or get a coder for a particular type using `CoderRegistry.getCoder`.
+
+Please note that since `CoderRegistry` is associated with each `PCollection`, you can encode\decode the same type differently in different `PCollection`.
+
+The following example demonstrates how to register a coder for a type using `CoderRegistry`:
+
+```
+PipelineOptions options = PipelineOptionsFactory.create();
+Pipeline p = Pipeline.create(options);
+
+CoderRegistry cr = p.getCoderRegistry();
+cr.registerCoder(Integer.class, BigEndianIntegerCoder.class);
+```
+
+### Specifying default coder for a type
+
+You can specify the default coder for your custom type by annotating it with `@defaultcoder` annotation. For example:
+```
+@DefaultCoder(AvroCoder.class)
+public class MyCustomDataType {
+  ...
+}
+```
+
+
+`Coder` classes for compound types are often composed of coder classes for types contains therein. The composition of `Coder` instances into a coder for the compound class is the subject of the `Coder` Provider type, which enables automatic generic composition of Coder classes within the CoderRegistry. See `Coder` Provider and `CoderRegistry` for more information about how coders are inferred.
 
 When you create custom objects and schemas, you need to create a subclass of Coder for your object and implement the following methods:
 * `encode` - converting objects to bytes

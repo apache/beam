@@ -78,10 +78,6 @@ RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-$GRPC_VERSION/$BEAM_VENDOR_GRPC_VERSION/beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar &&\
     mv beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
 # Install Java Katas Utils
-COPY katas /go/src/katas
-RUN cd /go/src/katas &&\
-    ./gradlew jar &&\
-    mv util/build/libs/util.jar /opt/apache/beam/jars/util.jar
 
 # Install mitmpoxy
 RUN mkdir /opt/mitmproxy &&\
@@ -111,4 +107,6 @@ RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod
 # Switch to appuser
 USER appuser
 
-ENTRYPOINT ["/entrypoint.sh"]
+RUN ls
+ENTRYPOINT ["./entrypoint.sh"]
+

@@ -85,4 +85,4 @@ PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
 
 ### Playground exercise
 
-You can find the complete code of this example in the playground window you can run and experiment with.
+In the playground window, you can find examples of CoGroup usage. Running this example, you'll see a list of purchase transactions made by users and their locations. Can you change it in such a way that Location object is referenced from the Purchase object to represent where the transaction was made and modify grouping in such a way that the final output contains location information for every user purchase as well as all the locations where no purchases were made?
