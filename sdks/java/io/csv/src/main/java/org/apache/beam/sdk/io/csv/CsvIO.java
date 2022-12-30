@@ -65,7 +65,7 @@ import org.apache.commons.csv.CSVFormat;
  * <p>To write a {@link PCollection} to one or more CSV files, use {@link CsvIO.Write}, using {@code
  * CsvIO.write().to(String)}. {@link CsvIO.Write} supports writing {@link Row} or custom Java types
  * using an inferred {@link Schema}. See the Beam Programming Guide on <a
- * href="https://beam.apache.org/documentation/programming-guide/#inferring-schemas">Inferring
+ * href="https://beam.apache.org/documentation/programming-guide/#inferring-schemas">inferring
  * schemas</a> for more information on how to enable Beam to infer a {@link Schema} from a custom
  * Java type.
  *
