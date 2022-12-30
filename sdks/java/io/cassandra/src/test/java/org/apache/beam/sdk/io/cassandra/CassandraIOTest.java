@@ -458,9 +458,10 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testReadWithQuery() throws Exception {
-    String query = String.format(
-        "select person_id, writetime(person_name) from %s.%s where person_id=10 AND person_department='logic'",
-        CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+    String query =
+        String.format(
+            "select person_id, writetime(person_name) from %s.%s where person_id=10 AND person_department='logic'",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
 
     PCollection<Scientist> output =
         pipeline.apply(
@@ -490,9 +491,10 @@ public class CassandraIOTest implements Serializable {
 
   @Test
   public void testReadWithUnfilteredQuery() throws Exception {
-    String query = String.format(
-        "select person_id, writetime(person_name) from %s.%s",
-        CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+    String query =
+        String.format(
+            "select person_id, writetime(person_name) from %s.%s",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
 
     PCollection<Scientist> output =
         pipeline.apply(
@@ -506,7 +508,7 @@ public class CassandraIOTest implements Serializable {
                 .withCoder(SerializableCoder.of(Scientist.class))
                 .withEntity(Scientist.class));
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(11L);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(22L);
     PAssert.that(output)
         .satisfies(
             input -> {
