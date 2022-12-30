@@ -16,10 +16,12 @@
 package fs_tool
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
@@ -32,6 +34,8 @@ import (
 const (
 	JavaSourceFileExtension   = ".java"
 	javaCompiledFileExtension = ".class"
+	javaEntryPointFullName    = "public static void main(java.lang.String[])"
+	javaDecompilerCommand     = "javap"
 )
 
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
@@ -52,27 +56,53 @@ func executableName(executableFileFolderPath string) (string, error) {
 	}
 
 	if len(dirEntries) == 1 {
-		return strings.Split(dirEntries[0].Name(), ".")[0], nil
+		return utils.TrimExtension(dirEntries[0].Name()), nil
 	}
 
 	for _, entry := range dirEntries {
-		content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", executableFileFolderPath, entry.Name()))
+		filePath := fmt.Sprintf("%s/%s", executableFileFolderPath, entry.Name())
+		content, err := os.ReadFile(filePath)
 		if err != nil {
 			logger.Error(fmt.Sprintf("error during file reading: %s", err.Error()))
 			break
 		}
-		ext := strings.Split(entry.Name(), ".")[1]
-		sdk := utils.ToSDKFromExt("." + ext)
+		ext := filepath.Ext(entry.Name())
+		filename := strings.TrimSuffix(entry.Name(), ext)
+		sdk := utils.ToSDKFromExt(ext)
 
 		if sdk == pb.Sdk_SDK_UNSPECIFIED {
-			logger.Error("invalid a file extension")
+			logger.Error("invalid file extension")
 			break
 		}
 
-		if utils.IsFileMain(string(content), sdk) {
-			return strings.Split(entry.Name(), ".")[0], nil
+		switch ext {
+		case javaCompiledFileExtension:
+			isMain, err := isMainClass(executableFileFolderPath, filename)
+			if err != nil {
+				return "", err
+			}
+			if isMain {
+				return filename, nil
+			}
+		default:
+			if utils.IsFileMain(string(content), sdk) {
+				return filename, nil
+			}
 		}
+
 	}
 
-	return strings.Split(dirEntries[len(dirEntries)-1].Name(), ".")[0], nil
+	return utils.TrimExtension(dirEntries[len(dirEntries)-1].Name()), nil
+}
+
+func isMainClass(classPath string, className string) (bool, error) {
+	cmd := exec.Command(javaDecompilerCommand, "-public", "-classpath", classPath, className)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return false, err
+	}
+
+	return strings.Contains(out.String(), javaEntryPointFullName), nil
 }

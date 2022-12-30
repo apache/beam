@@ -85,8 +85,31 @@ func Test_executableName(t *testing.T) {
 	workDir := "workingDir"
 	preparedPipelinesFolder := filepath.Join(workDir, pipelinesFolder)
 	lc := newJavaLifeCycle(pipelineId, preparedPipelinesFolder)
-	lc.CreateFolders()
-	defer os.RemoveAll(workDir)
+	err := lc.CreateFolders()
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		err := os.RemoveAll(workDir)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	cleanupFunc := func() {
+		compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
+		dirEntries, err := os.ReadDir(compiled)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, entry := range dirEntries {
+			err := os.Remove(filepath.Join(compiled, entry.Name()))
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
 
 	type args struct {
 		executableFolder string
@@ -94,6 +117,7 @@ func Test_executableName(t *testing.T) {
 	tests := []struct {
 		name    string
 		prepare func()
+		cleanup func()
 		args    args
 		want    string
 		wantErr bool
@@ -103,6 +127,7 @@ func Test_executableName(t *testing.T) {
 			// As a result, want to receive an error.
 			name:    "Directory is empty",
 			prepare: func() {},
+			cleanup: func() {},
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
@@ -121,6 +146,7 @@ func Test_executableName(t *testing.T) {
 					panic(err)
 				}
 			},
+			cleanup: cleanupFunc,
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
@@ -132,6 +158,7 @@ func Test_executableName(t *testing.T) {
 			// As a result, want to receive an error.
 			name:    "Directory doesn't exist",
 			prepare: func() {},
+			cleanup: func() {},
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelineId.String()),
 			},
@@ -144,27 +171,78 @@ func Test_executableName(t *testing.T) {
 			name: "Multiple files where one of them is main",
 			prepare: func() {
 				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
-				secondaryFilePath := filepath.Join(compiled, "temp.scala")
-				err := os.WriteFile(secondaryFilePath, []byte("TEMP_DATA"), 0600)
+				primaryFilePath := filepath.Join(compiled, "main.scala")
+				err := os.WriteFile(primaryFilePath, []byte("object MinimalWordCount {def main(cmdlineArgs: Array[String]): Unit = {}}"), 0600)
 				if err != nil {
 					panic(err)
 				}
-				primaryFilePath := filepath.Join(compiled, "main.scala")
-				err = os.WriteFile(primaryFilePath, []byte("object MinimalWordCount {def main(cmdlineArgs: Array[String]): Unit = {}}"), 0600)
+				secondaryFilePath := filepath.Join(compiled, "temp.scala")
+				err = os.WriteFile(secondaryFilePath, []byte("TEMP_DATA"), 0600)
 				if err != nil {
 					panic(err)
 				}
 			},
+			cleanup: cleanupFunc,
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
 			want:    "main",
 			wantErr: false,
 		},
+		{
+			// Test case with calling sourceFileName method with multiple files where one of them is a .class file
+			// with main() method
+			// As a result, want to receive a name that should be executed
+			name: "Multiple Java class files where one of them contains main",
+			prepare: func() {
+				testdataPath := "java_testdata"
+				dirEntries, err := os.ReadDir(testdataPath)
+				if err != nil {
+					panic(err)
+				}
+
+				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
+
+				for _, entry := range dirEntries {
+					src := filepath.Join(testdataPath, entry.Name())
+					dst := filepath.Join(compiled, entry.Name())
+					err = os.Link(src, dst)
+					if err != nil {
+						panic(err)
+					}
+				}
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "Foo",
+			wantErr: false,
+		},
+		{
+			// Test case with calling sourceFileName method with file which has multiple dots in its name
+			// As a result, want to receive a name that should be executed
+			name: "File with multiple dots in the name",
+			prepare: func() {
+				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
+				primaryFilePath := filepath.Join(compiled, "main.function.scala")
+				err := os.WriteFile(primaryFilePath, []byte("object MinimalWordCount {def main(cmdlineArgs: Array[String]): Unit = {}}"), 0600)
+				if err != nil {
+					panic(err)
+				}
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "main.function",
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
+			defer tt.cleanup()
 			got, err := executableName(tt.args.executableFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
