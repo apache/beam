@@ -24,13 +24,10 @@ ENV NODE_ENV=development
 WORKDIR /app
 
 # Copy beam package.
-COPY apache-beam-0.38.0.tgz ./apache-beam-0.38.0.tgz
+COPY target/apache-beam.tgz ./apache-beam.tgz
 
 # Install dependencies and compile
-RUN npm install apache-beam-0.38.0.tgz
+RUN npm install apache-beam.tgz
 
-# Check that filesystem is set up as expected
-RUN ls -a
-
-COPY boot /opt/apache/beam/
+COPY target/launcher/linux_amd64/boot /opt/apache/beam/
 ENTRYPOINT ["/opt/apache/beam/boot"]
