@@ -1,105 +1,103 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package sql
 
 import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/sql/sqlx"
 	"reflect"
-	"runtime"
 	"testing"
 )
 
 func TestOptions_Add(t *testing.T) {
-	o := options{}
 	str := "this is a string"
 	bytes := []byte{1, 2, 3, 4}
-	testOpt := sqlx.Option{
-		Urn:     str,
-		Payload: bytes,
-	}
-	tests := []struct {
+	test := struct {
 		opt sqlx.Option
 	}{
-		{
-			opt: testOpt,
+
+		opt: sqlx.Option{
+			Urn:     str,
+			Payload: bytes,
 		},
 	}
 
-	for _, test := range tests {
-		o.Add(test.opt)
-		if o.customs == nil || !reflect.DeepEqual(o.customs[len(o.customs)-1], test.opt) {
-			t.Errorf("Add failed.")
-		}
+	o := options{}
+	o.Add(test.opt)
+	if o.customs == nil || !reflect.DeepEqual(o.customs[len(o.customs)-1], test.opt) {
+		t.Errorf("The method options.Add(%v) did not successfully perform the add operation", test.opt)
 	}
 }
 
 func TestInput(t *testing.T) {
 	name1 := "this is a string"
 	collection1 := beam.PCollection{}
-	tests := []struct {
-		name string
-		in   beam.PCollection
+	test := struct {
+		inputName string
+		inputIn   beam.PCollection
 	}{
-		{
-			name: name1,
-			in:   collection1,
-		},
+		inputName: name1,
+		inputIn:   collection1,
 	}
 
 	o := &options{inputs: make(map[string]beam.PCollection)}
-	for _, test := range tests {
-		option := Input(test.name, test.in)
-		if option == nil {
-			t.Errorf("%v return a nil value, which is not expected", runtime.FuncForPC(reflect.ValueOf(TestInput).Pointer()).Name())
-		}
-		option(o)
-		if o.inputs == nil || !reflect.DeepEqual(o.inputs[test.name], test.in) {
-			t.Errorf("%v did not modify inputs, which is not expected. Expected: %v. Got: %v", runtime.FuncForPC(reflect.ValueOf(TestExpansionAddr).Pointer()).Name(), test.in, o.inputs[test.name])
-		}
+	option := Input(test.inputName, test.inputIn)
+	if option == nil {
+		t.Errorf("Input(%v, %v) = %v, it returns a nil value, which is not wanted", test.inputName, test.inputIn, nil)
+	}
+	option(o)
+	if o.inputs == nil || !reflect.DeepEqual(o.inputs[test.inputName], test.inputIn) {
+		t.Errorf("The function that Input(%v, %v) returned did not work correctly", test.inputName, test.inputIn)
 	}
 }
 
 func TestDialect(t *testing.T) {
 	dialect1 := "this is a string"
-	tests := []struct {
+	test := struct {
 		dialect string
 	}{
-		{
-			dialect: dialect1,
-		},
+		dialect: dialect1,
 	}
 
 	o := &options{}
-	for _, test := range tests {
-		option := Dialect(test.dialect)
-		if option == nil {
-			t.Errorf("%v return a nil value, which is not expected", runtime.FuncForPC(reflect.ValueOf(TestDialect).Pointer()).Name())
-		}
-		option(o)
-		if !reflect.DeepEqual(o.dialect, test.dialect) {
-			t.Errorf("%v did not modify dialect, which is not expected. Expected: %v. Got: %v", runtime.FuncForPC(reflect.ValueOf(TestExpansionAddr).Pointer()).Name(), test.dialect, o.dialect)
-		}
+	option := Dialect(test.dialect)
+	if option == nil {
+		t.Errorf("Dialect(%v) = %v, it returns a nil value, which is not wanted", test.dialect, nil)
+	}
+	option(o)
+	if !reflect.DeepEqual(o.dialect, test.dialect) {
+		t.Errorf("The function that Input(%v) returned did not work correctly", test.dialect)
 	}
 }
 
 func TestExpansionAddr(t *testing.T) {
 	addr1 := "this is a string"
-	tests := []struct {
+	test := struct {
 		addr string
 	}{
-		{
-			addr: addr1,
-		},
+		addr: addr1,
 	}
 
 	o := &options{}
-	for _, test := range tests {
-		option := ExpansionAddr(test.addr)
-		if option == nil {
-			t.Errorf("%v return a nil value, which is not expected", runtime.FuncForPC(reflect.ValueOf(TestExpansionAddr).Pointer()).Name())
-		}
-		option(o)
-		if !reflect.DeepEqual(o.expansionAddr, test.addr) {
-			t.Errorf("%v did not modify expansionAddr, which is not expected. Expected: %v. Got: %v", runtime.FuncForPC(reflect.ValueOf(TestExpansionAddr).Pointer()).Name(), test.addr, o.expansionAddr)
-		}
+	option := ExpansionAddr(test.addr)
+	if option == nil {
+		t.Errorf("ExpansionAddr(%v) = %v, it returns a nil value, which is not wanted", test.addr, nil)
+	}
+	option(o)
+	if !reflect.DeepEqual(o.expansionAddr, test.addr) {
+		t.Errorf("The function that ExpansionAddr(%v) returned did not work correctly", test.addr)
 	}
 }
