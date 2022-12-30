@@ -104,7 +104,11 @@ class CodeRunner extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setResultAfterResetError() {
+  /// Resets the error message text so that on the next rebuild
+  /// of `CodeTextAreaWrapper` it is not picked up and not shown as a toast.
+  // TODO: Listen to this object outside of widgets,
+  //  emit toasts from notifications, then remove this method.
+  void resetErrorMessageText() {
     if (_result == null) {
       return;
     }
