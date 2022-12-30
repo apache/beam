@@ -46,6 +46,7 @@ for dataset in ${BQ_DATASETS[@]}; do
           failed_calls+=1
         fi
       fi
+      break
     fi
   done
 done
