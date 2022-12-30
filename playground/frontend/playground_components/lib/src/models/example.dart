@@ -39,10 +39,10 @@ class Example extends ExampleBase {
     super.contextLine,
     super.description,
     super.isMultiFile,
-    super.urlNotebook,
-    super.urlVcs,
     super.pipelineOptions,
     super.tags,
+    super.urlNotebook,
+    super.urlVcs,
     super.viewOptions,
   });
 
@@ -57,14 +57,14 @@ class Example extends ExampleBase {
           contextLine: example.contextLine,
           description: example.description,
           isMultiFile: example.isMultiFile,
-          urlNotebook: example.urlNotebook,
-          urlVcs: example.urlVcs,
           name: example.name,
           path: example.path,
           pipelineOptions: example.pipelineOptions,
           sdk: example.sdk,
           tags: example.tags,
           type: example.type,
+          urlNotebook: example.urlNotebook,
+          urlVcs: example.urlVcs,
           viewOptions: example.viewOptions,
         );
 

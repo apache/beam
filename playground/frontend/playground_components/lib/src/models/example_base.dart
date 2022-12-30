@@ -55,14 +55,14 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
   final int contextLine;
   final String description;
   final bool isMultiFile;
-  final String? urlNotebook;
-  final String? urlVcs;
   final String name;
   final String path;
   final String pipelineOptions;
   final Sdk sdk;
   final List<String> tags;
   final ExampleType type;
+  final String? urlNotebook;
+  final String? urlVcs;
   final ExampleViewOptions viewOptions;
 
   const ExampleBase({
@@ -74,10 +74,10 @@ class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
     this.contextLine = 1,
     this.description = '',
     this.isMultiFile = false,
-    this.urlNotebook,
-    this.urlVcs,
     this.pipelineOptions = '',
     this.tags = const [],
+    this.urlNotebook,
+    this.urlVcs,
     this.viewOptions = ExampleViewOptions.empty,
   });
 

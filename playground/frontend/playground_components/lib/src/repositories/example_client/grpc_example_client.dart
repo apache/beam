@@ -324,18 +324,18 @@ class GrpcExampleClient implements ExampleClient {
 
   ExampleBase _toExampleModel(Sdk sdk, grpc.PrecompiledObject example) {
     return ExampleBase(
-      sdk: sdk,
-      name: example.name,
+      complexity: example.complexity.model,
+      contextLine: example.contextLine,
       description: example.description,
+      isMultiFile: example.multifile,
+      name: example.name,
+      path: example.cloudPath,
+      pipelineOptions: example.pipelineOptions,
+      sdk: sdk,
       tags: example.tags,
       type: _exampleTypeFromString(example.type),
-      path: example.cloudPath,
-      contextLine: example.contextLine,
-      pipelineOptions: example.pipelineOptions,
-      isMultiFile: example.multifile,
       urlNotebook: example.urlNotebook,
       urlVcs: example.urlVcs,
-      complexity: example.complexity.model,
     );
   }
 
