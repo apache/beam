@@ -50,6 +50,8 @@ public class StructuredPipelineProfile {
 
     JsonNode node = mapper.readTree(reader);
     node = node.path(project);
+
+    //If not specified, use the target in the profile itself
     if (target == null || "".equals(target)) {
       target = node.path("target").asText();
     }

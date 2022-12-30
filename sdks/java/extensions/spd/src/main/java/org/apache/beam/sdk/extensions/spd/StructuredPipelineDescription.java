@@ -38,6 +38,7 @@ import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Stream;
+import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import org.apache.beam.sdk.Pipeline;
@@ -190,6 +191,7 @@ public class StructuredPipelineDescription {
     if (model == null) {
       throw new Exception("Model " + fullTableName + " doesn't exist.");
     }
+
     if (model instanceof SqlModel) {
       RenderResult result = context.eval(((SqlModel) model).getRawQuery(), this);
       if (result.hasErrors()) {
@@ -234,6 +236,26 @@ public class StructuredPipelineDescription {
         metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
       } else {
         throw new Exception("Python model is not associated with an input table");
+      }
+    } else if (model instanceof ScriptEngineModel) {
+      ScriptEngineModel engineModel = (ScriptEngineModel) model;
+      ArrayList<Relation> rel = new ArrayList<>();
+      RenderResult result = context.eval(engineModel.getRawScript(),this,rel);
+      if(result.hasErrors()) {
+        for(TemplateError error : result.getErrors()) {
+          throw error.getException();
+        }
+      }
+      if(rel.size() > 0) {
+        Relation primary = rel.get(0);
+        ScriptEngine engine = engineModel.getEngine();
+        engine.eval(result.getOutput());
+        Object obj = ((Invocable)engine).invokeFunction("expand",readFrom(primary.getTable().getName(),pipeline.begin()));
+        if(obj instanceof PCollection) {
+          metaTableProvider.createTable(tableMap.associatePCollection(fullTableName,(PCollection)obj));
+        } else {
+          LOG.info("Script did not ");
+        }
       }
     }
     return metaTableProvider.getTable(fullTableName);

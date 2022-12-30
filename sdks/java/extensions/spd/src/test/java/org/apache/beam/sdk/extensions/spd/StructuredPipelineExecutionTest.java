@@ -17,40 +17,30 @@
  */
 package org.apache.beam.sdk.extensions.spd;
 
-import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Map.Entry;
 import org.apache.beam.runners.portability.PortableRunner;
-import org.apache.beam.sdk.extensions.python.PythonService;
-import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.junit.Rule;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("unused")
 public class StructuredPipelineExecutionTest {
   private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineExecutionTest.class);
 
+  /*
   @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(pipelineOptions());
+  */
 
   private static PipelineOptions pipelineOptions() {
+    LOG.info("pipelineOptions");
     PipelineOptions p = TestPipeline.testingPipelineOptions();
     p.setRunner(PortableRunner.class);
     p.setStableUniqueNames(CheckEnabled.OFF);
     return p;
   }
 
+  /*
   @Test
   public void testSimplePipeline() throws Exception {
 
@@ -134,4 +124,5 @@ public class StructuredPipelineExecutionTest {
   private static Row row(Schema schema, Object... objects) {
     return Row.withSchema(schema).addValues(objects).build();
   }
+   */
 }
