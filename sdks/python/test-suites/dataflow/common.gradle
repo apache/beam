@@ -106,7 +106,8 @@ task postCommitIT {
         "test_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
-        "collect": "uses_tft"
+        "collect": "uses_tft",
+        "requirements_file": "apache_beam/testing/benchmarks/cloudml/requirements.txt"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
