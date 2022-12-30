@@ -31,11 +31,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link FileWriteSchemaTransformFormatProviders}. */
 @RunWith(JUnit4.class)
 public class FileWriteSchemaTransformFormatProvidersTest {
-
-  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
-
-  @Rule public TestPipeline pipeline = TestPipeline.create();
-
   @Test
   public void loadProviders() {
     Map<String, FileWriteSchemaTransformFormatProvider> formatProviderMap =
@@ -47,33 +42,4 @@ public class FileWriteSchemaTransformFormatProvidersTest {
     assertTrue(keys.contains("parquet"));
     assertTrue(keys.contains("xml"));
   }
-
-  @Test
-  public void testAvro() {}
-
-  @Test
-  public void testCsv() {}
-
-  @Test
-  public void testJson() {
-    // FileWriteSchemaTransformFormatProvider provider =
-    // FileWriteSchemaTransformFormatProviders.loadProviders().get(JSON);
-    // provider.buildTransform(FileWriteSchemaTransformConfiguration.builder().build(),
-    //     SchemaAwareJavaBeans.SIMPLE_BEAN_SCHEMA);
-  }
-
-  @Test
-  public void testParquet() {}
-
-  @Test
-  public void testXml() {}
-
-  @Test
-  public void buildRowToRecordFn() {}
-
-  @Test
-  public void buildFileIOWrite() {}
-
-  @Test
-  public void buildTextIOWrite() {}
 }
