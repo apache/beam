@@ -18,35 +18,13 @@
 
 import 'package:flutter/material.dart';
 
-import '../../controllers/playground_controller.dart';
-import '../../models/outputs.dart';
-import '../bubble.dart';
+import '../../playground_components.dart';
 
-class ResultFilterBubble extends StatelessWidget {
-  final PlaygroundController playgroundController;
-  final OutputType type;
-  final String name;
+class OutputFilterTypeController extends ChangeNotifier {
+  OutputType outputFilterType = OutputType.all;
 
-  const ResultFilterBubble({
-    super.key,
-    required this.playgroundController,
-    required this.type,
-    required this.name,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected =
-        type == playgroundController.outputTypeController.outputFilterType;
-
-    return BubbleWidget(
-      isSelected: isSelected,
-      onTap: () {
-        if (!isSelected) {
-          playgroundController.outputTypeController.setOutputFilterType(type);
-        }
-      },
-      title: name,
-    );
+  void setOutputFilterType(OutputType type) {
+    outputFilterType = type;
+    notifyListeners();
   }
 }

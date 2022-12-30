@@ -20,7 +20,6 @@ enum OutputType {
   all,
   log,
   output,
-  graph,
 }
 
 class Outputs {

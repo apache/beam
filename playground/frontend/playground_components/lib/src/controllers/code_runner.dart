@@ -38,9 +38,6 @@ class CodeRunner extends ChangeNotifier {
 
   RunCodeResult? _result;
   StreamSubscription<RunCodeResult>? _runSubscription;
-  String outputResult = '';
-  // TODO(nausharipov): Move CodeRunner.outputType into a view https://github.com/apache/beam/issues/24691
-  OutputType selectedOutputFilterType = OutputType.all;
   DateTime? _runStartDate;
   DateTime? _runStopDate;
 
@@ -49,6 +46,10 @@ class CodeRunner extends ChangeNotifier {
   DateTime? get runStartDate => _runStartDate;
   DateTime? get runStopDate => _runStopDate;
   bool get isCodeRunning => !(_result?.isFinished ?? true);
+
+  String get resultLog => _result?.log ?? '';
+  String get resultOutput => _result?.output ?? '';
+  String get resultLogOutput => resultLog + resultOutput;
 
   void clearResult() {
     _result = null;
@@ -84,7 +85,7 @@ class CodeRunner extends ChangeNotifier {
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
-        filterOutput(selectedOutputFilterType);
+        notifyListeners();
 
         if (event.isFinished) {
           if (onFinish != null) {
@@ -98,43 +99,8 @@ class CodeRunner extends ChangeNotifier {
     }
   }
 
-  void filterOutput(OutputType type) {
-    final output = _result?.output ?? '';
-    final log = _result?.log ?? '';
-
-    switch (type) {
-      case OutputType.all:
-        setOutputResult(log + output);
-        break;
-      case OutputType.log:
-        setOutputResult(log);
-        break;
-      case OutputType.output:
-        setOutputResult(output);
-        break;
-      case OutputType.graph:
-        setOutputResult(log + output);
-        break;
-    }
-  }
-
-  void setOutputResult(String outputs) {
-    outputResult = outputs;
-    notifyListeners();
-  }
-
   void clearOutput() {
     _result = null;
-    notifyListeners();
-  }
-
-  void setSelectedOutputFilterType(OutputType type) {
-    selectedOutputFilterType = type;
-    notifyListeners();
-  }
-
-  void resetOutputResult() {
-    outputResult = '';
     notifyListeners();
   }
 
@@ -165,9 +131,6 @@ class CodeRunner extends ChangeNotifier {
       graph: _result?.graph,
     );
 
-    final log = _result?.log ?? '';
-    final output = _result?.output ?? '';
-    setOutputResult(log + output);
     _runStopDate = DateTime.now();
     notifyListeners();
   }
@@ -190,7 +153,6 @@ class CodeRunner extends ChangeNotifier {
       graph: selectedExample.graph,
     );
 
-    filterOutput(selectedOutputFilterType);
     _runStopDate = DateTime.now();
     notifyListeners();
   }
