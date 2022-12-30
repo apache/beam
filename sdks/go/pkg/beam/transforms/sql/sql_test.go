@@ -38,7 +38,7 @@ func TestOptions_Add(t *testing.T) {
 	o := options{}
 	o.Add(test.opt)
 	if o.customs == nil || !reflect.DeepEqual(o.customs[len(o.customs)-1], test.opt) {
-		t.Errorf("The method options.Add(%v) did not successfully perform the add operation", test.opt)
+		t.Errorf("The method options.Add(%v) did not successfully perform the add operation. For the feild customs in options, got %v, want %v", test.opt, o.customs, test.opt)
 	}
 }
 
@@ -60,7 +60,7 @@ func TestInput(t *testing.T) {
 	}
 	option(o)
 	if o.inputs == nil || !reflect.DeepEqual(o.inputs[test.inputName], test.inputIn) {
-		t.Errorf("The function that Input(%v, %v) returned did not work correctly", test.inputName, test.inputIn)
+		t.Errorf("The function that Input(%v, %v) returned did not work correctly. For the feild inputs in options, got %v, want %v", test.inputName, test.inputIn, o.inputs, test.inputIn)
 	}
 }
 
@@ -79,7 +79,7 @@ func TestDialect(t *testing.T) {
 	}
 	option(o)
 	if !reflect.DeepEqual(o.dialect, test.dialect) {
-		t.Errorf("The function that Input(%v) returned did not work correctly", test.dialect)
+		t.Errorf("The function that Input(%v) returned did not work correctly. For the feild dialect in options, got %v, want %v", test.dialect, o.dialect, test.dialect)
 	}
 }
 
@@ -98,6 +98,6 @@ func TestExpansionAddr(t *testing.T) {
 	}
 	option(o)
 	if !reflect.DeepEqual(o.expansionAddr, test.addr) {
-		t.Errorf("The function that ExpansionAddr(%v) returned did not work correctly", test.addr)
+		t.Errorf("The function that ExpansionAddr(%v) returned did not work correctly. For the feild expansionAddr in options, got %v, want %v", test.addr, o.expansionAddr, test.addr)
 	}
 }
