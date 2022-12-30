@@ -85,7 +85,8 @@ public interface SparkCommonPipelineOptions
     }
   }
 
-  @Description("Enable/disable async output for operators with possibly large output ( such as splittable DoFn )")
+  @Description(
+      "Enable/disable async output for operators with possibly large output ( such as splittable DoFn )")
   @Default.Boolean(true)
   Boolean getEnableAsyncOperatorOutput();
 

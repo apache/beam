@@ -17,16 +17,12 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import java.util.Iterator;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.transforms.DoFn;
 
-import java.util.Iterator;
-
-
-/**
- * Holds current processing context for {@link SparkInputDataProcessor}.
- */
+/** Holds current processing context for {@link SparkInputDataProcessor}. */
 class SparkProcessContext<K, InputT, OutputT> {
   private final DoFn<InputT, OutputT> doFn;
   private final DoFnRunner<InputT, OutputT> doFnRunner;
@@ -34,10 +30,10 @@ class SparkProcessContext<K, InputT, OutputT> {
   private final K key;
 
   SparkProcessContext(
-          DoFn<InputT, OutputT> doFn,
-          DoFnRunner<InputT, OutputT> doFnRunner,
-          K key,
-          Iterator<TimerInternals.TimerData> timerDataIterator) {
+      DoFn<InputT, OutputT> doFn,
+      DoFnRunner<InputT, OutputT> doFnRunner,
+      K key,
+      Iterator<TimerInternals.TimerData> timerDataIterator) {
 
     this.doFn = doFn;
     this.doFnRunner = doFnRunner;

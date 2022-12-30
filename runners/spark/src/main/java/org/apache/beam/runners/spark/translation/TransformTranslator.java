@@ -361,15 +361,17 @@ public final class TransformTranslator {
   private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
 
-      private final PTransformMatcher splitDoFnMatcher = PTransformMatchers.parDoWithFnType(SplittableParDoNaiveBounded.NaiveProcessFn.class);
+      private final PTransformMatcher splitDoFnMatcher =
+          PTransformMatchers.parDoWithFnType(SplittableParDoNaiveBounded.NaiveProcessFn.class);
 
       @Override
       @SuppressWarnings("unchecked")
       public void evaluate(
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
 
-        boolean useAsync = context.getOptions().as(SparkPipelineOptions.class).getEnableAsyncOperatorOutput() &&
-                splitDoFnMatcher.matches(context.getCurrentTransform());
+        boolean useAsync =
+            context.getOptions().as(SparkPipelineOptions.class).getEnableAsyncOperatorOutput()
+                && splitDoFnMatcher.matches(context.getCurrentTransform());
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
         DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);

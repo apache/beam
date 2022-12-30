@@ -93,20 +93,20 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param useAsyncProcessing If it should use asynchronous processing.
    */
   public MultiDoFnFunction(
-          MetricsContainerStepMapAccumulator metricsAccum,
-          String stepName,
-          DoFn<InputT, OutputT> doFn,
-          SerializablePipelineOptions options,
-          TupleTag<OutputT> mainOutputTag,
-          List<TupleTag<?>> additionalOutputTags,
-          Coder<InputT> inputCoder,
-          Map<TupleTag<?>, Coder<?>> outputCoders,
-          Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
-          WindowingStrategy<?, ?> windowingStrategy,
-          boolean stateful,
-          DoFnSchemaInformation doFnSchemaInformation,
-          Map<String, PCollectionView<?>> sideInputMapping,
-          boolean useAsyncProcessing) {
+      MetricsContainerStepMapAccumulator metricsAccum,
+      String stepName,
+      DoFn<InputT, OutputT> doFn,
+      SerializablePipelineOptions options,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> additionalOutputTags,
+      Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
+      WindowingStrategy<?, ?> windowingStrategy,
+      boolean stateful,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping,
+      boolean useAsyncProcessing) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -125,12 +125,11 @@ public class MultiDoFnFunction<InputT, OutputT>
 
   @Override
   public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
-          throws Exception {
+      throws Exception {
     if (!wasSetupCalled && iter.hasNext()) {
       DoFnInvokers.tryInvokeSetupFor(doFn, options.get());
       wasSetupCalled = true;
     }
-
 
     SparkInputDataProcessor<InputT, OutputT, Tuple2<TupleTag<?>, WindowedValue<?>>> processor;
     if (useAsyncProcessing) {
@@ -169,7 +168,6 @@ public class MultiDoFnFunction<InputT, OutputT>
       context = new SparkNoOpStepContext();
     }
 
-
     final DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.simpleRunner(
             options.get(),
@@ -188,7 +186,8 @@ public class MultiDoFnFunction<InputT, OutputT>
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
-    SparkProcessContext<Object, InputT, OutputT> ctx = new SparkProcessContext<>(
+    SparkProcessContext<Object, InputT, OutputT> ctx =
+        new SparkProcessContext<>(
             doFn,
             doFnRunnerWithMetrics,
             key,
@@ -244,7 +243,6 @@ public class MultiDoFnFunction<InputT, OutputT>
       throw new RuntimeException("TimerDataIterator not support remove!");
     }
   }
-
 
   private static class SparkNoOpStepContext implements StepContext {
 
