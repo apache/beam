@@ -323,8 +323,8 @@ func makeWindowMappingFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 
 func TestInputIdToIndex(t *testing.T) {
 	tests := []struct {
-		in  string
-		exp int
+		in   string
+		want int
 	}{
 		{ // does not start with i
 			"90",
@@ -345,14 +345,14 @@ func TestInputIdToIndex(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		actual, err := inputIdToIndex(test.in)
+		got, err := inputIdToIndex(test.in)
 		if !strings.HasPrefix(test.in, "i") {
 			if err == nil {
-				t.Errorf("should return err when string does not has a prefix of i, but didn't")
+				t.Errorf("Should return err when string does not has a prefix of i, but didn't. inputIdToIndex(%v) = (%v, %v)", test.in, got, err)
 			}
 		} else {
-			if actual != test.exp {
-				t.Errorf("can not correctly convert inputId to index. input: %v, expect: %v, acutally: %v", test.in, test.exp, actual)
+			if got != test.want {
+				t.Errorf("Can not correctly convert inputId to index. inputIdToIndex(%v) = (%v, %v), want %v", test.in, got, err, test.want)
 			}
 		}
 	}
@@ -360,8 +360,8 @@ func TestInputIdToIndex(t *testing.T) {
 
 func TestIndexToInputId(t *testing.T) {
 	tests := []struct {
-		in  int
-		exp string
+		in   int
+		want string
 	}{
 		{
 			1,
@@ -374,9 +374,9 @@ func TestIndexToInputId(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		actual := indexToInputId(test.in)
-		if actual != test.exp {
-			t.Errorf("can not correctly convert inputId to index. input: %v, expect: %v, acutally: %v", test.in, test.exp, actual)
+		got := indexToInputId(test.in)
+		if got != test.want {
+			t.Errorf("Can not correctly convert index to inputId. indexToInputId(%v) = (%v), want %v", test.in, got, test.want)
 		}
 	}
 }
@@ -401,13 +401,13 @@ func TestUnmarshalPort(t *testing.T) {
 	for _, test := range tests {
 		port, str, err := unmarshalPort(test.inputData)
 		if err != nil && test.outputError == nil {
-			t.Errorf("There is an error where should not be")
+			t.Errorf("There is an error where should not be. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
 		} else if err != nil && err != test.outputError {
-			t.Errorf("There is an error that does not meet expectation")
+			t.Errorf("There is an error that does not meet expectation. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
 		} else if port != test.outputPort {
-			t.Errorf("The output port is not right")
+			t.Errorf("The output port is not right. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
 		} else if str != test.outputStr {
-			t.Errorf("The output string is not right")
+			t.Errorf("The output string is not right. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
 		}
 	}
 }
@@ -462,11 +462,11 @@ func TestUnmarshalPlan(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			plan, err := UnmarshalPlan(test.inputDesc)
 			if err != nil && test.outputError == nil {
-				t.Errorf("There is an error where should not be, inputDesc: %v, outputError: %v", test.inputDesc, err)
+				t.Errorf("There is an error where should not be. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
 			} else if err != nil && !reflect.DeepEqual(err, test.outputError) {
-				t.Errorf("There is an error that does not meet expectation, inputDesc: %v, expected outputError: %v, acutally outputError: %v", test.inputDesc, test.outputError, err)
+				t.Errorf("There is an error that does not meet expectation. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
 			} else if !reflect.DeepEqual(plan, test.outputPlan) {
-				t.Errorf("The output builder is not right, inputDesc: %v, expected outputPlan: %v, acutally outputPlan: %v", test.inputDesc, test.outputPlan, plan)
+				t.Errorf("The output builder is not right. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
 			}
 		})
 	}
@@ -474,14 +474,8 @@ func TestUnmarshalPlan(t *testing.T) {
 
 func TestNewBuilder(t *testing.T) {
 	descriptor := fnpb.ProcessBundleDescriptor{
-		Id:                        "",
-		Transforms:                map[string]*pipepb.PTransform{},
-		Pcollections:              nil,
-		WindowingStrategies:       nil,
-		Coders:                    nil,
-		Environments:              nil,
-		StateApiServiceDescriptor: nil,
-		TimerApiServiceDescriptor: nil,
+		Id:         "",
+		Transforms: map[string]*pipepb.PTransform{},
 	}
 	tests := []struct {
 		name          string
@@ -511,11 +505,11 @@ func TestNewBuilder(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			b, err := newBuilder(test.inputDesc)
 			if err != nil && test.outputError == nil {
-				t.Errorf("There is an error where should not be, inputDesc: %v", test.inputDesc)
+				t.Errorf("There is an error where should not be. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
 			} else if err != nil && err != test.outputError {
-				t.Errorf("There is an error that does not meet expectation, inputDesc: %v, expected outputError: %v, acutally outputError: %v", test.inputDesc, test.outputError, err)
+				t.Errorf("There is an error that does not meet expectation. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
 			} else if !reflect.DeepEqual(b, test.outputBuilder) {
-				t.Errorf("The output builder is not right, inputDesc: %v, expected outputBuilder: %v, acutally outputBuilder: %v", test.inputDesc, test.outputBuilder, b)
+				t.Errorf("The output builder is not right. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
 			}
 		})
 	}
