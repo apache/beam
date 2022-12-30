@@ -254,12 +254,19 @@ packages:
     source: hosted
     version: "0.0.2"
   enum_map:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: enum_map
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.2.1"
+  enum_map_gen:
+    dependency: "direct dev"
+    description:
+      name: enum_map_gen
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.2.0"
   equatable:
     dependency: "direct dev"
     description:

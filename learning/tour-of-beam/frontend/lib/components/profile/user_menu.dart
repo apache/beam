@@ -26,7 +26,6 @@ import 'package:playground_components/playground_components.dart';
 import '../../assets/assets.gen.dart';
 import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
 
 class UserMenu extends StatelessWidget {
   final VoidCallback closeOverlayCallback;

@@ -31,7 +31,6 @@ import '../../components/builders/sdks.dart';
 import '../../components/login/content.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
 import '../../models/module.dart';
 import '../../state.dart';
 import '../tour/page.dart';

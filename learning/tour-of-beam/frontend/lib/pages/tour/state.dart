@@ -94,7 +94,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     await client.postUserCode(
       currentUnitController!.sdkId,
       currentUnitController!.unitId,
-      playgroundController.snippetEditingController!.codeController.rawText,
+      playgroundController.snippetEditingController!.codeController.fullText,
     );
 
     // final snippetId =
@@ -157,13 +157,12 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
-      final sdk = contentTreeController.sdk;
       final content = _unitContentCache.getUnitContent(
-        sdk.id,
+        contentTreeController.sdkId,
         currentNode.id,
       );
-
-      _setCurrentUnitContent(content, sdk: sdk);
+      _createCurrentUnitController(contentTreeController.sdkId, currentNode.id);
+      _setCurrentUnitContent(content);
     } else {
       _emptyPlayground();
     }
@@ -171,12 +170,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  UnitContentModel? get currentUnitContent => _currentUnitContent;
-
-  void _setCurrentUnitContent(
-    UnitContentModel? content, {
-    required Sdk sdk,
-  }) {
+  Future<void> _setCurrentUnitContent(UnitContentModel? content) async {
     if (content == _currentUnitContent) {
       return;
     }
@@ -214,8 +208,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       ExamplesLoadingDescriptor(
         descriptors: [
           UserSharedExampleLoadingDescriptor(
-            sdk: sdk,
-            snippetId: taskSnippetId,
+            sdk: Sdk.parseOrCreate(
+              _appNotifier.sdkId!,
+            ),
+            snippetId: snippetId,
           ),
         ],
       ),
