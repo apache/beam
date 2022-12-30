@@ -228,7 +228,7 @@ class PlaygroundController with ChangeNotifier {
     codeRunner.clearResult();
   }
 
-  void resetError() {
+  void resetErrorMessageText() {
     codeRunner.setResultAfterResetError();
   }
 
