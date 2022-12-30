@@ -16,19 +16,18 @@
  * limitations under the License.
  */
 import CommonJobProperties as common
+import PostcommitJobBuilder
 import Kubernetes
 
-String jobName = "beam_PerformanceTests_InfluxDbIO_IT"
+String jobName = "beam_PostCommit_Java_InfluxDbIO_IT"
 
-job(jobName) {
+PostcommitJobBuilder.postCommitJob(jobName, 'Run Java InfluxDbIO_IT', 'Java InfluxDbIO Integration Test', this) {
+  description('Runs the Java InfluxDbIO Integration Test.')
+  previousNames(/beam_PerformanceTests_InfluxDbIO_IT/)
   // Set common parameters.
-  common.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
-  common.setAutoJob(delegate,'H H/6 * * *')
-  common.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Java InfluxDbIO Performance Test',
-      'Run Java InfluxDbIO Performance Test')
+  common.setTopLevelMainJobProperties(delegate)
 
+  // Deploy InfluxDb cluster
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
   Kubernetes k8s = Kubernetes.create(delegate, kubeconfigPath, namespace)
