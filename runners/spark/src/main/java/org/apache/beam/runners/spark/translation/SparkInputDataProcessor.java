@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -37,7 +36,11 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.*;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.LinkedListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import scala.Tuple2;
 
 /** Processes Spark partitions using Beam's {@link org.apache.beam.runners.core.DoFnRunner}. */
@@ -50,7 +53,7 @@ interface SparkInputDataProcessor<FnInputT, FnOutputT, OutputT> {
   OutputManager getOutputManager();
 
   /**
-   * Processes input partition data and return results as {@link Iterable}
+   * Processes input partition data and return results as {@link Iterable}.
    *
    * @param input input partition iterator
    * @param ctx current processing context
@@ -266,11 +269,12 @@ class AsyncSparkInputDataProcessor<FnInputT, FnOutputT>
 
         @Override
         public Tuple2<TupleTag<?>, WindowedValue<?>> next() {
-          Tuple2<TupleTag<?>, WindowedValue<?>> poll = null;
+          Tuple2<TupleTag<?>, WindowedValue<?>> poll;
           try {
             poll = queue.poll(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
           }
           return poll;
         }
