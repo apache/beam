@@ -508,7 +508,7 @@ public class CassandraIOTest implements Serializable {
                 .withCoder(SerializableCoder.of(Scientist.class))
                 .withEntity(Scientist.class));
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(22L);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_ROWS);
     PAssert.that(output)
         .satisfies(
             input -> {
