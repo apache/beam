@@ -145,7 +145,7 @@ public class Pipeline {
   /** Constructs a pipeline from default {@link PipelineOptions}. */
   public static Pipeline create() {
     Pipeline pipeline = new Pipeline(PipelineOptionsFactory.create());
-    LOG.debug("Creating {}", pipeline);
+    LOG.warn("Creating {} without specifying options", pipeline);
     return pipeline;
   }
 
