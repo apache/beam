@@ -16,16 +16,16 @@
 #
 
 test_1:
-  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks_22
+  test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
   metrics_dataset: beam_run_inference
   metrics_table: torch_inference_imagenet_results_resnet152
   project: apache-beam-testing
   metric_name: mean_load_model_latency_milli_secs
   labels:
     - run-inference
-  # Optional parameters.
+  # Optional parameters. Please look at README for more information.
   min_runs_between_change_points: 3
-  num_runs_in_change_point_window: 30
+  num_runs_in_change_point_window: 14
 
 test_2:
   test_name: apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks
