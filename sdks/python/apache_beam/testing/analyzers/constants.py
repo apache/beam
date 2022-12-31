@@ -34,7 +34,7 @@ _NUM_RESULTS_TO_DISPLAY_ON_ISSUE_DESCRIPTION = 10
 _NUM_DATA_POINTS_TO_RUN_CHANGE_POINT_ANALYSIS = 100
 # Variables used for finding duplicate change points.
 _DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS = 3
-_DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW = 30
+_DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW = 14
 
 _PERF_TEST_KEYS = {
     'test_name', 'metrics_dataset', 'metrics_table', 'project', 'metric_name'
