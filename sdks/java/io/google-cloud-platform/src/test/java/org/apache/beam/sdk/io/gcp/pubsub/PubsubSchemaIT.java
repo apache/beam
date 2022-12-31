@@ -43,10 +43,7 @@ public class PubsubSchemaIT {
   private static final String HAS_PROTO_SCHEMA = "has-proto-schema";
   private static final String AVRO_PRIMITIVE_TYPES_FLAT = "avro-primitive-types-flat";
 
-  private static final String AVRO_SCHEMA_FILE = "avro_all_data_types_flat_schema.json";
   private static final String PROTO_PRIMITIVE_TYPES_FLAT = "proto-primitive-types-flat";
-
-  private static final String PROTO_SCHEMA_FILE = "all_data_types_flat_schema.proto";
 
   private static PubsubClient pubsubClient;
 
@@ -83,9 +80,11 @@ public class PubsubSchemaIT {
         PubsubClient.schemaPathFromId(project, PROTO_PRIMITIVE_TYPES_FLAT + postFix);
 
     pubsubClient.createSchema(
-        hasAvroSchemaPath, AVRO_SCHEMA_FILE, com.google.pubsub.v1.Schema.Type.AVRO);
+        hasAvroSchemaPath, AVRO_ALL_DATA_TYPES_FLAT_SCHEMA, com.google.pubsub.v1.Schema.Type.AVRO);
     pubsubClient.createSchema(
-        hasProtoSchemaPath, PROTO_SCHEMA_FILE, com.google.pubsub.v1.Schema.Type.PROTOCOL_BUFFER);
+        hasProtoSchemaPath,
+        PROTO_ALL_DATA_TYPES_FLAT_SCHEMA,
+        com.google.pubsub.v1.Schema.Type.PROTOCOL_BUFFER);
     pubsubClient.createTopic(hasNoSchemaTopic);
     pubsubClient.createTopic(hasAvroSchemaTopic, hasAvroSchemaPath);
     pubsubClient.createTopic(hasProtoSchemaTopic, hasProtoSchemaPath);
@@ -121,4 +120,48 @@ public class PubsubSchemaIT {
         IllegalArgumentException.class,
         () -> pubsubClient.getSchema(hasProtoSchemaPath));
   }
+
+  private static final String PROTO_ALL_DATA_TYPES_FLAT_SCHEMA =
+      "syntax = \"proto3\";\n"
+          + "\n"
+          + "message Record {\n"
+          + "  double doubleField = 1;\n"
+          + "  float floatField = 2;\n"
+          + "  int32 int32Field = 3;\n"
+          + "  int64 int64Field = 4;\n"
+          + "  bool boolField = 5;\n"
+          + "  string stringField = 6;\n"
+          + "}";
+
+  private static final String AVRO_ALL_DATA_TYPES_FLAT_SCHEMA =
+      "{\n"
+          + "  \"type\": \"record\",\n"
+          + "  \"name\": \"Avro\",\n"
+          + "  \"fields\": [\n"
+          + "    {\n"
+          + "      \"name\": \"BooleanField\",\n"
+          + "      \"type\": \"boolean\"\n"
+          + "    },\n"
+          + "    {\n"
+          + "      \"name\": \"IntField\",\n"
+          + "      \"type\": \"int\"\n"
+          + "    },\n"
+          + "    {\n"
+          + "      \"name\": \"LongField\",\n"
+          + "      \"type\": \"long\"\n"
+          + "    },\n"
+          + "    {\n"
+          + "      \"name\": \"FloatField\",\n"
+          + "      \"type\": \"float\"\n"
+          + "    },\n"
+          + "    {\n"
+          + "      \"name\": \"DoubleField\",\n"
+          + "      \"type\": \"double\"\n"
+          + "    },\n"
+          + "    {\n"
+          + "      \"name\": \"StringField\",\n"
+          + "      \"type\": \"string\"\n"
+          + "    }\n"
+          + "  ]\n"
+          + "}";
 }

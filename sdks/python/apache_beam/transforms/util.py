@@ -832,6 +832,7 @@ class Reshuffle(PTransform):
 
 
 def fn_takes_side_inputs(fn):
+  fn = getattr(fn, '_argspec_fn', fn)
   try:
     signature = get_signature(fn)
   except TypeError:
