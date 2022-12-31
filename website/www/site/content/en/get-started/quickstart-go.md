@@ -36,6 +36,8 @@ $ go version
 The easiest way to obtain the Apache Beam Go SDK is via `go get`:
 
 {{< highlight >}}
+$ cd /path/to/empty/folder
+$ go mod init github.com/apache/beam/sdks/v2/go/pkg/beam
 $ go get -u github.com/apache/beam/sdks/v2/go/pkg/beam
 {{< /highlight >}}
 
