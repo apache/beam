@@ -116,8 +116,7 @@ def run_change_point_analysis(params, test_id, big_query_metrics_fetcher):
         change_point_index=change_point_index,
         timestamps=timestamps,
         min_runs_between_change_points=min_runs_between_change_points)
-
-  logging.debug(
+  logging.info(
       "Performance alert is %s for test %s" % (is_alert, params['test_name']))
   if is_alert:
     issue_number, issue_url = create_performance_alert(
