@@ -22,7 +22,7 @@ import shutil
 import tempfile
 import unittest
 from collections import OrderedDict
-
+import sys
 import numpy as np
 import pytest
 
@@ -35,11 +35,13 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import onnx
-  import onnxruntime.InferenceSession
+  import onnxruntime as ort
   import torch
+  from onnxruntime.capi.onnxruntime_pybind11_state import InvalidArgument
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
-  from apache_beam.ml.inference.onnx_inference import OnnxModelHandlerTensor
+  from apache_beam.ml.inference.onnx_inference import default_numpy_inference_fn
+  from apache_beam.ml.inference.onnx_inference import OnnxModelHandler
 except ImportError:
   raise unittest.SkipTest('Onnx and PyTorch dependencies are not installed')
 
@@ -49,19 +51,18 @@ except ImportError:
   GCSFileSystem = None  # type: ignore
 
 TWO_FEATURES_EXAMPLES = [
-    torch.from_numpy(np.array([1, 5], dtype="float32")),
-    torch.from_numpy(np.array([3, 10], dtype="float32")),
-    torch.from_numpy(np.array([-14, 0], dtype="float32")),
-    torch.from_numpy(np.array([0.5, 0.5], dtype="float32")),
+    np.array([1, 5], dtype="float32"),
+    np.array([3, 10], dtype="float32"),
+    np.array([-14, 0], dtype="float32"),
+    np.array([0.5, 0.5], dtype="float32")
 ]
 
 TWO_FEATURES_PREDICTIONS = [
     PredictionResult(ex, pred) for ex,
     pred in zip(
         TWO_FEATURES_EXAMPLES,
-        torch.Tensor(
-            [f1 * 2.0 + f2 * 3 + 0.5
-             for f1, f2 in TWO_FEATURES_EXAMPLES]).reshape(-1, 1))
+        [f1 * 2.0 + f2 * 3 + 0.5
+             for f1, f2 in TWO_FEATURES_EXAMPLES])
 ]
 
 TWO_FEATURES_DICT_OUT_PREDICTIONS = [
@@ -72,28 +73,18 @@ TWO_FEATURES_DICT_OUT_PREDICTIONS = [
 ]
 
 
-class TestOnnxModelHandler(OnnxModelHandlerTensor):
-  def __init__(self,model_uri: str,*,inference_fn: NumpyInferenceFn = _default_numpy_inference_fn):
+class TestOnnxModelHandler(OnnxModelHandler):
+  def __init__(self,model_uri: str,*,inference_fn = default_numpy_inference_fn):
     self._model_uri = model_uri
     self._model_inference_fn = inference_fn
 
-
-def _compare_prediction_result(x, y):
-  if isinstance(x.example, dict):
-    example_equals = all(
-        torch.equal(x, y) for x,
-        y in zip(x.example.values(), y.example.values()))
-  else:
-    example_equals = torch.equal(x.example, y.example)
-  if not example_equals:
-    return False
-
-  if isinstance(x.inference, dict):
+def _compare_prediction_result(a, b):
+  example_equal = np.array_equal(a.example, b.example)
+  if isinstance(a.inference, dict):
     return all(
-        torch.equal(x, y) for x,
-        y in zip(x.inference.values(), y.inference.values()))
-
-  return torch.equal(x.inference, y.inference)
+        x == y for x, y in zip(a.inference.values(),
+                               b.inference.values())) and example_equal
+  return a.inference == b.inference and example_equal
 
 def _to_numpy(tensor):
       return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
@@ -146,10 +137,10 @@ class OnnxPytorchRunInferenceTest(unittest.TestCase):
 
   def test_onnx_pytorch_run_inference(self):
     examples = [
-        torch.from_numpy(np.array([1], dtype="float32")),
-        torch.from_numpy(np.array([5], dtype="float32")),
-        torch.from_numpy(np.array([-3], dtype="float32")),
-        torch.from_numpy(np.array([10.0], dtype="float32")),
+        np.array([1], dtype="float32"),
+        np.array([5], dtype="float32"),
+        np.array([-3], dtype="float32"),
+        np.array([10.0], dtype="float32"),
     ]
     expected_predictions = [
         PredictionResult(ex, pred) for ex,
@@ -164,8 +155,9 @@ class OnnxPytorchRunInferenceTest(unittest.TestCase):
         OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
                      ('linear.bias', torch.Tensor([0.5]))]))
     path = os.path.join(self.tmpdir, 'my_onnx_path')
+    dummy_input = torch.randn(4, 1, requires_grad=True)
     torch.onnx.export(model,
-                      example,               # model input (or a tuple for multiple inputs)
+                      dummy_input,               # model input (or a tuple for multiple inputs)
                       path,   # where to save the model (can be a file or file-like object)
                       export_params=True,        # store the trained parameter weights inside the model file
                       opset_version=10,          # the ONNX version to export the model to
@@ -176,17 +168,28 @@ class OnnxPytorchRunInferenceTest(unittest.TestCase):
                                     'output' : {0 : 'batch_size'}})
     
     inference_runner = TestOnnxModelHandler(path)
-    predictions = inference_runner.run_inference(examples, model)
-    for actual, expected in zip(predictions[0], expected_predictions):
-      self.assertEqual(actual, _to_numpy(expected))
+    inference_session = ort.InferenceSession(path)
+    predictions = inference_runner.run_inference(examples, inference_session)
+    for actual, expected in zip(predictions, expected_predictions):
+      self.assertEqual(actual, expected)
 
   def test_num_bytes(self):
     inference_runner = TestOnnxModelHandler("dummy")
-    examples = torch.from_numpy(
-        np.array([1, 5, 3, 10, -14, 0, 0.5, 0.5],
-                 dtype="float32")).reshape(-1, 2)
-    self.assertEqual((examples[0].element_size()) * 8,
-                     inference_runner.get_num_bytes(examples))
+    batched_examples_int = [
+        np.array([1, 2, 3]), np.array([4, 5, 6]), np.array([7, 8, 9])
+    ]
+    self.assertEqual(
+        sys.getsizeof(batched_examples_int[0]) * 3,
+        inference_runner.get_num_bytes(batched_examples_int))
+
+    batched_examples_float = [
+        np.array([1.0, 2.0, 3.0]),
+        np.array([4.1, 5.2, 6.3]),
+        np.array([7.7, 8.8, 9.9])
+    ]
+    self.assertEqual(
+        sys.getsizeof(batched_examples_float[0]) * 3,
+        inference_runner.get_num_bytes(batched_examples_float))
 
   def test_namespace(self):
     inference_runner = TestOnnxModelHandler("dummy")
@@ -204,8 +207,9 @@ class OnnxPytorchRunInferencePipelineTest(unittest.TestCase):
   def exportModelToOnnx(self, state_dict, path):
     model = PytorchLinearRegression(input_dim=2, output_dim=1)
     model.load_state_dict(state_dict)
+    dummy_input = torch.randn(4, 2, requires_grad=True)
     torch.onnx.export(model,
-                      TWO_FEATURES_EXAMPLES,               # model input (or a tuple for multiple inputs)
+                      dummy_input,               # model input (or a tuple for multiple inputs)
                       path,   # where to save the model (can be a file or file-like object)
                       export_params=True,        # store the trained parameter weights inside the model file
                       opset_version=10,          # the ONNX version to export the model to
@@ -222,14 +226,14 @@ class OnnxPytorchRunInferencePipelineTest(unittest.TestCase):
       torch_state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
                                 ('linear.bias', torch.Tensor([0.5]))])
       self.exportModelToOnnx(torch_state_dict, path)
-      model_handler = OnnxModelHandlerTensor(path)
+      model_handler = TestOnnxModelHandler(path)
 
-      pcoll = pipeline | 'start' >> beam.Create(_to_numpy(TWO_FEATURES_EXAMPLES))
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
       predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(
-              _to_numpy(TWO_FEATURES_PREDICTIONS), equals_fn=_compare_prediction_result))
+              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
 
   # need to put onnx in gs path
   '''
@@ -261,16 +265,17 @@ class OnnxPytorchRunInferencePipelineTest(unittest.TestCase):
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
   '''
+
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(TypeError, "expected Nunmpy as element"):
+    with self.assertRaisesRegex(InvalidArgument, "Got invalid dimensions for input: input for the following indices"):
       with TestPipeline() as pipeline:
-        examples = torch.from_numpy(np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
+        examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_path')
-        state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
-                                  ('linear.bias', torch.Tensor([0.5]))])
+        state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
         self.exportModelToOnnx(state_dict, path)
 
-        model_handler = onnxModelHandlerTensor(path)
+        model_handler = TestOnnxModelHandler(path)
 
         pcoll = pipeline | 'start' >> beam.Create(examples)
         # pylint: disable=expression-not-assigned

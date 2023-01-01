@@ -89,6 +89,8 @@ RUN groupmod -g ${DOCKER_GROUP_ID} docker
 RUN useradd -g ${GROUP_ID} -G docker -u ${USER_ID} -k /root -m ${USER_NAME} -d "${DOCKER_HOME_DIR}"
 RUN echo "${USER_NAME} ALL=NOPASSWD: ALL" > "/etc/sudoers.d/beam-build-${USER_ID}"
 # now add onnx packages
+RUN pip install torch
+RUN pip install pandas
 RUN pip install onnxruntime
 RUN pip install tf2onnx
 RUN pip install skl2onnx

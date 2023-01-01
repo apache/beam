@@ -28,7 +28,7 @@ from typing import Union
 import numpy
 import pandas
 import onnx
-import onnxruntime.InferenceSession
+import onnxruntime as ort
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
@@ -46,11 +46,12 @@ __all__ = [
 ]
 
 NumpyInferenceFn = Callable[
-    [Sequence[numpy.ndarray], InferenceSession, Optional[Dict[str, Any]]]]
+    [Sequence[numpy.ndarray], ort.InferenceSession, Optional[Dict[str, Any]]],
+    Iterable[PredictionResult]]
 
 
 def _load_model(model_uri):
-  ort_session = InferenceSession(model_uri)
+  ort_session = ort.InferenceSession(model_uri)
   return ort_session
 
 
@@ -71,23 +72,23 @@ def _convert_to_result(
   return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
-def _default_numpy_inference_fn(
-    inference_session: InferenceSession,
+def default_numpy_inference_fn(
+    inference_session: ort.InferenceSession,
     batch: Sequence[numpy.ndarray],
     inference_args: Optional[Dict[str, Any]] = None) -> Any:
-  ort_inputs = {ort_session.get_inputs()[0].name: batch}
-  ort_outs = ort_session.run(None, ort_inputs)
+  ort_inputs = {inference_session.get_inputs()[0].name: numpy.stack(batch, axis=0)}
+  ort_outs = inference_session.run(None, ort_inputs)
   return ort_outs
 
 
 class OnnxModelHandler(ModelHandler[numpy.ndarray,
                                     PredictionResult,
-                                    InferenceSession]):
+                                    ort.InferenceSession]):
   def __init__(
       self,
       model_uri: str,
       *,
-      inference_fn: NumpyInferenceFn = _default_numpy_inference_fn):
+      inference_fn: NumpyInferenceFn = default_numpy_inference_fn):
     """ Implementation of the ModelHandler interface for onnx
     using numpy arrays as input.
 
@@ -98,19 +99,19 @@ class OnnxModelHandler(ModelHandler[numpy.ndarray,
     Args:
       model_uri: The URI to where the model is saved.
       inference_fn: The inference function to use.
-        default=_default_numpy_inference_fn
+        default=default_numpy_inference_fn
     """
     self._model_uri = model_uri
     self._model_inference_fn = inference_fn
 
-  def load_model(self) -> InferenceSession:
+  def load_model(self) -> ort.InferenceSession:
     """Loads and initializes an onnx inference session for processing."""
     return _load_model(self._model_uri)
 
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
-      inference_session: InferenceSession,
+      inference_session: ort.InferenceSession,
       inference_args: Optional[Dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of numpy arrays.
@@ -124,11 +125,11 @@ class OnnxModelHandler(ModelHandler[numpy.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
-    predictions = self._model_inference_fn(inference_session, batch, inference_args)
+    predictions = self._model_inference_fn(inference_session, batch, inference_args)[0]
 
     return _convert_to_result(batch, predictions)
 
-  def get_num_bytes(self, batch: Sequence[numpy.DataFrame]) -> int:
+  def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
     """
     Returns:
       The number of bytes of data for a batch.
