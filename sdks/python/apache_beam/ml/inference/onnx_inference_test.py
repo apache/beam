@@ -38,12 +38,16 @@ try:
   import onnxruntime as ort
   import torch
   from onnxruntime.capi.onnxruntime_pybind11_state import InvalidArgument
+  import tensorflow as tf
+  import tf2onnx
+  from tensorflow import keras
+  from tensorflow.keras import layers
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.onnx_inference import default_numpy_inference_fn
   from apache_beam.ml.inference.onnx_inference import OnnxModelHandler
 except ImportError:
-  raise unittest.SkipTest('Onnx and PyTorch dependencies are not installed')
+  raise unittest.SkipTest('Onnx dependencies are not installed')
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
@@ -102,30 +106,6 @@ class PytorchLinearRegression(torch.nn.Module):
     out = self.linear(x) + 0.5
     return out
 
-
-'''
-class PytorchLinearRegressionKeyedBatchAndExtraInferenceArgs(torch.nn.Module):
-  """
-  A linear model with batched keyed inputs and non-batchable extra args.
-
-  Note: k1 and k2 are batchable examples passed in as a dict from str to tensor.
-  prediction_param_array, prediction_param_bool are non-batchable extra args
-  (typically model-related info) used to configure the model before its predict
-  call is invoked
-  """
-  def __init__(self, input_dim, output_dim):
-    super().__init__()
-    self.linear = torch.nn.Linear(input_dim, output_dim)
-
-  def forward(self, k1, k2, prediction_param_array, prediction_param_bool):
-    if not prediction_param_bool:
-      raise ValueError("Expected prediction_param_bool to be True")
-    if not torch.all(prediction_param_array):
-      raise ValueError("Expected prediction_param_array to be all True")
-    out = self.linear(k1) + self.linear(k2)
-    return out
-'''
-
 @pytest.mark.uses_pytorch
 class OnnxPytorchRunInferenceTest(unittest.TestCase):
 
@@ -154,7 +134,7 @@ class OnnxPytorchRunInferenceTest(unittest.TestCase):
     model.load_state_dict(
         OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
                      ('linear.bias', torch.Tensor([0.5]))]))
-    path = os.path.join(self.tmpdir, 'my_onnx_path')
+    path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
     dummy_input = torch.randn(4, 1, requires_grad=True)
     torch.onnx.export(model,
                       dummy_input,               # model input (or a tuple for multiple inputs)
@@ -168,7 +148,7 @@ class OnnxPytorchRunInferenceTest(unittest.TestCase):
                                     'output' : {0 : 'batch_size'}})
     
     inference_runner = TestOnnxModelHandler(path)
-    inference_session = ort.InferenceSession(path)
+    inference_session = ort.InferenceSession(path, providers=['CUDAExecutionProvider', 'CPUExecutionProvider']) # this list specifies priority - prioritize gpu if cuda kernel exists
     predictions = inference_runner.run_inference(examples, inference_session)
     for actual, expected in zip(predictions, expected_predictions):
       self.assertEqual(actual, expected)
@@ -194,6 +174,45 @@ class OnnxPytorchRunInferenceTest(unittest.TestCase):
   def test_namespace(self):
     inference_runner = TestOnnxModelHandler("dummy")
     self.assertEqual('BeamML_Onnx', inference_runner.get_metrics_namespace())
+
+@pytest.mark.uses_tensorflow
+class OnnxTensorflowRunInferenceTest(unittest.TestCase):
+
+  def setUp(self):
+    self.tmpdir = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
+
+  def test_onnx_tensorflow_run_inference(self):
+    examples = [
+        np.array([1], dtype="float32"),
+        np.array([5], dtype="float32"),
+        np.array([-3], dtype="float32"),
+        np.array([10.0], dtype="float32"),
+    ]
+    expected_predictions = [
+        PredictionResult(ex, pred) for ex,
+        pred in zip(
+            examples,
+            [example * 2.0 + 0.5
+                      for example in examples])
+    ]
+
+    linear_layer = layers.Dense(units=1)
+    params = [np.array([[2.0]], dtype=float32), np.array([0.5], dtype=float32)]
+    linear_layer.set_weights(params)
+    linear_model = tf.keras.Sequential([linear_layer])
+    
+    path = os.path.join(self.tmpdir, 'my_onnx_tf_path')
+    spec = (tf.TensorSpec((None, 1), tf.float32, name="input"),)
+    model_proto, _ = tf2onnx.convert.from_keras(linear_model, input_signature=spec, opset=13, output_path=path)
+    
+    inference_runner = TestOnnxModelHandler(path)
+    inference_session = ort.InferenceSession(path, providers=['CUDAExecutionProvider', 'CPUExecutionProvider']) # this list specifies priority - prioritize gpu if cuda kernel exists
+    predictions = inference_runner.run_inference(examples, inference_session)
+    for actual, expected in zip(predictions, expected_predictions):
+      self.assertEqual(actual, expected)
 
 
 @pytest.mark.uses_pytorch
@@ -222,7 +241,7 @@ class OnnxPytorchRunInferencePipelineTest(unittest.TestCase):
 
   def test_pipeline_local_model_simple(self):
     with TestPipeline() as pipeline:
-      path = os.path.join(self.tmpdir, 'my_onnx_path')
+      path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
       torch_state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
                                 ('linear.bias', torch.Tensor([0.5]))])
       self.exportModelToOnnx(torch_state_dict, path)
@@ -270,7 +289,87 @@ class OnnxPytorchRunInferencePipelineTest(unittest.TestCase):
     with self.assertRaisesRegex(InvalidArgument, "Got invalid dimensions for input: input for the following indices"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
-        path = os.path.join(self.tmpdir, 'my_onnx_path')
+        path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
+        state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+                                ('linear.bias', torch.Tensor([0.5]))])
+        self.exportModelToOnnx(state_dict, path)
+
+        model_handler = TestOnnxModelHandler(path)
+
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        # pylint: disable=expression-not-assigned
+        pcoll | RunInference(model_handler)
+
+
+@pytest.mark.uses_tensorflow
+class OnnxTensorflowRunInferencePipelineTest(unittest.TestCase):
+  def setUp(self):
+    self.tmpdir = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
+
+  def exportModelToOnnx(self, state_dict, path):
+    linear_layer = layers.Dense(units=1)
+    params = [state_dict("linear.weight"), state_dict("linear.bias")]
+    linear_layer.set_weights(params)
+    linear_model = tf.keras.Sequential([linear_layer])
+    spec = (tf.TensorSpec((None, 2), tf.float32, name="input"),)
+    model_proto, _ = tf2onnx.convert.from_keras(linear_model, input_signature=spec, opset=13, output_path=path)
+
+  def test_pipeline_local_model_simple(self):
+    with TestPipeline() as pipeline:
+      path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
+      state_dict = OrderedDict([('linear.weight', np.array([[2.0], [3]], dtype=float32)),
+                                ('linear.bias', np.array([0.5], dtype=float32))])
+      self.exportModelToOnnx(state_dict, path)
+      model_handler = TestOnnxModelHandler(path)
+
+      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      predictions = pcoll | RunInference(model_handler)
+      assert_that(
+          predictions,
+          equal_to(
+              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
+
+  # need to put onnx in gs path
+  '''
+  @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
+  def test_pipeline_gcs_model(self):
+    with TestPipeline() as pipeline:
+      examples = torch.from_numpy(
+          np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
+      expected_predictions = [
+          PredictionResult(ex, pred) for ex,
+          pred in zip(
+              examples,
+              torch.Tensor([example * 2.0 + 0.5
+                            for example in examples]).reshape(-1, 1))
+      ]
+
+      gs_pth = 'gs://apache-beam-ml/models/' \
+          'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
+      model_handler = PytorchModelHandlerTensor(
+          state_dict_path=gs_pth,
+          model_class=PytorchLinearRegression,
+          model_params={
+              'input_dim': 1, 'output_dim': 1
+          })
+
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      predictions = pcoll | RunInference(model_handler)
+      assert_that(
+          predictions,
+          equal_to(expected_predictions, equals_fn=_compare_prediction_result))
+  '''
+
+
+  # need to figure out what type of error this is
+  def test_invalid_input_type(self):
+    with self.assertRaisesRegex(InvalidArgument, "Got invalid dimensions for input: input for the following indices"):
+      with TestPipeline() as pipeline:
+        examples = [np.array([1], dtype="float32")]
+        path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
         state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
                                 ('linear.bias', torch.Tensor([0.5]))])
         self.exportModelToOnnx(state_dict, path)

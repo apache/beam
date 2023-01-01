@@ -51,7 +51,7 @@ NumpyInferenceFn = Callable[
 
 
 def _load_model(model_uri):
-  ort_session = ort.InferenceSession(model_uri)
+  ort_session = ort.InferenceSession(model_uri, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
   return ort_session
 
 

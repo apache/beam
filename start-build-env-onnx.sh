@@ -92,6 +92,7 @@ RUN echo "${USER_NAME} ALL=NOPASSWD: ALL" > "/etc/sudoers.d/beam-build-${USER_ID
 RUN pip install torch
 RUN pip install pandas
 RUN pip install onnxruntime
+# CHANGE ABOVE TO onnxruntime-gpu if on gpu
 RUN pip install tf2onnx
 RUN pip install skl2onnx
 ENV HOME "${DOCKER_HOME_DIR}"
