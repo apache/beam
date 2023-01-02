@@ -199,9 +199,8 @@ class OnnxTensorflowRunInferenceTest(unittest.TestCase):
                       for example in examples])
     ]
 
-    linear_layer = layers.Dense(units=1)
-    params = [np.array([[2.0]], dtype=float32), np.array([0.5], dtype=float32)]
-    linear_layer.set_weights(params)
+    params = [np.array([[2.0]], dtype="float32"), np.array([0.5], dtype="float32")]
+    linear_layer = layers.Dense(units=1, weights=params)
     linear_model = tf.keras.Sequential([linear_layer])
     
     path = os.path.join(self.tmpdir, 'my_onnx_tf_path')
@@ -310,9 +309,9 @@ class OnnxTensorflowRunInferencePipelineTest(unittest.TestCase):
     shutil.rmtree(self.tmpdir)
 
   def exportModelToOnnx(self, state_dict, path):
-    linear_layer = layers.Dense(units=1)
-    params = [state_dict("linear.weight"), state_dict("linear.bias")]
-    linear_layer.set_weights(params)
+    
+    params = [state_dict["linear.weight"], state_dict["linear.bias"]]
+    linear_layer = layers.Dense(units=1, weights=params)
     linear_model = tf.keras.Sequential([linear_layer])
     spec = (tf.TensorSpec((None, 2), tf.float32, name="input"),)
     model_proto, _ = tf2onnx.convert.from_keras(linear_model, input_signature=spec, opset=13, output_path=path)
@@ -320,8 +319,8 @@ class OnnxTensorflowRunInferencePipelineTest(unittest.TestCase):
   def test_pipeline_local_model_simple(self):
     with TestPipeline() as pipeline:
       path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
-      state_dict = OrderedDict([('linear.weight', np.array([[2.0], [3]], dtype=float32)),
-                                ('linear.bias', np.array([0.5], dtype=float32))])
+      state_dict = OrderedDict([('linear.weight', np.array([[2.0], [3]], dtype="float32")),
+                                ('linear.bias', np.array([0.5], dtype="float32"))])
       self.exportModelToOnnx(state_dict, path)
       model_handler = TestOnnxModelHandler(path)
 
@@ -370,8 +369,8 @@ class OnnxTensorflowRunInferencePipelineTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
-        state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
-                                ('linear.bias', torch.Tensor([0.5]))])
+        state_dict = OrderedDict([('linear.weight', np.array([[2.0], [3]], dtype="float32")),
+                                ('linear.bias', np.array([0.5], dtype="float32"))])
         self.exportModelToOnnx(state_dict, path)
 
         model_handler = TestOnnxModelHandler(path)

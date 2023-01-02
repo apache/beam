@@ -93,6 +93,7 @@ RUN pip install torch
 RUN pip install pandas
 RUN pip install onnxruntime
 # CHANGE ABOVE TO onnxruntime-gpu if on gpu
+RUN pip install tensorflow
 RUN pip install tf2onnx
 RUN pip install skl2onnx
 ENV HOME "${DOCKER_HOME_DIR}"
