@@ -66,7 +66,7 @@ require cloud.google.com/go/spanner v1.42.0
 
 require (
 	cloud.google.com/go/bigtable v1.18.1
-	github.com/tetratelabs/wazero v1.0.0-pre.4
+	github.com/tetratelabs/wazero v1.0.0-pre.6
 )
 
 require (
