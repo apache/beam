@@ -2565,7 +2565,7 @@ Timers and States are explained in more detail in the
 {{< paragraph class="language-typescript" >}}
 **Timer and State:**
 This feature isn't yet implemented in the Typescript SDK,
-but we welcome [contributions](https://beam.apache.org/contribute/).
+but we welcome [contributions](/contribute/).
 In the meantime, Typescript pipelines wishing to use state and timers can do so
 using [cross-language transforms](#use-x-lang-transforms).
 {{< /paragraph >}}
@@ -7298,7 +7298,7 @@ You can use the Java class directly from your Python pipeline using a stub trans
 Constructor and method parameter types are mapped between Python and Java using a Beam schema. The schema is auto-generated using the object types
 provided on the Python side. If the Java class constructor method or builder method accepts any complex object types, make sure that the Beam schema
 for these objects is registered and available for the Java expansion service. If a schema has not been registered, the Java expansion service will
-try to register a schema using [JavaFieldSchema](https://beam.apache.org/documentation/programming-guide/#creating-schemas). In Python, arbitrary objects
+try to register a schema using [JavaFieldSchema](/documentation/programming-guide/#creating-schemas). In Python, arbitrary objects
 can be represented using `NamedTuple`s, which will be represented as Beam rows in the schema. Here is a Python stub transform that represents the above
 mentioned Java transform:
 
@@ -7503,7 +7503,7 @@ An expansion service can be used with multiple transforms in the same pipeline. 
 
 Perform the following steps to start up the default Python expansion service directly:
 
-1. Create a virtual environment and [install the Apache Beam SDK](https://beam.apache.org/get-started/quickstart-py/).
+1. Create a virtual environment and [install the Apache Beam SDK](/get-started/quickstart-py/).
 2. Start the Python SDK’s expansion service with a specified port.
 
     {{< highlight >}}
