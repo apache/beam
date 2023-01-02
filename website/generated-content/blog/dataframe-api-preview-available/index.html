@@ -22,7 +22,7 @@ function blockScroll(){$("body").toggleClass("fixedPosition");}
 function openMenu(){addPlaceholder();blockScroll();}</script><div class="body__contained center no__padding content-up"><article class=post itemscope itemtype=http://schema.org/BlogPosting><div class=post-content><div class=post-info><p>blog</p><p>2020/12/16</p></div><header class=post-header><h2 itemprop="name headline">DataFrame API Preview now Available!</h1><div class=post-info><span>Brian Hulette [<a href=https://twitter.com/BrianHulette>@BrianHulette</a>]
 &
 Robert Bradshaw</span></div></header><div class="arrow-list header-top-margin" itemprop=articleBody><p>We&rsquo;re excited to announce that a preview of the Beam Python SDK&rsquo;s new DataFrame
-API is now available in <a href=https://beam.apache.org/blog/beam-2.26.0/>Beam
+API is now available in <a href=/blog/beam-2.26.0/>Beam
 2.26.0</a>. Much like <code>SqlTransform</code>
 (<a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html>Java</a>,
 <a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform>Python</a>),
@@ -56,7 +56,7 @@ allows you to concisely express grouped aggregations without using the low-level
 <code>CombinePerKey</code>.</p><p>In addition to being more expressive, a pipeline written with the DataFrame API
 can often be more efficient than a conventional Beam pipeline. This is because
 the DataFrame API defers to the very efficient, columnar Pandas implementation
-as much as possible.</p><h2 id=dataframes-as-a-dsl>DataFrames as a DSL</h2><p>You may already be aware of <a href=https://beam.apache.org/documentation/dsls/sql/overview/>Beam
+as much as possible.</p><h2 id=dataframes-as-a-dsl>DataFrames as a DSL</h2><p>You may already be aware of <a href=/documentation/dsls/sql/overview/>Beam
 SQL</a>, which is
 a Domain-Specific Language (DSL) built with Beam&rsquo;s Java SDK. SQL is
 considered a DSL because it&rsquo;s possible to express a full pipeline, including IOs
@@ -68,7 +68,7 @@ This is possible because the DataFrame API doesn&rsquo;t just implement Pandas&r
 computation operations, it also includes IOs based on the Pandas native
 implementations (<code>pd.read_{csv,parquet,...}</code> and <code>pd.DataFrame.to_{csv,parquet,...}</code>).</p><p>Like SQL, it&rsquo;s also possible to embed the DataFrame API into a larger pipeline
 by using
-<a href=https://beam.apache.org/documentation/programming-guide/#what-is-a-schema>schemas</a>.
+<a href=/documentation/programming-guide/#what-is-a-schema>schemas</a>.
 A schema-aware PCollection can be converted to a DataFrame, processed, and the
 result converted back to another schema-aware PCollection. For example, if you
 wanted to use traditional Beam IOs rather than one of the DataFrame IOs you

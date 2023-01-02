@@ -349,7 +349,7 @@ Sr Principal Software Engineer
 &lt;/blockquote>
 &lt;p>Apache Beam provides a variety of runners, offering freedom of choice between different data processing engines. Palo
 Alto Networks’ data infrastructure is hosted entirely on &lt;a href="https://cloud.google.com/gcp/">Google Cloud Platform&lt;/a>,
-and &lt;a href="https://beam.apache.org/documentation/runners/capability-matrix/">with Apache Beam Dataflow runner&lt;/a>, we could
+and &lt;a href="/documentation/runners/capability-matrix/">with Apache Beam Dataflow runner&lt;/a>, we could
 easily benefit from &lt;a href="https://cloud.google.com/dataflow">Google Cloud Dataflow&lt;/a>’s managed service and
 &lt;a href="https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#horizontal-autoscaling">autotuning&lt;/a> capabilities.
 Apache Kafka was selected as the message broker for the backend, and all events were stored as binary data with a common
@@ -364,12 +364,12 @@ infrastructure, Apache Beam served as a unified programming model to implement b
 and customer tenant applications.&lt;/p>
 &lt;p>The first data workflows that the Cortex Data Lake team implemented were simple: reading from Kafka, creating a batch
 job, and writing the results to sink. The release of
-the &lt;a href="https://beam.apache.org/get-started/downloads/#releases">Apache Beam version with SQL support&lt;/a> opened up new
-possibilities. &lt;a href="https://beam.apache.org/documentation/dsls/sql/calcite/overview/">Beam Calcite SQL&lt;/a> provides full
-support for &lt;a href="https://beam.apache.org/documentation/dsls/sql/calcite/data-types/">complex Apache Calcite data types&lt;/a>,
+the &lt;a href="/get-started/downloads/#releases">Apache Beam version with SQL support&lt;/a> opened up new
+possibilities. &lt;a href="/documentation/dsls/sql/calcite/overview/">Beam Calcite SQL&lt;/a> provides full
+support for &lt;a href="/documentation/dsls/sql/calcite/data-types/">complex Apache Calcite data types&lt;/a>,
 including nested rows, in SQL statements, so developers can use SQL queries in an Apache Beam pipeline for composite
 transforms. The Cortex Data Lake team decided to take advantage of the
-&lt;a href="https://beam.apache.org/documentation/dsls/sql/overview/">Beam SQL&lt;/a> to write Beam pipelines with standard SQL
+&lt;a href="/documentation/dsls/sql/overview/">Beam SQL&lt;/a> to write Beam pipelines with standard SQL
 statements.&lt;/p>
 &lt;p>The main challenge of the common infrastructure was to support a variety of business logic customizations and
 user-defined functions and transform them to a variety of sink formats. Tenant applications needed to consume data from
@@ -448,7 +448,7 @@ update and starts a new job with the exact same naming. This internal job replac
 Lake to update the jobs and payloads automatically for all use cases.&lt;/p>
 &lt;h2 id="handling-schema-changes-in-beam-sql">Handling Schema Changes In Beam SQL&lt;/h2>
 &lt;p>Another use case that Palo Alto Networks tackled is handling changes in data schemas for ongoing jobs. Apache Beam
-allows PCollections to have &lt;a href="https://beam.apache.org/documentation/programming-guide/#schemas">schemas&lt;/a> with named
+allows PCollections to have &lt;a href="/documentation/programming-guide/#schemas">schemas&lt;/a> with named
 fields, that are validated at pipeline construction step. When a job is submitted, an execution plan in the form of a
 Beam pipeline fragment is generated based on the latest schema. Beam SQL does not yet have built-in support for relaxed
 schema compatibility for running jobs. For optimized performance, Beam SQL’s
@@ -468,7 +468,7 @@ changes in partition count.&lt;/p>
 Depending on the amount of traffic per topic coming from a specific tenant, the internal service increases the number of
 partitions or creates new topics with fewer partitions. The “Self Healing” service compares the Kafka states in the data
 store and then finds and updates all related streaming Apache Beam jobs on Cloud Dataflow automatically.&lt;/p>
-&lt;p>With the &lt;a href="https://beam.apache.org/blog/beam-2.28.0/">release of Apache Beam 2.28.0&lt;/a> in early
+&lt;p>With the &lt;a href="/blog/beam-2.28.0/">release of Apache Beam 2.28.0&lt;/a> in early
 2021, &lt;a href="https://beam.apache.org/releases/javadoc/2.29.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">the pre-built Kafka I/O dynamic read feature&lt;/a>
 provides an out-of-the-box solution for detecting Kafka partition changes to enable cost savings and increased
 performance. Kafka I/O uses WatchKafkaTopicPartitionDoFn to emit
@@ -627,7 +627,7 @@ Hop’s &lt;a href="https://hop.apache.org/manual/latest/technology/neo4j/index.
 stores logging and execution lineage of Apache Beam pipelines in the Neo4j graph database and
 enables users to query this information for more details, such as quickly jump to the place where an
 error occurred. The combination of Apache Hop
-transforms, &lt;a href="https://beam.apache.org/documentation/io/built-in/">Apache Beam built-in I/Os&lt;/a>, and
+transforms, &lt;a href="/documentation/io/built-in/">Apache Beam built-in I/Os&lt;/a>, and
 Apache Beam-powered data processing opens up new horizons for more sinks and sources and custom use
 cases.&lt;/p>
 &lt;p>Apache Hop aims to bring a no-code approach to Apache Beam data pipelines. Sometimes the choice of a
@@ -788,7 +788,7 @@ runners in-house surpassed the benefits of having a proprietary framework.&lt;/p
 &lt;img src="/images/seznam_scheme_1.png">
 &lt;/div>
 &lt;p>Seznam started migrating their key workloads to Apache Beam.
-They decided to merge the &lt;a href="https://beam.apache.org/documentation/sdks/java/euphoria/">Euphoria API&lt;/a>
+They decided to merge the &lt;a href="/documentation/sdks/java/euphoria/">Euphoria API&lt;/a>
 as a high-level DSL for Apache Beam Java SDK.
 This significant contribution to Apache Beam was a starting point for Seznam’s active participation in the community,
 later presenting their unique experience and findings at &lt;a href="https://www.youtube.com/watch?v=ZIFtmx8nBow">Beam Summit Europe 2019&lt;/a>
@@ -797,8 +797,8 @@ and developer conferences.&lt;/p>
 &lt;p>Apache Beam enabled Seznam to execute batch and stream jobs much faster without increasing memory and disk space,
 thus maximizing scalability, performance, and efficiency.&lt;/p>
 &lt;p>Apache Beam offers a variety of ways to distribute skewed data evenly.
-&lt;a href="https://beam.apache.org/documentation/programming-guide/#windowing">Windowing&lt;/a>
-for processing unbounded and &lt;a href="https://beam.apache.org/documentation/transforms/java/elementwise/partition/">Partition&lt;/a>
+&lt;a href="/documentation/programming-guide/#windowing">Windowing&lt;/a>
+for processing unbounded and &lt;a href="/documentation/transforms/java/elementwise/partition/">Partition&lt;/a>
 for bounded data sets transform input into finite
 collections of elements that can be reshuffled. Apache Beam provides a byte-based shuffle that can be
 executed by Spark runner or Flink runner, without requiring Apache Spark or Apache Flink to deserialize the full key.
@@ -863,7 +863,7 @@ on Kubernetes cluster, Seznam employs Elasticsearch to store, search, and analyz
 Apache Beam supported multiple runners, language SDKs, and built-in and custom pluggable I/O transforms,
 thus eliminating the need to invest into the development and support of proprietary runners and solutions.
 After evaluation, Seznam transitioned their workloads to Apache Beam and integrated
-&lt;a href="https://beam.apache.org/documentation/sdks/java/euphoria/">Euphoria API&lt;/a>
+&lt;a href="/documentation/sdks/java/euphoria/">Euphoria API&lt;/a>
 (a fast prototyping framework developed by Seznam), contributing to the Apache Beam open source community.&lt;/p>
 &lt;p>The Apache Beam abstraction and execution model allowed Seznam to robustly scale their data processing.
 It also provided the flexibility to write the business logic just once and keep freedom of choice between runners.
@@ -936,7 +936,7 @@ helping their team focus on creating new value for customers and business&lt;/p>
 &lt;p>Ricardo’s data intelligence team began modernizing their stack in 2018. They selected frameworks that provide reliable
 and scalable data processing both on-premises and in the cloud. Apache Beam enables users to create pipelines in their
 favorite programming language offering SDKs in Java, Python, Go, SQL, Scala (SCIO).
-A &lt;a href="https://beam.apache.org/documentation/#available-runners">Beam Runner&lt;/a> runs a Beam pipeline on a specific (often
+A &lt;a href="/documentation/#available-runners">Beam Runner&lt;/a> runs a Beam pipeline on a specific (often
 distributed) data processing system. Ricardo selected the Apache Beam Flink runner for executing pipelines on-premises
 and the Dataflow runner as a managed cloud service for the same pipelines developed using Apache Beam Java SDK. Apache
 Flink is well known for its reliability and cost-efficiency and an on-premises cluster was spun up at Ricardo’s
@@ -1026,7 +1026,7 @@ Senior Data Engineer @ Ricardo
 &lt;p>As an eCommerce retailer, Ricardo faces the increasing scale and sophistication of fraud transactions and takes a
 strategic approach by employing Beam pipelines for fraud detection and prevention. Beam pipelines act on an external
 intelligent API to identify the signs of fraudulent behaviour, like device characteristics or user activity. Apache Beam
-&lt;a href="https://beam.apache.org/documentation/programming-guide/#state-and-timers">stateful processing&lt;/a> feature enables Ricardo
+&lt;a href="/documentation/programming-guide/#state-and-timers">stateful processing&lt;/a> feature enables Ricardo
 to apply an associating operation to the streams of data (trigger banishing a user for example). Thus, Apache Beam saves
 Ricardo’s customer care team&amp;rsquo;s time and effort on investigating duplicate cases. It also runs batch pipelines
 to &lt;a href="https://www.youtube.com/watch?v=LXnh9jNNfYY">find linked accounts&lt;/a>, associate products to categories by

@@ -22,10 +22,10 @@ function blockScroll(){$("body").toggleClass("fixedPosition");}
 function openMenu(){addPlaceholder();blockScroll();}</script><div class="body__contained center no__padding content-up"><article class=post itemscope itemtype=http://schema.org/BlogPosting><div class=post-content><div class=post-info><p>blog & go
        </p><p>2022/07/06</p></div><header class=post-header><h2 itemprop="name headline">Big Improvements in Beam Go's 2.40 Release</h1><div class=post-info><span>Danny McCormick</span></div></header><div class="arrow-list header-top-margin" itemprop=articleBody><p>The 2.40 release is one of Beam Go&rsquo;s biggest yet, and we wanted to highlight
 some of the biggest changes coming with this important release!</p><h1 id=native-streaming-support>Native Streaming Support</h1><p>2.40 marks the release of one of our most anticipated feature sets yet:
-native streaming Go pipelines. This includes adding support for:</p><ul><li><a href=https://beam.apache.org/documentation/programming-guide/#user-initiated-checkpoint>Self Checkpointing</a></li><li><a href=https://beam.apache.org/documentation/programming-guide/#watermark-estimation>Watermark Estimation</a></li><li><a href=https://beam.apache.org/documentation/programming-guide/#truncating-during-drain>Pipeline Drain/Truncation</a></li><li><a href=https://beam.apache.org/documentation/programming-guide/#bundle-finalization>Bundle Finalization</a> (added in 2.39)</li></ul><p>With all of these features, it is now possible to write your own streaming
+native streaming Go pipelines. This includes adding support for:</p><ul><li><a href=/documentation/programming-guide/#user-initiated-checkpoint>Self Checkpointing</a></li><li><a href=/documentation/programming-guide/#watermark-estimation>Watermark Estimation</a></li><li><a href=/documentation/programming-guide/#truncating-during-drain>Pipeline Drain/Truncation</a></li><li><a href=/documentation/programming-guide/#bundle-finalization>Bundle Finalization</a> (added in 2.39)</li></ul><p>With all of these features, it is now possible to write your own streaming
 pipeline source DoFns in Go without relying on cross-language transforms
 from Java or Python. We encourage you to try out all of these new features
-in your streaming pipelines! The <a href=https://beam.apache.org/documentation/programming-guide/#splittable-dofns>programming guide</a>
+in your streaming pipelines! The <a href=/documentation/programming-guide/#splittable-dofns>programming guide</a>
 has additional information on getting started with native Go streaming DoFns.</p><h1 id=generic-registration-make-your-pipelines-3x-faster>Generic Registration (Make Your Pipelines 3x Faster)</h1><p>The release of <a href=https://go.dev/blog/intro-generics>Go Generics</a> in Go 1.18
 unlocked significant performance improvements for Beam Go. With generics,
 we were able to add simple registration functions that can massively reduce
@@ -34,7 +34,7 @@ the ParDo&rsquo;s in our load tests which are designed to simulate a basic pipel
 reduced execution time from around 25 minutes to around 7 minutes on average</p><ul><li>an over 70% reduction!</li></ul><p><img class=center-block src=/images/blog/go-registration.png alt="Beam Registration Load Tests ParDo Improvements"></p><p>To get started with registering your own DoFns and unlocking these performance
 gains, check out the <a href=https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/register>registration doc page</a>.</p><h1 id=whats-next>What&rsquo;s Next?</h1><p>Moving forward, we remain focused on improving the streaming experience and
 leveraging generics to improve the SDK. Specific improvements we are considering
-include adding <a href=https://beam.apache.org/documentation/programming-guide/#state-and-timers>State & Timers</a>
+include adding <a href=/documentation/programming-guide/#state-and-timers>State & Timers</a>
 support, introducing a Go expansion service so that Go DoFns can be used in other
 languages, and wrapping more Java and Python IOs so that they can be easily used
 in Go. As always, please let us know what changes you would like to see by

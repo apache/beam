@@ -41,14 +41,14 @@ This engine-independent model has been evolving very fast, supports multiple shu
 into Seznam’s existing on-premises data infrastructure. For a while, Seznam continued to develop Euphoria,
 but soon the high cost and the amount of effort needed to maintain the solution and create their own
 runners in-house surpassed the benefits of having a proprietary framework.</p><div class=post-scheme><img src=/images/seznam_scheme_1.png></div><p>Seznam started migrating their key workloads to Apache Beam.
-They decided to merge the <a href=https://beam.apache.org/documentation/sdks/java/euphoria/>Euphoria API</a>
+They decided to merge the <a href=/documentation/sdks/java/euphoria/>Euphoria API</a>
 as a high-level DSL for Apache Beam Java SDK.
 This significant contribution to Apache Beam was a starting point for Seznam’s active participation in the community,
 later presenting their unique experience and findings at <a href="https://www.youtube.com/watch?v=ZIFtmx8nBow">Beam Summit Europe 2019</a>
 and developer conferences.</p><h2 id=adopting-apache-beam>Adopting Apache Beam</h2><p>Apache Beam enabled Seznam to execute batch and stream jobs much faster without increasing memory and disk space,
 thus maximizing scalability, performance, and efficiency.</p><p>Apache Beam offers a variety of ways to distribute skewed data evenly.
-<a href=https://beam.apache.org/documentation/programming-guide/#windowing>Windowing</a>
-for processing unbounded and <a href=https://beam.apache.org/documentation/transforms/java/elementwise/partition/>Partition</a>
+<a href=/documentation/programming-guide/#windowing>Windowing</a>
+for processing unbounded and <a href=/documentation/transforms/java/elementwise/partition/>Partition</a>
 for bounded data sets transform input into finite
 collections of elements that can be reshuffled. Apache Beam provides a byte-based shuffle that can be
 executed by Spark runner or Flink runner, without requiring Apache Spark or Apache Flink to deserialize the full key.
@@ -79,7 +79,7 @@ on Kubernetes cluster, Seznam employs Elasticsearch to store, search, and analyz
 Apache Beam supported multiple runners, language SDKs, and built-in and custom pluggable I/O transforms,
 thus eliminating the need to invest into the development and support of proprietary runners and solutions.
 After evaluation, Seznam transitioned their workloads to Apache Beam and integrated
-<a href=https://beam.apache.org/documentation/sdks/java/euphoria/>Euphoria API</a>
+<a href=/documentation/sdks/java/euphoria/>Euphoria API</a>
 (a fast prototyping framework developed by Seznam), contributing to the Apache Beam open source community.</p><p>The Apache Beam abstraction and execution model allowed Seznam to robustly scale their data processing.
 It also provided the flexibility to write the business logic just once and keep freedom of choice between runners.
 The model was especially valuable for pipeline maintainability in complex use cases.

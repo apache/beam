@@ -2435,7 +2435,7 @@ Where parameters can be:&lt;/p>
 &lt;h2 id="pipeline-options">Pipeline options&lt;/h2>
 &lt;p>Use Beam’s &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/options/PipelineOptions.html">Pipeline options&lt;/a> to set options via the command line.&lt;/p>
 &lt;h3 id="snowflake-pipeline-options">Snowflake Pipeline options&lt;/h3>
-&lt;p>Snowflake IO library supports following options that can be passed via the &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#running-main-command-with-pipeline-options">command line&lt;/a> by default when a Pipeline uses them:&lt;/p>
+&lt;p>Snowflake IO library supports following options that can be passed via the &lt;a href="/documentation/io/built-in/snowflake/#running-main-command-with-pipeline-options">command line&lt;/a> by default when a Pipeline uses them:&lt;/p>
 &lt;p>&lt;code>--url&lt;/code> Snowflake&amp;rsquo;s JDBC-like url including account name and region without any parameters.&lt;/p>
 &lt;p>&lt;code>--serverName&lt;/code> Full server name with account, zone and domain.&lt;/p>
 &lt;p>&lt;code>--username&lt;/code> Required for username/password and Private Key authentication.&lt;/p>
@@ -2581,7 +2581,7 @@ Example: --tempLocation=gs://bucket/temp/
 &lt;/li>
 &lt;/ul>
 &lt;h2 id="running-pipelines-on-dataflow">Running pipelines on Dataflow&lt;/h2>
-&lt;p>By default, pipelines are run on &lt;a href="https://beam.apache.org/documentation/runners/direct/">Direct Runner&lt;/a> on your local machine. To run a pipeline on &lt;a href="https://cloud.google.com/dataflow/">Google Dataflow&lt;/a>, you must provide the following Pipeline options:&lt;/p>
+&lt;p>By default, pipelines are run on &lt;a href="/documentation/runners/direct/">Direct Runner&lt;/a> on your local machine. To run a pipeline on &lt;a href="https://cloud.google.com/dataflow/">Google Dataflow&lt;/a>, you must provide the following Pipeline options:&lt;/p>
 &lt;ul>
 &lt;li>
 &lt;p>&lt;code>--runner=DataflowRunner&lt;/code>&lt;/p>
@@ -2899,7 +2899,7 @@ AS COPY INTO stream_table from @streamstage;&lt;/code>&lt;/pre>
 &lt;ul>
 &lt;li>&lt;code>.withUserDataMapper()&lt;/code>
 &lt;ul>
-&lt;li>Accepts the &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#userdatamapper-function">UserDataMapper&lt;/a> function that will map a user&amp;rsquo;s PCollection to an array of String values &lt;code>(String[]).&lt;/code>&lt;/li>
+&lt;li>Accepts the &lt;a href="/documentation/io/built-in/snowflake/#userdatamapper-function">UserDataMapper&lt;/a> function that will map a user&amp;rsquo;s PCollection to an array of String values &lt;code>(String[]).&lt;/code>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
@@ -3167,7 +3167,7 @@ Then:
 &lt;li>
 &lt;p>&lt;code>.withCsvMapper(mapper)&lt;/code>&lt;/p>
 &lt;ul>
-&lt;li>Accepts a &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#csvmapper">CSVMapper&lt;/a> instance for mapping String[] to USER_DATA_TYPE.&lt;/li>
+&lt;li>Accepts a &lt;a href="/documentation/io/built-in/snowflake/#csvmapper">CSVMapper&lt;/a> instance for mapping String[] to USER_DATA_TYPE.&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>
@@ -3204,7 +3204,7 @@ return new GenericRecordBuilder(PARQUET_SCHEMA)
 &lt;h2 id="using-snowflakeio-with-aws-s3">Using SnowflakeIO with AWS S3&lt;/h2>
 &lt;p>To be able to use AWS S3 bucket as &lt;code>stagingBucketName&lt;/code> is required to:&lt;/p>
 &lt;ol>
-&lt;li>Create &lt;code>PipelineOptions&lt;/code> interface which is &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options">extending&lt;/a> &lt;code>SnowflakePipelineOptions&lt;/code> and &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html">S3Options&lt;/a>
+&lt;li>Create &lt;code>PipelineOptions&lt;/code> interface which is &lt;a href="/documentation/io/built-in/snowflake/#extending-pipeline-options">extending&lt;/a> &lt;code>SnowflakePipelineOptions&lt;/code> and &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/options/S3Options.html">S3Options&lt;/a>
 with &lt;code>AwsAccessKey&lt;/code> and &lt;code>AwsSecretKey&lt;/code> options. Example:&lt;/li>
 &lt;/ol>
 &lt;p>
@@ -3252,10 +3252,10 @@ new BasicAWSCredentials(options.getAwsAccessKey(), options.getAwsSecretKey())
 &lt;h2 id="using-snowflakeio-in-python-sdk">Using SnowflakeIO in Python SDK&lt;/h2>
 &lt;h3 id="intro">Intro&lt;/h3>
 &lt;p>Snowflake cross-language implementation is supporting both reading and writing operations for Python programming language, thanks to
-cross-language which is part of &lt;a href="https://beam.apache.org/roadmap/portability/">Portability Framework Roadmap&lt;/a> which aims to provide full interoperability
+cross-language which is part of &lt;a href="/roadmap/portability/">Portability Framework Roadmap&lt;/a> which aims to provide full interoperability
 across the Beam ecosystem. From a developer perspective it means the possibility of combining transforms written in different languages(Java/Python/Go).&lt;/p>
-&lt;p>For more information about cross-language please see &lt;a href="https://beam.apache.org/roadmap/connectors-multi-sdk/">multi sdk efforts&lt;/a>
-and &lt;a href="https://beam.apache.org/roadmap/connectors-multi-sdk/#cross-language-transforms-api-and-expansion-service">Cross-language transforms API and expansion service&lt;/a> articles.&lt;/p>
+&lt;p>For more information about cross-language please see &lt;a href="/roadmap/connectors-multi-sdk/">multi sdk efforts&lt;/a>
+and &lt;a href="/roadmap/connectors-multi-sdk/#cross-language-transforms-api-and-expansion-service">Cross-language transforms API and expansion service&lt;/a> articles.&lt;/p>
 &lt;p>Additional resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/snowflake.py">SnowflakeIO source code&lt;/a>&lt;/li>
@@ -3529,7 +3529,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/ApproximateQuantiles.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -3579,7 +3579,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/ApproximateUnique.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -7910,7 +7910,7 @@ Timers and States are explained in more detail in the
 &lt;a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam&lt;/a> blog post.&lt;/p>
 &lt;p class="language-typescript">&lt;strong>Timer and State:&lt;/strong>
 This feature isn&amp;rsquo;t yet implemented in the Typescript SDK,
-but we welcome &lt;a href="https://beam.apache.org/contribute/">contributions&lt;/a>.
+but we welcome &lt;a href="/contribute/">contributions&lt;/a>.
 In the meantime, Typescript pipelines wishing to use state and timers can do so
 using &lt;a href="#use-x-lang-transforms">cross-language transforms&lt;/a>.&lt;/p>
 &lt;div class='language-py snippet'>
@@ -13314,7 +13314,7 @@ as a local Java process using the following command:&lt;/p>
 &lt;p>Constructor and method parameter types are mapped between Python and Java using a Beam schema. The schema is auto-generated using the object types
 provided on the Python side. If the Java class constructor method or builder method accepts any complex object types, make sure that the Beam schema
 for these objects is registered and available for the Java expansion service. If a schema has not been registered, the Java expansion service will
-try to register a schema using &lt;a href="https://beam.apache.org/documentation/programming-guide/#creating-schemas">JavaFieldSchema&lt;/a>. In Python, arbitrary objects
+try to register a schema using &lt;a href="/documentation/programming-guide/#creating-schemas">JavaFieldSchema&lt;/a>. In Python, arbitrary objects
 can be represented using &lt;code>NamedTuple&lt;/code>s, which will be represented as Beam rows in the schema. Here is a Python stub transform that represents the above
 mentioned Java transform:&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">JavaDataGeneratorConfig&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">(&lt;/span>
@@ -13482,7 +13482,7 @@ $ jar -jar /path/to/expansion_service.jar &amp;lt;PORT_NUMBER&amp;gt;&lt;/code>&
 &lt;p>Perform the following steps to start up the default Python expansion service directly:&lt;/p>
 &lt;ol>
 &lt;li>
-&lt;p>Create a virtual environment and &lt;a href="https://beam.apache.org/get-started/quickstart-py/">install the Apache Beam SDK&lt;/a>.&lt;/p>
+&lt;p>Create a virtual environment and &lt;a href="/get-started/quickstart-py/">install the Apache Beam SDK&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>Start the Python SDK’s expansion service with a specified port.&lt;/p>
@@ -14065,7 +14065,7 @@ _TABLE_SUFFIX BETWEEN '20160801' AND '20170630'
 &lt;p>Export the model using the following command:&lt;/p>
 &lt;pre>&lt;code>bq extract -m bqml_tutorial.sample_model gs://some/gcs/path
 &lt;/code>&lt;/pre>&lt;h2 id="create-an-apache-beam-transform-that-uses-your-bigquery-ml-model">Create an Apache Beam transform that uses your BigQuery ML model&lt;/h2>
-&lt;p>In this section we will construct an Apache Beam pipeline that will use the BigQuery ML model we just created and exported. The model can be served using Google Cloud AI Platform Prediction - for this please refer to the &lt;a href="https://beam.apache.org/documentation/patterns/ai-platform/">AI Platform patterns&lt;/a>. In this case, we&amp;rsquo;ll be illustrating how to use the tfx_bsl library to do local predictions (on your Apache Beam workers).&lt;/p>
+&lt;p>In this section we will construct an Apache Beam pipeline that will use the BigQuery ML model we just created and exported. The model can be served using Google Cloud AI Platform Prediction - for this please refer to the &lt;a href="/documentation/patterns/ai-platform/">AI Platform patterns&lt;/a>. In this case, we&amp;rsquo;ll be illustrating how to use the tfx_bsl library to do local predictions (on your Apache Beam workers).&lt;/p>
 &lt;p>First, the model needs to be downloaded to a local directory where you will be developing the rest of your pipeline (e.g. to &lt;code>serving_dir/sample_model/1&lt;/code>).&lt;/p>
 &lt;p>Then, you can start developing your pipeline like you would normally do. We will be using the &lt;code>RunInference&lt;/code> PTransform from the &lt;a href="https://github.com/tensorflow/tfx-bsl">tfx_bsl&lt;/a> library, and we will point it to our local directory where the model is stored (see the &lt;code>model_path&lt;/code> variable in the code example). The transform takes elements of the type &lt;code>tf.train.Example&lt;/code> as inputs and outputs elements of the type &lt;a href="https://github.com/tensorflow/serving/blob/master/tensorflow_serving/apis/prediction_log.proto">&lt;code>tensorflow_serving.apis.prediction_log_pb2.PredictionLog&lt;/code>&lt;/a>. Depending on the signature of your model, you can extract values from the output; in our case we extract &lt;code>label_probs&lt;/code>, &lt;code>label_values&lt;/code> and the &lt;code>predicted_label&lt;/code> as per the &lt;a href="https://cloud.google.com/bigquery-ml/docs/exporting-models#logistic_reg">docs on the logistic regression model&lt;/a> in the &lt;code>extract_prediction&lt;/code> function.&lt;/p>
 &lt;div class='language-py snippet'>
@@ -14648,7 +14648,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/join/CoGroupByKey.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -14818,7 +14818,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Combine.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -15727,7 +15727,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/CombineWithContext.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -16042,7 +16042,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Count.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -16244,7 +16244,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Create.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -16272,7 +16272,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Create">
-&lt;img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/python.png" width="20px" height="20px"
 alt="Pydoc" />
 Pydoc
 &lt;/a>
@@ -16743,7 +16743,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Distinct.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -16907,7 +16907,7 @@ the &lt;code>ParDo&lt;/code>.&lt;/li>
 This may allow the runner to avoid serializing elements; instead, the runner
 can just pass the elements in memory. This is done as part of an
 optimization that is known as
-&lt;a href="https://beam.apache.org/documentation/glossary/#fusion">fusion&lt;/a>.&lt;/li>
+&lt;a href="/documentation/glossary/#fusion">fusion&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;p>Some situations where the runner may serialize and persist elements are:&lt;/p>
 &lt;ol>
@@ -17182,7 +17182,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Filter.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -18138,7 +18138,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/FlatMapElements.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -18170,7 +18170,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Flatten.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -18229,7 +18229,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html?highlight=flatten#apache_beam.transforms.core.Flatten">
-&lt;img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/python.png" width="20px" height="20px"
 alt="Pydoc" />
 Pydoc
 &lt;/a>
@@ -20145,7 +20145,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/GroupByKey.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>
@@ -20286,7 +20286,7 @@ limitations under the License.
 &lt;table align="left">
 &lt;a target="_blank" class="button"
 href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/GroupIntoBatches.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
 alt="Javadoc" />
 Javadoc
 &lt;/a>

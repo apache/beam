@@ -16,8 +16,8 @@ in &lt;a href="https://cloud.google.com/pubsub">Google Pub/Sub&lt;/a>. The examp
 simple yet powerful pipelines and also provides an out-of-the-box solution that you can just &lt;em>&amp;rdquo;
 plug&amp;rsquo;n&amp;rsquo;play&amp;rdquo;&lt;/em>.&lt;/p>
 &lt;p>This end-to-end example is included
-in &lt;a href="https://beam.apache.org/blog/beam-2.27.0/">Apache Beam release 2.27&lt;/a>
-and can be downloaded &lt;a href="https://beam.apache.org/get-started/downloads/#2270-2020-12-22">here&lt;/a>.&lt;/p>
+in &lt;a href="/blog/beam-2.27.0/">Apache Beam release 2.27&lt;/a>
+and can be downloaded &lt;a href="/get-started/downloads/#2270-2020-12-22">here&lt;/a>.&lt;/p>
 &lt;p>We hope you will find this example useful for setting up data pipelines between Kafka and Pub/Sub.&lt;/p>
 &lt;h1 id="example-specs">Example specs&lt;/h1>
 &lt;p>Supported data formats:&lt;/p>
@@ -66,4 +66,4 @@ repository and can be run with no additional code modifications.&lt;/li>
 you more understanding on how pipelines work and look like. If you are already using Beam, we hope
 some code samples in it will be useful for your use cases.&lt;/p>
 &lt;p>Please
-&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a> if you encounter any issues.&lt;/p></description></item></channel></rss>
+&lt;a href="/community/contact-us/">let us know&lt;/a> if you encounter any issues.&lt;/p></description></item></channel></rss>

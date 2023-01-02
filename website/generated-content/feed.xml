@@ -22,16 +22,16 @@ alt="Apache Beam Playground">&lt;/p>
 &lt;li>Displays pipeline execution graph (DAG)&lt;/li>
 &lt;li>Code editor to modify examples or try your own custom pipeline with a Direct Runner&lt;/li>
 &lt;li>Code editor with code highlighting, flexible layout, color schemes, and other features to provide responsive UX in desktop browsers&lt;/li>
-&lt;li>Embedding a Playground example on a web page prompts the web page readers to try the example pipeline in the Playground - e.g., &lt;a href="https://beam.apache.org/get-started/try-beam-playground/">Playground Quickstart&lt;/a> page&lt;/li>
+&lt;li>Embedding a Playground example on a web page prompts the web page readers to try the example pipeline in the Playground - e.g., &lt;a href="/get-started/try-beam-playground/">Playground Quickstart&lt;/a> page&lt;/li>
 &lt;/ul>
 &lt;h3 id="whats-next">&lt;strong>What’s Next&lt;/strong>&lt;/h3>
 &lt;ul>
 &lt;li>Try examples in &lt;a href="https://play.beam.apache.org/">Apache Beam Playground&lt;/a>&lt;/li>
 &lt;li>Submit your feedback using “Enjoying Playground?” in Apache Beam Playground or via &lt;a href="https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url">this form&lt;/a>&lt;/li>
-&lt;li>Join the Beam &lt;a href="https://beam.apache.org/community/contact-us">users@&lt;/a> mailing list&lt;/li>
-&lt;li>Contribute to the Apache Beam Playground codebase by following a few steps in this &lt;a href="https://beam.apache.org/contribute">Contribution Guide&lt;/a>&lt;/li>
+&lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list&lt;/li>
+&lt;li>Contribute to the Apache Beam Playground codebase by following a few steps in this &lt;a href="/contribute">Contribution Guide&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;p>Please &lt;a href="https://beam.apache.org/community/contact-us">reach out&lt;/a> if you have any feedback or encounter any issues!&lt;/p></description><link>/blog/apacheplayground/</link><pubDate>Wed, 30 Nov 2022 00:00:01 -0800</pubDate><guid>/blog/apacheplayground/</guid><category>blog</category></item><item><title>Apache Beam 2.43.0</title><description>
+&lt;p>Please &lt;a href="/community/contact-us">reach out&lt;/a> if you have any feedback or encounter any issues!&lt;/p></description><link>/blog/apacheplayground/</link><pubDate>Wed, 30 Nov 2022 00:00:01 -0800</pubDate><guid>/blog/apacheplayground/</guid><category>blog</category></item><item><title>Apache Beam 2.43.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -188,10 +188,10 @@ resources to help people discover and use these new features.&lt;/p>
 documentation and notebooks to make it easier to use these new features
 and to show how Beam can be used to solve common Machine Learning problems.
 We&amp;rsquo;re now happy to present this new and improved Beam ML experience!&lt;/p>
-&lt;p>To get started, we encourage you to visit Beam&amp;rsquo;s new &lt;a href="https://beam.apache.org/documentation/ml/overview/">AI/ML landing page&lt;/a>.
-We&amp;rsquo;ve got plenty of content on things like &lt;a href="https://beam.apache.org/documentation/ml/multi-model-pipelines/">multi-model pipelines&lt;/a>,
-&lt;a href="https://beam.apache.org/documentation/ml/runinference-metrics/">performing inference with metrics&lt;/a>,
-&lt;a href="https://beam.apache.org/documentation/ml/online-clustering/">online training&lt;/a>, and much more.&lt;/p>
+&lt;p>To get started, we encourage you to visit Beam&amp;rsquo;s new &lt;a href="/documentation/ml/overview/">AI/ML landing page&lt;/a>.
+We&amp;rsquo;ve got plenty of content on things like &lt;a href="/documentation/ml/multi-model-pipelines/">multi-model pipelines&lt;/a>,
+&lt;a href="/documentation/ml/runinference-metrics/">performing inference with metrics&lt;/a>,
+&lt;a href="/documentation/ml/online-clustering/">online training&lt;/a>, and much more.&lt;/p>
 &lt;p>&lt;img class="center-block"
 src="/images/blog/ml-landing.png"
 alt="ML landing page">&lt;/p>
@@ -252,7 +252,7 @@ python -m unittest
 &lt;li>&lt;strong>[Kotlin]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-kotlin">github.com/apache/beam-starter-kotlin&lt;/a> – Adapted to idiomatic Kotlin&lt;/li>
 &lt;li>&lt;strong>[Scala]&lt;/strong> &lt;a href="https://github.com/apache/beam-starter-scala">github.com/apache/beam-starter-scala&lt;/a> – Coming soon!&lt;/li>
 &lt;/ul>
-&lt;p>We have updated the &lt;a href="https://beam.apache.org/get-started/quickstart/java/">Java quickstart&lt;/a> to use the new starter project, and we&amp;rsquo;re working on updating the Python and Go quickstarts as well.&lt;/p>
+&lt;p>We have updated the &lt;a href="/get-started/quickstart/java/">Java quickstart&lt;/a> to use the new starter project, and we&amp;rsquo;re working on updating the Python and Go quickstarts as well.&lt;/p>
 &lt;p>We hope you find this useful. Feedback and contributions are always welcome! So feel free to create a GitHub issue, or open a Pull Request to any of the starter project repositories.&lt;/p></description><link>/blog/beam-starter-projects/</link><pubDate>Thu, 03 Nov 2022 09:00:00 -0700</pubDate><guid>/blog/beam-starter-projects/</guid><category>blog</category></item><item><title>Apache Beam 2.42.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -272,7 +272,7 @@ See the &lt;a href="/get-started/downloads/#2420-2022-10-17">download page&lt;/a
 &lt;h2 id="highlights">Highlights&lt;/h2>
 &lt;ul>
 &lt;li>Added support for stateful DoFns to the Go SDK.&lt;/li>
-&lt;li>Added support for &lt;a href="https://beam.apache.org/documentation/programming-guide/#batched-dofns">Batched
+&lt;li>Added support for &lt;a href="/documentation/programming-guide/#batched-dofns">Batched
 DoFns&lt;/a>
 to the Python SDK.&lt;/li>
 &lt;/ul>
@@ -379,7 +379,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;p>Hop is a codeless visual development environment for Apache Beam pipelines that
-can run jobs in any Beam runner, such as Dataflow, Flink or Spark. &lt;a href="https://beam.apache.org/blog/apache-hop-with-dataflow/">In a
+can run jobs in any Beam runner, such as Dataflow, Flink or Spark. &lt;a href="/blog/apache-hop-with-dataflow/">In a
 previous post&lt;/a>, we
 introduced the desktop version of Apache Hop. Hop also has a web environment,
 Hop Web, that you can run from a container, so you don&amp;rsquo;t have to install
@@ -529,7 +529,7 @@ using for Google Cloud (the one you are authenticated with in the Google Cloud
 SDK). So even if another person gets that URL address, they won’t be able to
 access your Apache Hop instance.&lt;/p>
 &lt;p>You are now ready to use Apache Hop in a web browser!&lt;/p>
-&lt;p>You can try to replicate the example that was given &lt;a href="https://beam.apache.org/blog/apache-hop-with-dataflow/">in a previous
+&lt;p>You can try to replicate the example that was given &lt;a href="/blog/apache-hop-with-dataflow/">in a previous
 post&lt;/a> using Hop web, or
 just try to launch any other project from the samples included with Hop:&lt;/p>
 &lt;p>&lt;img src="/images/blog/hop-web-cloud/hop-web-cloud-image5.png" alt="Sample projects in Hop">&lt;/p>
@@ -570,7 +570,7 @@ permanent storage for your pipelines. Now you can use your web browser to create
 your pipelines and to run Dataflow jobs without having to install anything
 locally in your computer: not Java, not Docker, not the Google Cloud SDK;
 nothing, just your favourite web browser.&lt;/p>
-&lt;p>If you followed the instructions in this post, head over to the post &lt;a href="https://beam.apache.org/blog/apache-hop-with-dataflow/">Running
+&lt;p>If you followed the instructions in this post, head over to the post &lt;a href="/blog/apache-hop-with-dataflow/">Running
 Apache Hop visual pipelines with Google Cloud
 Dataflow&lt;/a> to run a
 Dataflow pipeline right from your web browser!&lt;/p></description><link>/blog/hop-web-cloud/</link><pubDate>Sat, 15 Oct 2022 00:00:01 -0800</pubDate><guid>/blog/hop-web-cloud/</guid><category>blog</category></item><item><title>Apache Beam 2.41.0</title><description>
@@ -702,15 +702,15 @@ some of the biggest changes coming with this important release!&lt;/p>
 &lt;p>2.40 marks the release of one of our most anticipated feature sets yet:
 native streaming Go pipelines. This includes adding support for:&lt;/p>
 &lt;ul>
-&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#user-initiated-checkpoint">Self Checkpointing&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#watermark-estimation">Watermark Estimation&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#truncating-during-drain">Pipeline Drain/Truncation&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://beam.apache.org/documentation/programming-guide/#bundle-finalization">Bundle Finalization&lt;/a> (added in 2.39)&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#user-initiated-checkpoint">Self Checkpointing&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#watermark-estimation">Watermark Estimation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#truncating-during-drain">Pipeline Drain/Truncation&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#bundle-finalization">Bundle Finalization&lt;/a> (added in 2.39)&lt;/li>
 &lt;/ul>
 &lt;p>With all of these features, it is now possible to write your own streaming
 pipeline source DoFns in Go without relying on cross-language transforms
 from Java or Python. We encourage you to try out all of these new features
-in your streaming pipelines! The &lt;a href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">programming guide&lt;/a>
+in your streaming pipelines! The &lt;a href="/documentation/programming-guide/#splittable-dofns">programming guide&lt;/a>
 has additional information on getting started with native Go streaming DoFns.&lt;/p>
 &lt;h1 id="generic-registration-make-your-pipelines-3x-faster">Generic Registration (Make Your Pipelines 3x Faster)&lt;/h1>
 &lt;p>The release of &lt;a href="https://go.dev/blog/intro-generics">Go Generics&lt;/a> in Go 1.18
@@ -730,7 +730,7 @@ gains, check out the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/
 &lt;h1 id="whats-next">What&amp;rsquo;s Next?&lt;/h1>
 &lt;p>Moving forward, we remain focused on improving the streaming experience and
 leveraging generics to improve the SDK. Specific improvements we are considering
-include adding &lt;a href="https://beam.apache.org/documentation/programming-guide/#state-and-timers">State &amp;amp; Timers&lt;/a>
+include adding &lt;a href="/documentation/programming-guide/#state-and-timers">State &amp;amp; Timers&lt;/a>
 support, introducing a Go expansion service so that Go DoFns can be used in other
 languages, and wrapping more Java and Python IOs so that they can be easily used
 in Go. As always, please let us know what changes you would like to see by

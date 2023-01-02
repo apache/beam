@@ -187,7 +187,7 @@ limitations under the License.
 &lt;h2 id="overview">Overview&lt;/h2>
 &lt;/a>
 &lt;div class="collapse dont-collapse-sm" id="collapseOverview">
-&lt;p>Apache Beam is a very welcoming and collaborative community, and there are lots of opportunities to contribute, &lt;a href="https://beam.apache.org/contribute/">both code and non-code&lt;/a>. You can, for example:&lt;/p>
+&lt;p>Apache Beam is a very welcoming and collaborative community, and there are lots of opportunities to contribute, &lt;a href="/contribute/">both code and non-code&lt;/a>. You can, for example:&lt;/p>
 &lt;ul>
 &lt;li>ask or answer questions on &lt;a href="/community/contact-us/">user@beam.apache.org&lt;/a> or
 &lt;a href="https://stackoverflow.com/questions/tagged/apache-beam">stackoverflow&lt;/a>&lt;/li>
@@ -202,7 +202,7 @@ limitations under the License.
 Cloud Dataflow, etc)&lt;/li>
 &lt;li>improve or add IO connectors&lt;/li>
 &lt;li>add new transform libraries (statistics, ML, image processing, etc)&lt;/li>
-&lt;li>work on the core programming model (read more about what a Beam pipeline is and how it runs here in &lt;a href="https://beam.apache.org/documentation/basics/">Documentation&lt;/a>)&lt;/li>
+&lt;li>work on the core programming model (read more about what a Beam pipeline is and how it runs here in &lt;a href="/documentation/basics/">Documentation&lt;/a>)&lt;/li>
 &lt;li>improve the developer experience (for example, Windows guides)&lt;/li>
 &lt;li>add answers to the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">contribution FAQ&lt;/a>&lt;/li>
 &lt;li>organize local meetups of users or contributors to Apache Beam&lt;/li>
@@ -213,15 +213,15 @@ detail.&lt;/p>
 &lt;h2 id="get-started">Get Started&lt;/h2>
 &lt;h3 id="connect-with-the-beam-community">Connect with the Beam community&lt;/h3>
 &lt;ol>
-&lt;li>Consider &lt;a href="https://beam.apache.org/community/contact-us/">subscribing to the dev@beam.apache.org&lt;/a> mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.&lt;/li>
-&lt;li>(Optionally) Join the &lt;a href="https://beam.apache.org/community/contact-us/">#beam channel of the ASF Slack&lt;/a>.&lt;/li>
+&lt;li>Consider &lt;a href="/community/contact-us/">subscribing to the dev@beam.apache.org&lt;/a> mailing list, especially if you plan to make more than one change or the change will be large. All decisions are consensus-based and happen on the public mailing list.&lt;/li>
+&lt;li>(Optionally) Join the &lt;a href="/community/contact-us/">#beam channel of the ASF Slack&lt;/a>.&lt;/li>
 &lt;/ol>
 &lt;h3 id="accounts-and-permissions">Accounts and Permissions&lt;/h3>
 &lt;ul>
 &lt;li>
 &lt;p>&lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki Space&lt;/a>:
 Anyone has read access. If you wish to contribute changes, please create an account and request edit access on the
-&lt;a href="https://beam.apache.org/community/contact-us">dev@beam.apache.org&lt;/a> mailing list (include your Wiki account user ID).&lt;/p>
+&lt;a href="/community/contact-us">dev@beam.apache.org&lt;/a> mailing list (include your Wiki account user ID).&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>Pull requests can only be merged by a
@@ -234,8 +234,8 @@ Anyone has read access. If you wish to contribute changes, please create an acco
 &lt;/ul>
 &lt;h3 id="communication">Communication&lt;/h3>
 &lt;p>All communication is expected to align with the &lt;a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct&lt;/a>.&lt;/p>
-&lt;p>Discussion about contributing code to Beam happens on the &lt;a href="https://beam.apache.org/community/contact-us/">dev@beam.apache.org mailing list&lt;/a>. Introduce yourself!&lt;/p>
-&lt;p>Questions can be asked on the &lt;a href="https://beam.apache.org/community/contact-us/">#beam channel of the ASF Slack&lt;/a>. Introduce yourself!&lt;/p>
+&lt;p>Discussion about contributing code to Beam happens on the &lt;a href="/community/contact-us/">dev@beam.apache.org mailing list&lt;/a>. Introduce yourself!&lt;/p>
+&lt;p>Questions can be asked on the &lt;a href="/community/contact-us/">#beam channel of the ASF Slack&lt;/a>. Introduce yourself!&lt;/p>
 &lt;h2 id="before-you-begin">Before You Begin&lt;/h2>
 &lt;h3 id="prerequisites">Prerequisites&lt;/h3>
 &lt;ul>
@@ -266,10 +266,10 @@ If you are a committer and would like to assign an issue to a non-committer, the
 on the issue first; please tag the user asking them to do so or to comment &amp;ldquo;`.take-issue`&amp;rdquo;.
 The command will be ignored if it is surrounded by ``` markdown characters.&lt;/li>
 &lt;li>If your change is large or it is your first change, it is a good idea to
-&lt;a href="https://beam.apache.org/community/contact-us/">discuss it on the dev@beam.apache.org mailing list&lt;/a>.&lt;/li>
+&lt;a href="/community/contact-us/">discuss it on the dev@beam.apache.org mailing list&lt;/a>.&lt;/li>
 &lt;li>For large changes create a design doc
 (&lt;a href="https://s.apache.org/beam-design-doc-template">template&lt;/a>,
-&lt;a href="https://s.apache.org/beam-design-docs">examples&lt;/a>) and email it to the &lt;a href="https://beam.apache.org/community/contact-us/">dev@beam.apache.org mailing list&lt;/a>.&lt;/li>
+&lt;a href="https://s.apache.org/beam-design-docs">examples&lt;/a>) and email it to the &lt;a href="/community/contact-us/">dev@beam.apache.org mailing list&lt;/a>.&lt;/li>
 &lt;/ol>
 &lt;h3 id="setup-your-environment">Setup Your Environment&lt;/h3>
 &lt;p>Before you begin, check out the Wiki pages. There are many useful tips about &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Git+Tips">Git&lt;/a>, &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Go+Tips">Go&lt;/a>, &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips">Gradle&lt;/a>, &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Java+Tips">Java&lt;/a>, &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips">Python&lt;/a>, etc.&lt;/p>
@@ -278,7 +278,7 @@ The command will be ignored if it is surrounded by ``` markdown characters.&lt;/
 &lt;ul>
 &lt;li>Local:
 &lt;ul>
-&lt;li>Manually installing the &lt;a href="https://beam.apache.org/contribute/#prerequisites">prerequisites&lt;/a>.&lt;/li>
+&lt;li>Manually installing the &lt;a href="/contribute/#prerequisites">prerequisites&lt;/a>.&lt;/li>
 &lt;li>Using the automated script for Linux and macOS.&lt;/li>
 &lt;/ul>
 &lt;/li>
@@ -450,7 +450,7 @@ To find a committer for your area, either:&lt;/li>
 &lt;ul>
 &lt;li>look in the OWNERS file of the directory where you changed files, or&lt;/li>
 &lt;li>look for similar code merges, or&lt;/li>
-&lt;li>ask on &lt;a href="https://beam.apache.org/community/contact-us/">dev@beam.apache.org&lt;/a>&lt;/li>
+&lt;li>ask on &lt;a href="/community/contact-us/">dev@beam.apache.org&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;p>Use &lt;code>R: @username&lt;/code> in the pull request to notify a reviewer.&lt;/p>
 &lt;ol start="2">
@@ -474,7 +474,7 @@ see the difference between the review iterations, reviewers may ask you to unsqu
 &lt;/li>
 &lt;li>
 &lt;p>After review is complete and the PR is accepted, fixup commits should be squashed (see &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Git+Tips">Git workflow tips&lt;/a>).
-Beam committers &lt;a href="https://beam.apache.org/contribute/committer-guide/#merging-it">can squash&lt;/a>
+Beam committers &lt;a href="/contribute/committer-guide/#merging-it">can squash&lt;/a>
 all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
 then the PR author should help squashing fixup commits to maintain a clean commit history.&lt;/p>
 &lt;/li>
@@ -490,17 +490,17 @@ healthy. A pull request becomes stale after its author fails to respond to
 actionable comments for 60 days. Author of a closed pull request is welcome to
 reopen the same pull request again in the future.&lt;/p>
 &lt;h3 id="troubleshooting">Troubleshooting&lt;/h3>
-&lt;p>If you run into any issues, check out the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">contribution FAQ&lt;/a> or ask on the &lt;a href="https://beam.apache.org/community/contact-us/">dev@ mailing list&lt;/a> or &lt;a href="https://beam.apache.org/community/contact-us/">#beam channel of the ASF Slack&lt;/a>.&lt;/p>
+&lt;p>If you run into any issues, check out the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">contribution FAQ&lt;/a> or ask on the &lt;a href="/community/contact-us/">dev@ mailing list&lt;/a> or &lt;a href="/community/contact-us/">#beam channel of the ASF Slack&lt;/a>.&lt;/p>
 &lt;p>If you didn&amp;rsquo;t find the information you were looking for in this guide, please
-&lt;a href="https://beam.apache.org/community/contact-us/">reach out to the Beam community&lt;/a>.&lt;/p>
+&lt;a href="/community/contact-us/">reach out to the Beam community&lt;/a>.&lt;/p>
 &lt;/div>
 &lt;h2 id="find-efforts-to-contribute-to">Find Efforts to Contribute to&lt;/h2>
 &lt;p>A great way to contribute is to join an existing effort. If you want to get involved but don’t have a project in mind, check our &lt;a href="https://s.apache.org/beam-starter-tasks">list of open starter tasks&lt;/a>.
-For the most intensive efforts, check out the &lt;a href="https://beam.apache.org/roadmap/">roadmap&lt;/a>.&lt;/p>
+For the most intensive efforts, check out the &lt;a href="/roadmap/">roadmap&lt;/a>.&lt;/p>
 &lt;h2 id="additional-resources">Additional Resources&lt;/h2>
 &lt;p>Please see Beam developers’ &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">Wiki Contributor FAQ&lt;/a> for more information.&lt;/p>
-&lt;p>If you are contributing a &lt;code>PTransform&lt;/code> to Beam, we have an extensive &lt;a href="https://beam.apache.org/contribute/ptransform-style-guide">PTransform Style Guide&lt;/a>.&lt;/p>
-&lt;p>If you are contributing a Runner to Beam, refer to the &lt;a href="https://beam.apache.org/contribute/runner-guide/">Runner authoring guide&lt;/a>.&lt;/p>
+&lt;p>If you are contributing a &lt;code>PTransform&lt;/code> to Beam, we have an extensive &lt;a href="/contribute/ptransform-style-guide">PTransform Style Guide&lt;/a>.&lt;/p>
+&lt;p>If you are contributing a Runner to Beam, refer to the &lt;a href="/contribute/runner-guide/">Runner authoring guide&lt;/a>.&lt;/p>
 &lt;p>Review &lt;a href="https://s.apache.org/beam-design-docs">design documents&lt;/a>.&lt;/p>
 &lt;p>You can also find out more information on the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam developers’ Wiki&lt;/a>.&lt;/p></description></item><item><title>Contribute: Beam Design Documents</title><link>/contribute/design-documents/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/design-documents/</guid><description>
 &lt;!--
@@ -1412,7 +1412,7 @@ ${CONTRIBUTORS}
 &lt;ol>
 &lt;li>Maven artifacts deployed to the staging repository of &lt;a href="https://repository.apache.org/content/repositories/">repository.apache.org&lt;/a>&lt;/li>
 &lt;li>Source distribution deployed to the dev repository of &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org&lt;/a>&lt;/li>
-&lt;li>Website pull request proposed to list the &lt;a href="https://beam.apache.org/get-started/downloads/">release&lt;/a>, publish the &lt;a href="https://beam.apache.org/releases/javadoc/">Java API reference manual&lt;/a>, and publish the &lt;a href="https://beam.apache.org/releases/pydoc/">Python API reference manual&lt;/a>.&lt;/li>
+&lt;li>Website pull request proposed to list the &lt;a href="/get-started/downloads/">release&lt;/a>, publish the &lt;a href="https://beam.apache.org/releases/javadoc/">Java API reference manual&lt;/a>, and publish the &lt;a href="https://beam.apache.org/releases/pydoc/">Python API reference manual&lt;/a>.&lt;/li>
 &lt;li>Docker images are published to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">DockerHub&lt;/a> with tags: {RELEASE_VERSION}_rc{RC_NUM}.&lt;/li>
 &lt;/ol>
 &lt;p>You can (optionally) also do additional verification by:&lt;/p>
@@ -1453,7 +1453,7 @@ The complete staging area is available for your review, which includes:
 * Validation sheet with a tab for 1.2.3 release to help with validation [10].
 * Docker images published to Docker Hub [11].
 The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
-For guidelines on how to try the release in your projects, check out our blog post at https://beam.apache.org/blog/validate-beam-release/.
+For guidelines on how to try the release in your projects, check out our blog post at /blog/validate-beam-release/.
 Thanks,
 Release Manager
 [1] https://github.com/apache/beam/milestone/1...

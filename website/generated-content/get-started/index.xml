@@ -1274,13 +1274,13 @@ original value. It also prints the value to &lt;code>System.out&lt;/code> as a s
 &lt;p>The code shown in the previous sections defines a pipeline, but does not
 process any data yet. To process data, you run the pipeline:&lt;/p>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">run&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">waitUntilFinish&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>A Beam &lt;a href="https://beam.apache.org/documentation/basics/#runner">runner&lt;/a> runs a
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>A Beam &lt;a href="/documentation/basics/#runner">runner&lt;/a> runs a
 Beam pipeline on a specific platform. This example uses the
 &lt;a href="https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/runners/direct/DirectRunner.html">Direct Runner&lt;/a>,
 which is the default runner if you don&amp;rsquo;t specify one. The Direct Runner runs
 the pipeline locally on your machine. It is meant for testing and development,
 rather than being optimized for efficiency. For more information, see
-&lt;a href="https://beam.apache.org/documentation/runners/direct/">Using the Direct Runner&lt;/a>.&lt;/p>
+&lt;a href="/documentation/runners/direct/">Using the Direct Runner&lt;/a>.&lt;/p>
 &lt;p>For production workloads, you typically use a distributed runner that runs the
 pipeline on a big data processing system such as Apache Flink, Apache Spark, or
 Google Cloud Dataflow. These systems support massively parallel processing.&lt;/p>
@@ -2425,7 +2425,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code class="language-flinkCluster" data-lang="flinkCluster"># Running Beam Python on a distributed Flink cluster requires additional configuration.
-# See https://beam.apache.org/documentation/runners/flink/ for more information.&lt;/code>&lt;/pre>
+# See /documentation/runners/flink/ for more information.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-spark snippet'>
@@ -3897,7 +3897,7 @@ closed.&lt;/p>
 it implicitly calls &lt;code>pipeline.run()&lt;/code> which triggers the computation to happen.&lt;/p>
 &lt;/blockquote>
 &lt;p>The pipeline is then sent to your
-&lt;a href="https://beam.apache.org/documentation/runners/capability-matrix/">runner of choice&lt;/a>
+&lt;a href="/documentation/runners/capability-matrix/">runner of choice&lt;/a>
 and it processes the data.&lt;/p>
 &lt;blockquote>
 &lt;p>ℹ️ The pipeline can run locally with the &lt;em>DirectRunner&lt;/em>,
@@ -4201,23 +4201,23 @@ limitations under the License.
 &lt;h2 id="getting-started">Getting Started&lt;/h2>
 &lt;h3 id="quickstart">Quickstart&lt;/h3>
 &lt;ul>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/quickstart-java/">Java Quickstart&lt;/a>&lt;/strong> - How to set up and run a WordCount pipeline on the Java SDK.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/quickstart-py/">Python Quickstart&lt;/a>&lt;/strong> - How to set up and run a WordCount pipeline on the Python SDK.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/quickstart-go/">Go Quickstart&lt;/a>&lt;/strong> - How to set up and run a WordCount pipeline on the Go SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/get-started/quickstart-java/">Java Quickstart&lt;/a>&lt;/strong> - How to set up and run a WordCount pipeline on the Java SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/get-started/quickstart-py/">Python Quickstart&lt;/a>&lt;/strong> - How to set up and run a WordCount pipeline on the Python SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/get-started/quickstart-go/">Go Quickstart&lt;/a>&lt;/strong> - How to set up and run a WordCount pipeline on the Go SDK.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://medium.com/google-cloud/setting-up-a-java-development-environment-for-apache-beam-on-google-cloud-platform-ec0c6c9fbb39">Java Development Environment&lt;/a>&lt;/strong> - Setting up a Java development environment for Apache Beam using IntelliJ and Maven.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://medium.com/google-cloud/python-development-environments-for-apache-beam-on-google-cloud-platform-b6f276b344df">Python Development Environment&lt;/a>&lt;/strong> - Setting up a Python development environment for Apache Beam using PyCharm.&lt;/li>
 &lt;/ul>
 &lt;h3 id="learning-the-basics">Learning the Basics&lt;/h3>
 &lt;ul>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/wordcount-example/">WordCount&lt;/a>&lt;/strong> - Walks you through the code of a simple WordCount pipeline. This is a very basic pipeline intended to show the most basic concepts of data processing. WordCount is the &amp;ldquo;Hello World&amp;rdquo; for data processing.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/get-started/mobile-gaming-example/">Mobile Gaming&lt;/a>&lt;/strong> - Introduces how to consider time while processing data, user defined transforms, windowing, filtering data, streaming pipelines, triggers, and session analysis. This is a great place to start once you get the hang of WordCount.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/get-started/wordcount-example/">WordCount&lt;/a>&lt;/strong> - Walks you through the code of a simple WordCount pipeline. This is a very basic pipeline intended to show the most basic concepts of data processing. WordCount is the &amp;ldquo;Hello World&amp;rdquo; for data processing.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/get-started/mobile-gaming-example/">Mobile Gaming&lt;/a>&lt;/strong> - Introduces how to consider time while processing data, user defined transforms, windowing, filtering data, streaming pipelines, triggers, and session analysis. This is a great place to start once you get the hang of WordCount.&lt;/li>
 &lt;/ul>
 &lt;h3 id="fundamentals">Fundamentals&lt;/h3>
 &lt;ul>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/documentation/programming-guide/">Programming Guide&lt;/a>&lt;/strong> - The Programming Guide contains more in-depth information on most topics in the Apache Beam SDK. These include descriptions on how everything works as well as code snippets to see how to use every part. This can be used as a reference guidebook.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/documentation/programming-guide/">Programming Guide&lt;/a>&lt;/strong> - The Programming Guide contains more in-depth information on most topics in the Apache Beam SDK. These include descriptions on how everything works as well as code snippets to see how to use every part. This can be used as a reference guidebook.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">The world beyond batch: Streaming 101&lt;/a>&lt;/strong> - Covers some basic background information, terminology, time domains, batch processing, and streaming.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">The world beyond batch: Streaming 102&lt;/a>&lt;/strong> - Tour of the unified batch and streaming programming model in Beam, alongside with an example to explain many of the concepts.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/documentation/runtime/model">Apache Beam Execution Model&lt;/a>&lt;/strong> - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/documentation/runtime/model">Apache Beam Execution Model&lt;/a>&lt;/strong> - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.&lt;/li>
 &lt;/ul>
 &lt;h3 id="common-patterns">Common Patterns&lt;/h3>
 &lt;ul>
@@ -4246,8 +4246,8 @@ limitations under the License.
 &lt;h3 id="advanced-concepts">Advanced Concepts&lt;/h3>
 &lt;ul>
 &lt;li>&lt;strong>&lt;a href="https://amygdala.github.io/dataflow/app_engine/2017/10/24/gae_dataflow.html">Running on AppEngine&lt;/a>&lt;/strong> - Use a Dataflow template to launch a pipeline from Google AppEngine, and how to run the pipeline periodically via a cron job.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/blog/2017/02/13/stateful-processing.html">Stateful Processing&lt;/a>&lt;/strong> - Learn how to access a persistent mutable state while processing input elements, this allows for &lt;em>side effects&lt;/em> in a &lt;code>DoFn&lt;/code>. This can be used for arbitrary-but-consistent index assignment, if you want to assign a unique incrementing index to each incoming element where order doesn&amp;rsquo;t matter.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/blog/2017/08/28/timely-processing.html">Timely and Stateful Processing&lt;/a>&lt;/strong> - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/blog/2017/02/13/stateful-processing.html">Stateful Processing&lt;/a>&lt;/strong> - Learn how to access a persistent mutable state while processing input elements, this allows for &lt;em>side effects&lt;/em> in a &lt;code>DoFn&lt;/code>. This can be used for arbitrary-but-consistent index assignment, if you want to assign a unique incrementing index to each incoming element where order doesn&amp;rsquo;t matter.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/blog/2017/08/28/timely-processing.html">Timely and Stateful Processing&lt;/a>&lt;/strong> - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads">Running External Libraries&lt;/a>&lt;/strong> - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.&lt;/li>
 &lt;/ul>
 &lt;h2 id="books">Books&lt;/h2>
@@ -4309,19 +4309,19 @@ complexity. Beam Katas are available for both Java and Python SDKs.&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="https://play.beam.apache.org">Beam Playground&lt;/a> is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
 You can try the available Apache Beam examples at &lt;a href="https://play.beam.apache.org">Beam Playground&lt;/a>.&lt;/li>
-&lt;li>Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog &lt;a href="https://beam.apache.org/get-started/try-beam-playground/#how-to-add-new-examples">here&lt;/a>.&lt;/li>
+&lt;li>Learn more about how to add an Apache Beam example/test/kata into Beam Playground catalog &lt;a href="/get-started/try-beam-playground/#how-to-add-new-examples">here&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;h2 id="api-reference">API Reference&lt;/h2>
 &lt;ul>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/documentation/sdks/javadoc/">Java API Reference&lt;/a>&lt;/strong> - Official API Reference for the Java SDK.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="https://beam.apache.org/documentation/sdks/pydoc/">Python API Reference&lt;/a>&lt;/strong> - Official API Reference for the Python SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/documentation/sdks/javadoc/">Java API Reference&lt;/a>&lt;/strong> - Official API Reference for the Java SDK.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/documentation/sdks/pydoc/">Python API Reference&lt;/a>&lt;/strong> - Official API Reference for the Python SDK.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">Go API Reference&lt;/a>&lt;/strong> - Official API Reference for the Go SDK.&lt;/li>
 &lt;/ul>
 &lt;h2 id="feedback-and-suggestions">Feedback and Suggestions&lt;/h2>
-&lt;p>We are open for feedback and suggestions, you can find different ways to reach out to the community in the &lt;a href="https://beam.apache.org/community/contact-us/">Contact Us&lt;/a> page.&lt;/p>
+&lt;p>We are open for feedback and suggestions, you can find different ways to reach out to the community in the &lt;a href="/community/contact-us/">Contact Us&lt;/a> page.&lt;/p>
 &lt;p>If you have a bug report or want to suggest a new feature, you can let us know by &lt;a href="https://github.com/apache/beam/issues/new/choose">submitting a new issue&lt;/a>.&lt;/p>
 &lt;h2 id="how-to-contribute">How to Contribute&lt;/h2>
-&lt;p>We welcome contributions from everyone! To learn more on how to contribute, check our &lt;a href="https://beam.apache.org/contribute/">Contribution Guide&lt;/a>.&lt;/p></description></item><item><title>Get-Started: Tour of Beam</title><link>/get-started/tour-of-beam/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/tour-of-beam/</guid><description>
+&lt;p>We welcome contributions from everyone! To learn more on how to contribute, check our &lt;a href="/contribute/">Contribution Guide&lt;/a>.&lt;/p></description></item><item><title>Get-Started: Tour of Beam</title><link>/get-started/tour-of-beam/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/tour-of-beam/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4384,7 +4384,7 @@ Run in Colab
 &lt;p>Beam DataFrames provide a pandas-like &lt;a href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html">DataFrame&lt;/a>
 API to declare Beam pipelines.
 To learn more about Beam DataFrames, take a look at the
-&lt;a href="https://beam.apache.org/documentation/dsls/dataframes/overview">Beam DataFrames overview&lt;/a> page.&lt;/p>
+&lt;a href="/documentation/dsls/dataframes/overview">Beam DataFrames overview&lt;/a> page.&lt;/p>
 &lt;table align="left">
 &lt;td>
 &lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/dataframes.ipynb">

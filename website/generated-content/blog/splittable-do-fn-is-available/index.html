@@ -20,7 +20,7 @@ function addPlaceholder(){$('input:text').attr('placeholder',"What are you looki
 function endSearch(){var search=document.querySelector(".searchBar");search.classList.add("disappear");var icons=document.querySelector("#iconsBar");icons.classList.remove("disappear");}
 function blockScroll(){$("body").toggleClass("fixedPosition");}
 function openMenu(){addPlaceholder();blockScroll();}</script><div class="body__contained center no__padding content-up"><article class=post itemscope itemtype=http://schema.org/BlogPosting><div class=post-content><div class=post-info><p>blog</p><p>2020/12/14</p></div><header class=post-header><h2 itemprop="name headline">Splittable DoFn in Apache Beam is Ready to Use</h1><div class=post-info><span>Boyuan Zhang</span></div></header><div class="arrow-list header-top-margin" itemprop=articleBody><p>We are pleased to announce that Splittable DoFn (SDF) is ready for use in the Beam Python, Java,
-and Go SDKs for versions 2.25.0 and later.</p><p>In 2017, <a href=https://beam.apache.org/blog/splittable-do-fn/>Splittable DoFn Blog Post</a> proposed
+and Go SDKs for versions 2.25.0 and later.</p><p>In 2017, <a href=/blog/splittable-do-fn/>Splittable DoFn Blog Post</a> proposed
 to build <a href=https://s.apache.org/splittable-do-fn>Splittable DoFn</a> APIs as the new recommended way of
 building I/O connectors. Splittable DoFn is a generalization of <code>DoFn</code> that gives it the core
 capabilities of <code>Source</code> while retaining <code>DoFn</code>'s syntax, flexibility, modularity, and ease of
@@ -32,7 +32,7 @@ time. But it&rsquo;s built-in to SDF.</li></ul></li><li>SDF fits in as any node 
 benefits from splitting strategies, which limits many real-world usages. This is no longer a limit
 for an SDF.</li></ul></li></ul><p>As SDF is now ready to use with all the mentioned improvements, it is the recommended
 way to build the new I/O connectors. Try out building your own Splittable DoFn by following the
-<a href=https://beam.apache.org/documentation/programming-guide/#splittable-dofns>programming guide</a>. We
+<a href=/documentation/programming-guide/#splittable-dofns>programming guide</a>. We
 have provided tonnes of common utility classes such as common types of <code>RestrictionTracker</code> and
 <code>WatermarkEstimator</code> in Beam SDK, which will help you onboard easily. As for the existing I/O
 connectors, we have wrapped <code>UnboundedSource</code> and <code>BoundedSource</code> implementations into Splittable

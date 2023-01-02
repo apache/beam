@@ -98,7 +98,7 @@ a function to <code>DataframeTransform</code>, see
 default Beam SDK, you might need to run your own expansion service. In such
 cases, <a href=#advanced-start-an-expansion-service>start the expansion service</a>
 before running your pipeline.</p><p>Before running the pipeline, make sure to perform the
-<a href=https://beam.apache.org/get-started/quickstart-java/#run-a-pipeline>runner specific setup</a> for your selected Beam runner.</p><h3 id=run-with-dataflow-runner-using-a-maven-archetype-beam-2430-and-later>Run with Dataflow runner using a Maven Archetype (Beam 2.43.0 and later)</h3><ul><li>Check out the Beam examples Maven archetype for the relevant Beam version.</li></ul><pre><code>export BEAM_VERSION=&lt;Beam version&gt;
+<a href=/get-started/quickstart-java/#run-a-pipeline>runner specific setup</a> for your selected Beam runner.</p><h3 id=run-with-dataflow-runner-using-a-maven-archetype-beam-2430-and-later>Run with Dataflow runner using a Maven Archetype (Beam 2.43.0 and later)</h3><ul><li>Check out the Beam examples Maven archetype for the relevant Beam version.</li></ul><pre><code>export BEAM_VERSION=&lt;Beam version&gt;
 
 mvn archetype:generate \
     -DarchetypeGroupId=org.apache.beam \
@@ -161,7 +161,7 @@ or use transforms not available in the default Beam SDK, you might need to run
 your own expansion service.</p><p>For example, to start the standard expansion service for a Python transform,
 <a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service.py>ExpansionServiceServicer</a>,
 follow these steps:</p><ol><li><p>Activate a new virtual environment following
-<a href=https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment>these instructions</a>.</p></li><li><p>Install Apache Beam with <code>gcp</code> and <code>dataframe</code> packages.</p></li></ol><pre><code>pip install 'apache-beam[gcp,dataframe]'
+<a href=/get-started/quickstart-py/#create-and-activate-a-virtual-environment>these instructions</a>.</p></li><li><p>Install Apache Beam with <code>gcp</code> and <code>dataframe</code> packages.</p></li></ol><pre><code>pip install 'apache-beam[gcp,dataframe]'
 </code></pre><ol start=4><li>Run the following command</li></ol><pre><code>python -m apache_beam.runners.portability.expansion_service_main -p &lt;PORT&gt; --fully_qualified_name_glob &quot;*&quot;
 </code></pre><p>The command runs
 <a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/expansion_service_main.py>expansion_service_main.py</a>, which starts the standard expansion service. When you use

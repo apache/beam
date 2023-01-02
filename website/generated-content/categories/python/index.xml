@@ -21,10 +21,10 @@ resources to help people discover and use these new features.&lt;/p>
 documentation and notebooks to make it easier to use these new features
 and to show how Beam can be used to solve common Machine Learning problems.
 We&amp;rsquo;re now happy to present this new and improved Beam ML experience!&lt;/p>
-&lt;p>To get started, we encourage you to visit Beam&amp;rsquo;s new &lt;a href="https://beam.apache.org/documentation/ml/overview/">AI/ML landing page&lt;/a>.
-We&amp;rsquo;ve got plenty of content on things like &lt;a href="https://beam.apache.org/documentation/ml/multi-model-pipelines/">multi-model pipelines&lt;/a>,
-&lt;a href="https://beam.apache.org/documentation/ml/runinference-metrics/">performing inference with metrics&lt;/a>,
-&lt;a href="https://beam.apache.org/documentation/ml/online-clustering/">online training&lt;/a>, and much more.&lt;/p>
+&lt;p>To get started, we encourage you to visit Beam&amp;rsquo;s new &lt;a href="/documentation/ml/overview/">AI/ML landing page&lt;/a>.
+We&amp;rsquo;ve got plenty of content on things like &lt;a href="/documentation/ml/multi-model-pipelines/">multi-model pipelines&lt;/a>,
+&lt;a href="/documentation/ml/runinference-metrics/">performing inference with metrics&lt;/a>,
+&lt;a href="/documentation/ml/online-clustering/">online training&lt;/a>, and much more.&lt;/p>
 &lt;p>&lt;img class="center-block"
 src="/images/blog/ml-landing.png"
 alt="ML landing page">&lt;/p>
@@ -110,9 +110,9 @@ return pcoll | beam.io.WriteToBigQuery(...)
 &lt;/code>&lt;/pre>&lt;h1 id="next-steps">Next Steps&lt;/h1>
 &lt;p>What are you waiting for.. start using annotations on your transforms!&lt;/p>
 &lt;p>For more background on type hints in Python, see:
-&lt;a href="https://beam.apache.org/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>.&lt;/p>
+&lt;a href="/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>.&lt;/p>
 &lt;p>Finally, please
-&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a>
+&lt;a href="/community/contact-us/">let us know&lt;/a>
 if you encounter any issues.&lt;/p></description></item><item><title>Blog: Performance-Driven Runtime Type Checking for the Python SDK</title><link>/blog/python-performance-runtime-type-checking/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-performance-runtime-type-checking/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -279,7 +279,7 @@ while providing higher quality error messages.&lt;/p>
 &lt;h1 id="next-steps">Next Steps&lt;/h1>
 &lt;p>Go play with the new &lt;code>performance_runtime_type_check&lt;/code> feature!&lt;/p>
 &lt;p>It&amp;rsquo;s in an experimental state so please
-&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a>
+&lt;a href="/community/contact-us/">let us know&lt;/a>
 if you encounter any issues.&lt;/p></description></item><item><title>Blog: Python SDK Typing Changes</title><link>/blog/python-typing/</link><pubDate>Thu, 28 May 2020 00:00:01 -0800</pubDate><guid>/blog/python-typing/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -310,7 +310,7 @@ favorite IDE.&lt;/p>
 users to specify a DoFn&amp;rsquo;s type hints in one place.
 We&amp;rsquo;ve also expanded Beam&amp;rsquo;s support of &lt;code>typing&lt;/code> module types.&lt;/p>
 &lt;p>For more background see:
-&lt;a href="https://beam.apache.org/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>.&lt;/p>
+&lt;a href="/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>.&lt;/p>
 &lt;h1 id="beam-is-typed">Beam Is Typed&lt;/h1>
 &lt;p>In tandem with the new type annotation support within DoFns, we&amp;rsquo;ve invested a
 great deal of time adding type annotations to the Beam python code itself.
@@ -377,7 +377,7 @@ native typing types. Native types have as these are supported by additional tool
 &lt;p>While working on Python 3 annotations syntax support, we&amp;rsquo;ve also discovered and
 fixed issues with native type support. There may still be bugs and unsupported
 native types. Please
-&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a> if you encounter
+&lt;a href="/community/contact-us/">let us know&lt;/a> if you encounter
 issues.&lt;/p></description></item><item><title>Blog: Dataflow Python SDK is now public!</title><link>/blog/python-sdk-now-public/</link><pubDate>Thu, 25 Feb 2016 13:00:00 -0800</pubDate><guid>/blog/python-sdk-now-public/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");

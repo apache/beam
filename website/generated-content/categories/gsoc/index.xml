@@ -27,8 +27,8 @@ I wanted to explore Data Engineering, so for GSoC, I wanted to work on a project
 &lt;p>I had already read the &lt;a href="http://streamingsystems.net/">Streaming Systems book&lt;/a>. So, I had an idea of the concepts that Beam is built on, but had never actually used Beam.
 Before actually submitting a proposal, I went through a bunch of resources to make sure I had a concrete understanding of Beam.
 I read the &lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">Streaming 101&lt;/a> and &lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">Streaming 102&lt;/a> blogs by Tyler Akidau. They are the perfect introduction to Beam’s unified model for Batch and Streaming.
-In addition, I watched all Beam talks on YouTube. You can find them on the &lt;a href="https://beam.apache.org/get-started/resources/videos-and-podcasts/">Beam Website&lt;/a>.
-Beam has really good documentation. The &lt;a href="https://beam.apache.org/documentation/programming-guide/">Programming Guide&lt;/a> lays out all of Beam’s concepts really well. &lt;a href="https://beam.apache.org/documentation/runtime/model">Beam’s execution model&lt;/a> is also documented well and is a must-read to understand how Beam processes data.
+In addition, I watched all Beam talks on YouTube. You can find them on the &lt;a href="/get-started/resources/videos-and-podcasts/">Beam Website&lt;/a>.
+Beam has really good documentation. The &lt;a href="/documentation/programming-guide/">Programming Guide&lt;/a> lays out all of Beam’s concepts really well. &lt;a href="/documentation/runtime/model">Beam’s execution model&lt;/a> is also documented well and is a must-read to understand how Beam processes data.
 &lt;a href="https://www.waitingforcode.com/apache-beam">waitingforcode.com&lt;/a> also has good blog posts about Beam concepts.
 To get a better sense of the Beam codebase, I played around with it and worked on some PRs to understand Beam better and got familiar with the test suite and workflows.&lt;/p>
 &lt;h2 id="gsoc-journey">GSoC Journey&lt;/h2>

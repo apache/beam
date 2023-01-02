@@ -20,7 +20,7 @@ function addPlaceholder(){$('input:text').attr('placeholder',"What are you looki
 function endSearch(){var search=document.querySelector(".searchBar");search.classList.add("disappear");var icons=document.querySelector("#iconsBar");icons.classList.remove("disappear");}
 function blockScroll(){$("body").toggleClass("fixedPosition");}
 function openMenu(){addPlaceholder();blockScroll();}</script><div class="body__contained center no__padding content-up"><article class=post itemscope itemtype=http://schema.org/BlogPosting><div class=post-content><div class=post-info><p>blog</p><p>2022/10/15</p></div><header class=post-header><h2 itemprop="name headline">Apache Hop web version with Cloud Dataflow</h1><div class=post-info><span>Israel Herraiz [<a href=https://twitter.com/herraiz>@herraiz</a>]</span></div></header><div class="arrow-list header-top-margin" itemprop=articleBody><p>Hop is a codeless visual development environment for Apache Beam pipelines that
-can run jobs in any Beam runner, such as Dataflow, Flink or Spark. <a href=https://beam.apache.org/blog/apache-hop-with-dataflow/>In a
+can run jobs in any Beam runner, such as Dataflow, Flink or Spark. <a href=/blog/apache-hop-with-dataflow/>In a
 previous post</a>, we
 introduced the desktop version of Apache Hop. Hop also has a web environment,
 Hop Web, that you can run from a container, so you don&rsquo;t have to install
@@ -130,7 +130,7 @@ your browser that points to the tunnel address.</p><p>The <strong>Identity Aware
 account.</p><p>After that, the Apache Hop web interface loads:</p><p><img src=/images/blog/hop-web-cloud/hop-web-cloud-image4.png alt="Hop web UI"></p><p>That URL is authenticated using your Google account, the same one that you are
 using for Google Cloud (the one you are authenticated with in the Google Cloud
 SDK). So even if another person gets that URL address, they won’t be able to
-access your Apache Hop instance.</p><p>You are now ready to use Apache Hop in a web browser!</p><p>You can try to replicate the example that was given <a href=https://beam.apache.org/blog/apache-hop-with-dataflow/>in a previous
+access your Apache Hop instance.</p><p>You are now ready to use Apache Hop in a web browser!</p><p>You can try to replicate the example that was given <a href=/blog/apache-hop-with-dataflow/>in a previous
 post</a> using Hop web, or
 just try to launch any other project from the samples included with Hop:</p><p><img src=/images/blog/hop-web-cloud/hop-web-cloud-image5.png alt="Sample projects in Hop"></p><h2 id=where-should-i-store-my-stuff>Where should I store my stuff?</h2><p>The directories in the file system of a container are ephemeral. How can you be
 sure that you store your pipelines and JARs in a persistent location?</p><p>The home directory container is <code>/root</code>, and it is the only <strong>persistent</strong>
@@ -156,7 +156,7 @@ access Hop from anywhere, and we created a persistent disk, so you can have
 permanent storage for your pipelines. Now you can use your web browser to create
 your pipelines and to run Dataflow jobs without having to install anything
 locally in your computer: not Java, not Docker, not the Google Cloud SDK;
-nothing, just your favourite web browser.</p><p>If you followed the instructions in this post, head over to the post <a href=https://beam.apache.org/blog/apache-hop-with-dataflow/>Running
+nothing, just your favourite web browser.</p><p>If you followed the instructions in this post, head over to the post <a href=/blog/apache-hop-with-dataflow/>Running
 Apache Hop visual pipelines with Google Cloud
 Dataflow</a> to run a
 Dataflow pipeline right from your web browser!</p></div></div><div class=blog-content><h2>Latest from the blog</h2></div><div class=posts-list><a class=post-card href=/blog/beam-2.43.0/ data-categories="blog release"><div class="post-info post-category"><p>blog & release
