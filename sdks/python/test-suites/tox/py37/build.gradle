@@ -26,15 +26,13 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.7'
 
-def posargs = project.findProperty("posargs") ?: ""
-
 task lint {}
 check.dependsOn lint
 
-toxTask "lintPy37", "py37-lint", "${posargs}"
+toxTask "lintPy37", "py37-lint"
 lint.dependsOn lintPy37
 
-toxTask "mypyPy37", "py37-mypy", "${posargs}"
+toxTask "mypyPy37", "py37-mypy"
 lint.dependsOn mypyPy37
 
 apply from: "../common.gradle"
