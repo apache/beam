@@ -16,12 +16,37 @@
  * limitations under the License.
  */
 
-import '../../models/snippet_file.dart';
+import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-class GetPrecompiledObjectCodeResponse {
-  final List<SnippetFile> files;
+part 'snippet_file.g.dart';
 
-  const GetPrecompiledObjectCodeResponse({
-    required this.files,
+@JsonSerializable()
+class SnippetFile with EquatableMixin {
+  final String content;
+  final bool isMain;
+  final String name;
+
+  const SnippetFile({
+    required this.content,
+    required this.isMain,
+    this.name = '',
   });
+
+  static const empty = SnippetFile(
+    content: '',
+    isMain: true,
+  );
+
+  Map<String, dynamic> toJson() => _$SnippetFileToJson(this);
+
+  factory SnippetFile.fromJson(Map<String, dynamic> map) =>
+      _$SnippetFileFromJson(map);
+
+  @override
+  List<Object?> get props => [
+        content,
+        isMain,
+        name,
+      ];
 }

@@ -18,16 +18,17 @@
 
 import 'example_base.dart';
 import 'sdk.dart';
+import 'snippet_file.dart';
 
 /// A [ExampleBase] that also has all large fields fetched.
 class Example extends ExampleBase {
+  final List<SnippetFile> files;
   final String? graph;
   final String? logs;
   final String? outputs;
-  final String source;
 
   const Example({
-    required this.source,
+    required this.files,
     required super.name,
     required super.sdk,
     required super.type,
@@ -47,9 +48,9 @@ class Example extends ExampleBase {
 
   Example.fromBase(
     ExampleBase example, {
+    required this.files,
     required this.logs,
     required this.outputs,
-    required this.source,
     this.graph,
   }) : super(
           complexity: example.complexity,
@@ -66,12 +67,12 @@ class Example extends ExampleBase {
           viewOptions: example.viewOptions,
         );
 
-  const Example.empty(Sdk sdk)
+  Example.empty(Sdk sdk)
       : this(
           name: 'Untitled Example',
+          files: [SnippetFile.empty],
           path: '',
           sdk: sdk,
-          source: '',
           type: ExampleType.example,
         );
 }

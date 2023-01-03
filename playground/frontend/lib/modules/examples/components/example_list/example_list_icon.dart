@@ -16,12 +16,27 @@
  * limitations under the License.
  */
 
-import '../../models/snippet_file.dart';
+import 'package:flutter/widgets.dart';
 
-class GetPrecompiledObjectCodeResponse {
-  final List<SnippetFile> files;
+const double _size = 30;
 
-  const GetPrecompiledObjectCodeResponse({
-    required this.files,
+/// A wrapper of a standard size for icons in the example list.
+class ExampleListIcon extends StatelessWidget {
+  const ExampleListIcon(
+    this.child, {
+    super.key,
   });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: _size,
+      height: _size,
+      child: Center(
+        child: child,
+      ),
+    );
+  }
 }

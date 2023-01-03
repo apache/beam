@@ -17,11 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
-import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
-import 'package:playground/modules/examples/models/popover_state.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../models/popover_state.dart';
+import '../description_popover/description_popover_button.dart';
+import '../multi_file_icon.dart';
+import 'example_list_icon.dart';
 
 class ExampleItemActions extends StatelessWidget {
   final ExampleBase example;
@@ -35,22 +37,13 @@ class ExampleItemActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        if (example.isMultiFile) multifilePopover,
+        if (example.isMultiFile) const ExampleListIcon(MultiFileIcon()),
         if (example.complexity != null)
-          ComplexityWidget(complexity: example.complexity!),
+          ExampleListIcon(ComplexityWidget(complexity: example.complexity!)),
         descriptionPopover,
       ],
     );
   }
-
-  Widget get multifilePopover => MultifilePopoverButton(
-        parentContext: parentContext,
-        example: example,
-        followerAnchor: Alignment.topLeft,
-        targetAnchor: Alignment.topRight,
-        onOpen: () => _setPopoverOpen(parentContext, true),
-        onClose: () => _setPopoverOpen(parentContext, false),
-      );
 
   Widget get descriptionPopover => DescriptionPopoverButton(
         parentContext: parentContext,

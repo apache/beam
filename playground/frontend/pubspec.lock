@@ -292,7 +292,7 @@ packages:
       name: flutter_code_editor
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.2.1"
+    version: "0.2.4"
   flutter_highlight:
     dependency: transitive
     description:
@@ -476,6 +476,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "4.7.0"
+  keyed_collection_widgets:
+    dependency: transitive
+    description:
+      name: keyed_collection_widgets
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.4.3"
   linked_scroll_controller:
     dependency: transitive
     description:

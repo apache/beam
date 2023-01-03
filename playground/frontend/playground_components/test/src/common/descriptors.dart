@@ -23,16 +23,16 @@ import 'examples.dart';
 const emptyDescriptor = EmptyExampleLoadingDescriptor(sdk: Sdk.java);
 
 final standardDescriptor1 = StandardExampleLoadingDescriptor(
-  path: exampleMock1.path,
-  sdk: exampleMock1.sdk,
+  path: examplePython1.path,
+  sdk: examplePython1.sdk,
 );
 
 final standardDescriptor2 = StandardExampleLoadingDescriptor(
-  path: exampleMock2.path,
-  sdk: exampleMock2.sdk,
+  path: examplePython2.path,
+  sdk: examplePython2.sdk,
 );
 
 final standardGoDescriptor = StandardExampleLoadingDescriptor(
-  path: exampleMockGo.path,
-  sdk: exampleMockGo.sdk,
+  path: exampleGo6.path,
+  sdk: exampleGo6.sdk,
 );

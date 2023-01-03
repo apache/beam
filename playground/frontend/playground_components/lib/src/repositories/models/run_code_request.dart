@@ -17,15 +17,16 @@
  */
 
 import '../../models/sdk.dart';
+import '../../models/snippet_file.dart';
 
 class RunCodeRequest {
-  final String code;
-  final Sdk sdk;
+  final List<SnippetFile> files;
   final Map<String, String> pipelineOptions;
+  final Sdk sdk;
 
   const RunCodeRequest({
-    required this.code,
-    required this.sdk,
+    required this.files,
     required this.pipelineOptions,
+    required this.sdk,
   });
 }

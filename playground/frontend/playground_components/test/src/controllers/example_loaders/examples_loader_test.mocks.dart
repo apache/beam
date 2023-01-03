@@ -28,8 +28,7 @@ import 'package:playground_components/src/models/loading_status.dart' as _i17;
 import 'package:playground_components/src/models/outputs.dart' as _i11;
 import 'package:playground_components/src/models/sdk.dart' as _i12;
 import 'package:playground_components/src/models/shortcut.dart' as _i4;
-import 'package:playground_components/src/repositories/models/shared_file.dart'
-    as _i18;
+import 'package:playground_components/src/models/snippet_file.dart' as _i18;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -219,14 +218,6 @@ class MockPlaygroundController extends _i1.Mock
           #setSdk,
           [sdk],
           {#notify: notify},
-        ),
-        returnValueForMissingStub: null,
-      );
-  @override
-  void setSource(String? source) => super.noSuchMethod(
-        Invocation.method(
-          #setSource,
-          [source],
         ),
         returnValueForMissingStub: null,
       );
@@ -446,7 +437,7 @@ class MockExampleCache extends _i1.Mock implements _i2.ExampleCache {
       ) as _i14.Future<_i9.Example>);
   @override
   _i14.Future<String> saveSnippet({
-    List<_i18.SharedFile>? files,
+    List<_i18.SnippetFile>? files,
     _i12.Sdk? sdk,
     String? pipelineOptions,
   }) =>

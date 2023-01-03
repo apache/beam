@@ -16,14 +16,24 @@
  * limitations under the License.
  */
 
-class SharedFile {
-  final String code;
-  final bool isMain;
-  final String name;
+import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-  const SharedFile({
-    required this.code,
-    required this.isMain,
-    this.name = '',
-  });
+import '../../../constants/assets.dart';
+
+class MultiFileIcon extends StatelessWidget {
+  const MultiFileIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+    return Semantics(
+      container: true,
+      child: Tooltip(
+        message: appLocale.exampleMultifile,
+        child: SvgPicture.asset(kMultifileIconAsset),
+      ),
+    );
+  }
 }

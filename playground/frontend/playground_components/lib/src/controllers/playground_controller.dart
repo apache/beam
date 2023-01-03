@@ -19,7 +19,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -38,7 +37,6 @@ import '../models/shortcut.dart';
 import '../repositories/code_repository.dart';
 import '../repositories/models/run_code_request.dart';
 import '../repositories/models/run_code_result.dart';
-import '../repositories/models/shared_file.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
 import '../util/pipeline_options.dart';
@@ -125,7 +123,8 @@ class PlaygroundController with ChangeNotifier {
     return controller;
   }
 
-  String? get source => snippetEditingController?.codeController.fullText;
+  String? get source =>
+      snippetEditingController?.activeFileController?.codeController.fullText;
 
   bool get isCodeRunning => !(result?.isFinished ?? true);
 
@@ -228,12 +227,6 @@ class PlaygroundController with ChangeNotifier {
     GetIt.instance.get<SymbolsNotifier>().addLoaderIfNot(mode, loader);
   }
 
-  // TODO(alexeyinkin): Remove, used only in tests, refactor them.
-  void setSource(String source) {
-    final controller = requireSnippetEditingController();
-    controller.setSource(source);
-  }
-
   void setSelectedOutputFilterType(OutputType type) {
     selectedOutputFilterType = type;
     notifyListeners();
@@ -288,7 +281,7 @@ class PlaygroundController with ChangeNotifier {
       _showPrecompiledResult(controller);
     } else {
       final request = RunCodeRequest(
-        code: controller.codeController.fullText,
+        files: controller.getFiles(),
         sdk: controller.sdk,
         pipelineOptions: parsedPipelineOptions,
       );
@@ -400,22 +393,19 @@ class PlaygroundController with ChangeNotifier {
   }
 
   Future<UserSharedExampleLoadingDescriptor> saveSnippet() async {
-    final controller = requireSnippetEditingController();
-    final code = controller.codeController.fullText;
-    final name = 'examples.userSharedName'.tr();
+    final snippetController = requireSnippetEditingController();
+    final files = snippetController.getFiles();
 
     final snippetId = await exampleCache.saveSnippet(
-      files: [
-        SharedFile(code: code, isMain: true, name: name),
-      ],
-      sdk: controller.sdk,
-      pipelineOptions: controller.pipelineOptions,
+      files: files,
+      sdk: snippetController.sdk,
+      pipelineOptions: snippetController.pipelineOptions,
     );
 
     final sharedExample = Example(
-      source: code,
-      name: name,
-      sdk: controller.sdk,
+      files: files,
+      name: files.first.name,
+      sdk: snippetController.sdk,
       type: ExampleType.example,
       path: snippetId,
     );
@@ -425,7 +415,7 @@ class PlaygroundController with ChangeNotifier {
       snippetId: snippetId,
     );
 
-    controller.setExample(sharedExample, descriptor: descriptor);
+    snippetController.setExample(sharedExample, descriptor: descriptor);
 
     return descriptor;
   }

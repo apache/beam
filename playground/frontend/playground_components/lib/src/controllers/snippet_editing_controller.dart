@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-import 'dart:math';
-
+import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_code_editor/flutter_code_editor.dart';
-import 'package:get_it/get_it.dart';
 
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
@@ -28,42 +25,24 @@ import '../models/example_loading_descriptors/empty_example_loading_descriptor.d
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_view_options.dart';
 import '../models/sdk.dart';
-import '../services/symbols/symbols_notifier.dart';
+import '../models/snippet_file.dart';
+import 'snippet_file_editing_controller.dart';
 
 /// The main state object for a single [sdk].
 class SnippetEditingController extends ChangeNotifier {
+  final List<SnippetFileEditingController> fileControllers = [];
   final Sdk sdk;
-  final CodeController codeController;
-  final _symbolsNotifier = GetIt.instance.get<SymbolsNotifier>();
+
   Example? _selectedExample;
   ExampleLoadingDescriptor? _descriptor;
   String _pipelineOptions = '';
   bool _isChanged = false;
+  SnippetFileEditingController? _activeFileController;
+  final _fileControllersByName = <String, SnippetFileEditingController>{};
 
   SnippetEditingController({
     required this.sdk,
-  }) : codeController = CodeController(
-          language: sdk.highlightMode,
-          namedSectionParser: const BracketsStartEndNamedSectionParser(),
-        ) {
-    codeController.addListener(_onCodeControllerChanged);
-    _symbolsNotifier.addListener(_onSymbolsNotifierChanged);
-    _onSymbolsNotifierChanged();
-  }
-
-  void _onCodeControllerChanged() {
-    if (!_isChanged) {
-      if (_isCodeChanged()) {
-        _isChanged = true;
-        notifyListeners();
-      }
-    } else {
-      _updateIsChanged();
-      if (!_isChanged) {
-        notifyListeners();
-      }
-    }
-  }
+  });
 
   void setExample(
     Example example, {
@@ -72,60 +51,10 @@ class SnippetEditingController extends ChangeNotifier {
     _descriptor = descriptor;
     _selectedExample = example;
     _pipelineOptions = example.pipelineOptions;
+    _replaceFileControllers(example.files, example.viewOptions);
     _isChanged = false;
 
-    final viewOptions = example.viewOptions;
-
-    codeController.removeListener(_onCodeControllerChanged);
-    setSource(example.source);
-    _applyViewOptions(viewOptions);
-    _toStartOfContextLineIfAny();
-    codeController.addListener(_onCodeControllerChanged);
-
     notifyListeners();
-  }
-
-  void _applyViewOptions(ExampleViewOptions options) {
-    codeController.readOnlySectionNames = options.readOnlySectionNames.toSet();
-    codeController.visibleSectionNames = options.showSectionNames.toSet();
-
-    if (options.foldCommentAtLineZero) {
-      codeController.foldCommentAtLineZero();
-    }
-
-    if (options.foldImports) {
-      codeController.foldImports();
-    }
-
-    final unfolded = options.unfoldSectionNames;
-    if (unfolded.isNotEmpty) {
-      codeController.foldOutsideSections(unfolded);
-    }
-  }
-
-  void _toStartOfContextLineIfAny() {
-    final contextLine1Based = selectedExample?.contextLine;
-
-    if (contextLine1Based == null) {
-      return;
-    }
-
-    _toStartOfFullLine(max(contextLine1Based - 1, 0));
-  }
-
-  void _toStartOfFullLine(int line) {
-    if (line >= codeController.code.lines.length) {
-      return;
-    }
-
-    final fullPosition = codeController.code.lines.lines[line].textRange.start;
-    final visiblePosition = codeController.code.hiddenRanges.cutPosition(
-      fullPosition,
-    );
-
-    codeController.selection = TextSelection.collapsed(
-      offset: visiblePosition,
-    );
   }
 
   Example? get selectedExample => _selectedExample;
@@ -156,11 +85,21 @@ class SnippetEditingController extends ChangeNotifier {
   bool get isChanged => _isChanged;
 
   void _updateIsChanged() {
-    _isChanged = _isCodeChanged() || _arePipelineOptionsChanged();
+    _isChanged = _calculateIsChanged();
   }
 
-  bool _isCodeChanged() {
-    return _selectedExample?.source != codeController.fullText;
+  bool _calculateIsChanged() {
+    for (final controller in fileControllers) {
+      if (controller.isChanged) {
+        return true;
+      }
+    }
+
+    if (_arePipelineOptionsChanged()) {
+      return true;
+    }
+
+    return false;
   }
 
   bool _arePipelineOptionsChanged() {
@@ -168,7 +107,10 @@ class SnippetEditingController extends ChangeNotifier {
   }
 
   void reset() {
-    codeController.text = _selectedExample?.source ?? '';
+    for (final controller in fileControllers) {
+      controller.reset();
+    }
+
     _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
   }
 
@@ -186,39 +128,84 @@ class SnippetEditingController extends ChangeNotifier {
 
     return ContentExampleLoadingDescriptor(
       complexity: example.complexity,
-      content: codeController.fullText,
+      files: getFiles(),
       name: example.name,
       sdk: sdk,
     );
   }
 
-  void setSource(String source) {
-    codeController.readOnlySectionNames = const {};
-    codeController.visibleSectionNames = const {};
+  void _replaceFileControllers(
+    Iterable<SnippetFile> files,
+    ExampleViewOptions viewOptions,
+  ) {
+    for (final oldController in fileControllers) {
+      oldController.removeListener(_onFileControllerChanged);
+    }
+    final newControllers = <SnippetFileEditingController>[];
 
-    codeController.fullText = source;
-    codeController.historyController.deleteHistory();
-  }
+    for (final file in files) {
+      final controller = SnippetFileEditingController(
+        contextLine1Based: file.isMain ? _selectedExample?.contextLine : null,
+        savedFile: file,
+        sdk: sdk,
+        viewOptions: viewOptions,
+      );
 
-  void _onSymbolsNotifierChanged() {
-    final mode = sdk.highlightMode;
-    if (mode == null) {
-      return;
+      newControllers.add(controller);
+      controller.addListener(_onFileControllerChanged);
     }
 
-    final dictionary = _symbolsNotifier.getDictionary(mode);
-    if (dictionary == null) {
-      return;
+    for (final oldController in fileControllers) {
+      oldController.dispose();
     }
 
-    codeController.autocompleter.setCustomWords(dictionary.symbols);
+    fileControllers.clear();
+    fileControllers.addAll(newControllers);
+
+    _fileControllersByName.clear();
+    for (final controller in newControllers) {
+      _fileControllersByName[controller.savedFile.name] = controller;
+    }
+
+    _activeFileController =
+        fileControllers.firstWhereOrNull((c) => c.savedFile.isMain);
   }
 
-  @override
-  void dispose() {
-    _symbolsNotifier.removeListener(
-      _onSymbolsNotifierChanged,
-    );
-    super.dispose();
+  void _onFileControllerChanged() {
+    if (!_isChanged) {
+      if (_isAnyFileControllerChanged()) {
+        _isChanged = true;
+        notifyListeners();
+      }
+    } else {
+      _updateIsChanged();
+      if (!_isChanged) {
+        notifyListeners();
+      }
+    }
+  }
+
+  bool _isAnyFileControllerChanged() {
+    return fileControllers.any((c) => c.isChanged);
+  }
+
+  SnippetFileEditingController? get activeFileController =>
+      _activeFileController;
+
+  SnippetFileEditingController? getFileControllerByName(String name) {
+    return _fileControllersByName[name];
+  }
+
+  void activateFileControllerByName(String name) {
+    final newController = getFileControllerByName(name);
+
+    if (newController != _activeFileController) {
+      _activeFileController = newController;
+      notifyListeners();
+    }
+  }
+
+  List<SnippetFile> getFiles() {
+    return fileControllers.map((c) => c.getFile()).toList(growable: false);
   }
 }
