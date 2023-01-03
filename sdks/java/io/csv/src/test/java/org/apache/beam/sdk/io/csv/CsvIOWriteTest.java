@@ -36,7 +36,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.csv.CsvIOTestHelpers.AllDataTypes;
 import org.apache.beam.sdk.schemas.Schema;

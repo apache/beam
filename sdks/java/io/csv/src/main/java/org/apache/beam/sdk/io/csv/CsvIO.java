@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.csv;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.values.TypeDescriptors.rows;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.BufferedWriter;
@@ -28,10 +27,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.Compression;
@@ -69,7 +65,9 @@ import org.apache.commons.csv.CSVFormat;
  * schemas</a> for more information on how to enable Beam to infer a {@link Schema} from a custom
  * Java type.
  *
- * <p>{@link CsvIO.Write} only supports writing schemas that do not contain any nested types. {@link CsvIO.Write} also only supports a {@link #VALID_FIELD_TYPE_SET limited set} of {@link Schema.FieldType schema field types}.
+ * <p>{@link CsvIO.Write} only supports writing schemas that do not contain any nested types. {@link
+ * CsvIO.Write} also only supports a {@link #VALID_FIELD_TYPE_SET limited set} of {@link
+ * Schema.FieldType schema field types}.
  *
  * <h3>Example usage:</h3>
  *
@@ -108,8 +106,8 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  *
  * <p>{@link CsvIO.Write} allows outputting a subset of the available fields or control the order of
- * their output using {@link CsvIO.Write#withSchemaFields} listing of matching {@link
- * Schema schema field names}.
+ * their output using {@link CsvIO.Write#withSchemaFields} listing of matching {@link Schema schema
+ * field names}.
  *
  * <pre>{@code
  * PCollection<Transaction> transactions ...
@@ -346,10 +344,7 @@ public class CsvIO {
     /** Specifies a common prefix for all generated files. */
     public Write<T> to(String filenamePrefix) {
       return toBuilder()
-          .setFileWrite(
-              FileIO.<Row>write()
-                  .to(filenamePrefix)
-                  .withSuffix(DEFAULT_FILENAME_SUFFIX))
+          .setFileWrite(FileIO.<Row>write().to(filenamePrefix).withSuffix(DEFAULT_FILENAME_SUFFIX))
           .build();
     }
 

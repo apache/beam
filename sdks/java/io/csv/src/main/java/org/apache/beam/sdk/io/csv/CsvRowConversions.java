@@ -54,9 +54,7 @@ class CsvRowConversions {
       return buildHeaderFrom(getSchemaFields(), getCSVFormat());
     }
 
-    /**
-     * Converts a {@link Row} to a CSV string formatted using {@link #getCSVFormat()}.
-     */
+    /** Converts a {@link Row} to a CSV string formatted using {@link #getCSVFormat()}. */
     @Override
     public String apply(Row input) {
       List<String> schemaFields = getSchemaFields();
