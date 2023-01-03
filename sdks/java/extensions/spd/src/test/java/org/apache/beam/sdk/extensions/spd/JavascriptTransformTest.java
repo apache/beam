@@ -15,13 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.spd;
+package org.apache.beam.sdk.extensions.spd;
 
-import org.apache.beam.sdk.extensions.spd.StructuredPipelineProfile;
+import javax.script.Invocable;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class StructuredPipelineMain {
+public class JavascriptTransformTest {
+  private static final Logger LOG = LoggerFactory.getLogger(JavascriptTransformTest.class);
 
-  public static void main(String[] args) {
-    StructuredPipelineProfile profile;
+  @Test
+  public void testJavascriptEval() throws Exception {
+    ScriptEngineManager manager = new ScriptEngineManager();
+    ScriptEngine engine = manager.getEngineByExtension("js");
+    engine.eval("function returnJSON() { return {a:1,b:\"2\"}; }");
+    LOG.info(
+        "JSON result:" + (((Invocable) engine).invokeFunction("returnJSON")).getClass().getName());
+    // throw new Exception("DIE!");
   }
 }

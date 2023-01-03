@@ -23,6 +23,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.Reader;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 /** Class for managing dbt-style profiles */
 public class StructuredPipelineProfile {
@@ -42,6 +49,47 @@ public class StructuredPipelineProfile {
     this.input = input == null ? output : input;
   }
 
+  public String getProject() {
+    return project;
+  }
+
+  public String getTarget() {
+    return target;
+  }
+
+  public String getTargetRunner() {
+    return runner.path("runner").asText("");
+  }
+
+  public PipelineOptionsFactory.Builder targetPipelineOptions() {
+    // This is a little cheesy, but here we are. Convert all the values from the YAML
+    // into "arguments" so the pipeline builder can read them.
+    String[] args =
+        StreamSupport.stream(
+                Spliterators.spliteratorUnknownSize(runner.fields(), Spliterator.ORDERED), false)
+            .filter(e -> e.getValue().isTextual() && !"runner".equals(e.getKey()))
+            .map(
+                e -> {
+                  return "--" + e.getKey() + "=" + e.getValue().asText("");
+                })
+            .collect(Collectors.toList())
+            .toArray(new String[0]);
+    return PipelineOptionsFactory.fromArgs(args);
+  }
+
+  Table getTableFromJsonObject(String name,JsonNode node) {
+    Table.Builder builder = Table.builder();
+    return builder.build();
+  }
+
+  public Table getInputTable(String name) {
+    return getTableFromJsonObject(name,input);
+  }
+
+  public Table getOutputTable(String name) {
+    return getTableFromJsonObject(name,output);
+  }
+
   public static StructuredPipelineProfile from(
       Reader reader, String project, @Nullable String target) throws Exception {
     ObjectMapper mapper =
@@ -51,7 +99,7 @@ public class StructuredPipelineProfile {
     JsonNode node = mapper.readTree(reader);
     node = node.path(project);
 
-    //If not specified, use the target in the profile itself
+    // If not specified, use the target in the profile itself
     if (target == null || "".equals(target)) {
       target = node.path("target").asText();
     }

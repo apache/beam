@@ -240,19 +240,22 @@ public class StructuredPipelineDescription {
     } else if (model instanceof ScriptEngineModel) {
       ScriptEngineModel engineModel = (ScriptEngineModel) model;
       ArrayList<Relation> rel = new ArrayList<>();
-      RenderResult result = context.eval(engineModel.getRawScript(),this,rel);
-      if(result.hasErrors()) {
-        for(TemplateError error : result.getErrors()) {
+      RenderResult result = context.eval(engineModel.getRawScript(), this, rel);
+      if (result.hasErrors()) {
+        for (TemplateError error : result.getErrors()) {
           throw error.getException();
         }
       }
-      if(rel.size() > 0) {
+      if (rel.size() > 0) {
         Relation primary = rel.get(0);
         ScriptEngine engine = engineModel.getEngine();
         engine.eval(result.getOutput());
-        Object obj = ((Invocable)engine).invokeFunction("expand",readFrom(primary.getTable().getName(),pipeline.begin()));
-        if(obj instanceof PCollection) {
-          metaTableProvider.createTable(tableMap.associatePCollection(fullTableName,(PCollection)obj));
+        Object obj =
+            ((Invocable) engine)
+                .invokeFunction("expand", readFrom(primary.getTable().getName(), pipeline.begin()));
+        if (obj instanceof PCollection) {
+          metaTableProvider.createTable(
+              tableMap.associatePCollection(fullTableName, (PCollection) obj));
         } else {
           LOG.info("Script did not ");
         }
@@ -422,7 +425,7 @@ public class StructuredPipelineDescription {
       for (Path file : queryFiles) {
         String fileName = file.getFileName().toString();
         int extPos = fileName.lastIndexOf(".");
-        String extension = fileName.substring(extPos+1);
+        String extension = fileName.substring(extPos + 1);
         String name = fileName.substring(0, extPos);
 
         if ("sql".equals(extension)) {

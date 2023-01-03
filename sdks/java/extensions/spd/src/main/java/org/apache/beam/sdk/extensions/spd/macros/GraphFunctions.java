@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({"unchecked"})
 public class GraphFunctions {
   private static final Logger LOG = LoggerFactory.getLogger(GraphFunctions.class);
 

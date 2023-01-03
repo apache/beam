@@ -15,13 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.spd;
+package org.apache.beam.sdk.extensions.spd.description;
 
-import org.apache.beam.sdk.extensions.spd.StructuredPipelineProfile;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class StructuredPipelineMain {
+public class ExpansionService {
 
-  public static void main(String[] args) {
-    StructuredPipelineProfile profile;
-  }
+  @Nullable
+  @JsonSetter(nulls = Nulls.FAIL)
+  String name;
+
+  public String getName() { return name == null ? "" : name; }
+
+  @Nullable
+  @JsonSetter(nulls = Nulls.FAIL)
+  String type; // local,container,remote
+  public String geType() { return type == null ? "local" : type; }
+
+  @Nullable String container;
+
+  public String getContainer() { return container == null ? "" : container; }
+
+  @Nullable String remoteAddress;
+
+  public String getRemoteAddress() { return remoteAddress == null ? "" : remoteAddress; }
 }
