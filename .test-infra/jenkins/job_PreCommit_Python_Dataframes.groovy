@@ -20,16 +20,16 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python',
+    nameBase: 'Python_Dataframes',
     gradleTask: ':pythonPreCommit',
+    gradleSwitches: [
+      '-Pposargs=apache_beam/dataframe/'
+    ],
     timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/python/.*$',
       '^release/.*$',
-    ],
-    gradleSwitches: [
-      '-Pposargs=\"--skip=apache_beam/dataframe/ --skip=apache_beam/examples/ --skip=apache_beam/runners/ --skip=apache_beam/transforms/\"' // All other tests are covered by different jobs.
     ]
     )
 builder.build {
