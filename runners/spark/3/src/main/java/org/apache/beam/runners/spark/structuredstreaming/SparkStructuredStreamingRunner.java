@@ -160,7 +160,7 @@ public final class SparkStructuredStreamingRunner
         new SparkStructuredStreamingPipelineResult(
             submissionFuture,
             metrics,
-            sparkStopFun(sparkSession, options.getUseActiveSparkSession()));
+            sparkStopFn(sparkSession, options.getUseActiveSparkSession()));
 
     if (options.getEnableSparkMetricSinks()) {
       registerMetricsSource(options.getAppName(), metrics);
@@ -225,7 +225,7 @@ public final class SparkStructuredStreamingRunner
     return future;
   }
 
-  private static @Nullable Runnable sparkStopFun(SparkSession session, boolean isProvided) {
+  private static @Nullable Runnable sparkStopFn(SparkSession session, boolean isProvided) {
     return !isProvided ? () -> session.stop() : null;
   }
 }
