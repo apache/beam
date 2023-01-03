@@ -38,7 +38,7 @@ fi
 pyargs=""
 posargs_array=($posargs)
 echo "posargs:"
-for i in $posargs_array
+for i in "${posargs_array[@]}"
 do
   :
   # do whatever on $i
