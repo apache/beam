@@ -105,7 +105,7 @@ void main() async {
     });
 
     group('Files.', () {
-      test('activeFileController', () {
+      test('activeFileController, activateFileControllerByName', () {
         expect(controller.activeFileController, null);
 
         controller.setExample(exampleGo4Multifile);
@@ -113,6 +113,14 @@ void main() async {
         expect(
           controller.activeFileController?.getFile().content,
           exampleGo4Multifile.files[1].content,
+        );
+
+        controller.activateFileControllerByName(
+          exampleGo4Multifile.files[0].name,
+        );
+        expect(
+          controller.activeFileController?.getFile().content,
+          exampleGo4Multifile.files[0].content,
         );
       });
 

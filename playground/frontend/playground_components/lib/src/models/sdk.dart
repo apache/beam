@@ -23,7 +23,11 @@ import 'package:highlight/languages/go.dart' as mode_go;
 import 'package:highlight/languages/java.dart' as mode_java;
 import 'package:highlight/languages/python.dart' as mode_python;
 import 'package:highlight/languages/scala.dart' as mode_scala;
+import 'package:json_annotation/json_annotation.dart';
 
+part 'sdk.g.dart';
+
+@JsonSerializable(createToJson: false)
 class Sdk with EquatableMixin {
   final String id;
   final String title;
@@ -98,7 +102,6 @@ class Sdk with EquatableMixin {
 
   Mode? get highlightMode => _idToHighlightMode[id];
 
-  factory Sdk.fromJson(String json) => Sdk.parseOrCreate(json);
-
-  String toJson() => id;
+  factory Sdk.fromJson(Map<String, dynamic> json) =>
+      _$SdkFromJson(json);
 }

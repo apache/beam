@@ -66,8 +66,8 @@ class _SnippetFileEditorState extends State<SnippetFileEditor> {
 
     final position = max(widget.controller.codeController.selection.start, 0);
     final characterOffset = _getLastCharacterOffset(
-      text: widget.controller.codeController.text.substring(0, position),
       style: kLightTheme.extension<BeamThemeExtension>()!.codeRootStyle,
+      text: widget.controller.codeController.text.substring(0, position),
     );
 
     _scrollController.jumpTo(
@@ -93,7 +93,7 @@ class _SnippetFileEditorState extends State<SnippetFileEditor> {
       enabled: widget.isEditable,
       label: 'widgets.codeEditor.label',
       multiline: true,
-      readOnly: widget.isEditable,
+      readOnly: !widget.isEditable,
       textField: true,
       child: FocusScope(
         node: FocusScopeNode(canRequestFocus: widget.isEditable),
@@ -119,8 +119,8 @@ class _SnippetFileEditorState extends State<SnippetFileEditor> {
 }
 
 Offset _getLastCharacterOffset({
-  required String text,
   required TextStyle style,
+  required String text,
 }) {
   final textPainter = TextPainter(
     textDirection: TextDirection.ltr,

@@ -34,10 +34,10 @@ class SnippetEditor extends StatelessWidget {
   final SnippetEditingController controller;
   final bool isEditable;
 
-  /// A container for buttons that will be:
+  /// A child widget that will be:
   ///  - Hidden if no file is loaded.
   ///  - Shown as an overlay for a single file editor.
-  ///  - Docked to the tab bar for a multi-file editor.
+  ///  - Built into the tab bar for a multi-file editor.
   final Widget? actionsWidget;
 
   @override

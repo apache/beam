@@ -23,7 +23,6 @@ import 'package:provider/provider.dart';
 import '../../models/popover_state.dart';
 import '../description_popover/description_popover_button.dart';
 import '../multi_file_icon.dart';
-import 'example_list_icon.dart';
 
 const double _iconSize = 30;
 
@@ -63,10 +62,7 @@ class ExampleItemActions extends StatelessWidget {
 
 /// A wrapper of a standard size for icons in the example list.
 class _Icon extends StatelessWidget {
-  const _Icon(
-      this.child, {
-        super.key,
-      });
+  const _Icon(this.child);
 
   final Widget child;
 
