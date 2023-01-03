@@ -35,12 +35,27 @@ if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
   exit 1
 fi
 
+pyargs=""
+posargs_array=$(posargs)
+echo "posargs:"
+for i in $posargs_array
+do
+  :
+  # do whatever on $i
+  echo "$i"
+  if [[ $i == "--skip"* ]]; then
+    pytest_args += " " + $i
+  else
+    pyargs += " " + $i
+  fi
+done
+
 # Run with pytest-xdist and without.
 pytest -o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 ${pytest_args} --pyargs ${posargs}
+  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 ${pytest_args} --pyargs ${pyargs}
 status1=$?
 pytest -o junit_suite_name=${envname}_no_xdist \
-  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' ${pytest_args} --pyargs ${posargs}
+  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' ${pytest_args} --pyargs ${pyargs}
 status2=$?
 
 # Exit with error if no tests were run in either suite (status code 5).
