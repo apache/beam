@@ -27,7 +27,7 @@
 # $3 - optional arguments to pytest
 
 envname=${1?First argument required: suite base name}
-posargs="--ignore=apache_beam/dataframes apache_beam" # TODO - change back to $2
+posargs=$2
 pytest_args=$3
 
 if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
