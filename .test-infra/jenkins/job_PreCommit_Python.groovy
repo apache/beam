@@ -29,7 +29,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^release/.*$',
     ],
     gradleSwitches: [
-      '-Pposargs=\"--skip=apache_beam/dataframe/ --skip=apache_beam/examples/ --skip=apache_beam/runners/ --skip=apache_beam/transforms/\"' // All other tests are covered by different jobs.
+      '-Pposargs=\"--ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/\"' // All these tests are covered by different jobs.
     ]
     )
 builder.build {
