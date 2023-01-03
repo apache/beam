@@ -112,6 +112,13 @@ func PostUserCode(url, sdk, unitId, token string, body UserCodeRequest) (ErrorRe
 	return result, err
 }
 
+func PostDeleteProgress(url, token string) (ErrorResponse, error) {
+	var result ErrorResponse
+	err := Do(&result, http.MethodPost, url, nil,
+		map[string]string{"Authorization": "Bearer " + token}, nil)
+	return result, err
+}
+
 func Post(dst interface{}, url string, queryParams, headers map[string]string, body io.Reader) error {
 	if err := Options(http.MethodPost, url, queryParams); err != nil {
 		return fmt.Errorf("pre-flight request error: %w", err)

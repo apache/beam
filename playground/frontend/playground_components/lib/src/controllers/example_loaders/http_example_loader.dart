@@ -23,9 +23,14 @@ import '../../cache/example_cache.dart';
 import '../../models/example.dart';
 import '../../models/example_base.dart';
 import '../../models/example_loading_descriptors/http_example_loading_descriptor.dart';
+import '../../models/sdk.dart';
 import 'example_loader.dart';
 
+/// The [ExampleLoader] for [HttpExampleLoadingDescriptor].
+///
+/// Loads an example from the text content at a URL.
 class HttpExampleLoader extends ExampleLoader {
+  @override
   final HttpExampleLoadingDescriptor descriptor;
 
   const HttpExampleLoader({
@@ -33,6 +38,9 @@ class HttpExampleLoader extends ExampleLoader {
     // TODO(alexeyinkin): Remove when this lands: https://github.com/dart-lang/language/issues/1813
     required ExampleCache exampleCache,
   });
+
+  @override
+  Sdk get sdk => descriptor.sdk;
 
   @override
   Future<Example> get future async {

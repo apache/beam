@@ -49,8 +49,8 @@ I wanted to explore Data Engineering, so for GSoC, I wanted to work on a project
 I had already read the [Streaming Systems book](http://streamingsystems.net/). So, I had an idea of the concepts that Beam is built on, but had never actually used Beam.
 Before actually submitting a proposal, I went through a bunch of resources to make sure I had a concrete understanding of Beam.
 I read the [Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101) and [Streaming 102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102) blogs by Tyler Akidau. They are the perfect introduction to Beam’s unified model for Batch and Streaming.
-In addition, I watched all Beam talks on YouTube. You can find them on the [Beam Website](https://beam.apache.org/documentation/resources/videos-and-podcasts/).
-Beam has really good documentation. The [Programming Guide](https://beam.apache.org/documentation/programming-guide/) lays out all of Beam’s concepts really well. [Beam’s execution model](https://beam.apache.org/documentation/runtime/model) is also documented well and is a must-read to understand how Beam processes data.
+In addition, I watched all Beam talks on YouTube. You can find them on the [Beam Website](/get-started/resources/videos-and-podcasts/).
+Beam has really good documentation. The [Programming Guide](/documentation/programming-guide/) lays out all of Beam’s concepts really well. [Beam’s execution model](/documentation/runtime/model) is also documented well and is a must-read to understand how Beam processes data.
 [waitingforcode.com](https://www.waitingforcode.com/apache-beam) also has good blog posts about Beam concepts.
 To get a better sense of the Beam codebase, I played around with it and worked on some PRs to understand Beam better and got familiar with the test suite and workflows.
 

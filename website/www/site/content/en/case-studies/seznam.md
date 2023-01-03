@@ -109,7 +109,7 @@ runners in-house surpassed the benefits of having a proprietary framework.
 </div>
 
 Seznam started migrating their key workloads to Apache Beam.
-They decided to merge the [Euphoria API](https://beam.apache.org/documentation/sdks/java/euphoria/)
+They decided to merge the [Euphoria API](/documentation/sdks/java/euphoria/)
 as a high-level DSL for Apache Beam Java SDK.
 This significant contribution to Apache Beam was a starting point for Seznam’s active participation in the community,
 later presenting their unique experience and findings at [Beam Summit Europe 2019](https://www.youtube.com/watch?v=ZIFtmx8nBow)
@@ -121,8 +121,8 @@ Apache Beam enabled Seznam to execute batch and stream jobs much faster without 
 thus maximizing scalability, performance, and efficiency.
 
 Apache Beam offers a variety of ways to distribute skewed data evenly.
-[Windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
-for processing unbounded and [Partition](https://beam.apache.org/documentation/transforms/java/elementwise/partition/)
+[Windowing](/documentation/programming-guide/#windowing)
+for processing unbounded and [Partition](/documentation/transforms/java/elementwise/partition/)
 for bounded data sets transform input into finite
 collections of elements that can be reshuffled. Apache Beam provides a byte-based shuffle that can be
 executed by Spark runner or Flink runner, without requiring Apache Spark or Apache Flink to deserialize the full key.
@@ -197,7 +197,7 @@ Apache Beam offered a unified model for Seznam’s stream and batch processing t
 Apache Beam supported multiple runners, language SDKs, and built-in and custom pluggable I/O transforms,
 thus eliminating the need to invest into the development and support of proprietary runners and solutions.
 After evaluation, Seznam transitioned their workloads to Apache Beam and integrated
-[Euphoria API](https://beam.apache.org/documentation/sdks/java/euphoria/)
+[Euphoria API](/documentation/sdks/java/euphoria/)
 (a fast prototyping framework developed by Seznam), contributing to the Apache Beam open source community.
 
 The Apache Beam abstraction and execution model allowed Seznam to robustly scale their data processing.

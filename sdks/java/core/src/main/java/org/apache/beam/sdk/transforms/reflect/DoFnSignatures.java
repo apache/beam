@@ -44,6 +44,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
@@ -2501,6 +2502,10 @@ public class DoFnSignatures {
 
   public static boolean usesOrderedListState(DoFn<?, ?> doFn) {
     return usesGivenStateClass(doFn, OrderedListState.class);
+  }
+
+  public static boolean usesMultimapState(DoFn<?, ?> doFn) {
+    return usesGivenStateClass(doFn, MultimapState.class);
   }
 
   public static boolean usesValueState(DoFn<?, ?> doFn) {

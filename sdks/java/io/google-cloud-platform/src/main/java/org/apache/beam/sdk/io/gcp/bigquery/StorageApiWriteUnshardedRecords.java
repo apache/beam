@@ -610,7 +610,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       try {
         messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
         return new DestinationState(
-            tableDestination1.getTableUrn(),
+            tableDestination1.getTableUrn(bigQueryOptions),
             messageConverter,
             datasetService,
             useDefaultStream,
