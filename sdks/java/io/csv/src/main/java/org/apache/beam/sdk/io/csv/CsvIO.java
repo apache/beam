@@ -69,14 +69,11 @@ import org.apache.commons.csv.CSVFormat;
  * schemas</a> for more information on how to enable Beam to infer a {@link Schema} from a custom
  * Java type.
  *
- * <p>For each {@link Schema.Field} included in the {@link Schema}, according to {@link
- * CsvIO.Write#withSchemaFields(List)}, {@link CsvIO.Write} restricts the use of flat {@link
- * Schema}s and checks whether the {@link Schema.FieldType}s are one of {@link
- * #VALID_FIELD_TYPE_SET}.
+ * <p>{@link CsvIO.Write} only supports writing schemas that do not contain any nested types. {@link CsvIO.Write} also only supports a {@link #VALID_FIELD_TYPE_SET limited set} of {@link Schema.FieldType schema field types}.
  *
  * <h3>Example usage:</h3>
  *
- * <p>Suppose we have a <code>Transaction</code> class annotated with
+ * <p>Suppose we have the following <code>Transaction</code> class annotated with
  * {@code @DefaultSchema(JavaBeanSchema.class)} so that Beam can infer its {@link Schema}:
  *
  * <pre>{@code @DefaultSchema(JavaBeanSchema.class)
@@ -91,8 +88,8 @@ import org.apache.commons.csv.CSVFormat;
  * }
  * }</pre>
  *
- * <p>From a {@code PCollection<Transaction>}, we can write one or many CSV files and {@link
- * CsvIO.Write} will automatically create the header based on its inferred {@link Schema}
+ * <p>From a {@code PCollection<Transaction>}, {@link CsvIO.Write} can write one or many CSV files
+ * automatically creating the header based on its inferred {@link Schema}.
  *
  * <pre>{@code
  * PCollection<Transaction> transactions ...
@@ -110,9 +107,9 @@ import org.apache.commons.csv.CSVFormat;
  * C,11.76,98765
  * }</pre>
  *
- * <p>{@link CsvIO.Write} allows the use a subset of the available fields or control the order of
- * their output using {@link CsvIO.Write#withSchemaFields(List)} listing of matching {@link
- * Schema#getField(String)} names.
+ * <p>{@link CsvIO.Write} allows outputting a subset of the available fields or control the order of
+ * their output using {@link CsvIO.Write#withSchemaFields} listing of matching {@link
+ * Schema schema field names}.
  *
  * <pre>{@code
  * PCollection<Transaction> transactions ...
@@ -158,7 +155,7 @@ import org.apache.commons.csv.CSVFormat;
  *
  * <p>A {@link PCollection} of {@link Row}s works just like custom Java types illustrated above,
  * except we use {@link CsvIO#writeRows()} as shown below for the same {@code Transaction} class. We
- * derive {@code Transaction}'s {@link Schema} using {@link
+ * derive {@code Transaction}'s {@link Schema} using a {@link
  * org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider}.
  *
  * <pre>{@code
@@ -299,14 +296,14 @@ public class CsvIO {
 
     private PrintWriter getWriter() {
       // resolves [dereference.of.nullable] error
-      Optional<PrintWriter> printWriter = Optional.ofNullable(writer);
-      checkState(printWriter.isPresent());
-      return printWriter.get();
+      if (writer == null) {
+        throw new IllegalStateException("writer unexpected to be null");
+      }
+      return writer;
     }
 
     /**
-     * Not to be confused with the CSV header, it is content written to the top of every sharded
-     * file prior to the header. See {@link Write#withPreamble(String)}.
+     * Content written to the top of every file prior to the header. See {@link Write#withPreamble}.
      */
     @Nullable
     abstract String getPreamble();
@@ -348,20 +345,10 @@ public class CsvIO {
 
     /** Specifies a common prefix for all generated files. */
     public Write<T> to(String filenamePrefix) {
-      Path path = Paths.get(filenamePrefix);
-      String directory = "";
-      String name = "";
-      if (path.getParent() != null) {
-        directory = path.getParent().toString();
-      }
-      if (path.getFileName() != null) {
-        name = path.getFileName().toString();
-      }
       return toBuilder()
           .setFileWrite(
               FileIO.<Row>write()
-                  .to(directory)
-                  .withPrefix(name)
+                  .to(filenamePrefix)
                   .withSuffix(DEFAULT_FILENAME_SUFFIX))
           .build();
     }
@@ -541,10 +528,9 @@ public class CsvIO {
 
       Sink.Builder<Row> builder = sinkBuilder();
 
-      // resolves [dereference.of.nullable] error
-      Optional<String> preamble = Optional.ofNullable(getPreamble());
-      if (preamble.isPresent()) {
-        builder = builder.setPreamble(preamble.get());
+      String preamble = getPreamble();
+      if (preamble != null) {
+        builder = builder.setPreamble(preamble);
       }
 
       return builder.setHeader(rowToCsv.buildHeader()).setFormatFunction(rowToCsv).build();

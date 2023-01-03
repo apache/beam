@@ -55,8 +55,7 @@ class CsvRowConversions {
     }
 
     /**
-     * Converts a {@link Row} to a CSV string formatted using {@link #getCSVFormat()}. Null values
-     * are converted to empty strings.
+     * Converts a {@link Row} to a CSV string formatted using {@link #getCSVFormat()}.
      */
     @Override
     public String apply(Row input) {
@@ -96,7 +95,7 @@ class CsvRowConversions {
     }
   }
 
-  /** Formats columns into a header String based on {@link CSVFormat}. */
+  /** Formats columns into a header String based upon {@link CSVFormat}. */
   static String buildHeaderFrom(List<String> columns, CSVFormat csvFormat) {
     StringBuilder builder = new StringBuilder();
     try {

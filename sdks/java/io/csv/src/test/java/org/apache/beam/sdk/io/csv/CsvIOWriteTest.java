@@ -518,13 +518,8 @@ public class CsvIOWriteTest {
 
     assertEquals("header should match", header, actual.get(headerIndex));
 
-    String[] rest = actual.subList(headerIndex + 1, actual.size()).toArray(new String[0]);
-    List<String> expectedList = Arrays.stream(expected).collect(Collectors.toList());
-    String expectedString = String.join(", ", expectedList);
-    for (String line : rest) {
-      String message = String.format("[%s]\nshould contain %s", expectedString, line);
-      assertTrue(message, expectedList.contains(line));
-    }
+    List<String> rest = actual.subList(headerIndex + 1, actual.size());
+    assertThat(rest, containsInAnyOrder(expected));
   }
 
   private String[] filesMatching(String regex) {
