@@ -882,8 +882,8 @@ class BigQueryWrapper(object):
     self.get_or_create_dataset(
         project_id, self.temp_dataset_id, location=location, labels=labels)
 
-    if project_id is not None and not self.is_user_configured_dataset() and \
-        not self.created_temp_dataset:
+    if (project_id is not None and not self.is_user_configured_dataset() and
+        not self.created_temp_dataset):
       # Unittests don't pass projectIds so they can be run without error
       # User configured datasets are allowed to pre-exist.
       raise RuntimeError(
