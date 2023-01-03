@@ -34,7 +34,7 @@ on:
         type: string
         required: true
 env:
-  BEAM_VERSION: 2.42.0
+  BEAM_VERSION: 2.43.0
 jobs:
   check_has_examples:
     name: pre-check
@@ -54,6 +54,10 @@ jobs:
       - name: install deps
         run: pip install -r requirements.txt
         working-directory: playground/infrastructure
+      - name: pytest
+        run: pytest
+        working-directory: playground/infrastructure
+
       - name: get Difference
         id: check_file_changed
         run: |
@@ -64,7 +68,7 @@ jobs:
             BASE_REF=origin/master
           fi
           DIFF=$(git diff --name-only $BASE_REF $GITHUB_SHA | tr '\n' ' ')
-          echo "::set-output name=example_diff::$DIFF"
+          echo "example_diff=$DIFF" >> $GITHUB_OUTPUT
       - id: check_has_example
         name: has Examples
         run: |
@@ -75,10 +79,14 @@ jobs:
             --sdk SDK_${SDK^^} \
             --allowlist ${{ inputs.allowlist }} \
             --paths ${{ steps.check_file_changed.outputs.example_diff }}
-          if [ $? -eq 0 ]; then
-            echo "::set-output name=example_has_changed::True"
+          CODE=$?
+          if [ $CODE -eq 0 ]; then
+            echo "example_has_changed=True" >> $GITHUB_OUTPUT
+          elif [ $CODE -eq 11 ]; then
+            echo "example_has_changed=False" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=example_has_changed::False"
+            echo "checker is broken"
+            exit 1
           fi
         working-directory: playground/infrastructure
         env:
@@ -97,13 +105,15 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
-      - uses: actions/setup-java@v3.6.0
+      - uses: actions/setup-java@v3.8.0
         with:
             distribution: 'zulu'
             java-version: '8'
+
       - name: install deps
         run: pip install -r requirements.txt
         working-directory: playground/infrastructure
@@ -140,6 +150,10 @@ jobs:
              opts=" -Pdocker-tag=$DOCKERTAG"
              if [ -n "$SDK_TAG" ]; then
                 opts="$opts -Psdk-tag=$SDK_TAG"
+             fi
+             if [ "$SDK" == "java" ]; then
+                # Java uses a fixed BEAM_VERSION
+                opts="$opts -Pbase-image=apache/beam_java8_sdk:$BEAM_VERSION"
              fi
 
              # by default (w/o -Psdk-tag) runner uses BEAM from local ./sdks

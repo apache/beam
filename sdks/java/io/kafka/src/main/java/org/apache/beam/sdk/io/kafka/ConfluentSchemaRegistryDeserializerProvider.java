@@ -45,9 +45,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link Deserializer}s and {@link Coder} given a subject.
  */
 @Experimental(Kind.SOURCE_SINK)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class ConfluentSchemaRegistryDeserializerProvider<T> implements DeserializerProvider<T> {
   private final SerializableFunction<Void, SchemaRegistryClient> schemaRegistryClientProviderFn;
   private final String schemaRegistryUrl;
@@ -109,7 +106,7 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
       String subject,
       @Nullable Integer version,
       @Nullable Map<String, ?> schemaRegistryConfigs) {
-    return new ConfluentSchemaRegistryDeserializerProvider(
+    return new ConfluentSchemaRegistryDeserializerProvider<>(
         (SerializableFunction<Void, SchemaRegistryClient>)
             input -> {
               @SuppressWarnings("nullness") // confluent library is not annnotated
@@ -159,9 +156,6 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
   }
 }
 
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-})
 class ConfluentSchemaRegistryDeserializer extends KafkaAvroDeserializer {
   Schema readerSchema;
 

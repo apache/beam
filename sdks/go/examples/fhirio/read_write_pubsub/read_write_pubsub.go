@@ -31,24 +31,25 @@
 // in addition to the usual flags for the Dataflow runner.
 //
 // An example command for executing this pipeline on GCP is as follows:
-//   export PROJECT="$(gcloud config get-value project)"
-//   export TEMP_LOCATION="gs://MY-BUCKET/temp"
-//   export STAGING_LOCATION="gs://MY-BUCKET/staging"
-//   export REGION="us-central1"
-//   export SOURCE_GCS_LOCATION="gs://MY_BUCKET/path/to/resources/**"
-//   export FHIR_STORE_PATH="MY_FHIR_STORE_PATH"
-//   export PUBSUB_TOPIC="MY_FHIR_STORE_TOPIC"
-//   cd ./sdks/go
-//   go run ./examples/fhirio/read_write_pubsub/read_write_pubsub.go \
-//     --runner=dataflow \
-//     --temp_location=$TEMP_LOCATION \
-//     --staging_location=$STAGING_LOCATION \
-//     --project=$PROJECT \
-//     --region=$REGION \
-//     --worker_harness_container_image=apache/beam_go_sdk:latest \
-//     --sourceGcsLocation=$SOURCE_GCS_LOCATION \
-//     --fhirStore=$FHIR_STORE_PATH \
-//     --pubsubTopic=$PUBSUB_TOPIC
+//
+//	export PROJECT="$(gcloud config get-value project)"
+//	export TEMP_LOCATION="gs://MY-BUCKET/temp"
+//	export STAGING_LOCATION="gs://MY-BUCKET/staging"
+//	export REGION="us-central1"
+//	export SOURCE_GCS_LOCATION="gs://MY_BUCKET/path/to/resources/**"
+//	export FHIR_STORE_PATH="MY_FHIR_STORE_PATH"
+//	export PUBSUB_TOPIC="MY_FHIR_STORE_TOPIC"
+//	cd ./sdks/go
+//	go run ./examples/fhirio/read_write_pubsub/read_write_pubsub.go \
+//	  --runner=dataflow \
+//	  --temp_location=$TEMP_LOCATION \
+//	  --staging_location=$STAGING_LOCATION \
+//	  --project=$PROJECT \
+//	  --region=$REGION \
+//	  --worker_harness_container_image=apache/beam_go_sdk:latest \
+//	  --sourceGcsLocation=$SOURCE_GCS_LOCATION \
+//	  --fhirStore=$FHIR_STORE_PATH \
+//	  --pubsubTopic=$PUBSUB_TOPIC
 package main
 
 import (

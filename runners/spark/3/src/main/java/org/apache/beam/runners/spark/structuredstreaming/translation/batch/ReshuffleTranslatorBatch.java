@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.internal.SQLConf;
 
-public class ReshuffleTranslatorBatch<K, V>
+class ReshuffleTranslatorBatch<K, V>
     extends TransformTranslator<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle<K, V>> {
 
   @Override
@@ -37,7 +37,7 @@ public class ReshuffleTranslatorBatch<K, V>
     cxt.putDataset(cxt.getOutput(), input.repartition(col("value.key")));
   }
 
-  public static class ViaRandomKey<V>
+  static class ViaRandomKey<V>
       extends TransformTranslator<PCollection<V>, PCollection<V>, Reshuffle.ViaRandomKey<V>> {
 
     @Override

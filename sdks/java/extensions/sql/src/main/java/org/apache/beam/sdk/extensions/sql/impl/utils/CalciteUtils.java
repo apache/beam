@@ -40,9 +40,13 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlTypeName
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utility methods for Calcite related operations. */
 public class CalciteUtils {
+  private static final Logger LOG = LoggerFactory.getLogger(CalciteUtils.class);
+
   private static final long UNLIMITED_ARRAY_SIZE = -1L;
 
   // SQL has schema types that do not directly correspond to Beam Schema types. We define
@@ -187,11 +191,21 @@ public class CalciteUtils {
           typeName = BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
         }
         if (typeName == null) {
-          if (type.getLogicalType() != null) {
-            Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
+          Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
+          if (logicalType != null) {
             if (logicalType instanceof PassThroughLogicalType) {
               // for pass through logical type, just return its base type
               return toSqlTypeName(logicalType.getBaseType());
+            } else if ("SqlCharType".equals(logicalType.getIdentifier())) {
+              LOG.warn(
+                  "SqlCharType is used in Schema. It was removed in Beam 2.44.0 and should be"
+                      + " replaced by FixedString logical type.");
+              return SqlTypeName.CHAR;
+            } else {
+              throw new IllegalArgumentException(
+                  String.format(
+                      "Cannot find a matching Calcite SqlTypeName for Beam logical type: %s",
+                      logicalType.getIdentifier()));
             }
           }
           throw new IllegalArgumentException(

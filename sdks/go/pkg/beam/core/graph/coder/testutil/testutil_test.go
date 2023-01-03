@@ -37,7 +37,7 @@ type UserType1 struct {
 
 func (UserType1) mark() {}
 
-func ut1EncDropB(val interface{}, w io.Writer) error {
+func ut1EncDropB(val any, w io.Writer) error {
 	if err := coder.WriteSimpleRowHeader(2, w); err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func ut1EncDropB(val interface{}, w io.Writer) error {
 	return nil
 }
 
-func ut1DecDropB(r io.Reader) (interface{}, error) {
+func ut1DecDropB(r io.Reader) (any, error) {
 	if err := coder.ReadSimpleRowHeader(2, r); err != nil {
 		return nil, err
 	}
@@ -79,8 +79,8 @@ func TestValidateCoder(t *testing.T) {
 	// always setting it to a constant value.
 	t.Run("SingleValue", func(t *testing.T) {
 		(&SchemaCoder{}).Validate(t, reflect.TypeOf((*UserType1)(nil)).Elem(),
-			func(reflect.Type) (func(interface{}, io.Writer) error, error) { return ut1EncDropB, nil },
-			func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return ut1DecDropB, nil },
+			func(reflect.Type) (func(any, io.Writer) error, error) { return ut1EncDropB, nil },
+			func(reflect.Type) (func(io.Reader) (any, error), error) { return ut1DecDropB, nil },
 			struct{ A, C string }{},
 			UserType1{
 				A: "cats",
@@ -91,8 +91,8 @@ func TestValidateCoder(t *testing.T) {
 	})
 	t.Run("SliceOfValues", func(t *testing.T) {
 		(&SchemaCoder{}).Validate(t, reflect.TypeOf((*UserType1)(nil)).Elem(),
-			func(reflect.Type) (func(interface{}, io.Writer) error, error) { return ut1EncDropB, nil },
-			func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return ut1DecDropB, nil },
+			func(reflect.Type) (func(any, io.Writer) error, error) { return ut1EncDropB, nil },
+			func(reflect.Type) (func(io.Reader) (any, error), error) { return ut1DecDropB, nil },
 			struct{ A, C string }{},
 			[]UserType1{
 				{
@@ -113,10 +113,10 @@ func TestValidateCoder(t *testing.T) {
 	})
 	t.Run("InterfaceCoder", func(t *testing.T) {
 		(&SchemaCoder{}).Validate(t, reflect.TypeOf((*UserInterface)(nil)).Elem(),
-			func(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+			func(rt reflect.Type) (func(any, io.Writer) error, error) {
 				return ut1EncDropB, nil
 			},
-			func(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+			func(rt reflect.Type) (func(io.Reader) (any, error), error) {
 				return ut1DecDropB, nil
 			},
 			struct{ A, C string }{},
@@ -133,12 +133,12 @@ func TestValidateCoder(t *testing.T) {
 		var v SchemaCoder
 		// Register the pointer type to the default encoder too.
 		v.Register(reflect.TypeOf((*UserType2)(nil)),
-			func(reflect.Type) (func(interface{}, io.Writer) error, error) { return nil, err },
-			func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return nil, err },
+			func(reflect.Type) (func(any, io.Writer) error, error) { return nil, err },
+			func(reflect.Type) (func(io.Reader) (any, error), error) { return nil, err },
 		)
 		v.Validate(&c, reflect.TypeOf((*UserType1)(nil)).Elem(),
-			func(reflect.Type) (func(interface{}, io.Writer) error, error) { return ut1EncDropB, err },
-			func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return ut1DecDropB, err },
+			func(reflect.Type) (func(any, io.Writer) error, error) { return ut1EncDropB, err },
+			func(reflect.Type) (func(io.Reader) (any, error), error) { return ut1DecDropB, err },
 			struct {
 				A, C string
 				B    *UserType2 // To trigger the bad factory registered earlier.
@@ -168,7 +168,7 @@ func TestValidateCoder(t *testing.T) {
 
 type msg struct {
 	fmt    string
-	params []interface{}
+	params []any
 }
 
 type checker struct {
@@ -185,7 +185,7 @@ func (c *checker) Run(string, func(*testing.T)) bool {
 	return true
 }
 
-func (c *checker) Errorf(fmt string, params ...interface{}) {
+func (c *checker) Errorf(fmt string, params ...any) {
 	c.errors = append(c.errors, msg{
 		fmt:    fmt,
 		params: params,

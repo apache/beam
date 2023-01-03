@@ -63,6 +63,16 @@ $padding: 24px;
       top: 50%;
       transform: translateY(-60%);
     }
+    .just-copy {
+      img {
+        @media (max-width: $mobile) {
+          display: block;
+        }
+        top: 5px;
+        right: 5px;
+        transform: none;
+      }
+    }
     p {
       @media (max-width: $mobile) {
         margin: 0;
@@ -103,5 +113,20 @@ $padding: 24px;
 .table-bordered-wrapper {
   table {
     @extend .table-bordered;
+  }
+}
+
+.table-wrapper--equal-p {
+   td:nth-child(n) {
+     @media (max-width: $mobile) {
+       padding: $padding/4 !important;
+     }
+     padding: $padding !important;
+   }
+}
+
+.table-wrapper--pr {
+  td, th {
+    padding-right: $padding/1.5;
   }
 }

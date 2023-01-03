@@ -33,7 +33,7 @@ func TestPCollection(t *testing.T) {
 	pcol := &PCollection{UID: 2, Out: a, Coder: coder.NewVarInt()}
 	// The "large" 2nd value is to ensure the values are encoded properly,
 	// and that Min & Max are behaving.
-	inputs := []interface{}{int64(1), int64(2000000000), int64(3)}
+	inputs := []any{int64(1), int64(2000000000), int64(3)}
 	in := &FixedRoot{UID: 3, Elements: makeInput(inputs...), Out: pcol}
 
 	p, err := NewPlan("a", []Unit{a, pcol, in})

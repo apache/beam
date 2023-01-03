@@ -263,6 +263,7 @@ public class BigQueryUtils {
           .put(SqlTypes.DATE.getIdentifier(), StandardSQLTypeName.DATE)
           .put(SqlTypes.TIME.getIdentifier(), StandardSQLTypeName.TIME)
           .put(SqlTypes.DATETIME.getIdentifier(), StandardSQLTypeName.DATETIME)
+          .put(SqlTypes.TIMESTAMP.getIdentifier(), StandardSQLTypeName.TIMESTAMP)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
           .put("Enum", StandardSQLTypeName.STRING)
           .build();
@@ -576,7 +577,7 @@ public class BigQueryUtils {
       case DOUBLE:
         // The above types have native representations in JSON for all their
         // possible values.
-        return fieldValue;
+        return fieldValue.toString();
 
       case STRING:
       case INT64:
