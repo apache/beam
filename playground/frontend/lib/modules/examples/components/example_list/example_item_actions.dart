@@ -25,6 +25,8 @@ import '../description_popover/description_popover_button.dart';
 import '../multi_file_icon.dart';
 import 'example_list_icon.dart';
 
+const double _iconSize = 30;
+
 class ExampleItemActions extends StatelessWidget {
   final ExampleBase example;
   final BuildContext parentContext;
@@ -37,9 +39,9 @@ class ExampleItemActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        if (example.isMultiFile) const ExampleListIcon(MultiFileIcon()),
+        if (example.isMultiFile) const _Icon(MultiFileIcon()),
         if (example.complexity != null)
-          ExampleListIcon(ComplexityWidget(complexity: example.complexity!)),
+          _Icon(ComplexityWidget(complexity: example.complexity!)),
         descriptionPopover,
       ],
     );
@@ -56,5 +58,26 @@ class ExampleItemActions extends StatelessWidget {
 
   void _setPopoverOpen(BuildContext context, bool isOpen) {
     Provider.of<PopoverState>(context, listen: false).setOpen(isOpen);
+  }
+}
+
+/// A wrapper of a standard size for icons in the example list.
+class _Icon extends StatelessWidget {
+  const _Icon(
+      this.child, {
+        super.key,
+      });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: _iconSize,
+      height: _iconSize,
+      child: Center(
+        child: child,
+      ),
+    );
   }
 }
