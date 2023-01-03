@@ -150,7 +150,6 @@ class SyncSparkInputDataProcessor<FnInputT, FnOutputT>
       this.inputIterator = iterator;
       this.ctx = ctx;
       this.outputIterator = outputManager.iterator();
-      ;
     }
 
     @Override
