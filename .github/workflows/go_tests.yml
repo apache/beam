@@ -59,19 +59,9 @@ jobs:
       - name: Run vet
         run: | 
           cd sdks/go/pkg/beam 
-          VOUT=$(go vet --copylocks=false --unsafeptr=false ./...)
-          if [ -n "$VOUT" ]; then 
-            echo -e "Run go vet and fix warnings before checking in changes\n"
-            echo -e "Vet Warnings:\n"
-            echo -e "$VOUT" && exit 1
-          fi
+          go vet --copylocks=false --unsafeptr=false ./...
       - name: Run Staticcheck
         run: |
           go install "honnef.co/go/tools/cmd/staticcheck@2022.1"
           cd sdks/go/pkg/beam
-          RESULTS=$($(go env GOPATH)/bin/staticcheck ./...)
-          if [ -n "$RESULTS" ]; then 
-            echo -e "Please address Staticcheck warnings before checking in changes\n"
-            echo -e "Staticcheck Warnings:\n"
-            echo -e "$RESULTS" && exit 1
-          fi
+          $(go env GOPATH)/bin/staticcheck ./...

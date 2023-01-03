@@ -23,6 +23,7 @@ def _get_examples(number_of_examples: int) -> List[Example]:
     examples = []
     for number in range(number_of_examples):
         tag = Tag(
+            filepath=f"MOCK_FILEPATH_{number}",
             line_start=100,
             line_finish=120,
             context_line=123,
@@ -42,7 +43,7 @@ def _get_examples(number_of_examples: int) -> List[Example]:
             code=f"MOCK_CODE_{number}",
             output=f"MOCK_OUTPUT_{number}",
             status=STATUS_UNSPECIFIED,
-            url_vcs=f"https://mock.link/{number}", # type: ignore
+            url_vcs=f"https://mock.link/{number}",  # type: ignore
         )
         examples.append(example)
     return examples
