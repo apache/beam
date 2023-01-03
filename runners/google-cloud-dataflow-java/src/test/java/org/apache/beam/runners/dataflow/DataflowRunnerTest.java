@@ -1745,6 +1745,63 @@ public class DataflowRunnerTest implements Serializable {
     this.verifySdkHarnessConfiguration(options);
   }
 
+  @Test
+  public void testSettingAnyFnApiExperimentEnablesUnifiedWorker() throws Exception {
+    for (String experiment :
+        ImmutableList.of(
+            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+      DataflowPipelineOptions options = buildPipelineOptions();
+      ExperimentalOptions.addExperiment(options, experiment);
+      Pipeline p = Pipeline.create(options);
+      p.apply(Create.of("A"));
+      p.run();
+      assertFalse(options.isEnableStreamingEngine());
+      assertThat(
+          options.getExperiments(),
+          containsInAnyOrder(
+              "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission"));
+    }
+
+    for (String experiment :
+        ImmutableList.of(
+            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+      DataflowPipelineOptions options = buildPipelineOptions();
+      options.setStreaming(true);
+      ExperimentalOptions.addExperiment(options, experiment);
+      Pipeline p = Pipeline.create(options);
+      p.apply(Create.of("A"));
+      p.run();
+      assertTrue(options.isEnableStreamingEngine());
+      assertThat(
+          options.getExperiments(),
+          containsInAnyOrder(
+              "beam_fn_api",
+              "use_runner_v2",
+              "use_unified_worker",
+              "use_portable_job_submission",
+              "enable_windmill_service",
+              "enable_streaming_engine"));
+    }
+  }
+
+  @Test
+  public void testSettingConflictingEnableAndDisableExperimentsThrowsException() throws Exception {
+    for (String experiment :
+        ImmutableList.of(
+            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+      for (String disabledExperiment :
+          ImmutableList.of(
+              "disable_runner_v2", "disable_runner_v2_until_2023", "disable_prime_runner_v2")) {
+        DataflowPipelineOptions options = buildPipelineOptions();
+        ExperimentalOptions.addExperiment(options, experiment);
+        ExperimentalOptions.addExperiment(options, disabledExperiment);
+        Pipeline p = Pipeline.create(options);
+        p.apply(Create.of("A"));
+        assertThrows("Runner V2 both disabled and enabled", IllegalArgumentException.class, p::run);
+      }
+    }
+  }
+
   private void verifyMapStateUnsupported(PipelineOptions options) throws Exception {
     Pipeline p = Pipeline.create(options);
     p.apply(Create.of(KV.of(13, 42)))

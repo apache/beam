@@ -59,9 +59,11 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* MongoDB IO connector added (Go) ([#24575](https://github.com/apache/beam/issues/24575)).
 
 ## New Features / Improvements
 
+* RunInference Wrapper with Sklearn Model Handler support added in Go SDK ([#24497](https://github.com/apache/beam/issues/23382)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Adding override of allowed TLS algorithms (Java), now maintaining the disabled/legacy algorithms
   present in 2.43.0 (up to 1.8.0_342, 11.0.16, 17.0.2 for respective Java versions). This is accompanied
@@ -69,10 +71,11 @@
 
 ## Breaking Changes
 
-* Python streaming pipelines and portable Python batch pipelines on Dataflow are required to
-  use Runner V2. The `disable_runner_v2`, `disable_runner_v2_until_2023`, `disable_prime_runner_v2`
-  experiments will raise an error during pipeline construction. Note that non-portable Python
-  batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515))
+* Portable Java pipelines, Go pipelines, Python streaming pipelines, and portable Python batch
+  pipelines on Dataflow are required to use Runner V2. The `disable_runner_v2`,
+  `disable_runner_v2_until_2023`, `disable_prime_runner_v2` experiments will raise an error during
+  pipeline construction. You can no longer specify the Dataflow worker jar override. Note that
+  non-portable Java jobs and non-portable Python batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515)).
 
 ## Deprecations
 
@@ -80,6 +83,7 @@
 
 ## Bugfixes
 
+* Avoids Cassandra syntax error when user-defined query has no where clause in it (Java) ([#24829](https://github.com/apache/beam/issues/24829)).
 * Fixed JDBC connection failures (Java) during handshake due to deprecated TLSv1(.1) protocol for the JDK. ([#24623](https://github.com/apache/beam/issues/24623))
 
 ## Known Issues

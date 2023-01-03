@@ -101,7 +101,8 @@ func createSDKEntities(ctx context.Context) ([]*datastore.Key, []*entity.SDKEnti
 }
 
 func createExampleEntities(ctx context.Context) ([]*datastore.Key, []*entity.ExampleEntity) {
-	names := []string{"MOCK_DEFAULT_EXAMPLE", "MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3", "MOCK_NAME_DATASET"}
+	names := []string{"MOCK_DEFAULT_EXAMPLE", "MOCK_NAME_1", "MOCK_NAME_2", "MOCK_NAME_3",
+		"MOCK_NAME_DATASET", "MOCK_MULTIFILE"}
 	keys := make([]*datastore.Key, 0)
 	examples := make([]*entity.ExampleEntity, 0)
 	for _, sdk := range pb.Sdk_name {
@@ -120,15 +121,17 @@ func createExampleEntities(ctx context.Context) ([]*datastore.Key, []*entity.Exa
 
 func createExampleEntity(ctx context.Context, name, sdk string) *entity.ExampleEntity {
 	return &entity.ExampleEntity{
-		Name:   name,
-		Sdk:    utils.GetSdkKey(ctx, sdk),
-		Descr:  "MOCK_DESCR",
-		Tags:   []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
-		Cats:   []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
-		Path:   "MOCK_PATH",
-		Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
-		Origin: constants.ExampleOrigin,
-		SchVer: utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
+		Name:        name,
+		Sdk:         utils.GetSdkKey(ctx, sdk),
+		Descr:       "MOCK_DESCR",
+		Tags:        []string{"MOCK_TAG_1", "MOCK_TAG_2", "MOCK_TAG_3"},
+		Cats:        []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
+		Path:        "MOCK_PATH",
+		UrlVCS:      "MOCK_URL_VCS",
+		UrlNotebook: "MOCK_URL_NOTEBOOK",
+		Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+		Origin:      constants.ExampleOrigin,
+		SchVer:      utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	}
 }
 
@@ -138,13 +141,17 @@ func createSnippetEntities(ctx context.Context, examples []*entity.ExampleEntity
 	now := time.Now()
 	for _, example := range examples {
 		key := utils.GetSnippetKey(ctx, example.Sdk.Name, example.Name)
+		numberOfFiles := 1
+		if example.Name == "MOCK_MULTIFILE" {
+			numberOfFiles = 2
+		}
 		snippet := &entity.SnippetEntity{
 			Sdk:           example.Sdk,
 			PipeOpts:      "MOCK_P_OPTS",
 			Created:       now,
 			Origin:        constants.ExampleOrigin,
 			SchVer:        utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
-			NumberOfFiles: 1,
+			NumberOfFiles: numberOfFiles,
 			Complexity:    pb.Complexity_COMPLEXITY_MEDIUM.String(),
 		}
 		if example.Name == "MOCK_NAME_DATASET" {
@@ -164,15 +171,21 @@ func createFileEntities(ctx context.Context, examples []*entity.ExampleEntity) (
 	keys := make([]*datastore.Key, 0)
 	files := make([]*entity.FileEntity, 0)
 	for _, example := range examples {
-		key := utils.GetFileKey(ctx, example.Sdk.Name, example.Name, 0)
-		file := &entity.FileEntity{
-			Name:     "MOCK_NAME",
-			Content:  "MOCK_CONTENT",
-			CntxLine: 10,
-			IsMain:   true,
+		numberOfFiles := 1
+		if example.Name == "MOCK_MULTIFILE" {
+			numberOfFiles = 2
 		}
-		keys = append(keys, key)
-		files = append(files, file)
+		for idx := 0; idx < numberOfFiles; idx++ {
+			key := utils.GetFileKey(ctx, example.Sdk.Name, example.Name, idx)
+			file := &entity.FileEntity{
+				Name:     fmt.Sprintf("MOCK_NAME_%d", idx),
+				Content:  fmt.Sprintf("MOCK_CONTENT_%d", idx),
+				CntxLine: 10 + int32(idx),
+				IsMain:   idx < 1,
+			}
+			keys = append(keys, key)
+			files = append(files, file)
+		}
 	}
 	return keys, files
 }

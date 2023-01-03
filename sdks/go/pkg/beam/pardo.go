@@ -36,7 +36,7 @@ func addParDoCtx(err error, s Scope) error {
 // TryParDo attempts to insert a ParDo transform into the pipeline. It may fail
 // for multiple reasons, notably that the dofn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
-func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCollection, error) {
+func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection, error) {
 	side, typedefs, err := validate(s, col, opts)
 	if err != nil {
 		return nil, addParDoCtx(err, s)
@@ -126,12 +126,12 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 }
 
 // ParDoN inserts a ParDo with any number of outputs into the pipeline.
-func ParDoN(s Scope, dofn interface{}, col PCollection, opts ...Option) []PCollection {
+func ParDoN(s Scope, dofn any, col PCollection, opts ...Option) []PCollection {
 	return MustN(TryParDo(s, dofn, col, opts...))
 }
 
 // ParDo0 inserts a ParDo with zero output transform into the pipeline.
-func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
+func ParDo0(s Scope, dofn any, col PCollection, opts ...Option) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 0 {
 		panic(formatParDoError(dofn, len(ret), 0))
@@ -402,7 +402,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 //
 // See https://beam.apache.org/documentation/programming-guide/#pardo
 // for the web documentation for ParDo
-func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollection {
+func ParDo(s Scope, dofn any, col PCollection, opts ...Option) PCollection {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 1 {
 		panic(formatParDoError(dofn, len(ret), 1))
@@ -413,7 +413,7 @@ func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollecti
 // TODO(herohde) 6/1/2017: add windowing aspects to above documentation.
 
 // ParDo2 inserts a ParDo with 2 outputs into the pipeline.
-func ParDo2(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection) {
+func ParDo2(s Scope, dofn any, col PCollection, opts ...Option) (PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 2 {
 		panic(formatParDoError(dofn, len(ret), 2))
@@ -422,7 +422,7 @@ func ParDo2(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 }
 
 // ParDo3 inserts a ParDo with 3 outputs into the pipeline.
-func ParDo3(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection) {
+func ParDo3(s Scope, dofn any, col PCollection, opts ...Option) (PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 3 {
 		panic(formatParDoError(dofn, len(ret), 3))
@@ -431,7 +431,7 @@ func ParDo3(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 }
 
 // ParDo4 inserts a ParDo with 4 outputs into the pipeline.
-func ParDo4(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection) {
+func ParDo4(s Scope, dofn any, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 4 {
 		panic(formatParDoError(dofn, len(ret), 4))
@@ -440,7 +440,7 @@ func ParDo4(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 }
 
 // ParDo5 inserts a ParDo with 5 outputs into the pipeline.
-func ParDo5(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection) {
+func ParDo5(s Scope, dofn any, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 5 {
 		panic(formatParDoError(dofn, len(ret), 5))
@@ -449,7 +449,7 @@ func ParDo5(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 }
 
 // ParDo6 inserts a ParDo with 6 outputs into the pipeline.
-func ParDo6(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
+func ParDo6(s Scope, dofn any, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 6 {
 		panic(formatParDoError(dofn, len(ret), 6))
@@ -458,7 +458,7 @@ func ParDo6(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 }
 
 // ParDo7 inserts a ParDo with 7 outputs into the pipeline.
-func ParDo7(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
+func ParDo7(s Scope, dofn any, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 7 {
 		panic(formatParDoError(dofn, len(ret), 7))
@@ -472,7 +472,7 @@ func ParDo7(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 // We construct a new graph.Fn using the doFn which is passed. We explicitly
 // ignore the error since we already know that its already a DoFn type as
 // TryParDo would have panicked otherwise.
-func formatParDoError(doFn interface{}, emitSize int, parDoSize int) string {
+func formatParDoError(doFn any, emitSize int, parDoSize int) string {
 	doFun, _ := graph.NewFn(doFn)
 	doFnName := doFun.Name()
 

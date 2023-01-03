@@ -18,16 +18,21 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/components/dropdown_button/dropdown_button.dart';
-import 'package:playground/modules/editor/components/share_dropdown/share_dropdown_body.dart';
 import 'package:playground_components/playground_components.dart';
+
+import '../../../../components/dropdown_button/dropdown_button.dart';
+import 'share_dropdown_body.dart';
 
 const _kShareDropdownHeight = 140.0;
 const _kShareDropdownWidth = 460.0;
 const _kButtonColorOpacity = 0.2;
 
 class ShareButton extends StatelessWidget {
-  const ShareButton({super.key});
+  final PlaygroundController playgroundController;
+
+  const ShareButton({
+    required this.playgroundController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +62,10 @@ class ShareButton extends StatelessWidget {
         height: _kShareDropdownHeight,
         width: _kShareDropdownWidth,
         dropdownAlign: DropdownAlignment.right,
-        createDropdown: (close) => const ShareDropdownBody(),
+        createDropdown: (closeCallback) => ShareDropdownBody(
+          onError: closeCallback,
+          playgroundController: playgroundController,
+        ),
       ),
     );
   }

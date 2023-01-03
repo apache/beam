@@ -637,6 +637,17 @@ public class ParDoTranslation {
                 .setProtocol(FunctionSpec.newBuilder().setUrn(MULTIMAP_USER_STATE))
                 .build();
           }
+
+          @Override
+          public RunnerApi.StateSpec dispatchMultimap(Coder<?> keyCoder, Coder<?> valueCoder) {
+            return builder
+                .setMultimapSpec(
+                    RunnerApi.MultimapStateSpec.newBuilder()
+                        .setKeyCoderId(registerCoderOrThrow(components, keyCoder))
+                        .setValueCoderId(registerCoderOrThrow(components, valueCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(MULTIMAP_USER_STATE))
+                .build();
+          }
         });
   }
 

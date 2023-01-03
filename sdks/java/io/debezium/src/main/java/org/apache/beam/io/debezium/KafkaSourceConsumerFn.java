@@ -25,6 +25,7 @@ import io.debezium.relational.history.DatabaseHistoryException;
 import io.debezium.relational.history.HistoryRecord;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -55,7 +57,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Quick Overview</h3>
  *
- * SDF used to process records fetched from supported Debezium Connectors.
+ * This is a Splittable {@link DoFn} used to process records fetched from supported Debezium
+ * Connectors.
  *
  * <p>Currently it has a time limiter (see {@link OffsetTracker}) which, if set, it will stop
  * automatically after the specified elapsed minutes. Otherwise, it will keep running until the user
@@ -63,7 +66,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>It might be initialized either as:
  *
- * <pre>KafkaSourceConsumerFn(connectorClass, SourceRecordMapper)</pre>
+ * <pre>KafkaSourceConsumerFn(connectorClass, SourceRecordMapper, maxRecords, milisecondsToRun)
+ * </pre>
  *
  * Or with a time limiter:
  *
@@ -77,8 +81,8 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   private final Class<? extends SourceConnector> connectorClass;
   private final SourceRecordMapper<T> fn;
 
-  private long minutesToRun = -1;
-  private Integer maxRecords;
+  private final Long milisecondsToRun;
+  private final Integer maxRecords;
 
   private static DateTime startTime;
   private static final Map<String, RestrictionTracker<OffsetHolder, Map<String, Object>>>
@@ -89,12 +93,18 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    *
    * @param connectorClass Supported Debezium connector class
    * @param fn a SourceRecordMapper
-   * @param minutesToRun Maximum time to run (in minutes)
+   * @param maxRecords Maximum number of records to fetch before finishing.
+   * @param milisecondsToRun Maximum time to run (in milliseconds)
    */
-  KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, long minutesToRun) {
+  KafkaSourceConsumerFn(
+      Class<?> connectorClass,
+      SourceRecordMapper<T> fn,
+      Integer maxRecords,
+      Long milisecondsToRun) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
-    this.minutesToRun = minutesToRun;
+    this.maxRecords = maxRecords;
+    this.milisecondsToRun = milisecondsToRun;
   }
 
   /**
@@ -102,18 +112,17 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    *
    * @param connectorClass Supported Debezium connector class
    * @param fn a SourceRecordMapper
+   * @param maxRecords Maximum number of records to fetch before finishing.
    */
   KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, Integer maxRecords) {
-    this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
-    this.fn = fn;
-    this.maxRecords = maxRecords;
+    this(connectorClass, fn, maxRecords, null);
   }
 
   @GetInitialRestriction
   public OffsetHolder getInitialRestriction(@Element Map<String, String> unused)
       throws IOException {
     KafkaSourceConsumerFn.startTime = new DateTime();
-    return new OffsetHolder(null, null, null, this.maxRecords, this.minutesToRun);
+    return new OffsetHolder(null, null, null, this.maxRecords, this.milisecondsToRun);
   }
 
   @NewTracker
@@ -125,6 +134,45 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   @GetRestrictionCoder
   public Coder<OffsetHolder> getRestrictionCoder() {
     return SerializableCoder.of(OffsetHolder.class);
+  }
+
+  protected SourceRecord getOneRecord(Map<String, String> configuration) {
+    try {
+      SourceConnector connector = connectorClass.getDeclaredConstructor().newInstance();
+      connector.start(configuration);
+
+      SourceTask task = (SourceTask) connector.taskClass().getDeclaredConstructor().newInstance();
+      task.initialize(new BeamSourceTaskContext(null));
+      task.start(connector.taskConfigs(1).get(0));
+      List<SourceRecord> records = Lists.newArrayList();
+      int loops = 0;
+      while (records.size() == 0) {
+        if (loops > 3) {
+          throw new RuntimeException("could not fetch database schema");
+        }
+        records = task.poll();
+        // Waiting for the Database snapshot to finish.
+        Thread.sleep(2000);
+        loops += 1;
+      }
+      task.stop();
+      connector.stop();
+      return records.get(0);
+    } catch (NoSuchMethodException
+        | InterruptedException
+        | InvocationTargetException
+        | IllegalAccessException
+        | InstantiationException e) {
+      throw new RuntimeException("Unexpected exception fetching database schema.", e);
+    }
+  }
+
+  void register(RestrictionTracker<OffsetHolder, Map<String, Object>> tracker) {
+    restrictionTrackers.put(this.getHashCode(), tracker);
+  }
+
+  void reset() {
+    restrictionTrackers.remove(this.getHashCode());
   }
 
   /**
@@ -145,7 +193,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     Map<String, String> configuration = new HashMap<>(element);
 
     // Adding the current restriction to the class object to be found by the database history
-    restrictionTrackers.put(this.getHashCode(), tracker);
+    register(tracker);
     configuration.put(BEAM_INSTANCE_PROPERTY, this.getHashCode());
 
     SourceConnector connector = connectorClass.getDeclaredConstructor().newInstance();
@@ -168,7 +216,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       }
 
       LOG.debug("-------- {} records found", records.size());
-      if (!records.isEmpty()) {
+      while (records != null && !records.isEmpty()) {
         for (SourceRecord record : records) {
           LOG.debug("-------- Record found: {}", record);
 
@@ -184,22 +232,24 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
           receiver.output(json);
         }
-
         task.commit();
+        records = task.poll();
       }
     } catch (Exception ex) {
-      LOG.error(
-          "-------- Error on consumer: {}. with stacktrace: {}",
-          ex.getMessage(),
-          ex.getStackTrace());
+      throw new RuntimeException("Error occurred when consuming changes from Database. ", ex);
     } finally {
-      restrictionTrackers.remove(this.getHashCode());
+      reset();
 
       LOG.debug("------- Stopping SourceTask");
       task.stop();
     }
 
-    return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
+    long elapsedTime = System.currentTimeMillis() - KafkaSourceConsumerFn.startTime.getMillis();
+    if (milisecondsToRun != null && milisecondsToRun > 0 && elapsedTime >= milisecondsToRun) {
+      return ProcessContinuation.stop();
+    } else {
+      return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
+    }
   }
 
   public String getHashCode() {
@@ -255,37 +305,36 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   }
 
   static class OffsetHolder implements Serializable {
-    public final @Nullable Map<String, ?> offset;
-    public final @Nullable List<?> history;
-    public final @Nullable Integer fetchedRecords;
-    public final @Nullable Integer maxRecords;
-    public final long minutesToRun;
+    public @Nullable Map<String, ?> offset;
+    public @Nullable List<?> history;
+    public @Nullable Integer fetchedRecords;
+    public @Nullable Integer maxRecords;
+    public final @Nullable Long milisToRun;
 
     OffsetHolder(
         @Nullable Map<String, ?> offset,
         @Nullable List<?> history,
         @Nullable Integer fetchedRecords,
         @Nullable Integer maxRecords,
-        long minutesToRun) {
+        @Nullable Long milisToRun) {
       this.offset = offset;
       this.history = history == null ? new ArrayList<>() : history;
       this.fetchedRecords = fetchedRecords;
       this.maxRecords = maxRecords;
-      this.minutesToRun = minutesToRun;
+      this.milisToRun = milisToRun;
     }
 
     OffsetHolder(
         @Nullable Map<String, ?> offset,
         @Nullable List<?> history,
         @Nullable Integer fetchedRecords) {
-      this(offset, history, fetchedRecords, null, -1);
+      this(offset, history, fetchedRecords, null, -1L);
     }
   }
 
   /** {@link RestrictionTracker} for Debezium connectors. */
   static class OffsetTracker extends RestrictionTracker<OffsetHolder, Map<String, Object>> {
     private OffsetHolder restriction;
-    private static final long MILLIS = 60 * 1000;
 
     OffsetTracker(OffsetHolder holder) {
       this.restriction = holder;
@@ -316,28 +365,20 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       int fetchedRecords =
           this.restriction.fetchedRecords == null ? 0 : this.restriction.fetchedRecords + 1;
       LOG.debug("------------Fetched records {} / {}", fetchedRecords, this.restriction.maxRecords);
-      LOG.debug(
-          "-------------- Time running: {} / {}",
-          elapsedTime,
-          (this.restriction.minutesToRun * MILLIS));
-      this.restriction =
-          new OffsetHolder(
-              position,
-              this.restriction.history,
-              fetchedRecords,
-              this.restriction.maxRecords,
-              this.restriction.minutesToRun);
+      LOG.debug("-------------- Time running: {} / {}", elapsedTime, (this.restriction.milisToRun));
+      this.restriction.offset = position;
+      this.restriction.fetchedRecords = fetchedRecords;
       LOG.debug("-------------- History: {}", this.restriction.history);
 
-      if (this.restriction.maxRecords == null && this.restriction.minutesToRun == -1) {
+      if (this.restriction.maxRecords == null && this.restriction.milisToRun == -1) {
         return true;
       }
 
-      if (this.restriction.maxRecords != null) {
-        return fetchedRecords < this.restriction.maxRecords;
-      }
-
-      return elapsedTime < this.restriction.minutesToRun * MILLIS;
+      // If we've reached the maximum number of records OR the maximum time, we reject
+      // the attempt to claim.
+      // If we've reached neither, then we continue approve the claim.
+      return (this.restriction.maxRecords == null || fetchedRecords < this.restriction.maxRecords)
+          && (this.restriction.milisToRun == null || elapsedTime < this.restriction.milisToRun);
     }
 
     @Override
@@ -356,7 +397,8 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
     @Override
     public IsBounded isBounded() {
-      return IsBounded.BOUNDED;
+      // TODO(pabloem): Implement truncate call that allows us to restart the state
+      return IsBounded.UNBOUNDED;
     }
   }
 

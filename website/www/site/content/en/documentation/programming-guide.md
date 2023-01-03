@@ -2565,7 +2565,7 @@ Timers and States are explained in more detail in the
 {{< paragraph class="language-typescript" >}}
 **Timer and State:**
 This feature isn't yet implemented in the Typescript SDK,
-but we welcome [contributions](https://beam.apache.org/contribute/).
+but we welcome [contributions](/contribute/).
 In the meantime, Typescript pipelines wishing to use state and timers can do so
 using [cross-language transforms](#use-x-lang-transforms).
 {{< /paragraph >}}
@@ -2963,7 +2963,8 @@ For example, consider the following schema, representing actions in a fictitious
 
 **Purchase**
 
-<table>
+<div class="table-container-wrapper">
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -2994,10 +2995,11 @@ For example, consider the following schema, representing actions in a fictitious
   </tbody>
 </table>
 <br/>
+</div>
 
 **ShippingAddress**
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -3031,7 +3033,7 @@ For example, consider the following schema, representing actions in a fictitious
 
 **Transaction**
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -3226,7 +3228,7 @@ The schema for a `PCollection` defines elements of that `PCollection` as an orde
 has a name, a type, and possibly a set of user options. The type of a field can be primitive or composite. The following
 are the primitive types currently supported by Beam:
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th>Type</th>
@@ -3886,7 +3888,7 @@ specific keys from the map. For example, given the following schema:
 
 **PurchasesByType**
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -3950,7 +3952,7 @@ Support for Nested fields hasn't been developed for the Go SDK yet.
 
 The resulting `PCollection` will have the following schema
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -3986,7 +3988,7 @@ Support for Wildcards hasn't been developed for the Go SDK yet.
 
 Will result in the following schema
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4040,7 +4042,7 @@ Support for nested fields hasn't been developed for the Go SDK yet.
 
 {{< paragraph class="language-java" >}}
 Will result in the following schema
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4087,7 +4089,8 @@ Support for nested fields hasn't been developed for the Go SDK yet.
 
 {{< paragraph class="language-java" >}}
 Will result in the following schema
-<table>
+<div class="table-container-wrapper">
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4138,6 +4141,7 @@ Will result in the following schema
   </tbody>
 </table>
 <br/>
+</div>
 {{< /paragraph >}}
 
 ##### **Grouping aggregations**
@@ -4181,7 +4185,7 @@ Support for schema-aware grouping hasn't been developed for the Go SDK yet.
 The output schema of this is:
 {{< /paragraph >}}
 
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4237,7 +4241,7 @@ Support for schema-aware grouping hasn't been developed for the Go SDK yet.
 {{< /paragraph >}}
 
 The result of this aggregation will have the following schema:
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4284,7 +4288,7 @@ PCollection<Row> joined = transactions.apply(
 
 {{< paragraph class="language-java" >}}
 The resulting schema is the following:
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th><b>Field Name</b></th>
@@ -4674,7 +4678,8 @@ types for any pipeline you create using the Beam SDK for
 The following table shows the standard mapping:
 
 {{< paragraph class="language-java" >}}
-<table>
+<div class="table-container-wrapper">
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th>Java Type</th>
@@ -4736,10 +4741,11 @@ The following table shows the standard mapping:
     </tr>
   </tbody>
 </table>
+</div>
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-<table>
+<table class="table-wrapper--pr">
   <thead>
     <tr class="header">
       <th>Python Type</th>
@@ -7292,7 +7298,7 @@ You can use the Java class directly from your Python pipeline using a stub trans
 Constructor and method parameter types are mapped between Python and Java using a Beam schema. The schema is auto-generated using the object types
 provided on the Python side. If the Java class constructor method or builder method accepts any complex object types, make sure that the Beam schema
 for these objects is registered and available for the Java expansion service. If a schema has not been registered, the Java expansion service will
-try to register a schema using [JavaFieldSchema](https://beam.apache.org/documentation/programming-guide/#creating-schemas). In Python, arbitrary objects
+try to register a schema using [JavaFieldSchema](/documentation/programming-guide/#creating-schemas). In Python, arbitrary objects
 can be represented using `NamedTuple`s, which will be represented as Beam rows in the schema. Here is a Python stub transform that represents the above
 mentioned Java transform:
 
@@ -7415,7 +7421,7 @@ To create an SDK wrapper for use in a Python pipeline, do the following:
 1. Create a Python module for your cross-language transform(s).
 2. In the module, use one of the [`PayloadBuilder`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder) classes to build the payload for the initial cross-language transform expansion request.
 
-    The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java `ExternalTransformBuilder`. Parameter types are mapped across SDKs using a [Beam schema](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto). Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).
+    The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java `ExternalTransformBuilder`. Parameter types are mapped across SDKs using a [Beam schema](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/schema.proto). Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).
 
     In the following example, [kafka.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py) uses `NamedTupleBasedPayloadBuilder` to build the payload. The parameters map to the Java [KafkaIO.External.Configuration](https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java) config object defined in the previous section.
 
@@ -7497,7 +7503,7 @@ An expansion service can be used with multiple transforms in the same pipeline. 
 
 Perform the following steps to start up the default Python expansion service directly:
 
-1. Create a virtual environment and [install the Apache Beam SDK](https://beam.apache.org/get-started/quickstart-py/).
+1. Create a virtual environment and [install the Apache Beam SDK](/get-started/quickstart-py/).
 2. Start the Python SDK’s expansion service with a specified port.
 
     {{< highlight >}}

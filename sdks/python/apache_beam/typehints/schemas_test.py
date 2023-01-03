@@ -32,6 +32,8 @@ from typing import Sequence
 import cloudpickle
 import dill
 import numpy as np
+from hypothesis import given
+from hypothesis import settings
 from parameterized import parameterized
 from parameterized import parameterized_class
 
@@ -44,6 +46,7 @@ from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
+from apache_beam.typehints.testing.strategies import named_fields
 from apache_beam.utils.timestamp import Timestamp
 
 all_nonoptional_primitives = [
@@ -638,6 +641,20 @@ class SchemaTest(unittest.TestCase):
     instance = simple_row_type(np.int64(35), 'baz')
     self.assertIsInstance(instance, simple_row_type.user_type)
     self.assertEqual(instance, (np.int64(35), 'baz'))
+
+
+class HypothesisTest(unittest.TestCase):
+  # There is considerable variablility in runtime for this test, disable
+  # deadline.
+  @settings(deadline=None)
+  @given(named_fields())
+  def test_named_fields_roundtrip(self, named_fields):
+    typehint = row_type.RowTypeConstraint.from_fields(named_fields)
+    roundtripped = typing_from_runner_api(
+        typing_to_runner_api(typehint, schema_registry=SchemaTypeRegistry()),
+        schema_registry=SchemaTypeRegistry())
+
+    self.assertEqual(typehint, roundtripped)
 
 
 @parameterized_class([

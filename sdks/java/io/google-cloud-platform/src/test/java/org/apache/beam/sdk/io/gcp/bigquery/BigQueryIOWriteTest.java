@@ -728,6 +728,19 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testTriggeredFileLoadsWithTempTablesToExistingNullSchemaTable() throws Exception {
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+    testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
+  }
+
+  @Test
   public void testUntriggeredFileLoadsWithTempTables() throws Exception {
     // Test only non-streaming inserts.
     assumeTrue(!useStorageApi);
@@ -759,6 +772,50 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testTriggeredFileLoadsWithTempTablesDefaultProject() throws Exception {
     testTriggeredFileLoadsWithTempTables("dataset-id.table-id");
+  }
+
+  @Test
+  public void testTriggeredFileLoadsWithTempTablesCreateNever() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
+
+    // Create table and give it a schema
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("str").setType("STRING"),
+                    new TableFieldSchema().setName("num").setType("INTEGER")));
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(schema);
+    fakeTable.setTableReference(ref);
+    fakeDatasetService.createTable(fakeTable);
+
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 1; i < 10; i++) {
+      elements.add(new TableRow().set("str", "a").set("num", i));
+    }
+
+    // Write to table with CREATE_NEVER and with no schema
+    p.apply(Create.of(elements))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices)
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
   @Test
@@ -2628,5 +2685,30 @@ public class BigQueryIOWriteTest implements Serializable {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
     schemaUpdateOptionsTest(BigQueryIO.Write.Method.STREAMING_INSERTS, options);
+  }
+
+  @Test
+  public void testWriteWithStorageApiWithDefaultProject() throws Exception {
+    assumeTrue(useStorageApi);
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))))
+            .withMethod(Method.STORAGE_WRITE_API)
+            .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(
+            Create.of(new TableRow().set("name", "a"), new TableRow().set("name", "b"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply("WriteToBQ", write);
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
   }
 }

@@ -679,7 +679,7 @@ class BeamModulePlugin implements Plugin<Project> {
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
-        json_org                                    : "org.json:json",     // Try to keep in sync with google_cloud_platform_libraries_bom transitive deps.
+        json_org                                    : "org.json:json:20220320", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
         everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
@@ -1020,6 +1020,7 @@ class BeamModulePlugin implements Plugin<Project> {
         extraJavacArgs = [
           "-AskipDefs=${skipDefCombinedRegex}",
           "-AskipUses=${skipUsesCombinedRegex}",
+          "-AnoWarnMemoryConstraints",
           "-AsuppressWarnings=annotation.not.completed,keyfor",
         ]
 
@@ -2364,7 +2365,8 @@ class BeamModulePlugin implements Plugin<Project> {
       } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
         javaContainerSuffix = 'java17'
       } else {
-        throw new GradleException("unsupported java version.")
+        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
+        throw new GradleException(exceptionMessage)
       }
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
