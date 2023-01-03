@@ -200,6 +200,7 @@ def parse_known_args(argv):
       help='Threshold for minimum number of unique values for a category.')
   parser.add_argument(
       '--shuffle',
+      action='store_false',
       dest='shuffle',
       default=True,
       help='Skips shuffling the data.')
