@@ -24,8 +24,8 @@ try:
   import apache_beam.testing.benchmarks.cloudml.cloudml_benchmark_constants_lib as lib
   from apache_beam.testing.benchmarks.cloudml.pipelines import workflow
   from apache_beam.testing.test_pipeline import TestPipeline
-except:  # pylint: disable=bare-except
-  pass
+except ImportError:  # pylint: disable=bare-except
+  raise unittest.SkipTest('Dependencies are not installed')
 
 _INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
 _CRITEO_FEATURES_FILE = 'testdata/criteo/expected/features.tfrecord.gz'
