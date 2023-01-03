@@ -20,7 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:playground_components/src/models/example_base.dart';
 import 'package:playground_components/src/controllers/example_loaders/examples_loader.dart';
-import 'package:playground/pages/playground/states/example_selector_state.dart';
+import 'package:playground/pages/standalone_playground/notifiers/example_selector_state.dart';
 import 'package:playground_components/src/cache/example_cache.dart';
 import 'package:playground_components/src/controllers/playground_controller.dart';
 
@@ -38,7 +38,6 @@ void main() {
   setUp(() {
     exampleCache = ExampleCache(
       exampleRepository: mockExampleRepository,
-      hasCatalog: true,
     );
 
     playgroundController = PlaygroundController(

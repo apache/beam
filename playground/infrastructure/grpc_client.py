@@ -19,12 +19,14 @@ Module contains the client to communicate with GRPC test Playground server
 import logging
 import os
 import uuid
+from typing import List
 
 import grpc
 import sonora.aio
 
 from api.v1 import api_pb2_grpc, api_pb2
 from config import Config
+from models import SdkEnum
 
 
 class GRPCClient:
@@ -49,9 +51,13 @@ class GRPCClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._channel.__aexit__(exc_type, exc_val, exc_tb)
 
-    
-    async def run_code(
-          self, code: str, sdk: api_pb2.Sdk, pipeline_options: str) -> str:
+    async def run_code(self, 
+        code: str,
+        sdk: SdkEnum,
+        pipeline_options: str,
+        datasets: List[api_pb2.Dataset],
+        files: List[api_pb2.SnippetFile],
+        ) -> str:
         """
         Run example by his code and SDK
 
@@ -59,6 +65,7 @@ class GRPCClient:
             code: code of the example.
             sdk: SDK of the example.
             pipeline_options: pipeline options of the example.
+            datasets: datasets of the example.
 
         Returns:
             pipeline_uuid: uuid of the pipeline
@@ -69,7 +76,7 @@ class GRPCClient:
             raise Exception(
                 f'Incorrect sdk: must be from this pool: {", ".join(sdks)}')
         request = api_pb2.RunCodeRequest(
-            code=code, sdk=sdk, pipeline_options=pipeline_options)
+            code=code, sdk=sdk, pipeline_options=pipeline_options, datasets=datasets, files=files)
         response = await self._stub.RunCode(request, **self._kwargs)
         return response.pipeline_uuid
 

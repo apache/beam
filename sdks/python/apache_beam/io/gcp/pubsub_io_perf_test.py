@@ -34,7 +34,6 @@ python -m apache_beam.io.gcp.pubsub_io_perf_test \
     --publish_to_big_query=<OPTIONAL><true/false>
     --metrics_dataset=<OPTIONAL>
     --metrics_table=<OPTIONAL>
-    --dataflow_worker_jar=<OPTIONAL>
     --input_options='{
       \"num_records\": <SIZE_OF_INPUT>
       \"key_size\": 1

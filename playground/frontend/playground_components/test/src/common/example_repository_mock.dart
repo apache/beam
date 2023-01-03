@@ -29,22 +29,22 @@ MockExampleRepository getMockExampleRepository() {
   final m = MockExampleRepository();
 
   // stubs
-  when(m.getDefaultExample(kRequestDefaultExampleForJava))
+  when(m.getDefaultPrecompiledObject(kRequestDefaultExampleForJava))
       .thenAnswer((_) async => exampleWithoutSourceMock);
-  when(m.getDefaultExample(kRequestDefaultExampleForGo))
+  when(m.getDefaultPrecompiledObject(kRequestDefaultExampleForGo))
       .thenAnswer((_) async => exampleWithoutSourceMock);
-  when(m.getDefaultExample(kRequestDefaultExampleForPython))
+  when(m.getDefaultPrecompiledObject(kRequestDefaultExampleForPython))
       .thenAnswer((_) async => exampleWithoutSourceMock);
-  when(m.getDefaultExample(kRequestDefaultExampleForScio))
+  when(m.getDefaultPrecompiledObject(kRequestDefaultExampleForScio))
       .thenAnswer((_) async => exampleWithoutSourceMock);
 
-  when(m.getExampleOutput(kRequestForExampleInfo))
+  when(m.getPrecompiledObjectOutput(kRequestForExampleInfo))
       .thenAnswer((_) async => kOutputResponse.output);
-  when(m.getExampleSource(kRequestForExampleInfo))
+  when(m.getPrecompiledObjectCode(kRequestForExampleInfo))
       .thenAnswer((_) async => kOutputResponse.output);
-  when(m.getExampleLogs(kRequestForExampleInfo))
+  when(m.getPrecompiledObjectLogs(kRequestForExampleInfo))
       .thenAnswer((_) async => kOutputResponse.output);
-  when(m.getExampleGraph(kRequestForExampleInfo))
+  when(m.getPrecompiledObjectGraph(kRequestForExampleInfo))
       .thenAnswer((_) async => kOutputResponse.output);
 
   return m;

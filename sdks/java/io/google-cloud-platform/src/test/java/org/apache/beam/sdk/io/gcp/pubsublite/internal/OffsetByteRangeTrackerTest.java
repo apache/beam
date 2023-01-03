@@ -79,7 +79,7 @@ public class OffsetByteRangeTrackerTest {
   }
 
   @Test
-  @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
+  @SuppressWarnings({"dereference.of.nullable", "argument"})
   public void claimSplitSuccess() {
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(1_000), MIN_BYTES)));
     assertTrue(tracker.tryClaim(OffsetByteProgress.of(Offset.of(10_000), MIN_BYTES)));
@@ -98,7 +98,7 @@ public class OffsetByteRangeTrackerTest {
   }
 
   @Test
-  @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
+  @SuppressWarnings({"dereference.of.nullable", "argument"})
   public void splitWithoutClaimEmpty() {
     when(ticker.read()).thenReturn(100000000000000L);
     SplitResult<OffsetByteRange> splits = tracker.trySplit(IGNORED_FRACTION);

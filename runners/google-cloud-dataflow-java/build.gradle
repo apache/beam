@@ -55,7 +55,7 @@ processResources {
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
     'dataflow.legacy_container_version' : 'beam-master-20220816',
-    'dataflow.fnapi_container_version' : 'beam-master-20221022',
+    'dataflow.fnapi_container_version' : 'beam-master-20221227',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -179,6 +179,7 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesPythonExpansionService',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+  'org.apache.beam.sdk.testing.UsesMultimapState',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
@@ -189,6 +190,7 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesGaugeMetrics',
         'org.apache.beam.sdk.testing.UsesSetState',
         'org.apache.beam.sdk.testing.UsesMapState',
+        'org.apache.beam.sdk.testing.UsesMultimapState',
         'org.apache.beam.sdk.testing.UsesMetricsPusher',
         'org.apache.beam.sdk.testing.UsesOrderedListState',
         'org.apache.beam.sdk.testing.UsesTestStream',
@@ -453,7 +455,6 @@ createCrossLanguageValidatesRunnerTask(
     "--region ${dataflowRegion}",
     "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
     "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
-    "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
   ],
 )
 
