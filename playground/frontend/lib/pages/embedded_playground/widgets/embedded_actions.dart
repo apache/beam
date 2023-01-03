@@ -52,14 +52,15 @@ class EmbeddedActions extends StatelessWidget {
             return Row(
               children: [
                 if (hasGithubLink)
-                  LinkButton.github(selectedExample?.urlVcs ?? ''),
-                if (hasColabLink) ...[
-                  const SizedBox(width: kMdSpacing),
-                  LinkButton.colab(selectedExample?.urlNotebook ?? ''),
-                ],
+                  _ButtonPadding(
+                    child: LinkButton.github(selectedExample?.urlVcs ?? ''),
+                  ),
+                if (hasColabLink)
+                  _ButtonPadding(
+                    child: LinkButton.colab(selectedExample?.urlNotebook ?? ''),
+                  ),
                 const SizedBox(width: kXxlSpacing),
-                Padding(
-                  padding: const EdgeInsets.all(kMdSpacing),
+                _ButtonPadding(
                   child: SizedBox(
                     width: kTryPlaygroundButtonWidth,
                     height: kTryPlaygroundButtonHeight,
@@ -91,6 +92,20 @@ class EmbeddedActions extends StatelessWidget {
       SetContentMessage(
         descriptor: descriptor,
       ),
+    );
+  }
+}
+
+class _ButtonPadding extends StatelessWidget {
+  const _ButtonPadding({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(kMdSpacing),
+      child: child,
     );
   }
 }
