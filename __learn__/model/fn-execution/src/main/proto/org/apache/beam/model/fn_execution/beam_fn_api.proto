@@ -36,4 +36,21 @@ message RemoteGrpcPort {
   string coder_id = 2;
 }
 
+/**
+ * API - Control Plane
+ *
+ * Further investigation needed for progress reporting and splitting.
+ * As we have new metrics-related instructions/responses this may change
+ */
+// API describing the work of a SDK harness - stable
+service BeamFnControl {
+  // SDK receives instructions from runner about different work types
+  rpc Control(
+    // stream of responses from SDK
+    stream InstructionResponse
+  ) returns (
+    // stream of requests to the SDK
+    stream InstructionRequest 
+  ) {}
+}
 
