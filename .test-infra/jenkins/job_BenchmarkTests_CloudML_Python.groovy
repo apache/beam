@@ -30,25 +30,12 @@ def cloudMLJob = { scope ->
   scope.steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      commonJobProperties.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate, 'master', 360)
       tasks(':sdks:python:test-suites:dataflow:tftTests')
     }
   }
 }
 
-// TODO: Remove this after testing phrase.
-PhraseTriggeringPostCommitBuilder.postCommitJob(
-    'beam_PostCommit_Python_CloudML_tests',
-    'Run CloudML Tests',
-    'CloudML Tests on Dataflow ("Run CloudML Tests")',
-    this
-    ) {
-      cloudMLJob(delegate)
-    }
-
-// TODO(https://github.com/apache/beam/issues/19973): Chicago Taxi Example doesn't work in Python 3.
-// Uncomment below once it is fixed.
-//
 CronJobBuilder.cronJob(
     'beam_PostCommit_Python_CloudML_tests',
     'H 14 * * *',
