@@ -2365,7 +2365,8 @@ class BeamModulePlugin implements Plugin<Project> {
       } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
         javaContainerSuffix = 'java17'
       } else {
-        throw new GradleException("unsupported java version.")
+        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
+        throw new GradleException(exceptionMessage)
       }
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
