@@ -54,10 +54,10 @@ echo "pyargs: $pyargs"
 
 # Run with pytest-xdist and without.
 pytest -o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 '${pytest_args}' --pyargs '${pyargs}'
+  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 "'${pytest_args}'" --pyargs "'${pyargs}'"
 status1=$?
 pytest -o junit_suite_name=${envname}_no_xdist \
-  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' '${pytest_args}' --pyargs '${pyargs}'
+  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' "'${pytest_args}'" --pyargs "'${pyargs}'"
 status2=$?
 
 # Exit with error if one of the statuses has an error that's not 5 (no tests run).
