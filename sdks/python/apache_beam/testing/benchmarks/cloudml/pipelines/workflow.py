@@ -20,10 +20,10 @@ import logging
 import os
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.cloudml.criteo_tft import criteo
 import tensorflow_transform as tft
-from tensorflow_transform import coders
 import tensorflow_transform.beam as tft_beam
+from apache_beam.testing.benchmarks.cloudml.criteo_tft import criteo
+from tensorflow_transform import coders
 from tensorflow_transform.tf_metadata import dataset_metadata
 from tensorflow_transform.tf_metadata import schema_utils
 from tfx_bsl.public import tfxio
