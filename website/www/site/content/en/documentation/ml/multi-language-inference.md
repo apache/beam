@@ -17,18 +17,17 @@ limitations under the License.
 
 # Cross Language RunInference
 
-This Cross Language RunInference example shows how to use the [RunInference](https://beam.apache.org/documentation/ml/overview/#runinference)
-Transform in a multi-language pipeline. The pipeline is in Java and reads the input data from
-GCS. With the help of a [PythonExternalTransform](https://beam.apache.org/documentation/programming-guide/#1312-creating-cross-language-python-transforms)
-a composite python transform is called that does the preprocessing, postprocessing and inference.
-Lastly, the data is written back to GCS in the Java pipeline.
+The pipeline is written in Java and reads the input data from Google Cloud Storage. With the help of a [PythonExternalTransform](https://beam.apache.org/documentation/programming-guide/#1312-creating-cross-language-python-transforms),
+a composite Python transform is called to do the preprocessing, postprocessing, and inference.
+Lastly, the data is written back to Google Cloud Storage in the Java pipeline.
 
 ## NLP model and dataset
-A `bert-base-uncased` model is used to make inference, which is an open-source model
-available on [HuggingFace](https://huggingface.co/bert-base-uncased). This BERT-model will be
-used to predict the last word of a sentence, based on the context of the sentence.
+A `bert-base-uncased` natural language processing (NLP) model is used to make inference. This model is open source and available on [HuggingFace](https://huggingface.co/bert-base-uncased). This BERT-model is
+used to predict the last word of a sentence based on the context of the sentence.
 
-Next to this we also use an [IMDB movie reviews](https://www.kaggle.com/datasets/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews?select=IMDB+Dataset.csv) dataset, which is  an open-source dataset that is available on Kaggle.  A sample of the data after preprocessing is shown below:
+We also use an [IMDB movie reviews](https://www.kaggle.com/datasets/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews?select=IMDB+Dataset.csv) dataset, which is  an open-source dataset that is available on Kaggle.
+
+The following is a sample of the data after preprocessing:
 
 | **Text** 	|   **Last Word** 	|
 |---	|:---	|
@@ -40,12 +39,15 @@ Next to this we also use an [IMDB movie reviews](https://www.kaggle.com/datasets
 | Some films just simply should not be [MASK] 	| remade 	|
 | The Karen Carpenter Story shows a little more about singer Karen Carpenter's complex [MASK] 	| life 	|
 
-The full code used in this example can be found on GitHub [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/multi_language_inference).
+You can see the full code used in this example on [Github](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/multi_language_inference).
 
 
-## Multi-language RunInference pipeline
+## Multi-language Inference pipeline
+
+When using multi-language pipelines, you have access to a much larger pool of transforms. For more information, see [Multi-language pipelines](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines) in the Apache Beam Programming Guide.
+
 ### Cross-Language Python transform
-Next to making inference on the data, we also need to perform preprocessing and postprocessing on the data. This way the pipeline gives clean output that is easily interpreted.  In order to do these three tasks, one single composite custom Ptransform is written, with a unit DoFn or PTransform for each of the tasks as shown below:
+In addition to running inference, we also need to perform preprocessing and postprocessing on the data. Processing the data makes it possible to interpret the output. In order to do these three tasks, one single composite custom PTransform is written, with a unit DoFn or PTransform for each of the tasks, shown in the following example:
 
 ```python
 def expand(self, pcoll):
@@ -54,13 +56,13 @@ def expand(self, pcoll):
     | 'Preprocess' >> beam.ParDo(self.Preprocess(self._tokenizer))
     | 'Inference' >> RunInference(KeyedModelHandler(self._model_handler))
     | 'Postprocess' >> beam.ParDo(self.Postprocess(
-        self._tokenizer)).with_input_types(typing.Iterable[str])
+        self._tokenizer))
     )
 ```
 
-First, the preprocessing is done. In which the raw textual data is cleaned and tokenized for the BERT-model. All these steps are executed in the `Preprocess` DoFn. The `Preprocess` DoFn takes a single element as input and returns list with the original text and the tokenized text.
+First, the preprocessing of the data. In this case, the raw textual data is cleaned and tokenized for the BERT-model. All these steps are run in the `Preprocess` DoFn. The `Preprocess` DoFn takes a single element as input and returns a list with both the original text and the tokenized text.
 
-The preprocessed data is then used to make inference. This is done in the [`RunInference`](https://beam.apache.org/documentation/ml/overview/#runinference) PTransform, which is already available in the Apache Beam SDK. The `RunInference` PTransform requires one parameter, a modelhandler. In this example the `KeyedModelHandler` is used, because the `Preprocess` Dofn also output the original sentence. Ofcourse, this is personal preference and can be changed to the needs of the end-user. This modelhandler is defined it this initialization function of the composite Ptransform. This section is shown below:
+The preprocessed data is then used to make inference. This is done in the [`RunInference`](https://beam.apache.org/documentation/ml/overview/#runinference) PTransform, which is already available in the Apache Beam SDK. The `RunInference` PTransform requires one parameter, a model handler. In this example the `KeyedModelHandler` is used, because the `Preprocess` DoFn also outputs the original sentence. You can change how preprocessing is done based on your requirements. This model handler is defined in the following initialization function of the composite PTransform:
 
 ```python
 def __init__(self, model, model_path):
@@ -74,7 +76,7 @@ def __init__(self, model, model_path):
         model_params={'config': self._model_config},
         device='cuda:0')
 ```
-We can see that the `PytorchModelHandlerKeyedTensorWrapper` is used. This is a wrapper around the `PytorchModelHandlerKeyedTensor` modelhandler. The `PytorchModelHandlerKeyedTensor` modelhandler is used to make inference on a PyTorch model. The `PytorchModelHandlerKeyedTensorWrapper` is used to limit the batch size to 1. This is done because the tokenized strings generated from BertTokenizer may have different lengths, which doesn't work with torch.stack() in current RunInference implementation since stack() requires tensors to be the same size. Restricting max_batch_size to 1 means there is only 1 example per batch in the run_inference() call. The definition of the wrapper is shown below:
+The `PytorchModelHandlerKeyedTensorWrapper`, a wrapper around the `PytorchModelHandlerKeyedTensor` model handler, is used. The `PytorchModelHandlerKeyedTensor` model handler makes inference on a PyTorch model. Because the tokenized strings generated from `BertTokenizer` might have different lengths and stack() requires tensors to be the same size, the `PytorchModelHandlerKeyedTensorWrapper` limits the batch size to 1. Restricting `max_batch_size` to 1 means the run_inference() call contains one example per batch. The following example shows the definition of the wrapper:
 
 ```python
 class PytorchModelHandlerKeyedTensorWrapper(PytorchModelHandlerKeyedTensor):
@@ -82,41 +84,41 @@ class PytorchModelHandlerKeyedTensorWrapper(PytorchModelHandlerKeyedTensor):
     def batch_elements_kwargs(self):
       return {'max_batch_size': 1}
 ```
+An alternative aproach is to make all the tensors have the same length. This [example](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb) shows how to do that.
 
-Next to the definition of the modelhandler, the ModelConfig and ModelTokenizer are loaded in the initialization function. The ModelConfig is used to define the model architecture and the ModelTokenizer is used to tokenize the input data. This is done with the following two parameters:
+
+The `ModelConfig` and `ModelTokenizer` are loaded in the initialization function. The `ModelConfig` is used to define the model architecture, and the `ModelTokenizer` is used to tokenize the input data. The following two parameters are used for these tasks:
 - `model`: The name of the model that is used for inference. In this example it is `bert-base-uncased`.
-- `model_path`: The path to the state_dict of the model that is used for inference. In this example it is a path to a GCS bucket, where the state_dict is stored.
+- `model_path`: The path to the `state_dict` of the model that is used for inference. In this example it is a path to a Google Cloud Storage bucket, where the `state_dict` is stored.
 
-Both these parameters specified in the Java PipelineOptions.
+Both of these parameters are specified in the Java `PipelineOptions`.
 
-Finally the predictions of the model are postprocessed. This is done in the `Postprocess` DoFn. The `Postprocess` DoFn returns the original text, the last word of the sentence and the predicted word.
+Finally, postprocess the model predictions in the `Postprocess` DoFn. The `Postprocess` DoFn returns the original text, the last word of the sentence, and the predicted word.
 
 ### Set up the expansion service
-Because we are using transforms from two different languages, we need an SDK for each language (in this case Python and Java). Next to this we also need to set up an expansion service. More specifically, the expansion service is used to inject the cross-language Python transform into the Java pipeline. By opting for multi-language pipelines, you have access to a much bigger pool of transforms. More detailed information can be found [here](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines).
+***Note**: In Apache Beam 2.44.0 and later versions, you can use the `withExtraPackages` method to specify the required local packages directly in the Java pipeline. This means you do not need to set up an expansion service anymore and can skip this step.*
 
+Because this example uses transforms from two different languages, we need an SDK for each language, in this case Python and Java. We also need to set up an expansion service, which is used to inject the cross-language Python transform into the Java pipeline. This should be done in a virtual environment which is setup for Beam. [This](https://beam.apache.org/get-started/quickstart-py/#create-and-activate-a-virtual-environment) guide shows how set it up.
 
-Setting up the expansion service is pretty trivial. We just need to run the following command in the terminal:
+To set up the expansion service in the created virtual environment, run the following command in the terminal:
 
 ```bash
 export PORT = <port to host expansion service>
 export IMAGE = <custom docker image>
 
-python -m expansion_service.start_expansion_service  \
+python -m multi_language_custom_transform.start_expansion_service  \
     --port=$PORT \
     --fully_qualified_name_glob="*" \
     --environment_config=$IMAGE \
     --environment_type=DOCKER
 ```
 
+This runs the `run_inference_expansion.py` script, which starts the expansion service. Specify two important parameters. First, the `port` parameter specifies the port that the expansion service is hosted on. Second, the `environment_config` parameter specifies the docker image used to run the Python transform. The docker image must contain the Apache Beam Python SDK and all of the other dependencies required to run the transform. For this example, the composite Python PTransform, from the previous section, is wrapped in a local package. Next, we install this local package on the custom docker image.
 
-This runs the `run_inference_expansion.py` script which starts up the expansion service. Two important parameters should be specified. First of all the `port` parameter is used to specify the port on which the expansion service will be hosted. Secondly, the `environment_config` parameter is used to specify the docker image that will be used to execute the Python transform. The docker image should contain the Python SDK and all the dependencies needed to run the transform. So for this example the composite Python PTransform, from the previous section, is wrapped in a local package. Next we install this  local package on the custom Docker image.
-
-If no custom transforms are used, the default apache beam image can be used. This is done automatically if no environment_config parameter is specified. In addition to this, there is also no need to start up an explicit expansion service. The expansion service will be started automatically when the `PythonExternalTransform` is called.
-
-**Note**: from 2.44.0 on you can specifiy the required local packages directly in the Java Pipeline with the `withExtraPackages` method. This way, the default apache beam image can be used again, which simplifies the setup of the expansion service.
+If no custom transforms are used, you can use the default Apache Beam image. This image is used automatically if you don't specify an `environment_config` parameter. In this scenario, you also don't need to start up an explicit expansion service. The expansion service is started automatically when `PythonExternalTransform` is called.
 
 ### Run the Java pipeline
-The Java pipeline is pretty straightforward. The pipeline is defined in the `MultiLangRunInference` class. In this pipeline, the data is read from GCS, the cross-language Python transform is applied and the output is written to GCS. The pipeline is shown below:
+The Java pipeline is defined in the `MultiLangRunInference` class. In this pipeline, the data is read from Google Cloud Storage, the cross-language Python transform is applied, and the output is written to Google Cloud Storage. The following example shows the pipeline:
 
 ```java
 Pipeline p = Pipeline.create(options);
@@ -124,8 +126,8 @@ Pipeline p = Pipeline.create(options);
 
     input.apply("Predict", PythonExternalTransform.
         <PCollection<String>PCollection<String>>from(
-            "expansion_service.run_inference_expansion.\
-            RunInferenceTransform", "localhost:" + options.getPort())
+            "multi_language_custom_transform.\
+                composite_transform.InferenceTransform", "localhost:" + options.getPort())
             .withKwarg("model",  options.getModelName())
             .withKwarg("model_path", options.getModelPath()))
             .apply("Write Output", TextIO.write().to(options.getOutputFile()
@@ -134,9 +136,9 @@ Pipeline p = Pipeline.create(options);
     p.run().waitUntilFinish();
 ```
 
-As previously mentioned the `PythonExternalTransform` is used to inject the cross-language Python transform. The `PythonExternalTransform` takes two parameters. The first parameter is the fully qualified name of the Python transform. The second parameter is the expansion service address. The `withKwarg` method is used to specify the parameters that are needed for the Python transform. In this example the `model` and `model_path` parameters are specified. These parameters are used in the initialization function of the composite Python PTransform, as shown in the first section.
+Use `PythonExternalTransform` to inject the cross-language Python transform. `PythonExternalTransform` takes two parameters. The first parameter is the fully qualified name of the Python transform. The second parameter is the expansion service address. The `withKwarg` method is used to specify the parameters that are needed for the Python transform. In this example the `model` and `model_path` parameters are specified. These parameters are used in the initialization function of the composite Python PTransform, as shown in the first section.
 
-In order to run the pipeline, the following command can be used:
+To run the pipeline, use the following command:
 
 ```bash
 mvn compile exec:java -Dexec.mainClass=org.MultiLangRunInference \
@@ -151,9 +153,9 @@ mvn compile exec:java -Dexec.mainClass=org.MultiLangRunInference \
     -Pdataflow-runner \
     -e
 ```
-The standard GCP and Runner parameters are specified. The `inputFile` and `outputFile` parameters are used to specify the input and output files. The `modelPath` and `modelName` custom parameters which are passed to the `PythonExternalTransform`.  The `port` parameter is used to specify the port on which the expansion service is hosted.
+The standard Google Cloud and Runner parameters are specified. The `inputFile` and `outputFile` parameters are used to specify the input and output files. The `modelPath` and `modelName` custom parameters are passed to the `PythonExternalTransform`. The port parameter is used to specify the port on which the expansion service is hosted.
 
 ## Final remarks
-This example should serve as a base to create other custom multi-language transforms. Other SDK's are also an option for multi-language. For example, GO also has a wrapper which can can cross-language transforms. More information can be found [here](https://beam.apache.org/documentation/programming-guide/#1323-using-cross-language-transforms-in-a-go-pipeline).
+Use this example as a base to create other custom multi-language transforms. You can also use other SDKs. For example, Go also has a wrapper that can make cross-language transforms. For more information, see [Using cross-language transforms in a Go pipeline](https://beam.apache.org/documentation/programming-guide/#1323-using-cross-language-transforms-in-a-go-pipeline) in the Apache Beam Programming Guide.
 
-The full code used in this example can be found on GitHub [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/multi_language_inference).
+The full code used in this example can be found on [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/multi_language_inference).

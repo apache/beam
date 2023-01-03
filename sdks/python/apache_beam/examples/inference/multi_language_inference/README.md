@@ -17,6 +17,8 @@
     under the License.
 -->
 ## Setting up the Expansion service
+*Note: skip this step for Beam 2.44 and later.*
+
 Because we can not add local packages in Beam 2.43 we must create our own expansion service.
 Start up the expansion service with this command:
 
@@ -24,7 +26,7 @@ Start up the expansion service with this command:
 export PORT = <port to host expansion service>
 export IMAGE = <custom docker image>
 
-python -m expansion_service.start_expansion_service  \
+python -m multi_language_custom_transform.start_expansion_service  \
     --port=$PORT \
     --fully_qualified_name_glob="*" \
     --environment_config=$IMAGE \

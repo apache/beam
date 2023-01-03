@@ -17,35 +17,20 @@ package org;
  * limitations under the License.
  */
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms;
-import org.apache.beam.runners.core.construction.External;
-import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
+
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.extensions.python.PythonExternalTransform;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation.Required;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.SchemaTranslation;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PBegin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MultiLangRunInference {
-    public interface MultiLangueageOptions extends PipelineOptions {
+    public interface MultiLanguageOptions extends PipelineOptions {
 
         @Description("Path to an input file that contains labels and pixels to feed into the model")
         @Required
@@ -80,17 +65,24 @@ public class MultiLangRunInference {
 
     public static void main(String[] args) {
 
-        MultiLangueageOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-                .as(MultiLangueageOptions.class);
-        
+        MultiLanguageOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+                .as(MultiLanguageOptions.class);
+
         Pipeline p = Pipeline.create(options);
         PCollection<String> input = p.apply("Read Input", TextIO.read().from(options.getInputFile()));
-    
+        
+        /* For 2.44.0 and on
+        List<String> local_packages=new ArrayList<String>(); 
+        local_packages.add("multi_language_custom_transform"); 
+        */
+        List<String> packages=new ArrayList<String>();  
         input.apply("Predict", PythonExternalTransform.<PCollection<String>, PCollection<String>>from(
-            "expansion_service.run_inference_expansion.RunInferenceTransform", "localhost:" + options.getPort())
-            .withKwarg("model",  options.getModelName())
-            .withKwarg("model_path", options.getModelPath()))
-            .apply("Write Output", TextIO.write().to(options.getOutputFile()));
+                "multi_language_custom_transform.composite_transform.InferenceTransform", "localhost:" + options.getPort())
+                .withKwarg("model", options.getModelName())
+                .withKwarg("model_path", options.getModelPath())
+                // .withExtraPackages(multi_language_custom_transform)
+                )
+                .apply("Write Output", TextIO.write().to(options.getOutputFile()));
 
         p.run().waitUntilFinish();
     }

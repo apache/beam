@@ -20,5 +20,6 @@ import sys
 from apache_beam.runners.portability import expansion_service_main
 
 if __name__ == '__main__':
+  # Start the expansion service.
   logging.getLogger().setLevel(logging.INFO)
   expansion_service_main.main(sys.argv)

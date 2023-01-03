@@ -14,19 +14,15 @@
 # limitations under the License.
 #
 
-import argparse
 import logging
 import signal
-import sys
 import typing
 
 import apache_beam as beam
-from apache_beam.coders import RowCoder
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerKeyedTensor
-from apache_beam.pipeline import PipelineOptions
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from transformers import BertConfig
@@ -37,12 +33,8 @@ from transformers import BertTokenizer
 # The model used is a BertLM, base uncased model.
 _LOGGER = logging.getLogger(__name__)
 
-# This URN will be used to register a transform that runs inference on a BERT model.
-TEST_RUN_BERT_URN = "beam:transforms:xlang:test:run_bert"
 
-
-@ptransform.PTransform.register_urn(TEST_RUN_BERT_URN, None)
-class RunInferenceTransform(ptransform.PTransform):
+class InferenceTransform(ptransform.PTransform):
   class PytorchModelHandlerKeyedTensorWrapper(PytorchModelHandlerKeyedTensor):
     """Wrapper to PytorchModelHandler to limit batch size to 1.
         The tokenized strings generated from BertTokenizer may have different
@@ -123,13 +115,8 @@ class RunInferenceTransform(ptransform.PTransform):
         pcoll
         | 'Preprocess' >> beam.ParDo(self.Preprocess(self._tokenizer))
         | 'Inference' >> RunInference(KeyedModelHandler(self._model_handler))
-        | 'Postprocess' >> beam.ParDo(self.Postprocess(
-            self._tokenizer)).with_input_types(typing.Iterable[str]))
-
-  def to_runner_api_parameter(self, unused_context):
-    return TEST_RUN_BERT_URN, ImplicitSchemaPayloadBuilder(
-      {'model': self._model}).payload()
+        | 'Postprocess' >> beam.ParDo(self.Postprocess(self._tokenizer)))
 
   @staticmethod
   def from_runner_api_parameter(unused_ptransform, payload, unused_context):
-    return RunInferenceTransform(payload['model'], payload['model_path'])
+    return InferenceTransform(payload['model'], payload['model_path'])
