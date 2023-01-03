@@ -20,11 +20,29 @@ import * as runnerApi from "../proto/beam_runner_api";
 import { PValue } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 
+/**
+ * Provides a custom name for an object, to be used in naming operations
+ * in the pipeline.  E.g. one could write
+ *
+ *```js
+ * pcoll.map(withName("doubleIt", (x) => (2 * x)))
+ *```
+ *
+ * and this step in the graph will be henceforth referred to as "doubleIt."
+ */
 export function withName<T>(name: string | (() => string), arg: T): T {
   (arg as any).beamName = name;
   return arg;
 }
 
+/**
+ * Attempts to find a suitable, human-readable name for the given object.
+ *
+ * If `withName` was called on this object, or it has a `beamName` member,
+ * that is what is returned, otherwise it will attempt to construct a
+ * nice, compact stringified representation of this object or fail with an
+ * error.
+ */
 export function extractName<T>(withName: T): string {
   const untyped = withName as any;
   if (untyped.beamName !== null && untyped.beamName !== undefined) {
@@ -63,6 +81,7 @@ export function extractName<T>(withName: T): string {
 // call rather than forcing the asynchronous nature all the way up the call
 // hierarchy).
 
+/** @internal */
 export class AsyncPTransformClass<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
@@ -86,6 +105,7 @@ export class AsyncPTransformClass<
   }
 }
 
+/** @internal */
 export class PTransformClass<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
@@ -115,6 +135,12 @@ export class PTransformClass<
   }
 }
 
+/**
+ * An AsyncPTransform is simply a PTransform that returns a Promise rather
+ * than a concrete result.  This is required when the construction itself needs
+ * to invoke asynchronous methods, and the returned promise must be awaited
+ * (or chained) before further construction.
+ */
 export type AsyncPTransform<
   InputT extends PValue<any>,
   OutputT extends PValue<any>
@@ -127,6 +153,30 @@ export type AsyncPTransform<
       transformProto: runnerApi.PTransform
     ) => Promise<OutputT>);
 
+/**
+ * A PTransform transforms an input PValue (such as a `PCollection` or set
+ * thereof) into an output PValue (which may consist of zero or more
+ * `PCollections`).  It is generally invoked by calling the `apply` method
+ * on the input PValue, e.g.
+ *
+ *```js
+ * const PCollection<T> input_pcoll = ...
+ * const PCollection<O> output_pcoll = input_pcoll.apply(
+ *     MyPTransform<PCollection<T>>, PCollection<O>>);
+ *```
+ *
+ * Any function from the input PValue type to the output PValueType is
+ * considered a valid PTransform, e.g.
+ *
+ *```js
+ * const PCollection<T> input_pcoll = ...
+ * const PCollection<O> output_pcoll = input_pcoll.apply(
+ *     new function(input: PCollection<T>>): PCollection<O>> {...});
+ *```
+ *
+ * See also the documentation on PTransforms at
+ * https://beam.apache.org/documentation/programming-guide/#transforms
+ */
 export type PTransform<
   InputT extends PValue<any>,
   OutputT extends PValue<any>

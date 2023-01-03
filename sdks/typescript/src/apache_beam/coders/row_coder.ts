@@ -66,11 +66,11 @@ function getLogicalFieldType(urn: string, nullable: boolean = true): FieldType {
   };
 }
 
-export class TypePlaceholder {
+class TypePlaceholder {
   constructor(public fieldType: FieldType) {}
 }
 
-export class LogicalTypePlaceholder extends TypePlaceholder {
+class LogicalTypePlaceholder extends TypePlaceholder {
   constructor(public urn: string) {
     super(getLogicalFieldType(urn));
   }
@@ -82,6 +82,22 @@ const argsort = (x) =>
     .sort()
     .map((y) => y[1]);
 
+/**
+ * A coder for encoding Objects as row objects with a given schema.
+ *
+ * This is particularly useful for cross-language interoperability,
+ * and is more efficient than the general object encoding scheme as the
+ * fields (and their types) are fixed and do not have to be encoded along
+ * with each individual element.
+ *
+ * While RowCoders can be instantiated directly from a schema object,
+ * there is also the convenience method `RowCoder.fromJSON()` method that
+ * can infer a RowCoder from a prototypical example, e.g.
+ *
+ *```js
+ * const my_row_coder = RowCoder.fromJSON({int_field: 0, str_field: ""});
+ *```
+ */
 export class RowCoder implements Coder<any> {
   public static URN: string = "beam:coder:row:v1";
 

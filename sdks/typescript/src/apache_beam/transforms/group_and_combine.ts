@@ -37,6 +37,16 @@ import { count } from "./combiners";
 //               chain-able combining() method. We'd want the intermediates to
 //               still be usable, but lazy.
 
+/**
+ * An interface for performing possibly distributed, commutative, associative
+ * combines (such as sum) to a set of values
+ * (e.g. in `groupBy(...).combining(...)`.
+ *
+ * Several implementations (such as summation) are provided in the combiners
+ * module.
+ *
+ * See also https://beam.apache.org/documentation/programming-guide/#transforms
+ */
 export interface CombineFn<I, A, O> {
   createAccumulator: () => A;
   addInput: (A, I) => A;
@@ -78,6 +88,7 @@ export class GroupBy<T, K> extends PTransformClass<
     this.keyName = typeof this.keyNames === "string" ? this.keyNames : "key";
   }
 
+  /** @internal */
   expand(input: PCollection<T>): PCollection<KV<K, Iterable<T>>> {
     const keyFn = this.keyFn;
     return input
@@ -101,6 +112,14 @@ export class GroupBy<T, K> extends PTransformClass<
   }
 }
 
+/**
+ * Returns a PTransform that takes a PCollection of elements, and returns a
+ * PCollection of elements grouped by a field, multiple fields, an expression
+ * that is used as the grouping key.
+ *
+ * Various fields may be further aggregated with `CombineFns` by invoking
+ * `groupBy(...).combining(...)`.
+ */
 export function groupBy<T, K>(
   key: string | string[] | ((element: T) => K),
   keyName: string | undefined = undefined
@@ -126,6 +145,7 @@ export class GroupGlobally<T> extends PTransformClass<
     super();
   }
 
+  /** @internal */
   expand(input) {
     return input.apply(new GroupBy((_) => null)).map((kv) => kv[1]);
   }
@@ -146,6 +166,16 @@ export class GroupGlobally<T> extends PTransformClass<
   }
 }
 
+/**
+ * Returns a PTransform grouping all elements of the input PCollection together.
+ *
+ * This is generally used with one or more combining specifications, as one
+ * loses parallelization benefits in bringing all elements of a distributed
+ * PCollection together on a single machine.
+ *
+ * Various fields may be further aggregated with `CombineFns` by invoking
+ * `groupGlobally(...).combining(...)`.
+ */
 export function groupGlobally<T>() {
   return new GroupGlobally<T>();
 }
@@ -258,7 +288,11 @@ interface CombineSpec<T, I, O> {
   resultName: string;
 }
 
-function binaryCombineFn<I>(
+/**
+ * Creates a CombineFn<I, ..., I> out of a binary operator (which must be
+ * commutative and associative).
+ */
+export function binaryCombineFn<I>(
   combiner: (a: I, b: I) => I
 ): CombineFn<I, I | undefined, I> {
   return {
@@ -387,7 +421,7 @@ function extractFn<T, K>(extractor: string | string[] | ((T) => K)) {
 }
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/transforms/pardo", exports);
-requireForSerialization("apache-beam/transforms/pardo", {
+requireForSerialization("apache-beam/transforms/group_and_combine", exports);
+requireForSerialization("apache-beam/transforms/group_and_combine", {
   GroupByAndCombine: GroupByAndCombine,
 });

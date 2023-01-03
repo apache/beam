@@ -28,7 +28,7 @@ import {
 import * as combiners from "../src/apache_beam/transforms/combiners";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
-import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
+import { directRunner } from "../src/apache_beam/runners/direct_runner";
 import { loopbackRunner } from "../src/apache_beam/runners/runner";
 import { Pipeline } from "../src/apache_beam/internal/pipeline";
 import { GlobalWindow } from "../src/apache_beam/values";
@@ -54,7 +54,7 @@ before(async function () {
 
 after(() => subprocessCache.stopAll());
 
-export function suite(runner: beam.Runner = new DirectRunner()) {
+export function suite(runner: beam.Runner = directRunner()) {
   describe("testing.assertDeepEqual", function () {
     // The tests below won't catch failures if this doesn't fail.
     it("fails on bad assert", async function () {
@@ -244,7 +244,6 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
       var p = new Pipeline();
       var res = new beam.Root(p).apply(beam.impulse());
 
-      assert.equal(res.type, "pcollection");
       assert.deepEqual(p.context.getPCollectionCoder(res), new BytesCoder());
     });
     it("runs a ParDo expansion", function () {
@@ -262,7 +261,6 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
         p.context.getPCollectionCoder(res),
         new GeneralObjectCoder()
       );
-      assert.equal(res.type, "pcollection");
     });
     // why doesn't map need types here?
     it("runs a GroupBy expansion", function () {
