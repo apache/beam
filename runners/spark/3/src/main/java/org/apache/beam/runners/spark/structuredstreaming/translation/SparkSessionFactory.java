@@ -17,13 +17,22 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
+import static org.apache.commons.lang.ArrayUtils.EMPTY_STRING_ARRAY;
+import static org.apache.commons.lang3.StringUtils.substringBetween;
+import static org.apache.commons.lang3.math.NumberUtils.toInt;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -87,6 +96,24 @@ public class SparkSessionFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkSessionFactory.class);
 
+  // Patterns to exclude local JRE and certain artifact (groups) in Maven and Gradle cache.
+  private static Collection<String> SPARK_JAR_EXCLUDES =
+      Lists.newArrayList(
+          "jre/lib/ext/",
+          "/org/slf4j/",
+          "/org.slf4j/",
+          "/log4j/",
+          "/io/dropwizard/metrics/",
+          "/io.dropwizard.metrics/",
+          "/org/apache/spark/",
+          "/org.apache.spark/",
+          "/org/apache/hadoop/",
+          "/org.apache.hadoop/",
+          "/org/scala-lang/",
+          "/org.scala-lang/",
+          "/com.esotericsoftware/kryo-shaded",
+          "/com/esotericsoftware/kryo-shaded");
+
   /**
    * Gets active {@link SparkSession} or creates one using {@link
    * SparkStructuredStreamingPipelineOptions}.
@@ -95,24 +122,37 @@ public class SparkSessionFactory {
     if (options.getUseActiveSparkSession()) {
       return SparkSession.active();
     }
-    return sessionBuilder(options.getSparkMaster(), options.getAppName(), options.getFilesToStage())
-        .getOrCreate();
+    return sessionBuilder(options.getSparkMaster(), options).getOrCreate();
   }
 
   /** Creates Spark session builder with some optimizations for local mode, e.g. in tests. */
   public static SparkSession.Builder sessionBuilder(String master) {
-    return sessionBuilder(master, null, null);
+    return sessionBuilder(master, null);
   }
 
   private static SparkSession.Builder sessionBuilder(
-      String master, @Nullable String appName, @Nullable List<String> jars) {
-    SparkConf sparkConf = new SparkConf();
-    sparkConf.setMaster(master);
-    if (appName != null) {
-      sparkConf.setAppName(appName);
-    }
-    if (jars != null && !jars.isEmpty()) {
-      sparkConf.setJars(jars.toArray(new String[0]));
+      String master, @Nullable SparkStructuredStreamingPipelineOptions options) {
+
+    SparkConf sparkConf = new SparkConf().setIfMissing("spark.master", master);
+    master = sparkConf.get("spark.master"); // update to effective master
+
+    if (options != null) {
+      sparkConf.setAppName(options.getAppName());
+
+      if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
+        // Append the files to stage provided by the user to `spark.jars`.
+        PipelineResources.prepareFilesForStaging(options);
+        String[] staged = filesToStage(options, Collections.emptyList());
+        String[] jars = sparkJars(sparkConf);
+        sparkConf.setJars(jars.length > 0 ? ArrayUtils.addAll(jars, staged) : staged);
+      } else if (!sparkConf.contains("spark.jars") && !master.startsWith("local[")) {
+        // Stage classpath if `spark.jars` not set and not in local mode.
+        PipelineResources.prepareFilesForStaging(options);
+        // Set `spark.jars`, exclude JRE libs and jars causing conflicts using `userClassPathFirst`.
+        sparkConf.setJars(filesToStage(options, SPARK_JAR_EXCLUDES));
+        // Enable `userClassPathFirst` to prevent issues with guava, jackson and others.
+        sparkConf.setIfMissing("spark.executor.userClassPathFirst", "true");
+      }
     }
 
     // Set to 'org.apache.spark.serializer.JavaSerializer' via system property to disable Kryo
@@ -130,17 +170,33 @@ public class SparkSessionFactory {
     // mode, so try to align with value of "sparkMaster" option in this case.
     // We should not overwrite this value (or any user-defined spark configuration value) if the
     // user has already configured it.
-    if (master != null
-        && !master.equals("local[*]")
-        && master.startsWith("local[")
-        && System.getProperty("spark.sql.shuffle.partitions") == null) {
-      int numPartitions =
-          Integer.parseInt(master.substring("local[".length(), master.length() - 1));
-      if (numPartitions > 0) {
-        sparkConf.set("spark.sql.shuffle.partitions", String.valueOf(numPartitions));
-      }
+    int partitions = localNumPartitions(master);
+    if (partitions > 0) {
+      sparkConf.setIfMissing("spark.sql.shuffle.partitions", Integer.toString(partitions));
     }
+
     return SparkSession.builder().config(sparkConf);
+  }
+
+  @SuppressWarnings({"return", "toarray.nullable.elements.not.newarray"})
+  private static String[] filesToStage(
+      SparkStructuredStreamingPipelineOptions opts, Collection<String> excludes) {
+    Collection<String> files = opts.getFilesToStage();
+    if (files == null || files.isEmpty()) {
+      return EMPTY_STRING_ARRAY;
+    }
+    if (!excludes.isEmpty()) {
+      files = Collections2.filter(files, f -> !excludes.stream().anyMatch(f::contains));
+    }
+    return files.toArray(EMPTY_STRING_ARRAY);
+  }
+
+  private static String[] sparkJars(SparkConf conf) {
+    return conf.contains("spark.jars") ? conf.get("spark.jars").split(",") : EMPTY_STRING_ARRAY;
+  }
+
+  private static int localNumPartitions(String master) {
+    return master.startsWith("local[") ? toInt(substringBetween(master, "local[", "]")) : 0;
   }
 
   /**
