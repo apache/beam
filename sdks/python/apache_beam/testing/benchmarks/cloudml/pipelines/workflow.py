@@ -169,7 +169,6 @@ def setup_pipeline(p, args):
 def parse_known_args(argv):
   """Parses args for this workflow."""
   parser = argparse.ArgumentParser()
-
   parser.add_argument(
       '--input',
       dest='input',
