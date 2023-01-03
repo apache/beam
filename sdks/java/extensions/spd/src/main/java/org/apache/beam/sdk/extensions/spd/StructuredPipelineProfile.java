@@ -27,7 +27,6 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
@@ -77,17 +76,17 @@ public class StructuredPipelineProfile {
     return PipelineOptionsFactory.fromArgs(args);
   }
 
-  Table getTableFromJsonObject(String name,JsonNode node) {
+  Table getTableFromJsonObject(String name, JsonNode node) {
     Table.Builder builder = Table.builder();
     return builder.build();
   }
 
   public Table getInputTable(String name) {
-    return getTableFromJsonObject(name,input);
+    return getTableFromJsonObject(name, input);
   }
 
   public Table getOutputTable(String name) {
-    return getTableFromJsonObject(name,output);
+    return getTableFromJsonObject(name, output);
   }
 
   public static StructuredPipelineProfile from(
