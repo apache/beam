@@ -23,6 +23,7 @@ import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:playground/components/link_button.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
@@ -40,19 +41,41 @@ class EmbeddedActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(kMdSpacing),
-      child: SizedBox(
-        width: kTryPlaygroundButtonWidth,
-        height: kTryPlaygroundButtonHeight,
-        child: Consumer<PlaygroundController>(
-          builder: (context, controller, child) => ElevatedButton.icon(
-            icon: SvgPicture.asset(kLinkIconAsset),
-            label: Text(AppLocalizations.of(context)!.tryInPlayground),
-            onPressed: () => _openStandalonePlayground(controller),
-          ),
+    return Row(
+      children: [
+        Consumer<PlaygroundController>(
+          builder: (_, controller, __) {
+            final selectedExample = controller.selectedExample;
+            final hasGithubLink = selectedExample?.urlVcs != null;
+            final hasColabLink = selectedExample?.urlNotebook != null;
+
+            return Row(
+              children: [
+                if (hasGithubLink)
+                  LinkButton.github(selectedExample?.urlVcs ?? ''),
+                if (hasColabLink) ...[
+                  const SizedBox(width: kMdSpacing),
+                  LinkButton.colab(selectedExample?.urlNotebook ?? ''),
+                ],
+                const SizedBox(width: kXxlSpacing),
+                Padding(
+                  padding: const EdgeInsets.all(kMdSpacing),
+                  child: SizedBox(
+                    width: kTryPlaygroundButtonWidth,
+                    height: kTryPlaygroundButtonHeight,
+                    child: ElevatedButton.icon(
+                      icon: SvgPicture.asset(kLinkIconAsset),
+                      label:
+                          Text(AppLocalizations.of(context)!.tryInPlayground),
+                      onPressed: () => _openStandalonePlayground(controller),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
-      ),
+      ],
     );
   }
 
