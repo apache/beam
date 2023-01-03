@@ -27,7 +27,7 @@
 # $3 - optional arguments to pytest
 
 envname=${1?First argument required: suite base name}
-posargs="--skip=apache_beam/dataframes apache_beam"
+posargs="--skip=apache_beam/dataframes apache_beam" # TODO - change back to $2
 pytest_args=$3
 
 if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
@@ -44,9 +44,9 @@ do
   # do whatever on $i
   echo "$i"
   if [[ $i == "--skip"* ]]; then
-    pytest_args += " " + $i
+    pytest_args="$pytest_args $i"
   else
-    pyargs += " " + $i
+    pyargs="$pyargs $i"
   fi
 done
 
