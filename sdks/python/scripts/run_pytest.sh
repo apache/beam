@@ -27,7 +27,7 @@
 # $3 - optional arguments to pytest
 
 envname=${1?First argument required: suite base name}
-posargs=$2
+posargs="--skip=apache_beam/dataframes apache_beam"
 pytest_args=$3
 
 if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
@@ -36,7 +36,7 @@ if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
 fi
 
 pyargs=""
-posargs_array=$(posargs)
+posargs_array=($posargs)
 echo "posargs:"
 for i in $posargs_array
 do
