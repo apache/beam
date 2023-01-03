@@ -36,16 +36,16 @@ if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
 fi
 
 pyargs=""
-posargs_array=($posargs)
+# strip leading/trailing quotes
+stripped=$(sed -e 's/^"//' -e 's/"$//' -e "s/'$//" -e "s/^'//" <<<$posargs)
+posargs_array=($stripped)
 for i in "${posargs_array[@]}"
 do
   :
-  # strip leading/trailing quotes
-  stripped=$(sed -e 's/^"//' -e 's/"$//' -e "s/'$//" -e "s/^'//" <<<$i)
-  if [[ $stripped == "--ignore"* ]]; then
-    pytest_args="$pytest_args $stripped"
+  if [[ $i == "--ignore"* ]]; then
+    pytest_args="$pytest_args $i"
   else
-    pyargs="$pyargs $stripped"
+    pyargs="$pyargs $i"
   fi
 done
 
