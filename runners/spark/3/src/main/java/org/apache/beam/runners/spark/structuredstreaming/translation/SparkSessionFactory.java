@@ -17,14 +17,12 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
-import static org.apache.commons.lang.ArrayUtils.EMPTY_STRING_ARRAY;
+import static org.apache.commons.lang3.ArrayUtils.EMPTY_STRING_ARRAY;
 import static org.apache.commons.lang3.StringUtils.substringBetween;
 import static org.apache.commons.lang3.math.NumberUtils.toInt;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -83,6 +81,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.KryoRegistrator;
 import org.apache.spark.serializer.KryoSerializer;
@@ -97,7 +97,7 @@ public class SparkSessionFactory {
   private static final Logger LOG = LoggerFactory.getLogger(SparkSessionFactory.class);
 
   // Patterns to exclude local JRE and certain artifact (groups) in Maven and Gradle cache.
-  private static Collection<String> SPARK_JAR_EXCLUDES =
+  private static final Collection<String> SPARK_JAR_EXCLUDES =
       Lists.newArrayList(
           "jre/lib/ext/",
           "/org/slf4j/",
@@ -178,7 +178,7 @@ public class SparkSessionFactory {
     return SparkSession.builder().config(sparkConf);
   }
 
-  @SuppressWarnings({"return", "toarray.nullable.elements.not.newarray"})
+  @SuppressWarnings({"return", "toarray.nullable.elements", "methodref.receiver"}) // safe to ignore
   private static String[] filesToStage(
       SparkStructuredStreamingPipelineOptions opts, Collection<String> excludes) {
     Collection<String> files = opts.getFilesToStage();
