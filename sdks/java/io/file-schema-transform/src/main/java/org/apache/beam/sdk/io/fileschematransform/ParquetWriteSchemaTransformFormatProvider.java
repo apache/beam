@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.applyCommonFileIOWriteFeatures;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
@@ -39,7 +40,8 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 public class ParquetWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
 
-  final String suffix = String.format(".%s", FileWriteSchemaTransformFormatProviders.PARQUET);
+  private static final String SUFFIX =
+      String.format(".%s", FileWriteSchemaTransformFormatProviders.PARQUET);
 
   @Override
   public String identifier() {
@@ -55,17 +57,19 @@ public class ParquetWriteSchemaTransformFormatProvider
         org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
         AvroGenericCoder coder = AvroGenericCoder.of(avroSchema);
 
+        FileIO.Write<Void, GenericRecord> write =
+            FileIO.<GenericRecord>write()
+                .via(buildSink(parquetConfiguration(configuration), schema))
+                .withSuffix(SUFFIX);
+
+        write = applyCommonFileIOWriteFeatures(write, configuration);
+
         return input
             .apply(
                 "Row To GenericRecord",
                 FileWriteSchemaTransformFormatProviders.mapRowsToGenericRecords(schema))
             .setCoder(coder)
-            .apply(
-                "Write Parquet",
-                FileIO.<GenericRecord>write()
-                    .via(buildSink(parquetConfiguration(configuration), schema))
-                    .to(configuration.getFilenamePrefix())
-                    .withSuffix(suffix))
+            .apply("Write Parquet", write)
             .getPerDestinationOutputFilenames()
             .apply("perDestinationOutputFilenames", Values.create());
       }

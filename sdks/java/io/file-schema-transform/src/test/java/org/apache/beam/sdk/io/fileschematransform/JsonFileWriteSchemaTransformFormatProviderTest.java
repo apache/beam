@@ -26,6 +26,8 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.DATA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.prefix;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.JSON;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
@@ -67,7 +69,16 @@ public class JsonFileWriteSchemaTransformFormatProviderTest {
     String prefixTo = prefix(tmpFolder, to);
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.allPrimitiveDataTypesRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -97,7 +108,16 @@ public class JsonFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(
             Create.of(DATA.nullableAllPrimitiveDataTypesRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -126,7 +146,16 @@ public class JsonFileWriteSchemaTransformFormatProviderTest {
     String prefixTo = prefix(tmpFolder, to);
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.timeContainingRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -155,7 +184,16 @@ public class JsonFileWriteSchemaTransformFormatProviderTest {
     String prefixTo = prefix(tmpFolder, to);
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.arrayPrimitiveDataTypesRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -185,7 +223,16 @@ public class JsonFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(
             Create.of(DATA.singlyNestedDataTypesNoRepeatRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -215,7 +262,16 @@ public class JsonFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(
             Create.of(DATA.singlyNestedDataTypesRepeatedRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -245,7 +301,16 @@ public class JsonFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(
             Create.of(DATA.doublyNestedDataTypesNoRepeatRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -274,7 +339,16 @@ public class JsonFileWriteSchemaTransformFormatProviderTest {
     String prefixTo = prefix(tmpFolder, to);
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.doublyNestedDataTypesRepeatRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 

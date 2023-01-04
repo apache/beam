@@ -26,6 +26,8 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.DATA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.prefix;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.PARQUET;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -75,7 +77,15 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.allPrimitiveDataTypesRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -108,7 +118,15 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.nullableAllPrimitiveDataTypesRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -140,7 +158,15 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.timeContainingRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -172,7 +198,15 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.arrayPrimitiveDataTypesRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -205,7 +239,15 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.singlyNestedDataTypesNoRepeatRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -238,7 +280,15 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.singlyNestedDataTypesRepeatedRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -271,7 +321,15 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.doublyNestedDataTypesNoRepeatRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -304,7 +362,15 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.doublyNestedDataTypesRepeatRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 

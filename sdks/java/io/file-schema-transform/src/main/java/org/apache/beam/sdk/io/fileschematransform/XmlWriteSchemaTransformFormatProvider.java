@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.applyCommonFileIOWriteFeatures;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -40,9 +42,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class XmlWriteSchemaTransformFormatProvider
     implements FileWriteSchemaTransformFormatProvider {
 
+  private static final String SUFFIX = String.format(".%s", XML);
+
   @Override
   public String identifier() {
-    return FileWriteSchemaTransformFormatProviders.XML;
+    return XML;
   }
 
   @Override
@@ -69,13 +73,12 @@ public class XmlWriteSchemaTransformFormatProvider
                 .withCharset(charset)
                 .withRootElement(xmlConfig.getRootElement());
 
-        return input
-            .apply(
-                "Row To XML",
-                MapElements.into(TypeDescriptor.of(XmlRowAdapter.class)).via(new RowToXmlFn()))
-            .apply(
-                "Write XML",
-                FileIO.<XmlRowAdapter>write().via(sink).to(configuration.getFilenamePrefix()))
+        FileIO.Write<Void, XmlRowAdapter> write =
+            FileIO.<XmlRowAdapter>write().via(sink).withSuffix(SUFFIX);
+
+        write = applyCommonFileIOWriteFeatures(write, configuration);
+
+        return xml.apply("Write XML", write)
             .getPerDestinationOutputFilenames()
             .apply("perDestinationOutputFilenames", Values.create());
       }

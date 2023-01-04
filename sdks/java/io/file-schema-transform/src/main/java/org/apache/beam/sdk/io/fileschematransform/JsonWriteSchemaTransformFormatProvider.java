@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.applyCommonTextIOWriteFeatures;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.google.auto.service.AutoService;
@@ -57,28 +58,7 @@ public class JsonWriteSchemaTransformFormatProvider
         TextIO.Write write =
             TextIO.write().to(configuration.getFilenamePrefix()).withSuffix(suffix);
 
-        if (configuration.getCompression() != null) {
-          write =
-              write.withCompression(
-                  FileWriteSchemaTransformFormatProviders.getCompression(configuration));
-        }
-
-        if (configuration.getFilenameSuffix() != null) {
-          write =
-              write.withSuffix(FileWriteSchemaTransformFormatProviders.getSuffix(configuration));
-        }
-
-        if (configuration.getShardNameTemplate() != null) {
-          write =
-              write.withShardNameTemplate(
-                  FileWriteSchemaTransformFormatProviders.getShardNameTemplate(configuration));
-        }
-
-        if (configuration.getNumShards() != null) {
-          write =
-              write.withNumShards(
-                  FileWriteSchemaTransformFormatProviders.getNumShards(configuration));
-        }
+        write = applyCommonTextIOWriteFeatures(write, configuration);
 
         return json.apply("Write Json", write.withOutputFilenames())
             .getPerDestinationOutputFilenames()

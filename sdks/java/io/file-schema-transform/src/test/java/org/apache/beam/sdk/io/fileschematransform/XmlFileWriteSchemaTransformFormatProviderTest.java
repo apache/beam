@@ -26,6 +26,8 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.DATA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.prefix;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -78,7 +80,16 @@ public class XmlFileWriteSchemaTransformFormatProviderTest {
     String prefixTo = prefix(tmpFolder, to);
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.allPrimitiveDataTypesRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -114,7 +125,16 @@ public class XmlFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(
             Create.of(DATA.nullableAllPrimitiveDataTypesRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -149,7 +169,16 @@ public class XmlFileWriteSchemaTransformFormatProviderTest {
     String prefixTo = prefix(tmpFolder, to);
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.timeContainingRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -184,7 +213,16 @@ public class XmlFileWriteSchemaTransformFormatProviderTest {
     String prefixTo = prefix(tmpFolder, to);
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.arrayPrimitiveDataTypesRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -220,7 +258,16 @@ public class XmlFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(
             Create.of(DATA.singlyNestedDataTypesNoRepeatRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -256,7 +303,15 @@ public class XmlFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(
             Create.of(DATA.doublyNestedDataTypesNoRepeatRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -291,7 +346,15 @@ public class XmlFileWriteSchemaTransformFormatProviderTest {
     String prefixTo = prefix(tmpFolder, to);
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.doublyNestedDataTypesRepeatRows).withRowSchema(schema));
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 

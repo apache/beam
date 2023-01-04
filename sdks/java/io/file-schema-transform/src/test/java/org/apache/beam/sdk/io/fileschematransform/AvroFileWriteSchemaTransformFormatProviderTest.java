@@ -160,7 +160,15 @@ public class AvroFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.timeContainingRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -192,7 +200,15 @@ public class AvroFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.arrayPrimitiveDataTypesRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -225,7 +241,15 @@ public class AvroFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.singlyNestedDataTypesNoRepeatRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -258,7 +282,15 @@ public class AvroFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.singlyNestedDataTypesRepeatedRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -291,7 +323,15 @@ public class AvroFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.doublyNestedDataTypesNoRepeatRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -324,7 +364,15 @@ public class AvroFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.doublyNestedDataTypesRepeatRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 

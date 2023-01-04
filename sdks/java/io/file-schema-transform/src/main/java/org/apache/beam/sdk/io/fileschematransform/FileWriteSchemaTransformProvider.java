@@ -32,7 +32,6 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 
 public class FileWriteSchemaTransformProvider
@@ -87,7 +86,7 @@ public class FileWriteSchemaTransformProvider
 
       PCollection<Row> rowInput = input.get(INPUT_TAG);
 
-      PTransform<PCollection<Row>, PDone> transform =
+      PTransform<PCollection<Row>, PCollection<String>> transform =
           getProvider().buildTransform(configuration, rowInput.getSchema());
       rowInput.apply(transform);
 
@@ -137,11 +136,13 @@ public class FileWriteSchemaTransformProvider
                 "configuration with %s is not compatible with a %s format",
                 FileWriteSchemaTransformConfiguration.XmlConfiguration.class.getName(), format));
       }
-      if (format.equals(AVRO)) {
-        if (configuration.getCompression() != null) {
-          throw new IllegalArgumentException(
-              "configuration with compression is not compatible with AvroIO");
-        }
+      if (format.equals(AVRO) && configuration.getCompression() != null) {
+        throw new IllegalArgumentException(
+            "configuration with compression is not compatible with AvroIO");
+      }
+      if (format.equals(PARQUET) && configuration.getCompression() != null) {
+        throw new IllegalArgumentException(
+            "configuration with compression is not compatible with ParquetIO");
       }
     }
   }
