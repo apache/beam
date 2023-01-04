@@ -68,7 +68,7 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
     Read read = ParquetIO.read(schema).withBeamSchemas(true).from(table.getLocation() + "/*");
     if (!fieldNames.isEmpty()) {
       Schema projectionSchema = projectSchema(schema, fieldNames);
-      LOG.info("Projecting fields schema : " + projectionSchema.toString());
+      LOG.info("Projecting fields schema: {}", projectionSchema);
       read = read.withProjection(projectionSchema, projectionSchema);
     }
     return begin.apply("ParquetIORead", read).apply("ToRows", Convert.toRows());

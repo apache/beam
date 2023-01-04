@@ -55,8 +55,8 @@ func IsMalformedIter(t reflect.Type) (bool, error) {
 // UnfoldIter returns the parameter types, if a single sweep functional
 // iterator. For example:
 //
-//     func (*int) bool                   returns {int}
-//     func (*string, *int) bool          returns {string, int}
+//	func (*int) bool                   returns {int}
+//	func (*string, *int) bool          returns {string, int}
 //
 // EventTimes are not allowed in iterator types as per the Beam model
 // (see https://github.com/apache/beam/issues/22404) for more

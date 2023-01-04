@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -379,27 +380,37 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     dest);
                 return tableDestination1;
               });
-      final String tableId = tableDestination.getTableUrn();
+      final String tableId = tableDestination.getTableUrn(bigQueryOptions);
       final DatasetService datasetService = getDatasetService(pipelineOptions);
 
       Supplier<String> getOrCreateStream =
           () -> getOrCreateStream(tableId, streamName, streamOffset, idleTimer, datasetService);
-      final AppendClientInfo appendClientInfo =
-          APPEND_CLIENTS.get(
-              element.getKey(),
-              () -> {
-                @Nullable
-                TableSchema tableSchema =
-                    messageConverters
-                        .get(element.getKey().getKey(), dynamicDestinations, datasetService)
-                        .getTableSchema();
-                return new AppendClientInfo(
-                        tableSchema,
-                        // Make sure that the client is always closed in a different thread to avoid
-                        // blocking.
-                        client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close))
-                    .createAppendClient(datasetService, getOrCreateStream, false);
-              });
+      Function<Boolean, AppendClientInfo> getAppendClientInfo =
+          createAppendClient -> {
+            try {
+              @Nullable
+              TableSchema tableSchema =
+                  messageConverters
+                      .get(element.getKey().getKey(), dynamicDestinations, datasetService)
+                      .getTableSchema();
+              AppendClientInfo info =
+                  new AppendClientInfo(
+                      tableSchema,
+                      // Make sure that the client is always closed in a different thread to avoid
+                      // blocking.
+                      client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close));
+              if (createAppendClient) {
+                info = info.createAppendClient(datasetService, getOrCreateStream, false);
+              }
+              return info;
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          };
+
+      AtomicReference<AppendClientInfo> appendClientInfo =
+          new AtomicReference<>(
+              APPEND_CLIENTS.get(element.getKey(), () -> getAppendClientInfo.apply(true)));
 
       Iterable<ProtoRows> messages = new SplittingIterable(element.getValue(), splitSize);
 
@@ -412,13 +423,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 // Clear the stream name, forcing a new one to be created.
                 streamName.write("");
               }
-              appendClientInfo.createAppendClient(datasetService, getOrCreateStream, false);
+              appendClientInfo.get().createAppendClient(datasetService, getOrCreateStream, false);
               StreamAppendClient streamAppendClient =
-                  Preconditions.checkArgumentNotNull(appendClientInfo.streamAppendClient);
+                  Preconditions.checkArgumentNotNull(appendClientInfo.get().streamAppendClient);
               for (AppendRowsContext context : contexts) {
                 context.streamName = streamName.read();
                 streamAppendClient.pin();
-                context.client = appendClientInfo.streamAppendClient;
+                context.client = appendClientInfo.get().streamAppendClient;
                 context.offset = streamOffset.read();
                 ++context.tryIteration;
                 streamOffset.write(context.offset + context.protoRows.getSerializedRowsCount());
@@ -430,7 +441,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
       Consumer<Iterable<AppendRowsContext>> clearClients =
           contexts -> {
-            appendClientInfo.clearAppendClient();
+            APPEND_CLIENTS.invalidate(element.getKey());
+            appendClientInfo.set(getAppendClientInfo.apply(false));
+            APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+
             for (AppendRowsContext context : contexts) {
               if (context.client != null) {
                 // Unpin in a different thread, as it may execute a blocking close.
@@ -448,8 +462,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               return ApiFutures.immediateFuture(AppendRowsResponse.newBuilder().build());
             }
             try {
-              appendClientInfo.createAppendClient(datasetService, getOrCreateStream, false);
-              return Preconditions.checkStateNotNull(appendClientInfo.streamAppendClient)
+              appendClientInfo.get().createAppendClient(datasetService, getOrCreateStream, false);
+              return Preconditions.checkStateNotNull(appendClientInfo.get().streamAppendClient)
                   .appendRows(context.offset, context.protoRows);
             } catch (Exception e) {
               throw new RuntimeException(e);
@@ -479,7 +493,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 try {
                   TableRow failedRow =
                       TableRowToStorageApiProto.tableRowFromMessage(
-                          DynamicMessage.parseFrom(appendClientInfo.descriptor, protoBytes));
+                          DynamicMessage.parseFrom(appendClientInfo.get().descriptor, protoBytes));
                   new BigQueryStorageApiInsertError(
                       failedRow, error.getRowIndexToErrorMessage().get(failedIndex));
                   o.get(failedRowsTag)
@@ -595,7 +609,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           for (ByteString rowBytes : protoRows.getSerializedRowsList()) {
             TableRow failedRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
-                    DynamicMessage.parseFrom(appendClientInfo.descriptor, rowBytes));
+                    DynamicMessage.parseFrom(appendClientInfo.get().descriptor, rowBytes));
             o.get(failedRowsTag)
                 .output(
                     new BigQueryStorageApiInsertError(

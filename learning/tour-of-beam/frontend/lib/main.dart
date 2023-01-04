@@ -32,6 +32,7 @@ import 'router/route_information_parser.dart';
 void main() async {
   setPathUrlStrategy();
   await EasyLocalization.ensureInitialized();
+  await PlaygroundComponents.ensureInitialized();
   await initializeServiceLocator();
   const englishLocale = Locale('en');
 

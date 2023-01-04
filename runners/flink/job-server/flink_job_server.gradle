@@ -174,12 +174,12 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
         excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
         if (streaming) {
           excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'

@@ -57,12 +57,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
+      final sdk = contentTreeController.sdk;
       final content = _unitContentCache.getUnitContent(
-        contentTreeController.sdkId,
+        sdk.id,
         currentNode.id,
       );
 
-      _setCurrentUnitContent(content);
+      _setCurrentUnitContent(content, sdk: sdk);
     } else {
       _emptyPlayground();
     }
@@ -72,7 +73,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   UnitContentModel? get currentUnitContent => _currentUnitContent;
 
-  void _setCurrentUnitContent(UnitContentModel? content) {
+  void _setCurrentUnitContent(
+    UnitContentModel? content, {
+    required Sdk sdk,
+  }) {
     if (content == _currentUnitContent) {
       return;
     }
@@ -92,7 +96,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     playgroundController.examplesLoader.load(
       ExamplesLoadingDescriptor(
         descriptors: [
-          UserSharedExampleLoadingDescriptor(snippetId: taskSnippetId),
+          UserSharedExampleLoadingDescriptor(
+            sdk: sdk,
+            snippetId: taskSnippetId,
+          ),
         ],
       ),
     );
@@ -128,7 +135,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
     final exampleCache = ExampleCache(
       exampleRepository: exampleRepository,
-      hasCatalog: false,
     );
 
     final playgroundController = PlaygroundController(

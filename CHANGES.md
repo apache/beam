@@ -44,10 +44,47 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
+# [2.45.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* MongoDB IO connector added (Go) ([#24575](https://github.com/apache/beam/issues/24575)).
+
+## New Features / Improvements
+
+* RunInference Wrapper with Sklearn Model Handler support added in Go SDK ([#24497](https://github.com/apache/beam/issues/23382)).
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* Portable Java pipelines, Go pipelines, Python streaming pipelines, and portable Python batch
+  pipelines on Dataflow are required to use Runner V2. The `disable_runner_v2`,
+  `disable_runner_v2_until_2023`, `disable_prime_runner_v2` experiments will raise an error during
+  pipeline construction. You can no longer specify the Dataflow worker jar override. Note that
+  non-portable Java jobs and non-portable Python batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Avoids Cassandra syntax error when user-defined query has no where clause in it (Java) ([#24829](https://github.com/apache/beam/issues/24829)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.44.0] - Unreleased
 

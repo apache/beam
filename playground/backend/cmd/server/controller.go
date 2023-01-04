@@ -26,7 +26,9 @@ import (
 	"beam.apache.org/playground/backend/internal/code_processing"
 	"beam.apache.org/playground/backend/internal/components"
 	"beam.apache.org/playground/backend/internal/db"
+	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/db/mapper"
+	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/environment"
 	cerrors "beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/logger"
@@ -44,10 +46,12 @@ const (
 	errorTitleGetExampleLogs    = "Error during getting example logs"
 	errorTitleGetExampleGraph   = "Error during getting example graph"
 	errorTitleGetDefaultExample = "Error during getting default example"
+	errorTitleRunCode           = "Error during run code"
 
-	userBadCloudPathErrMsg    = "Invalid cloud path parameter"
-	userCloudConnectionErrMsg = "Cloud connection error"
-	resourceNotFoundErrMsg    = "Resource is not found"
+	userBadCloudPathErrMsg     = "Invalid cloud path parameter"
+	userCloudConnectionErrMsg  = "Cloud connection error"
+	resourceNotFoundErrMsg     = "Resource is not found"
+	resourceInconsistentErrMsg = "Resource is not consistent"
 )
 
 // playgroundController processes `gRPC' requests from clients.
@@ -85,35 +89,68 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir())
+	var kafkaMockCluster emulators.EmulatorMockCluster
+	var prepareParams = make(map[string]string)
+	if len(info.Datasets) != 0 {
+		kafkaMockClusters, prepareParamsVal, err := emulators.PrepareMockClustersAndGetPrepareParams(info)
+		if err != nil {
+			return nil, cerrors.InternalError(errorTitleRunCode, "Failed to prepare a mock emulator cluster")
+		}
+		kafkaMockCluster = kafkaMockClusters[0]
+		prepareParams = prepareParamsVal
+	}
+	sources := make([]entity.FileEntity, 0)
+	if len(info.Files) > 0 {
+		for _, file := range info.Files {
+			sources = append(sources, entity.FileEntity{
+				Name:     file.Name,
+				Content:  file.Content,
+				IsMain:   file.IsMain,
+				CntxLine: 1,
+			})
+		}
+	} else {
+		fileName, err := utils.GetFileName("", info.Code, info.Sdk)
+		if err != nil {
+			return nil, cerrors.InternalError(errorTitleRunCode, "Failed to get default filename")
+		}
+		sources = append(sources, entity.FileEntity{
+			Name:     fileName,
+			Content:  info.Code,
+			IsMain:   true,
+			CntxLine: 1,
+		})
+	}
+
+	lc, err := life_cycle.Setup(info.Sdk, sources, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir(), kafkaMockCluster)
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
 		return nil, cerrors.InternalError("Error during preparing", "Error during setup file system for the code processing: %s", err.Error())
 	}
 
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving status of the code processing")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial run output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving value for the logs output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Error during saving initial cancel flag")
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
-		code_processing.DeleteFolders(pipelineId, lc)
+		code_processing.DeleteResources(pipelineId, lc, kafkaMockCluster)
 		return nil, cerrors.InternalError("Error during preparing", "Internal error")
 	}
 
-	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions)
+	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions, kafkaMockCluster, prepareParams)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil
@@ -324,7 +361,7 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 	if err != nil {
 		return nil, cerrors.InvalidArgumentError(errorTitleGetExampleCode, userBadCloudPathErrMsg)
 	}
-	codeString, err := controller.db.GetExampleCode(ctx, exampleId)
+	files, err := controller.db.GetExampleCode(ctx, exampleId)
 	if err != nil {
 		switch err {
 		case datastore.ErrNoSuchEntity:
@@ -333,7 +370,23 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 			return nil, cerrors.InternalError(errorTitleGetExampleCode, userCloudConnectionErrMsg)
 		}
 	}
-	response := pb.GetPrecompiledObjectCodeResponse{Code: codeString}
+	if len(files) == 0 {
+		return nil, cerrors.NotFoundError(errorTitleGetExampleCode, resourceNotFoundErrMsg)
+	}
+	response := pb.GetPrecompiledObjectCodeResponse{}
+	for _, file := range files {
+		response.Files = append(response.Files, &pb.SnippetFile{
+			Name:    file.Name,
+			Content: file.Content,
+			IsMain:  file.IsMain,
+		})
+		if file.IsMain {
+			response.Code = file.Content
+		}
+	}
+	if len(response.Files) == 0 || response.Code == "" {
+		return nil, cerrors.InternalError(errorTitleGetExampleCode, resourceInconsistentErrMsg)
+	}
 	return &response, nil
 }
 
@@ -423,6 +476,9 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, req *pb
 	if req.Files == nil || len(req.Files) == 0 {
 		logger.Error("SaveSnippet(): files are empty")
 		return nil, cerrors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have files")
+	}
+	if req.PersistenceKey > "" {
+		logger.Debugf("saving snippet by persistence_key: %v", req.PersistenceKey)
 	}
 
 	snippet := controller.entityMapper.ToSnippet(req)

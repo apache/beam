@@ -30,9 +30,15 @@ import 'example_loader.dart';
 /// This loader assumes that [ExampleCache] is loading all examples to
 /// its cache. So it only completes if this is successful.
 class StandardExampleLoader extends ExampleLoader {
+  @override
   final StandardExampleLoadingDescriptor descriptor;
+
   final ExampleCache exampleCache;
   final _completer = Completer<Example>();
+  Sdk? _sdk;
+
+  @override
+  Sdk? get sdk => _sdk;
 
   @override
   Future<Example> get future => _completer.future;
@@ -45,7 +51,7 @@ class StandardExampleLoader extends ExampleLoader {
   }
 
   Future<void> _load() async {
-    final example = await _loadExampleWithoutInfo();
+    final example = await _loadExampleBase();
 
     if (example == null) {
       _completer.completeError('Example not found: $descriptor');
@@ -57,19 +63,13 @@ class StandardExampleLoader extends ExampleLoader {
     );
   }
 
-  Future<ExampleBase?> _loadExampleWithoutInfo() {
-    return exampleCache.hasCatalog
-        ? exampleCache.getCatalogExampleByPath(descriptor.path)
-        : _loadExampleFromRepository();
-  }
+  Future<ExampleBase?> _loadExampleBase() async {
+    _sdk = Sdk.tryParseExamplePath(descriptor.path);
 
-  Future<ExampleBase?> _loadExampleFromRepository() async {
-    final sdk = Sdk.tryParseExamplePath(descriptor.path);
-
-    if (sdk == null) {
+    if (_sdk == null) {
       return null;
     }
 
-    return exampleCache.getExample(descriptor.path, sdk);
+    return exampleCache.getPrecompiledObject(descriptor.path, _sdk!);
   }
 }

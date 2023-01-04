@@ -16,14 +16,17 @@
 package fs_tool
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
-	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/google/uuid"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
@@ -219,7 +222,8 @@ func TestLifeCycle_CreateSourceCodeFile(t *testing.T) {
 			l := &LifeCycle{
 				Paths: tt.fields.Paths,
 			}
-			if err := l.CreateSourceCodeFile(tt.args.code); (err != nil) != tt.wantErr {
+			sources := []entity.FileEntity{{Name: "main.java", Content: tt.args.code, IsMain: true}}
+			if err := l.CreateSourceCodeFiles(sources); (err != nil) != tt.wantErr {
 				t.Errorf("CreateSourceCodeFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
