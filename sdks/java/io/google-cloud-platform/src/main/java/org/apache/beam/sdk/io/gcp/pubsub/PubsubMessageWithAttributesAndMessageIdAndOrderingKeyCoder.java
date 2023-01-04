@@ -42,8 +42,9 @@ public class PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder
   // A message's attributes can be null.
   private static final Coder<Map<String, String>> ATTRIBUTES_CODER =
       NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
-  // A message's messageId cannot be null
-  private static final Coder<String> MESSAGE_ID_CODER = StringUtf8Coder.of();
+  // A message's messageId can only be null when the message is an outgoing message (i.e. to be
+  // published). Incoming messages will always have a non-null messageId
+  private static final Coder<String> MESSAGE_ID_CODER = NullableCoder.of(StringUtf8Coder.of());
   // A message's publish time, populated by server
   private static final Coder<Timestamp> PUBLISH_TIME_CODER = ProtoCoder.of(Timestamp.class);
   // A message's ordering key can be null
