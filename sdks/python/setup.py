@@ -228,8 +228,6 @@ if __name__ == '__main__':
           'apache_beam/utils/windowed_value.py',
       ]),
       install_requires= protobuf_dependency + [
-        # Avro 1.9.2 for python3 was broken.
-        # The issue was fixed in version 1.9.2.1
         'crcmod>=1.7,<2.0',
         'orjson<4.0',
         # Dill doesn't have forwards-compatibility guarantees within minor
