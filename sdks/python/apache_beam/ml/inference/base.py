@@ -84,7 +84,7 @@ def _to_microseconds(time_ns: int) -> int:
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
-  def load_model(self) -> ModelT:
+  def load_model(self, model_path=None) -> ModelT:
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
 
@@ -163,8 +163,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     """
     self._unkeyed = unkeyed
 
-  def load_model(self) -> ModelT:
-    return self._unkeyed.load_model()
+  def load_model(self, model_path=None) -> ModelT:
+    return self._unkeyed.load_model(model_path)
 
   def run_inference(
       self,
@@ -218,8 +218,8 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     """
     self._unkeyed = unkeyed
 
-  def load_model(self) -> ModelT:
-    return self._unkeyed.load_model()
+  def load_model(self, model_path=None) -> ModelT:
+    return self._unkeyed.load_model(model_path)
 
   def run_inference(
       self,
@@ -401,32 +401,52 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = None
     self._metrics_namespace = metrics_namespace
 
-  def _load_model(self):
+  def _load_model(self, model_path=None):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
-      model = self._model_handler.load_model()
+      model = self._model_handler.load_model(model_path)
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
       load_model_latency_ms = end_time - start_time
       model_byte_size = memory_after - memory_before
       self._metrics_collector.cache_load_model_metrics(
           load_model_latency_ms, model_byte_size)
-      return model
+
+      # A weakref to dict cannot be created. So subclass the Dict for
+      # shared cache.
+      class ModelContainer(Dict):
+        pass
+
+      model_container = ModelContainer()
+      model_container['model'] = model
+      model_container['model_path'] = model_path
+      return model_container
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
-    return self._shared_model_handle.acquire(load)
+    cached_model_container = self._shared_model_handle.acquire(load)
+    if cached_model_container['model_path'] != model_path:
+      # TODO: Specify a unique tags for each model path.
+      cached_model_container = self._shared_model_handle.acquire(
+          load, tag=model_path)
+    return cached_model_container
 
   def setup(self):
     metrics_namespace = (
         self._metrics_namespace) if self._metrics_namespace else (
             self._model_handler.get_metrics_namespace())
     self._metrics_collector = _MetricsCollector(metrics_namespace)
-    self._model = self._load_model()
 
-  def process(self, batch, inference_args):
+    self._model = self._load_model()['model']
+
+  def update_model(self, model_path):
+    self._model = self._load_model(model_path=model_path)['model']
+
+  def process(self, batch, inference_args, side_input_model_path):
+
+    self.update_model(model_path=side_input_model_path)
     start_time = _to_microseconds(self._clock.time_ns())
     try:
       result_generator = self._model_handler.run_inference(
