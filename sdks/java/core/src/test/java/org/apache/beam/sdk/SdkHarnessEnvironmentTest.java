@@ -21,8 +21,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItemInArray;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertNotNull;
 
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.security.Security;
+import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -74,12 +78,24 @@ public class SdkHarnessEnvironmentTest {
   private static class TLSDoFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      assertThat(
-          Security.getProperty("jdk.tls.disabledAlgorithms").split(",[ ]*"),
-          not(hasItemInArray("TLSv1")));
-      assertThat(
-          Security.getProperty("jdk.tls.disabledAlgorithms").split(",[ ]*"),
-          not(hasItemInArray("TLSv1.1")));
+      String[] disabledAlgorithms =
+          Security.getProperty("jdk.tls.disabledAlgorithms").trim().split("\\s*,\\s*");
+      assertThat(disabledAlgorithms, not(hasItemInArray("TLSv1")));
+      assertThat(disabledAlgorithms, not(hasItemInArray("TLSv1.1")));
+
+      SSLContext context = null;
+      String[] defaultProtocols = null;
+      try {
+        context = SSLContext.getInstance("TLS");
+        context.init(null, null, null);
+        defaultProtocols = context.getDefaultSSLParameters().getProtocols();
+      } catch (NoSuchAlgorithmException | KeyManagementException e) {
+        return;
+      }
+      assertNotNull(context);
+      assertThat(defaultProtocols, hasItemInArray("TLSv1"));
+      assertThat(defaultProtocols, hasItemInArray("TLSv1.1"));
+
       c.output("TLSv1-TLSv1.1 enabled");
     }
   }
