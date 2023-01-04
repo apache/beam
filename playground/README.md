@@ -127,7 +127,7 @@ The following requirements are needed for deploying examples manually.
 
 1. GCP project with deployed Playground backend
 2. Python (3.9.x)
-3. Login into GCP (gcloud deafult login or using service account key)
+3. Login into GCP (gcloud deafault login or using service account key)
 
 ## Run example deployment script
 Example deployment scripts uses following environment variables:
