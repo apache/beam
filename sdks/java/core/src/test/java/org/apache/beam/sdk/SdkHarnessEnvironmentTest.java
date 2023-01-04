@@ -78,7 +78,7 @@ public class SdkHarnessEnvironmentTest {
     public void processElement(ProcessContext c) throws Exception {
       String[] disabledAlgorithms =
           Security.getProperty("jdk.tls.disabledAlgorithms").trim().split("\\s*,\\s*");
-      String[] legacyAlgorithms = 
+      String[] legacyAlgorithms =
           Security.getProperty("jdk.tls.legacyAlgorithms").trim().split("\\s*,\\s*");
       assertThat(disabledAlgorithms, not(hasItemInArray("TLSv1")));
       assertThat(disabledAlgorithms, not(hasItemInArray("TLSv1.1")));
@@ -89,8 +89,7 @@ public class SdkHarnessEnvironmentTest {
       // statically prohibited by the policy file
       // use getDefaultSSLParameters() to see what is enabled by default -- and is used in your
       // socket, since it doesn't overide the context's default
-      SSLContext context = null;
-      context = SSLContext.getInstance("TLS");
+      SSLContext context = SSLContext.getInstance("TLS");
       context.init(null, null, null);
       assertNotNull(context);
       String[] defaultProtocols = context.getDefaultSSLParameters().getProtocols();
