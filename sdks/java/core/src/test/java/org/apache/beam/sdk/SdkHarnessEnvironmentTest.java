@@ -88,7 +88,7 @@ public class SdkHarnessEnvironmentTest {
       // getSupportedSSLParameters() shows all protocols that JSSE implements thare aren't
       // statically prohibited by the policy file
       // use getDefaultSSLParameters() to see what is enabled by default -- and is used in your
-      // socket, since it doesn't overide the context's default
+      // socket, since it doesn't override the context's default
       SSLContext context = SSLContext.getInstance("TLS");
       context.init(null, null, null);
       assertNotNull(context);
