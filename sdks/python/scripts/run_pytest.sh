@@ -35,7 +35,7 @@ if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
   exit 1
 fi
 
-# strip leading/trailing quotes
+# strip leading/trailing quotes from posargs because it can get double quoted as its passed through.
 posargs=$(sed -e 's/^"//' -e 's/"$//' -e "s/'$//" -e "s/^'//" <<<$posargs)
 echo "pytest_args: $pytest_args"
 echo "posargs: $posargs"
