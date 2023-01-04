@@ -73,6 +73,13 @@
   `disable_runner_v2_until_2023`, `disable_prime_runner_v2` experiments will raise an error during
   pipeline construction. You can no longer specify the Dataflow worker jar override. Note that
   non-portable Java jobs and non-portable Python batch jobs are not impacted. ([#24515](https://github.com/apache/beam/issues/24515)).
+* The default Coder for `PubsubMessage` objects in Java SDK has been changed
+  from `PubsubMessageWithAttributesCoder` to
+  `PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder` to allow support
+  for publishing messages with an ordering key. Pipelines with the
+  requirement to be updated will need to explicitly set the coder to the
+  previous default of `PubsubMessageWithAttributesCoder` to avoid pipeline
+  update errors. (Java) ([#24887](https://github.com/apache/beam/pull/24887))
 
 ## Deprecations
 
