@@ -128,7 +128,6 @@ The following requirements are needed for deploying examples manually.
 1. GCP project with deployed Playground backend
 2. Python (3.9.x)
 3. Login into GCP (gcloud deafult login or using service account key)
- 
 
 ## Run example deployment script
 Example deployment scripts uses following environment variables:
@@ -142,10 +141,10 @@ GRPC_TIMEOUT            - timeout for grpc calls (defaults to 10 sec)
 BEAM_CONCURRENCY        - number of eaxmples to run in parallel (defaults to 10)
 SERVER_ADDRESS          - address of the backend runnner service for a particular SDK
 
-usage: ci_cd.py [-h] 
---step {CI,CD} 
---sdk {SDK_JAVA,SDK_GO,SDK_PYTHON,SDK_SCIO} 
---origin {PG_EXAMPLES,TB_EXAMPLES} 
+usage: ci_cd.py [-h]
+--step {CI,CD}
+--sdk {SDK_JAVA,SDK_GO,SDK_PYTHON,SDK_SCIO}
+--origin {PG_EXAMPLES,TB_EXAMPLES}
 --subdirs SUBDIRS [SUBDIRS ...]
 
 Helper script to deploy examples for all supported sdk's:
