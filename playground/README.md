@@ -123,7 +123,7 @@ the application and its dependent infrastructure.
 
 # Manual Example deployment
 
-The following requirements are needed for deploying examples manually.
+The following requirements are needed for deploying examples manually:
 
 1. GCP project with deployed Playground backend
 2. Python (3.9.x)
