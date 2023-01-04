@@ -23,8 +23,6 @@ import static org.hamcrest.Matchers.hasItemInArray;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertNotNull;
 
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
