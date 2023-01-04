@@ -1007,7 +1007,7 @@ func init() {
 }
 {{< /highlight >}}
 
-<span class="language-go" >
+<span class="language-go">
 
 > **Note:** Whether using a structural `DoFn` type or a functional `DoFn`, they should be registered with
 > beam in an `init` block. Otherwise they may not execute on distributed runners.
@@ -1172,14 +1172,14 @@ words = ...
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" model_pardo_using_map >}}
 {{< /highlight >}}
 
-<span class="language-java" >
+<span class="language-java">
 
 > **Note:** You can use Java 8 lambda functions with several other Beam
 > transforms, including `Filter`, `FlatMapElements`, and `Partition`.
 
 </span>
 
-<span class="language-go" >
+<span class="language-go">
 
 > **Note:** Anonymous function DoFns may not work on distributed runners.
 > It's recommended to use named functions and register them with `register.FunctionXxY` in
