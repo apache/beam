@@ -1,9 +1,8 @@
-profiles:
-  simple_pipeline:
-    target: test
-    runners:
-      test:
-        type: direct
-    outputs:
-      test:
-        type: test
+simple_pipeline:
+  target: test
+  runners:
+    test:
+      type: direct
+  outputs:
+    test:
+      type: test

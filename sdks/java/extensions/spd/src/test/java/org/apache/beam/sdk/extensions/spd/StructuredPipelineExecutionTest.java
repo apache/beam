@@ -17,10 +17,21 @@
  */
 package org.apache.beam.sdk.extensions.spd;
 
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
 import org.apache.beam.runners.portability.PortableRunner;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
-import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.python.PythonService;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,21 +39,10 @@ import org.slf4j.LoggerFactory;
 public class StructuredPipelineExecutionTest {
   private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineExecutionTest.class);
 
-  /*
-  @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(pipelineOptions());
-  */
-
-  private static PipelineOptions pipelineOptions() {
-    LOG.info("pipelineOptions");
-    PipelineOptions p = TestPipeline.testingPipelineOptions();
-    p.setRunner(PortableRunner.class);
-    p.setStableUniqueNames(CheckEnabled.OFF);
-    return p;
-  }
-
-  /*
   @Test
   public void testSimplePipeline() throws Exception {
+
+    Pipeline pipeline = Pipeline.create();
 
     URL pipelineURL = ClassLoader.getSystemClassLoader().getResource("simple_pipeline");
     URL profileURL = ClassLoader.getSystemClassLoader().getResource("test_profile.yml");
@@ -63,17 +63,22 @@ public class StructuredPipelineExecutionTest {
       PythonService.waitForPort("localhost", expansionPort, 15000);
       // Test Table Provider
       TestTableProvider testProvider = new TestTableProvider();
+      // This table needs to be built before using in a pipeline otherwise addRows doesn't seem to
+      // work?
       testProvider.createTable(
           Table.builder()
-              .type("test")
               .name("simple_pipeline_test_rows")
+              .type("test")
               .schema(
                   Schema.builder()
-                      .addField("id", FieldType.STRING)
-                      .addField("wins", FieldType.INT64)
+                      .addField("id", Schema.FieldType.STRING)
+                      .addField("wins", Schema.FieldType.INT64)
                       .build())
               .build());
       Schema rowSchema = testProvider.getTable("simple_pipeline_test_rows").getSchema();
+      if (rowSchema.getFieldCount() != 2) {
+        throw new Exception("Expected simple_pipeline_test_rows to have a schema size of 2");
+      }
       LOG.info("Adding test rows to simple_pipeline_test_rows with schema " + rowSchema);
       testProvider.addRows(
           "simple_pipeline_test_rows",
@@ -88,7 +93,7 @@ public class StructuredPipelineExecutionTest {
       spd.registerExpansionService("python", "localhost:" + expansionPort);
       spd.loadProject(Paths.get(profileURL.toURI()), pipelinePath);
 
-      for (Entry<String, Table> e : testProvider.getTables().entrySet()) {
+      for (Map.Entry<String, Table> e : testProvider.getTables().entrySet()) {
         LOG.info("Rows in table " + e.getKey());
         LOG.info("" + e.getValue());
         for (Row row : testProvider.tableRows(e.getKey())) {
@@ -111,11 +116,16 @@ public class StructuredPipelineExecutionTest {
         runner.run(pipeline).waitUntilFinish();
       }
       LOG.info("-------------------------DONE PIPELINE-------------------------------");
-      for (Entry<String, Table> e : testProvider.getTables().entrySet()) {
+      for (Map.Entry<String, Table> e : testProvider.getTables().entrySet()) {
         LOG.info("Rows in table " + e.getKey());
         LOG.info("" + e.getValue());
+        int count = 0;
         for (Row row : testProvider.tableRows(e.getKey())) {
           LOG.info("" + row);
+          count++;
+        }
+        if ("another_win_by_id".equals(e.getKey()) && count == 0) {
+          throw new Exception("Expected to output another_win_by_id");
         }
       }
     }
@@ -124,5 +134,4 @@ public class StructuredPipelineExecutionTest {
   private static Row row(Schema schema, Object... objects) {
     return Row.withSchema(schema).addValues(objects).build();
   }
-   */
 }

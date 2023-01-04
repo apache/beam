@@ -41,6 +41,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+
+import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -83,6 +85,7 @@ import org.joda.time.Instant;
 })
 @Internal
 @Experimental(Kind.SCHEMAS)
+@AutoService(SchemaTransformProvider.class)
 public class PubsubWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<PubsubWriteSchemaTransformConfiguration> {
   private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:pubsub_write:v1";

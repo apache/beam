@@ -27,11 +27,20 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.extensions.spd.description.Column;
+import org.apache.beam.sdk.extensions.spd.description.Source;
+import org.apache.beam.sdk.extensions.spd.description.TableDesc;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Class for managing dbt-style profiles */
 public class StructuredPipelineProfile {
+  private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineProfile.class);
 
   String project;
   String target;
@@ -77,16 +86,23 @@ public class StructuredPipelineProfile {
   }
 
   Table getTableFromJsonObject(String name, JsonNode node) {
-    Table.Builder builder = Table.builder();
+    Table.Builder builder =
+        Table.builder()
+            .name(name)
+            .type(node.path("type").asText())
+            .schema(Schema.builder().build());
     return builder.build();
   }
 
-  public Table getInputTable(String name) {
-    return getTableFromJsonObject(name, input);
+  public Table getInputTable(String name, Source source, TableDesc desc) {
+    return getTableFromJsonObject(name, input)
+        .toBuilder()
+        .schema(Column.asSchema(desc.getColumns()))
+        .build();
   }
 
-  public Table getOutputTable(String name) {
-    return getTableFromJsonObject(name, output);
+  public Table getOutputTable(String name, PCollection<Row> source) {
+    return getTableFromJsonObject(name, output).toBuilder().schema(source.getSchema()).build();
   }
 
   public static StructuredPipelineProfile from(
@@ -96,7 +112,10 @@ public class StructuredPipelineProfile {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     JsonNode node = mapper.readTree(reader);
+    LOG.info("Profile: " + mapper.writeValueAsString(node));
     node = node.path(project);
+
+    LOG.info("Profile for project: " + mapper.writeValueAsString(node));
 
     // If not specified, use the target in the profile itself
     if (target == null || "".equals(target)) {

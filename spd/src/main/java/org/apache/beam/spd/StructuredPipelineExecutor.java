@@ -17,7 +17,7 @@
  */
 package org.apache.beam.spd;
 
-public class StructuredPipelineMain {
+public class StructuredPipelineExecutor {
 
-  public static void main(String[] args) {}
+  public StructuredPipelineExecutor(String[] args) {}
 }

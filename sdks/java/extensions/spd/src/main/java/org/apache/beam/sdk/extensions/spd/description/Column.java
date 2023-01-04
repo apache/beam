@@ -23,7 +23,9 @@ import com.fasterxml.jackson.annotation.Nulls;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 
 @SuppressFBWarnings
 public class Column {
@@ -52,5 +54,22 @@ public class Column {
 
   public List<String> getTests() {
     return tests == null ? Arrays.asList() : tests;
+  }
+
+  public static Schema asSchema(Iterable<Column> columns) {
+    Schema.Builder beamSchema = Schema.builder();
+    for (Column c : columns) {
+      HashSet<String> tests = new HashSet<>();
+      tests.addAll(c.getTests());
+      if (c.type != null && c.name != null) {
+        Schema.FieldType type = Schema.FieldType.of(Schema.TypeName.valueOf(c.type));
+        if (tests.contains("not_null")) {
+          beamSchema.addField(c.getName(), type);
+        } else {
+          beamSchema.addNullableField(c.getName(), type);
+        }
+      }
+    }
+    return beamSchema.build();
   }
 }

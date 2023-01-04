@@ -15,36 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.spd.description;
+package org.apache.beam.sdk.extensions.spd.profile;
 
-import com.fasterxml.jackson.annotation.JsonSetter;
-import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.JsonNode;
-import edu.umd.cs.findbugs.annotations.Nullable;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.Arrays;
-import java.util.List;
+import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.extensions.spd.description.Source;
+import org.apache.beam.sdk.extensions.spd.description.TableDesc;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 
-@SuppressFBWarnings
-public class TableDesc {
+@AutoService(ProfileTableConverter.class)
+public class TestTableConverter extends ProfileTableConverter {
 
-  @Nullable
-  @JsonSetter(nulls = Nulls.FAIL)
-  public String name;
+  public TestTableConverter(JsonNode profile) {
+    super(profile);
+  }
 
-  @Nullable public String description;
+  @Override
+  public String convertsType() {
+    return "test";
+  }
 
-  @Nullable public String loaded_at_field;
+  @Override
+  public Table getSourceTable(String name, Source source, TableDesc desc) {
+    return Table.builder().name(name).build();
+  }
 
-  @Nullable public JsonNode external;
-
-  @Nullable public String identifier;
-
-  @Nullable
-  @JsonSetter(nulls = Nulls.AS_EMPTY)
-  public List<Column> columns = Arrays.asList();
-
-  public List<Column> getColumns() {
-    return columns == null ? Arrays.asList() : columns;
+  @Override
+  public Table getMaterializedTable(String name) {
+    return Table.builder().name(name).build();
   }
 }

@@ -45,7 +45,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.python.transforms.DataframeTransform;
 import org.apache.beam.sdk.extensions.spd.description.Column;
 import org.apache.beam.sdk.extensions.spd.description.Model;
-import org.apache.beam.sdk.extensions.spd.description.Profile;
 import org.apache.beam.sdk.extensions.spd.description.Project;
 import org.apache.beam.sdk.extensions.spd.description.Schemas;
 import org.apache.beam.sdk.extensions.spd.description.Seed;
@@ -66,6 +65,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -89,7 +89,7 @@ public class StructuredPipelineDescription {
   private ScriptEngineManager manager;
 
   @Nullable Project project = null;
-  @Nullable Profile profile = null;
+  @Nullable StructuredPipelineProfile profile = null;
 
   public StructuredPipelineDescription(Pipeline pipeline, TableProvider... providers) {
     this.pipeline = pipeline;
@@ -107,6 +107,21 @@ public class StructuredPipelineDescription {
       metaTableProvider.registerProvider(p);
       materializers.put(p.getTableType(), p);
     }
+
+    // Try to load in schema providers
+    ServiceLoader.load(SchemaTransformProvider.class)
+        .forEach(
+            (provider) -> {
+              int inputs = provider.inputCollectionNames().size();
+              int outputs = provider.outputCollectionNames().size();
+              LOG.info(
+                  "Possibly registering schema provider "
+                      + provider.identifier()
+                      + ": "
+                      + inputs
+                      + "/"
+                      + outputs);
+            });
 
     ServiceLoader.load(TableProvider.class)
         .forEach(
@@ -135,18 +150,12 @@ public class StructuredPipelineDescription {
   }
 
   public void materializeTo(String fullTableName, PCollection<Row> source) throws Exception {
-    ObjectNode p = profile.getOutputs();
-    if (p == null) {
-      throw new Exception("No outputs defined in profile for target " + profile.getTarget() + "?");
-    }
-    String tableType = "" + p.path("type").asText();
-    LOG.info("Materizializing " + fullTableName + " to " + tableType);
-    TableProvider provider = materializers.get(tableType);
+    Table t = profile.getOutputTable(fullTableName, source);
+    LOG.info("Materizializing " + fullTableName + " to " + t.getName() + ":" + t.getType());
+    TableProvider provider = materializers.get(t.getType());
     if (provider == null) {
-      throw new Exception("Unable to materialize to a destination of type `" + tableType + "`");
+      throw new Exception("Unable to materialize to a destination of type `" + t.getType() + "`");
     }
-    Table t =
-        Table.builder().name(fullTableName).type(tableType).schema(source.getSchema()).build();
     provider.createTable(t);
     provider.buildBeamSqlTable(t).buildIOWriter(source);
   }
@@ -277,23 +286,6 @@ public class StructuredPipelineDescription {
     return null;
   }
 
-  private Schema columnsToSchema(Iterable<Column> columns) {
-    Schema.Builder beamSchema = Schema.builder();
-    for (Column c : columns) {
-      HashSet<String> tests = new HashSet<>();
-      tests.addAll(c.getTests());
-      if (c.type != null && c.name != null) {
-        Schema.FieldType type = Schema.FieldType.of(Schema.TypeName.valueOf(c.type));
-        if (tests.contains("not_null")) {
-          beamSchema.addField(c.getName(), type);
-        } else {
-          beamSchema.addNullableField(c.getName(), type);
-        }
-      }
-    }
-    return beamSchema.build();
-  }
-
   private void mergeConfiguration(String[] basePath, ObjectNode baseConfig, ConfiguredModel model) {
     // Apply configuration hierarchically from the models structure
     String[] path = Arrays.copyOf(basePath, basePath.length + 1);
@@ -348,23 +340,15 @@ public class StructuredPipelineDescription {
       LOG.info("Processing schemas in " + file.toString());
       Schemas schemas = mapper.readValue(Files.newBufferedReader(file), Schemas.class);
       for (Source source : schemas.getSources()) {
-        String tableType = "" + profile.getInputs().path("type").asText();
-        LOG.info("Adding source " + source.name + " tables as " + tableType);
         for (TableDesc desc : source.getTables()) {
-          LOG.info("Registering table " + desc.name);
-          Schema beamSchema = columnsToSchema(desc.getColumns());
+          Table t = profile.getInputTable(desc.name, source, desc);
           Table existingTable = metaTableProvider.getTable(source.name + "_" + desc.name);
           if (existingTable != null) {
-            if (!existingTable.getSchema().assignableTo(beamSchema)) {
+            if (!existingTable.getSchema().assignableTo(t.getSchema())) {
               throw new Exception("Mismatch between source schema and defined schema");
             }
           } else {
-            metaTableProvider.createTable(
-                Table.builder()
-                    .type(tableType)
-                    .schema(beamSchema)
-                    .name(source.name + "_" + desc.name)
-                    .build());
+            metaTableProvider.createTable(t);
           }
         }
       }
@@ -374,7 +358,7 @@ public class StructuredPipelineDescription {
         if (Files.exists(csvPath)) {
           seedFiles.remove(csvPath);
           LOG.info("Found CSV at " + csvPath.toAbsolutePath().toString());
-          Schema beamSchema = columnsToSchema(seed.getColumns());
+          Schema beamSchema = Column.asSchema(seed.getColumns());
           String fullName = seed.getName();
           LOG.info(
               "Creating csv external table "
@@ -507,6 +491,10 @@ public class StructuredPipelineDescription {
   }
 
   public void loadProject(Path profilePath, Path path) throws Exception {
+    loadProject(profilePath, path, null);
+  }
+
+  public void loadProject(Path profilePath, Path path, @Nullable String target) throws Exception {
     if (!Files.exists(profilePath)) {
       throw new Exception("Profile path not found: " + profilePath);
     }
@@ -525,33 +513,9 @@ public class StructuredPipelineDescription {
       throw new Exception("Project must define a profile.");
     }
     LOG.info("Loading profile " + project.profile + " from " + profilePath);
-    JsonNode profileNode =
-        mapper.readTree(Files.newBufferedReader(profilePath)).findPath(project.profile);
-    if (profileNode == null || profileNode.isEmpty()) {
-      throw new Exception("Profile " + project.profile + " not found.");
-    }
-    String target = profileNode.get("target").asText();
-    if (target == null || "".equals(target)) {
-      throw new Exception("No target specified for profile " + project.profile);
-    }
-
-    profile = new Profile();
-    profile.setTarget(target);
-
-    JsonNode outputs = profileNode.path("outputs").path(target);
-    if (outputs == null || outputs.isEmpty() || !outputs.isObject()) {
-      throw new Exception(
-          "Could not find output configuration for " + target + "in profile " + project.profile);
-    }
-    profile.setOutputs((ObjectNode) outputs);
-    JsonNode inputs = profileNode.path("inputs").path(target);
-    if (inputs != null && !inputs.isEmpty() && inputs.isObject()) {
-      profile.setInputs((ObjectNode) inputs);
-    } else {
-      LOG.info("No inputs found. Sources will be read from output configuration.");
-      profile.setInputs(profile.getOutputs());
-    }
-
+    profile =
+        StructuredPipelineProfile.from(
+            Files.newBufferedReader(profilePath), project.profile, target);
     loadSchemas(path, project.seedPaths, mapper);
     loadSchemas(path, project.modelPaths, mapper);
     resolveModels();
