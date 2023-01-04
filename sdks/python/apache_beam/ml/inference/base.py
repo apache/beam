@@ -273,7 +273,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
       inference_args: Optional[Dict[str, Any]] = None,
-      metrics_namespace: Optional[str] = None):
+      metrics_namespace: Optional[str] = None,
+      *,
+      update_model_pcoll: beam.PCollection = None):
     """A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
     those examples in a PCollection of PredictionResults that contains the input
@@ -291,11 +293,14 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
+        update_model_pcoll: PCollection that emits model path/model metadata
+          that is used as a side input to the _RunInferenceDoFn.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
     self._metrics_namespace = metrics_namespace
+    self._update_model_pcoll = update_model_pcoll
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -319,16 +324,21 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     self._model_handler.validate_inference_args(self._inference_args)
     resource_hints = self._model_handler.get_resource_hints()
-    return (
+    batched_elements_pcoll = (
         pcoll
         # TODO(https://github.com/apache/beam/issues/21440): Hook into the
         # batching DoFn APIs.
-        | beam.BatchElements(**self._model_handler.batch_elements_kwargs())
+        | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
+    return (
+        batched_elements_pcoll
         | 'BeamML_RunInference' >> (
             beam.ParDo(
                 _RunInferenceDoFn(
                     self._model_handler, self._clock, self._metrics_namespace),
-                self._inference_args).with_resource_hints(**resource_hints)))
+                self._inference_args,
+                beam.pvalue.AsIter(self._update_model_pcoll)
+                if self._update_model_pcoll else None))).with_resource_hints(
+                    **resource_hints)
 
 
 class _MetricsCollector:
