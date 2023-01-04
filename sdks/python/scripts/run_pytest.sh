@@ -35,29 +35,17 @@ if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
   exit 1
 fi
 
-pyargs=""
 # strip leading/trailing quotes
-stripped=$(sed -e 's/^"//' -e 's/"$//' -e "s/'$//" -e "s/^'//" <<<$posargs)
-posargs_array=($stripped)
-for i in "${posargs_array[@]}"
-do
-  :
-  if [[ $i == "--ignore"* ]]; then
-    pytest_args="$pytest_args $i"
-  else
-    pyargs="$pyargs $i"
-  fi
-done
-
+posargs=$(sed -e 's/^"//' -e 's/"$//' -e "s/'$//" -e "s/^'//" <<<$posargs)
 echo "pytest_args: $pytest_args"
-echo "pyargs: $pyargs"
+echo "posargs: $posargs"
 
 # Run with pytest-xdist and without.
 pytest -o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 ${pytest_args} --pyargs ${pyargs}
+  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 ${pytest_args} --pyargs ${posargs}
 status1=$?
 pytest -o junit_suite_name=${envname}_no_xdist \
-  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' ${pytest_args} --pyargs ${pyargs}
+  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' ${pytest_args} --pyargs ${posargs}
 status2=$?
 
 # Exit with error if one of the statuses has an error that's not 5 (no tests run).
