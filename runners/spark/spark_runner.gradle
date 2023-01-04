@@ -160,6 +160,7 @@ dependencies {
   implementation project(":runners:core-java")
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
+  implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation library.java.jackson_annotations
   implementation library.java.slf4j_api

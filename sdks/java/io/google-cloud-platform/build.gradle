@@ -38,6 +38,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+  implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:protobuf")
   implementation project(":runners:core-construction-java")

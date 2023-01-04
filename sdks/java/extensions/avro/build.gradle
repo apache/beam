@@ -22,6 +22,7 @@ applyJavaNature(
     disableLintWarnings: ['rawtypes'], // Avro-generated test code has raw-type errors
     publish: false,
     exportJavadoc: false,
+    shadowClosure: {}
 )
 applyAvroNature()
 

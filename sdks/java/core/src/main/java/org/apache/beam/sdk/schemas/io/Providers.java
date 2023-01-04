@@ -42,12 +42,22 @@ public final class Providers {
   public static <T extends Identifyable> Map<String, T> loadProviders(Class<T> klass) {
     Map<String, T> providers = new HashMap<>();
     for (T provider : ServiceLoader.load(klass)) {
-      checkArgument(
-          !providers.containsKey(provider.identifier()),
-          "Duplicate providers exist with identifier `%s` for class %s.",
-          provider.identifier(),
-          klass);
-      providers.put(provider.identifier(), provider);
+      if (provider.identifier().equals("avro")) { // "avro" is a special case
+        if (provider
+            .toString()
+            .startsWith(
+                "org.apache.beam.sdk.extensions.avro.schemas.io.payloads.AvroPayloadSerializerProvider")) {
+          // Use AvroPayloadSerializerProvider only from extensions/avro
+          providers.put(provider.identifier(), provider);
+        }
+      } else {
+        checkArgument(
+            !providers.containsKey(provider.identifier()),
+            "Duplicate providers exist with identifier `%s` for class %s.",
+            provider.identifier(),
+            klass);
+        providers.put(provider.identifier(), provider);
+      }
     }
     return providers;
   }

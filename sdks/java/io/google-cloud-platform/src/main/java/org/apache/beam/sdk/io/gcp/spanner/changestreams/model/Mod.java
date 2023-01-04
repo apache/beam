@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 import java.io.Serializable;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 
 /**
  * Represents a modification in a table emitted within a {@link DataChangeRecord}. Each mod contains

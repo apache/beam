@@ -18,8 +18,8 @@
 package org.apache.beam.examples.subprocess.utils;
 
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 
 /** Contains the configuration for the external library. */
 @DefaultCoder(AvroCoder.class)

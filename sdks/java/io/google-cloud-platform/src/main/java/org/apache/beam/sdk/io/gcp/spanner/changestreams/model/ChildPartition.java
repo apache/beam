@@ -21,8 +21,8 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /**
