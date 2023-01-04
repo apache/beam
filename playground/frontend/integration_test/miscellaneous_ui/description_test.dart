@@ -16,24 +16,32 @@
  * limitations under the License.
  */
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
+import 'package:playground_components_dev/playground_components_dev.dart';
 
-Future<void> init(WidgetTester wt) async {
-  app.main();
+import '../common/common.dart';
+import '../common/common_finders.dart';
+
+Future<void> checkDescription(WidgetTester wt) async {
+  await wt.tap(find.descriptionPopoverButton());
   await wt.pumpAndSettle();
-}
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
+  expect(find.descriptionPopover(), findsOneWidget);
+
+  final example = wt.findPlaygroundController().selectedExample!;
+
+  expectHasDescendant(find.descriptionPopover(), find.text(example.name));
+  expectHasDescendant(
+    find.descriptionPopover(),
+    find.text(example.description),
   );
-}
 
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
+  // //TODO Check contains github and colab links,
+  // //when https://github.com/apache/beam/pull/24820 will be merged
+
+  await wt.sendKeyEvent(LogicalKeyboardKey.escape);
+  await wt.pumpAndSettle();
+
+  expect(find.descriptionPopover(), findsNothing);
 }

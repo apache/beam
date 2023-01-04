@@ -16,24 +16,33 @@
  * limitations under the License.
  */
 
+import 'package:flutter/services.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
 
-Future<void> init(WidgetTester wt) async {
-  app.main();
+import '../common/common_finders.dart';
+
+Future<void> checkShortcutsModal(WidgetTester wt) async {
+  expect(find.shortcutsModal(), findsNothing);
+
+  AppLocalizations appLocale =
+      AppLocalizations.of(wt.element(find.moreActions()))!;
+
+  await wt.tap(find.moreActions());
   await wt.pumpAndSettle();
-}
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
-  );
-}
+  expect(find.text(appLocale.shortcuts), findsOneWidget);
 
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
+  await wt.tap(find.text(appLocale.shortcuts));
+  await wt.pumpAndSettle();
+
+  expect(find.shortcutsModal(), findsOneWidget);
+
+  await wt.tap(find.text(appLocale.close));
+  await wt.pumpAndSettle();
+
+  expect(find.shortcutsModal(), findsNothing);
+
+  await wt.sendKeyEvent(LogicalKeyboardKey.escape);
+  await wt.pumpAndSettle();
 }

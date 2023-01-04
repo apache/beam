@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:provider/provider.dart';
 
 import 'common_finders.dart';
 
@@ -43,5 +44,10 @@ extension WidgetTesterExtension on WidgetTester {
     expect(selectableText, findsOneWidget);
 
     return widget<SelectableText>(selectableText).data;
+  }
+
+  PlaygroundController findPlaygroundController() {
+    final context = element(find.codeField());
+    return context.read<PlaygroundController>();
   }
 }

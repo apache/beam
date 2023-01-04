@@ -17,23 +17,29 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
+import 'package:integration_test/integration_test.dart';
 
-Future<void> init(WidgetTester wt) async {
-  app.main();
-  await wt.pumpAndSettle();
-}
+import 'common/common.dart';
+import 'miscellaneous_ui/description_test.dart';
+import 'miscellaneous_ui/enjoy_playground_test.dart';
+import 'miscellaneous_ui/output_placement_test.dart';
+import 'miscellaneous_ui/resize_output_test.dart';
+import 'miscellaneous_ui/shortcuts_modal_test.dart';
+import 'miscellaneous_ui/toggle_brightness_mode_test.dart';
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets(
+    'Check UI, not connected with running examples',
+    (WidgetTester wt) async {
+      await init(wt);
+
+      await checkEnjoyPlayground(wt);
+      await checkDescription(wt);
+      await checkOutputPlacement(wt);
+      await checkResizeOutput(wt);
+      await checkShortcutsModal(wt);
+      await checkToggleBrightnessMode(wt);
+    },
   );
-}
-
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
 }

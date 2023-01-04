@@ -43,6 +43,10 @@ extension CommonFindersExtension on CommonFinders {
     );
   }
 
+  Finder outputWidget() {
+    return byType(OutputWidget);
+  }
+
   Finder resultTab() {
     // TODO(alexeyinkin): Use keys when output tabs get to use enum, https://github.com/apache/beam/issues/22663
     return widgetWithText(OutputTab, 'Result');
@@ -50,5 +54,13 @@ extension CommonFindersExtension on CommonFinders {
 
   Finder runOrCancelButton() {
     return byType(RunOrCancelButton);
+  }
+
+  Finder splitView() {
+    return byType(SplitView);
+  }
+
+  Finder toggleThemeButton() {
+    return byType(ToggleThemeButton);
   }
 }

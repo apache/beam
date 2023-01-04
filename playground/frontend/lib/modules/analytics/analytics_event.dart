@@ -16,24 +16,29 @@
  * limitations under the License.
  */
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
+import 'package:equatable/equatable.dart';
 
-Future<void> init(WidgetTester wt) async {
-  app.main();
-  await wt.pumpAndSettle();
-}
+class AnalyticsEvent with EquatableMixin {
+  final String action;
+  final String category;
+  final String? label;
+  final Map<String, String>? parameters;
+  final int? value;
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
-  );
-}
+  AnalyticsEvent({
+    required this.action,
+    required this.category,
+    this.label,
+    this.parameters,
+    this.value,
+  });
 
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
+  @override
+  List<Object?> get props => [
+        action,
+        category,
+        label,
+        parameters,
+        value,
+      ];
 }

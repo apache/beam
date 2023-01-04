@@ -16,24 +16,26 @@
  * limitations under the License.
  */
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/main.dart' as app;
+import 'package:playground_components_dev/playground_components_dev.dart';
 
-Future<void> init(WidgetTester wt) async {
-  app.main();
-  await wt.pumpAndSettle();
-}
+Future<void> checkToggleBrightnessMode(WidgetTester wt) async {
+  Brightness getBrightness() {
+    return Theme.of(wt.element(find.toggleThemeButton())).brightness;
+  }
 
-void expectHasDescendant(Finder ancestor, Finder descendant) {
-  expect(
-    find.descendant(of: ancestor, matching: descendant),
-    findsOneWidget,
-  );
-}
+  Future<void> toggleTheme() async {
+    await wt.tap(find.toggleThemeButton());
+    await wt.pumpAndSettle();
+  }
 
-void expectSimilar(double a, double b) {
-  Matcher closeToFraction(num value, double fraction) =>
-      closeTo(value, value * fraction);
-  Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
-  expect(a, onePerCentTolerance(b));
+  final startBrightness = getBrightness();
+  final invertedBrightness =
+      startBrightness == Brightness.light ? Brightness.dark : Brightness.light;
+
+  await toggleTheme();
+  expect(getBrightness(), invertedBrightness);
+  await toggleTheme();
+  expect(getBrightness(), startBrightness);
 }
