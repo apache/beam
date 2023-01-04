@@ -32,8 +32,9 @@ from models import SdkEnum
 class GRPCClient:
     """GRPCClient is gRPC client for sending a request to the backend."""
 
-    def __init__(self, timeout=10, wait_for_ready=True):
+    def __init__(self, wait_for_ready=True):
         use_webgrpc = os.getenv("BEAM_USE_WEBGRPC", False)
+        timeout = os.getenv("GRPC_TIMEOUT", 10)
         if use_webgrpc:
             self._channel = sonora.aio.insecure_web_channel(Config.SERVER_ADDRESS)
         else:
