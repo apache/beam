@@ -77,22 +77,25 @@ public class SdkHarnessEnvironmentTest {
   /** {@link DoFn} used to validate that TLS was enabled as part of java security properties. */
   private static class TLSDoFn extends DoFn<String, String> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c) throws Exception {
       String[] disabledAlgorithms =
           Security.getProperty("jdk.tls.disabledAlgorithms").trim().split("\\s*,\\s*");
+      String[] legacyAlgorithms = 
+          Security.getProperty("jdk.tls.legacyAlgorithms").trim().split("\\s*,\\s*");
       assertThat(disabledAlgorithms, not(hasItemInArray("TLSv1")));
       assertThat(disabledAlgorithms, not(hasItemInArray("TLSv1.1")));
+      assertThat(legacyAlgorithms, hasItemInArray("TLSv1"));
+      assertThat(legacyAlgorithms, hasItemInArray("TLSv1.1"));
 
+      // getSupportedSSLParameters() shows all protocols that JSSE implements thare aren't
+      // statically prohibited by the policy file
+      // use getDefaultSSLParameters() to see what is enabled by default -- and is used in your
+      // socket, since it doesn't overide the context's default
       SSLContext context = null;
-      String[] defaultProtocols = null;
-      try {
-        context = SSLContext.getInstance("TLS");
-        context.init(null, null, null);
-        defaultProtocols = context.getDefaultSSLParameters().getProtocols();
-      } catch (NoSuchAlgorithmException | KeyManagementException e) {
-        return;
-      }
+      context = SSLContext.getInstance("TLS");
+      context.init(null, null, null);
       assertNotNull(context);
+      String[] defaultProtocols = context.getDefaultSSLParameters().getProtocols();
       assertThat(defaultProtocols, hasItemInArray("TLSv1"));
       assertThat(defaultProtocols, hasItemInArray("TLSv1.1"));
 
