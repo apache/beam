@@ -61,7 +61,7 @@ export function flinkRunner(runnerOptions: Object = {}): Runner {
       const jobServerJar =
         allOptions.flinkJobServerJar ||
         (await JavaJarService.cachedJar(
-          JavaJarService.gradleToJar(
+          await JavaJarService.gradleToJar(
             `runners:flink:${allOptions.flinkVersion}:job-server:shadowJar`
           )
         ));

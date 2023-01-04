@@ -17,7 +17,7 @@ limitations under the License.
 
 # RunInference Metrics
 
-This example demonstrates and explains different metrics that are available when using the [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) transform to perform inference using a machine learning model. The example uses a pipeline that reads a list of sentences, tokenizes the text, and uses the transformer-based model `distilbert-base-uncased-finetuned-sst-2-english` with `RunInference` to classify the pieces of text into two classes.
+This example demonstrates and explains different metrics that are available when using the [RunInference](/documentation/transforms/python/elementwise/runinference/) transform to perform inference using a machine learning model. The example uses a pipeline that reads a list of sentences, tokenizes the text, and uses the transformer-based model `distilbert-base-uncased-finetuned-sst-2-english` with `RunInference` to classify the pieces of text into two classes.
 
 When you run the pipeline with the Dataflow runner, different RunInference metrics are available with CPU and with GPU. This example demonstrates both types of metrics.
 

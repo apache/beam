@@ -81,7 +81,7 @@ If your pipeline uses an unbounded data source or sink, you must set the `stream
 ### Parallel execution
 
 {{< paragraph class="language-py" >}}
-Python [FnApiRunner](https://beam.apache.org/contribute/runner-guide/#the-fn-api) supports multi-threading and multi-processing mode.
+Python [FnApiRunner](/contribute/runner-guide/#the-fn-api) supports multi-threading and multi-processing mode.
 {{< /paragraph >}}
 
 #### Setting parallelism

@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.scalaIterator;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.tuple;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.Serializable;
 import java.util.ArrayDeque;
@@ -61,17 +60,17 @@ import scala.collection.Iterator;
  */
 abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull Object>
     implements Function1<Iterator<WindowedValue<InT>>, Iterator<OutT>>, Serializable {
-  private final String stepName;
-  private final DoFn<InT, FnOutT> doFn;
-  private final DoFnSchemaInformation doFnSchema;
-  private final Supplier<PipelineOptions> options;
-  private final Coder<InT> coder;
-  private final WindowingStrategy<?, ?> windowingStrategy;
-  private final TupleTag<FnOutT> mainOutput;
-  private final List<TupleTag<?>> additionalOutputs;
-  private final Map<TupleTag<?>, Coder<?>> outputCoders;
-  private final Map<String, PCollectionView<?>> sideInputs;
-  private final SideInputReader sideInputReader;
+  protected final String stepName;
+  protected final DoFn<InT, FnOutT> doFn;
+  protected final DoFnSchemaInformation doFnSchema;
+  protected final Supplier<PipelineOptions> options;
+  protected final Coder<InT> coder;
+  protected final WindowingStrategy<?, ?> windowingStrategy;
+  protected final TupleTag<FnOutT> mainOutput;
+  protected final List<TupleTag<?>> additionalOutputs;
+  protected final Map<TupleTag<?>, Coder<?>> outputCoders;
+  protected final Map<String, PCollectionView<?>> sideInputs;
+  protected final SideInputReader sideInputReader;
 
   private DoFnPartitionIteratorFactory(
       AppliedPTransform<PCollection<? extends InT>, ?, MultiOutput<InT, FnOutT>> appliedPT,
@@ -147,7 +146,11 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-          buffer.add((WindowedValue<OutT>) output);
+          // SingleOut will only ever emmit the mainOutput. Though, there might be additional
+          // outputs which are skipped if unused to avoid caching.
+          if (mainOutput.equals(tag)) {
+            buffer.add((WindowedValue<OutT>) output);
+          }
         }
       };
     }
@@ -177,8 +180,11 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-          Integer columnIdx = checkStateNotNull(tagColIdx.get(tag.getId()), "Unknown tag %s", tag);
-          buffer.add(tuple(columnIdx, (WindowedValue<OutT>) output));
+          // Additional unused outputs can be skipped here. In that case columnIdx is null.
+          Integer columnIdx = tagColIdx.get(tag.getId());
+          if (columnIdx != null) {
+            buffer.add(tuple(columnIdx, (WindowedValue<OutT>) output));
+          }
         }
       };
     }

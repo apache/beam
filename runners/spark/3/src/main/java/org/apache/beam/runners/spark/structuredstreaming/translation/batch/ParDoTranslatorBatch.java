@@ -110,11 +110,18 @@ class ParDoTranslatorBatch<InputT, OutputT>
       throws IOException {
 
     PCollection<InputT> input = (PCollection<InputT>) cxt.getInput();
-    Map<TupleTag<?>, PCollection<?>> outputs = cxt.getOutputs();
 
     Dataset<WindowedValue<InputT>> inputDs = cxt.getDataset(input);
     SideInputReader sideInputReader =
         createSideInputReader(transform.getSideInputs().values(), cxt);
+
+    TupleTag<OutputT> mainOut = transform.getMainOutputTag();
+    // Filter out unconsumed PCollections (except mainOut) to potentially avoid the costs of caching
+    // if not really beneficial.
+    Map<TupleTag<?>, PCollection<?>> outputs =
+        Maps.filterEntries(
+            cxt.getOutputs(),
+            e -> e != null && (e.getKey().equals(mainOut) || !cxt.isLeave(e.getValue())));
 
     if (outputs.size() > 1) {
       // In case of multiple outputs / tags, map each tag to a column by index.
@@ -176,7 +183,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
         }
       }
     } else {
-      PCollection<OutputT> output = cxt.getOutput(transform.getMainOutputTag());
+      PCollection<OutputT> output = cxt.getOutput(mainOut);
       DoFnPartitionIteratorFactory<InputT, ?, WindowedValue<OutputT>> doFnMapper =
           DoFnPartitionIteratorFactory.singleOutput(
               cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader);

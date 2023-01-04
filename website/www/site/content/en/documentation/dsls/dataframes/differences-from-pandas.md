@@ -78,7 +78,7 @@ These operations may be supported in the future through a tighter integration
 with Interactive Beam. To track progress on this issue, follow
 [Issue 21638](https://github.com/apache/beam/issues/21638). If you think we
 should prioritize this work you can also [contact
-us](https://beam.apache.org/community/contact-us/) to let us know.
+us](/community/contact-us/) to let us know.
 
 **Workaround**
 
@@ -93,7 +93,7 @@ Examples:
 
 Beam PCollections are inherently unordered, so pandas operations that are sensitive to the ordering of rows are not supported. These operations raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
 
-Order-sensitive operations may be supported in the future. To track progress on this issue, follow [Issue 20862](https://github.com/apache/beam/issues/20862). If you think we should prioritize this work you can also [contact us](https://beam.apache.org/community/contact-us/) to let us know.
+Order-sensitive operations may be supported in the future. To track progress on this issue, follow [Issue 20862](https://github.com/apache/beam/issues/20862). If you think we should prioritize this work you can also [contact us](/community/contact-us/) to let us know.
 
 **Workaround**
 
@@ -107,7 +107,7 @@ Some DataFrame operations produce deferred scalars. In Beam, actual computation 
 
 ### Operations that aren’t implemented yet
 
-The Beam DataFrame API implements many of the commonly used pandas DataFrame operations, and we’re actively working to support the remaining operations. But pandas has a large API, and there are still gaps ([Issue 20318](https://github.com/apache/beam/issues/20318)). If you invoke an operation that hasn’t been implemented yet, it will raise a `NotImplementedError`. Please [let us know](https://beam.apache.org/community/contact-us/) if you encounter a missing operation that you think should be prioritized.
+The Beam DataFrame API implements many of the commonly used pandas DataFrame operations, and we’re actively working to support the remaining operations. But pandas has a large API, and there are still gaps ([Issue 20318](https://github.com/apache/beam/issues/20318)). If you invoke an operation that hasn’t been implemented yet, it will raise a `NotImplementedError`. Please [let us know](/community/contact-us/) if you encounter a missing operation that you think should be prioritized.
 
 ## Using Interactive Beam to access the full pandas API
 
@@ -115,4 +115,4 @@ Interactive Beam is a module designed for use in interactive notebooks. The modu
 
 {{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/dataframes.ipynb" >}}
 
-To get started with Beam in a notebook, see [Try Apache Beam](https://beam.apache.org/get-started/try-apache-beam/).
+To get started with Beam in a notebook, see [Try Apache Beam](/get-started/try-apache-beam/).

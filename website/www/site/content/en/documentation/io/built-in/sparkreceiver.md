@@ -26,7 +26,7 @@ SparkReceiverIO is a transform for reading data from an Apache Spark Receiver as
 Requirements for `Spark Receiver`:
 - Version of Spark should be 2.4.*.
 - `Spark Receiver` should support work with offsets.
-- `Spark Receiver` should implement [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
+- `Spark Receiver` should implement [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/2/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
 - Records should have the numeric field that represents record offset.
 
 For more details please see [SparkReceiverIO readme](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/2/README.md).
