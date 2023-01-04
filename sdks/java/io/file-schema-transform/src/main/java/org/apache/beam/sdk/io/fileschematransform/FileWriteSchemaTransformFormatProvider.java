@@ -22,19 +22,22 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.Providers;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * Provides a {@link PTransform} that consumes a {@link PCollection} according to a registered
- * {@link com.google.auto.service.AutoService} {@link FileWriteSchemaTransformFormatProvider}
+ * Provides a {@link PTransform} that writes a {@link PCollection} of {@link Row}s and outputs a
+ * {@link PCollection} of the file names according to a registered {@link
+ * com.google.auto.service.AutoService} {@link FileWriteSchemaTransformFormatProvider}
  * implementation. See {@link FileWriteSchemaTransformFormatProviders} for a list of available
  * formats.
  */
 @Internal
 public interface FileWriteSchemaTransformFormatProvider extends Providers.Identifyable {
 
-  /** Builds a {@link PTransform} that consumes {@link PCollection}. */
-  PTransform<PCollection<Row>, PDone> buildTransform(
+  /**
+   * Builds a {@link PTransform} that writes a {@link Row} {@link PCollection} and outputs the
+   * resulting {@link PCollection} of the file names.
+   */
+  PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema);
 }

@@ -27,6 +27,8 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.prefix;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.AVRO;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.JSON;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -77,7 +79,15 @@ public class AvroFileWriteSchemaTransformFormatProviderTest {
     PCollection<Row> input =
         writePipeline.apply(Create.of(DATA.allPrimitiveDataTypesRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 
@@ -110,7 +120,15 @@ public class AvroFileWriteSchemaTransformFormatProviderTest {
         writePipeline.apply(
             Create.of(DATA.nullableAllPrimitiveDataTypesRows).withRowSchema(beamSchema));
 
-    input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PCollection<String> files =
+        input.apply(PROVIDER.buildTransform(configuration(prefixTo), beamSchema));
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              assertTrue(names.iterator().hasNext());
+              return null;
+            });
 
     writePipeline.run().waitUntilFinish();
 

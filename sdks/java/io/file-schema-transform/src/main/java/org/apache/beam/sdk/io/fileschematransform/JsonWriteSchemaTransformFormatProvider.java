@@ -28,8 +28,8 @@ import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
@@ -46,11 +46,11 @@ public class JsonWriteSchemaTransformFormatProvider
   }
 
   @Override
-  public PTransform<PCollection<Row>, PDone> buildTransform(
+  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
-    return new PTransform<PCollection<Row>, PDone>() {
+    return new PTransform<PCollection<Row>, PCollection<String>>() {
       @Override
-      public PDone expand(PCollection<Row> input) {
+      public PCollection<String> expand(PCollection<Row> input) {
 
         PCollection<String> json = input.apply("Row To Json", mapRowsToJsonStrings(schema));
 
@@ -80,9 +80,9 @@ public class JsonWriteSchemaTransformFormatProvider
                   FileWriteSchemaTransformFormatProviders.getNumShards(configuration));
         }
 
-        json.apply("Write Json", write);
-
-        return PDone.in(input.getPipeline());
+        return json.apply("Write Json", write.withOutputFilenames())
+            .getPerDestinationOutputFilenames()
+            .apply("perDestinationOutputFilenames", Values.create());
       }
     };
   }

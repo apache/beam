@@ -24,8 +24,8 @@ import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for avro format. */
@@ -39,11 +39,11 @@ public class AvroWriteSchemaTransformFormatProvider
   }
 
   @Override
-  public PTransform<PCollection<Row>, PDone> buildTransform(
+  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
-    return new PTransform<PCollection<Row>, PDone>() {
+    return new PTransform<PCollection<Row>, PCollection<String>>() {
       @Override
-      public PDone expand(PCollection<Row> input) {
+      public PCollection<String> expand(PCollection<Row> input) {
 
         org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
         AvroGenericCoder coder = AvroGenericCoder.of(avroSchema);
@@ -70,9 +70,9 @@ public class AvroWriteSchemaTransformFormatProvider
                   FileWriteSchemaTransformFormatProviders.getShardNameTemplate(configuration));
         }
 
-        avro.apply("Write Avro", write);
-
-        return PDone.in(input.getPipeline());
+        return avro.apply("Write Avro", write.withOutputFilenames())
+            .getPerDestinationOutputFilenames()
+            .apply("perDestinationOutputFilenames", Values.create());
       }
     };
   }

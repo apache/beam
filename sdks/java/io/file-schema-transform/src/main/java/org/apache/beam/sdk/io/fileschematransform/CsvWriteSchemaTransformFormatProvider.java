@@ -21,7 +21,6 @@ import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for CSV format. */
@@ -35,7 +34,7 @@ public class CsvWriteSchemaTransformFormatProvider
   }
 
   @Override
-  public PTransform<PCollection<Row>, PDone> buildTransform(
+  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
     // TODO(https://github.com/apache/beam/issues/24469)
     throw new UnsupportedOperationException();

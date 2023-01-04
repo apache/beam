@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.AVRO;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.PARQUET;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collections;
@@ -68,12 +72,13 @@ public class FileWriteSchemaTransformProvider
     final FileWriteSchemaTransformConfiguration configuration;
 
     FileWriteSchemaTransform(FileWriteSchemaTransformConfiguration configuration) {
+      validateConfiguration(configuration);
       this.configuration = configuration;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      if (input.getAll().isEmpty()) {
+      if (input.getAll().isEmpty() || input.getAll().size() > 1) {
         throw new IllegalArgumentException(
             String.format(
                 "%s expects a single %s tagged PCollection<Row> input",
@@ -109,6 +114,35 @@ public class FileWriteSchemaTransformProvider
           Optional.ofNullable(providers.get(configuration.getFormat()));
       checkState(provider.isPresent());
       return provider.get();
+    }
+
+    static void validateConfiguration(FileWriteSchemaTransformConfiguration configuration) {
+      String format = configuration.getFormat();
+      if (configuration.getCsvConfiguration() != null && !format.equals(CSV)) {
+        throw new IllegalArgumentException(
+            String.format(
+                "configuration with %s is not compatible with a %s format",
+                FileWriteSchemaTransformConfiguration.CsvConfiguration.class.getName(), format));
+      }
+      if (configuration.getParquetConfiguration() != null && !format.equals(PARQUET)) {
+        throw new IllegalArgumentException(
+            String.format(
+                "configuration with %s is not compatible with a %s format",
+                FileWriteSchemaTransformConfiguration.ParquetConfiguration.class.getName(),
+                format));
+      }
+      if (configuration.getXmlConfiguration() != null && !format.equals(XML)) {
+        throw new IllegalArgumentException(
+            String.format(
+                "configuration with %s is not compatible with a %s format",
+                FileWriteSchemaTransformConfiguration.XmlConfiguration.class.getName(), format));
+      }
+      if (format.equals(AVRO)) {
+        if (configuration.getCompression() != null) {
+          throw new IllegalArgumentException(
+              "configuration with compression is not compatible with AvroIO");
+        }
+      }
     }
   }
 }

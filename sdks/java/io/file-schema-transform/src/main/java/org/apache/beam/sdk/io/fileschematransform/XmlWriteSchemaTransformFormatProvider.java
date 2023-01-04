@@ -17,19 +17,21 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.nio.charset.Charset;
 import java.util.Optional;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.XmlConfiguration;
 import org.apache.beam.sdk.io.xml.XmlIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -44,11 +46,11 @@ public class XmlWriteSchemaTransformFormatProvider
   }
 
   @Override
-  public PTransform<PCollection<Row>, PDone> buildTransform(
+  public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
-    return new PTransform<PCollection<Row>, PDone>() {
+    return new PTransform<PCollection<Row>, PCollection<String>>() {
       @Override
-      public PDone expand(PCollection<Row> input) {
+      public PCollection<String> expand(PCollection<Row> input) {
 
         PCollection<XmlRowAdapter> xml =
             input.apply(
@@ -57,17 +59,25 @@ public class XmlWriteSchemaTransformFormatProvider
 
         XmlConfiguration xmlConfig = xmlConfiguration(configuration);
 
+        checkArgument(xmlConfig.getCharset() != null, "charset must be specified");
+        checkArgument(xmlConfig.getRootElement() != null, "rootElement must be specified");
+
         Charset charset = Charset.forName(xmlConfig.getCharset());
 
-        xml.apply(
-            "Write XML",
-            XmlIO.<XmlRowAdapter>write()
-                .to(configuration.getFilenamePrefix())
+        XmlIO.Sink<XmlRowAdapter> sink =
+            XmlIO.sink(XmlRowAdapter.class)
                 .withCharset(charset)
-                .withRootElement(xmlConfig.getRootElement())
-                .withRecordClass(XmlRowAdapter.class));
+                .withRootElement(xmlConfig.getRootElement());
 
-        return PDone.in(input.getPipeline());
+        return input
+            .apply(
+                "Row To XML",
+                MapElements.into(TypeDescriptor.of(XmlRowAdapter.class)).via(new RowToXmlFn()))
+            .apply(
+                "Write XML",
+                FileIO.<XmlRowAdapter>write().via(sink).to(configuration.getFilenamePrefix()))
+            .getPerDestinationOutputFilenames()
+            .apply("perDestinationOutputFilenames", Values.create());
       }
     };
   }

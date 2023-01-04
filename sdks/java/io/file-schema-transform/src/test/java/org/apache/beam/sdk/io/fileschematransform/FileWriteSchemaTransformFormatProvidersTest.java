@@ -21,10 +21,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
