@@ -664,9 +664,11 @@ func BenchmarkMetrics(b *testing.B) {
 	}
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				test.call()
-			}
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					test.call()
+				}
+			})
 		})
 	}
 }
