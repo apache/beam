@@ -17,364 +17,41 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.DOUBLY_NESTED_DATA_TYPES_SCHEMA;
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SINGLY_NESTED_DATA_TYPES_SCHEMA;
-import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_SCHEMA;
-import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.DATA;
-import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.prefix;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.io.fileschematransform.XmlWriteSchemaTransformFormatProvider.RowToXmlFn;
 import org.apache.beam.sdk.io.xml.XmlIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link XmlWriteSchemaTransformFormatProvider}. */
 @RunWith(JUnit4.class)
-public class XmlFileWriteSchemaTransformFormatProviderTest {
-  private static final FileWriteSchemaTransformFormatProvider PROVIDER =
-      FileWriteSchemaTransformFormatProviders.loadProviders().get(XML);
+public class XmlFileWriteSchemaTransformFormatProviderTest
+    extends FileWriteSchemaTransformFormatProviderTest {
 
-  private static final String recordElement = "row";
+  private static final String ROOT_ELEMENT = "rootElement";
+  private static final String RECORD_ELEMENT = "row";
 
-  @Rule public TestPipeline writePipeline = TestPipeline.create();
-
-  @Rule public TestPipeline readPipeline = TestPipeline.create();
-
-  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
-
-  @Test
-  public void allPrimitiveDataTypes() {
-    Schema schema = ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
-    String rootElement = "allPrimitiveDataTypes";
-    List<XmlRowAdapter> expectedWrapped =
-        DATA.allPrimitiveDataTypesRows.stream()
-            .map(
-                (Row row) -> {
-                  XmlRowAdapter result = new XmlRowAdapter();
-                  result.wrapRow(row);
-                  return result;
-                })
-            .collect(Collectors.toList());
-
-    String to = String.format("%s_%s", XML, rootElement);
-    String prefixTo = prefix(tmpFolder, to);
-    PCollection<Row> input =
-        writePipeline.apply(Create.of(DATA.allPrimitiveDataTypesRows).withRowSchema(schema));
-
-    PCollection<String> files =
-        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
-    PAssert.that(files)
-        .satisfies(
-            (Iterable<String> names) -> {
-              assertNotNull(names);
-              assertTrue(names.iterator().hasNext());
-              return null;
-            });
-
-    writePipeline.run().waitUntilFinish();
-
-    PCollection<XmlRowAdapter> actual =
-        readPipeline.apply(
-            XmlIO.<XmlRowAdapter>read()
-                .from(prefixTo + "*")
-                .withRecordClass(XmlRowAdapter.class)
-                .withRootElement(rootElement)
-                .withRecordElement(recordElement)
-                .withCharset(Charset.defaultCharset()));
-
-    PAssert.that(actual).containsInAnyOrder(expectedWrapped);
-    readPipeline.run();
+  @Override
+  String getFormat() {
+    return XML;
   }
 
-  @Test
-  public void nullableAllPrimitiveDataTypes() {
-    Schema schema = NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
-    String rootElement = "nullableAllPrimitiveDataTypes";
-    List<XmlRowAdapter> expectedWrapped =
-        DATA.nullableAllPrimitiveDataTypesRows.stream()
-            .map(
-                (Row row) -> {
-                  XmlRowAdapter result = new XmlRowAdapter();
-                  result.wrapRow(row);
-                  return result;
-                })
-            .collect(Collectors.toList());
-
-    String to = String.format("%s_%s", XML, rootElement);
-    String prefixTo = prefix(tmpFolder, to);
-    PCollection<Row> input =
-        writePipeline.apply(
-            Create.of(DATA.nullableAllPrimitiveDataTypesRows).withRowSchema(schema));
-
-    PCollection<String> files =
-        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
-    PAssert.that(files)
-        .satisfies(
-            (Iterable<String> names) -> {
-              assertNotNull(names);
-              assertTrue(names.iterator().hasNext());
-              return null;
-            });
-
-    writePipeline.run().waitUntilFinish();
-
-    PCollection<XmlRowAdapter> actual =
-        readPipeline.apply(
-            XmlIO.<XmlRowAdapter>read()
-                .from(prefixTo + "*")
-                .withRecordClass(XmlRowAdapter.class)
-                .withRootElement(rootElement)
-                .withRecordElement(recordElement)
-                .withCharset(Charset.defaultCharset()));
-
-    PAssert.that(actual).containsInAnyOrder(expectedWrapped);
-    readPipeline.run();
+  @Override
+  String getFilenamePrefix() {
+    return "";
   }
 
-  @Test
-  public void timeContaining() {
-    Schema schema = TIME_CONTAINING_SCHEMA;
-    String rootElement = "timeContaining";
-    List<XmlRowAdapter> expectedWrapped =
-        DATA.timeContainingRows.stream()
-            .map(
-                (Row row) -> {
-                  XmlRowAdapter result = new XmlRowAdapter();
-                  result.wrapRow(row);
-                  return result;
-                })
-            .collect(Collectors.toList());
-
-    String to = String.format("%s_%s", XML, rootElement);
-    String prefixTo = prefix(tmpFolder, to);
-    PCollection<Row> input =
-        writePipeline.apply(Create.of(DATA.timeContainingRows).withRowSchema(schema));
-
-    PCollection<String> files =
-        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
-    PAssert.that(files)
-        .satisfies(
-            (Iterable<String> names) -> {
-              assertNotNull(names);
-              assertTrue(names.iterator().hasNext());
-              return null;
-            });
-
-    writePipeline.run().waitUntilFinish();
-
-    PCollection<XmlRowAdapter> actual =
-        readPipeline.apply(
-            XmlIO.<XmlRowAdapter>read()
-                .from(prefixTo + "*")
-                .withRecordClass(XmlRowAdapter.class)
-                .withRootElement(rootElement)
-                .withRecordElement(recordElement)
-                .withCharset(Charset.defaultCharset()));
-
-    PAssert.that(actual).containsInAnyOrder(expectedWrapped);
-    readPipeline.run();
-  }
-
-  @Test
-  public void arrayPrimitiveDataTypes() {
-    Schema schema = ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
-    String rootElement = "arrayPrimitiveDataTypes";
-    List<XmlRowAdapter> expectedWrapped =
-        DATA.arrayPrimitiveDataTypesRows.stream()
-            .map(
-                (Row row) -> {
-                  XmlRowAdapter result = new XmlRowAdapter();
-                  result.wrapRow(row);
-                  return result;
-                })
-            .collect(Collectors.toList());
-
-    String to = String.format("%s_%s", XML, rootElement);
-    String prefixTo = prefix(tmpFolder, to);
-    PCollection<Row> input =
-        writePipeline.apply(Create.of(DATA.arrayPrimitiveDataTypesRows).withRowSchema(schema));
-
-    PCollection<String> files =
-        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
-    PAssert.that(files)
-        .satisfies(
-            (Iterable<String> names) -> {
-              assertNotNull(names);
-              assertTrue(names.iterator().hasNext());
-              return null;
-            });
-
-    writePipeline.run().waitUntilFinish();
-
-    PCollection<XmlRowAdapter> actual =
-        readPipeline.apply(
-            XmlIO.<XmlRowAdapter>read()
-                .from(prefixTo + "*")
-                .withRecordClass(XmlRowAdapter.class)
-                .withRootElement(rootElement)
-                .withRecordElement(recordElement)
-                .withCharset(Charset.defaultCharset()));
-
-    PAssert.that(actual).containsInAnyOrder(expectedWrapped);
-    readPipeline.run();
-  }
-
-  @Test
-  public void singlyNestedDataTypesNoRepeat() {
-    Schema schema = SINGLY_NESTED_DATA_TYPES_SCHEMA;
-    String rootElement = "singlyNestedDataTypesNoRepeat";
-    List<XmlRowAdapter> expectedWrapped =
-        DATA.singlyNestedDataTypesNoRepeatRows.stream()
-            .map(
-                (Row row) -> {
-                  XmlRowAdapter result = new XmlRowAdapter();
-                  result.wrapRow(row);
-                  return result;
-                })
-            .collect(Collectors.toList());
-
-    String to = String.format("%s_%s", XML, rootElement);
-    String prefixTo = prefix(tmpFolder, to);
-    PCollection<Row> input =
-        writePipeline.apply(
-            Create.of(DATA.singlyNestedDataTypesNoRepeatRows).withRowSchema(schema));
-
-    PCollection<String> files =
-        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
-    PAssert.that(files)
-        .satisfies(
-            (Iterable<String> names) -> {
-              assertNotNull(names);
-              assertTrue(names.iterator().hasNext());
-              return null;
-            });
-
-    writePipeline.run().waitUntilFinish();
-
-    PCollection<XmlRowAdapter> actual =
-        readPipeline.apply(
-            XmlIO.<XmlRowAdapter>read()
-                .from(prefixTo + "*")
-                .withRecordClass(XmlRowAdapter.class)
-                .withRootElement(rootElement)
-                .withRecordElement(recordElement)
-                .withCharset(Charset.defaultCharset()));
-
-    PAssert.that(actual).containsInAnyOrder(expectedWrapped);
-    readPipeline.run();
-  }
-
-  @Test
-  public void doublyNestedDataTypesNoRepeat() {
-    Schema schema = DOUBLY_NESTED_DATA_TYPES_SCHEMA;
-    String rootElement = "doublyNestedDataTypesNoRepeat";
-    List<XmlRowAdapter> expectedWrapped =
-        DATA.doublyNestedDataTypesNoRepeatRows.stream()
-            .map(
-                (Row row) -> {
-                  XmlRowAdapter result = new XmlRowAdapter();
-                  result.wrapRow(row);
-                  return result;
-                })
-            .collect(Collectors.toList());
-
-    String to = String.format("%s_%s", XML, rootElement);
-    String prefixTo = prefix(tmpFolder, to);
-    PCollection<Row> input =
-        writePipeline.apply(
-            Create.of(DATA.doublyNestedDataTypesNoRepeatRows).withRowSchema(schema));
-    PCollection<String> files =
-        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
-    PAssert.that(files)
-        .satisfies(
-            (Iterable<String> names) -> {
-              assertNotNull(names);
-              assertTrue(names.iterator().hasNext());
-              return null;
-            });
-
-    writePipeline.run().waitUntilFinish();
-
-    PCollection<XmlRowAdapter> actual =
-        readPipeline.apply(
-            XmlIO.<XmlRowAdapter>read()
-                .from(prefixTo + "*")
-                .withRecordClass(XmlRowAdapter.class)
-                .withRootElement(rootElement)
-                .withRecordElement(recordElement)
-                .withCharset(Charset.defaultCharset()));
-
-    PAssert.that(actual).containsInAnyOrder(expectedWrapped);
-    readPipeline.run();
-  }
-
-  @Test
-  public void doublyNestedDataTypesRepeat() {
-    Schema schema = DOUBLY_NESTED_DATA_TYPES_SCHEMA;
-    String rootElement = "doublyNestedDataTypesRepeat";
-    List<XmlRowAdapter> expectedWrapped =
-        DATA.doublyNestedDataTypesRepeatRows.stream()
-            .map(
-                (Row row) -> {
-                  XmlRowAdapter result = new XmlRowAdapter();
-                  result.wrapRow(row);
-                  return result;
-                })
-            .collect(Collectors.toList());
-
-    String to = String.format("%s_%s", XML, rootElement);
-    String prefixTo = prefix(tmpFolder, to);
-    PCollection<Row> input =
-        writePipeline.apply(Create.of(DATA.doublyNestedDataTypesRepeatRows).withRowSchema(schema));
-    PCollection<String> files =
-        input.apply(PROVIDER.buildTransform(configuration(prefixTo, rootElement), schema));
-    PAssert.that(files)
-        .satisfies(
-            (Iterable<String> names) -> {
-              assertNotNull(names);
-              assertTrue(names.iterator().hasNext());
-              return null;
-            });
-
-    writePipeline.run().waitUntilFinish();
-
-    PCollection<XmlRowAdapter> actual =
-        readPipeline.apply(
-            XmlIO.<XmlRowAdapter>read()
-                .from(prefixTo + "*")
-                .withRecordClass(XmlRowAdapter.class)
-                .withRootElement(rootElement)
-                .withRecordElement(recordElement)
-                .withCharset(Charset.defaultCharset()));
-
-    PAssert.that(actual).containsInAnyOrder(expectedWrapped);
-    readPipeline.run();
-  }
-
-  @Test
-  public void testRowToXmlFn() {
+  @Override
+  protected void assertFolderContainsInAnyOrder(String folder, List<Row> rows, Schema beamSchema) {
     List<XmlRowAdapter> expected =
-        DATA.allPrimitiveDataTypesRows.stream()
+        rows.stream()
             .map(
                 (Row row) -> {
                   XmlRowAdapter result = new XmlRowAdapter();
@@ -384,24 +61,27 @@ public class XmlFileWriteSchemaTransformFormatProviderTest {
             .collect(Collectors.toList());
 
     PCollection<XmlRowAdapter> actual =
-        writePipeline
-            .apply(Create.of(DATA.allPrimitiveDataTypesRows))
-            .apply(MapElements.into(TypeDescriptor.of(XmlRowAdapter.class)).via(new RowToXmlFn()));
+        readPipeline.apply(
+            XmlIO.<XmlRowAdapter>read()
+                .from(folder + "/*")
+                .withRecordClass(XmlRowAdapter.class)
+                .withRootElement(ROOT_ELEMENT)
+                .withRecordElement(RECORD_ELEMENT)
+                .withCharset(Charset.defaultCharset()));
 
     PAssert.that(actual).containsInAnyOrder(expected);
-
-    writePipeline.run();
+    readPipeline.run();
   }
 
-  private static <T> FileWriteSchemaTransformConfiguration configuration(
-      String to, String rootElement) {
+  @Override
+  FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
     return FileWriteSchemaTransformConfiguration.builder()
         .setFormat(XML)
         .setXmlConfiguration(
             FileWriteSchemaTransformConfiguration.xmlConfigurationBuilder()
-                .setRootElement(rootElement)
+                .setRootElement(ROOT_ELEMENT)
                 .build())
-        .setFilenamePrefix(to)
+        .setFilenamePrefix(folder)
         .build();
   }
 }

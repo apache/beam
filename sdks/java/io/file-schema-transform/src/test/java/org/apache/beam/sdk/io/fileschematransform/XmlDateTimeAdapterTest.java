@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.fileschematransform;
 import static org.junit.Assert.assertEquals;
 
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.junit.Test;
 
@@ -37,7 +38,7 @@ public class XmlDateTimeAdapterTest {
   @Test
   public void marshal() throws Exception {
     XmlDateTimeAdapter adapter = new XmlDateTimeAdapter();
-    DateTime dateTime = Instant.ofEpochMilli(1672347891171L).toDateTime();
+    DateTime dateTime = Instant.ofEpochMilli(1672347891171L).toDateTime(DateTimeZone.UTC);
     assertEquals("2022-12-29T21:04:51.171Z", adapter.marshal(dateTime));
   }
 }

@@ -59,6 +59,7 @@ public class ParquetWriteSchemaTransformFormatProvider
 
         FileIO.Write<Void, GenericRecord> write =
             FileIO.<GenericRecord>write()
+                .to(configuration.getFilenamePrefix())
                 .via(buildSink(parquetConfiguration(configuration), schema))
                 .withSuffix(SUFFIX);
 

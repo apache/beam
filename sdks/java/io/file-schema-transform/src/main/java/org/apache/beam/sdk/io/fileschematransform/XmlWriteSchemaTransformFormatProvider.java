@@ -74,7 +74,10 @@ public class XmlWriteSchemaTransformFormatProvider
                 .withRootElement(xmlConfig.getRootElement());
 
         FileIO.Write<Void, XmlRowAdapter> write =
-            FileIO.<XmlRowAdapter>write().via(sink).withSuffix(SUFFIX);
+            FileIO.<XmlRowAdapter>write()
+                .to(configuration.getFilenamePrefix())
+                .via(sink)
+                .withSuffix(SUFFIX);
 
         write = applyCommonFileIOWriteFeatures(write, configuration);
 

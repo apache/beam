@@ -25,9 +25,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.Providers;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
@@ -64,11 +62,6 @@ public final class FileWriteSchemaTransformFormatProviders {
 
   static <T> FileIO.Write<Void, T> applyCommonFileIOWriteFeatures(
       FileIO.Write<Void, T> write, FileWriteSchemaTransformConfiguration configuration) {
-
-    ResourceId prefix =
-        FileSystems.matchNewResource(configuration.getFilenamePrefix(), false /* isDirectory */);
-
-    write = write.to(prefix.getCurrentDirectory().toString());
 
     if (configuration.getFilenameSuffix() != null) {
       write = write.withSuffix(getFilenameSuffix(configuration));
