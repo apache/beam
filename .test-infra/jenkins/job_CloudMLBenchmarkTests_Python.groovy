@@ -36,6 +36,15 @@ def cloudMLJob = { scope ->
   }
 }
 
+PhraseTriggeringPostCommitBuilder.postCommitJob(
+    'beam_CloudML_Benchmarks_Dataflow',
+    'Run TFT Criteo Benchmarks',
+    'TFT Criteo benchmarks on Dataflow(\"Run TFT Criteo Benchmarks"\"")',
+    this
+    ) {
+      loadTestJob(delegate)
+    }
+
 CronJobBuilder.cronJob(
     'beam_CloudML_Benchmarks_Dataflow',
     'H 14 * * *',
