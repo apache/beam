@@ -46,7 +46,7 @@ parser.add_argument(
 parser.add_argument(
     "--namespace",
     dest="namespace",
-    help="Datastore namespace to use when saving data",
+    help=f"Datastore namespace to use when saving data (default: {Config.DEFAULT_NAMESPACE})",
     default=Config.DEFAULT_NAMESPACE
 )
 parser.add_argument(
