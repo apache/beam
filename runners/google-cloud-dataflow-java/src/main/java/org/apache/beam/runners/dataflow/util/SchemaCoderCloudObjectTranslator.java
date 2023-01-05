@@ -32,6 +32,8 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.util.JsonFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Translator for Schema coders. */
 @Experimental(Kind.SCHEMAS)
@@ -39,6 +41,8 @@ import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.util.JsonFormat;
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<SchemaCoder> {
+  private static final Logger LOG = LoggerFactory.getLogger(SchemaCoderCloudObjectTranslator.class);
+
   private static final String SCHEMA = "schema";
   private static final String TYPE_DESCRIPTOR = "typeDescriptor";
   private static final String TO_ROW_FUNCTION = "toRowFunction";
@@ -66,6 +70,15 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
             SerializableUtils.serializeToByteArray(target.getFromRowFunction())));
 
     try {
+      String noWhitespace =
+          JsonFormat.printer()
+              .omittingInsignificantWhitespace()
+              .print(SchemaTranslation.schemaToProto(target.getSchema(), true));
+
+      String normal =
+          JsonFormat.printer().print(SchemaTranslation.schemaToProto(target.getSchema(), true));
+
+      LOG.warn("schema proto: {}\nwith whitespace removed: {}", normal, noWhitespace);
       Structs.addString(
           base,
           SCHEMA,
