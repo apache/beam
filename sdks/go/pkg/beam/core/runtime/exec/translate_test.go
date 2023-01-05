@@ -507,7 +507,7 @@ func TestNewBuilder(t *testing.T) {
 			if err != nil && test.outputError == nil {
 				t.Errorf("There is an error where should not be. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
 			} else if err != nil && err != test.outputError {
-				t.Errorf("There is an error that does not meet expectation. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
+				t.Errorf("got an unexpected error: %v, want: %v", err, test.outputError)
 			} else if !reflect.DeepEqual(b, test.outputBuilder) {
 				t.Errorf("The output builder is not right. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
 			}
