@@ -337,8 +337,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                     self._model_handler, self._clock, self._metrics_namespace),
                 self._inference_args,
                 beam.pvalue.AsIter(self._update_model_pcoll)
-                if self._update_model_pcoll else None))).with_resource_hints(
-                    **resource_hints)
+                if self._update_model_pcoll else None).with_resource_hints(
+                    **resource_hints)))
 
 
 class _MetricsCollector:
