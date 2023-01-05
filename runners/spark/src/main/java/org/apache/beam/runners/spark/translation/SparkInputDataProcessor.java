@@ -19,8 +19,8 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.ArrayDeque;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -34,12 +34,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.LinkedListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -108,7 +104,7 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
   private static class UnboundedDoFnOutputManager
       implements OutputManager, Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
-    private final Multimap<TupleTag<?>, WindowedValue<?>> outputs = LinkedListMultimap.create();
+    private final ArrayDeque<Tuple2<TupleTag<?>, WindowedValue<?>>> outputs = new ArrayDeque<>();
 
     public void clear() {
       outputs.clear();
@@ -116,23 +112,12 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
 
     @Override
     public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> iterator() {
-      Iterator<Map.Entry<TupleTag<?>, WindowedValue<?>>> entryIter = outputs.entries().iterator();
-      return Iterators.transform(entryIter, this.entryToTupleFn());
-    }
-
-    private <K, V> Function<Map.Entry<K, V>, Tuple2<K, V>> entryToTupleFn() {
-      return en -> {
-        if (en == null) {
-          return null;
-        } else {
-          return new Tuple2<>(en.getKey(), en.getValue());
-        }
-      };
+      return outputs.iterator();
     }
 
     @Override
     public synchronized <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      outputs.put(tag, output);
+      outputs.push(new Tuple2<>(tag, output));
     }
   }
 
