@@ -19,7 +19,7 @@ package org.apache.beam.examples;
 
 // beam-playground:
 //   name: WordCount2
-//   description: An example that counts words in Shakespeare's works.
+//   description: An example that counts words in Shakespeare's works to test ci.
 //   multifile: false
 //   pipeline_options: --output output.txt
 //   context_line: 95
