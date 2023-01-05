@@ -348,11 +348,11 @@ func TestInputIdToIndex(t *testing.T) {
 		got, err := inputIdToIndex(test.in)
 		if !strings.HasPrefix(test.in, "i") {
 			if err == nil {
-				t.Errorf("Should return err when string does not has a prefix of i, but didn't. inputIdToIndex(%v) = (%v, %v)", test.in, got, err)
+				t.Errorf("should return err when string does not has a prefix of i, but didn't. inputIdToIndex(%v) = (%v, %v)", test.in, got, err)
 			}
 		} else {
 			if got != test.want {
-				t.Errorf("Can not correctly convert inputId to index. inputIdToIndex(%v) = (%v, %v), want %v", test.in, got, err, test.want)
+				t.Errorf("can not correctly convert inputId to index. inputIdToIndex(%v) = (%v, %v), want %v", test.in, got, err, test.want)
 			}
 		}
 	}
@@ -376,7 +376,7 @@ func TestIndexToInputId(t *testing.T) {
 	for _, test := range tests {
 		got := indexToInputId(test.in)
 		if got != test.want {
-			t.Errorf("Can not correctly convert index to inputId. indexToInputId(%v) = (%v), want %v", test.in, got, test.want)
+			t.Errorf("can not correctly convert index to inputId. indexToInputId(%v) = (%v), want %v", test.in, got, test.want)
 		}
 	}
 }
@@ -401,13 +401,13 @@ func TestUnmarshalPort(t *testing.T) {
 	for _, test := range tests {
 		port, str, err := unmarshalPort(test.inputData)
 		if err != nil && test.outputError == nil {
-			t.Errorf("There is an error where should not be. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
+			t.Errorf("there is an error where should not be. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
 		} else if err != nil && err != test.outputError {
-			t.Errorf("There is an error that does not meet expectation. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
+			t.Errorf("got an unexpected error: %v, want: %v", err, test.outputError)
 		} else if port != test.outputPort {
-			t.Errorf("The output port is not right. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
+			t.Errorf("the output port is not right. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
 		} else if str != test.outputStr {
-			t.Errorf("The output string is not right. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
+			t.Errorf("the output string is not right. unmarshalPort(%v) = (%v, %v, %v), want (%v, %v, %v)", test.inputData, port, str, err, test.outputPort, test.outputStr, test.outputError)
 		}
 	}
 }
@@ -432,7 +432,7 @@ func TestUnmarshalPlan(t *testing.T) {
 				Transforms: map[string]*pipepb.PTransform{},
 			},
 			outputPlan:  nil,
-			outputError: errors.Errorf("no root units"),
+			outputError: errors.New("no root units"),
 		},
 		{
 			name: "test_zero_transform",
@@ -443,7 +443,7 @@ func TestUnmarshalPlan(t *testing.T) {
 				},
 			},
 			outputPlan:  nil,
-			outputError: errors.Errorf("no root units"),
+			outputError: errors.New("no root units"),
 		},
 		{
 			name: "test_transform_outputs_length_not_one",
@@ -462,11 +462,11 @@ func TestUnmarshalPlan(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			plan, err := UnmarshalPlan(test.inputDesc)
 			if err != nil && test.outputError == nil {
-				t.Errorf("There is an error where should not be. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
+				t.Errorf("there is an error where should not be. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
 			} else if err != nil && !reflect.DeepEqual(err, test.outputError) {
-				t.Errorf("There is an error that does not meet expectation. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
+				t.Errorf("got an unexpected error: %v, want: %v", err, test.outputError)
 			} else if !reflect.DeepEqual(plan, test.outputPlan) {
-				t.Errorf("The output builder is not right. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
+				t.Errorf("the output builder is not right. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
 			}
 		})
 	}
