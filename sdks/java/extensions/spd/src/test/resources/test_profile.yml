@@ -1,8 +1,5 @@
 simple_pipeline:
   target: test
-  runners:
-    test:
-      type: direct
   outputs:
     test:
       type: test

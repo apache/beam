@@ -45,6 +45,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.python.transforms.DataframeTransform;
 import org.apache.beam.sdk.extensions.python.transforms.PythonMap;
+import org.apache.beam.sdk.extensions.spd.StructuredPipelineProfile.StructuredProfileSelector;
 import org.apache.beam.sdk.extensions.spd.description.Column;
 import org.apache.beam.sdk.extensions.spd.description.Model;
 import org.apache.beam.sdk.extensions.spd.description.Project;
@@ -81,9 +82,10 @@ public class StructuredPipelineDescription {
   private static final String DEFAULT_PLANNER =
       "org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner";
 
-  private Pipeline pipeline;
+  @Nullable private Pipeline pipeline = null;
+  @Nullable private BeamSqlEnv env = null;
+
   private InMemoryMetaStore metaTableProvider;
-  private BeamSqlEnv env;
   private PCollectionTableProvider tableMap;
   private Map<String, StructuredModel> modelMap;
   private Map<String, TableProvider> materializers;
@@ -93,15 +95,12 @@ public class StructuredPipelineDescription {
   @Nullable Project project = null;
   @Nullable StructuredPipelineProfile profile = null;
 
-  public StructuredPipelineDescription(Pipeline pipeline, TableProvider... providers) {
-    this.pipeline = pipeline;
+  public StructuredPipelineDescription(TableProvider... providers) {
     this.tableMap = new PCollectionTableProvider("spd");
     this.modelMap = new HashMap<>();
     this.expansionServices = new HashMap<>();
     this.materializers = new HashMap<>();
     this.metaTableProvider = new InMemoryMetaStore();
-    BeamSqlEnvBuilder envBuilder = BeamSqlEnv.builder(this.metaTableProvider);
-    envBuilder.autoLoadUserDefinedFunctions();
 
     HashSet<String> overriddenProviders = new HashSet<>();
     for (TableProvider p : providers) {
@@ -137,13 +136,6 @@ public class StructuredPipelineDescription {
               }
             });
     metaTableProvider.registerProvider(tableMap);
-    envBuilder.setQueryPlannerClassName(
-        MoreObjects.firstNonNull(
-            DEFAULT_PLANNER,
-            this.pipeline.getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
-    envBuilder.setPipelineOptions(this.pipeline.getOptions());
-    this.env = envBuilder.build();
-
     manager = new ScriptEngineManager();
   }
 
@@ -524,10 +516,11 @@ public class StructuredPipelineDescription {
   }
 
   public void loadProject(Path profilePath, Path path, @Nullable String target) throws Exception {
-    if (!Files.exists(profilePath)) {
-      throw new Exception("Profile path not found: " + profilePath);
-    }
+    loadProject(StructuredPipelineProfile.from(profilePath), path, target);
+  }
 
+  public void loadProject(
+      StructuredProfileSelector withSelector, Path path, @Nullable String target) throws Exception {
     ObjectMapper mapper =
         new ObjectMapper(new YAMLFactory())
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -541,10 +534,19 @@ public class StructuredPipelineDescription {
     if (project.profile == null || "".equals(project.profile)) {
       throw new Exception("Project must define a profile.");
     }
-    LOG.info("Loading profile " + project.profile + " from " + profilePath);
-    profile =
-        StructuredPipelineProfile.from(
-            Files.newBufferedReader(profilePath), project.profile, target);
+    profile = withSelector.select(project.profile, target);
+
+    // Create a new pipeline object
+    BeamSqlEnvBuilder envBuilder = BeamSqlEnv.builder(this.metaTableProvider);
+    envBuilder.autoLoadUserDefinedFunctions();
+    pipeline = Pipeline.create(profile.targetPipelineOptions().create());
+    envBuilder.setQueryPlannerClassName(
+        MoreObjects.firstNonNull(
+            DEFAULT_PLANNER,
+            this.pipeline.getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
+    envBuilder.setPipelineOptions(this.pipeline.getOptions());
+    this.env = envBuilder.build();
+
     loadSchemas(path, project.seedPaths, mapper);
     loadSchemas(path, project.modelPaths, mapper);
     resolveModels();
@@ -553,5 +555,9 @@ public class StructuredPipelineDescription {
     for (Map.Entry<String, Table> table : metaTableProvider.getTables().entrySet()) {
       LOG.info("Table: " + table.getKey() + ", " + table.getValue().toString());
     }
+  }
+
+  public @Nullable Pipeline getPipeline() {
+    return pipeline;
   }
 }

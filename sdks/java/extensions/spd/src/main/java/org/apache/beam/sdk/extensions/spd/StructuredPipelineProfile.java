@@ -23,6 +23,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Collectors;
@@ -35,26 +40,31 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Class for managing dbt-style profiles */
 public class StructuredPipelineProfile {
-  private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineProfile.class);
+  // private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineProfile.class);
 
   String project;
   String target;
   JsonNode runner;
   JsonNode output;
   JsonNode input;
+  JsonNode error;
 
   StructuredPipelineProfile(
-      String project, String target, JsonNode runner, JsonNode output, @Nullable JsonNode input) {
+      String project,
+      String target,
+      JsonNode runner,
+      JsonNode output,
+      @Nullable JsonNode input,
+      @Nullable JsonNode error) {
     this.project = project;
     this.target = target;
     this.runner = runner;
     this.output = output;
     this.input = input == null ? output : input;
+    this.error = error == null ? output : error;
   }
 
   public String getProject() {
@@ -105,35 +115,98 @@ public class StructuredPipelineProfile {
     return getTableFromJsonObject(name, output).toBuilder().schema(source.getSchema()).build();
   }
 
-  public static StructuredPipelineProfile from(
-      Reader reader, String project, @Nullable String target) throws Exception {
-    ObjectMapper mapper =
-        new ObjectMapper(new YAMLFactory())
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  public Table getErrorTable(String name, PCollection<Row> source) {
+    return getTableFromJsonObject(name, error).toBuilder().schema(source.getSchema()).build();
+  }
 
-    JsonNode node = mapper.readTree(reader);
-    LOG.info("Profile: " + mapper.writeValueAsString(node));
-    node = node.path(project);
+  public static class StructuredProfileSelector {
+    ObjectMapper mapper;
 
-    LOG.info("Profile for project: " + mapper.writeValueAsString(node));
+    HashMap<String, JsonNode> profiles = new HashMap<>();
+    JsonNode config;
 
-    // If not specified, use the target in the profile itself
-    if (target == null || "".equals(target)) {
-      target = node.path("target").asText();
+    public StructuredProfileSelector(Reader reader) throws Exception {
+      mapper =
+          new ObjectMapper(new YAMLFactory())
+              .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+      JsonNode node = mapper.readTree(reader);
+      reader.close();
+      for (Iterator<Entry<String, JsonNode>> it = node.fields(); it.hasNext(); ) {
+        Entry<String, JsonNode> e = it.next();
+        if ("config".equals(e.getKey())) {
+          this.config = e.getValue();
+        } else {
+          profiles.put(e.getKey(), e.getValue());
+        }
+      }
+      if (config == null) {
+        config = mapper.createObjectNode();
+      }
     }
 
-    JsonNode outputs = node.path("outputs").path(target);
-    if (outputs.isEmpty())
-      throw new Exception(
-          "Unable to resolve profile for project " + project + " with target " + target);
-    JsonNode runner = node.path("runners").path(target);
-    JsonNode inputs = node.path("inputs").path(target);
+    public @Nullable StructuredPipelineProfile select(String profile, @Nullable String target)
+        throws Exception {
+      JsonNode node = profiles.get(profile);
+      if (node == null) {
+        throw new Exception("No profile found for `" + profile + "`");
+      }
 
-    return new StructuredPipelineProfile(
-        project, target, runner, outputs, inputs.isEmpty() ? null : inputs);
+      if (target == null || "".equals(target)) {
+        if (!node.has("target")) {
+          throw new Exception("Profile target not provided.");
+        }
+        target = node.path("target").asText();
+      }
+
+      JsonNode outputs = node.path("outputs").path(target);
+      if (outputs.isEmpty()) {
+        throw new Exception("Unable resolve target `" + target + "` for profile `" + profile + "`");
+      }
+      JsonNode runner = node.path("runners").path(target);
+      JsonNode inputs = node.path("inputs").path(target);
+      JsonNode errors = node.path("errors").path(target);
+
+      return new StructuredPipelineProfile(
+          profile,
+          target,
+          runner,
+          outputs,
+          inputs.isEmpty() ? null : inputs,
+          errors.isEmpty() ? null : errors);
+    }
+  }
+
+  public static StructuredProfileSelector from(Reader reader) throws Exception {
+    return new StructuredProfileSelector(reader);
+  }
+
+  public static StructuredProfileSelector from(Path path) throws Exception {
+    return from(Files.newBufferedReader(path));
+  }
+
+  public static StructuredPipelineProfile from(
+      Reader reader, String project, @Nullable String target) throws Exception {
+    StructuredPipelineProfile profile = from(reader).select(project, target);
+    if (profile == null) {
+      throw new Exception("Unable to find profile `" + project + "`");
+    }
+    return profile;
   }
 
   public static StructuredPipelineProfile from(Reader reader, String project) throws Exception {
     return from(reader, project, null);
+  }
+
+  public static StructuredPipelineProfile from(Path path, String project, @Nullable String target)
+      throws Exception {
+    StructuredPipelineProfile profile = from(path).select(project, target);
+    if (profile == null) {
+      throw new Exception("Unable to find profile `" + project + "`");
+    }
+    return profile;
+  }
+
+  public static StructuredPipelineProfile from(Path path, String project) throws Exception {
+    return from(path, project, null);
   }
 }

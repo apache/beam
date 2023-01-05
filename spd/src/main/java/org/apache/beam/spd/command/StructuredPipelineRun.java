@@ -15,23 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.spd;
+package org.apache.beam.spd.command;
 
-import java.util.Arrays;
-import java.util.ServiceLoader;
-import org.apache.beam.spd.command.StructuredPipelineCommand;
+import com.google.auto.service.AutoService;
 
-public class StructuredPipelineMain {
+@AutoService(StructuredPipelineCommand.class)
+public class StructuredPipelineRun implements StructuredPipelineCommand {
 
-  public static void main(String[] args) throws Exception {
-    String cmd = args.length == 0 ? "help" : args[0];
-    args = Arrays.copyOfRange(args, 1, args.length);
+  @Override
+  public String command() {
+    return "run";
+  }
 
-    for (StructuredPipelineCommand command : ServiceLoader.load(StructuredPipelineCommand.class)) {
-      if (cmd.equals(command.command())) {
-        command.run(args);
-        break;
-      }
-    }
+  @Override
+  public void run(String... args) throws Exception {
   }
 }

@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import org.apache.beam.runners.portability.PortableRunner;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.python.PythonService;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
@@ -42,7 +41,7 @@ public class StructuredPipelineExecutionTest {
   @Test
   public void testSimplePipeline() throws Exception {
 
-    Pipeline pipeline = Pipeline.create();
+    // Pipeline pipeline = Pipeline.create();
 
     URL pipelineURL = ClassLoader.getSystemClassLoader().getResource("simple_pipeline");
     URL profileURL = ClassLoader.getSystemClassLoader().getResource("test_profile.yml");
@@ -89,7 +88,7 @@ public class StructuredPipelineExecutionTest {
           row(rowSchema, "1", 10L),
           row(rowSchema, "5", 0L));
 
-      StructuredPipelineDescription spd = new StructuredPipelineDescription(pipeline, testProvider);
+      StructuredPipelineDescription spd = new StructuredPipelineDescription(testProvider);
       spd.registerExpansionService("python", "localhost:" + expansionPort);
       spd.loadProject(Paths.get(profileURL.toURI()), pipelinePath);
 
@@ -113,7 +112,7 @@ public class StructuredPipelineExecutionTest {
         options.setDefaultEnvironmentType("LOOPBACK");
         options.setJobEndpoint("localhost:" + port);
         PortableRunner runner = PortableRunner.fromOptions(options);
-        runner.run(pipeline).waitUntilFinish();
+        runner.run(spd.getPipeline()).waitUntilFinish();
       }
       LOG.info("-------------------------DONE PIPELINE-------------------------------");
       for (Map.Entry<String, Table> e : testProvider.getTables().entrySet()) {

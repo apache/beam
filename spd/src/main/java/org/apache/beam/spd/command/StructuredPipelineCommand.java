@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.spd;
+package org.apache.beam.spd.command;
 
-public class StructuredPipelineExecutor {
+public interface StructuredPipelineCommand {
+  String command();
 
-  public StructuredPipelineExecutor(String[] args) {}
+  void run(String... args) throws Exception;
 }
