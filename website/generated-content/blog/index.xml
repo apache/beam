@@ -56,7 +56,7 @@ See the &lt;a href="/get-started/downloads/#2430-2022-11-17">download page&lt;/a
 &lt;ul>
 &lt;li>Decreased TextSource CPU utilization by 2.3x (Java) (&lt;a href="https://github.com/apache/beam/issues/23193">#23193&lt;/a>).&lt;/li>
 &lt;li>Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) (&lt;a href="https://github.com/apache/beam/issues/22146">#22146&lt;/a>).&lt;/li>
-&lt;li>Fixed issue for unicode rendering on WriteToBigQuery (&lt;a href="https://github.com/apache/beam/issues/10785">#10785&lt;/a>)&lt;/li>
+&lt;li>Fixed issue for unicode rendering on WriteToBigQuery (&lt;a href="https://github.com/apache/beam/issues/22312">#22312&lt;/a>)&lt;/li>
 &lt;li>Remove obsolete variants of BigQuery Read and Write, always using Beam-native variant
 (&lt;a href="https://github.com/apache/beam/issues/23564">#23564&lt;/a> and &lt;a href="https://github.com/apache/beam/issues/23559">#23559&lt;/a>).&lt;/li>
 &lt;li>Bumped google-cloud-spanner dependency version to 3.x for Python SDK (&lt;a href="https://github.com/apache/beam/issues/21198">#21198&lt;/a>).&lt;/li>
