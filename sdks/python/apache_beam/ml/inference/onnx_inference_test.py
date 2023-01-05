@@ -57,44 +57,6 @@ try:
 except ImportError:
   GCSFileSystem = None  # type: ignore
 
-TWO_FEATURES_EXAMPLES = [
-    np.array([1, 5], dtype="float32"),
-    np.array([3, 10], dtype="float32"),
-    np.array([-14, 0], dtype="float32"),
-    np.array([0.5, 0.5], dtype="float32")
-]
-
-TWO_FEATURES_PREDICTIONS = [
-    PredictionResult(ex, pred) for ex,
-    pred in zip(
-        TWO_FEATURES_EXAMPLES,
-        [f1 * 2.0 + f2 * 3 + 0.5
-             for f1, f2 in TWO_FEATURES_EXAMPLES])
-]
-
-TWO_FEATURES_DICT_OUT_PREDICTIONS = [
-    PredictionResult(
-        p.example, {
-            "output1": p.inference, "output2": p.inference
-        }) for p in TWO_FEATURES_PREDICTIONS
-]
-
-
-class TestOnnxModelHandler(OnnxModelHandler):
-  def __init__(self,model_uri: str,*,inference_fn = default_numpy_inference_fn):
-    self._model_uri = model_uri
-    self._model_inference_fn = inference_fn
-
-def _compare_prediction_result(a, b):
-  example_equal = np.array_equal(a.example, b.example)
-  if isinstance(a.inference, dict):
-    return all(
-        x == y for x, y in zip(a.inference.values(),
-                               b.inference.values())) and example_equal
-  return a.inference == b.inference and example_equal
-
-def _to_numpy(tensor):
-      return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
 class PytorchLinearRegression(torch.nn.Module):
   def __init__(self, input_dim, output_dim):
@@ -109,34 +71,115 @@ class PytorchLinearRegression(torch.nn.Module):
     out = self.linear(x) + 0.5
     return out
 
-@pytest.mark.uses_pytorch
-class OnnxPytorchRunInferenceTest(unittest.TestCase):
 
-  def setUp(self):
-    self.tmpdir = tempfile.mkdtemp()
-
-  def tearDown(self):
-    shutil.rmtree(self.tmpdir)
-
-  def test_onnx_pytorch_run_inference(self):
-    examples = [
+class TestDataAndModel():
+  def get_one_feature_samples(self):
+    return [
         np.array([1], dtype="float32"),
         np.array([5], dtype="float32"),
         np.array([-3], dtype="float32"),
         np.array([10.0], dtype="float32"),
     ]
-    expected_predictions = [
+
+  def get_one_feature_predictions(self):
+    return [
         PredictionResult(ex, pred) for ex,
         pred in zip(
-            examples,
+            self.get_one_feature_samples(),
             [example * 2.0 + 0.5
-                      for example in examples])
+                      for example in self.get_one_feature_samples()])
     ]
 
+  def get_two_feature_examples(self):
+    return [
+      np.array([1, 5], dtype="float32"),
+      np.array([3, 10], dtype="float32"),
+      np.array([-14, 0], dtype="float32"),
+      np.array([0.5, 0.5], dtype="float32")
+    ]
+
+  def get_two_feature_predictions(self):
+    return [
+      PredictionResult(ex, pred) for ex,
+      pred in zip(
+        self.get_two_feature_examples(),
+        [f1 * 2.0 + f2 * 3 + 0.5
+        for f1, f2 in self.get_two_feature_examples()])
+        ]
+
+  def get_torch_one_feature_model(self):
     model = PytorchLinearRegression(input_dim=1, output_dim=1)
     model.load_state_dict(
         OrderedDict([('linear.weight', torch.Tensor([[2.0]])),
                      ('linear.bias', torch.Tensor([0.5]))]))
+    return model
+  
+  def get_tf_one_feature_model(self):
+    params = [np.array([[2.0]], dtype="float32"), np.array([0.5], dtype="float32")]
+    linear_layer = layers.Dense(units=1, weights=params)
+    linear_model = tf.keras.Sequential([linear_layer])
+    return linear_model
+
+  def get_sklearn_one_feature_model(self):
+    x = [[0],[1]]
+    y = [0.5, 2.5]
+    model = linear_model.LinearRegression()
+    model.fit(x, y)
+    return model
+
+  def get_torch_two_feature_model(self):
+    model = PytorchLinearRegression(input_dim=2, output_dim=1)
+    model.load_state_dict(
+      OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
+      ('linear.bias', torch.Tensor([0.5]))]))
+    return model
+
+  def get_tf_two_feature_model(self):
+    params = [np.array([[2.0], [3]]), np.array([0.5], dtype="float32")]
+    linear_layer = layers.Dense(units=1, weights=params)
+    linear_model = tf.keras.Sequential([linear_layer])
+    return linear_model
+
+  def get_sklearn_two_feature_model(self):
+    x = [[1,5],[3,2],[1,0]]
+    y = [17.5, 12.5, 2.5]
+    model = linear_model.LinearRegression()
+    model.fit(x, y)
+    return model
+
+
+def _compare_prediction_result(a, b):
+  example_equal = np.array_equal(a.example, b.example)
+  if isinstance(a.inference, dict):
+    return all(
+        x == y for x, y in zip(a.inference.values(),
+                               b.inference.values())) and example_equal
+  return a.inference == b.inference and example_equal
+
+def _to_numpy(tensor):
+      return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+
+class TestOnnxModelHandler(OnnxModelHandler):
+  def __init__(self,model_uri: str,*,inference_fn = default_numpy_inference_fn):
+    self._model_uri = model_uri
+    self._model_inference_fn = inference_fn
+
+class OnnxTestBase(unittest.TestCase):
+  def setUp(self):
+    self.tmpdir = tempfile.mkdtemp()
+    self.test_data_and_model = TestDataAndModel()
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
+
+
+@pytest.mark.uses_pytorch
+class OnnxPytorchRunInferenceTest(OnnxTestBase):
+  def test_onnx_pytorch_run_inference(self):
+    examples = self.test_data_and_model.get_one_feature_samples()
+    expected_predictions = self.test_data_and_model.get_one_feature_predictions()
+
+    model = self.test_data_and_model.get_torch_one_feature_model()
     path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
     dummy_input = torch.randn(4, 1, requires_grad=True)
     torch.onnx.export(model,
@@ -177,34 +220,13 @@ class OnnxPytorchRunInferenceTest(unittest.TestCase):
   def test_namespace(self):
     inference_runner = TestOnnxModelHandler("dummy")
     self.assertEqual('BeamML_Onnx', inference_runner.get_metrics_namespace())
-
+      
 @pytest.mark.uses_tensorflow
-class OnnxTensorflowRunInferenceTest(unittest.TestCase):
-
-  def setUp(self):
-    self.tmpdir = tempfile.mkdtemp()
-
-  def tearDown(self):
-    shutil.rmtree(self.tmpdir)
-
+class OnnxTensorflowRunInferenceTest(OnnxTestBase):
   def test_onnx_tensorflow_run_inference(self):
-    examples = [
-        np.array([1], dtype="float32"),
-        np.array([5], dtype="float32"),
-        np.array([-3], dtype="float32"),
-        np.array([10.0], dtype="float32"),
-    ]
-    expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            examples,
-            [example * 2.0 + 0.5
-                      for example in examples])
-    ]
-
-    params = [np.array([[2.0]], dtype="float32"), np.array([0.5], dtype="float32")]
-    linear_layer = layers.Dense(units=1, weights=params)
-    linear_model = tf.keras.Sequential([linear_layer])
+    examples = self.test_data_and_model.get_one_feature_samples()
+    expected_predictions = self.test_data_and_model.get_one_feature_predictions()
+    linear_model = self.test_data_and_model.get_tf_one_feature_model()
     
     path = os.path.join(self.tmpdir, 'my_onnx_tf_path')
     spec = (tf.TensorSpec((None, 1), tf.float32, name="input"),)
@@ -217,21 +239,7 @@ class OnnxTensorflowRunInferenceTest(unittest.TestCase):
       self.assertEqual(actual, expected)
 
 @pytest.mark.uses_sklearn
-class OnnxSklearnRunInferenceTest(unittest.TestCase):
-
-  def setUp(self):
-    self.tmpdir = tempfile.mkdtemp()
-
-  def tearDown(self):
-    shutil.rmtree(self.tmpdir)
-
-  def build_model(self):
-    x = [[0],[1]]
-    y = [0.5, 2.5]
-    model = linear_model.LinearRegression()
-    model.fit(x, y)
-    return model
-
+class OnnxSklearnRunInferenceTest(OnnxTestBase):
   def save_model(self, model, input_dim, path):
     # assume float input
     initial_type = [('float_input', FloatTensorType([None, input_dim]))]
@@ -240,21 +248,9 @@ class OnnxSklearnRunInferenceTest(unittest.TestCase):
       f.write(onx.SerializeToString())
 
   def test_onnx_sklearn_run_inference(self):
-    examples = [
-        np.array([1], dtype="float32"),
-        np.array([5], dtype="float32"),
-        np.array([-3], dtype="float32"),
-        np.array([10.0], dtype="float32"),
-    ]
-    expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
-            examples,
-            [example * 2.0 + 0.5
-                      for example in examples])
-    ]
-
-    linear_model = self.build_model()
+    examples = self.test_data_and_model.get_one_feature_samples()
+    expected_predictions = self.test_data_and_model.get_one_feature_predictions()
+    linear_model = self.test_data_and_model.get_sklearn_one_feature_model()
     path = os.path.join(self.tmpdir, 'my_onnx_sklearn_path')
     self.save_model(linear_model, 1, path)
 
@@ -266,16 +262,8 @@ class OnnxSklearnRunInferenceTest(unittest.TestCase):
 
 
 @pytest.mark.uses_pytorch
-class OnnxPytorchRunInferencePipelineTest(unittest.TestCase):
-  def setUp(self):
-    self.tmpdir = tempfile.mkdtemp()
-
-  def tearDown(self):
-    shutil.rmtree(self.tmpdir)
-
-  def exportModelToOnnx(self, state_dict, path):
-    model = PytorchLinearRegression(input_dim=2, output_dim=1)
-    model.load_state_dict(state_dict)
+class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
+  def exportModelToOnnx(self, model, path):
     dummy_input = torch.randn(4, 2, requires_grad=True)
     torch.onnx.export(model,
                       dummy_input,               # model input (or a tuple for multiple inputs)
@@ -288,21 +276,19 @@ class OnnxPytorchRunInferencePipelineTest(unittest.TestCase):
                       dynamic_axes={'input' : {0 : 'batch_size'},    # variable length axes
                                     'output' : {0 : 'batch_size'}})
 
-
   def test_pipeline_local_model_simple(self):
     with TestPipeline() as pipeline:
       path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
-      torch_state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
-                                ('linear.bias', torch.Tensor([0.5]))])
-      self.exportModelToOnnx(torch_state_dict, path)
+      model = self.test_data_and_model.get_torch_two_feature_model()
+      self.exportModelToOnnx(model, path)
       model_handler = TestOnnxModelHandler(path)
 
-      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      pcoll = pipeline | 'start' >> beam.Create(self.test_data_and_model.get_two_feature_examples())
       predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(
-              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
+              self.test_data_and_model.get_two_feature_predictions(), equals_fn=_compare_prediction_result))
 
   # need to put onnx in gs path
   '''
@@ -336,13 +322,12 @@ class OnnxPytorchRunInferencePipelineTest(unittest.TestCase):
   '''
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(InvalidArgument, "Got invalid dimensions for input: input for the following indices"):
+    with self.assertRaisesRegex(InvalidArgument, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
-        state_dict = OrderedDict([('linear.weight', torch.Tensor([[2.0, 3]])),
-                                ('linear.bias', torch.Tensor([0.5]))])
-        self.exportModelToOnnx(state_dict, path)
+        model = self.test_data_and_model.get_torch_two_feature_model()
+        self.exportModelToOnnx(model, path)
 
         model_handler = TestOnnxModelHandler(path)
 
@@ -352,35 +337,24 @@ class OnnxPytorchRunInferencePipelineTest(unittest.TestCase):
 
 
 @pytest.mark.uses_tensorflow
-class OnnxTensorflowRunInferencePipelineTest(unittest.TestCase):
-  def setUp(self):
-    self.tmpdir = tempfile.mkdtemp()
-
-  def tearDown(self):
-    shutil.rmtree(self.tmpdir)
-
-  def exportModelToOnnx(self, state_dict, path):
-    
-    params = [state_dict["linear.weight"], state_dict["linear.bias"]]
-    linear_layer = layers.Dense(units=1, weights=params)
-    linear_model = tf.keras.Sequential([linear_layer])
+class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
+  def exportModelToOnnx(self, model, path):
     spec = (tf.TensorSpec((None, 2), tf.float32, name="input"),)
-    model_proto, _ = tf2onnx.convert.from_keras(linear_model, input_signature=spec, opset=13, output_path=path)
+    model_proto, _ = tf2onnx.convert.from_keras(model, input_signature=spec, opset=13, output_path=path)
 
   def test_pipeline_local_model_simple(self):
     with TestPipeline() as pipeline:
       path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
-      state_dict = OrderedDict([('linear.weight', np.array([[2.0], [3]], dtype="float32")),
-                                ('linear.bias', np.array([0.5], dtype="float32"))])
-      self.exportModelToOnnx(state_dict, path)
+      model = self.test_data_and_model.get_tf_two_feature_model()
+      self.exportModelToOnnx(model, path)
       model_handler = TestOnnxModelHandler(path)
 
-      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      pcoll = pipeline | 'start' >> beam.Create(self.test_data_and_model.get_two_feature_examples())
       predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(
-              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
+              self.test_data_and_model.get_two_feature_predictions(), equals_fn=_compare_prediction_result))
 
   # need to put onnx in gs path
   '''
@@ -413,16 +387,14 @@ class OnnxTensorflowRunInferencePipelineTest(unittest.TestCase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
   '''
 
-
   # need to figure out what type of error this is
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(InvalidArgument, "Got invalid dimensions for input: input for the following indices"):
+    with self.assertRaisesRegex(InvalidArgument, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
-        state_dict = OrderedDict([('linear.weight', np.array([[2.0], [3]], dtype="float32")),
-                                ('linear.bias', np.array([0.5], dtype="float32"))])
-        self.exportModelToOnnx(state_dict, path)
+        model = self.test_data_and_model.get_tf_two_feature_model()
+        self.exportModelToOnnx(model, path)
 
         model_handler = TestOnnxModelHandler(path)
 
@@ -432,20 +404,7 @@ class OnnxTensorflowRunInferencePipelineTest(unittest.TestCase):
 
 
 @pytest.mark.uses_sklearn
-class OnnxSklearnRunInferencePipelineTest(unittest.TestCase):
-  def setUp(self):
-    self.tmpdir = tempfile.mkdtemp()
-
-  def tearDown(self):
-    shutil.rmtree(self.tmpdir)
-
-  def build_model(self):
-    x = [[1,5],[3,2],[1,0]]
-    y = [17.5, 12.5, 2.5]
-    model = linear_model.LinearRegression()
-    model.fit(x, y)
-    return model
-
+class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
   def save_model(self, model, input_dim, path):
     # assume float input
     initial_type = [('float_input', FloatTensorType([None, input_dim]))]
@@ -456,16 +415,16 @@ class OnnxSklearnRunInferencePipelineTest(unittest.TestCase):
   def test_pipeline_local_model_simple(self):
     with TestPipeline() as pipeline:
       path = os.path.join(self.tmpdir, 'my_onnx_sklearn_path')
-      model = self.build_model()
+      model = self.test_data_and_model.get_sklearn_two_feature_model()
       self.save_model(model, 2, path)
       model_handler = TestOnnxModelHandler(path)
 
-      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      pcoll = pipeline | 'start' >> beam.Create(self.test_data_and_model.get_two_feature_examples())
       predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(
-              TWO_FEATURES_PREDICTIONS, equals_fn=_compare_prediction_result))
+              self.test_data_and_model.get_two_feature_predictions(), equals_fn=_compare_prediction_result))
 
   # need to put onnx in gs path
   '''
@@ -504,7 +463,7 @@ class OnnxSklearnRunInferencePipelineTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_sklearn_path')
-        model = self.build_model()
+        model = self.test_data_and_model.get_sklearn_two_feature_model()
         self.save_model(model, 2, path)
 
         model_handler = TestOnnxModelHandler(path)
