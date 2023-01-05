@@ -46,10 +46,18 @@ public class Model {
 
   @Nullable
   @JsonSetter(nulls = Nulls.SKIP)
-  public String type = "file";
+  public String type;
 
-  public String getType() {
-    return type == null ? "file" : type;
+  public String getType(String defaultValue) {
+    return (type == null || "".equals(type)) ? defaultValue : type;
+  }
+
+  @Nullable
+  @JsonSetter(nulls = Nulls.SKIP)
+  public String style;
+
+  public String getStyle(String defaultValue) {
+    return (style == null || "".equals(style)) ? defaultValue : style;
   }
 
   @Nullable

@@ -19,22 +19,16 @@ package org.apache.beam.sdk.extensions.spd.models;
 
 import javax.script.ScriptEngine;
 
-public class ScriptEngineModel extends ConfiguredModel implements StructuredModel {
+public class ScriptEngineModel extends ConfiguredModel {
 
-  private String[] path;
   private String rawScript;
   private ScriptEngine engine;
 
   public ScriptEngineModel(String[] path, String name, ScriptEngine engine, String rawScript) {
-    super(name);
+    super(path, name);
     this.path = path;
     this.rawScript = rawScript;
     this.engine = engine;
-  }
-
-  @Override
-  public String getPath() {
-    return path == null ? "" : String.join(".", path);
   }
 
   public String getRawScript() {

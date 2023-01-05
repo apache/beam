@@ -15,21 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.spd.models;
+package org.apache.beam.sdk.extensions.sql.meta.provider.jdbc;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
+import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.extensions.sql.meta.provider.SchemaIOTableProviderWrapper;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.io.jdbc.JdbcSchemaIOProvider;
+import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 
-public class SqlModel extends ConfiguredModel {
+@AutoService(TableProvider.class)
+public class JdbcTableProvider extends SchemaIOTableProviderWrapper {
 
-  @Nullable private String rawQuery;
-
-  public SqlModel(String[] path, String name, String rawQuery) {
-    super(path, name);
-    this.path = path;
-    this.rawQuery = rawQuery;
-  }
-
-  public String getRawQuery() {
-    return rawQuery == null ? "" : rawQuery;
+  @Override
+  public SchemaIOProvider getSchemaIOProvider() {
+    return new JdbcSchemaIOProvider();
   }
 }

@@ -95,6 +95,7 @@ dependencies {
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:io:jdbc")
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.google_api_services_bigquery
   permitUnusedDeclared library.java.google_api_services_bigquery

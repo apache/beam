@@ -27,11 +27,24 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.spd.Relation;
 import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
 
+@SuppressWarnings({"unchecked"})
 public class MacroContext {
 
   Jinjava parser;
 
   public static String configuration(String... args) {
+    return "";
+  }
+
+  public static String envVar(String arg) throws Exception {
+    String env = System.getenv(arg);
+    if (env == null) {
+      throw new Exception("Environment variable '" + arg + "' is not set.");
+    }
+    return env;
+  }
+
+  public static String var(String... args) {
     return "";
   }
 
@@ -41,6 +54,8 @@ public class MacroContext {
     parser.registerFunction(
         new ELFunctionDefinition(
             "", "config", MacroContext.class, "configuration", String[].class));
+    parser.registerFunction(
+        new ELFunctionDefinition("", "env_var", MacroContext.class, "envVar", String.class));
     // Register graph manipulation functions
     parser.registerFunction(
         new ELFunctionDefinition(

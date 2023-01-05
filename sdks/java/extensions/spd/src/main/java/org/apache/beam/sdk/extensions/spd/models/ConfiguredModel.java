@@ -29,7 +29,7 @@ import org.apache.beam.sdk.extensions.spd.macros.MacroContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConfiguredModel {
+public class ConfiguredModel implements StructuredModel {
   private static final Logger LOG = LoggerFactory.getLogger(ConfiguredModel.class);
 
   public static final String MATERIALIZED_CONFIG = "materialized";
@@ -46,16 +46,18 @@ public class ConfiguredModel {
   public static final String META_CONFIG = "meta";
   public static final String GRANTS_CONFIG = "grants";
 
+  String[] path;
   String name;
   Map<String, Object> config;
 
-  public ConfiguredModel(String name, Map<String, Object> config) {
+  public ConfiguredModel(String[] path, String name, Map<String, Object> config) {
+    this.path = path;
     this.name = name;
     this.config = config;
   }
 
-  public ConfiguredModel(String name) {
-    this(name, new HashMap<>());
+  public ConfiguredModel(String[] path, String name) {
+    this(path, name, new HashMap<>());
   }
 
   public void mergeConfiguration(ObjectNode newConfig) {
@@ -114,6 +116,12 @@ public class ConfiguredModel {
     return config;
   }
 
+  @Override
+  public String getPath() {
+    return path == null ? "" : String.join(".", path);
+  }
+
+  @Override
   public String getName() {
     return name;
   }

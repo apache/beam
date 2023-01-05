@@ -42,7 +42,9 @@ import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.python.transforms.DataframeTransform;
+import org.apache.beam.sdk.extensions.python.transforms.PythonMap;
 import org.apache.beam.sdk.extensions.spd.description.Column;
 import org.apache.beam.sdk.extensions.spd.description.Model;
 import org.apache.beam.sdk.extensions.spd.description.Project;
@@ -201,6 +203,7 @@ public class StructuredPipelineDescription {
       throw new Exception("Model " + fullTableName + " doesn't exist.");
     }
 
+    // Probably some sort of visitor pattern here eventually...
     if (model instanceof SqlModel) {
       RenderResult result = context.eval(((SqlModel) model).getRawQuery(), this);
       if (result.hasErrors()) {
@@ -235,13 +238,29 @@ public class StructuredPipelineDescription {
       if (rel.size() > 0) {
         Relation primary = rel.get(0);
         LOG.info("Python primary relation is " + primary.toString());
-
-        PCollection<Row> pcollection =
-            readFrom(primary.getTable().getName(), pipeline.begin())
-                .apply(
+        PCollection<Row> pcollection = readFrom(primary.getTable().getName(), pipeline.begin());
+        switch (pymodel.getStyle()) {
+          case "map":
+            pcollection =
+                pcollection.apply(
+                    PythonMap.viaMapFn(result.getOutput(), RowCoder.of(pcollection.getSchema())));
+            break;
+          case "flatmap":
+            pcollection =
+                pcollection.apply(
+                    PythonMap.viaFlatMapFn(
+                        result.getOutput(), RowCoder.of(pcollection.getSchema())));
+            // fall through
+          case "":
+          case "dataframe":
+            pcollection =
+                pcollection.apply(
                     DataframeTransform.of(result.getOutput())
                         .withIndexes()
                         .withExpansionService(expansionServices.getOrDefault("python", "")));
+            break;
+        }
+
         metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
       } else {
         throw new Exception("Python model is not associated with an input table");
@@ -377,26 +396,35 @@ public class StructuredPipelineDescription {
         }
       }
       for (Model model : schemas.getModels()) {
+        if (modelMap.containsKey(model.getName())) {
+          throw new Exception("Duplicate model " + model.getName() + " found.");
+        }
         Path sqlPath = schemaPath.resolve(model.getName() + ".sql");
+        ConfiguredModel configuredModel = null;
         if (Files.exists(sqlPath)) {
           queryFiles.remove(sqlPath);
           LOG.info("Found SQL at " + sqlPath.toAbsolutePath().toString());
           // Note that models inside of a project live in a flat namespace and can't be
           // duplicated
-          if (modelMap.containsKey(model.getName())) {
-            throw new Exception("Duplicate model " + model.getName() + " found.");
-          }
-          SqlModel sqlModel =
+          configuredModel =
               new SqlModel(path, model.getName(), String.join("\n", Files.readAllLines(sqlPath)));
-          mergeConfiguration(path, model.getConfig(), sqlModel);
-          modelMap.put(model.getName(), sqlModel);
           continue;
         }
         Path pyPath = schemaPath.resolve(model.getName() + ".py");
         if (Files.exists(pyPath)) {
           queryFiles.remove(pyPath);
           LOG.info("Found Python at " + pyPath.toAbsolutePath().toString());
+          configuredModel =
+              new PythonModel(
+                  path,
+                  model.getName(),
+                  model.getStyle("dataframe"),
+                  String.join("\n", Files.readAllLines(pyPath)));
           continue;
+        }
+        if (configuredModel != null) {
+          mergeConfiguration(path, model.getConfig(), configuredModel);
+          modelMap.put(model.getName(), configuredModel);
         }
       }
     }
@@ -427,8 +455,9 @@ public class StructuredPipelineDescription {
           if (modelMap.containsKey(name)) {
             throw new Exception("Duplicate model " + name + "found.");
           }
+          // We assume that the python style defaults to dataframe
           PythonModel pyModel =
-              new PythonModel(path, name, String.join("\n", Files.readAllLines(file)));
+              new PythonModel(path, name, "dataframe", String.join("\n", Files.readAllLines(file)));
           mergeConfiguration(path, null, pyModel);
           modelMap.put(name, pyModel);
         }
