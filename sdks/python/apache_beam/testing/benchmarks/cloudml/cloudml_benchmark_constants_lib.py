@@ -25,15 +25,5 @@ INPUT_CRITEO_SMALL = 'train10.tsv'
 INPUT_CRITEO_SMALL_100MB = '100mb/train.txt'
 INPUT_CRITEO_10GB = '10gb/train.txt'
 
-# The model is trained by running the criteo preprocessing and training.
-# The input dataset was the Criteo 10GB dataset and frequency_threshold=100 was
-# set for categorical features.
-# MODEL_CRITEO_10GB = 'testdata/criteo/saved_model'
-
-# The model is trained by running the criteo preprocessing and training.
-# The input dataset was the Criteo 10GB dataset and frequency_threshold=100 was
-# set for categorical features.
-# EVAL_MODEL_CRITEO_10GB = 'testdata/criteo/saved_model/tfma'
-
 FREQUENCY_THRESHOLD = '5'
 ENABLE_SHUFFLE = True

@@ -37,7 +37,7 @@ def cloudMLJob = { scope ->
 }
 
 CronJobBuilder.cronJob(
-    'beam_PostCommit_Python_CloudML_tests',
+    'beam_CloudML_Benchmarks_Dataflow',
     'H 14 * * *',
     this
     ) {

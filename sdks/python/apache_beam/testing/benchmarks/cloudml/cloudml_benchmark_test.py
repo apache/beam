@@ -29,7 +29,7 @@ except ImportError:  # pylint: disable=bare-except
 
 _INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
 _CRITEO_FEATURES_FILE = 'testdata/criteo/expected/features.tfrecord.gz'
-_OUTPUT_GCS_BUKCET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
+_OUTPUT_GCS_BUCKET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
 
 
 @pytest.mark.uses_tft
@@ -43,7 +43,7 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     extra_opts['classifier'] = 'criteo'
     extra_opts['frequency_threshold'] = 0
     extra_opts['output'] = os.path.join(
-        _OUTPUT_GCS_BUKCET_ROOT, uuid.uuid4().hex)
+        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
     workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
   def test_cloudml_benchmark_cirteo_no_shuffle_10GB(self):
@@ -55,7 +55,7 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     extra_opts['classifier'] = 'criteo'
     extra_opts['frequency_threshold'] = 0
     extra_opts['output'] = os.path.join(
-        _OUTPUT_GCS_BUKCET_ROOT, uuid.uuid4().hex)
+        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
     extra_opts['shuffle'] = False
     workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
@@ -68,7 +68,7 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     extra_opts['classifier'] = 'criteo'
     extra_opts['frequency_threshold'] = 0
     extra_opts['output'] = os.path.join(
-        _OUTPUT_GCS_BUKCET_ROOT, uuid.uuid4().hex)
+        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
     workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
   def test_cloud_ml_benchmark_criteo_fixed_workers_10GB(self):
@@ -80,7 +80,7 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     extra_opts['classifier'] = 'criteo'
     extra_opts['frequency_threshold'] = 0
     extra_opts['output'] = os.path.join(
-        _OUTPUT_GCS_BUKCET_ROOT, uuid.uuid4().hex)
+        _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
     extra_opts['num_workers'] = 50
     extra_opts['machine_type'] = 'n1-standard-4'
     workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))

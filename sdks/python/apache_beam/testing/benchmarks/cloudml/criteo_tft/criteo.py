@@ -69,8 +69,6 @@ def make_ordered_column_names(include_label=True):
   return result
 
 
-# TODO(b/115566921): Remove this once models have been updated for Lantern, TFMA
-# and BatchPrediction.
 def make_legacy_input_feature_spec(include_label=True):
   """Input schema definition.
 
@@ -131,11 +129,11 @@ def make_preprocessing_fn(frequency_threshold):
       A dictionary of `tensorflow_transform.Column` representing the transformed
           columns.
     """
-    # TODO(b/35001605) Make this "passthrough" more DRY.
     result = {'clicked': inputs['clicked']}
     for name in _INTEGER_COLUMN_NAMES:
       feature = inputs[name]
-      # TODO(b/122524023): Replace this boilerplate with a helper function.
+      # TODO(https://github.com/apache/beam/issues/24902):
+      #  Replace this boilerplate with a helper function.
       # This is a SparseTensor because it is optional. Here we fill in a
       # default value when it is missing.
       feature = tft.sparse_tensor_to_dense_with_shape(

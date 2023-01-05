@@ -180,14 +180,6 @@ def parse_known_args(argv):
       required=True,
       help='Output path for output files.')
   parser.add_argument(
-      '--model_dir',
-      dest='model_dir',
-      required=False,
-      help=(
-          'The model dir to store the model. If specified, '
-          'prediction would be performed. So far we use the '
-          'same training data for prediction.'))
-  parser.add_argument(
       '--classifier',
       dest='classifier',
       required=True,
