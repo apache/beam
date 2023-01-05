@@ -42,7 +42,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     'TFT Criteo benchmarks on Dataflow(\"Run TFT Criteo Benchmarks"\"")',
     this
     ) {
-      loadTestJob(delegate)
+      cloudMLJob(delegate)
     }
 
 CronJobBuilder.cronJob(
