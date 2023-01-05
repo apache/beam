@@ -5667,7 +5667,7 @@ or the framework will raise an error.&lt;/p>
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>&lt;span class="language-go" >&lt;/p>
+&lt;span class="language-go">
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> Whether using a structural &lt;code>DoFn&lt;/code> type or a functional &lt;code>DoFn&lt;/code>, they should be registered with
 beam in an &lt;code>init&lt;/code> block. Otherwise they may not execute on distributed runners.&lt;/p>
@@ -5850,13 +5850,13 @@ Java 8 lambda function for additional brevity.&lt;/span>&lt;/p>
 &lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>&lt;span class="language-java" >&lt;/p>
+&lt;span class="language-java">
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> You can use Java 8 lambda functions with several other Beam
 transforms, including &lt;code>Filter&lt;/code>, &lt;code>FlatMapElements&lt;/code>, and &lt;code>Partition&lt;/code>.&lt;/p>
 &lt;/blockquote>
 &lt;/span>
-&lt;p>&lt;span class="language-go" >&lt;/p>
+&lt;span class="language-go">
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> Anonymous function DoFns may not work on distributed runners.
 It&amp;rsquo;s recommended to use named functions and register them with &lt;code>register.FunctionXxY&lt;/code> in
