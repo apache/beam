@@ -19,7 +19,7 @@
 
 # beam-playground:
 #   name: EarlyTriggers
-#   description: Task from katas to count events using early triggers
+#   description: Task from katas to count events using early triggers test change
 #   multifile: true
 #   files:
 #     - name: generate_event.py
