@@ -77,7 +77,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final boolean stateful;
   private final DoFnSchemaInformation doFnSchemaInformation;
   private final Map<String, PCollectionView<?>> sideInputMapping;
-  private final boolean useAsyncProcessing;
+  private final boolean useBoundedOutput;
 
   /**
    * @param metricsAccum The Spark {@link AccumulatorV2} that backs the Beam metrics.
@@ -90,7 +90,7 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param sideInputs Side inputs used in this {@link DoFn}.
    * @param windowingStrategy Input {@link WindowingStrategy}.
    * @param stateful Stateful {@link DoFn}.
-   * @param useAsyncProcessing If it should use asynchronous processing.
+   * @param useBoundedOutput If it should use bounded output for processing.
    */
   public MultiDoFnFunction(
       MetricsContainerStepMapAccumulator metricsAccum,
@@ -106,7 +106,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       boolean stateful,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping,
-      boolean useAsyncProcessing) {
+      boolean useBoundedOutput) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -120,22 +120,28 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.stateful = stateful;
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
-    this.useAsyncProcessing = useAsyncProcessing;
+    this.useBoundedOutput = useBoundedOutput;
   }
 
   @Override
   public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> call(Iterator<WindowedValue<InputT>> iter)
       throws Exception {
-    if (!wasSetupCalled && iter.hasNext()) {
-      DoFnInvokers.tryInvokeSetupFor(doFn, options.get());
-      wasSetupCalled = true;
+
+    if (iter.hasNext()) {
+      if (!wasSetupCalled) {
+        DoFnInvokers.tryInvokeSetupFor(doFn, options.get());
+        wasSetupCalled = true;
+      }
+    } else {
+      // empty bundle
+      return Collections.emptyIterator();
     }
 
     SparkInputDataProcessor<InputT, OutputT, Tuple2<TupleTag<?>, WindowedValue<?>>> processor;
-    if (useAsyncProcessing) {
-      processor = SparkInputDataProcessor.createAsync();
+    if (useBoundedOutput) {
+      processor = SparkInputDataProcessor.createBounded();
     } else {
-      processor = SparkInputDataProcessor.createSync();
+      processor = SparkInputDataProcessor.createUnbounded();
     }
 
     final InMemoryTimerInternals timerInternals;
@@ -188,12 +194,13 @@ public class MultiDoFnFunction<InputT, OutputT>
 
     SparkProcessContext<Object, InputT, OutputT> ctx =
         new SparkProcessContext<>(
+            stepName,
             doFn,
             doFnRunnerWithMetrics,
             key,
             stateful ? new TimerDataIterator(timerInternals) : Collections.emptyIterator());
 
-    return processor.process(iter, ctx).iterator();
+    return processor.process(iter, ctx);
   }
 
   private static class TimerDataIterator implements Iterator<TimerInternals.TimerData> {

@@ -45,6 +45,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
@@ -369,8 +370,8 @@ public final class TransformTranslator {
       public void evaluate(
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
 
-        boolean useAsync =
-            context.getOptions().as(SparkPipelineOptions.class).getEnableAsyncOperatorOutput()
+        boolean useBoundedOutput =
+            ExperimentalOptions.hasExperiment(context.getOptions(), "use_bounded_output_for_sdf")
                 && splitDoFnMatcher.matches(context.getCurrentTransform());
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
@@ -421,7 +422,7 @@ public final class TransformTranslator {
                 stateful,
                 doFnSchemaInformation,
                 sideInputMapping,
-                useAsync);
+                useBoundedOutput);
 
         if (stateful) {
           // Based on the fact that the signature is stateful, DoFnSignatures ensures
