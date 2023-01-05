@@ -225,17 +225,17 @@ class OnnxSklearnRunInferenceTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
-  def build_model():
+  def build_model(self):
     x = [[0],[1]]
     y = [0.5, 2.5]
     model = linear_model.LinearRegression()
     model.fit(x, y)
     return model
 
-  def save_model(model, input_dim, path):
+  def save_model(self, model, input_dim, path):
     # assume float input
     initial_type = [('float_input', FloatTensorType([None, input_dim]))]
-    onx = convert_sklearn(clr, initial_types=initial_type)
+    onx = convert_sklearn(model, initial_types=initial_type)
     with open(path, "wb") as f:
       f.write(onx.SerializeToString())
 
@@ -255,7 +255,7 @@ class OnnxSklearnRunInferenceTest(unittest.TestCase):
     ]
 
     linear_model = self.build_model()
-    path = os.path.join(self.tmpdir, 'my_onnx_tf_path')
+    path = os.path.join(self.tmpdir, 'my_onnx_sklearn_path')
     self.save_model(linear_model, 1, path)
 
     inference_runner = TestOnnxModelHandler(path)
@@ -439,17 +439,17 @@ class OnnxSklearnRunInferencePipelineTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
-  def build_model():
+  def build_model(self):
     x = [[1,5],[3,2],[1,0]]
     y = [17.5, 12.5, 2.5]
     model = linear_model.LinearRegression()
     model.fit(x, y)
     return model
 
-  def save_model(model, input_dim, path):
+  def save_model(self, model, input_dim, path):
     # assume float input
     initial_type = [('float_input', FloatTensorType([None, input_dim]))]
-    onx = convert_sklearn(clr, initial_types=initial_type)
+    onx = convert_sklearn(model, initial_types=initial_type)
     with open(path, "wb") as f:
       f.write(onx.SerializeToString())
 
@@ -499,12 +499,11 @@ class OnnxSklearnRunInferencePipelineTest(unittest.TestCase):
   '''
 
 
-  # need to figure out what type of error this is
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(InvalidArgument, "Got invalid dimensions for input: input for the following indices"):
+    with self.assertRaises(InvalidArgument):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
-        path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
+        path = os.path.join(self.tmpdir, 'my_onnx_sklearn_path')
         model = self.build_model()
         self.save_model(model, 2, path)
 

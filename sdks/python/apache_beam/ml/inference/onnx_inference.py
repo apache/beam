@@ -118,7 +118,7 @@ class OnnxModelHandler(ModelHandler[numpy.ndarray,
 
     Args:
       batch: A sequence of examples as numpy arrays. They should
-        be single examples. [???]
+        be single examples.
       inference_session: An onnx inference session. Must be runnable with input x where x is sequence of numpy array
       inference_args: Any additional arguments for an inference.
 
