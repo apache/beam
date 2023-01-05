@@ -55,7 +55,7 @@ import org.apache.beam.sdk.values.PCollection;
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
  *
- * <p>This class, {@link WordCount}, is the second in a series of four successively more detailed
+ * <p>This class, {@link WordCount2}, is the second in a series of four successively more detailed
  * 'word count' examples. You may first want to take a look at {@link MinimalWordCount}. After
  * you've looked at this example, then see the {@link DebuggingWordCount} pipeline, for introduction
  * of additional concepts.
@@ -96,7 +96,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>The input file defaults to a public data set containing the text of King Lear, by William
  * Shakespeare. You can override it and choose your own input with {@code --inputFile}.
  */
-public class WordCount {
+public class WordCount2 {
 
   /**
    * Concept #2: You can make your pipeline assembly code less verbose by defining your DoFns
