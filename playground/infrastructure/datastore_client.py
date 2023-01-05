@@ -44,17 +44,13 @@ class DatastoreClient:
 
     _datastore_client: datastore.Client
 
-    def __init__(self, namespace: str):
+    def __init__(self, project:str, namespace: str):
         self._check_envs()
         self._datastore_client = datastore.Client(
-            namespace=namespace, project=Config.GOOGLE_CLOUD_PROJECT
+            namespace=namespace, project=project
         )
 
     def _check_envs(self):
-        if Config.GOOGLE_CLOUD_PROJECT is None:
-            raise KeyError(
-                "GOOGLE_CLOUD_PROJECT environment variable should be specified in os"
-            )
         if Config.SDK_CONFIG is None:
             raise KeyError("SDK_CONFIG environment variable should be specified in os")
 
