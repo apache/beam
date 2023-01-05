@@ -190,11 +190,10 @@ with beam.Pipeline(options=beam_options) as pipeline:
 ```
 
 A Beam [runner](/documentation/basics/#runner) runs a Beam pipeline on a
-specific platform. If you don't specify a runner, the
-[Direct Runner](https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/runners/direct/DirectRunner.html),
-is the default. The Direct Runner runs the pipeline locally on your machine. It
-is meant for testing and development, rather than being optimized for
-efficiency. For more information, see
+specific platform. If you don't specify a runner, the Direct Runner is the
+default. The Direct Runner runs the pipeline locally on your machine. It is
+meant for testing and development, rather than being optimized for efficiency.
+For more information, see
 [Using the Direct Runner](/documentation/runners/direct/).
 
 For production workloads, you typically use a distributed runner that runs the
