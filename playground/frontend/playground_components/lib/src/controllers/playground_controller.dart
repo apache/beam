@@ -30,6 +30,7 @@ import '../models/example_base.dart';
 import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/examples_loading_descriptor.dart';
+import '../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 import '../models/intents.dart';
 import '../models/outputs.dart';
@@ -171,6 +172,43 @@ class PlaygroundController with ChangeNotifier {
       descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
       setCurrentSdk: setCurrentSdk,
     );
+  }
+
+  Future<void> setExampleBase(ExampleBase exampleBase) async {
+    final snippetEditingController = _getOrCreateSnippetEditingController(
+      exampleBase.sdk,
+      loadDefaultIfNot: false,
+    );
+
+    if (!snippetEditingController.lockExampleLoading()) {
+      return;
+    }
+
+    notifyListeners();
+
+    try {
+      final example = await exampleCache.loadExampleInfo(exampleBase);
+      // TODO(alexeyinkin): setCurrentSdk = false when we do
+      //  per-SDK output and run status.
+      //  Now using true to reset the output and run status.
+      //  https://github.com/apache/beam/issues/23248
+      final descriptor = StandardExampleLoadingDescriptor(
+        sdk: example.sdk,
+        path: example.path,
+      );
+
+      setExample(
+        example,
+        descriptor: descriptor,
+        setCurrentSdk: true,
+      );
+
+      // ignore: avoid_catches_without_on_clauses
+    } catch (ex) {
+      snippetEditingController.releaseExampleLoading();
+      notifyListeners();
+      rethrow;
+    }
   }
 
   void setExample(
