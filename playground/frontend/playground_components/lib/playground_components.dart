@@ -40,11 +40,12 @@ export 'src/models/example_loading_descriptors/standard_example_loading_descript
 export 'src/models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 export 'src/models/example_view_options.dart';
 export 'src/models/intents.dart';
+export 'src/models/loading_status.dart';
 export 'src/models/outputs.dart';
 export 'src/models/sdk.dart';
 export 'src/models/shortcut.dart';
-
-export 'src/notifications/notification.dart';
+export 'src/models/toast.dart';
+export 'src/models/toast_type.dart';
 
 export 'src/playground_components.dart';
 
@@ -52,6 +53,8 @@ export 'src/repositories/code_client/grpc_code_client.dart';
 export 'src/repositories/code_repository.dart';
 export 'src/repositories/example_client/grpc_example_client.dart';
 export 'src/repositories/example_repository.dart';
+
+export 'src/router/router_delegate.dart';
 
 export 'src/services/symbols/loaders/yaml.dart';
 
@@ -66,14 +69,20 @@ export 'src/widgets/complexity.dart';
 export 'src/widgets/dismissible_overlay.dart';
 export 'src/widgets/divider.dart';
 export 'src/widgets/header_icon_button.dart';
+export 'src/widgets/loading_error.dart';
 export 'src/widgets/loading_indicator.dart';
 export 'src/widgets/logo.dart';
 export 'src/widgets/output/output.dart';
+export 'src/widgets/output/output_area.dart';
+export 'src/widgets/output/output_tab.dart';
+export 'src/widgets/output/output_tabs.dart';
 export 'src/widgets/reset_button.dart';
 export 'src/widgets/run_or_cancel_button.dart';
 export 'src/widgets/shortcut_tooltip.dart';
+export 'src/widgets/shortcuts_manager.dart';
 export 'src/widgets/snippet_editor.dart';
 export 'src/widgets/split_view.dart';
 export 'src/widgets/tab_header.dart';
+export 'src/widgets/toasts/toast_listener.dart';
 export 'src/widgets/toggle_theme_button.dart';
 export 'src/widgets/toggle_theme_icon_button.dart';

@@ -118,8 +118,6 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
 def sickbayTests = [
         // https://github.com/apache/beam/issues/18499
         'org.apache.beam.sdk.testing.UsesLoopingTimer',
-        // https://github.com/apache/beam/issues/19734
-        'org.apache.beam.sdk.transforms.WatchTest.testMultiplePollsWithManyResults',
         // https://github.com/apache/beam/issues/19344
         'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
 ]

@@ -16,45 +16,98 @@
  * limitations under the License.
  */
 
+import 'dart:math';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:get_it/get_it.dart';
 
 import '../models/example.dart';
 import '../models/example_loading_descriptors/content_example_loading_descriptor.dart';
+import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_view_options.dart';
+import '../models/loading_status.dart';
 import '../models/sdk.dart';
 import '../services/symbols/symbols_notifier.dart';
 
+/// The main state object for a single [sdk].
 class SnippetEditingController extends ChangeNotifier {
   final Sdk sdk;
   final CodeController codeController;
   final _symbolsNotifier = GetIt.instance.get<SymbolsNotifier>();
   Example? _selectedExample;
+  ExampleLoadingDescriptor? _descriptor;
   String _pipelineOptions = '';
+  bool _isChanged = false;
+  LoadingStatus _exampleLoadingStatus = LoadingStatus.done;
 
   SnippetEditingController({
     required this.sdk,
   }) : codeController = CodeController(
           language: sdk.highlightMode,
           namedSectionParser: const BracketsStartEndNamedSectionParser(),
-          webSpaceFix: false,
         ) {
+    codeController.addListener(_onCodeControllerChanged);
     _symbolsNotifier.addListener(_onSymbolsNotifierChanged);
     _onSymbolsNotifierChanged();
   }
 
-  set selectedExample(Example? value) {
-    _selectedExample = value;
-    setSource(_selectedExample?.source ?? '');
-
-    final viewOptions = value?.viewOptions;
-    if (viewOptions != null) {
-      _applyViewOptions(viewOptions);
+  void _onCodeControllerChanged() {
+    if (!_isChanged) {
+      if (_isCodeChanged()) {
+        _isChanged = true;
+        notifyListeners();
+      }
+    } else {
+      _updateIsChanged();
+      if (!_isChanged) {
+        notifyListeners();
+      }
     }
+  }
 
-    _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
+  /// Attempts to acquire a lock for asynchronous example loading.
+  ///
+  /// This prevents race condition for quick example switching
+  /// and allows to show a loading indicator.
+  ///
+  /// Returns whether the lock was acquired.
+  bool lockExampleLoading() {
+    switch (_exampleLoadingStatus) {
+      case LoadingStatus.loading:
+        return false;
+      case LoadingStatus.done:
+      case LoadingStatus.error:
+        _exampleLoadingStatus = LoadingStatus.loading;
+        return true;
+    }
+  }
+
+  void releaseExampleLoading() {
+    _exampleLoadingStatus = LoadingStatus.done;
+  }
+
+  bool get isLoading => _exampleLoadingStatus == LoadingStatus.loading;
+
+  void setExample(
+    Example example, {
+    ExampleLoadingDescriptor? descriptor,
+  }) {
+    _descriptor = descriptor;
+    _selectedExample = example;
+    _pipelineOptions = example.pipelineOptions;
+    _isChanged = false;
+    releaseExampleLoading();
+
+    final viewOptions = example.viewOptions;
+
+    codeController.removeListener(_onCodeControllerChanged);
+    setSource(example.source);
+    _applyViewOptions(viewOptions);
+    _toStartOfContextLineIfAny();
+    codeController.addListener(_onCodeControllerChanged);
+
     notifyListeners();
   }
 
@@ -76,17 +129,60 @@ class SnippetEditingController extends ChangeNotifier {
     }
   }
 
+  void _toStartOfContextLineIfAny() {
+    final contextLine1Based = selectedExample?.contextLine;
+
+    if (contextLine1Based == null) {
+      return;
+    }
+
+    _toStartOfFullLine(max(contextLine1Based - 1, 0));
+  }
+
+  void _toStartOfFullLine(int line) {
+    if (line >= codeController.code.lines.length) {
+      return;
+    }
+
+    final fullPosition = codeController.code.lines.lines[line].textRange.start;
+    final visiblePosition = codeController.code.hiddenRanges.cutPosition(
+      fullPosition,
+    );
+
+    codeController.selection = TextSelection.collapsed(
+      offset: visiblePosition,
+    );
+  }
+
   Example? get selectedExample => _selectedExample;
 
+  ExampleLoadingDescriptor? get descriptor => _descriptor;
+
   set pipelineOptions(String value) {
+    if (value == _pipelineOptions) {
+      return;
+    }
     _pipelineOptions = value;
-    notifyListeners();
+
+    if (!_isChanged) {
+      if (_arePipelineOptionsChanged()) {
+        _isChanged = true;
+        notifyListeners();
+      }
+    } else {
+      _updateIsChanged();
+      if (!_isChanged) {
+        notifyListeners();
+      }
+    }
   }
 
   String get pipelineOptions => _pipelineOptions;
 
-  bool get isChanged {
-    return _isCodeChanged() || _arePipelineOptionsChanged();
+  bool get isChanged => _isChanged;
+
+  void _updateIsChanged() {
+    _isChanged = _isCodeChanged() || _arePipelineOptionsChanged();
   }
 
   bool _isCodeChanged() {
@@ -105,13 +201,19 @@ class SnippetEditingController extends ChangeNotifier {
   /// Creates an [ExampleLoadingDescriptor] that can recover the
   /// current content.
   ExampleLoadingDescriptor getLoadingDescriptor() {
-    // TODO: Return other classes for unchanged standard examples,
-    //  user-shared examples, and an empty editor,
-    //  https://github.com/apache/beam/issues/23252
+    final example = selectedExample;
+    if (example == null) {
+      return EmptyExampleLoadingDescriptor(sdk: sdk);
+    }
+
+    if (!isChanged && _descriptor != null) {
+      return _descriptor!;
+    }
+
     return ContentExampleLoadingDescriptor(
-      complexity: _selectedExample?.complexity,
+      complexity: example.complexity,
       content: codeController.fullText,
-      name: _selectedExample?.name,
+      name: example.name,
       sdk: sdk,
     );
   }

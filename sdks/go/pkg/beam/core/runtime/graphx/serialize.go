@@ -326,7 +326,7 @@ func encodeUserFn(u *funcx.Fn) (*v1pb.UserFn, error) {
 // decodeUserFn receives the wire representation of a Beam user function,
 // extracting the preprocessed representation, expanding all inputs and outputs
 // of the function.
-func decodeUserFn(ref *v1pb.UserFn) (interface{}, error) {
+func decodeUserFn(ref *v1pb.UserFn) (any, error) {
 	t, err := decodeType(ref.GetType())
 	if err != nil {
 		return nil, err

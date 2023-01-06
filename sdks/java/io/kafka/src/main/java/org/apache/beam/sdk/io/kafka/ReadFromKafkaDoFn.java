@@ -140,35 +140,32 @@ import org.slf4j.LoggerFactory;
  * stopping reading from removed {@link TopicPartition}, the stopping reading may not happens
  * immediately.
  */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
 abstract class ReadFromKafkaDoFn<K, V>
     extends DoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> {
 
-  static <K, V> ReadFromKafkaDoFn<K, V> create(ReadSourceDescriptors transform) {
+  static <K, V> ReadFromKafkaDoFn<K, V> create(ReadSourceDescriptors<K, V> transform) {
     if (transform.isBounded()) {
-      return new Bounded<K, V>(transform);
+      return new Bounded<>(transform);
     } else {
-      return new Unbounded<K, V>(transform);
+      return new Unbounded<>(transform);
     }
   }
 
   @UnboundedPerElement
   private static class Unbounded<K, V> extends ReadFromKafkaDoFn<K, V> {
-    Unbounded(ReadSourceDescriptors transform) {
+    Unbounded(ReadSourceDescriptors<K, V> transform) {
       super(transform);
     }
   }
 
   @BoundedPerElement
   private static class Bounded<K, V> extends ReadFromKafkaDoFn<K, V> {
-    Bounded(ReadSourceDescriptors transform) {
+    Bounded(ReadSourceDescriptors<K, V> transform) {
       super(transform);
     }
   }
 
-  private ReadFromKafkaDoFn(ReadSourceDescriptors transform) {
+  private ReadFromKafkaDoFn(ReadSourceDescriptors<K, V> transform) {
     this.consumerConfig = transform.getConsumerConfig();
     this.offsetConsumerConfig = transform.getOffsetConsumerConfig();
     this.keyDeserializerProvider =
@@ -203,8 +200,8 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   private static final java.time.Duration KAFKA_POLL_TIMEOUT = java.time.Duration.ofSeconds(1);
 
-  @VisibleForTesting final DeserializerProvider keyDeserializerProvider;
-  @VisibleForTesting final DeserializerProvider valueDeserializerProvider;
+  @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
+  @VisibleForTesting final DeserializerProvider<V> valueDeserializerProvider;
   @VisibleForTesting final Map<String, Object> consumerConfig;
 
   /**
@@ -332,7 +329,7 @@ abstract class ReadFromKafkaDoFn<K, V>
   public ProcessContinuation processElement(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor,
       RestrictionTracker<OffsetRange, Long> tracker,
-      WatermarkEstimator watermarkEstimator,
+      WatermarkEstimator<Instant> watermarkEstimator,
       OutputReceiver<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> receiver) {
     final LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize =
         Preconditions.checkStateNotNull(this.avgRecordSize);
@@ -352,7 +349,7 @@ abstract class ReadFromKafkaDoFn<K, V>
         overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
     // If there is a timestampPolicyFactory, create the TimestampPolicy for current
     // TopicPartition.
-    TimestampPolicy timestampPolicy = null;
+    TimestampPolicy<K, V> timestampPolicy = null;
     if (timestampPolicyFactory != null) {
       timestampPolicy =
           timestampPolicyFactory.createTimestampPolicy(
@@ -418,7 +415,7 @@ abstract class ReadFromKafkaDoFn<K, V>
                 new TimestampPolicyContext(
                     (long) ((HasProgress) tracker).getProgress().getWorkRemaining(), Instant.now());
             outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
-            ((ManualWatermarkEstimator) watermarkEstimator)
+            ((ManualWatermarkEstimator<Instant>) watermarkEstimator)
                 .setWatermark(ensureTimestampWithinBounds(timestampPolicy.getWatermark(context)));
           } else {
             Preconditions.checkStateNotNull(this.extractOutputTimestampFn);

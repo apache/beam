@@ -128,8 +128,8 @@ class S3FileSystem(FileSystem):
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, (size, updated) in s3io.S3IO(options=self._options) \
-        .list_prefix(dir_or_prefix, with_metadata=True).items():
+      for path, (size, updated) in s3io.S3IO(options=self._options).list_files(
+          dir_or_prefix, with_metadata=True):
         yield FileMetadata(path, size, updated)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})

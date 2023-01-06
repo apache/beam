@@ -127,6 +127,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   private final DoFnSchemaInformation doFnSchemaInformation;
   private final Map<?, PCollectionView<?>> sideInputMapping;
+  private final Map<String, String> stateIdToStoreMapping;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
@@ -148,7 +149,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       JobInfo jobInfo,
       Map<String, TupleTag<?>> idToTupleTagMap,
       DoFnSchemaInformation doFnSchemaInformation,
-      Map<?, PCollectionView<?>> sideInputMapping) {
+      Map<?, PCollectionView<?>> sideInputMapping,
+      Map<String, String> stateIdToStoreMapping) {
     this.mainOutputTag = mainOutputTag;
     this.doFn = doFn;
     this.sideInputs = sideInputs;
@@ -171,6 +173,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.bundleStateId = "_samza_bundle_" + transformId;
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
+    this.stateIdToStoreMapping = stateIdToStoreMapping;
   }
 
   @Override
@@ -260,6 +263,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               outputCoders,
               doFnSchemaInformation,
               (Map<String, PCollectionView<?>>) sideInputMapping,
+              stateIdToStoreMapping,
               emitter,
               outputFutureCollector);
     }

@@ -2460,7 +2460,7 @@ public class ElasticsearchIO {
           return new ArrayList<>();
         }
 
-        LOG.info(
+        LOG.debug(
             "ElasticsearchIO batch size: {}, batch size bytes: {}",
             batch.size(),
             currentBatchSizeBytes);

@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.Watch.Growth.eitherOf;
 import static org.apache.beam.sdk.transforms.Watch.Growth.never;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.joda.time.Duration.standardSeconds;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -38,8 +37,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -65,16 +62,13 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -304,74 +298,6 @@ public class WatchTest implements Serializable {
                   numResults,
                   Lists.newArrayList(input).size());
               assertEquals("Results are not unique", numResults, Sets.newHashSet(input).size());
-              return null;
-            });
-
-    p.run();
-  }
-
-  @Test
-  @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
-  public void testMultiplePollsWithManyResults() {
-    final long numResults = 3000;
-    List<Integer> all = Lists.newArrayList();
-    for (int i = 0; i < numResults; ++i) {
-      all.add(i);
-    }
-
-    PCollection<TimestampedValue<Integer>> res =
-        p.apply(Create.of("a"))
-            .apply(
-                Watch.growthOf(
-                        new TimedPollFn<String, Integer>(
-                            all,
-                            standardSeconds(1) /* timeToOutputEverything */,
-                            standardSeconds(3) /* timeToDeclareOutputFinal */,
-                            standardSeconds(30) /* timeToFail */))
-                    .withPollInterval(Duration.millis(500))
-                    .withOutputCoder(VarIntCoder.of()))
-            .apply(Reify.timestampsInValue())
-            .apply("Drop timestamped input", Values.create());
-
-    PAssert.that(res)
-        .satisfies(
-            outputs -> {
-              Function<TimestampedValue<Integer>, Integer> extractValueFn =
-                  new Function<TimestampedValue<Integer>, Integer>() {
-                    @Override
-                    public @Nullable Integer apply(@Nullable TimestampedValue<Integer> input) {
-                      return input.getValue();
-                    }
-                  };
-              Function<TimestampedValue<Integer>, Instant> extractTimestampFn =
-                  new Function<TimestampedValue<Integer>, Instant>() {
-                    @Override
-                    public @Nullable Instant apply(@Nullable TimestampedValue<Integer> input) {
-                      return input.getTimestamp();
-                    }
-                  };
-
-              Ordering<TimestampedValue<Integer>> byTimestamp =
-                  Ordering.natural().onResultOf(extractTimestampFn);
-              // New outputs appear in timestamp order because each output's assigned timestamp
-              // is Instant.now() at the time of poll.
-              assertTrue("Outputs must be in timestamp order", byTimestamp.isOrdered(outputs));
-              assertEquals(
-                  "Yields all expected values",
-                  numResults,
-                  Sets.newHashSet(
-                          StreamSupport.stream(outputs.spliterator(), false)
-                              .map(extractValueFn::apply)
-                              .collect(Collectors.toList()))
-                      .size());
-              assertThat(
-                  "Poll called more than once",
-                  Sets.newHashSet(
-                          StreamSupport.stream(outputs.spliterator(), false)
-                              .map(extractTimestampFn::apply)
-                              .collect(Collectors.toList()))
-                      .size(),
-                  greaterThan(1));
               return null;
             });
 

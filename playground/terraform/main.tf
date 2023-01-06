@@ -38,7 +38,6 @@ module "infrastructure" {
   network_name                  = var.network_name
   #GKE
   gke_machine_type              = var.gke_machine_type
-  gke_node_count                = var.gke_node_count
   gke_name                      = var.gke_name
   gke_location                  = var.location
   service_account               = var.service_account

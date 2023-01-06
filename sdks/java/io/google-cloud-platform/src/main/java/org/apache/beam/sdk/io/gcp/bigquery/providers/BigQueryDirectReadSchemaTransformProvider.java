@@ -46,6 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
@@ -135,8 +136,6 @@ public class BigQueryDirectReadSchemaTransformProvider
     public abstract List<String> getSelectedFields();
 
     @Nullable
-    public abstract BigQueryServices getBigQueryServices();
-
     /** Builder for the {@link BigQueryDirectReadSchemaTransformConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
@@ -147,8 +146,6 @@ public class BigQueryDirectReadSchemaTransformProvider
       public abstract Builder setRowRestriction(String rowRestriction);
 
       public abstract Builder setSelectedFields(List<String> selectedFields);
-
-      public abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
 
       /** Builds a {@link BigQueryDirectReadSchemaTransformConfiguration} instance. */
       public abstract BigQueryDirectReadSchemaTransformConfiguration build();
@@ -179,10 +176,16 @@ public class BigQueryDirectReadSchemaTransformProvider
   static class BigQueryDirectReadPCollectionRowTupleTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
+    private BigQueryServices testBigQueryServices = null;
 
     BigQueryDirectReadPCollectionRowTupleTransform(
         BigQueryDirectReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
+    }
+
+    @VisibleForTesting
+    public void setBigQueryServices(BigQueryServices testBigQueryServices) {
+      this.testBigQueryServices = testBigQueryServices;
     }
 
     @Override
@@ -220,8 +223,8 @@ public class BigQueryDirectReadSchemaTransformProvider
         read = read.fromQuery(configuration.getQuery());
       }
 
-      if (configuration.getBigQueryServices() != null) {
-        read = read.withTestServices(configuration.getBigQueryServices());
+      if (this.testBigQueryServices != null) {
+        read = read.withTestServices(testBigQueryServices);
       }
 
       return read;

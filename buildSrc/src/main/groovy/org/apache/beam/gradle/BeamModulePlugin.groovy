@@ -390,7 +390,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.44.0'
+    project.version = '2.45.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -461,7 +461,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk2_version = "2.17.127"
     def cassandra_driver_version = "3.10.2"
     def cdap_version = "6.5.1"
-    def checkerframework_version = "3.15.0"
+    def checkerframework_version = "3.27.0"
     def classgraph_version = "4.8.104"
     def dbcp2_version = "2.8.0"
     def errorprone_version = "2.10.0"
@@ -481,9 +481,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
     def httpcore_version = "4.4.14"
-    def jackson_version = "2.13.3"
+    def jackson_version = "2.14.1"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
+    def everit_json_version = "1.14.1"
     def kafka_version = "2.4.1"
     def nemo_version = "0.1"
     def netty_version = "4.1.77.Final"
@@ -678,6 +679,8 @@ class BeamModulePlugin implements Plugin<Project> {
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
+        json_org                                    : "org.json:json:20220320", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
+        everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
@@ -1017,7 +1020,8 @@ class BeamModulePlugin implements Plugin<Project> {
         extraJavacArgs = [
           "-AskipDefs=${skipDefCombinedRegex}",
           "-AskipUses=${skipUsesCombinedRegex}",
-          "-AsuppressWarnings=annotation.not.completed",
+          "-AnoWarnMemoryConstraints",
+          "-AsuppressWarnings=annotation.not.completed,keyfor",
         ]
 
         project.dependencies {
@@ -2361,7 +2365,8 @@ class BeamModulePlugin implements Plugin<Project> {
       } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
         javaContainerSuffix = 'java17'
       } else {
-        throw new GradleException("unsupported java version.")
+        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
+        throw new GradleException(exceptionMessage)
       }
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
