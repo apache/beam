@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+evaluationDependsOn(":playground:frontend:playground_components")
+
 tasks.register("generate") {
   dependsOn(":playground:frontend:playground_components:generate")
 
@@ -23,6 +25,22 @@ tasks.register("generate") {
 
   group = "build"
   description = "Generates all generated files."
+}
+
+tasks.register("analyze") {
+  dependsOn(":playground:frontend:playground_components:generateCode")
+  dependsOn("generateCode")
+
+  group = "verification"
+  description = "Analyze dart code"
+
+  doLast {
+    exec {
+      // Exact paths instead of '.' so it does not go into playground_components
+      executable("dart")
+      args("analyze", "lib", "test")
+    }
+  }
 }
 
 tasks.register("pubGet") {
@@ -111,31 +129,30 @@ tasks.register("cleanFlutter") {
   }
 }
 
-// tasks.register("cleanGenerated") {
-//   dependsOn(":playground:frontend:playground_components:cleanGenerated")
+tasks.register("cleanGenerated") {
+  dependsOn(":playground:frontend:playground_components:cleanGenerated")
 
-//   group = "build"
-//   description = "Remove build artifacts"
+  group = "build"
+  description = "Remove build artifacts"
 
-//   doLast {
-//     println("Deleting:")
+  doLast {
+    println("Deleting:")
 
-//     deleteFilesByRegExp(".*\\.g\\.dart\$")
-//     deleteFilesByRegExp(".*\\.gen\\.dart\$")
-//     deleteFilesByRegExp(".*\\.mocks\\.dart\$")
-//   }
-// }
+    deleteFilesByRegExp(".*\\.g\\.dart\$")
+    deleteFilesByRegExp(".*\\.gen\\.dart\$")
+    deleteFilesByRegExp(".*\\.mocks\\.dart\$")
+  }
+}
 
-// extra["deleteFilesByRegExp"] = { re ->
-//   // Prints file names.
-//   exec {
-//     executable("find")
-//     args("assets", "lib", "test", "-regex", re)
-//   }
-
-//   // Actually deletes them.
-//   exec {
-//     executable("find")
-//     args("assets", "lib", "test", "-regex", re, "-delete")
-//   }
-// }
+val deleteFilesByRegExp: (String) -> Unit = { re ->
+  // Prints file names.
+  exec {
+    executable("find")
+    args("assets", "lib", "test", "-regex", re)
+  }
+  // Actually deletes them.
+  exec {
+    executable("find")
+    args("assets", "lib", "test", "-regex", re, "-delete")
+  }
+}
