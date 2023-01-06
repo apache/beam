@@ -277,7 +277,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
       *,
-      update_model_pcoll: beam.PCollection = None):
+      update_model_pcoll: beam.PCollection[str] = None):
     """A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
     those examples in a PCollection of PredictionResults that contains the input
@@ -295,7 +295,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
-        update_model_pcoll: PCollection that emits model path/model metadata
+        update_model_pcoll: PCollection that emits model path
           that is used as a side input to the _RunInferenceDoFn.
     """
     self._model_handler = model_handler
@@ -338,7 +338,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                 _RunInferenceDoFn(
                     self._model_handler, self._clock, self._metrics_namespace),
                 self._inference_args,
-                beam.pvalue.AsIter(self._update_model_pcoll)
+                beam.pvalue.AsSingleton(self._update_model_pcoll)
                 if self._update_model_pcoll else None).with_resource_hints(
                     **resource_hints)))
 
