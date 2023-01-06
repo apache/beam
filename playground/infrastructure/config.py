@@ -22,8 +22,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
 
-from dataclasses_json import dataclass_json
-
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
     STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
     STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, \
@@ -57,11 +55,11 @@ class Config:
     ]
     BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
     BEAM_PLAYGROUND = "beam-playground"
-    PAUSE_DELAY = 10
+    PAUSE_DELAY = 1
     CI_STEP_NAME = "CI"
     CD_STEP_NAME = "CD"
     CI_CD_LITERAL = Literal["CI", "CD"]
-    LINK_PREFIX = "https://github.com/apache/beam/blob/master"
+    URL_VCS_PREFIX = "https://github.com/apache/beam/blob/master"
     GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
     SDK_CONFIG = os.getenv("SDK_CONFIG", "../../playground/sdks.yaml")
 
@@ -74,11 +72,12 @@ class TagFields:
     categories: str = "categories"
     pipeline_options: str = "pipeline_options"
     default_example: str = "default_example"
-    context_line: int = "context_line"
+    context_line: str = "context_line"
     complexity: str = "complexity"
     tags: str = "tags"
     emulators: str = "emulators"
     datasets: str = "datasets"
+    url_notebook: str = "url_notebook"
 
 
 @dataclass(frozen=True)
@@ -95,14 +94,6 @@ class PrecompiledExampleType:
     examples = "examples"
     katas = "katas"
     test_ends = ("test", "it")
-
-
-@dataclass(frozen=True)
-class OptionalTagFields:
-    pipeline_options: str = "pipeline_options"
-    default_example: str = "default_example"
-    emulators: str = "emulators"
-    datasets: str = "datasets"
 
 
 @dataclass(frozen=True)
@@ -128,25 +119,3 @@ class Origin(str, Enum):
     TB_EXAMPLES = 'TB_EXAMPLES'
     TB_USER = 'TB_USER'
 
-
-@dataclass_json
-@dataclass
-class Dataset:
-    format: str
-    location: str
-    name: str = ""
-    path: str = ""
-
-
-@dataclass_json
-@dataclass
-class Topic:
-    id: str
-    dataset: str
-
-
-@dataclass_json
-@dataclass
-class Emulator:
-    topic: Topic
-    name: str = ""

@@ -45,6 +45,12 @@ public interface StateBinder {
   <T> OrderedListState<T> bindOrderedList(
       String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder);
 
+  <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+      String id,
+      StateSpec<MultimapState<KeyT, ValueT>> spec,
+      Coder<KeyT> keyCoder,
+      Coder<ValueT> valueCoder);
+
   <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombining(
       String id,
       StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,

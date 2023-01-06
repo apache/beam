@@ -28,8 +28,7 @@ const exampleMock1 = Example(
   tags: ['tag1'],
   type: ExampleType.example,
   description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
-  pipelineOptions: '',
+  path: 'SDK_PYTHON/Category/Name1',
   complexity: Complexity.basic,
 );
 
@@ -40,26 +39,22 @@ const exampleMock2 = Example(
   tags: ['tag2'],
   type: ExampleType.kata,
   description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
-  pipelineOptions: '',
+  path: 'SDK_PYTHON/Category/Name2',
   complexity: Complexity.basic,
 );
 
 const exampleWithoutSourceMock = ExampleBase(
   sdk: Sdk.python,
   name: 'Test example',
-  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
-  pipelineOptions: '',
   complexity: Complexity.basic,
 );
 
 const exampleWithAllAdditionsMock = Example(
   sdk: Sdk.python,
   name: 'Test example',
-  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_PYTHON/Category/Name',
@@ -67,18 +62,28 @@ const exampleWithAllAdditionsMock = Example(
   outputs: 'test outputs',
   logs: 'test outputs',
   graph: 'test outputs',
-  pipelineOptions: '',
   complexity: Complexity.basic,
+);
+
+const exampleGoPipelineOptions = Example(
+  description: 'description',
+  graph: 'test outputs',
+  logs: 'test outputs',
+  name: 'Test example',
+  outputs: 'test outputs',
+  path: 'SDK_PYTHON/Category/Name',
+  pipelineOptions: 'pipeline options',
+  sdk: Sdk.go,
+  source: 'test outputs',
+  type: ExampleType.example,
 );
 
 const exampleMockGo = Example(
   sdk: Sdk.go,
   source: 'ex1',
   name: 'Example',
-  tags: [],
   type: ExampleType.example,
   description: 'description',
   path: 'SDK_GO/Category/Name',
-  pipelineOptions: '',
   complexity: Complexity.medium,
 );

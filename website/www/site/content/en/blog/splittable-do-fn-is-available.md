@@ -25,7 +25,7 @@ limitations under the License.
 We are pleased to announce that Splittable DoFn (SDF) is ready for use in the Beam Python, Java,
 and Go SDKs for versions 2.25.0 and later.
 
-In 2017, [Splittable DoFn Blog Post](https://beam.apache.org/blog/splittable-do-fn/) proposed
+In 2017, [Splittable DoFn Blog Post](/blog/splittable-do-fn/) proposed
 to build [Splittable DoFn](https://s.apache.org/splittable-do-fn) APIs as the new recommended way of
 building I/O connectors. Splittable DoFn is a generalization of `DoFn` that gives it the core
 capabilities of `Source` while retaining `DoFn`'s syntax, flexibility, modularity, and ease of
@@ -46,7 +46,7 @@ SDF has three advantages over the existing `UnboundedSource` and `BoundedSource`
 
 As SDF is now ready to use with all the mentioned improvements, it is the recommended
 way to build the new I/O connectors. Try out building your own Splittable DoFn by following the
-[programming guide](https://beam.apache.org/documentation/programming-guide/#splittable-dofns). We
+[programming guide](/documentation/programming-guide/#splittable-dofns). We
 have provided tonnes of common utility classes such as common types of `RestrictionTracker` and
 `WatermarkEstimator` in Beam SDK, which will help you onboard easily. As for the existing I/O
 connectors, we have wrapped `UnboundedSource` and `BoundedSource` implementations into Splittable

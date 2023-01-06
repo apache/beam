@@ -17,6 +17,7 @@
  */
 
 import 'example_base.dart';
+import 'sdk.dart';
 
 /// A [ExampleBase] that also has all large fields fetched.
 class Example extends ExampleBase {
@@ -63,5 +64,14 @@ class Example extends ExampleBase {
           tags: example.tags,
           type: example.type,
           viewOptions: example.viewOptions,
+        );
+
+  const Example.empty(Sdk sdk)
+      : this(
+          name: 'Untitled Example',
+          path: '',
+          sdk: sdk,
+          source: '',
+          type: ExampleType.example,
         );
 }

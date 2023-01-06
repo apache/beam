@@ -733,9 +733,9 @@ class BatchLoads<DestinationT, ElementT>
     // with one that makes this happen.
     // In the case schemaUpdateOptions are specified by the user, matching does not occur in order
     // to respect those options.
-    DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
+    DynamicDestinations<?, DestinationT> destinationsWithMatching = dynamicDestinations;
     if (schemaUpdateOptions.isEmpty()) {
-      destinations =
+      destinationsWithMatching =
           DynamicDestinationsHelpers.matchTableDynamicDestinations(
               dynamicDestinations, bigQueryServices);
     }
@@ -758,7 +758,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                destinations,
+                destinationsWithMatching,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,

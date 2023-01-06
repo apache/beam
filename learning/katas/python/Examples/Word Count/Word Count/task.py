@@ -18,7 +18,7 @@
 #   name: WordCountKata
 #   description: Task from katas to create a pipeline that counts the number of words.
 #   multifile: false
-#   context_line: 29
+#   context_line: 32
 #   categories:
 #     - Combiners
 #   complexity: BASIC

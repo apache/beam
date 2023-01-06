@@ -79,6 +79,7 @@ import org.apache.spark.serializer.KryoRegistrator;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.execution.datasources.v2.DataWritingSparkTaskResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,6 +158,9 @@ public class SparkSessionFactory {
       kryo.register(byte[][].class);
       kryo.register(HashMap.class);
       kryo.register(ArrayList.class);
+
+      // support writing noop format
+      kryo.register(DataWritingSparkTaskResult.class);
 
       // TODO find more efficient ways
       kryo.register(SerializablePipelineOptions.class, new JavaSerializer());

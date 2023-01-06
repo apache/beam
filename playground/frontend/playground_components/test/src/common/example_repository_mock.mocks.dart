@@ -49,72 +49,73 @@ class MockExampleRepository extends _i1.Mock implements _i4.ExampleRepository {
   }
 
   @override
-  _i5.Future<Map<_i6.Sdk, List<_i7.CategoryWithExamples>>> getListOfExamples(
-          _i8.GetPrecompiledObjectsRequest? request) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getListOfExamples,
-          [request],
-        ),
-        returnValue: Future<Map<_i6.Sdk, List<_i7.CategoryWithExamples>>>.value(
-            <_i6.Sdk, List<_i7.CategoryWithExamples>>{}),
-      ) as _i5.Future<Map<_i6.Sdk, List<_i7.CategoryWithExamples>>>);
+  _i5.Future<Map<_i6.Sdk, List<_i7.CategoryWithExamples>>>
+      getPrecompiledObjects(_i8.GetPrecompiledObjectsRequest? request) =>
+          (super.noSuchMethod(
+            Invocation.method(
+              #getPrecompiledObjects,
+              [request],
+            ),
+            returnValue:
+                Future<Map<_i6.Sdk, List<_i7.CategoryWithExamples>>>.value(
+                    <_i6.Sdk, List<_i7.CategoryWithExamples>>{}),
+          ) as _i5.Future<Map<_i6.Sdk, List<_i7.CategoryWithExamples>>>);
   @override
-  _i5.Future<_i2.ExampleBase> getDefaultExample(
+  _i5.Future<_i2.ExampleBase> getDefaultPrecompiledObject(
           _i9.GetDefaultPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
-          #getDefaultExample,
+          #getDefaultPrecompiledObject,
           [request],
         ),
         returnValue: Future<_i2.ExampleBase>.value(_FakeExampleBase_0()),
       ) as _i5.Future<_i2.ExampleBase>);
   @override
-  _i5.Future<String> getExampleSource(
+  _i5.Future<String> getPrecompiledObjectCode(
           _i10.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
-          #getExampleSource,
+          #getPrecompiledObjectCode,
           [request],
         ),
         returnValue: Future<String>.value(''),
       ) as _i5.Future<String>);
   @override
-  _i5.Future<String> getExampleOutput(
+  _i5.Future<String> getPrecompiledObjectOutput(
           _i10.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
-          #getExampleOutput,
+          #getPrecompiledObjectOutput,
           [request],
         ),
         returnValue: Future<String>.value(''),
       ) as _i5.Future<String>);
   @override
-  _i5.Future<String> getExampleLogs(
+  _i5.Future<String> getPrecompiledObjectLogs(
           _i10.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
-          #getExampleLogs,
+          #getPrecompiledObjectLogs,
           [request],
         ),
         returnValue: Future<String>.value(''),
       ) as _i5.Future<String>);
   @override
-  _i5.Future<String> getExampleGraph(
+  _i5.Future<String> getPrecompiledObjectGraph(
           _i10.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
-          #getExampleGraph,
+          #getPrecompiledObjectGraph,
           [request],
         ),
         returnValue: Future<String>.value(''),
       ) as _i5.Future<String>);
   @override
-  _i5.Future<_i2.ExampleBase> getExample(
+  _i5.Future<_i2.ExampleBase> getPrecompiledObject(
           _i10.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
-          #getExample,
+          #getPrecompiledObject,
           [request],
         ),
         returnValue: Future<_i2.ExampleBase>.value(_FakeExampleBase_0()),

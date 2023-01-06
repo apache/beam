@@ -38,7 +38,7 @@ Also, any other CDAP Batch plugin based on Hadoop's `InputFormat` or `OutputForm
 Requirements for CDAP Streaming plugins:
 - CDAP Streaming plugin should be based on `Spark Receiver` (Spark 2.4).
 - CDAP Streaming plugin should support work with offsets.
-- Corresponding Spark Receiver should implement [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
+- Corresponding Spark Receiver should implement [HasOffset](https://github.com/apache/beam/blob/master/sdks/java/io/sparkreceiver/2/src/main/java/org/apache/beam/sdk/io/sparkreceiver/HasOffset.java) interface.
 - Records should have the numeric field that represents record offset.
 
 ## Batch reading using CdapIO
