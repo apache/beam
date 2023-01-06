@@ -30,7 +30,7 @@ def cloudMLJob = { scope ->
   scope.steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      common.setGradleSwitches(delegate)
+      commonJobProperties.setGradleSwitches(delegate)
       tasks(':sdks:python:test-suites:dataflow:tftTests')
     }
   }
