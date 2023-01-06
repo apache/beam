@@ -115,4 +115,4 @@ transactions_purchaseAmount         ARRAY[DOUBLE]
 
 ### Playground exercise
 
-You can find the complete code of this example in the playground window you can run and experiment with.
+In the playground window you can find examples of using `Select`. By running this example, you will see user statistics in certain games. Can you change it so that it outputs the userName and his score?

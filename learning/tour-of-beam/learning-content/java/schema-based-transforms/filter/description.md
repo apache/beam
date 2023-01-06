@@ -61,4 +61,4 @@ users.apply(Filter
 
 ### Playground exercise
 
-You can find the complete code of this example in the playground window you can run and experiment with.
+In the playground window you can find examples of using the `Filter` button. By running this example, you will see user statistics in certain games. Can you output data that `userName` starts with `B`

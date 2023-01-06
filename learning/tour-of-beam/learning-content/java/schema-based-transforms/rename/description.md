@@ -26,4 +26,4 @@ Results in the same set of unmodified input elements, however the schema on the 
 
 ### Playground exercise
 
-You can find the complete code of this example in the playground window you can run and experiment with.
+In the playground window you can find examples of using the `Rename`. By running this example, you will see user statistics in certain games. Can you add your own class with similar `field` and change the name?

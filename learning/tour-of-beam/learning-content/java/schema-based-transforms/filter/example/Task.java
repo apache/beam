@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: schema-filter
-//   description: Schema filter example.
+//   name: filter
+//   description: Filter example.
 //   multifile: false
 //   context_line: 46
 //   categories:
@@ -28,38 +28,72 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.schemas.transforms.Select;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class Task {
-    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+public class Test {
+    private static final Logger LOG = LoggerFactory.getLogger(Test.class);
 
-    // UserPurchase schema
     @DefaultSchema(JavaFieldSchema.class)
-    public static class UserPurchase {
-        public Long userId;
-        public String country;
-        public long cost;
-        public double transactionDuration;
+    public static class Game {
+        public String userId;
+        public Integer score;
+        public String gameId;
+        public String date;
 
         @SchemaCreate
-        public UserPurchase(Long userId, String country, long cost, double transactionDuration) {
+        public Game(String userId, Integer score, String gameId, String date) {
             this.userId = userId;
-            this.country = country;
-            this.cost = cost;
-            this.transactionDuration = transactionDuration;
+            this.score = score;
+            this.gameId = gameId;
+            this.date = date;
+        }
+
+        @Override
+        public String toString() {
+            return "Game{" +
+                    "userId='" + userId + '\'' +
+                    ", score='" + score + '\'' +
+                    ", gameId='" + gameId + '\'' +
+                    ", date='" + date + '\'' +
+                    '}';
+        }
+    }
+
+    // User schema
+    @DefaultSchema(JavaFieldSchema.class)
+    public static class User {
+        public String userId;
+        public String userName;
+
+        public Game game;
+
+        @SchemaCreate
+        public User(String userId, String userName, Game game) {
+            this.userId = userId;
+            this.userName = userName;
+            this.game = game;
+        }
+
+        @Override
+        public String toString() {
+            return "User{" +
+                    "userId='" + userId + '\'' +
+                    ", userName='" + userName + '\'' +
+                    ", game=" + game +
+                    '}';
         }
     }
 
@@ -67,22 +101,34 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        UserPurchase user1 = new UserPurchase(1L, "America", 123, 22);
-        UserPurchase user2 = new UserPurchase(1L, "Brazilian", 645, 86);
-        UserPurchase user3 = new UserPurchase(3L, "Mexico", 741, 33);
-        UserPurchase user4 = new UserPurchase(3L, "France", 455, 76);
-        UserPurchase user5 = new UserPurchase(5L, "Italy", 175, 45);
-        PCollection<Object> userPCollection = pipeline.apply(Create.of(user1, user2, user3, user4, user5));
+        PCollection<User> fullStatistics = getProgressPCollection(pipeline);
 
-        PCollection<Object> filteredPCollection = userPCollection.apply(Filter.create().whereFieldName("transactionDuration", tr -> (double) tr > 50.0));
+        PCollection<Object> filteredPCollection = fullStatistics.apply(Filter.create().whereFieldName("game.score", score -> (int) score > 10));
 
-        filteredPCollection.apply(Select.flattenedSchema()).apply("User Purchase", ParDo.of(new LogOutput<>("Filtered")));
+        filteredPCollection
+                .apply(Select.flattenedSchema())
+                .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
+
         pipeline.run();
+    }
+
+    public static PCollection<User> getProgressPCollection(Pipeline pipeline) {
+        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
+    }
+
+    static class ExtractUserProgressFn extends DoFn<String, User> {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            String[] items = c.element().split(",");
+            c.output(new User(items[0], items[1], new Game(items[0], Integer.valueOf(items[2]), items[3], items[4])));
+        }
     }
 
     static class LogOutput<T> extends DoFn<T, T> {
 
-        private String prefix;
+        private final String prefix;
 
         LogOutput() {
             this.prefix = "Processing element";

@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: co-group
-//   description: Co-group example.
+//   name: coGroup
+//   description: CoGroup example.
 //   multifile: false
 //   context_line: 46
 //   categories:
@@ -28,101 +28,122 @@
 //     - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.CoGroup;
+import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.schemas.transforms.Select;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class Task {
-    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+public class Test {
+    private static final Logger LOG = LoggerFactory.getLogger(Test.class);
+
+    @DefaultSchema(JavaFieldSchema.class)
+    public static class Game {
+        public String userId;
+        public String score;
+        public String gameId;
+        public String date;
+
+        @SchemaCreate
+        public Game(String userId, String score, String gameId, String date) {
+            this.userId = userId;
+            this.score = score;
+            this.gameId = gameId;
+            this.date = date;
+        }
+
+        @Override
+        public String toString() {
+            return "Game{" +
+                    "userId='" + userId + '\'' +
+                    ", score='" + score + '\'' +
+                    ", gameId='" + gameId + '\'' +
+                    ", date='" + date + '\'' +
+                    '}';
+        }
+    }
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
     public static class User {
-        public Long userId;
+        public String userId;
         public String userName;
-        public String userSurname;
+
+        public Game game;
 
         @SchemaCreate
-        public User(Long userId, String userName, String userSurname) {
+        public User(String userId, String userName) {
+            this.userId = userId;
             this.userName = userName;
-            this.userSurname = userSurname;
-            this.userId = userId;
+        }
+
+        @Override
+        public String toString() {
+            return "User{" +
+                    "userId='" + userId + '\'' +
+                    ", userName='" + userName + '\'' +
+                    ", game=" + game +
+                    '}';
         }
     }
-
-    // UserPurchase schema
-    @DefaultSchema(JavaFieldSchema.class)
-    public static class UserPurchase {
-        public Long userId;
-        public long cost;
-        public double transactionDuration;
-
-        @SchemaCreate
-        public UserPurchase(Long userId, long cost, double transactionDuration) {
-            this.userId = userId;
-            this.cost = cost;
-            this.transactionDuration = transactionDuration;
-        }
-    }
-
-    // Location schema
-    @DefaultSchema(JavaFieldSchema.class)
-    public static class Location {
-        public Long userId;
-        public String countryName;
-
-        @SchemaCreate
-        public Location(Long userId, String countryName) {
-            this.userId = userId;
-            this.countryName = countryName;
-        }
-    }
-
 
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        Location location1 = new Location(1L, "America");
-        Location location2 = new Location(2L, "Brazilian");
-        Location location3 = new Location(3L, "Mexico");
-
-        PCollection<Object> locationPCollection = pipeline.apply(Create.of(location1, location2, location3));
-
-        UserPurchase userPurchase1 = new UserPurchase(1L, 123, 22);
-        UserPurchase userPurchase2 = new UserPurchase(2L, 645, 86);
-        UserPurchase userPurchase3 = new UserPurchase(3L, 741, 33);
-
-        PCollection<Object> userPurchasePCollection = pipeline.apply(Create.of(userPurchase1, userPurchase2, userPurchase3));
-
-        User user1 = new User(1L, "Andy", "Mira");
-        User user2 = new User(2L, "Tom", "Larry");
-        User user3 = new User(3L, "Kerry", "Jim");
-
-        PCollection<Object> userPCollection = pipeline.apply(Create.of(user1, user2, user3));
-
+        PCollection<User> userInfo = getUserPCollection(pipeline);
+        PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
         PCollection<Row> coGroupPCollection =
-                PCollectionTuple.of("userPurchase", userPurchasePCollection, "user", userPCollection, "location", locationPCollection)
+                PCollectionTuple.of("user", userInfo, "game", gameInfo)
                         .apply(CoGroup.join(CoGroup.By.fieldNames("userId")));
 
 
-        coGroupPCollection.apply(Select.fieldNames("user.userName", "user.userSurname", "location.countryName", "userPurchase.cost", "userPurchase.transactionDuration"))
-                .apply("User Purchase", ParDo.of(new LogOutput<>("CoGroup")));
+        coGroupPCollection
+                .apply(Select.flattenedSchema())
+                .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
+
         pipeline.run();
+    }
+
+    public static PCollection<User> getUserPCollection(Pipeline pipeline) {
+        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserFn()));
+    }
+
+    public static PCollection<Game> getGamePCollection(Pipeline pipeline) {
+        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
+    }
+
+    static class ExtractUserFn extends DoFn<String, User> {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            String[] items = c.element().split(",");
+            c.output(new User(items[0], items[1]));
+        }
+    }
+
+    static class ExtractUserProgressFn extends DoFn<String, Game> {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            String[] items = c.element().split(",");
+            c.output(new Game(items[0], items[2], items[3], items[4]));
+        }
     }
 
     static class LogOutput<T> extends DoFn<T, T> {

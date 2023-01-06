@@ -57,4 +57,4 @@ The result will be a new row schema containing the fields **total_cost**, **top_
 
 ### Playground exercise
 
-You can find the complete code of this example in the playground window you can run and experiment with.
+In the playground window you can find examples of using the `Group`. By running this example, you will see user statistics in certain games. Can you change it so that it outputs the `username` and `max(score)` in all games?

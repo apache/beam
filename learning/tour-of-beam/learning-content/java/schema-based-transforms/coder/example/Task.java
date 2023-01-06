@@ -1,4 +1,4 @@
-/*
+package com.example.demo;/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,39 +27,92 @@
 //   tags:
 //     - hellobeam
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.schemas.transforms.CoGroup;
-import org.apache.beam.sdk.schemas.transforms.Select;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.transforms.Select;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.schemas.transforms.Filter;
+import org.apache.beam.sdk.util.StreamUtils;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.codehaus.jackson.map.SerializationConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
-public class Task {
-    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+
+public class Test {
+    private static final Logger LOG = LoggerFactory.getLogger(Test.class);
+
+    @DefaultSchema(JavaFieldSchema.class)
+    public static class Game {
+        public String userId;
+        public Integer score;
+        public String gameId;
+        public String date;
+
+        @SchemaCreate
+        public Game(String userId, Integer score, String gameId, String date) {
+            this.userId = userId;
+            this.score = score;
+            this.gameId = gameId;
+            this.date = date;
+        }
+
+        @Override
+        public String toString() {
+            return "Game{" +
+                    "userId='" + userId + '\'' +
+                    ", score='" + score + '\'' +
+                    ", gameId='" + gameId + '\'' +
+                    ", date='" + date + '\'' +
+                    '}';
+        }
+    }
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
     public static class User {
-        public Long userId;
+        public String userId;
         public String userName;
-        public String userSurname;
+
+        public Game game;
 
         @SchemaCreate
-        public User(Long userId, String userName, String userSurname) {
-            this.userName = userName;
-            this.userSurname = userSurname;
+        public User() {
+        }
+
+
+        @SchemaCreate
+        public User(String userId, String userName, Game game) {
             this.userId = userId;
+            this.userName = userName;
+            this.game = game;
+        }
+
+        @Override
+        public String toString() {
+            return "User{" +
+                    "userId='" + userId + '\'' +
+                    ", userName='" + userName + '\'' +
+                    ", game=" + game +
+                    '}';
         }
     }
 
@@ -67,15 +120,67 @@ public class Task {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        User user1 = new User(1L, "Andy", "Mira");
-        User user2 = new User(2L, "Tom", "Larry");
-        User user3 = new User(3L, "Kerry", "Jim");
+        PCollection<User> fullStatistics = getProgressPCollection(pipeline);
 
-        PCollection<Object> userPCollection = pipeline.apply(Create.of(user1, user2, user3));
+        final Schema schema = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .addInt32Field("score")
+                .addStringField("gameId")
+                .addStringField("date")
+                .build();
 
-        userPCollection
-                .apply("User Purchase", ParDo.of(new LogOutput<>("CoGroup")));
+        PCollection<User> pCollection = fullStatistics
+                .setCoder(CustomCoder.of())
+                .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
+
         pipeline.run();
+    }
+
+    public static PCollection<User> getProgressPCollection(Pipeline pipeline) {
+        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractGameStatisticsFn()));
+    }
+
+    static class ExtractGameStatisticsFn extends DoFn<String, User> {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            String[] items = c.element().split(",");
+            c.output(new User(items[0], items[1], new Game(items[0], Integer.valueOf(items[2]), items[3], items[4])));
+        }
+    }
+
+    static class CustomCoder extends Coder<User> {
+        final ObjectMapper objectMapper = new ObjectMapper();
+        private static final CustomCoder INSTANCE = new CustomCoder();
+
+        public static CustomCoder of() {
+            return INSTANCE;
+        }
+
+        @Override
+        public void encode(User dto, OutputStream outStream) throws IOException {
+            final String result = dto.toString();
+            outStream.write(result.getBytes());
+        }
+
+        @Override
+        public User decode(InputStream inStream) throws IOException {
+            final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
+            System.out.println(serializedDTOs);
+            Map<User,Object> map = objectMapper.readValue(serializedDTOs, Map.class);
+            return new User();
+        }
+
+        @Override
+        public List<? extends Coder<?>> getCoderArguments() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void verifyDeterministic() {
+        }
     }
 
     static class LogOutput<T> extends DoFn<T, T> {

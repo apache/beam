@@ -57,13 +57,15 @@ When you create custom objects and schemas, you need to create a subclass of Cod
 * `getCoderArguments` - If it is a `Coder` for a parameterized type, returns a list of `Coders` used for each of the parameters, in the same order in which they appear in the type signature of the parameterized type.
 * `verifyDeterministic` - throw the `Coder.NonDeterministicException`, if the encoding is not deterministic.
 
-For example, consider the following schema type:
+When you get the data and when you paint it as a structure, you will need a `dto` class. In this case, `VendorToPassengerDTO`:
 
 ```
 @DefaultSchema(JavaFieldSchema.class)
 class VendorToPassengerDTO {
+
     @JsonProperty(value = "PassengerCount")
     Integer PassengerCount;
+    
     @JsonProperty(value = "VendorID")
     Integer VendorID;
 
@@ -73,45 +75,22 @@ class VendorToPassengerDTO {
         this.VendorID = vendorID;
     }
 
+    // Function for TypeDescription
     public static VendorToPassengerDTO of(final Integer passengerCount, final Integer vendorID) {
         return new VendorToPassengerDTO(passengerCount, vendorID);
     }
 
-    public void setPassengerCount(final Integer passengerCount) {
-        this.PassengerCount = passengerCount;
-    }
-
-    public void setVendorID(final Integer vendorID) {
-        this.VendorID = vendorID;
-    }
-
-    public Integer getVendorID() {
-        return this.VendorID;
-    }
-
-    public Integer getPassengerCount() {
-        return this.PassengerCount;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("{\"PassengerCount\":%d,\"VendorID\":%d}", PassengerCount, VendorID);
-    }
+    // Setter
+    // Getter
+    // ToString
 }
 ```
 
-Explicit `scheme` for converting to `Row`:
-```
-final Schema schema = Schema.builder()
-                .addInt32Field("PassengerCount")
-                .addInt32Field("VendorID")
-                .build();
-```
+`Pipeline` can't use select, group, and so on, because it doesn't understand the data structure, so we need to write our own `Coder`:
 
-`Coder` for `VendorToPassengerDTO`:
 ```
 class CustomCoderSecond extends Coder<VendorToPassengerDTO> {
-    final ObjectMapper om = new ObjectMapper();
+    final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final CustomCoderSecond INSTANCE = new CustomCoderSecond();
 
@@ -128,7 +107,7 @@ class CustomCoderSecond extends Coder<VendorToPassengerDTO> {
     @Override
     public VendorToPassengerDTO decode(InputStream inStream) throws IOException {
         final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
-        return om.readValue(serializedDTOs, VendorToPassengerDTO.class);
+        return objectMapper.readValue(serializedDTOs, VendorToPassengerDTO.class);
     }
 
     @Override
@@ -144,4 +123,4 @@ class CustomCoderSecond extends Coder<VendorToPassengerDTO> {
 
 ### Playground exercise
 
-You can find the complete code of this example in the playground window you can run and experiment with.
+In the playground window you can find examples of using `Coder`. By running this example, you will see user statistics in certain games. Can you change its structure so that an **additional field** appears if the point is greater than **10** to supply `true`.

@@ -24,4 +24,4 @@ PCollection<Row> convertedToRow = userPCollection.apply(Convert.toRows());
 
 ### Playground exercise
 
-You can find the complete code of this example in the playground window you can run and experiment with.
+In the playground window you can find examples of using the `Convert`. By running this example, you will see user statistics in certain games. Can you add link `row` to `schema`?

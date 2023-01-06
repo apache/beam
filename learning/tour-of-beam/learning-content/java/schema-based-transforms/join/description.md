@@ -43,4 +43,4 @@ PCollection<Row> joined = pCollection1.apply(Join.innerJoin(pCollection2)
 
 ### Playground exercise
 
-You can find the complete code of this example in the playground window you can run and experiment with.
+In the playground window you can find examples of using the `Join`. By running this example, you will see user statistics in certain games. Can you output data that doesn't have shared data?
