@@ -86,7 +86,9 @@ def _to_microseconds(time_ns: int) -> int:
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
-  def load_model(self, model_path=None) -> ModelT:
+  model_path = None
+
+  def load_model(self) -> ModelT:
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
 
@@ -165,8 +167,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     """
     self._unkeyed = unkeyed
 
-  def load_model(self, model_path=None) -> ModelT:
-    return self._unkeyed.load_model(model_path)
+  def load_model(self) -> ModelT:
+    return self._unkeyed.load_model()
 
   def run_inference(
       self,
@@ -220,8 +222,8 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     """
     self._unkeyed = unkeyed
 
-  def load_model(self, model_path=None) -> ModelT:
-    return self._unkeyed.load_model(model_path)
+  def load_model(self) -> ModelT:
+    return self._unkeyed.load_model()
 
   def run_inference(
       self,
@@ -419,7 +421,9 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
-      model = self._model_handler.load_model(model_path)
+      # this will be a breaking change.
+      self._model_handler.model_path = model_path
+      model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
       load_model_latency_ms = end_time - start_time
@@ -452,7 +456,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           (cached_model_container['model_path'], model_path))
       cached_model_container = self._shared_model_handle.acquire(
           load, tag=model_path)
-    return cached_model_container
+    return cached_model_container['model']
 
   def setup(self):
     metrics_namespace = (
@@ -460,10 +464,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
             self._model_handler.get_metrics_namespace())
     self._metrics_collector = _MetricsCollector(metrics_namespace)
 
-    self._model = self._load_model()['model']
+    self._model = self._load_model()
 
   def update_model(self, model_path):
-    self._model = self._load_model(model_path=model_path)['model']
+    self._model = self._load_model(model_path=model_path)
 
   def process(self, batch, inference_args, side_input_model_path=None):
     self.update_model(model_path=side_input_model_path)

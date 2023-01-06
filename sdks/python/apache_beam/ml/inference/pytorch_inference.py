@@ -198,9 +198,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     self._model_params = model_params
     self._inference_fn = inference_fn
 
-  def load_model(self, model_path=None) -> torch.nn.Module:
+  def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    model_path = (model_path if model_path else self._state_dict_path)
+    model_path = (self.model_path if self.model_path else self._state_dict_path)
     model, device = _load_model(
         self._model_class,
         model_path,
@@ -371,9 +371,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     self._model_params = model_params
     self._inference_fn = inference_fn
 
-  def load_model(self, model_path=None) -> torch.nn.Module:
+  def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    model_path = (model_path if model_path else self._state_dict_path)
+    model_path = (self.model_path if self.model_path else self._state_dict_path)
     model, device = _load_model(
         self._model_class,
         model_path,
