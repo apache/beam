@@ -33,29 +33,31 @@ class CodeTextAreaWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<PlaygroundController>(
-        builder: (context, controller, child) {
-      if (controller.result?.errorMessage?.isNotEmpty ?? false) {
+        builder: (context, playgroundController, child) {
+      if (playgroundController.result?.errorMessage?.isNotEmpty ?? false) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _handleError(context, controller);
+          _handleError(context, playgroundController);
         });
       }
 
-      final snippetController = controller.snippetEditingController;
+      final snippetController = playgroundController.snippetEditingController;
 
       if (snippetController == null) {
         return const LoadingIndicator();
       }
+
+      final example = snippetController.example;
 
       return SnippetEditor(
         controller: snippetController,
         isEditable: true,
         actionsWidget: Row(
           children: [
-            if (controller.selectedExample != null)
+            if (example != null)
               Semantics(
                 container: true,
                 child: DescriptionPopoverButton(
-                  example: controller.selectedExample!,
+                  example: example,
                   followerAnchor: Alignment.topRight,
                   targetAnchor: Alignment.bottomRight,
                 ),
@@ -63,7 +65,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
             Semantics(
               container: true,
               child: ShareButton(
-                playgroundController: controller,
+                playgroundController: playgroundController,
               ),
             ),
             const SizedBox(width: kLgSpacing),

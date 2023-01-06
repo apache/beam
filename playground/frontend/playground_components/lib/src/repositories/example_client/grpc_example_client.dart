@@ -366,10 +366,11 @@ class GrpcExampleClient implements ExampleClient {
 
     for (final item in sharedFilesList) {
       snippetFileList.add(
-        grpc.SnippetFile()
-          ..name = item.name
-          ..isMain = true
-          ..content = item.content,
+        grpc.SnippetFile(
+          content: item.content,
+          isMain: true,
+          name: item.name,
+        ),
       );
     }
 

@@ -176,6 +176,7 @@ class ExampleCache extends ChangeNotifier {
       );
     }
 
+    // TODO(alexeyinkin): Load in a single request, https://github.com/apache/beam/issues/24305
     final exampleData = await Future.wait([
       _getPrecompiledObjectCode(example.path, example.sdk),
       _getPrecompiledObjectOutput(example.path, example.sdk),

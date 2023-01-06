@@ -122,6 +122,9 @@ void main() async {
           controller.activeFileController?.getFile().content,
           exampleGo4Multifile.files[0].content,
         );
+
+        controller.activateFileControllerByName('nonexistent');
+        expect(controller.activeFileController, null);
       });
 
       test('getFileControllerByName', () {

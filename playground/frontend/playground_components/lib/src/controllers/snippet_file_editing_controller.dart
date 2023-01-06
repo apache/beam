@@ -48,6 +48,9 @@ class SnippetFileEditingController extends ChangeNotifier {
           text: savedFile.content,
         ) {
     _applyViewOptions(viewOptions);
+
+    // TODO(alexeyinkin): Scroll to a comment instead of index,
+    //  then remove the parameter, https://github.com/apache/beam/issues/23774
     if (contextLine1Based != null) {
       _toStartOfFullLine(max(contextLine1Based - 1, 0));
     }

@@ -54,7 +54,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
 
     return ContentExampleLoadingDescriptor(
       files: (map['files'] as List<dynamic>)
-          .map((e) => SnippetFile.fromJson(e as Map<String, dynamic>))
+          .map((file) => SnippetFile.fromJson(file as Map<String, dynamic>))
           .toList(growable: false),
       name: map['name']?.toString(),
       sdk: sdk,

@@ -30,14 +30,16 @@ import 'snippet_file_editing_controller.dart';
 
 /// The main state object for a single [sdk].
 class SnippetEditingController extends ChangeNotifier {
-  final List<SnippetFileEditingController> fileControllers = [];
   final Sdk sdk;
 
-  Example? _selectedExample;
   ExampleLoadingDescriptor? _descriptor;
+  Example? _example;
   String _pipelineOptions = '';
+
   bool _isChanged = false;
+
   SnippetFileEditingController? _activeFileController;
+  final _fileControllers = <SnippetFileEditingController>[];
   final _fileControllersByName = <String, SnippetFileEditingController>{};
 
   SnippetEditingController({
@@ -49,15 +51,17 @@ class SnippetEditingController extends ChangeNotifier {
     ExampleLoadingDescriptor? descriptor,
   }) {
     _descriptor = descriptor;
-    _selectedExample = example;
+    _example = example;
     _pipelineOptions = example.pipelineOptions;
-    _replaceFileControllers(example.files, example.viewOptions);
     _isChanged = false;
+
+    _deleteFileControllers();
+    _createFileControllers(example.files, example.viewOptions);
 
     notifyListeners();
   }
 
-  Example? get selectedExample => _selectedExample;
+  Example? get example => _example;
 
   ExampleLoadingDescriptor? get descriptor => _descriptor;
 
@@ -89,35 +93,29 @@ class SnippetEditingController extends ChangeNotifier {
   }
 
   bool _calculateIsChanged() {
-    for (final controller in fileControllers) {
-      if (controller.isChanged) {
-        return true;
-      }
-    }
+    return _isAnyFileControllerChanged() || _arePipelineOptionsChanged();
+  }
 
-    if (_arePipelineOptionsChanged()) {
-      return true;
-    }
-
-    return false;
+  bool _isAnyFileControllerChanged() {
+    return _fileControllers.any((c) => c.isChanged);
   }
 
   bool _arePipelineOptionsChanged() {
-    return _pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
+    return _pipelineOptions != (_example?.pipelineOptions ?? '');
   }
 
   void reset() {
-    for (final controller in fileControllers) {
+    for (final controller in _fileControllers) {
       controller.reset();
     }
 
-    _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
+    _pipelineOptions = _example?.pipelineOptions ?? '';
   }
 
   /// Creates an [ExampleLoadingDescriptor] that can recover the
   /// current content.
   ExampleLoadingDescriptor getLoadingDescriptor() {
-    final example = selectedExample;
+    final example = this.example;
     if (example == null) {
       return EmptyExampleLoadingDescriptor(sdk: sdk);
     }
@@ -134,41 +132,38 @@ class SnippetEditingController extends ChangeNotifier {
     );
   }
 
-  void _replaceFileControllers(
+  void _deleteFileControllers() {
+    for (final controller in _fileControllers) {
+      controller.removeListener(_onFileControllerChanged);
+      controller.dispose();
+    }
+
+    _fileControllers.clear();
+    _fileControllersByName.clear();
+  }
+
+  void _createFileControllers(
     Iterable<SnippetFile> files,
     ExampleViewOptions viewOptions,
   ) {
-    for (final oldController in fileControllers) {
-      oldController.removeListener(_onFileControllerChanged);
-    }
-    final newControllers = <SnippetFileEditingController>[];
-
     for (final file in files) {
       final controller = SnippetFileEditingController(
-        contextLine1Based: file.isMain ? _selectedExample?.contextLine : null,
+        contextLine1Based: file.isMain ? _example?.contextLine : null,
         savedFile: file,
         sdk: sdk,
         viewOptions: viewOptions,
       );
 
-      newControllers.add(controller);
+      _fileControllers.add(controller);
       controller.addListener(_onFileControllerChanged);
     }
 
-    for (final oldController in fileControllers) {
-      oldController.dispose();
-    }
-
-    fileControllers.clear();
-    fileControllers.addAll(newControllers);
-
-    _fileControllersByName.clear();
-    for (final controller in newControllers) {
+    for (final controller in _fileControllers) {
       _fileControllersByName[controller.savedFile.name] = controller;
     }
 
     _activeFileController =
-        fileControllers.firstWhereOrNull((c) => c.savedFile.isMain);
+        _fileControllers.firstWhereOrNull((c) => c.savedFile.isMain);
   }
 
   void _onFileControllerChanged() {
@@ -185,9 +180,8 @@ class SnippetEditingController extends ChangeNotifier {
     }
   }
 
-  bool _isAnyFileControllerChanged() {
-    return fileControllers.any((c) => c.isChanged);
-  }
+  List<SnippetFileEditingController> get fileControllers =>
+      UnmodifiableListView(_fileControllers);
 
   SnippetFileEditingController? get activeFileController =>
       _activeFileController;
@@ -206,6 +200,6 @@ class SnippetEditingController extends ChangeNotifier {
   }
 
   List<SnippetFile> getFiles() {
-    return fileControllers.map((c) => c.getFile()).toList(growable: false);
+    return _fileControllers.map((c) => c.getFile()).toList(growable: false);
   }
 }

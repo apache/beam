@@ -102,11 +102,11 @@ class PlaygroundController with ChangeNotifier {
 
   // TODO(alexeyinkin): Return full, then shorten, https://github.com/apache/beam/issues/23250
   String get examplesTitle {
-    final name = snippetEditingController?.selectedExample?.name ?? kTitle;
+    final name = snippetEditingController?.example?.name ?? kTitle;
     return name.substring(0, min(kTitleLength, name.length));
   }
 
-  Example? get selectedExample => snippetEditingController?.selectedExample;
+  Example? get selectedExample => snippetEditingController?.example;
 
   Sdk? get sdk => _sdk;
 
@@ -277,7 +277,7 @@ class PlaygroundController with ChangeNotifier {
     }
     _executionTime?.close();
     _executionTime = _createExecutionTimeStream();
-    if (!isExampleChanged && controller.selectedExample?.outputs != null) {
+    if (!isExampleChanged && controller.example?.outputs != null) {
       _showPrecompiledResult(controller);
     } else {
       final request = RunCodeRequest(
@@ -327,7 +327,7 @@ class PlaygroundController with ChangeNotifier {
     _result = const RunCodeResult(
       status: RunCodeStatus.preparation,
     );
-    final selectedExample = snippetEditingController.selectedExample!;
+    final selectedExample = snippetEditingController.example!;
 
     notifyListeners();
     // add a little delay to improve user experience
@@ -398,16 +398,16 @@ class PlaygroundController with ChangeNotifier {
 
     final snippetId = await exampleCache.saveSnippet(
       files: files,
-      sdk: snippetController.sdk,
       pipelineOptions: snippetController.pipelineOptions,
+      sdk: snippetController.sdk,
     );
 
     final sharedExample = Example(
       files: files,
       name: files.first.name,
+      path: snippetId,
       sdk: snippetController.sdk,
       type: ExampleType.example,
-      path: snippetId,
     );
 
     final descriptor = UserSharedExampleLoadingDescriptor(

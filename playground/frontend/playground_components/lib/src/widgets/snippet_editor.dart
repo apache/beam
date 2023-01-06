@@ -45,9 +45,7 @@ class SnippetEditor extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) {
-        final count = controller.fileControllers.length;
-
-        switch (count) {
+        switch (controller.fileControllers.length) {
           case 0:
             return const Center(
               child: LoadingIndicator(),
