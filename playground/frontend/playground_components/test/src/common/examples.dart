@@ -22,47 +22,47 @@ import 'package:playground_components/src/models/example_base.dart';
 import 'package:playground_components/src/models/sdk.dart';
 
 const exampleMock1 = Example(
+  complexity: Complexity.basic,
+  description: 'description',
+  name: 'Example X1',
+  path: 'SDK_PYTHON/Category/Name1',
   sdk: Sdk.python,
   source: 'ex1',
-  name: 'Example X1',
   tags: ['tag1'],
   type: ExampleType.example,
-  description: 'description',
-  path: 'SDK_PYTHON/Category/Name1',
-  complexity: Complexity.basic,
 );
 
 const exampleMock2 = Example(
+  complexity: Complexity.basic,
+  description: 'description',
+  name: 'Kata',
+  path: 'SDK_PYTHON/Category/Name2',
   sdk: Sdk.python,
   source: 'ex2',
-  name: 'Kata',
   tags: ['tag2'],
   type: ExampleType.kata,
-  description: 'description',
-  path: 'SDK_PYTHON/Category/Name2',
-  complexity: Complexity.basic,
 );
 
 const exampleWithoutSourceMock = ExampleBase(
-  sdk: Sdk.python,
-  name: 'Test example',
-  type: ExampleType.example,
-  description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
   complexity: Complexity.basic,
+  description: 'description',
+  name: 'Test example',
+  path: 'SDK_PYTHON/Category/Name',
+  sdk: Sdk.python,
+  type: ExampleType.example,
 );
 
 const exampleWithAllAdditionsMock = Example(
-  sdk: Sdk.python,
-  name: 'Test example',
-  type: ExampleType.example,
-  description: 'description',
-  path: 'SDK_PYTHON/Category/Name',
-  source: 'test outputs',
-  outputs: 'test outputs',
-  logs: 'test outputs',
-  graph: 'test outputs',
   complexity: Complexity.basic,
+  description: 'description',
+  graph: 'test outputs',
+  logs: 'test outputs',
+  name: 'Test example',
+  outputs: 'test outputs',
+  path: 'SDK_PYTHON/Category/Name',
+  sdk: Sdk.python,
+  source: 'test outputs',
+  type: ExampleType.example,
 );
 
 const exampleGoPipelineOptions = Example(
@@ -79,11 +79,11 @@ const exampleGoPipelineOptions = Example(
 );
 
 const exampleMockGo = Example(
+  complexity: Complexity.medium,
+  description: 'description',
+  name: 'Example',
+  path: 'SDK_GO/Category/Name',
   sdk: Sdk.go,
   source: 'ex1',
-  name: 'Example',
   type: ExampleType.example,
-  description: 'description',
-  path: 'SDK_GO/Category/Name',
-  complexity: Complexity.medium,
 );

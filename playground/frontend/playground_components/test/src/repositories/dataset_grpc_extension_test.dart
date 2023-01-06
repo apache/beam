@@ -17,32 +17,31 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:playground_components/src/controllers/example_loaders/user_shared_example_loader.dart';
+import 'package:playground_components/src/api/v1/api.pbgrpc.dart' as g;
+import 'package:playground_components/src/repositories/dataset_grpc_extension.dart';
 
-import '../../common/example_cache.dart';
+void main() {
+  final datasets = <g.Dataset>[
+    //
+    g.Dataset(
+      datasetPath: 'mockPath1',
+      options: {'key1': 'value1'},
+      type: g.EmulatorType.EMULATOR_TYPE_KAFKA,
+    ),
 
-void main() async {
-  TestWidgetsFlutterBinding.ensureInitialized();
+    g.Dataset(
+      datasetPath: 'mockPath2',
+      options: {'key2': 'value2'},
+      type: g.EmulatorType.EMULATOR_TYPE_UNSPECIFIED,
+    ),
+  ];
 
-  group('UserSharedExampleLoader', () {
-    testWidgets('non-existent', (WidgetTester wt) async {
-      Exception? thrown;
-      final loader = UserSharedExampleLoader(
-        descriptor: const UserSharedExampleLoadingDescriptor(
-          sdk: Sdk.go,
-          snippetId: 'non-existent',
-        ),
-        exampleCache: createFailingExampleCache(),
-      );
-
-      try {
-        await loader.future;
-      } on Exception catch (ex) {
-        thrown = ex;
-      }
-
-      expect(thrown, isA<Exception>());
-    });
+  group('Dataset extensions test.', () {
+    for (final dataset in datasets) {
+      test('Dataset with type ${dataset.type.name} converts to the same value',
+          () {
+        expect(dataset.model.grpc, dataset);
+      });
+    }
   });
 }

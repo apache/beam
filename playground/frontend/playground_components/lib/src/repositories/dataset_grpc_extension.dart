@@ -16,19 +16,26 @@
  * limitations under the License.
  */
 
-import '../../models/dataset.dart';
-import '../../models/sdk.dart';
+import '../api/v1/api.pbgrpc.dart' as g;
+import '../models/dataset.dart';
+import 'emulator_type_grpc_extension.dart';
 
-class RunCodeRequest {
-  final String code;
-  final List<Dataset> datasets;
-  final Sdk sdk;
-  final Map<String, String> pipelineOptions;
+extension DatasetExtension on Dataset {
+  g.Dataset get grpc {
+    return g.Dataset(
+      type: type?.grpc ?? g.EmulatorType.EMULATOR_TYPE_UNSPECIFIED,
+      options: options,
+      datasetPath: datasetPath,
+    );
+  }
+}
 
-  const RunCodeRequest({
-    required this.code,
-    required this.datasets,
-    required this.sdk,
-    required this.pipelineOptions,
-  });
+extension GrpcDatasetExtension on g.Dataset {
+  Dataset get model {
+    return Dataset(
+      type: type.model,
+      options: options,
+      datasetPath: datasetPath,
+    );
+  }
 }

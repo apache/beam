@@ -16,19 +16,16 @@
  * limitations under the License.
  */
 
-import '../../models/dataset.dart';
-import '../../models/sdk.dart';
+import '../enums/emulator_type.dart';
 
-class RunCodeRequest {
-  final String code;
-  final List<Dataset> datasets;
-  final Sdk sdk;
-  final Map<String, String> pipelineOptions;
+class Dataset {
+  final EmulatorType? type;
+  final Map<String, String> options;
+  final String datasetPath;
 
-  const RunCodeRequest({
-    required this.code,
-    required this.datasets,
-    required this.sdk,
-    required this.pipelineOptions,
+  Dataset({
+    required this.type,
+    required this.options,
+    required this.datasetPath,
   });
 }

@@ -17,32 +17,18 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:playground_components/src/controllers/example_loaders/user_shared_example_loader.dart';
+import 'package:playground_components/src/api/v1/api.pbgrpc.dart' as g;
+import 'package:playground_components/src/repositories/emulator_type_grpc_extension.dart';
 
-import '../../common/example_cache.dart';
-
-void main() async {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  group('UserSharedExampleLoader', () {
-    testWidgets('non-existent', (WidgetTester wt) async {
-      Exception? thrown;
-      final loader = UserSharedExampleLoader(
-        descriptor: const UserSharedExampleLoadingDescriptor(
-          sdk: Sdk.go,
-          snippetId: 'non-existent',
-        ),
-        exampleCache: createFailingExampleCache(),
-      );
-
-      try {
-        await loader.future;
-      } on Exception catch (ex) {
-        thrown = ex;
-      }
-
-      expect(thrown, isA<Exception>());
-    });
+void main() {
+  group('Emulator type extensions test', () {
+    for (final value in g.EmulatorType.values) {
+      test('Emulator type ${value.name} converts to the same value', () {
+        expect(
+          value.model?.grpc ?? g.EmulatorType.EMULATOR_TYPE_UNSPECIFIED,
+          value,
+        );
+      });
+    }
   });
 }

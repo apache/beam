@@ -67,3 +67,6 @@ flutter:
 
   generate: true
   uses-material-design: true
+
+flutter_gen:
+  output: lib/src/assets/
