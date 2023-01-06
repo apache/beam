@@ -31,6 +31,7 @@ class AppNotifier extends ChangeNotifier {
     unawaited(_readSdkId());
   }
 
+  // TODO(nausharipov): remove sdkId getter and setter
   String? get sdkId => _sdkId;
   Sdk? get sdk => Sdk.tryParse(_sdkId);
 
