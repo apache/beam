@@ -1,5 +1,5 @@
 plugins {
-    id 'java'
+    id 'application'
     id 'org.apache.beam.module'
     id 'com.github.johnrengelman.shadow'
 }
@@ -10,7 +10,7 @@ applyJavaNature(
         shadowClosure: {},
 )
 provideIntegrationTestingDependencies()
-
+mainClassName = "org.apache.beam.spd.StructuredPipelineMain"
 description = "Apache Beam :: Structured Pipeline Descriptions"
 ext.summary = "Structured Pipeline Descriptions (SPD) for Beam"
 

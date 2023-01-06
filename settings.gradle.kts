@@ -274,3 +274,5 @@ project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner"
 include("sdks:java:extensions:spd")
 findProject(":sdks:java:extensions:spd")?.name = "spd"
 include("spd")
+include("sdks:java:io:iceberg")
+findProject(":sdks:java:io:iceberg")?.name = "iceberg"

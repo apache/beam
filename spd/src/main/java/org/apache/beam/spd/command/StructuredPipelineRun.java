@@ -18,9 +18,14 @@
 package org.apache.beam.spd.command;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
+import org.apache.beam.sdk.extensions.spd.StructuredPipelineProfile;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 @AutoService(StructuredPipelineCommand.class)
 public class StructuredPipelineRun implements StructuredPipelineCommand {
+
 
   @Override
   public String command() {
@@ -29,5 +34,11 @@ public class StructuredPipelineRun implements StructuredPipelineCommand {
 
   @Override
   public void run(String... args) throws Exception {
+    StructuredPipelineRunOptions options = PipelineOptionsFactory.fromArgs(args).as(StructuredPipelineRunOptions.class);
+
+
+    StructuredPipelineDescription spd = new StructuredPipelineDescription();
+
   }
+
 }
