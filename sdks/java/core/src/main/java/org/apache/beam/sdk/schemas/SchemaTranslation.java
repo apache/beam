@@ -439,9 +439,8 @@ public class SchemaTranslation {
                         logicalType.getPayload().toByteArray(), "logicalType"));
           } catch (IllegalArgumentException e) {
             LOG.warn(
-                String.format(
-                    "Unable to deserialize the logical type %s from proto. Mark as UnknownLogicalType",
-                    urn));
+                "Unable to deserialize the logical type {} from proto. Mark as UnknownLogicalType.",
+                urn);
           }
         }
         // assemble an UnknownLogicalType

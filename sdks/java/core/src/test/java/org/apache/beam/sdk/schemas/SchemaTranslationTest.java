@@ -402,38 +402,42 @@ public class SchemaTranslationTest {
     }
   }
 
-  @RunWith(JUnit4.class)
+  /** Test schema translation of logical types. */
+  @RunWith(Parameterized.class)
   public static class LogicalTypesTest {
+    @Parameters(name = "{index}: {0}")
+    public static Iterable<Schema.FieldType> data() {
+      return ImmutableList.<Schema.FieldType>builder()
+          .add(FieldType.logicalType(SqlTypes.DATE))
+          .add(FieldType.logicalType(SqlTypes.TIME))
+          .add(FieldType.logicalType(SqlTypes.DATETIME))
+          .add(FieldType.logicalType(SqlTypes.TIMESTAMP))
+          .add(FieldType.logicalType(new NanosInstant()))
+          .add(FieldType.logicalType(new NanosDuration()))
+          .add(FieldType.logicalType(FixedBytes.of(10)))
+          .add(FieldType.logicalType(VariableBytes.of(10)))
+          .add(FieldType.logicalType(FixedString.of(10)))
+          .add(FieldType.logicalType(VariableString.of(10)))
+          .add(FieldType.logicalType(FixedPrecisionNumeric.of(10)))
+          .build();
+    }
+
+    @Parameter(0)
+    public Schema.FieldType fieldType;
+
     @Test
     public void testPortableLogicalTypeSerializeDeserilizeCorrectly() {
-      List<Schema.FieldType> testCases =
-          ImmutableList.<Schema.FieldType>builder()
-              .add(FieldType.logicalType(SqlTypes.DATE))
-              .add(FieldType.logicalType(SqlTypes.TIME))
-              .add(FieldType.logicalType(SqlTypes.DATETIME))
-              .add(FieldType.logicalType(SqlTypes.TIMESTAMP))
-              .add(FieldType.logicalType(new NanosInstant()))
-              .add(FieldType.logicalType(new NanosDuration()))
-              .add(FieldType.logicalType(FixedBytes.of(10)))
-              .add(FieldType.logicalType(VariableBytes.of(10)))
-              .add(FieldType.logicalType(FixedString.of(10)))
-              .add(FieldType.logicalType(VariableString.of(10)))
-              .add(FieldType.logicalType(FixedPrecisionNumeric.of(10)))
-              .build();
+      SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, true);
+      Schema.FieldType translated = SchemaTranslation.fieldTypeFromProto(proto);
 
-      for (Schema.FieldType fieldType : testCases) {
-        SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, true);
-        Schema.FieldType translated = SchemaTranslation.fieldTypeFromProto(proto);
-
-        assertThat(
-            translated.getLogicalType().getClass(), equalTo(fieldType.getLogicalType().getClass()));
-        assertThat(
-            translated.getLogicalType().getArgumentType(),
-            equalTo(fieldType.getLogicalType().getArgumentType()));
-        assertThat(
-            translated.getLogicalType().getArgument(),
-            equalTo(fieldType.getLogicalType().getArgument()));
-      }
+      assertThat(
+          translated.getLogicalType().getClass(), equalTo(fieldType.getLogicalType().getClass()));
+      assertThat(
+          translated.getLogicalType().getArgumentType(),
+          equalTo(fieldType.getLogicalType().getArgumentType()));
+      assertThat(
+          translated.getLogicalType().getArgument(),
+          equalTo(fieldType.getLogicalType().getArgument()));
     }
   }
 
