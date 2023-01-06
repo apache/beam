@@ -37,7 +37,6 @@ class EmbeddedEditor extends StatelessWidget {
     return SnippetEditor(
       controller: snippetController,
       isEditable: isEditable,
-      goToContextLine: false,
     );
   }
 }

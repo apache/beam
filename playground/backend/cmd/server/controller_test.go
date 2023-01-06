@@ -55,7 +55,7 @@ import (
 
 const (
 	bufSize               = 1024 * 1024
-	javaConfig            = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	javaConfig            = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-parameters\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
 	javaLogConfigFilename = "logging.properties"
 	baseFileFolder        = "executable_files"
 	configFolder          = "configs"
@@ -241,6 +241,21 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 				request: &pb.RunCodeRequest{
 					Code: "MOCK_CODE",
 					Sdk:  pb.Sdk_SDK_JAVA,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "RunCode multifile",
+			args: args{
+				ctx: context.Background(),
+				request: &pb.RunCodeRequest{
+					Code: "MOCK_CODE",
+					Sdk:  pb.Sdk_SDK_JAVA,
+					Files: []*pb.SnippetFile{
+						{Name: "main.java", Content: "MOCK_CODE", IsMain: true},
+						{Name: "import.java", Content: "import content", IsMain: false},
+					},
 				},
 			},
 			wantErr: false,
@@ -1189,16 +1204,36 @@ func TestPlaygroundController_GetPrecompiledObjectCode(t *testing.T) {
 		name         string
 		args         args
 		wantErr      bool
-		wantResponse string
+		wantResponse *pb.GetPrecompiledObjectCodeResponse
 	}{
 		{
-			name: "Getting the code of the specific example in the usual case",
+			name: "Getting the code of single-file example",
 			args: args{
 				ctx:  ctx,
 				info: &pb.GetPrecompiledObjectCodeRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_DEFAULT_EXAMPLE"},
 			},
-			wantErr:      false,
-			wantResponse: "MOCK_CONTENT",
+			wantErr: false,
+			wantResponse: &pb.GetPrecompiledObjectCodeResponse{
+				Code: "MOCK_CONTENT_0",
+				Files: []*pb.SnippetFile{
+					{Name: "MOCK_NAME_0", Content: "MOCK_CONTENT_0", IsMain: true},
+				},
+			},
+		},
+		{
+			name: "Getting the code of multifile example",
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetPrecompiledObjectCodeRequest{CloudPath: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_MULTIFILE"},
+			},
+			wantErr: false,
+			wantResponse: &pb.GetPrecompiledObjectCodeResponse{
+				Code: "MOCK_CONTENT_0",
+				Files: []*pb.SnippetFile{
+					{Name: "MOCK_NAME_0", Content: "MOCK_CONTENT_0", IsMain: true},
+					{Name: "MOCK_NAME_1", Content: "MOCK_CONTENT_1", IsMain: false},
+				},
+			},
 		},
 	}
 
@@ -1209,9 +1244,8 @@ func TestPlaygroundController_GetPrecompiledObjectCode(t *testing.T) {
 				t.Errorf("PlaygroundController_GetPrecompiledObjectCode() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got.Code != tt.wantResponse {
-				t.Errorf("PlaygroundController_GetPrecompiledObjectCode() unexpected result")
-			}
+			assert.Equal(t, tt.wantResponse.Code, got.Code)
+			assert.Equal(t, tt.wantResponse.Files, got.Files)
 		})
 	}
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
@@ -53,7 +54,7 @@ const (
 
 // Setup returns fs_tool.LifeCycle.
 // Also, prepares files and folders needed to code processing according to sdk
-func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir, pipelinesFolder, preparedModDir string, mockCluster emulators.EmulatorMockCluster) (*fs_tool.LifeCycle, error) {
+func Setup(sdk pb.Sdk, sources []entity.FileEntity, pipelineId uuid.UUID, workingDir, pipelinesFolder, preparedModDir string, mockCluster emulators.EmulatorMockCluster) (*fs_tool.LifeCycle, error) {
 	// create file system service
 	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, filepath.Join(workingDir, pipelinesFolder))
 	if err != nil {
@@ -97,7 +98,7 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir, pipelinesF
 	}
 
 	// create file with code
-	err = lc.CreateSourceCodeFile(code)
+	err = lc.CreateSourceCodeFiles(sources)
 	if err != nil {
 		logger.Errorf("%s: RunCode(): CreateSourceCodeFile(): %s\n", pipelineId, err.Error())
 		lc.DeleteFolders()

@@ -88,6 +88,7 @@ class RunCodeRequest extends $pb.GeneratedMessage {
     ..e<Sdk>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..pc<Dataset>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'datasets', $pb.PbFieldType.PM, subBuilder: Dataset.create)
+    ..pc<SnippetFile>(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'files', $pb.PbFieldType.PM, subBuilder: SnippetFile.create)
     ..hasRequiredFields = false
   ;
 
@@ -97,6 +98,7 @@ class RunCodeRequest extends $pb.GeneratedMessage {
     Sdk? sdk,
     $core.String? pipelineOptions,
     $core.Iterable<Dataset>? datasets,
+    $core.Iterable<SnippetFile>? files,
   }) {
     final _result = create();
     if (code != null) {
@@ -110,6 +112,9 @@ class RunCodeRequest extends $pb.GeneratedMessage {
     }
     if (datasets != null) {
       _result.datasets.addAll(datasets);
+    }
+    if (files != null) {
+      _result.files.addAll(files);
     }
     return _result;
   }
@@ -163,6 +168,9 @@ class RunCodeRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(4)
   $core.List<Dataset> get datasets => $_getList(3);
+
+  @$pb.TagNumber(5)
+  $core.List<SnippetFile> get files => $_getList(4);
 }
 
 class RunCodeResponse extends $pb.GeneratedMessage {
@@ -1817,16 +1825,21 @@ class GetPrecompiledObjectResponse extends $pb.GeneratedMessage {
 class GetPrecompiledObjectCodeResponse extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetPrecompiledObjectCodeResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
     ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'code')
+    ..pc<SnippetFile>(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'files', $pb.PbFieldType.PM, subBuilder: SnippetFile.create)
     ..hasRequiredFields = false
   ;
 
   GetPrecompiledObjectCodeResponse._() : super();
   factory GetPrecompiledObjectCodeResponse({
     $core.String? code,
+    $core.Iterable<SnippetFile>? files,
   }) {
     final _result = create();
     if (code != null) {
       _result.code = code;
+    }
+    if (files != null) {
+      _result.files.addAll(files);
     }
     return _result;
   }
@@ -1859,6 +1872,9 @@ class GetPrecompiledObjectCodeResponse extends $pb.GeneratedMessage {
   $core.bool hasCode() => $_has(0);
   @$pb.TagNumber(1)
   void clearCode() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<SnippetFile> get files => $_getList(1);
 }
 
 class GetPrecompiledObjectOutputResponse extends $pb.GeneratedMessage {

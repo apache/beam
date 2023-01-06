@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * Configuration for reading from SignleStoreDB.
+ * Configuration for reading from SingleStoreDB.
  *
  * <p>This class is meant to be used with {@link SingleStoreSchemaTransformReadProvider}.
  */

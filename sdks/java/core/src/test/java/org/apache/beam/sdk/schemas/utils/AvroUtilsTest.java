@@ -46,6 +46,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -710,6 +711,25 @@ public class AvroUtilsTest {
             .set("my_date_field", daysFromEpoch)
             .set("my_time_field", timeSinceMidNight)
             .build();
+
+    assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
+  }
+
+  @Test
+  public void testSqlTypesToGenericRecord() {
+    // SqlTypes to LogicalTypes.date conversion is one direction
+    java.time.LocalDate localDate = java.time.LocalDate.of(1979, 3, 14);
+
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("local_date", FieldType.logicalType(SqlTypes.DATE)))
+            .build();
+
+    Row rowData = Row.withSchema(beamSchema).addValue(localDate).build();
+
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    GenericRecord expectedRecord =
+        new GenericRecordBuilder(avroSchema).set("local_date", localDate.toEpochDay()).build();
 
     assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
   }

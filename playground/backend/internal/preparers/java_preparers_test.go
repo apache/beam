@@ -24,6 +24,7 @@ import (
 	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 )
 
@@ -39,7 +40,8 @@ func Test_replace(t *testing.T) {
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
-	_ = lc.CreateSourceCodeFile(codeWithPublicClass)
+	sources := []entity.FileEntity{{Name: "main.java", Content: codeWithPublicClass, IsMain: true}}
+	_ = lc.CreateSourceCodeFiles(sources)
 
 	type args struct {
 		args []interface{}
@@ -170,6 +172,7 @@ func createTempFileWithCode(code string) fs_tool.LifeCyclePaths {
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
 	_ = lc.CreateFolders()
 
-	_ = lc.CreateSourceCodeFile(code)
+	sources := []entity.FileEntity{{Name: "main.java", Content: code, IsMain: true}}
+	_ = lc.CreateSourceCodeFiles(sources)
 	return lc.Paths
 }

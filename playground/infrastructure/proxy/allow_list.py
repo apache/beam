@@ -21,7 +21,8 @@ ALLOWED_LIST = [
     "logging.googleapis.com",
     "datastore.googleapis.com",
     "oauth2.googleapis.com",
-    "storage.googleapis.com"
+    "storage.googleapis.com",
+    "repo1.maven.org"
 ]
 
 # ALLOWED_BUCKET_LIST contains all public Google Cloud Storage buckets

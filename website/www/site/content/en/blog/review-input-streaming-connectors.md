@@ -168,7 +168,7 @@ and <a href="https://spark.apache.org/docs/latest/api/python/reference/api/pyspa
    </td>
    <td><a href="https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.gcsio.html">io.gcp.gcsio</a>
    </td>
-   <td rowspan="2" ><a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream</a>
+   <td rowspan="2" ><a href="https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.streaming.StreamingContext.html#pyspark.streaming.StreamingContext">textFileStream</a>
    </td>
   </tr>
   <tr>

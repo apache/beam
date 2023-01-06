@@ -18,6 +18,9 @@
 package org.apache.beam.io.debezium;
 
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.Row;
+import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.source.SourceRecord;
 
 public class KafkaConnectUtils {
   public static Schema beamSchemaFromKafkaConnectSchema(
@@ -73,5 +76,48 @@ public class KafkaConnectUtils {
             String.format(
                 "Unable to convert Kafka field schema %s to Beam Schema", kafkaFieldSchema));
     }
+  }
+
+  public static SourceRecordMapper<Row> beamRowFromSourceRecordFn(final Schema recordSchema) {
+    return new SourceRecordMapper<Row>() {
+      @Override
+      public Row mapSourceRecord(SourceRecord sourceRecord) throws Exception {
+        return beamRowFromKafkaStruct((Struct) sourceRecord.value(), recordSchema);
+      }
+
+      private Row beamRowFromKafkaStruct(Struct kafkaStruct, Schema beamSchema) {
+        Row.Builder rowBuilder = Row.withSchema(beamSchema);
+        for (Schema.Field f : beamSchema.getFields()) {
+          Object structField = kafkaStruct.getWithoutDefault(f.getName());
+          switch (kafkaStruct.schema().field(f.getName()).schema().type()) {
+            case ARRAY:
+            case MAP:
+              // TODO(pabloem): Handle nested structs
+              throw new IllegalArgumentException("UNABLE TO CONVERT FIELD " + f);
+            case STRUCT:
+              Schema fieldSchema = f.getType().getRowSchema();
+              if (fieldSchema == null) {
+                throw new IllegalArgumentException(
+                    String.format(
+                        "Improper schema for Beam record: %s has no row schema to build a Row from.",
+                        f.getName()));
+              }
+              if (structField == null) {
+                // If the field is null, then we must add a null field to ensure we encode things
+                // properly.
+                rowBuilder = rowBuilder.addValue(null);
+                break;
+              }
+              rowBuilder =
+                  rowBuilder.addValue(beamRowFromKafkaStruct((Struct) structField, fieldSchema));
+              break;
+            default:
+              rowBuilder = rowBuilder.addValue(structField);
+              break;
+          }
+        }
+        return rowBuilder.build();
+      }
+    };
   }
 }

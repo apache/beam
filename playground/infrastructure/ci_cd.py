@@ -88,9 +88,6 @@ def _run_ci_cd(step: str, raw_sdk: str, origin: Origin, subdirs: List[str]):
     logging.info("Finish of searching Playground examples")
     logging.info("Number of found Playground examples: %s", len(examples))
 
-    examples = list(filter(lambda example: example.tag.multifile is False, examples))
-    logging.info("Number of sinlge-file Playground examples: %s", len(examples))
-
     logging.info("Execute Playground examples ...")
     runner = Verifier(sdk, origin)
     runner.run_verify(examples)

@@ -31,7 +31,7 @@ def test_ci_step(
     mock_find_examples.return_value = [
         create_test_example(tag_meta=dict(name="Default", default_example=True)),
         create_test_example(tag_meta=dict(name="Single", multifile=False)),
-        create_test_example(tag_meta=dict(name="Multi", multifile=True)),
+        create_test_example(is_multifile=True, tag_meta=dict(name="Multi")),
     ]
     _run_ci_cd(
         step,
