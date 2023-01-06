@@ -67,7 +67,6 @@ task analyze  {
 
   doLast {
     exec {
-      // Exact paths instead of '.' so it does not go into playground_components
       executable("dart")
       args("analyze", "lib", "test")
     }
@@ -76,7 +75,7 @@ task analyze  {
 
 task pubGet {
   group = "build"
-  description = "Get packages for the playground frontend project"
+  description = "Get packages for the frontend project"
   doLast {
     exec {
       executable("flutter")
@@ -90,7 +89,6 @@ task format {
   description = "Idiomatically format Dart source code"
   doLast {
     exec {
-      // Exact paths instead of '.' so it does not go into playground_components
       executable("dart")
       args("format", "lib", "test")
     }
@@ -205,7 +203,7 @@ task copyDockerfileDependencies(type: Copy) {
 
 docker {
   group = "build"
-  description = "Build container for playground frontend application"
+  description = "Build container for the frontend project"
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "playground-frontend",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
@@ -223,7 +221,7 @@ dockerPrepare.dependsOn copyDockerfileDependencies
 
 task("createConfig") {
   group = "build"
-  description = "Generate config for the playground frontend project"
+  description = "Generate config for the frontend project"
   doLast {
     def configFileName = "config.g.dart"
     def modulePath = project(":playground:frontend").projectDir.absolutePath

@@ -36,7 +36,6 @@ tasks.register("analyze") {
 
   doLast {
     exec {
-      // Exact paths instead of '.' so it does not go into playground_components
       executable("dart")
       args("analyze", "lib", "test")
     }
@@ -45,7 +44,7 @@ tasks.register("analyze") {
 
 tasks.register("pubGet") {
   group = "build"
-  description = "Get packages for the playground frontend project"
+  description = "Get packages for the frontend project"
   doLast {
     exec {
       executable("flutter")
@@ -59,7 +58,6 @@ tasks.register("format") {
   description = "Idiomatically format Dart source code"
   doLast {
     exec {
-      // Exact paths instead of "." so it does not go into playground_components
       executable("dart")
       args("format", "lib", "test")
     }
