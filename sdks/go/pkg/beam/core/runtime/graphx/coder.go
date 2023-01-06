@@ -448,7 +448,7 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 		if err != nil {
 			return "", errors.SetTopLevelMsgf(err, "failed to encode custom coder %s for TypeName %s. "+
 				"Make sure the type was registered before calling beam.Init. For example: "+
-				"beam.RegisterType(reflect.TypeOf((*TypeName)(nil)).Elem()). Some types can't be registered, see invalid registration types as below:(Link)", c, c.Custom.Type)
+				"beam.RegisterType(reflect.TypeOf((*TypeName)(nil)).Elem()). Some types, like maps, slices, arrays, channels, and functions cannot be registered as types.", c, c.Custom.Type)
 		}
 		data, err := protox.EncodeBase64(ref)
 		if err != nil {
