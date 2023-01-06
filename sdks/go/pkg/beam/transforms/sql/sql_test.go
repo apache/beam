@@ -51,7 +51,7 @@ func TestInput(t *testing.T) {
 	o := &options{inputs: make(map[string]beam.PCollection)}
 	option := Input(test.inputName, test.inputIn)
 	if option == nil {
-		t.Errorf("Input(%v, %v) = %v, want not nil", test.inputName, test.inputIn, nil)
+		t.Errorf("Input(%v, %v) = %v, want not nil", test.inputName, test.inputIn, option)
 	}
 	option(o)
 	if o.inputs == nil || !reflect.DeepEqual(o.inputs[test.inputName], test.inputIn) {
@@ -69,7 +69,7 @@ func TestDialect(t *testing.T) {
 	o := &options{}
 	option := Dialect(test.dialect)
 	if option == nil {
-		t.Errorf("Dialect(%v) = %v, want not nil", test.dialect, nil)
+		t.Errorf("Dialect(%v) = %v, want not nil", test.dialect, option)
 	}
 	option(o)
 	if !reflect.DeepEqual(o.dialect, test.dialect) {
@@ -87,7 +87,7 @@ func TestExpansionAddr(t *testing.T) {
 	o := &options{}
 	option := ExpansionAddr(test.addr)
 	if option == nil {
-		t.Errorf("ExpansionAddr(%v) = %v, want not nil", test.addr, nil)
+		t.Errorf("ExpansionAddr(%v) = %v, want not nil", test.addr, option)
 	}
 	option(o)
 	if !reflect.DeepEqual(o.expansionAddr, test.addr) {
