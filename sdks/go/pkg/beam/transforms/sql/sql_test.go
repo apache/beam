@@ -23,81 +23,74 @@ import (
 )
 
 func TestOptions_Add(t *testing.T) {
-	str := "this is a string"
-	bytes := []byte{1, 2, 3, 4}
 	test := struct {
 		opt sqlx.Option
 	}{
-
 		opt: sqlx.Option{
-			Urn:     str,
-			Payload: bytes,
+			Urn:     "this is a string",
+			Payload: []byte{1, 2, 3, 4},
 		},
 	}
 
 	o := options{}
 	o.Add(test.opt)
 	if o.customs == nil || !reflect.DeepEqual(o.customs[len(o.customs)-1], test.opt) {
-		t.Errorf("The method options.Add(%v) did not successfully perform the add operation. For the feild customs in options, got %v, want %v", test.opt, o.customs, test.opt)
+		t.Errorf("options.Add(%v) failed. For the customs field in options, got %v, want %v", test.opt, o.customs, test.opt)
 	}
 }
 
 func TestInput(t *testing.T) {
-	name1 := "this is a string"
-	collection1 := beam.PCollection{}
 	test := struct {
 		inputName string
 		inputIn   beam.PCollection
 	}{
-		inputName: name1,
-		inputIn:   collection1,
+		inputName: "this is a string",
+		inputIn:   beam.PCollection{},
 	}
 
 	o := &options{inputs: make(map[string]beam.PCollection)}
 	option := Input(test.inputName, test.inputIn)
 	if option == nil {
-		t.Errorf("Input(%v, %v) = %v, it returns a nil value, which is not wanted", test.inputName, test.inputIn, nil)
+		t.Errorf("Input(%v, %v) = %v, want not nil", test.inputName, test.inputIn, nil)
 	}
 	option(o)
 	if o.inputs == nil || !reflect.DeepEqual(o.inputs[test.inputName], test.inputIn) {
-		t.Errorf("The function that Input(%v, %v) returned did not work correctly. For the feild inputs in options, got %v, want %v", test.inputName, test.inputIn, o.inputs, test.inputIn)
+		t.Errorf("The function that Input(%v, %v) returned did not work correctly. For the inputs field in options, got %v, want %v", test.inputName, test.inputIn, o.inputs, test.inputIn)
 	}
 }
 
 func TestDialect(t *testing.T) {
-	dialect1 := "this is a string"
 	test := struct {
 		dialect string
 	}{
-		dialect: dialect1,
+		dialect: "this is a string",
 	}
 
 	o := &options{}
 	option := Dialect(test.dialect)
 	if option == nil {
-		t.Errorf("Dialect(%v) = %v, it returns a nil value, which is not wanted", test.dialect, nil)
+		t.Errorf("Dialect(%v) = %v, want not nil", test.dialect, nil)
 	}
 	option(o)
 	if !reflect.DeepEqual(o.dialect, test.dialect) {
-		t.Errorf("The function that Input(%v) returned did not work correctly. For the feild dialect in options, got %v, want %v", test.dialect, o.dialect, test.dialect)
+		t.Errorf("The function that Input(%v) returned did not work correctly. For the dialect field in options, got %v, want %v", test.dialect, o.dialect, test.dialect)
 	}
 }
 
 func TestExpansionAddr(t *testing.T) {
-	addr1 := "this is a string"
 	test := struct {
 		addr string
 	}{
-		addr: addr1,
+		addr: "this is a string",
 	}
 
 	o := &options{}
 	option := ExpansionAddr(test.addr)
 	if option == nil {
-		t.Errorf("ExpansionAddr(%v) = %v, it returns a nil value, which is not wanted", test.addr, nil)
+		t.Errorf("ExpansionAddr(%v) = %v, want not nil", test.addr, nil)
 	}
 	option(o)
 	if !reflect.DeepEqual(o.expansionAddr, test.addr) {
-		t.Errorf("The function that ExpansionAddr(%v) returned did not work correctly. For the feild expansionAddr in options, got %v, want %v", test.addr, o.expansionAddr, test.addr)
+		t.Errorf("The function that ExpansionAddr(%v) returned did not work correctly. For the expansionAddr field in options, got %v, want %v", test.addr, o.expansionAddr, test.addr)
 	}
 }
