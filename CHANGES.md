@@ -65,6 +65,9 @@
 
 * RunInference Wrapper with Sklearn Model Handler support added in Go SDK ([#24497](https://github.com/apache/beam/issues/23382)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Adding override of allowed TLS algorithms (Java), now maintaining the disabled/legacy algorithms
+  present in 2.43.0 (up to 1.8.0_342, 11.0.16, 17.0.2 for respective Java versions). This is accompanied
+  by an explicit re-enabling of TLSv1 and TLSv1.1 for Java 8 and Java 11.
 
 ## Breaking Changes
 
@@ -81,6 +84,7 @@
 ## Bugfixes
 
 * Avoids Cassandra syntax error when user-defined query has no where clause in it (Java) ([#24829](https://github.com/apache/beam/issues/24829)).
+* Fixed JDBC connection failures (Java) during handshake due to deprecated TLSv1(.1) protocol for the JDK. ([#24623](https://github.com/apache/beam/issues/24623))
 
 ## Known Issues
 
@@ -147,7 +151,7 @@
 
 * Decreased TextSource CPU utilization by 2.3x (Java) ([#23193](https://github.com/apache/beam/issues/23193)).
 * Fixed bug when using SpannerIO with RuntimeValueProvider options (Java) ([#22146](https://github.com/apache/beam/issues/22146)).
-* Fixed issue for unicode rendering on WriteToBigQuery ([#10785](https://github.com/apache/beam/issues/10785))
+* Fixed issue for unicode rendering on WriteToBigQuery ([#22312](https://github.com/apache/beam/issues/22312))
 * Remove obsolete variants of BigQuery Read and Write, always using Beam-native variant
   ([#23564](https://github.com/apache/beam/issues/23564) and [#23559](https://github.com/apache/beam/issues/23559)).
 * Bumped google-cloud-spanner dependency version to 3.x for Python SDK ([#21198](https://github.com/apache/beam/issues/21198)).

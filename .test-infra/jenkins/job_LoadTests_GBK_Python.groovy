@@ -156,8 +156,7 @@ def addStreamingOptions(test) {
     // Use the new Dataflow runner, which offers improved efficiency of Dataflow jobs.
     // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2
     // for more details.
-    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    experiments: 'use_runner_v2,shuffle_mode=appliance',
+    experiments: 'use_runner_v2',
   ]
 }
 
