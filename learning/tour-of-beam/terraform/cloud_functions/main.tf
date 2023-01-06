@@ -33,7 +33,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
   entry_point = var.entry_point_names[count.index]
 
   environment_variables = {
-    DATASTORE_PROJECT_ID="test-cloud-func-deploy"
+    DATASTORE_PROJECT_ID=var.project_id
     TOB_MOCK=1
   }
 
