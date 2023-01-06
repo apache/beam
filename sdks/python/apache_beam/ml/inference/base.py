@@ -62,11 +62,13 @@ _INPUT_TYPE = TypeVar('_INPUT_TYPE')
 _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
 
-PredictionResult = NamedTuple(
-    'PredictionResult', [
-        ('example', _INPUT_TYPE),
-        ('inference', _OUTPUT_TYPE),
-    ])
+
+class PredictionResult(NamedTuple):
+  example: _INPUT_TYPE
+  inference: _OUTPUT_TYPE
+  model_id: Optional[str] = None
+
+
 PredictionResult.__doc__ = """A NamedTuple containing both input and output
   from the inference."""
 PredictionResult.example.__doc__ = """The input example."""
