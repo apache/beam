@@ -24,14 +24,13 @@ def cloudMLJob = { scope ->
   scope.description('Runs the TFT Criteo Examples on the Dataflow runner.')
 
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(scope)
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 360)
 
   // Gradle goals for this job.
   scope.steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       common.setGradleSwitches(delegate)
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 360)
       tasks(':sdks:python:test-suites:dataflow:tftTests')
     }
   }
