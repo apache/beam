@@ -62,11 +62,13 @@ _INPUT_TYPE = TypeVar('_INPUT_TYPE')
 _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
 
-PredictionResult = NamedTuple(
-    'PredictionResult', [
-        ('example', _INPUT_TYPE),
-        ('inference', _OUTPUT_TYPE),
-    ])
+
+class PredictionResult(NamedTuple):
+  example: _INPUT_TYPE
+  inference: _OUTPUT_TYPE
+  model_id: Optional[str] = None
+
+
 PredictionResult.__doc__ = """A NamedTuple containing both input and output
   from the inference."""
 PredictionResult.example.__doc__ = """The input example."""
@@ -273,7 +275,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
       inference_args: Optional[Dict[str, Any]] = None,
-      metrics_namespace: Optional[str] = None):
+      metrics_namespace: Optional[str] = None,
+      *,
+      update_model_pcoll: beam.PCollection[str] = None):
     """A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
     those examples in a PCollection of PredictionResults that contains the input
@@ -291,11 +295,14 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
+        update_model_pcoll: PCollection that emits model path
+          that is used as a side input to the _RunInferenceDoFn.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
     self._metrics_namespace = metrics_namespace
+    self._update_model_pcoll = update_model_pcoll
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -319,16 +326,21 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     self._model_handler.validate_inference_args(self._inference_args)
     resource_hints = self._model_handler.get_resource_hints()
-    return (
+    batched_elements_pcoll = (
         pcoll
         # TODO(https://github.com/apache/beam/issues/21440): Hook into the
         # batching DoFn APIs.
-        | beam.BatchElements(**self._model_handler.batch_elements_kwargs())
+        | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
+    return (
+        batched_elements_pcoll
         | 'BeamML_RunInference' >> (
             beam.ParDo(
                 _RunInferenceDoFn(
                     self._model_handler, self._clock, self._metrics_namespace),
-                self._inference_args).with_resource_hints(**resource_hints)))
+                self._inference_args,
+                beam.pvalue.AsSingleton(self._update_model_pcoll)
+                if self._update_model_pcoll else None).with_resource_hints(
+                    **resource_hints)))
 
 
 class _MetricsCollector:
@@ -400,6 +412,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
+    self._update_model_sleep_time = None
 
   def _load_model(self):
     def load():
@@ -441,6 +454,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     num_bytes = self._model_handler.get_num_bytes(batch)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+    self._update_model_sleep_time = inference_latency * 1e-06
 
     return predictions
 
