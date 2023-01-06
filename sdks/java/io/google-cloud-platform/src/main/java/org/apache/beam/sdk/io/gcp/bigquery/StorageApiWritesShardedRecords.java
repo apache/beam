@@ -318,7 +318,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         DatasetService datasetService) {
       try {
         String stream = streamName.read();
-        if (Strings.isNullOrEmpty(stream)) {
+        if (stream == null || "".equals(stream)) {
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
           stream = datasetService.createWriteStream(tableId, Type.BUFFERED).getName();
           streamName.write(stream);
@@ -426,14 +426,17 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               appendClientInfo.get().createAppendClient(datasetService, getOrCreateStream, false);
               StreamAppendClient streamAppendClient =
                   Preconditions.checkArgumentNotNull(appendClientInfo.get().streamAppendClient);
+              String streamNameRead = Preconditions.checkArgumentNotNull(streamName.read());
+              long currentOffset = Preconditions.checkArgumentNotNull(streamOffset.read());
               for (AppendRowsContext context : contexts) {
-                context.streamName = streamName.read();
+                context.streamName = streamNameRead;
                 streamAppendClient.pin();
                 context.client = appendClientInfo.get().streamAppendClient;
-                context.offset = streamOffset.read();
+                context.offset = currentOffset;
                 ++context.tryIteration;
-                streamOffset.write(context.offset + context.protoRows.getSerializedRowsCount());
+                currentOffset = context.offset + context.protoRows.getSerializedRowsCount();
               }
+              streamOffset.write(currentOffset);
             } catch (Exception e) {
               throw new RuntimeException(e);
             }

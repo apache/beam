@@ -16,12 +16,16 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
-import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
-import 'package:playground/modules/examples/models/popover_state.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../src/assets/assets.gen.dart';
+import '../../models/popover_state.dart';
+import '../description_popover/description_popover_button.dart';
+import '../multifile_popover/multifile_popover_button.dart';
 
 class ExampleItemActions extends StatelessWidget {
   final ExampleBase example;
@@ -36,6 +40,7 @@ class ExampleItemActions extends StatelessWidget {
     return Row(
       children: [
         if (example.isMultiFile) multifilePopover,
+        if (example.usesEmulatedData) const _EmulatedDataIcon(),
         if (example.complexity != null)
           ComplexityWidget(complexity: example.complexity!),
         descriptionPopover,
@@ -63,5 +68,23 @@ class ExampleItemActions extends StatelessWidget {
 
   void _setPopoverOpen(BuildContext context, bool isOpen) {
     Provider.of<PopoverState>(context, listen: false).setOpen(isOpen);
+  }
+}
+
+class _EmulatedDataIcon extends StatelessWidget {
+  const _EmulatedDataIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: Tooltip(
+        message: 'intents.playground.usesEmulatedData'.tr(),
+        child: SvgPicture.asset(
+          Assets.streaming,
+          color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
+        ),
+      ),
+    );
   }
 }

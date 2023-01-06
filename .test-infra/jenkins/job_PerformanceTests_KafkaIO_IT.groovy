@@ -106,8 +106,7 @@ job(jobName) {
     readTimeout                  : '1500',
     bigQueryTable                : 'kafkaioit_results_runner_v2',
     influxMeasurement            : 'kafkaioit_results_runner_v2',
-    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    experiments                  : 'use_runner_v2,shuffle_mode=appliance,use_unified_worker',
+    experiments                  : 'use_runner_v2,use_unified_worker',
   ]
 
   steps {

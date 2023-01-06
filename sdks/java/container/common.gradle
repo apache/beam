@@ -80,8 +80,10 @@ task copyGolangLicenses(type: Copy) {
 task copyJdkOptions(type: Copy) {
     if (imageJavaVersion == "17" || imageJavaVersion == "11") {
         from "option-jamm.json"
-        into "build/target/options"
     }
+    from "java${imageJavaVersion}-security.properties"
+    from "option-java${imageJavaVersion}-security.json"
+    into "build/target/options"
 }
 
 task skipPullLicenses(type: Exec) {

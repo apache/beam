@@ -58,6 +58,9 @@ class $AssetsSymbolsGen {
   /// File path: assets/symbols/go.g.yaml
   String get goG => 'assets/symbols/go.g.yaml';
 
+  /// File path: assets/symbols/java.g.yaml
+  String get javaG => 'assets/symbols/java.g.yaml';
+
   /// File path: assets/symbols/python.g.yaml
   String get pythonG => 'assets/symbols/python.g.yaml';
 }

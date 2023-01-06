@@ -17,6 +17,7 @@
     under the License.
 -->
 
-## 0.0.1
+# playground_components_dev
 
-* TODO: Describe initial release.
+This is a non-pub.dev Flutter package that contains
+helpers for testing [playground_components](../playground_components) package.
