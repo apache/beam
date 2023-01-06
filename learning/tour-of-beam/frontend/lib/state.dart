@@ -19,6 +19,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'constants/storage_keys.dart';
@@ -31,6 +32,7 @@ class AppNotifier extends ChangeNotifier {
   }
 
   String? get sdkId => _sdkId;
+  Sdk? get sdk => Sdk.tryParse(_sdkId);
 
   set sdkId(String? newValue) {
     _sdkId = newValue;

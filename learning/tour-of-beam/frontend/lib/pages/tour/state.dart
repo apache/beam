@@ -123,13 +123,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       return;
     }
 
-    final sdk = Sdk.tryParse(_appNotifier.sdkId);
-    if (sdk != null) {
+    final selectedSdk = _appNotifier.sdk;
+    if (selectedSdk != null) {
       await playgroundController.examplesLoader.load(
         ExamplesLoadingDescriptor(
           descriptors: [
             UserSharedExampleLoadingDescriptor(
-              sdk: sdk,
+              sdk: selectedSdk,
               snippetId: taskSnippetId,
             ),
           ],
