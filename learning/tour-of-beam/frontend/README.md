@@ -25,33 +25,38 @@ These are the main sources of the Tour of Beam website.
 
 ## Getting started
 
-Running, debugging, and testing all require this first step that fetches
-dependencies and generates code:
-
-```bash
-cd ../../../playground/frontend/playground_components
-flutter pub get
-cd ../../../learning/tour-of-beam/frontend
-flutter pub get
-```
-
-### Code Generation
-
 This project relies on generated code for some functionality:
-deserializers, constants for asset files, Firebase configuration, etc.
+deserializers, test mocks, constants for asset files,
+extracted Beam symbols for the editor, etc.
 
 All generated files are version-controlled, so after checkout the project is immediately runnable.
 However, after changes you may need to re-run code generation:
-`flutter pub run build_runner build`
 
-Manual for re-configuring Firebase:
-https://firebase.google.com/docs/flutter/setup?platform=web
+```bash
+cd beam
+./gradlew :playground:frontend:playground_components:generateCode
+cd learning/tour-of-beam/frontend
+flutter pub run build_runner build
+```
 
 ### Run
 
 The following command is used to build and serve the frontend app locally:
 
-`$ flutter run -d chrome`
+```bash
+flutter run -d chrome
+```
+
+### Backend Selection
+
+To change the Google Project that is used as the backend:
+
+1. Update Firebase configuration:
+   https://firebase.google.com/docs/flutter/setup?platform=web
+
+2. In `/lib/config.dart`, update:
+   1. Google Project ID and region.
+   2. Playground's backend URLs.
 
 # Deployment
 
