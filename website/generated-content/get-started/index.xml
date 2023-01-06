@@ -1161,8 +1161,8 @@ pipelines locally on your machine.&lt;/p>
 &lt;/a>
 &lt;pre>&lt;code># Install sdkman
 curl -s &amp;#34;https://get.sdkman.io&amp;#34; | bash
-# Install Java 11
-sdk install java 11.0.16-tem&lt;/code>&lt;/pre>
+# Install Java 17
+sdk install java 17.0.5-tem&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;p>You can use either &lt;a href="https://gradle.org/">Gradle&lt;/a> or
