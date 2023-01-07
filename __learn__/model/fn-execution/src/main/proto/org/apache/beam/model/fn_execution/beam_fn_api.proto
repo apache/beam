@@ -63,5 +63,27 @@ message GetProcessBundleDescriptorRequest {
   string process_bundle_descriptor_id = 1;
 }
 
+// SDK is asked to process a runner request - stable
+// Return an error with matching instruction id for unsupported request type
+message InstructionRequest {
+  // Compulsory - this is the unique id given by the runner - it represents the processing of this request
+  // It is imperative that the InstructionResponse contain this exact same id as well
+  string instruction_id = 1;
+
+  // Compulsory - the request that the SDK processes needs to be one of the following
+  oneof request {
+    ProcessBundleRequest process_bundle = 1001;
+    ProcessBundleProgressRequest process_bundle_progress = 1002;
+    ProcessBundleSplitRequest process_bundle_split = 1003;
+    FinalizeBundleRequest finalize_bundle = 1004;
+    MonitoringInfosMetadataRequest monitoring_infos = 1005;
+    HarnessMonitoringInfosRequest harness_monitoring_infos = 1006;
+
+    // this is obsolete
+    RegisterRequest register = 1000;
+  }
+}
+
+
 
 
