@@ -20,5 +20,7 @@ package org.apache.beam.spd.command;
 public interface StructuredPipelineCommand {
   String command();
 
+  String description();
+
   void run(String... args) throws Exception;
 }

@@ -17,33 +17,33 @@
  */
 package org.apache.beam.spd.command;
 
-import com.google.auto.service.AutoService;
-import java.nio.file.Paths;
-import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import java.util.Map.Entry;
+import java.util.ServiceLoader;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
-@AutoService(StructuredPipelineCommand.class)
-public class StructuredPipelineRun implements StructuredPipelineCommand {
+public class StructuredPipelineHelp implements StructuredPipelineCommand {
 
   @Override
   public String command() {
-    return "run";
+    return "help";
   }
 
   @Override
   public String description() {
-    return "Executes a SPD project.";
+    return "Displays help for a SPD commands";
   }
 
   @Override
   public void run(String... args) throws Exception {
-    StructuredPipelineRunOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(StructuredPipelineRunOptions.class);
-    if (options.getHelp()) {
-      PipelineOptionsFactory.printHelp(System.out, StructuredPipelineRunOptions.class);
-    } else {
-      StructuredPipelineDescription spd = new StructuredPipelineDescription();
-      spd.loadProject(Paths.get("profile.yml"), Paths.get("."));
+    SortedMap<String, String> desc = new TreeMap<>();
+    for (StructuredPipelineCommand command : ServiceLoader.load(StructuredPipelineCommand.class)) {
+      desc.put(command.command(), command.description());
+    }
+
+    System.out.println("spd Commands:\n");
+    for (Entry<String, String> e : desc.entrySet()) {
+      System.out.println(e.getKey() + " -- " + e.getValue());
     }
   }
 }

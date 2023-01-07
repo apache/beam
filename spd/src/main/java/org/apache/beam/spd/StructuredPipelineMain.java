@@ -17,19 +17,23 @@
  */
 package org.apache.beam.spd;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.spd.command.StructuredPipelineCommand;
 
 public class StructuredPipelineMain {
 
   public static void main(String[] args) throws Exception {
-    String cmd = args.length == 0 ? "help" : args[0];
-    args = Arrays.copyOfRange(args, 1, args.length);
+    String cmd = (args.length == 0) ? "help" : args[0];
+    List<String> newArgs = new ArrayList<>();
+    for (int i = 1; i < args.length; i++) {
+      newArgs.add(args[i]);
+    }
 
     for (StructuredPipelineCommand command : ServiceLoader.load(StructuredPipelineCommand.class)) {
       if (cmd.equals(command.command())) {
-        command.run(args);
+        command.run(newArgs.toArray(new String[newArgs.size()]));
         break;
       }
     }

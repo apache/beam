@@ -18,6 +18,7 @@ dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.slf4j_api
+    implementation project(path: ":sdks:java:extensions:sql")
     implementation project(path: ":sdks:java:extensions:spd")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
 
@@ -26,4 +27,7 @@ dependencies {
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
+}
+
+run {
 }
