@@ -50,13 +50,7 @@ public class JdbcWriteSchemaTransformProvider
   @Override
   protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       JdbcWriteSchemaTransformConfiguration configuration) {
-    if (configuration.getLocation() != null && configuration.getWriteStatement() != null) {
-      throw new IllegalArgumentException(
-          "Location and WriteStatement are mutually exclusive parameters.");
-    }
-    if (configuration.getLocation() == null && configuration.getWriteStatement() == null) {
-      throw new IllegalArgumentException("Either Location or WriteStatement must be set.");
-    }
+    configuration.validate();
     return new JdbcWriteSchemaTransform(configuration);
   }
 
@@ -71,8 +65,8 @@ public class JdbcWriteSchemaTransformProvider
     protected JdbcIO.DataSourceConfiguration dataSourceConfiguration() {
       JdbcIO.DataSourceConfiguration dsConfig =
           JdbcIO.DataSourceConfiguration.create(config.getDriverClassName(), config.getJdbcUrl())
-              .withUsername(config.getUsername())
-              .withPassword(config.getPassword());
+              .withUsername("".equals(config.getUsername()) ? null : config.getUsername())
+              .withPassword("".equals(config.getPassword()) ? null : config.getPassword());
       String connectionProperties = config.getConnectionProperties();
       if (connectionProperties != null) {
         dsConfig = dsConfig.withConnectionProperties(connectionProperties);
@@ -173,6 +167,27 @@ public class JdbcWriteSchemaTransformProvider
 
     @Nullable
     public abstract Boolean getAutosharding();
+
+    public void validate() throws IllegalArgumentException {
+      if ("".equals(getDriverClassName())) {
+        throw new IllegalArgumentException("JDBC Driver class name cannot be blank.");
+      }
+      if ("".equals(getJdbcUrl())) {
+        throw new IllegalArgumentException("JDBC URL cannot be blank");
+      }
+
+      boolean writeStatementPresent =
+          (getWriteStatement() != null && !"".equals(getWriteStatement()));
+      boolean locationPresent = (getLocation() != null && !"".equals(getLocation()));
+
+      if (writeStatementPresent && locationPresent) {
+        throw new IllegalArgumentException(
+            "ReadQuery and Location are mutually exclusive configurations");
+      }
+      if (!writeStatementPresent && !locationPresent) {
+        throw new IllegalArgumentException("Either ReadQuery or Location must be set.");
+      }
+    }
 
     public static Builder builder() {
       return new AutoValue_JdbcWriteSchemaTransformProvider_JdbcWriteSchemaTransformConfiguration

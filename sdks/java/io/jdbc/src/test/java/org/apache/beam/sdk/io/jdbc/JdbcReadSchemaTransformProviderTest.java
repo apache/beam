@@ -65,28 +65,68 @@ public class JdbcReadSchemaTransformProviderTest {
   }
 
   @Test
-  public void testInvalidOptions() {
-    JdbcReadSchemaTransformProvider provider = new JdbcReadSchemaTransformProvider();
-
+  public void testInvalidReadSchemaOptions() {
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          provider.from(
-              JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
-                  .setDriverClassName("ClassName")
-                  .setJdbcUrl("JdbcUrl")
-                  .setLocation("Location")
-                  .setReadQuery("Query")
-                  .build());
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setDriverClassName("")
+              .setJdbcUrl("")
+              .build()
+              .validate();
         });
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          provider.from(
-              JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
-                  .setDriverClassName("ClassName")
-                  .setJdbcUrl("JdbcUrl")
-                  .build());
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setDriverClassName("ClassName")
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setReadQuery("Query")
+              .build()
+              .validate();
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration.builder()
+              .setDriverClassName("ClassName")
+              .setJdbcUrl("JdbcUrl")
+              .build()
+              .validate();
+        });
+  }
+
+  @Test
+  public void testInvalidWriteSchemaOptions() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+              .setDriverClassName("")
+              .setJdbcUrl("")
+              .build()
+              .validate();
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+              .setDriverClassName("ClassName")
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setWriteStatement("WriteStatement")
+              .build()
+              .validate();
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+              .setDriverClassName("ClassName")
+              .setJdbcUrl("JdbcUrl")
+              .build()
+              .validate();
         });
   }
 

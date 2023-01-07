@@ -48,13 +48,7 @@ public class JdbcReadSchemaTransformProvider
   @Override
   protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       JdbcReadSchemaTransformConfiguration configuration) {
-    if (configuration.getReadQuery() != null && configuration.getLocation() != null) {
-      throw new IllegalArgumentException(
-          "ReadQuery and Location are mutually exclusive configurations");
-    }
-    if (configuration.getReadQuery() == null && configuration.getLocation() == null) {
-      throw new IllegalArgumentException("Either ReadQuery or Location must be set.");
-    }
+    configuration.validate();
     return new JdbcReadSchemaTransform(configuration);
   }
 
@@ -69,8 +63,8 @@ public class JdbcReadSchemaTransformProvider
     protected JdbcIO.DataSourceConfiguration dataSourceConfiguration() {
       JdbcIO.DataSourceConfiguration dsConfig =
           JdbcIO.DataSourceConfiguration.create(config.getDriverClassName(), config.getJdbcUrl())
-              .withUsername(config.getUsername())
-              .withPassword(config.getPassword());
+              .withUsername("".equals(config.getUsername()) ? null : config.getUsername())
+              .withPassword("".equals(config.getPassword()) ? null : config.getPassword());
       String connectionProperties = config.getConnectionProperties();
       if (connectionProperties != null) {
         dsConfig = dsConfig.withConnectionProperties(connectionProperties);
@@ -102,7 +96,7 @@ public class JdbcReadSchemaTransformProvider
                   .withDataSourceConfiguration(dataSourceConfiguration())
                   .withQuery(query);
           Short fetchSize = config.getFetchSize();
-          if (fetchSize != null) {
+          if (fetchSize != null && fetchSize > 0) {
             readRows = readRows.withFetchSize(fetchSize);
           }
           Boolean outputParallelization = config.getOutputParallelization();
@@ -163,6 +157,26 @@ public class JdbcReadSchemaTransformProvider
 
     @Nullable
     public abstract Boolean getOutputParallelization();
+
+    public void validate() throws IllegalArgumentException {
+      if ("".equals(getDriverClassName())) {
+        throw new IllegalArgumentException("JDBC Driver class name cannot be blank.");
+      }
+      if ("".equals(getJdbcUrl())) {
+        throw new IllegalArgumentException("JDBC URL cannot be blank");
+      }
+
+      boolean readQueryPresent = (getReadQuery() != null && !"".equals(getReadQuery()));
+      boolean locationPresent = (getLocation() != null && !"".equals(getLocation()));
+
+      if (readQueryPresent && locationPresent) {
+        throw new IllegalArgumentException(
+            "ReadQuery and Location are mutually exclusive configurations");
+      }
+      if (!readQueryPresent && !locationPresent) {
+        throw new IllegalArgumentException("Either ReadQuery or Location must be set.");
+      }
+    }
 
     public static Builder builder() {
       return new AutoValue_JdbcReadSchemaTransformProvider_JdbcReadSchemaTransformConfiguration
