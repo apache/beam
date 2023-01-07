@@ -28,8 +28,9 @@ import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.stub.StreamObserver;
  * to use.
  */
 public abstract class StreamObserverFactory {
-  public static StreamObserverFactory direct(long deadlineSeconds) {
-    return new Direct(deadlineSeconds);
+  public static StreamObserverFactory direct(
+      long deadlineSeconds, int messagesBetweenIsReadyChecks) {
+    return new Direct(deadlineSeconds, messagesBetweenIsReadyChecks);
   }
 
   public abstract <ReqT, RespT> StreamObserver<RespT> from(
@@ -38,9 +39,11 @@ public abstract class StreamObserverFactory {
 
   private static class Direct extends StreamObserverFactory {
     private final long deadlineSeconds;
+    private final int messagesBetweenIsReadyChecks;
 
-    Direct(long deadlineSeconds) {
+    Direct(long deadlineSeconds, int messagesBetweenIsReadyChecks) {
       this.deadlineSeconds = deadlineSeconds;
+      this.messagesBetweenIsReadyChecks = messagesBetweenIsReadyChecks;
     }
 
     @Override
@@ -53,7 +56,8 @@ public abstract class StreamObserverFactory {
               clientFactory.apply(
                   new ForwardingClientResponseObserver<ReqT, RespT>(
                       inboundObserver, phaser::arrive, phaser::forceTermination));
-      return new DirectStreamObserver<>(phaser, outboundObserver, deadlineSeconds);
+      return new DirectStreamObserver<>(
+          phaser, outboundObserver, deadlineSeconds, messagesBetweenIsReadyChecks);
     }
   }
 }
