@@ -459,18 +459,18 @@ func (n *ProcessSizedElementsAndRestrictions) StartBundle(ctx context.Context, i
 //
 // Input Diagram:
 //
-//	  *FullValue {
-//	    Elm: *FullValue {
-//	      Elm:  *FullValue (KV input) or InputType (single-element input)
-//			 Elm2: *FullValue {
-//			   Elm: Restriction
-//	        Elm2: Watermark estimator state
-//			 }
-//	    }
-//	    Elm2: float64 (size)
-//	    Windows
-//	    Timestamps
-//	  }
+//	*FullValue {
+//		Elm: *FullValue {
+//			Elm:  *FullValue (KV input) or InputType (single-element input)
+//			Elm2: *FullValue {
+//				Elm: Restriction
+//				Elm2: Watermark estimator state
+//		 	}
+//		}
+//		Elm2: float64 (size)
+//		Windows
+//		Timestamps
+//	}
 //
 // ProcessElement then creates a restriction tracker from the stored restriction
 // and processes each element using the underlying ParDo and adding the
