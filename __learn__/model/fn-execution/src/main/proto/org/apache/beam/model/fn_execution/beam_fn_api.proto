@@ -52,5 +52,16 @@ service BeamFnControl {
     // stream of requests to the SDK
     stream InstructionRequest 
   ) {}
+
+  // This obtains all the process bundle descriptors for the bundle in question
+  rpc GetProcessBundleDescriptor(GetProcessBundleDescriptorRequest) 
+    returns (ProcessBundleDescriptor) {}
 }
+
+// The ProcessBundleDescriptor with a given id is requested
+message GetProcessBundleDescriptorRequest {
+  string process_bundle_descriptor_id = 1;
+}
+
+
 
