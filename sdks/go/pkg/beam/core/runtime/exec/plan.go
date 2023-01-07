@@ -31,11 +31,12 @@ import (
 // from a part of a pipeline. A plan can be used to process multiple bundles
 // serially.
 type Plan struct {
-	id    string // id of the bundle descriptor for this plan
-	roots []Root
-	units []Unit
-	pcols []*PCollection
-	bf    *bundleFinalizer
+	id          string // id of the bundle descriptor for this plan
+	roots       []Root
+	units       []Unit
+	pcols       []*PCollection
+	bf          *bundleFinalizer
+	checkpoints []*Checkpoint
 
 	status Status
 
@@ -126,7 +127,11 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 		}
 	}
 	for _, root := range p.roots {
-		if err := callNoPanic(ctx, root.Process); err != nil {
+		if err := callNoPanic(ctx, func(ctx context.Context) error {
+			cps, err := root.Process(ctx)
+			p.checkpoints = cps
+			return err
+		}); err != nil {
 			p.status = Broken
 			return errors.Wrapf(err, "while executing Process for %v", p)
 		}
@@ -281,9 +286,7 @@ func (p *Plan) Split(ctx context.Context, s SplitPoints) (SplitResult, error) {
 }
 
 // Checkpoint attempts to split an SDF if the DoFn self-checkpointed.
-func (p *Plan) Checkpoint() (SplitResult, time.Duration, bool, error) {
-	if p.source != nil {
-		return p.source.Checkpoint()
-	}
-	return SplitResult{}, -1 * time.Minute, false, nil
+func (p *Plan) Checkpoint() []*Checkpoint {
+	defer func() { p.checkpoints = nil }()
+	return p.checkpoints
 }
