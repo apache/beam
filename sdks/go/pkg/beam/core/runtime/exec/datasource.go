@@ -157,13 +157,13 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 	var checkpoints []*Checkpoint
 	for {
 		if n.incrementIndexAndCheckSplit() {
-			return checkpoints, nil
+			break
 		}
 		// TODO(lostluck) 2020/02/22: Should we include window headers or just count the element sizes?
 		ws, t, pn, err := DecodeWindowedValueHeader(wc, r)
 		if err != nil {
 			if err == io.EOF {
-				return nil, nil
+				break
 			}
 			return nil, errors.Wrap(err, "source failed")
 		}
@@ -206,6 +206,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 			}
 		}
 	}
+	return checkpoints, nil
 }
 
 func (n *DataSource) makeReStream(ctx context.Context, cv ElementDecoder, bcr *byteCountReader, onlyStream bool) (ReStream, error) {

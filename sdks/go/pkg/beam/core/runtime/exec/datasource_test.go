@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -906,56 +907,87 @@ func TestCheckpointing(t *testing.T) {
 			t.Fatalf("checkpointThis() = %v, want nil", cp)
 		}
 	})
-	dfn, err := graph.NewDoFn(&WindowBlockingSdf{claim: -1}, graph.NumMainInputs(graph.MainSingle))
+	dfn, err := graph.NewDoFn(&CheckpointingSdf{delay: time.Minute}, graph.NumMainInputs(graph.MainSingle))
 	if err != nil {
 		t.Fatalf("invalid function: %v", err)
 	}
-	t.Run("Delay_residuals", func(t *testing.T) {
+
+	intCoder, _ := coderx.NewVarIntZ(reflectx.Int)
+	ERSCoder := coder.NewKV([]*coder.Coder{
+		coder.NewKV([]*coder.Coder{
+			coder.CoderFrom(intCoder), // Element
+			coder.NewKV([]*coder.Coder{
+				coder.NewR(typex.New(reflect.TypeOf((*offsetrange.Restriction)(nil)).Elem())), // Restriction
+				coder.NewBool(), // Watermark State
+			}),
+		}),
+		coder.NewDouble(), // Size
+	})
+	wvERSCoder := coder.NewW(
+		ERSCoder,
+		coder.NewGlobalWindow(),
+	)
+
+	rest := offsetrange.Restriction{Start: 1, End: 10}
+	value := &FullValue{
+		Elm: &FullValue{
+			Elm: 42,
+			Elm2: &FullValue{
+				Elm:  rest,  // Restriction
+				Elm2: false, // Watermark State falsie
+			},
+		},
+		Elm2:      rest.Size(),
+		Windows:   window.SingleGlobalWindow,
+		Timestamp: mtime.MaxTimestamp,
+		Pane:      typex.NoFiringPane(),
+	}
+	t.Run("Delay_residuals_Process", func(t *testing.T) {
+		ctx := context.Background()
 		wesInv, _ := newWatermarkEstimatorStateInvoker(nil)
 		rest := offsetrange.Restriction{Start: 1, End: 10}
-		intCoder, _ := coderx.NewVarIntZ(reflectx.Int)
 		root := &DataSource{
-			Coder: coder.NewW(
-				coder.NewKV([]*coder.Coder{
-					coder.NewKV([]*coder.Coder{
-						coder.CoderFrom(intCoder),                   // Element
-						coder.NewR(typex.New(reflect.TypeOf(rest))), // Restriction
-					}),
-					coder.NewDouble(), // Size
-				}),
-				coder.NewGlobalWindow(),
-			),
+			Coder: wvERSCoder,
 			Out: &ProcessSizedElementsAndRestrictions{
 				PDo: &ParDo{
-					Fn: dfn,
+					Fn:  dfn,
+					Out: []Node{&Discard{}},
 				},
 				TfId:   "testTransformID",
 				wesInv: wesInv,
 				rt:     offsetrange.NewTracker(rest),
-				elm: &FullValue{
-					Windows: window.SingleGlobalWindow,
-					Elm: &FullValue{
-						Elm:  42,
-						Elm2: rest,
-					},
-				},
 			},
 		}
-		if err := root.Up(context.Background()); err != nil {
+		if err := root.Up(ctx); err != nil {
 			t.Fatalf("invalid function: %v", err)
 		}
-		if err := root.Out.Up(context.Background()); err != nil {
+		if err := root.Out.Up(ctx); err != nil {
 			t.Fatalf("invalid function: %v", err)
 		}
-		wantDelay := time.Second * 13
-		cp, err := root.checkpointThis(sdf.ResumeProcessingIn(wantDelay))
+
+		enc := MakeElementEncoder(wvERSCoder)
+		var buf bytes.Buffer
+		if err := enc.Encode(value, &buf); err != nil {
+			t.Fatalf("couldn't encode value: %v", err)
+		}
+
+		if err := root.StartBundle(ctx, "testBund", DataContext{
+			Data: &TestDataManager{
+				R: io.NopCloser(&buf),
+			},
+		},
+		); err != nil {
+			t.Fatalf("invalid function: %v", err)
+		}
+		cps, err := root.Process(ctx)
 		if err != nil {
-			t.Fatalf("checkpointThis() = %v, %v, want nil", cp, err)
+			t.Fatalf("checkpointThis() = %v, %v, want nil", cps, err)
 		}
-		if cp == nil {
-			t.Fatalf("checkpointThis() = %v, want not nil", cp)
+		if len(cps) == 0 {
+			t.Fatalf("checkpointThis() = %v, want not non-empty", cps)
 		}
-		if got, want := cp.Reapply, wantDelay; got != want {
+		cp := cps[0]
+		if got, want := cp.Reapply, time.Minute; got != want {
 			t.Errorf("checkpointThis(delay(%v)) delay = %v, want %v", want, got, want)
 		}
 		if got, want := cp.SR.TId, root.Out.(*ProcessSizedElementsAndRestrictions).TfId; got != want {
