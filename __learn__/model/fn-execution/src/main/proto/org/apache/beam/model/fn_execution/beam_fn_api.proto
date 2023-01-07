@@ -84,6 +84,29 @@ message InstructionRequest {
   }
 }
 
+// stable - SDK's response after processing request
+message InstructionResponse {
+  // Compulsory - this is the unique id given by the runner - it represents the processing of this request
+  // It is imperative that the InstructionResponse contain this exact same id as well
+  string instruction_id = 1;
+
+  // The instruction has failed if this has been specified
+  // A description as to why the processing didn't work
+  string error = 2;
+
+  // Successful instructions must return a matching response type
+  oneof response {
+    ProcessBundleResponse process_bundle = 1001;
+    ProcessBundleProgressResponse process_bundle_progress = 1002;
+    ProcessBundleSplitResponse process_bundle_split = 1003;
+    FinalizeBundleResponse finalize_bundle = 1004;
+    MonitoringInfosMetadataResponse monitoring_infos = 1005;
+    HarnessMonitoringInfosResponse harness_monitoring_infos = 1006;
+
+    // this is obsolete
+    RegisterResponse register = 1000;
+  }
+}
 
 
 
