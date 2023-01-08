@@ -24,11 +24,13 @@ ext.summary ="IO to read and write on a Redis keystore."
 
 dependencies {
   implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.joda_time
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation "redis.clients:jedis:4.0.1"
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
   testImplementation "org.signal:embedded-redis:0.8.2"
   testRuntimeOnly library.java.slf4j_jdk14
+  implementation library.java.slf4j_api
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

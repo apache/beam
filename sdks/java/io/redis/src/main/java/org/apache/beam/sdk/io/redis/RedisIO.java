@@ -481,6 +481,9 @@ public class RedisIO {
 
       /** Use DECRBY command. Decrement counter value of a key by given value. */
       DECRBY,
+
+      /** Use PUBLISH command. Send the output to a pubsub channel instead of a key */
+      PUBLISH,
     }
 
     abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
@@ -609,6 +612,8 @@ public class RedisIO {
           writeUsingIncrBy(record, expireTime);
         } else if (Method.DECRBY == method) {
           writeUsingDecrBy(record, expireTime);
+        } else if (Method.PUBLISH == method) {
+          writeUsingPublish(record);
         }
       }
 
@@ -681,6 +686,12 @@ public class RedisIO {
         transaction.decrBy(key, decr);
 
         setExpireTimeWhenRequired(key, expireTime);
+      }
+
+      private void writeUsingPublish(KV<String, String> record) {
+        String channel = record.getKey();
+        String value = record.getValue();
+        transaction.publish(channel, value);
       }
 
       private void setExpireTimeWhenRequired(String key, Long expireTime) {
