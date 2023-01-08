@@ -496,7 +496,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
-    def slf4j_version = "1.7.36"
+    def slf4j_version = "1.7.30"
     def spark2_version = "2.4.8"
     def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
@@ -724,8 +724,6 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_ext                                   : "org.slf4j:slf4j-ext:$slf4j_version",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
         slf4j_nop                                   : "org.slf4j:slf4j-nop:$slf4j_version",
-        slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
-        slf4j_reload4j                              : "org.slf4j:slf4j-reload4j:$slf4j_version",
         slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
         slf4j_jul_to_slf4j                          : "org.slf4j:jul-to-slf4j:$slf4j_version",
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
