@@ -236,6 +236,9 @@ var dataflowFilters = []string{
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",
+	// Dataflow does not automatically terminate the TestCheckpointing pipeline when
+	// complete.
+	"TestCheckpointing",
 	// TODO(21761): This test needs to provide GCP project to expansion service.
 	"TestBigQueryIO_BasicWriteQueryRead",
 	// Dataflow does not drain jobs by itself.
