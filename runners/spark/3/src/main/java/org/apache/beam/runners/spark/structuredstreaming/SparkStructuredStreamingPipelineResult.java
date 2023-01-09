@@ -37,13 +37,16 @@ import org.joda.time.Duration;
 public class SparkStructuredStreamingPipelineResult implements PipelineResult {
 
   private final Future<?> pipelineExecution;
+  private final MetricsAccumulator metrics;
   private @Nullable final Runnable onTerminalState;
-
   private PipelineResult.State state;
 
   SparkStructuredStreamingPipelineResult(
-      Future<?> pipelineExecution, @Nullable Runnable onTerminalState) {
+      Future<?> pipelineExecution,
+      MetricsAccumulator metrics,
+      @Nullable final Runnable onTerminalState) {
     this.pipelineExecution = pipelineExecution;
+    this.metrics = metrics;
     this.onTerminalState = onTerminalState;
     // pipelineExecution is expected to have started executing eagerly.
     this.state = State.RUNNING;
@@ -105,7 +108,7 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
+    return asAttemptedOnlyMetricResults(metrics.value());
   }
 
   @Override

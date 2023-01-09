@@ -19,7 +19,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
 
 import '../../../components/playground_run_or_cancel_button.dart';
 import '../../../constants/sizes.dart';
@@ -28,56 +27,57 @@ import '../../../modules/examples/components/description_popover/description_pop
 
 /// A code editor with controls stacked above it.
 class CodeTextAreaWrapper extends StatelessWidget {
-  const CodeTextAreaWrapper({Key? key}) : super(key: key);
+  final PlaygroundController playgroundController;
+
+  const CodeTextAreaWrapper({
+    required this.playgroundController,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlaygroundController>(
-        builder: (context, playgroundController, child) {
-      if (playgroundController.result?.errorMessage?.isNotEmpty ?? false) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _handleError(context, playgroundController);
-        });
-      }
+    if (playgroundController.result?.errorMessage?.isNotEmpty ?? false) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleError(context, playgroundController);
+      });
+    }
 
-      final snippetController = playgroundController.snippetEditingController;
+    final snippetController = playgroundController.snippetEditingController;
 
-      if (snippetController == null) {
-        return const LoadingIndicator();
-      }
+    if (snippetController == null) {
+      return const LoadingIndicator();
+    }
 
-      final example = snippetController.example;
+    final example = snippetController.example;
 
-      return SnippetEditor(
-        controller: snippetController,
-        isEditable: true,
-        actionsWidget: Row(
-          children: [
-            if (example != null)
-              Semantics(
-                container: true,
-                child: DescriptionPopoverButton(
-                  example: example,
-                  followerAnchor: Alignment.topRight,
-                  targetAnchor: Alignment.bottomRight,
-                ),
-              ),
+    return SnippetEditor(
+      controller: snippetController,
+      isEditable: true,
+      actionsWidget: Row(
+        children: [
+          if (example != null)
             Semantics(
               container: true,
-              child: ShareButton(
-                playgroundController: playgroundController,
+              child: DescriptionPopoverButton(
+                example: example,
+                followerAnchor: Alignment.topRight,
+                targetAnchor: Alignment.bottomRight,
               ),
             ),
-            const SizedBox(width: kLgSpacing),
-            Semantics(
-              container: true,
-              child: const PlaygroundRunOrCancelButton(),
+          Semantics(
+            container: true,
+            child: ShareButton(
+              playgroundController: playgroundController,
             ),
-            const SizedBox(width: kLgSpacing),
-          ],
-        ),
-      );
-    });
+          ),
+          const SizedBox(width: kLgSpacing),
+          Semantics(
+            container: true,
+            child: const PlaygroundRunOrCancelButton(),
+          ),
+          const SizedBox(width: kLgSpacing),
+        ],
+      ),
+    );
   }
 
   void _handleError(BuildContext context, PlaygroundController controller) {

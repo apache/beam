@@ -15,29 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:playground_components_dev/playground_components_dev.dart';
 
-/**
- * Sole purpose of this class is to override {@link #toString()} of {@link MetricsContainerStepMap}
- * in order to show meaningful metrics in Spark Web Interface.
- */
-class SparkMetricsContainerStepMap extends MetricsContainerStepMap {
-
-  @Override
-  public String toString() {
-    return asAttemptedOnlyMetricResults(this).toString();
+Future<void> checkToggleBrightnessMode(WidgetTester wt) async {
+  Brightness getBrightness() {
+    return Theme.of(wt.element(find.toggleThemeButton())).brightness;
   }
 
-  @Override
-  public boolean equals(@Nullable Object o) {
-    return super.equals(o);
+  Future<void> toggleTheme() async {
+    await wt.tap(find.toggleThemeButton());
+    await wt.pumpAndSettle();
   }
 
-  @Override
-  public int hashCode() {
-    return super.hashCode();
-  }
+  final startBrightness = getBrightness();
+  final invertedBrightness =
+      startBrightness == Brightness.light ? Brightness.dark : Brightness.light;
+
+  await toggleTheme();
+  expect(getBrightness(), invertedBrightness);
+  await toggleTheme();
+  expect(getBrightness(), startBrightness);
 }

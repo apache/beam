@@ -115,8 +115,10 @@ def test_save_to_cloud_datastore_in_the_usual_case(
     calls.extend(
         [
             call().put(ANY),
+            call().key("pg_pc_objects", key_prefix + "SDK_JAVA_MOCK_NAME_GRAPH"),
             call().key("pg_pc_objects", key_prefix + "SDK_JAVA_MOCK_NAME_OUTPUT"),
-            call().put_multi([ANY]),
+            call().key("pg_pc_objects", key_prefix + "SDK_JAVA_MOCK_NAME_LOG"),
+            call().put_multi([ANY, ANY, ANY]),
             call().key("pg_files", key_prefix + "SDK_JAVA_MOCK_NAME_0"),
             call().put(ANY),
         ]

@@ -24,6 +24,7 @@ import '../models/example_loading_descriptors/content_example_loading_descriptor
 import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_view_options.dart';
+import '../models/loading_status.dart';
 import '../models/sdk.dart';
 import '../models/snippet_file.dart';
 import 'snippet_file_editing_controller.dart';
@@ -37,6 +38,7 @@ class SnippetEditingController extends ChangeNotifier {
   String _pipelineOptions = '';
 
   bool _isChanged = false;
+  LoadingStatus _exampleLoadingStatus = LoadingStatus.done;
 
   SnippetFileEditingController? _activeFileController;
   final _fileControllers = <SnippetFileEditingController>[];
@@ -46,6 +48,29 @@ class SnippetEditingController extends ChangeNotifier {
     required this.sdk,
   });
 
+  /// Attempts to acquire a lock for asynchronous example loading.
+  ///
+  /// This prevents race condition for quick example switching
+  /// and allows to show a loading indicator.
+  ///
+  /// Returns whether the lock was acquired.
+  bool lockExampleLoading() {
+    switch (_exampleLoadingStatus) {
+      case LoadingStatus.loading:
+        return false;
+      case LoadingStatus.done:
+      case LoadingStatus.error:
+        _exampleLoadingStatus = LoadingStatus.loading;
+        return true;
+    }
+  }
+
+  void releaseExampleLoading() {
+    _exampleLoadingStatus = LoadingStatus.done;
+  }
+
+  bool get isLoading => _exampleLoadingStatus == LoadingStatus.loading;
+
   void setExample(
     Example example, {
     ExampleLoadingDescriptor? descriptor,
@@ -54,6 +79,7 @@ class SnippetEditingController extends ChangeNotifier {
     _example = example;
     _pipelineOptions = example.pipelineOptions;
     _isChanged = false;
+    releaseExampleLoading();
 
     _deleteFileControllers();
     _createFileControllers(example.files, example.viewOptions);

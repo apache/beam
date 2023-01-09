@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../src/assets/assets.gen.dart';
 import '../../models/popover_state.dart';
 import '../description_popover/description_popover_button.dart';
 import '../multi_file_icon.dart';
@@ -37,6 +40,7 @@ class ExampleItemActions extends StatelessWidget {
     return Row(
       children: [
         if (example.isMultiFile) const _IconWrapper(MultiFileIcon()),
+        if (example.usesEmulatedData) const _IconWrapper(_EmulatedDataIcon()),
         if (example.complexity != null)
           _IconWrapper(ComplexityWidget(complexity: example.complexity!)),
         descriptionPopover,
@@ -55,6 +59,21 @@ class ExampleItemActions extends StatelessWidget {
 
   void _setPopoverOpen(BuildContext context, bool isOpen) {
     Provider.of<PopoverState>(context, listen: false).setOpen(isOpen);
+  }
+}
+
+class _EmulatedDataIcon extends StatelessWidget {
+  const _EmulatedDataIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'intents.playground.usesEmulatedData'.tr(),
+      child: SvgPicture.asset(
+        Assets.streaming,
+        color: Theme.of(context).extension<BeamThemeExtension>()?.iconColor,
+      ),
+    );
   }
 }
 

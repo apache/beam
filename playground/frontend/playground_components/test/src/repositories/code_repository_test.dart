@@ -35,6 +35,7 @@ const kRequestMock = RunCodeRequest(
   files: [SnippetFile(content: 'code', isMain: true)],
   sdk: Sdk.java,
   pipelineOptions: {},
+  datasets: [],
 );
 
 const kPipelineUuid = '1234';

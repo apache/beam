@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../../constants/assets.dart';
+import '../../../src/assets/assets.gen.dart';
 
 class MultiFileIcon extends StatelessWidget {
   const MultiFileIcon();
@@ -32,7 +32,7 @@ class MultiFileIcon extends StatelessWidget {
       container: true,
       child: Tooltip(
         message: appLocale.exampleMultifile,
-        child: SvgPicture.asset(kMultifileIconAsset),
+        child: SvgPicture.asset(Assets.multifile),
       ),
     );
   }

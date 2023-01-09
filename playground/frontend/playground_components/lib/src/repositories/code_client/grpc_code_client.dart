@@ -22,6 +22,7 @@ import '../../api/iis_workaround_channel.dart';
 import '../../api/v1/api.pbgrpc.dart' as grpc;
 import '../../models/sdk.dart';
 import '../../util/pipeline_options.dart';
+import '../dataset_grpc_extension.dart';
 import '../models/check_status_response.dart';
 import '../models/output_response.dart';
 import '../models/run_code_error.dart';
@@ -215,6 +216,7 @@ class GrpcCodeClient implements CodeClient {
 
   grpc.RunCodeRequest _grpcRunCodeRequest(RunCodeRequest request) {
     return grpc.RunCodeRequest(
+      datasets: request.datasets.map((e) => e.grpc),
       files: request.files.map((f) => f.grpc),
       pipelineOptions: pipelineOptionsToString(request.pipelineOptions),
       sdk: request.sdk.grpc,
