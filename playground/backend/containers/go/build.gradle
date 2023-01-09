@@ -62,6 +62,7 @@ task copyDockerfileDependencies(type: Copy) {
    copy {
       from '../../../../sdks/go'
       into 'build/beam/go'
+      exclude '**/.gogradle/**'
    }
    copy {
       from '../../../../sdks/go.mod'

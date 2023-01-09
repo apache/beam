@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:math';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:get_it/get_it.dart';
@@ -25,6 +27,7 @@ import '../models/example_loading_descriptors/content_example_loading_descriptor
 import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_view_options.dart';
+import '../models/loading_status.dart';
 import '../models/sdk.dart';
 import '../services/symbols/symbols_notifier.dart';
 
@@ -37,6 +40,7 @@ class SnippetEditingController extends ChangeNotifier {
   ExampleLoadingDescriptor? _descriptor;
   String _pipelineOptions = '';
   bool _isChanged = false;
+  LoadingStatus _exampleLoadingStatus = LoadingStatus.done;
 
   SnippetEditingController({
     required this.sdk,
@@ -63,6 +67,29 @@ class SnippetEditingController extends ChangeNotifier {
     }
   }
 
+  /// Attempts to acquire a lock for asynchronous example loading.
+  ///
+  /// This prevents race condition for quick example switching
+  /// and allows to show a loading indicator.
+  ///
+  /// Returns whether the lock was acquired.
+  bool lockExampleLoading() {
+    switch (_exampleLoadingStatus) {
+      case LoadingStatus.loading:
+        return false;
+      case LoadingStatus.done:
+      case LoadingStatus.error:
+        _exampleLoadingStatus = LoadingStatus.loading;
+        return true;
+    }
+  }
+
+  void releaseExampleLoading() {
+    _exampleLoadingStatus = LoadingStatus.done;
+  }
+
+  bool get isLoading => _exampleLoadingStatus == LoadingStatus.loading;
+
   void setExample(
     Example example, {
     ExampleLoadingDescriptor? descriptor,
@@ -71,12 +98,14 @@ class SnippetEditingController extends ChangeNotifier {
     _selectedExample = example;
     _pipelineOptions = example.pipelineOptions;
     _isChanged = false;
+    releaseExampleLoading();
 
     final viewOptions = example.viewOptions;
 
     codeController.removeListener(_onCodeControllerChanged);
     setSource(example.source);
     _applyViewOptions(viewOptions);
+    _toStartOfContextLineIfAny();
     codeController.addListener(_onCodeControllerChanged);
 
     notifyListeners();
@@ -98,6 +127,31 @@ class SnippetEditingController extends ChangeNotifier {
     if (unfolded.isNotEmpty) {
       codeController.foldOutsideSections(unfolded);
     }
+  }
+
+  void _toStartOfContextLineIfAny() {
+    final contextLine1Based = selectedExample?.contextLine;
+
+    if (contextLine1Based == null) {
+      return;
+    }
+
+    _toStartOfFullLine(max(contextLine1Based - 1, 0));
+  }
+
+  void _toStartOfFullLine(int line) {
+    if (line >= codeController.code.lines.length) {
+      return;
+    }
+
+    final fullPosition = codeController.code.lines.lines[line].textRange.start;
+    final visiblePosition = codeController.code.hiddenRanges.cutPosition(
+      fullPosition,
+    );
+
+    codeController.selection = TextSelection.collapsed(
+      offset: visiblePosition,
+    );
   }
 
   Example? get selectedExample => _selectedExample;

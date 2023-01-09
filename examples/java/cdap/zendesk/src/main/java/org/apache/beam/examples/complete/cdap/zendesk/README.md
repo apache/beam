@@ -20,7 +20,7 @@
 To run this example your `build.gradle` file should contain the following task to execute the pipeline:
 
 ```
-task executeCdap (type:JavaExec) {
+task executeCdapZendesk (type:JavaExec) {
     mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()
@@ -30,10 +30,10 @@ task executeCdap (type:JavaExec) {
 
 ## Running the CdapZendeskToTxt pipeline example
 
-Gradle 'executeCdap' task allows to run the pipeline via the following command:
+Gradle 'executeCdapZendesk' task allows to run the pipeline via the following command:
 
 ```bash
-gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.zendesk.CdapZendeskToTxt \
+gradle clean executeCdapZendesk -DmainClass=org.apache.beam.examples.complete.cdap.zendesk.CdapZendeskToTxt \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 

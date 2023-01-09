@@ -34,6 +34,7 @@ import java.util.Map.Entry;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
@@ -110,11 +111,19 @@ class ParDoTranslatorBatch<InputT, OutputT>
       throws IOException {
 
     PCollection<InputT> input = (PCollection<InputT>) cxt.getInput();
-    Map<TupleTag<?>, PCollection<?>> outputs = cxt.getOutputs();
 
     Dataset<WindowedValue<InputT>> inputDs = cxt.getDataset(input);
     SideInputReader sideInputReader =
         createSideInputReader(transform.getSideInputs().values(), cxt);
+    MetricsAccumulator metrics = MetricsAccumulator.getInstance(cxt.getSparkSession());
+
+    TupleTag<OutputT> mainOut = transform.getMainOutputTag();
+    // Filter out unconsumed PCollections (except mainOut) to potentially avoid the costs of caching
+    // if not really beneficial.
+    Map<TupleTag<?>, PCollection<?>> outputs =
+        Maps.filterEntries(
+            cxt.getOutputs(),
+            e -> e != null && (e.getKey().equals(mainOut) || !cxt.isLeave(e.getValue())));
 
     if (outputs.size() > 1) {
       // In case of multiple outputs / tags, map each tag to a column by index.
@@ -128,6 +137,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
               cxt.getOptionsSupplier(),
               input,
               sideInputReader,
+              metrics,
               tagColIdx);
 
       // FIXME What's the strategy to unpersist Datasets / RDDs?
@@ -176,10 +186,10 @@ class ParDoTranslatorBatch<InputT, OutputT>
         }
       }
     } else {
-      PCollection<OutputT> output = cxt.getOutput(transform.getMainOutputTag());
+      PCollection<OutputT> output = cxt.getOutput(mainOut);
       DoFnPartitionIteratorFactory<InputT, ?, WindowedValue<OutputT>> doFnMapper =
           DoFnPartitionIteratorFactory.singleOutput(
-              cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader);
+              cxt.getCurrentTransform(), cxt.getOptionsSupplier(), input, sideInputReader, metrics);
 
       Dataset<WindowedValue<OutputT>> mainDS =
           inputDs.mapPartitions(doFnMapper, cxt.windowedEncoder(output.getCoder()));

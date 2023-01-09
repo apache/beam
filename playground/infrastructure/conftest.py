@@ -14,6 +14,7 @@
 # limitations under the License.
 import os.path
 import pytest
+from pytest_mock import MockerFixture
 from typing import Optional, List, Dict, Any
 
 from models import Example, SdkEnum, Tag
@@ -29,22 +30,29 @@ def supported_categories():
 
 
 @pytest.fixture(autouse=True)
-def mock_dataset_file_name(mocker):
+def mock_files(mocker: MockerFixture):
     def _mock_isfile(filepath):
         if filepath in [
+            # mock examples & imports
+            "MOCK_FILEPATH_0",
+            "../../examples/MOCK_EXAMPLE/main.java",
+            "../../examples/MOCK_EXAMPLE/utils.java",
+            "../../examples/MOCK_EXAMPLE/schema.java",
+            # datasets
             "../backend/datasets/dataset_id_1.json",
             "../backend/datasets/dataset_id_1.avro",
         ]:
             return True
         raise FileNotFoundError(filepath)
-    mocker.patch('os.path.isfile', side_effect=_mock_isfile)
+
+    mocker.patch("os.path.isfile", side_effect=_mock_isfile)
+    mocker.patch("builtins.open", mocker.mock_open(read_data="file content"))
 
 
 @pytest.fixture
 def create_test_example(create_test_tag):
     def _create_test_example(
-        with_kafka=False,
-        tag_meta: Optional[Dict[str, Any]] = None, **example_meta
+        is_multifile=False, with_kafka=False, tag_meta: Optional[Dict[str, Any]] = None, **example_meta
     ) -> Example:
         if tag_meta is None:
             tag_meta = {}
@@ -54,12 +62,14 @@ def create_test_example(create_test_tag):
             filepath="MOCK_FILEPATH",
             code="MOCK_CODE",
             output="MOCK_OUTPUT",
+            logs="MOCK_LOGS",
+            graph="MOCK_GRAPH",
             url_vcs="https://github.com/proj/MOCK_LINK",
             context_line=132,
         )
         meta.update(**example_meta)
         return Example(
-            tag=create_test_tag(with_kafka=with_kafka, **tag_meta),
+            tag=create_test_tag(is_multifile=is_multifile, with_kafka=with_kafka, **tag_meta),
             **meta,
         )
 
@@ -68,7 +78,7 @@ def create_test_example(create_test_tag):
 
 @pytest.fixture
 def create_test_tag():
-    def _create_test_tag(with_kafka=False, **tag_meta) -> Tag:
+    def _create_test_tag(with_kafka=False, is_multifile=False, **tag_meta) -> Tag:
         meta = {
             "name": "MOCK_NAME",
             "description": "MOCK_DESCRIPTION",
@@ -80,9 +90,20 @@ def create_test_tag():
         if with_kafka:
             meta.update(
                 emulators=[
-                    {"type": "kafka", "topic": {"id": "topic1", "source_dataset": "dataset_id_1"}}
+                    {
+                        "type": "kafka",
+                        "topic": {"id": "topic1", "source_dataset": "dataset_id_1"},
+                    }
                 ],
                 datasets={"dataset_id_1": {"format": "avro", "location": "local"}},
+            )
+        if is_multifile:
+            meta.update(
+                multifile=True,
+                files=[
+                    {"name": "utils.java"},
+                    {"name": "schema.java"}
+                ]
             )
         for k, v in tag_meta.items():
             if v is None:
@@ -90,6 +111,7 @@ def create_test_tag():
             else:
                 meta[k] = v
         return Tag(
+            filepath="../../examples/MOCK_EXAMPLE/main.java",
             line_start=10,
             line_finish=20,
             context_line=30,

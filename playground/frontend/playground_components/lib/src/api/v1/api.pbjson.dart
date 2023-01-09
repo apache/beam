@@ -112,11 +112,12 @@ const RunCodeRequest$json = const {
     const {'1': 'sdk', '3': 2, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
     const {'1': 'pipeline_options', '3': 3, '4': 1, '5': 9, '10': 'pipelineOptions'},
     const {'1': 'datasets', '3': 4, '4': 3, '5': 11, '6': '.api.v1.Dataset', '10': 'datasets'},
+    const {'1': 'files', '3': 5, '4': 3, '5': 11, '6': '.api.v1.SnippetFile', '10': 'files'},
   ],
 };
 
 /// Descriptor for `RunCodeRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List runCodeRequestDescriptor = $convert.base64Decode('Cg5SdW5Db2RlUmVxdWVzdBISCgRjb2RlGAEgASgJUgRjb2RlEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnMSKwoIZGF0YXNldHMYBCADKAsyDy5hcGkudjEuRGF0YXNldFIIZGF0YXNldHM=');
+final $typed_data.Uint8List runCodeRequestDescriptor = $convert.base64Decode('Cg5SdW5Db2RlUmVxdWVzdBISCgRjb2RlGAEgASgJUgRjb2RlEh0KA3NkaxgCIAEoDjILLmFwaS52MS5TZGtSA3NkaxIpChBwaXBlbGluZV9vcHRpb25zGAMgASgJUg9waXBlbGluZU9wdGlvbnMSKwoIZGF0YXNldHMYBCADKAsyDy5hcGkudjEuRGF0YXNldFIIZGF0YXNldHMSKQoFZmlsZXMYBSADKAsyEy5hcGkudjEuU25pcHBldEZpbGVSBWZpbGVz');
 @$core.Deprecated('Use runCodeResponseDescriptor instead')
 const RunCodeResponse$json = const {
   '1': 'RunCodeResponse',
@@ -445,11 +446,12 @@ const GetPrecompiledObjectCodeResponse$json = const {
   '1': 'GetPrecompiledObjectCodeResponse',
   '2': const [
     const {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
+    const {'1': 'files', '3': 2, '4': 3, '5': 11, '6': '.api.v1.SnippetFile', '10': 'files'},
   ],
 };
 
 /// Descriptor for `GetPrecompiledObjectCodeResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getPrecompiledObjectCodeResponseDescriptor = $convert.base64Decode('CiBHZXRQcmVjb21waWxlZE9iamVjdENvZGVSZXNwb25zZRISCgRjb2RlGAEgASgJUgRjb2Rl');
+final $typed_data.Uint8List getPrecompiledObjectCodeResponseDescriptor = $convert.base64Decode('CiBHZXRQcmVjb21waWxlZE9iamVjdENvZGVSZXNwb25zZRISCgRjb2RlGAEgASgJUgRjb2RlEikKBWZpbGVzGAIgAygLMhMuYXBpLnYxLlNuaXBwZXRGaWxlUgVmaWxlcw==');
 @$core.Deprecated('Use getPrecompiledObjectOutputResponseDescriptor instead')
 const GetPrecompiledObjectOutputResponse$json = const {
   '1': 'GetPrecompiledObjectOutputResponse',

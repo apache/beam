@@ -42,8 +42,8 @@ Use [`sdkman`](https://sdkman.io/) to install the Java Development Kit (JDK).
 # Install sdkman
 curl -s "https://get.sdkman.io" | bash
 
-# Install Java 11
-sdk install java 11.0.16-tem
+# Install Java 17
+sdk install java 17.0.5-tem
 {{< /highlight >}}
 
 You can use either [Gradle](https://gradle.org/) or
@@ -168,13 +168,13 @@ process any data yet. To process data, you run the pipeline:
 pipeline.run().waitUntilFinish();
 ```
 
-A Beam [runner](https://beam.apache.org/documentation/basics/#runner) runs a
+A Beam [runner](/documentation/basics/#runner) runs a
 Beam pipeline on a specific platform. This example uses the
 [Direct Runner](https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/runners/direct/DirectRunner.html),
 which is the default runner if you don't specify one. The Direct Runner runs
 the pipeline locally on your machine. It is meant for testing and development,
 rather than being optimized for efficiency. For more information, see
-[Using the Direct Runner](https://beam.apache.org/documentation/runners/direct/).
+[Using the Direct Runner](/documentation/runners/direct/).
 
 For production workloads, you typically use a distributed runner that runs the
 pipeline on a big data processing system such as Apache Flink, Apache Spark, or

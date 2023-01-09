@@ -999,6 +999,13 @@ public class Schema implements Serializable {
           builder.append(getMapValueType().toString());
           builder.append(">");
           break;
+        case LOGICAL_TYPE:
+          builder.append("LOGICAL_TYPE<");
+          if (getLogicalType() != null) {
+            builder.append(getLogicalType().getIdentifier());
+          }
+          builder.append(">");
+          break;
         default:
           builder.append(getTypeName().toString());
       }

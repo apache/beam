@@ -26,9 +26,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-import '../../../constants/assets.dart';
 import '../../../constants/sizes.dart';
 import '../../../modules/messages/models/set_content_message.dart';
+import '../../../src/assets/assets.gen.dart';
 import '../../../utils/javascript_post_message.dart';
 import '../../standalone_playground/path.dart';
 
@@ -47,7 +47,7 @@ class EmbeddedActions extends StatelessWidget {
         height: kTryPlaygroundButtonHeight,
         child: Consumer<PlaygroundController>(
           builder: (context, controller, child) => ElevatedButton.icon(
-            icon: SvgPicture.asset(kLinkIconAsset),
+            icon: SvgPicture.asset(Assets.link),
             label: Text(AppLocalizations.of(context)!.tryInPlayground),
             onPressed: () => _openStandalonePlayground(controller),
           ),

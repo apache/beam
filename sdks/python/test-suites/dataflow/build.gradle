@@ -84,3 +84,9 @@ task examplesPostCommit {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:examples")
   }
 }
+
+task tftTests {
+  getVersionsAsList('dataflow_cloudml_benchmark_tests_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:tftTests")
+  }
+}

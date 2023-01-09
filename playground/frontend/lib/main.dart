@@ -42,7 +42,7 @@ void main() async {
 
   // Router API specific initialization.
   final pageStack = GetIt.instance.get<PageStack>();
-  final routerDelegate = PageStackRouterDelegate(pageStack);
+  final routerDelegate = BeamRouterDelegate(pageStack);
   final routeInformationParser = PlaygroundRouteInformationParser();
   final backButtonDispatcher = PageStackBackButtonDispatcher(pageStack);
 
