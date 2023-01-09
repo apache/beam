@@ -82,6 +82,7 @@ class CodeRunner extends ChangeNotifier {
         code: snippetEditingController!.codeController.fullText,
         sdk: snippetEditingController!.sdk,
         pipelineOptions: parsedPipelineOptions,
+        datasets: snippetEditingController?.selectedExample?.datasets ?? [],
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
