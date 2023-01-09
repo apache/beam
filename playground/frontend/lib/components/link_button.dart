@@ -19,9 +19,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:playground/src/assets/assets.gen.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-import '../constants/assets.dart';
 
 class LinkButton extends StatelessWidget {
   final String iconPath;
@@ -36,7 +35,7 @@ class LinkButton extends StatelessWidget {
 
   factory LinkButton.colab(String url) {
     return LinkButton(
-      iconPath: kColabIconAsset,
+      iconPath: Assets.colab,
       text: 'intents.playground.openGoogleColab'.tr(),
       url: url,
     );
@@ -44,7 +43,7 @@ class LinkButton extends StatelessWidget {
 
   factory LinkButton.github(String url) {
     return LinkButton(
-      iconPath: kGithubIconAsset,
+      iconPath: Assets.github,
       text: 'intents.playground.viewOnGithub'.tr(),
       url: url,
     );

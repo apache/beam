@@ -21,3 +21,4 @@ intents:
     newExample: 'New Example'
     openGoogleColab: 'Open in Google Colab'
     viewOnGithub: 'View on GitHub'
+    usesEmulatedData: 'This examples uses emulated data'

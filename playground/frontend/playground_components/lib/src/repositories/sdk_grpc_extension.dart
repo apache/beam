@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 import '../api/v1/api.pbgrpc.dart' as g;
 import '../models/sdk.dart';
 
@@ -29,8 +28,7 @@ extension SdkExtension on Sdk {
   };
 
   g.Sdk get grpc =>
-      _idToGrpcEnum[id] ??
-          (throw Exception('SDK not supported for GRPS: $id'));
+      _idToGrpcEnum[id] ?? (throw Exception('SDK not supported for GRPS: $id'));
 }
 
 extension GrpcSdkExtension on g.Sdk {

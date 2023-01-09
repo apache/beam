@@ -24,6 +24,7 @@ import '../../models/category_with_examples.dart';
 import '../../models/example_base.dart';
 import '../../models/sdk.dart';
 import '../complexity_grpc_extension.dart';
+import '../dataset_grpc_extension.dart';
 import '../models/get_default_precompiled_object_request.dart';
 import '../models/get_precompiled_object_code_response.dart';
 import '../models/get_precompiled_object_request.dart';
@@ -327,6 +328,7 @@ class GrpcExampleClient implements ExampleClient {
       complexity: example.complexity.model,
       contextLine: example.contextLine,
       description: example.description,
+      datasets: example.datasets.map((e) => e.model).toList(growable: false),
       isMultiFile: example.multifile,
       name: example.name,
       path: example.cloudPath,

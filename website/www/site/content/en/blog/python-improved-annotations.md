@@ -103,8 +103,8 @@ class SaveResults(beam.PTransform):
 What are you waiting for.. start using annotations on your transforms!
 
 For more background on type hints in Python, see:
-[Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/).
+[Ensuring Python Type Safety](/documentation/sdks/python-type-safety/).
 
 Finally, please
-[let us know](https://beam.apache.org/community/contact-us/)
+[let us know](/community/contact-us/)
 if you encounter any issues.

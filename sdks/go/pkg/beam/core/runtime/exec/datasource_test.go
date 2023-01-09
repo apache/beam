@@ -16,18 +16,25 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -314,7 +321,10 @@ func TestDataSource_Split(t *testing.T) {
 				t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
 			}
 
-			runOnRoots(ctx, t, p, "Process", Root.Process)
+			runOnRoots(ctx, t, p, "Process", func(root Root, ctx context.Context) error {
+				_, err := root.Process(ctx)
+				return err
+			})
 			runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
 
 			validateSource(t, out, source, makeValues(test.expected...))
@@ -449,7 +459,10 @@ func TestDataSource_Split(t *testing.T) {
 		if got, want := splitRes.PI, test.splitIdx-1; got != want {
 			t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
 		}
-		runOnRoots(ctx, t, p, "Process", Root.Process)
+		runOnRoots(ctx, t, p, "Process", func(root Root, ctx context.Context) error {
+			_, err := root.Process(ctx)
+			return err
+		})
 		runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
 
 		validateSource(t, out, source, makeValues(test.expected...))
@@ -582,7 +595,10 @@ func TestDataSource_Split(t *testing.T) {
 		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
 			t.Fatalf("p.Split(active) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
-		runOnRoots(ctx, t, p, "Process", Root.Process)
+		runOnRoots(ctx, t, p, "Process", func(root Root, ctx context.Context) error {
+			_, err := root.Process(ctx)
+			return err
+		})
 		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
 			t.Fatalf("p.Split(active, unable to get desired split) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
@@ -854,6 +870,139 @@ func TestSplitHelper(t *testing.T) {
 					t.Errorf("incorrect split fraction: got: %v, want: %v", gotFrac, test.wantFrac)
 				}
 			})
+		}
+	})
+}
+
+func TestCheckpointing(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		cps, err := (&DataSource{}).checkpointThis(nil)
+		if err != nil {
+			t.Fatalf("checkpointThis() = %v, %v", cps, err)
+		}
+	})
+	t.Run("Stop", func(t *testing.T) {
+		cps, err := (&DataSource{}).checkpointThis(sdf.StopProcessing())
+		if err != nil {
+			t.Fatalf("checkpointThis() = %v, %v", cps, err)
+		}
+	})
+	t.Run("Delay_no_residuals", func(t *testing.T) {
+		wesInv, _ := newWatermarkEstimatorStateInvoker(nil)
+		root := &DataSource{
+			Out: &ProcessSizedElementsAndRestrictions{
+				PDo:    &ParDo{},
+				wesInv: wesInv,
+				rt:     offsetrange.NewTracker(offsetrange.Restriction{}),
+				elm: &FullValue{
+					Windows: window.SingleGlobalWindow,
+				},
+			},
+		}
+		cp, err := root.checkpointThis(sdf.ResumeProcessingIn(time.Second * 13))
+		if err != nil {
+			t.Fatalf("checkpointThis() = %v, %v, want nil", cp, err)
+		}
+		if cp != nil {
+			t.Fatalf("checkpointThis() = %v, want nil", cp)
+		}
+	})
+	dfn, err := graph.NewDoFn(&CheckpointingSdf{delay: time.Minute}, graph.NumMainInputs(graph.MainSingle))
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+
+	intCoder, _ := coderx.NewVarIntZ(reflectx.Int)
+	ERSCoder := coder.NewKV([]*coder.Coder{
+		coder.NewKV([]*coder.Coder{
+			coder.CoderFrom(intCoder), // Element
+			coder.NewKV([]*coder.Coder{
+				coder.NewR(typex.New(reflect.TypeOf((*offsetrange.Restriction)(nil)).Elem())), // Restriction
+				coder.NewBool(), // Watermark State
+			}),
+		}),
+		coder.NewDouble(), // Size
+	})
+	wvERSCoder := coder.NewW(
+		ERSCoder,
+		coder.NewGlobalWindow(),
+	)
+
+	rest := offsetrange.Restriction{Start: 1, End: 10}
+	value := &FullValue{
+		Elm: &FullValue{
+			Elm: 42,
+			Elm2: &FullValue{
+				Elm:  rest,  // Restriction
+				Elm2: false, // Watermark State falsie
+			},
+		},
+		Elm2:      rest.Size(),
+		Windows:   window.SingleGlobalWindow,
+		Timestamp: mtime.MaxTimestamp,
+		Pane:      typex.NoFiringPane(),
+	}
+	t.Run("Delay_residuals_Process", func(t *testing.T) {
+		ctx := context.Background()
+		wesInv, _ := newWatermarkEstimatorStateInvoker(nil)
+		rest := offsetrange.Restriction{Start: 1, End: 10}
+		root := &DataSource{
+			Coder: wvERSCoder,
+			Out: &ProcessSizedElementsAndRestrictions{
+				PDo: &ParDo{
+					Fn:  dfn,
+					Out: []Node{&Discard{}},
+				},
+				TfId:   "testTransformID",
+				wesInv: wesInv,
+				rt:     offsetrange.NewTracker(rest),
+			},
+		}
+		if err := root.Up(ctx); err != nil {
+			t.Fatalf("invalid function: %v", err)
+		}
+		if err := root.Out.Up(ctx); err != nil {
+			t.Fatalf("invalid function: %v", err)
+		}
+
+		enc := MakeElementEncoder(wvERSCoder)
+		var buf bytes.Buffer
+
+		// We encode the element several times to ensure we don't
+		// drop any residuals, the root of issue #24931.
+		wantCount := 3
+		for i := 0; i < wantCount; i++ {
+			if err := enc.Encode(value, &buf); err != nil {
+				t.Fatalf("couldn't encode value: %v", err)
+			}
+		}
+
+		if err := root.StartBundle(ctx, "testBund", DataContext{
+			Data: &TestDataManager{
+				R: io.NopCloser(&buf),
+			},
+		},
+		); err != nil {
+			t.Fatalf("invalid function: %v", err)
+		}
+		cps, err := root.Process(ctx)
+		if err != nil {
+			t.Fatalf("Process() = %v, %v, want nil", cps, err)
+		}
+		if got, want := len(cps), wantCount; got != want {
+			t.Fatalf("Process() = len %v checkpoints, want %v", got, want)
+		}
+		// Check each checkpoint has the expected values.
+		for _, cp := range cps {
+			if got, want := cp.Reapply, time.Minute; got != want {
+				t.Errorf("Process(delay(%v)) delay = %v, want %v", want, got, want)
+			}
+			if got, want := cp.SR.TId, root.Out.(*ProcessSizedElementsAndRestrictions).TfId; got != want {
+				t.Errorf("Process() transformID = %v, want %v", got, want)
+			}
+			if got, want := cp.SR.InId, "i0"; got != want {
+				t.Errorf("Process() transformID = %v, want %v", got, want)
+			}
 		}
 	})
 }
