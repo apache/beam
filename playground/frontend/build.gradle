@@ -17,18 +17,11 @@
  */
 
 
-apply plugin: 'org.apache.beam.module'
-apply plugin: 'base'
+apply(plugin: "org.apache.beam.module")
+apply(plugin: "base")
 applyDockerNature()
 
-def playgroundBackendUrl = project.playgroundBackendUrl
-def analyticsUA = project.analyticsUA
-def playgroundBackendJavaRouteUrl = project.playgroundBackendJavaRouteUrl
-def playgroundBackendGoRouteUrl = project.playgroundBackendGoRouteUrl
-def playgroundBackendPythonRouteUrl = project.playgroundBackendPythonRouteUrl
-def playgroundBackendScioRouteUrl = project.playgroundBackendScioRouteUrl
-
-def playgroundJobServerProject = "${project.path.replace('-container', '')}"
+def playgroundJobServerProject = "${project.path.replace("-container", "")}"
 
 description = project(playgroundJobServerProject).description + " :: Container"
 
@@ -37,10 +30,10 @@ configurations {
 }
 
 dependencies {
-  dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
+  dockerDependency(project(path: playgroundJobServerProject, configuration: "shadow"))
 }
 
-task generate {
+tasks.register("generate") {
   dependsOn("playground_components:generate")
 
   dependsOn("generateCode")
@@ -49,7 +42,7 @@ task generate {
   description = "Generates all generated files."
 }
 
-task printPath {
+tasks.register("printPath") {
   doLast {
     exec {
       executable("printenv")
@@ -58,7 +51,7 @@ task printPath {
   }
 }
 
-task analyze  {
+tasks.register("analyze") {
   dependsOn("playground_components:generateCode")
   dependsOn("generateCode")
 
@@ -73,7 +66,7 @@ task analyze  {
   }
 }
 
-task pubGet {
+tasks.register("pubGet") {
   group = "build"
   description = "Get packages for the frontend project"
   doLast {
@@ -84,7 +77,7 @@ task pubGet {
   }
 }
 
-task format {
+tasks.register("format") {
   group = "build"
   description = "Idiomatically format Dart source code"
   doLast {
@@ -95,9 +88,10 @@ task format {
   }
 }
 
-task run {
+tasks.register("run") {
   group = "application"
   description = "Run application on Google Chrome"
+
   doLast {
     exec {
       executable("flutter")
@@ -106,7 +100,7 @@ task run {
   }
 }
 
-task test {
+tasks.register("test") {
   dependsOn("playground_components:generateCode")
   dependsOn("generateCode")
 
@@ -121,14 +115,14 @@ task test {
   }
 }
 
-task precommit {
+tasks.register("precommit") {
   dependsOn("playground_components:precommit")
 
   dependsOn("analyze")
   dependsOn("test")
 }
 
-task generateCode {
+tasks.register("generateCode") {
   dependsOn("playground_components:generateCode")
 
   dependsOn("cleanFlutter")
@@ -145,7 +139,7 @@ task generateCode {
   }
 }
 
-task cleanFlutter {
+tasks.register("cleanFlutter") {
   group = "build"
   description = "Remove build artifacts"
 
@@ -157,7 +151,7 @@ task cleanFlutter {
   }
 }
 
-task cleanGenerated {
+tasks.register("cleanGenerated") {
   dependsOn("playground_components:cleanGenerated")
 
   group = "build"
@@ -186,75 +180,59 @@ ext.deleteFilesByRegExp = { re ->
   }
 }
 
+tasks.register("integrationTest") {
+  dependsOn("integrationTest_standalone_change_example_sdk_run")
+  dependsOn("integrationTest_standalone_miscellaneous_ui")
+}
+
+tasks.register("integrationTest_standalone_change_example_sdk_run") {
+  runIntegrationTest("standalone_change_example_sdk_run", "/")
+}
+
+tasks.register("integrationTest_standalone_miscellaneous_ui") {
+  runIntegrationTest("standalone_miscellaneous_ui", "/")
+}
+
+void runIntegrationTest(String path, String url) {
+  exec {
+    executable("flutter")
+    args(
+      "drive",
+      "--driver=test_driver/integration_test.dart",
+      "--target=integration_test/${path}_test.dart",
+      "--web-launch-url='$url'",
+      "--device-id=chrome",
+    )
+  }
+}
+
 task copyDockerfileDependencies(type: Copy) {
    group = "build"
    description = "Copy files that required to build docker container"
    copy {
-      from '.'
-      into 'build/'
-      exclude 'build'
-      exclude 'Dockerfile'
+      from(".")
+      into("build/")
+      exclude("build")
+      exclude("Dockerfile")
    }
    copy {
-      from '../playground'
-      into 'build/playground'
+      from("../playground")
+      into("build/playground")
    }
 }
 
 docker {
   group = "build"
-  description = "Build container for the frontend project"
-  name containerImageName(
-          name: project.docker_image_default_repo_prefix + "playground-frontend",
-          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] :
-                  project.docker_image_default_repo_root)
-  files "./build/"
-  tags containerImageTags()
-  buildArgs(['FLUTTER_VERSION': project.rootProject.hasProperty(["flutter-version"]) ?
-                                project.rootProject["flutter-version"] :
-                                "3.3.2" ])
+  description = "Build container for frontend application"
+  name = containerImageName(
+    name: project.docker_image_default_repo_prefix + "playground-frontend",
+    root: project.rootProject.hasProperty(["docker-repository-root"])
+            ? project.rootProject["docker-repository-root"]
+            : project.docker_image_default_repo_root
+  )
+  files("./build/")
+  tags(containerImageTags())
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects
-dockerPrepare.dependsOn copyDockerfileDependencies
-
-task("createConfig") {
-  group = "build"
-  description = "Generate config for the frontend project"
-  doLast {
-    def configFileName = "config.g.dart"
-    def modulePath = project(":playground:frontend").projectDir.absolutePath
-    def file = new File(modulePath + "/lib", configFileName)
-    file.write("""/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-const String kApiClientURL =
-    '${playgroundBackendUrl}';
-const String kAnalyticsUA = '${analyticsUA}';
-const String kApiJavaClientURL =
-    '${playgroundBackendJavaRouteUrl}';
-const String kApiGoClientURL =
-    '${playgroundBackendGoRouteUrl}';
-const String kApiPythonClientURL =
-    '${playgroundBackendPythonRouteUrl}';
-const String kApiScioClientURL =
-    '${playgroundBackendScioRouteUrl}';
-""")
-  }
-}
+dockerPrepare.dependsOn(copyDockerfileDependencies)

@@ -16,15 +16,18 @@
  * limitations under the License.
  */
 
+import '../../models/dataset.dart';
 import '../../models/sdk.dart';
 
 class RunCodeRequest {
   final String code;
+  final List<Dataset> datasets;
   final Sdk sdk;
   final Map<String, String> pipelineOptions;
 
   const RunCodeRequest({
     required this.code,
+    required this.datasets,
     required this.sdk,
     required this.pipelineOptions,
   });

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components/src/controllers/example_loaders/user_shared_example_loader.dart';
@@ -24,7 +23,7 @@ import 'package:playground_components/src/controllers/example_loaders/user_share
 import '../../common/example_cache.dart';
 
 void main() async {
-  await EasyLocalization.ensureInitialized();
+  TestWidgetsFlutterBinding.ensureInitialized();
 
   group('UserSharedExampleLoader', () {
     testWidgets('non-existent', (WidgetTester wt) async {
