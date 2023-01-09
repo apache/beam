@@ -200,14 +200,16 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    model_path = (self.model_path if self.model_path else self._state_dict_path)
     model, device = _load_model(
         self._model_class,
-        model_path,
+        self._state_dict_path,
         self._device,
         **self._model_params)
     self._device = device
     return model
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._state_dict_path = model_path if model_path else self._state_dict_path
 
   def run_inference(
       self,
@@ -373,14 +375,16 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def load_model(self) -> torch.nn.Module:
     """Loads and initializes a Pytorch model for processing."""
-    model_path = (self.model_path if self.model_path else self._state_dict_path)
     model, device = _load_model(
         self._model_class,
-        model_path,
+        self._state_dict_path,
         self._device,
         **self._model_params)
     self._device = device
     return model
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._state_dict_path = model_path if model_path else self._state_dict_path
 
   def run_inference(
       self,

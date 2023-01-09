@@ -86,8 +86,6 @@ def _to_microseconds(time_ns: int) -> int:
 
 class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
   """Has the ability to load and apply an ML model."""
-  model_path = None
-
   def load_model(self) -> ModelT:
     """Loads and initializes a model for processing."""
     raise NotImplementedError(type(self))
@@ -149,6 +147,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
           'inference_args were provided, but should be None because this '
           'framework does not expect extra arguments on inferences.')
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    """Update the model paths produced by side inputs."""
+    raise NotImplementedError
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
@@ -195,6 +197,9 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     return self._unkeyed.validate_inference_args(inference_args)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._unkeyed.update_model_path(model_path=model_path)
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
@@ -269,6 +274,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     return self._unkeyed.validate_inference_args(inference_args)
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._unkeyed.update_model_path(model_path=model_path)
+
 
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
@@ -340,9 +348,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                 _RunInferenceDoFn(
                     self._model_handler, self._clock, self._metrics_namespace),
                 self._inference_args,
-                beam.pvalue.AsSingleton(self._update_model_pcoll)
-                if self._update_model_pcoll else None).with_resource_hints(
-                    **resource_hints)))
+                self._update_model_pcoll if self._update_model_pcoll else
+                None).with_resource_hints(**resource_hints)))
 
 
 class _MetricsCollector:
@@ -422,7 +429,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
       # this will be a breaking change.
-      self._model_handler.model_path = model_path
+      self._model_handler.update_model_path(model_path)
       model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
@@ -453,7 +460,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           "Updating the model path. Previous model path"
           " is %s and "
           "updated model path is %s" %
-          (cached_model_container['model_path'], model_path))
+          (cached_model_container['model_id'], model_path))
       cached_model_container = self._shared_model_handle.acquire(
           load, tag=model_path)
     return cached_model_container['model']
@@ -470,6 +477,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = self._load_model(model_path=model_path)
 
   def process(self, batch, inference_args, side_input_model_path=None):
+    logging.info(side_input_model_path)
+    print(f'Side input model path {side_input_model_path}')
     self.update_model(model_path=side_input_model_path)
     start_time = _to_microseconds(self._clock.time_ns())
     try:

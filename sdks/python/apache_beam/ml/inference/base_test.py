@@ -58,6 +58,9 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     for example in batch:
       yield model.predict(example)
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    pass
+
 
 class FakeClock:
   def __init__(self):
