@@ -1,4 +1,4 @@
-/*
+package com.example.demo;/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,14 +33,15 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Convert;
-import org.apache.beam.sdk.schemas.transforms.Filter;
-import org.apache.beam.sdk.schemas.transforms.Select;
+import org.apache.beam.sdk.schemas.transforms.RenameFields;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,13 +80,15 @@ public class Test {
     @DefaultSchema(JavaFieldSchema.class)
     @EqualsAndHashCode
     public static class User {
+
         public String userId;
         public String userName;
-
         public Game game;
 
         @SchemaCreate
-        public User(String userId, String userName, Game game) {
+        public User(String userId, String userName
+                , Game game
+        ) {
             this.userId = userId;
             this.userName = userName;
             this.game = game;
@@ -101,26 +104,80 @@ public class Test {
         }
     }
 
+    @DefaultSchema(JavaFieldSchema.class)
+    @EqualsAndHashCode
+    public static class Result {
+
+        public String userId;
+        public String userName;
+        public Integer score;
+        public String gameId;
+        public String date;
+
+        @SchemaCreate
+        public Result(String userId, String userName, Integer score, String gameId, String date) {
+            this.userId = userId;
+            this.userName = userName;
+            this.score = score;
+            this.gameId = gameId;
+            this.date = date;
+        }
+
+        @Override
+        public String toString() {
+            return "Result{" +
+                    "userId='" + userId + '\'' +
+                    ", userName='" + userName + '\'' +
+                    ", score=" + score +
+                    ", gameId='" + gameId + '\'' +
+                    ", date='" + date + '\'' +
+                    '}';
+        }
+    }
+
+
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
         PCollection<User> fullStatistics = getProgressPCollection(pipeline);
 
-        PCollection<Row> convertedToRow = fullStatistics.apply(Convert.toRows());
+        Schema type = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .addInt32Field("score")
+                .addStringField("gameId")
+                .addStringField("date")
+                .build();
 
-        convertedToRow
-                .apply("User row", ParDo.of(new LogOutput<>("User info")));
+        PCollection<Object> pCollection = fullStatistics
+                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
+                .setSchema(type,
+                        TypeDescriptor.of(Object.class), input ->
+                        {
+                            User user = (User) input;
+                            return Row.withSchema(type)
+                                    .addValues(user.userId, user.userName, user.game.score, user.game.gameId, user.game.date)
+                                    .build();
+                        },
+                        input -> new User(input.getString(0), input.getString(1),
+                                new Game(input.getString(0), input.getInt32(2), input.getString(3), input.getString(4))));
 
-        convertedToRow.apply(Convert.to(User.class))
-                .apply("User class",ParDo.of(new LogOutput<>("User info")));
+        pCollection
+                .apply(Convert.toRows())
+                .apply("User", ParDo.of(new LogOutput<>("ToRows")));
+
+        pCollection
+                .apply(Convert.to(Result.class))
+                .apply("User", ParDo.of(new LogOutput<>("Convert to Result")));
+
 
         pipeline.run();
     }
 
     public static PCollection<User> getProgressPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
-        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
         return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
     }
 
@@ -128,7 +185,8 @@ public class Test {
         @ProcessElement
         public void processElement(ProcessContext c) {
             String[] items = c.element().split(",");
-            c.output(new User(items[0], items[1], new Game(items[0], Integer.valueOf(items[2]), items[3], items[4])));
+            c.output(new User(items[0], items[1], new Game(items[0], Integer.valueOf(items[2]), items[3], items[4])
+            ));
         }
     }
 

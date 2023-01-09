@@ -27,18 +27,23 @@
 //   tags:
 //     - hellobeam
 
+import lombok.EqualsAndHashCode;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.transforms.Join;
+import org.apache.beam.sdk.schemas.transforms.RenameFields;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,14 +52,15 @@ public class Test {
     private static final Logger LOG = LoggerFactory.getLogger(Test.class);
 
     @DefaultSchema(JavaFieldSchema.class)
+    @EqualsAndHashCode
     public static class Game {
         public String userId;
-        public String score;
+        public Integer score;
         public String gameId;
         public String date;
 
         @SchemaCreate
-        public Game(String userId, String score, String gameId, String date) {
+        public Game(String userId, Integer score, String gameId, String date) {
             this.userId = userId;
             this.score = score;
             this.gameId = gameId;
@@ -74,11 +80,11 @@ public class Test {
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
+    @EqualsAndHashCode
     public static class User {
+
         public String userId;
         public String userName;
-
-        public Game game;
 
         @SchemaCreate
         public User(String userId, String userName) {
@@ -91,10 +97,10 @@ public class Test {
             return "User{" +
                     "userId='" + userId + '\'' +
                     ", userName='" + userName + '\'' +
-                    ", game=" + game +
                     '}';
         }
     }
+
 
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
@@ -103,10 +109,26 @@ public class Test {
         PCollection<User> userInfo = getUserPCollection(pipeline);
         PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
-        PCollection<Row> rowPCollection = userInfo.apply(Join.innerJoin(gameInfo).using("userId"));
+        Schema type = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .build();
 
-        rowPCollection
-                .apply(Select.flattenedSchema())
+        PCollection<Row> pCollection = userInfo
+                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
+                .setSchema(type,
+                        TypeDescriptor.of(Object.class), input ->
+                        {
+                            User user = (User) input;
+                            return Row.withSchema(type)
+                                    .addValues(user.userId, user.userName)
+                                    .build();
+                        },
+                        input -> new User(input.getString(0), input.getString(1))
+                )
+                .apply(Join.innerJoin(gameInfo).using("userId"));
+
+        pCollection
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();
@@ -136,7 +158,7 @@ public class Test {
         @ProcessElement
         public void processElement(ProcessContext c) {
             String[] items = c.element().split(",");
-            c.output(new Game(items[0], items[2], items[3], items[4]));
+            c.output(new Game(items[0], Integer.valueOf(items[2]), items[3], items[4]));
         }
     }
 

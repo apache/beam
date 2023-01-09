@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: filter
-//   description: Filter example.
+//   name: schema-filter
+//   description: Schema filter example.
 //   multifile: false
 //   context_line: 46
 //   categories:
@@ -27,18 +27,20 @@
 //   tags:
 //     - hellobeam
 
+import lombok.EqualsAndHashCode;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.Select;
-import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.schemas.transforms.Filter;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +49,7 @@ public class Test {
     private static final Logger LOG = LoggerFactory.getLogger(Test.class);
 
     @DefaultSchema(JavaFieldSchema.class)
+    @EqualsAndHashCode
     public static class Game {
         public String userId;
         public Integer score;
@@ -74,14 +77,17 @@ public class Test {
 
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
+    @EqualsAndHashCode
     public static class User {
+
         public String userId;
         public String userName;
-
         public Game game;
 
         @SchemaCreate
-        public User(String userId, String userName, Game game) {
+        public User(String userId, String userName
+                , Game game
+        ) {
             this.userId = userId;
             this.userName = userName;
             this.game = game;
@@ -103,11 +109,32 @@ public class Test {
 
         PCollection<User> fullStatistics = getProgressPCollection(pipeline);
 
-        PCollection<Object> filteredPCollection = fullStatistics.apply(Filter.create().whereFieldName("game.score", score -> (int) score > 10));
+        Schema type = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .addInt32Field("score")
+                .addStringField("gameId")
+                .addStringField("date")
+                .build();
 
-        filteredPCollection
-                .apply(Select.flattenedSchema())
-                .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
+        PCollection<User> pCollection = fullStatistics
+                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
+                .setSchema(type,
+                        TypeDescriptor.of(Object.class), input ->
+                        {
+                            User user = (User) input;
+                            return Row.withSchema(type)
+                                    .addValues(user.userId, user.userName, user.game.score, user.game.gameId, user.game.date)
+                                    .build();
+                        },
+                        input -> new User(input.getString(0), input.getString(1),
+                                new Game(input.getString(0), input.getInt32(2), input.getString(3), input.getString(4)))
+                )
+                .apply(Filter.create().whereFieldName("score", score -> (int) score > 11))
+                .apply(MapElements.into(TypeDescriptor.of(User.class)).via(user -> (User) user));
+
+        pCollection
+                .apply("User", ParDo.of(new LogOutput<>("Filtered")));
 
         pipeline.run();
     }
@@ -122,7 +149,8 @@ public class Test {
         @ProcessElement
         public void processElement(ProcessContext c) {
             String[] items = c.element().split(",");
-            c.output(new User(items[0], items[1], new Game(items[0], Integer.valueOf(items[2]), items[3], items[4])));
+            c.output(new User(items[0], items[1], new Game(items[0], Integer.valueOf(items[2]), items[3], items[4])
+            ));
         }
     }
 
