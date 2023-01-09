@@ -22,6 +22,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.PythonCallableSource;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Wrapper for invoking external Python {@code DataframeTransform}. @Experimental */
 public class DataframeTransform extends PTransform<PCollection<Row>, PCollection<Row>> {

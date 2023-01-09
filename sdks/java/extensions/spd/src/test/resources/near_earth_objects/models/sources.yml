@@ -1,0 +1,32 @@
+sources:
+- name: nasa
+  tables:
+  - name: near_earth_objects
+    columns:
+      - name: spk_id
+        data_type: INT64
+      - name: full_name
+        data_type: STRING
+      - name: near_earth_object
+        data_type: STRING
+      - name: absolute_magnitude
+        data_type: DOUBLE
+      - name: diameter
+        data_type: DOUBLE
+      - name: albedo
+        data_type: DOUBLE
+      - name: diameter_sigma
+        data_type: DOUBLE
+      - name: eccentricity
+        data_type: DOUBLE
+      - name: inclination
+        data_type: DOUBLE
+      - name: moid_ld
+        data_type: DOUBLE
+      - name: object_class
+        data_type: STRING
+      - name: semi_major_axis_au_unit
+        data_type: DOUBLE
+      - name: hazardous_flag
+        data_type: STRING
+

@@ -1,0 +1,7 @@
+name: near_earth_objects
+
+profile: near_earth_objects
+
+models:
+  sql:
+    +materialized: table

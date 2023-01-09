@@ -1,0 +1,1 @@
+SELECT * FROM {{ source('nasa','near_earth_objects') }} ORDER BY diameter ASC LIMIT 10

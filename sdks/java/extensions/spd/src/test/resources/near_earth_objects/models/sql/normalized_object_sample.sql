@@ -1,0 +1,1 @@
+SELECT * FROM {{ ref('normalized_objects') }} LIMIT 10

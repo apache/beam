@@ -21,11 +21,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.spd.command.StructuredPipelineCommand;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StructuredPipelineMain {
+  private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineMain.class);
 
   public static void main(String[] args) throws Exception {
     String cmd = (args.length == 0) ? "help" : args[0];
+    LOG.info("Starting spd with {}", cmd);
+
     List<String> newArgs = new ArrayList<>();
     for (int i = 1; i < args.length; i++) {
       newArgs.add(args[i]);
@@ -33,6 +38,10 @@ public class StructuredPipelineMain {
 
     for (StructuredPipelineCommand command : ServiceLoader.load(StructuredPipelineCommand.class)) {
       if (cmd.equals(command.command())) {
+        LOG.info(
+            "Found command {}. Executing with args {}",
+            command.command(),
+            String.join(" ", newArgs));
         command.run(newArgs.toArray(new String[newArgs.size()]));
         break;
       }

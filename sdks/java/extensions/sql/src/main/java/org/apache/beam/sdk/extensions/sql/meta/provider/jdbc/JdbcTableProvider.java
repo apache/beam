@@ -30,4 +30,9 @@ public class JdbcTableProvider extends SchemaIOTableProviderWrapper {
   public SchemaIOProvider getSchemaIOProvider() {
     return new JdbcSchemaIOProvider();
   }
+
+  @Override
+  public String getTableType() {
+    return "jdbc";
+  }
 }

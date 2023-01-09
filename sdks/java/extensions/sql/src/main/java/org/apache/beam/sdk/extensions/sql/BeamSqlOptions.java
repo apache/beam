@@ -15,30 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.spd.command;
+package org.apache.beam.sdk.extensions.sql;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
+/** Define field options for Beam Sql tables */
+public class BeamSqlOptions {
+  private BeamSqlOptions() {}
 
-public interface StructuredPipelineRunOptions extends PipelineOptions {
-
-  @Description("The location of your profile definitions.")
-  @Nullable
-  String getProfilePath();
-
-  void setProfilePath(String path);
-
-  @Description("Specifies a target environment. Must be present in your profile.")
-  @Nullable
-  String getTarget();
-
-  void setTarget(String target);
-
-  @Description("Get help for this command")
-  @Default.Boolean(false)
-  boolean getHelp();
-
-  void setHelp(boolean help);
+  public static final String PrimaryKey = "beam:org.apache.beam.sdk.extends.sql:primary_key";
 }

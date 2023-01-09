@@ -17,13 +17,18 @@
  */
 package org.apache.beam.spd.command;
 
+import avro.shaded.com.google.common.collect.ImmutableMap;
 import com.google.auto.service.AutoService;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(StructuredPipelineCommand.class)
 public class StructuredPipelineRun implements StructuredPipelineCommand {
+  private static final Logger LOG = LoggerFactory.getLogger(StructuredPipelineRun.class);
 
   @Override
   public String command() {
@@ -42,8 +47,13 @@ public class StructuredPipelineRun implements StructuredPipelineCommand {
     if (options.getHelp()) {
       PipelineOptionsFactory.printHelp(System.out, StructuredPipelineRunOptions.class);
     } else {
+      LOG.info("Executing pipeline...");
+      Path profile = Paths.get("profile.yml");
+      LOG.info("Profile path {}", profile.toAbsolutePath().toString());
+
       StructuredPipelineDescription spd = new StructuredPipelineDescription();
       spd.loadProject(Paths.get("profile.yml"), Paths.get("."));
+      spd.run(ImmutableMap.of());
     }
   }
 }

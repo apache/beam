@@ -15,30 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.spd.command;
+package org.apache.beam.sdk.extensions.sql.meta.provider.redis;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
+import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
-public interface StructuredPipelineRunOptions extends PipelineOptions {
+@Experimental
+@AutoService(TableProvider.class)
+public class RedisTableProvider extends InMemoryMetaTableProvider {
+  @Override
+  public String getTableType() {
+    return "redis";
+  }
 
-  @Description("The location of your profile definitions.")
-  @Nullable
-  String getProfilePath();
-
-  void setProfilePath(String path);
-
-  @Description("Specifies a target environment. Must be present in your profile.")
-  @Nullable
-  String getTarget();
-
-  void setTarget(String target);
-
-  @Description("Get help for this command")
-  @Default.Boolean(false)
-  boolean getHelp();
-
-  void setHelp(boolean help);
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
+    return new RedisTable(table);
+  }
 }

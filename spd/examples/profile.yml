@@ -1,10 +1,14 @@
+# Example profile
 near_earth_objects:
   target: local
   runners:
     local:
       runner: PortableRunner
-      jobEndpoint: "{{ env_var('PORTABLE_RUNNER_HOST') }}:{{ env_var('PORTABLE_RUNNER_PORT') }}"
+      jobEndpoint: "{{ env_var('LOCAL_RUNNER_HOST') }}:{{ env_var('LOCAL_RUNNER_PORT') }}"
       defaultEnvironmentType: LOOPBACK
+  outputs:
+    local:
+      type: markdown
   inputs:
     local:
       type: text
@@ -12,18 +16,4 @@ near_earth_objects:
         nasa_near_earth_objects: #TODO: Let you specify database/schema properly
           external:
             location: gs://apache-beam-samples/nasa_jpl_asteroid/sample_10000.csv
-  outputs:
-    local:
-      type: markdown
 
-simple_pipeline:
-  target: test
-  runners:
-    test:
-      runner: PortableRunner
-      jobEndpoint: "{{ env_var('PORTABLE_RUNNER_HOST') }}:{{ env_var('PORTABLE_RUNNER_PORT') }}"
-      defaultEnvironmentType: LOOPBACK
-
-  outputs:
-    test:
-      type: test

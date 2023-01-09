@@ -59,6 +59,14 @@ public class Project {
   @JsonSetter(nulls = Nulls.SKIP)
   public List<String> docsPaths = Arrays.asList("docs");
 
+  @JsonProperty("reports-path")
+  @JsonSetter(nulls = Nulls.SKIP)
+  public List<String> reportsPaths = Arrays.asList("reports");
+
+  @JsonProperty("target-path")
+  @JsonSetter(nulls = Nulls.SKIP)
+  public String targetPath = "target";
+
   @JsonProperty("packages-install-path")
   @JsonSetter(nulls = Nulls.SKIP)
   public String packagesInstallPath = "{{tmpDir}}";

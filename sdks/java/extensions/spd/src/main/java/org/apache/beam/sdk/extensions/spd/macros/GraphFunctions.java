@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.spd.macros;
 
+import com.hubspot.jinjava.interpret.Context;
 import com.hubspot.jinjava.interpret.JinjavaInterpreter;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.spd.Relation;
 import org.apache.beam.sdk.extensions.spd.StructuredPipelineDescription;
@@ -29,9 +31,13 @@ public class GraphFunctions {
   private static final Logger LOG = LoggerFactory.getLogger(GraphFunctions.class);
 
   public static Relation tableReference(String... args) throws Exception {
-    StructuredPipelineDescription spd =
-        (StructuredPipelineDescription) JinjavaInterpreter.getCurrent().getContext().get("_spd");
-    List<Relation> rel = (List<Relation>) JinjavaInterpreter.getCurrent().getContext().get("_rel");
+    Context context = JinjavaInterpreter.getCurrent().getContext();
+    StructuredPipelineDescription spd = (StructuredPipelineDescription) context.get("_spd");
+    List<Relation> rel = (List<Relation>) context.get("_rel");
+    if (rel == null) {
+      rel = new ArrayList<>();
+      context.put("_rel", rel);
+    }
     //  String packageName = args.length == 1 ? "default" : args[0];
     String tableName = args.length == 1 ? args[0] : args[1];
     LOG.info("Trying to find relation " + tableName);
@@ -41,10 +47,16 @@ public class GraphFunctions {
   }
 
   public static Relation sourceReference(String sourceName, String tableName) throws Exception {
-    StructuredPipelineDescription spd =
-        (StructuredPipelineDescription) JinjavaInterpreter.getCurrent().getContext().get("_spd");
-    List<Relation> rel = (List<Relation>) JinjavaInterpreter.getCurrent().getContext().get("_rel");
+    Context context = JinjavaInterpreter.getCurrent().getContext();
+    StructuredPipelineDescription spd = (StructuredPipelineDescription) context.get("_spd");
+    List<Relation> rel = (List<Relation>) context.get("_rel");
+    if (rel == null) {
+      rel = new ArrayList<>();
+      context.put("_rel", rel);
+    }
+    LOG.info("Trying to find source relation {}.{}", sourceName, tableName);
     Relation r = spd.getSourceRelation(sourceName, tableName);
+    LOG.info("Found source relation {}", r);
     rel.add(r);
     return r;
   }

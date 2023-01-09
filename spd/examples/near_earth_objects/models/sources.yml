@@ -1,0 +1,5 @@
+sources:
+  - name: nasa
+    tables:
+      - name: near_earth_objects
+

@@ -76,10 +76,14 @@ public final class BeamTableUtils {
               String.format(
                   "Expect %d fields, but actually %d", schema.getFieldCount(), rawRecord.size()));
         }
-        rows.add(
-            IntStream.range(0, schema.getFieldCount())
-                .mapToObj(idx -> autoCastField(schema.getField(idx), rawRecord.get(idx)))
-                .collect(toRow(schema)));
+        try {
+          rows.add(
+              IntStream.range(0, schema.getFieldCount())
+                  .mapToObj(idx -> autoCastField(schema.getField(idx), rawRecord.get(idx)))
+                  .collect(toRow(schema)));
+        } catch (NumberFormatException e) {
+          // Swallow this because CSV files have headers.
+        }
       }
       return rows;
     } catch (IOException e) {

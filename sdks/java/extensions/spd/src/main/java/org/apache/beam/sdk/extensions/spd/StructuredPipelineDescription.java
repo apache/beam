@@ -28,20 +28,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.ServiceLoader;
-import java.util.Set;
 import java.util.stream.Stream;
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.python.transforms.DataframeTransform;
 import org.apache.beam.sdk.extensions.python.transforms.PythonMap;
@@ -67,8 +61,9 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -85,12 +80,16 @@ public class StructuredPipelineDescription {
   @Nullable private Pipeline pipeline = null;
   @Nullable private BeamSqlEnv env = null;
 
+  @Nullable private Path projectPath = null;
+
   private InMemoryMetaStore metaTableProvider;
   private PCollectionTableProvider tableMap;
   private Map<String, StructuredModel> modelMap;
   private Map<String, TableProvider> materializers;
   private Map<String, String> expansionServices;
   private ScriptEngineManager manager;
+
+  private HashSet<String> registeredProviders;
 
   @Nullable Project project = null;
   @Nullable StructuredPipelineProfile profile = null;
@@ -101,40 +100,13 @@ public class StructuredPipelineDescription {
     this.expansionServices = new HashMap<>();
     this.materializers = new HashMap<>();
     this.metaTableProvider = new InMemoryMetaStore();
+    this.registeredProviders = new HashSet<>();
 
-    HashSet<String> overriddenProviders = new HashSet<>();
     for (TableProvider p : providers) {
-      overriddenProviders.add(p.getTableType());
+      registeredProviders.add(p.getTableType());
       metaTableProvider.registerProvider(p);
       materializers.put(p.getTableType(), p);
     }
-
-    // Try to load in schema providers
-    ServiceLoader.load(SchemaTransformProvider.class)
-        .forEach(
-            (provider) -> {
-              int inputs = provider.inputCollectionNames().size();
-              int outputs = provider.outputCollectionNames().size();
-              LOG.info(
-                  "Possibly registering schema provider "
-                      + provider.identifier()
-                      + ": "
-                      + inputs
-                      + "/"
-                      + outputs);
-            });
-
-    ServiceLoader.load(TableProvider.class)
-        .forEach(
-            (provider) -> {
-              if (!overriddenProviders.contains(provider.getTableType())) {
-                LOG.info("Registering table provider " + provider.getTableType() + ".");
-                metaTableProvider.registerProvider(provider);
-                materializers.put(provider.getTableType(), provider);
-              } else {
-                LOG.info("Skipping auto-registration of provider for " + provider.getTableType());
-              }
-            });
     metaTableProvider.registerProvider(tableMap);
     manager = new ScriptEngineManager();
   }
@@ -220,13 +192,13 @@ public class StructuredPipelineDescription {
       metaTableProvider.createTable(tableMap.associatePCollection(fullTableName, pcollection));
     } else if (model instanceof PythonModel) {
       PythonModel pymodel = (PythonModel) model;
-      ArrayList<Relation> rel = new ArrayList<>();
-      RenderResult result = context.eval(pymodel.getRawPy(), this, rel);
+      RenderResult result = context.eval(pymodel.getRawPy(), this);
       if (result.hasErrors()) {
         for (TemplateError error : result.getErrors()) {
           throw error.getException();
         }
       }
+      List<Relation> rel = (List<Relation>) result.getContext().get("_rel");
       if (rel.size() > 0) {
         Relation primary = rel.get(0);
         LOG.info("Python primary relation is " + primary.toString());
@@ -248,7 +220,7 @@ public class StructuredPipelineDescription {
             pcollection =
                 pcollection.apply(
                     DataframeTransform.of(result.getOutput())
-                        .withIndexes()
+                        //                        .withIndexes()
                         .withExpansionService(expansionServices.getOrDefault("python", "")));
             break;
         }
@@ -318,6 +290,29 @@ public class StructuredPipelineDescription {
     }
   }
 
+  public Path getTargetPath(String filename) throws Exception {
+    Path targetPath = projectPath.resolve(project.targetPath);
+    Files.createDirectories(targetPath);
+    return targetPath.resolve(filename);
+  }
+
+  public List<Path> getReportFiles() {
+    ArrayList<Path> allReports = new ArrayList<>();
+    for (String reportPath : project.reportsPaths) {
+      Path p = projectPath.resolve(reportPath);
+      try {
+        if (Files.isDirectory(p)) {
+          try (Stream<Path> files = Files.list(p)) {
+            files.forEach(allReports::add);
+          }
+        }
+      } catch (Exception e) {
+        LOG.info("Can't read reports", e);
+      }
+    }
+    return allReports;
+  }
+
   private void readSchemaTables(String[] path, Path schemaPath, ObjectMapper mapper)
       throws Exception {
 
@@ -351,9 +346,13 @@ public class StructuredPipelineDescription {
       LOG.info("Processing schemas in " + file.toString());
       Schemas schemas = mapper.readValue(Files.newBufferedReader(file), Schemas.class);
       for (Source source : schemas.getSources()) {
+        LOG.info("Found source schema {}", source.name);
         for (TableDesc desc : source.getTables()) {
-          Table t = profile.getInputTable(desc.name, source, desc);
-          Table existingTable = metaTableProvider.getTable(source.name + "_" + desc.name);
+          String fullTableName = source.name + "_" + desc.name;
+          LOG.info("Adding table {}", fullTableName);
+          Table t = profile.getInputTable(fullTableName, source, desc);
+          LOG.info("" + t);
+          Table existingTable = metaTableProvider.getTable(fullTableName);
           if (existingTable != null) {
             if (!existingTable.getSchema().assignableTo(t.getSchema())) {
               throw new Exception("Mismatch between source schema and defined schema");
@@ -524,7 +523,7 @@ public class StructuredPipelineDescription {
     ObjectMapper mapper =
         new ObjectMapper(new YAMLFactory())
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
+    this.projectPath = path.toAbsolutePath();
     Path projectPath = yamlPath(path, "spd_project");
     if (projectPath == null) {
       throw new Exception("spd_project file not found at path " + path.toString());
@@ -535,11 +534,16 @@ public class StructuredPipelineDescription {
       throw new Exception("Project must define a profile.");
     }
     profile = withSelector.select(project.profile, target);
+    profile.preLoadHook(this);
+
+    // Register all services
+    ServiceLoader.load(TableProvider.class).forEach(this::registerProvider);
 
     // Create a new pipeline object
     BeamSqlEnvBuilder envBuilder = BeamSqlEnv.builder(this.metaTableProvider);
     envBuilder.autoLoadUserDefinedFunctions();
-    pipeline = Pipeline.create(profile.targetPipelineOptions().create());
+    pipeline = Pipeline.create();
+    FileSystems.setDefaultPipelineOptions(pipeline.getOptions());
     envBuilder.setQueryPlannerClassName(
         MoreObjects.firstNonNull(
             DEFAULT_PLANNER,
@@ -555,6 +559,32 @@ public class StructuredPipelineDescription {
     for (Map.Entry<String, Table> table : metaTableProvider.getTables().entrySet()) {
       LOG.info("Table: " + table.getKey() + ", " + table.getValue().toString());
     }
+  }
+
+  public void registerProvider(TableProvider provider) {
+    if (!registeredProviders.contains(provider.getTableType())) {
+      LOG.info("Registering table provider " + provider.getTableType() + ".");
+      metaTableProvider.registerProvider(provider);
+      materializers.put(provider.getTableType(), provider);
+      registeredProviders.add(provider.getTableType());
+    } else {
+      LOG.info("Skipping registration of provider for " + provider.getTableType());
+    }
+  }
+
+  public @Nullable PipelineResult run(Map<String, String> localEnv) throws Exception {
+
+    profile.preExecuteHook(this);
+    PortablePipelineOptions options =
+        profile
+            .targetPipelineOptions(new MacroContext(), localEnv)
+            .as(PortablePipelineOptions.class);
+    LOG.info("PIPELINE OPTIONS");
+    LOG.info("" + options);
+    PipelineResult result = pipeline.run(options);
+    result.waitUntilFinish();
+    profile.postExecuteHook(this);
+    return result;
   }
 
   public @Nullable Pipeline getPipeline() {

@@ -34,6 +34,7 @@ var jgit_version = "6.4.0.202211300538-r"
 dependencies {
     implementation project(path: ":sdks:java:extensions:sql")
     implementation project(path: ":sdks:java:extensions:python")
+    implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
     implementation library.java.vendored_calcite_1_28_0
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.auto_value_annotations
