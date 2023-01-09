@@ -1,4 +1,4 @@
-package com.example.demo;/*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,6 @@ package com.example.demo;/*
 //   tags:
 //     - hellobeam
 
-import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,17 +34,11 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.codehaus.jackson.map.SerializationConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +47,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 
 public class Test {
@@ -122,17 +114,9 @@ public class Test {
 
         PCollection<User> fullStatistics = getProgressPCollection(pipeline);
 
-        final Schema schema = Schema.builder()
-                .addStringField("userId")
-                .addStringField("userName")
-                .addInt32Field("score")
-                .addStringField("gameId")
-                .addStringField("date")
-                .build();
-
-        PCollection<User> pCollection = fullStatistics
+        fullStatistics
                 .setCoder(CustomCoder.of())
-                .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
+                .apply("User", ParDo.of(new LogOutput<>("User row")));
 
         pipeline.run();
     }
@@ -160,17 +144,18 @@ public class Test {
         }
 
         @Override
-        public void encode(User dto, OutputStream outStream) throws IOException {
-            final String result = dto.toString();
-            outStream.write(result.getBytes());
+        public void encode(User user, OutputStream outStream) throws IOException {
+            String line = user.userId + "," + user.userName + ";" + user.game.score + "," + user.game.gameId + "," + user.game.gameId;
+            outStream.write(line.getBytes());
         }
 
         @Override
         public User decode(InputStream inStream) throws IOException {
             final String serializedDTOs = new String(StreamUtils.getBytesWithoutClosing(inStream));
-            System.out.println(serializedDTOs);
-            Map<User,Object> map = objectMapper.readValue(serializedDTOs, Map.class);
-            return new User();
+            String[] params = serializedDTOs.split(";");
+            String[] user = params[0].split(",");
+            String[] game = params[1].split(",");
+            return new User(user[0], user[1], new Game(user[0], Integer.valueOf(game[0]), game[1], game[2]));
         }
 
         @Override
