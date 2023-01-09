@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-terraform {
-  backend "gcs" {
-  }
-
-  required_providers {
-    google = {
-      source = "hashicorp/google"
-      version = "4.0.0"
-    }
-  }
+resource "google_firebase_project" "default" {
+  provider = google-beta
 }
 
-provider "google" {
-  project = var.project_id
-  region = var.region
+resource "google_firebase_project_location" "default" {
+  provider = google-beta
+  location_id = var.region
 }
 
-provider "google-beta" {
-  region = var.region
-  project = var.project_id
+resource "google_firebase_web_app" "tour_of_beam" {
+  provider     = google-beta
+  display_name = "Tour Of Beam Web App"
+}
+
+resource "google_firebase_hosting_site" "full" {
+  provider = google-beta
+  site_id  = var.hosting_site_id
+  app_id   = google_firebase_web_app.tour_of_beam.app_id
 }

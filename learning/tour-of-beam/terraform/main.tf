@@ -45,3 +45,10 @@ module "cloud_functions" {
   source_archive_object = module.functions_buckets.function-bucket-object
   depends_on = [module.functions_buckets, module.setup, module.api_enable]
 }
+
+module "firebase" {
+  source = "./firebase"
+  project_id = var.project_id
+  region = var.region
+  hosting_site_id = var.hosting_site_id
+}

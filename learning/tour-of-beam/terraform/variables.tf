@@ -30,3 +30,10 @@ variable "service_account_id" {
 variable "region" {
   description = "The region of the Google Cloud project within which resources are provisioned"
 }
+
+variable "hosting_site_id" {
+  description = <<EOF
+A globally unique identifier for the Hosting site.
+This identifier is used to construct the Firebase-provisioned subdomains for the site, so it must also be a valid domain name label.
+  EOF
+}

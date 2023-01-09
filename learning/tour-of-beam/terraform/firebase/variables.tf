@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-terraform {
-  backend "gcs" {
-  }
-
-  required_providers {
-    google = {
-      source = "hashicorp/google"
-      version = "4.0.0"
-    }
-  }
+variable "region" {
+  description = "The ID of the GCP resource location for the Firebase Project."
 }
 
-provider "google" {
-  project = var.project_id
-  region = var.region
+variable "project_id" {
+  description = "The ID of the Google Cloud project within which resources are provisioned"
 }
 
-provider "google-beta" {
-  region = var.region
-  project = var.project_id
+variable "hosting_site_id" {
+  description = <<EOF
+A globally unique identifier for the Hosting site.
+This identifier is used to construct the Firebase-provisioned subdomains for the site, so it must also be a valid domain name label.
+  EOF
 }
