@@ -45,9 +45,6 @@ const (
 	scioProjectPath        = scioProjectName + "/src/main/scala/" + scioProjectName
 	logFileName            = "logs.log"
 	defaultExampleInSbt    = "WordCount.scala"
-	shCmd                  = "sh"
-	rmCmd                  = "rm"
-	cpCmd                  = "cp"
 	scioProject            = "new_scio_project.sh"
 	scioCommonConstants    = "ExampleData.scala"
 )
@@ -126,6 +123,7 @@ func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir string, pipelineId uui
 
 // prepareJavaFiles prepares file for Java environment.
 // Copy log config file from /path/to/workingDir to /path/to/workingDir/pipelinesFolder/{pipelineId}
+//
 //	and update this file according to pipeline.
 func prepareJavaFiles(lc *fs_tool.LifeCycle, workingDir string, pipelineId uuid.UUID) error {
 	err := lc.CopyFile(javaLogConfigFileName, workingDir, lc.Paths.AbsoluteBaseFolderPath)
@@ -178,7 +176,7 @@ func updateJavaLogConfigFile(paths fs_tool.LifeCyclePaths) error {
 }
 
 func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir string) (*fs_tool.LifeCycle, error) {
-	cmd := exec.Command(shCmd, filepath.Join(workingDir, scioProject))
+	cmd := exec.Command(filepath.Join(workingDir, scioProject))
 	cmd.Dir = pipelineFolder
 	_, err := cmd.Output()
 	if err != nil {
@@ -194,30 +192,29 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 	projectFolder, _ := filepath.Abs(filepath.Join(pipelineFolder, scioProjectName))
 	executableName := lc.Paths.ExecutableName
 
-	_, err = exec.Command(rmCmd, filepath.Join(absFileFolderPath, defaultExampleInSbt)).Output()
+	err = os.Remove(filepath.Join(absFileFolderPath, defaultExampleInSbt))
 	if err != nil {
 		return lc, err
 	}
 
-	_, err = exec.Command(cpCmd, filepath.Join(workingDir, scioCommonConstants), absFileFolderPath).Output()
+	err = lc.CopyFile(scioCommonConstants, workingDir, absFileFolderPath)
 	if err != nil {
 		return lc, err
 	}
 
-	lc = &fs_tool.LifeCycle{
-		Paths: fs_tool.LifeCyclePaths{
-			SourceFileName:                   fileName,
-			AbsoluteSourceFileFolderPath:     absFileFolderPath,
-			AbsoluteSourceFilePath:           absFilePath,
-			ExecutableFileName:               fileName,
-			AbsoluteExecutableFileFolderPath: absFileFolderPath,
-			AbsoluteExecutableFilePath:       absFilePath,
-			AbsoluteBaseFolderPath:           absFileFolderPath,
-			AbsoluteLogFilePath:              absLogFilePath,
-			AbsoluteGraphFilePath:            absGraphFilePath,
-			ProjectDir:                       projectFolder,
-		},
+	lc.Paths = fs_tool.LifeCyclePaths{
+		SourceFileName:                   fileName,
+		AbsoluteSourceFileFolderPath:     absFileFolderPath,
+		AbsoluteSourceFilePath:           absFilePath,
+		ExecutableFileName:               fileName,
+		AbsoluteExecutableFileFolderPath: absFileFolderPath,
+		AbsoluteExecutableFilePath:       absFilePath,
+		AbsoluteBaseFolderPath:           absFileFolderPath,
+		AbsoluteLogFilePath:              absLogFilePath,
+		AbsoluteGraphFilePath:            absGraphFilePath,
+		ProjectDir:                       projectFolder,
+		ExecutableName:                   executableName,
 	}
-	lc.Paths.ExecutableName = executableName
+
 	return lc, nil
 }
