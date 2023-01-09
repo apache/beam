@@ -967,8 +967,14 @@ func TestCheckpointing(t *testing.T) {
 
 		enc := MakeElementEncoder(wvERSCoder)
 		var buf bytes.Buffer
-		if err := enc.Encode(value, &buf); err != nil {
-			t.Fatalf("couldn't encode value: %v", err)
+
+		// We encode the element several times to ensure we don't
+		// drop any residuals, the root of issue #24931.
+		wantCount := 3
+		for i := 0; i < wantCount; i++ {
+			if err := enc.Encode(value, &buf); err != nil {
+				t.Fatalf("couldn't encode value: %v", err)
+			}
 		}
 
 		if err := root.StartBundle(ctx, "testBund", DataContext{
@@ -981,20 +987,22 @@ func TestCheckpointing(t *testing.T) {
 		}
 		cps, err := root.Process(ctx)
 		if err != nil {
-			t.Fatalf("checkpointThis() = %v, %v, want nil", cps, err)
+			t.Fatalf("Process() = %v, %v, want nil", cps, err)
 		}
-		if len(cps) == 0 {
-			t.Fatalf("checkpointThis() = %v, want not non-empty", cps)
+		if got, want := len(cps), wantCount; got != want {
+			t.Fatalf("Process() = len %v checkpoints, want %v", got, want)
 		}
-		cp := cps[0]
-		if got, want := cp.Reapply, time.Minute; got != want {
-			t.Errorf("checkpointThis(delay(%v)) delay = %v, want %v", want, got, want)
-		}
-		if got, want := cp.SR.TId, root.Out.(*ProcessSizedElementsAndRestrictions).TfId; got != want {
-			t.Errorf("checkpointThis() transformID = %v, want %v", got, want)
-		}
-		if got, want := cp.SR.InId, "i0"; got != want {
-			t.Errorf("checkpointThis() transformID = %v, want %v", got, want)
+		// Check each checkpoint has the expected values.
+		for _, cp := range cps {
+			if got, want := cp.Reapply, time.Minute; got != want {
+				t.Errorf("Process(delay(%v)) delay = %v, want %v", want, got, want)
+			}
+			if got, want := cp.SR.TId, root.Out.(*ProcessSizedElementsAndRestrictions).TfId; got != want {
+				t.Errorf("Process() transformID = %v, want %v", got, want)
+			}
+			if got, want := cp.SR.InId, "i0"; got != want {
+				t.Errorf("Process() transformID = %v, want %v", got, want)
+			}
 		}
 	})
 }
