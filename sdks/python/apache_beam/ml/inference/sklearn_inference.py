@@ -126,7 +126,9 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
-    return _load_model(self._model_uri, self._model_file_type)
+    return _load_model(
+        self.model_path if self.model_path else self._model_uri,
+        self._model_file_type)
 
   def run_inference(
       self,
@@ -215,7 +217,9 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
 
   def load_model(self) -> BaseEstimator:
     """Loads and initializes a model for processing."""
-    return _load_model(self._model_uri, self._model_file_type)
+    return _load_model(
+        self.model_path if self.model_path else self._model_uri,
+        self._model_file_type)
 
   def run_inference(
       self,
