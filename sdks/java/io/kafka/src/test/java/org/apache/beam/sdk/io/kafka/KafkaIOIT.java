@@ -70,6 +70,7 @@ import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -700,6 +701,72 @@ public class KafkaIOIT {
     readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
 
     return readResult;
+  }
+
+  @Test
+  public void testWatermarkUpdateWithSparseMessages() throws IOException, InterruptedException {
+    AdminClient client =
+        AdminClient.create(
+            ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
+
+    String topicName = "SparseDataTopicPartition-" + UUID.randomUUID();
+    Map<Integer, String> records = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      records.put(i, String.valueOf(i));
+    }
+
+    try {
+      client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
+
+      writePipeline
+          .apply("Generate Write Elements", Create.of(records))
+          .apply(
+              "Write to Kafka",
+              KafkaIO.<Integer, String>write()
+                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                  .withTopic(topicName)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(StringSerializer.class));
+
+      writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+
+      client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
+
+      sdfReadPipeline
+          .apply(
+              "Read from Kafka",
+              KafkaIO.<Integer, String>read()
+                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                  .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+                  .withTopic(topicName)
+                  .withKeyDeserializer(IntegerDeserializer.class)
+                  .withValueDeserializer(StringDeserializer.class)
+                  .withoutMetadata())
+          .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+          .apply("GroupKey", GroupByKey.create())
+          .apply("GetValues", Values.create())
+          .apply("Flatten", Flatten.iterables())
+          .apply("LogValues", ParDo.of(new LogFn()));
+
+      PipelineResult readResult = sdfReadPipeline.run();
+
+      // By adding a sleep & verify here, we don't cause the pipeline to progress before we verify
+      // Dividing by 2 to limit how long the test takes
+      Thread.sleep(options.getReadTimeout() * 1000 / 2);
+
+      for (String value : records.values()) {
+        kafkaIOITExpectedLogs.verifyError(value);
+      }
+
+      // Only waiting 5 seconds here because we don't expect any processing at this point
+      PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(5));
+
+      cancelIfTimeouted(readResult, readState);
+      // Fail the test if pipeline failed.
+      assertNotEquals(readState, PipelineResult.State.FAILED);
+    } finally {
+      client.deleteTopics(ImmutableSet.of(topicName));
+    }
   }
 
   private static class KeyByPartition
