@@ -55,7 +55,7 @@ processResources {
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
     'dataflow.legacy_container_version' : 'beam-master-20220816',
-    'dataflow.fnapi_container_version' : 'beam-master-20221022',
+    'dataflow.fnapi_container_version' : 'beam-master-20221227',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -429,8 +429,6 @@ createCrossLanguageValidatesRunnerTask(
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
     "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaImageContainer}:${dockerTag}",
-    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved
-    "--experiments=shuffle_mode=appliance",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
@@ -439,8 +437,6 @@ createCrossLanguageValidatesRunnerTask(
     "--tempRoot=${dataflowValidatesTempRoot}",
     "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
     "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
-    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    "--experiments=shuffle_mode=appliance",
   ],
   pytestOptions: [
     "--capture=no",
@@ -455,7 +451,6 @@ createCrossLanguageValidatesRunnerTask(
     "--region ${dataflowRegion}",
     "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
     "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
-    "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
   ],
 )
 
@@ -464,8 +459,7 @@ task validatesRunnerV2 {
   description = "Runs the ValidatesRunner tests on Dataflow Runner V2"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2Test',
-    // TODO(https://github.com/apache/beam/issues/20806) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    pipelineOptions: runnerV2PipelineOptions + ['--experiments=shuffle_mode=appliance'],
+    pipelineOptions: runnerV2PipelineOptions,
     excludedCategories: [
       'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
       'org.apache.beam.sdk.testing.UsesStatefulParDo',

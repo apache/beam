@@ -256,8 +256,13 @@ public class UpdateSchemaDestination<DestinationT>
       LOG.warn("Failed to get table {} with {}", tableReference, e.toString());
       throw new RuntimeException(e);
     }
-    if (destinationTable.getSchema() == null || destinationTable.getSchema().equals(schema)) {
-      return null; // no need to update schema ahead if schema is already the same
+    // no need to update schema ahead if provided schema already matches destination schema
+    // or when destination schema is null (the write will set the schema)
+    // or when provided schema is null (e.g. when using CREATE_NEVER disposition)
+    if (destinationTable.getSchema() == null
+        || destinationTable.getSchema().equals(schema)
+        || schema == null) {
+      return null;
     }
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);

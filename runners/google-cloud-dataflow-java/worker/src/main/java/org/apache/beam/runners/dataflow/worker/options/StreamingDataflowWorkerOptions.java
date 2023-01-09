@@ -121,6 +121,15 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setWindmillServiceStreamingRpcHealthCheckPeriodMs(int value);
 
+  @Description(
+      "If positive, the number of messages to send on streaming rpc before checking isReady."
+          + "Higher values reduce cost of output overhead at the cost of more memory used in grpc "
+          + "buffers.")
+  @Default.Integer(10)
+  int getWindmillMessagesBetweenIsReadyChecks();
+
+  void setWindmillMessagesBetweenIsReadyChecks(int value);
+
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.

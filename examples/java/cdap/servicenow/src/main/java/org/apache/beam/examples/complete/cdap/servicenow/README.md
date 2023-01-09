@@ -20,7 +20,7 @@
 To run this example your `build.gradle` file should contain the following task to execute the pipeline:
 
 ```
-task executeCdap (type:JavaExec) {
+task executeCdapServiceNow (type:JavaExec) {
     mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()
@@ -30,10 +30,10 @@ task executeCdap (type:JavaExec) {
 
 ## Running the CdapServiceNowToTxt pipeline example
 
-Gradle 'executeCdap' task allows to run the pipeline via the following command:
+Gradle 'executeCdapServiceNow' task allows to run the pipeline via the following command:
 
 ```bash
-gradle clean executeCdap -DmainClass=org.apache.beam.examples.complete.cdap.servicenow.CdapServiceNowToTxt \
+gradle clean executeCdapServiceNow -DmainClass=org.apache.beam.examples.complete.cdap.servicenow.CdapServiceNowToTxt \
      -Dexec.args="--<argument>=<value> --<argument>=<value>"
 ```
 

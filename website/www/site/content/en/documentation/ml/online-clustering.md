@@ -140,7 +140,7 @@ The next sections examine three important pipeline steps:
 
 1. Tokenize the text.
 2. Feed the tokenized text to get embedding from a transformer-based language model.
-3. Perform clustering using [stateful processing](https://beam.apache.org/blog/stateful-processing/).
+3. Perform clustering using [stateful processing](/blog/stateful-processing/).
 
 
 ### Get Embedding from a Language Model
@@ -173,7 +173,7 @@ To make better clusters, after getting the embedding for each piece of Twitter t
 
 
 ### StatefulOnlineClustering
-Because the data is streaming, you need to use an iterative clustering algorithm, like BIRCH. And because the algorithm is iterative, you need a mechanism to store the previous state so that when Twitter text arrives, it can be updated. **Stateful processing** enables a `DoFn` to have persistent state, which can be read and written during the processing of each element. For more information about stateful processing, see [Stateful processing with Apache Beam](https://beam.apache.org/blog/stateful-processing/).
+Because the data is streaming, you need to use an iterative clustering algorithm, like BIRCH. And because the algorithm is iterative, you need a mechanism to store the previous state so that when Twitter text arrives, it can be updated. **Stateful processing** enables a `DoFn` to have persistent state, which can be read and written during the processing of each element. For more information about stateful processing, see [Stateful processing with Apache Beam](/blog/stateful-processing/).
 
 In this example, every time a new message is read from Pub/Sub, you retrieve the existing state of the clustering model, update it, and write it back to the state.
 

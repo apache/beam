@@ -18,12 +18,13 @@
 
 import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/components/multifile_popover/multifile_popover.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground_components/playground_components.dart';
+
+import '../../../../constants/sizes.dart';
+import '../../../../src/assets/assets.gen.dart';
+import 'multifile_popover.dart';
 
 class MultifilePopoverButton extends StatelessWidget {
   final BuildContext? parentContext;
@@ -51,7 +52,7 @@ class MultifilePopoverButton extends StatelessWidget {
       child: IconButton(
         iconSize: kIconSizeMd,
         splashRadius: kIconButtonSplashRadius,
-        icon: SvgPicture.asset(kMultifileIconAsset),
+        icon: SvgPicture.asset(Assets.multifile),
         tooltip: appLocale.exampleMultifile,
         onPressed: () {
           _showMultifilePopover(

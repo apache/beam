@@ -59,6 +59,7 @@ def test_save_to_cloud_datastore_when_google_cloud_project_id_not_set():
         DatastoreClient()
 
 
+@pytest.mark.parametrize("is_multifile", [False, True])
 @pytest.mark.parametrize("with_kafka", [False, True])
 @pytest.mark.parametrize(
     "origin, key_prefix",
@@ -80,6 +81,7 @@ def test_save_to_cloud_datastore_in_the_usual_case(
     origin,
     key_prefix,
     with_kafka,
+    is_multifile,
 ):
     """
     Test saving examples to the cloud datastore in the usual case
@@ -90,7 +92,7 @@ def test_save_to_cloud_datastore_in_the_usual_case(
     mock_get_examples.return_value = mock_examples
     mock_config_project.return_value = "MOCK_PROJECT_ID"
 
-    examples = [create_test_example(with_kafka=with_kafka)]
+    examples = [create_test_example(is_multifile=is_multifile, with_kafka=with_kafka)]
     client = DatastoreClient()
     client.save_to_cloud_datastore(examples, SdkEnum.JAVA, origin)
     mock_client.assert_called_once()
@@ -113,12 +115,22 @@ def test_save_to_cloud_datastore_in_the_usual_case(
     calls.extend(
         [
             call().put(ANY),
+            call().key("pg_pc_objects", key_prefix + "SDK_JAVA_MOCK_NAME_GRAPH"),
             call().key("pg_pc_objects", key_prefix + "SDK_JAVA_MOCK_NAME_OUTPUT"),
-            call().put_multi([ANY]),
+            call().key("pg_pc_objects", key_prefix + "SDK_JAVA_MOCK_NAME_LOG"),
+            call().put_multi([ANY, ANY, ANY]),
             call().key("pg_files", key_prefix + "SDK_JAVA_MOCK_NAME_0"),
             call().put(ANY),
         ]
     )
+    if is_multifile:
+        calls.extend(
+            [
+                call().key("pg_files", key_prefix + "SDK_JAVA_MOCK_NAME_1"),
+                call().key("pg_files", key_prefix + "SDK_JAVA_MOCK_NAME_2"),
+                call().put_multi([ANY, ANY]),
+            ]
+        )
     if with_kafka:
         calls.extend(
             [
