@@ -77,6 +77,7 @@ message RunCodeRequest {
   // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
   string pipeline_options = 3;
   repeated Dataset datasets = 4;
+  repeated SnippetFile files = 5;
 }
 
 // RunCodeResponse contains information of the pipeline uuid.
@@ -190,7 +191,7 @@ message PrecompiledObject{
   repeated string tags = 12;
   repeated Dataset datasets = 13;
   
-// Link to the example in the Beam repository
+  // Link to the example in the Beam repository
   string url_vcs = 14;
   string url_notebook = 15;
 }
@@ -254,6 +255,7 @@ message GetPrecompiledObjectResponse{
 // GetPrecompiledObjectResponse represents the source code of the PrecompiledObject.
 message GetPrecompiledObjectCodeResponse{
   string code = 1;
+  repeated SnippetFile files = 2;
 }
 
 // GetPrecompiledObjectOutputResponse represents the result of the executed code.

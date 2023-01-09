@@ -53,7 +53,7 @@ type ExampleDatabase interface {
 
 	GetExample(ctx context.Context, id string, sdks []*entity.SDKEntity) (*pb.PrecompiledObject, error)
 
-	GetExampleCode(ctx context.Context, id string) (string, error)
+	GetExampleCode(ctx context.Context, id string) ([]*entity.FileEntity, error)
 
 	GetExampleOutput(ctx context.Context, id string) (string, error)
 

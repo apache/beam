@@ -29,7 +29,7 @@ from tqdm import tqdm
 
 import config
 from config import Config, Origin, PrecompiledExample, DatastoreProps
-from models import Example, SdkEnum, Dataset, Emulator
+from models import Example, SdkEnum, Dataset, Emulator, ImportFile
 
 from api.v1 import api_pb2
 
@@ -93,14 +93,21 @@ class DatastoreClient:
                 )
 
                 snippet = self._to_snippet_entity(
-                    example, example_id, sdk_key, now, actual_schema_version_key, origin
+                    example, example_id, sdk_key, now, actual_schema_version_key, origin,
                 )
                 self._datastore_client.put(snippet)
                 self._datastore_client.put_multi(
                     self._pc_object_entities(example, example_id)
                 )
-                # only single-file examples are supported by now
-                self._datastore_client.put(self._to_file_entity(example, example_id))
+                self._datastore_client.put(self._to_main_file_entity(example, example_id))
+                if example.tag.files:
+                    self._datastore_client.put_multi(
+                        [
+                            self._to_additional_file_entity(example_id, file, idx)
+                            for idx, file in enumerate(example.tag.files, start=1)
+                        ]
+                    )
+
                 if example.tag.datasets:
                     self._datastore_client.put_multi(
                         [
@@ -125,7 +132,7 @@ class DatastoreClient:
                 self._datastore_client.delete(
                     self._get_key(DatastoreProps.SNIPPET_KIND, ex_id)
                 )
-                self._datastore_client.delete(self._get_files_key(ex_id))
+                self._datastore_client.delete(self._get_files_key(ex_id, 0))
             pc_objs_keys_for_removing = []
             for example_type in [
                 PrecompiledExample.GRAPH_EXTENSION.upper(),
@@ -232,8 +239,8 @@ class DatastoreClient:
             ]
         )
 
-    def _get_files_key(self, example_id: str):
-        name = config.DatastoreProps.KEY_NAME_DELIMITER.join([example_id, "0"])
+    def _get_files_key(self, example_id: str, idx: int):
+        name = config.DatastoreProps.KEY_NAME_DELIMITER.join([example_id, str(idx)])
         return self._get_key(DatastoreProps.FILES_KIND, name)
 
     def _get_pc_objects_key(self, example_id: str, pc_obj_type: str):
@@ -258,7 +265,7 @@ class DatastoreClient:
                 "pipeOpts": self._get_pipeline_options(example),
                 "created": now,
                 "origin": origin,
-                "numberOfFiles": 1,
+                "numberOfFiles": 1 + len(example.tag.files),
                 "schVer": schema_key,
                 "complexity": f"COMPLEXITY_{example.tag.complexity}",
             }
@@ -303,28 +310,25 @@ class DatastoreClient:
         self, example: Example, example_id: str
     ) -> List[datastore.Entity]:
         entities = []
-        if len(example.graph) != 0:
-            entities.append(
-                self._pc_obj_entity(
-                    example_id,
-                    example.graph,
-                    PrecompiledExample.GRAPH_EXTENSION.upper(),
-                )
+        entities.append(
+            self._pc_obj_entity(
+                example_id,
+                example.graph,
+                PrecompiledExample.GRAPH_EXTENSION.upper(),
             )
-        if len(example.output) != 0:
-            entities.append(
-                self._pc_obj_entity(
-                    example_id,
-                    example.output,
-                    PrecompiledExample.OUTPUT_EXTENSION.upper(),
-                )
+        )
+        entities.append(
+            self._pc_obj_entity(
+                example_id,
+                example.output,
+                PrecompiledExample.OUTPUT_EXTENSION.upper(),
             )
-        if len(example.logs) != 0:
-            entities.append(
-                self._pc_obj_entity(
-                    example_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper()
-                )
+        )
+        entities.append(
+            self._pc_obj_entity(
+                example_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper()
             )
+        )
         return entities
 
     def _pc_obj_entity(
@@ -337,9 +341,9 @@ class DatastoreClient:
         pc_obj_entity.update({"content": content})
         return pc_obj_entity
 
-    def _to_file_entity(self, example: Example, example_id: str):
+    def _to_main_file_entity(self, example: Example, example_id: str):
         file_entity = datastore.Entity(
-            self._get_files_key(example_id), exclude_from_indexes=("content",)
+            self._get_files_key(example_id, 0), exclude_from_indexes=("content",)
         )
         file_entity.update(
             {
@@ -352,6 +356,21 @@ class DatastoreClient:
             }
         )
         return file_entity
+
+    def _to_additional_file_entity(self, example_id: str, file: ImportFile, idx: int):
+        file_entity = datastore.Entity(
+            self._get_files_key(example_id, idx), exclude_from_indexes=("content",)
+        )
+        file_entity.update(
+            {
+                "name": file.name,
+                "content": file.content,
+                "cntxLine": file.context_line,
+                "isMain": False,
+            }
+        )
+        return file_entity
+
 
     def _to_dataset_entity(self, dataset_id: str, file_name: str):
         dataset_entity = datastore.Entity(self._get_dataset_key(dataset_id))

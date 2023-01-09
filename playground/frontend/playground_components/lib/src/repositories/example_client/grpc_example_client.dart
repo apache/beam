@@ -24,6 +24,7 @@ import '../../models/category_with_examples.dart';
 import '../../models/example_base.dart';
 import '../../models/sdk.dart';
 import '../complexity_grpc_extension.dart';
+import '../dataset_grpc_extension.dart';
 import '../models/get_default_precompiled_object_request.dart';
 import '../models/get_precompiled_object_code_response.dart';
 import '../models/get_precompiled_object_request.dart';
@@ -324,17 +325,18 @@ class GrpcExampleClient implements ExampleClient {
 
   ExampleBase _toExampleModel(Sdk sdk, grpc.PrecompiledObject example) {
     return ExampleBase(
-      sdk: sdk,
-      name: example.name,
-      description: example.description,
-      tags: example.tags,
-      type: _exampleTypeFromString(example.type),
-      path: example.cloudPath,
+      complexity: example.complexity.model,
       contextLine: example.contextLine,
-      pipelineOptions: example.pipelineOptions,
+      datasets: example.datasets.map((e) => e.model).toList(growable: false),
+      description: example.description,
       isMultiFile: example.multifile,
       link: example.link,
-      complexity: example.complexity.model,
+      name: example.name,
+      path: example.cloudPath,
+      pipelineOptions: example.pipelineOptions,
+      sdk: sdk,
+      tags: example.tags,
+      type: _exampleTypeFromString(example.type),
     );
   }
 

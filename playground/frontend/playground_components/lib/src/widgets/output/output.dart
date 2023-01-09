@@ -79,11 +79,13 @@ class _OutputWidgetState extends State<OutputWidget>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            TabHeader(
-              tabController: tabController,
-              tabsWidget: OutputTabs(
-                playgroundController: widget.playgroundController,
+            Flexible(
+              child: TabHeader(
                 tabController: tabController,
+                tabsWidget: OutputTabs(
+                  playgroundController: widget.playgroundController,
+                  tabController: tabController,
+                ),
               ),
             ),
             if (widget.trailing != null) widget.trailing!,

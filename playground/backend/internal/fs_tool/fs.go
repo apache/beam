@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/emulators"
 )
 
@@ -93,16 +94,21 @@ func (lc *LifeCycle) DeleteFolders() error {
 	return nil
 }
 
-// CreateSourceCodeFile creates an executable file (i.e. file.{sourceFileExtension}).
-func (lc *LifeCycle) CreateSourceCodeFile(code string) error {
+// CreateSourceCodeFiles creates an executable file (i.e. file.{sourceFileExtension}).
+func (lc *LifeCycle) CreateSourceCodeFiles(sources []entity.FileEntity) error {
 	if _, err := os.Stat(lc.Paths.AbsoluteSourceFileFolderPath); os.IsNotExist(err) {
 		return err
 	}
 
-	filePath := lc.Paths.AbsoluteSourceFilePath
-	err := os.WriteFile(filePath, []byte(code), fileMode)
-	if err != nil {
-		return err
+	for _, src := range sources {
+		filePath := lc.Paths.AbsoluteSourceFilePath
+		if !src.IsMain {
+			filePath = lc.Paths.AbsoluteSourceFileFolderPath + "/" + src.Name
+		}
+		err := os.WriteFile(filePath, []byte(src.Content), fileMode)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

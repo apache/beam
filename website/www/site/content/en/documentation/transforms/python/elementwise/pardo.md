@@ -86,7 +86,7 @@ A [`DoFn`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms
 can be customized with a number of methods that can help create more complex behaviors.
 You can customize what a worker does when it starts and shuts down with `setup` and `teardown`.
 You can also customize what to do when a
-[*bundle of elements*](https://beam.apache.org/documentation/runtime/model/#bundling-and-persistence)
+[*bundle of elements*](/documentation/runtime/model/#bundling-and-persistence)
 starts and finishes with `start_bundle` and `finish_bundle`.
 
 * [`DoFn.setup()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup):

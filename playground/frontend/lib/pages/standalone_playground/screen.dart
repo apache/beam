@@ -95,16 +95,14 @@ class StandalonePlaygroundScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                body: ToastListenerWidget(
-                  child: Column(
-                    children: [
-                      const Expanded(child: PlaygroundPageBody()),
-                      Semantics(
-                        container: true,
-                        child: const PlaygroundPageFooter(),
-                      ),
-                    ],
-                  ),
+                body: Column(
+                  children: [
+                    const Expanded(child: PlaygroundPageBody()),
+                    Semantics(
+                      container: true,
+                      child: const PlaygroundPageFooter(),
+                    ),
+                  ],
                 ),
               );
             },

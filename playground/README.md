@@ -120,3 +120,50 @@ cd beam
 
 See [terraform](./terraform/README.md) for details on how to build and deploy
 the application and its dependent infrastructure.
+
+# Manual Example deployment
+
+The following requirements are needed for deploying examples manually:
+
+1. GCP project with deployed Playground backend
+2. Python (3.9.x)
+3. Login into GCP (gcloud default login or using service account key)
+
+## Run example deployment script
+Example deployment scripts uses following environment variables:
+
+GOOGLE_CLOUD_PROJECT    - GCP project id where Playground backend is deployed
+BEAM_ROOT_DIR           - root folder to search for playground examples
+SDK_CONFIG              - location of sdk and default example configuration file
+BEAM_EXAMPLE_CATEGORIES - location of example category configuration file
+BEAM_USE_WEBGRPC        - use grpc-Web instead of grpc (default)
+GRPC_TIMEOUT            - timeout for grpc calls (defaults to 10 sec)
+BEAM_CONCURRENCY        - number of eaxmples to run in parallel (defaults to 10)
+SERVER_ADDRESS          - address of the backend runnner service for a particular SDK
+
+usage: ci_cd.py [-h]
+--step {CI,CD}
+--sdk {SDK_JAVA,SDK_GO,SDK_PYTHON,SDK_SCIO}
+--origin {PG_EXAMPLES,TB_EXAMPLES}
+--subdirs SUBDIRS [SUBDIRS ...]
+
+Helper script to deploy examples for all supported sdk's:
+
+```
+cd playground/infrastructure
+
+export BEAM_ROOT_DIR="../../"
+export SDK_CONFIG="../../playground/sdks.yaml"
+export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
+export BEAM_USE_WEBGRPC=yes
+export BEAM_CONCURRENCY=4
+export PLAYGROUND_DNS_NAME="your registered dns name for Playground"
+
+for sdk in go java python scio; do
+
+export SDK=$sdk &&
+export SERVER_ADDRESS=https://${SDK}.$PLAYGROUND_DNS_NAME &&
+
+python3 ci_cd.py --step CD --sdk SDK_${SDK^^} --origin PG_EXAMPLES --subdirs ./learning/katas ./examples ./sdks
+done
+```

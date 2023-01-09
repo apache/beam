@@ -30,6 +30,7 @@ import '../models/example_base.dart';
 import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/examples_loading_descriptor.dart';
+import '../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 import '../models/intents.dart';
 import '../models/sdk.dart';
@@ -163,6 +164,43 @@ class PlaygroundController with ChangeNotifier {
     );
   }
 
+  Future<void> setExampleBase(ExampleBase exampleBase) async {
+    final snippetEditingController = _getOrCreateSnippetEditingController(
+      exampleBase.sdk,
+      loadDefaultIfNot: false,
+    );
+
+    if (!snippetEditingController.lockExampleLoading()) {
+      return;
+    }
+
+    notifyListeners();
+
+    try {
+      final example = await exampleCache.loadExampleInfo(exampleBase);
+      // TODO(alexeyinkin): setCurrentSdk = false when we do
+      //  per-SDK output and run status.
+      //  Now using true to reset the output and run status.
+      //  https://github.com/apache/beam/issues/23248
+      final descriptor = StandardExampleLoadingDescriptor(
+        sdk: example.sdk,
+        path: example.path,
+      );
+
+      setExample(
+        example,
+        descriptor: descriptor,
+        setCurrentSdk: true,
+      );
+
+      // ignore: avoid_catches_without_on_clauses
+    } catch (ex) {
+      snippetEditingController.releaseExampleLoading();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   void setExample(
     Example example, {
     required ExampleLoadingDescriptor descriptor,
@@ -238,6 +276,34 @@ class PlaygroundController with ChangeNotifier {
     notifyListeners();
   }
 
+  StreamController<int> _createExecutionTimeStream() {
+    StreamController<int>? streamController;
+    Timer? timer;
+    Duration timerInterval = const Duration(milliseconds: kExecutionTimeUpdate);
+    int ms = 0;
+
+    void stopTimer() {
+      timer?.cancel();
+      streamController?.close();
+    }
+
+    void tick(_) {
+      ms += kExecutionTimeUpdate;
+      streamController?.add(ms);
+    }
+
+    void startTimer() {
+      timer = Timer.periodic(timerInterval, tick);
+    }
+
+    streamController = StreamController<int>.broadcast(
+      onListen: startTimer,
+      onCancel: stopTimer,
+    );
+
+    return streamController;
+  }
+
   Future<UserSharedExampleLoadingDescriptor> saveSnippet() async {
     final controller = requireSnippetEditingController();
     final code = controller.codeController.fullText;
@@ -252,6 +318,7 @@ class PlaygroundController with ChangeNotifier {
     );
 
     final sharedExample = Example(
+      datasets: controller.selectedExample?.datasets ?? [],
       source: code,
       name: name,
       sdk: controller.sdk,

@@ -91,6 +91,7 @@ jobs:
         working-directory: playground/infrastructure
         env:
           BEAM_ROOT_DIR: "../.."
+          BEAM_EXAMPLE_CATEGORIES: "../categories.yaml"
 
   ci_cd:
     name: ${{ inputs.step }} ${{ inputs.sdk }} ${{ inputs.origin }}
@@ -109,7 +110,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
-      - uses: actions/setup-java@v3.6.0
+      - uses: actions/setup-java@v3.8.0
         with:
             distribution: 'zulu'
             java-version: '8'

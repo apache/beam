@@ -152,6 +152,8 @@ public abstract class PipelineTranslator {
   public interface TranslationState extends EncoderProvider {
     <T> Dataset<WindowedValue<T>> getDataset(PCollection<T> pCollection);
 
+    boolean isLeave(PCollection<?> pCollection);
+
     <T> void putDataset(
         PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache);
 
@@ -254,6 +256,11 @@ public abstract class PipelineTranslator {
           leaves.add(result);
         }
       }
+    }
+
+    @Override
+    public boolean isLeave(PCollection<?> pCollection) {
+      return getResult(pCollection).dependentTransforms.isEmpty();
     }
 
     @Override

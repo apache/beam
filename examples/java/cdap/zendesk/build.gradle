@@ -98,7 +98,7 @@ task preCommit() {
     }
 }
 
-task executeCdap (type:JavaExec) {
+task executeCdapZendesk (type:JavaExec) {
     mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()

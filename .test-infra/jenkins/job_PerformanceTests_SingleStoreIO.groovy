@@ -80,7 +80,7 @@ job(jobName) {
       switches("--info")
       switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
       switches("-DintegrationTestRunner=dataflow")
-      tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOITPerformance")
+      tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOPerformanceIT")
     }
   }
 }

@@ -47,6 +47,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
+import org.joda.time.format.ISODateTimeFormat;
 
 /** Write side {@link Row} to {@link PubsubMessage} converter. */
 @Internal
@@ -77,6 +78,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
   static final String PAYLOAD_KEY_NAME = "pubsub_payload";
   static final TypeName PAYLOAD_BYTES_TYPE_NAME = TypeName.BYTES;
   static final TypeName PAYLOAD_ROW_TYPE_NAME = TypeName.ROW;
+  static final String DEFAULT_ATTRIBUTES_KEY_NAME = DEFAULT_KEY_PREFIX + ATTRIBUTES_KEY_NAME;
+  static final String DEFAULT_EVENT_TIMESTAMP_KEY_NAME =
+      DEFAULT_KEY_PREFIX + EVENT_TIMESTAMP_KEY_NAME;
+  static final String DEFAULT_PAYLOAD_KEY_NAME = DEFAULT_KEY_PREFIX + PAYLOAD_KEY_NAME;
 
   /** The prefix for all non-user fields. Defaults to {@link #DEFAULT_KEY_PREFIX}. */
   abstract String getKeyPrefix();
@@ -314,6 +319,16 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       }
       return true;
     }
+
+    /** Returns true of any {@param fieldMatchers} {@link FieldMatcher#match(Schema)}. */
+    boolean matchesAny(FieldMatcher... fieldMatchers) {
+      for (FieldMatcher fieldMatcher : fieldMatchers) {
+        if (fieldMatcher.match(schema)) {
+          return true;
+        }
+      }
+      return false;
+    }
   }
 
   /** {@link FieldMatcher} matches fields in a {@link Schema}. */
@@ -460,7 +475,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
      * 2015-10-29T23:41:41.123Z}.
      */
     String timestampAsString(Row row) {
-      return timestamp(row).toString();
+      return ISODateTimeFormat.dateTime().print(timestamp(row));
     }
 
     /**
