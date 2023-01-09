@@ -48,6 +48,7 @@ COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/con
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/new_scio_project.sh /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/internal/fs_tool/ExampleData.scala /opt/playground/backend/
+RUN chmod +x /opt/playground/backend/new_scio_project.sh
 
 # Install sbt
 RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list &&\
@@ -64,8 +65,6 @@ RUN mkdir /opt/mitmproxy &&\
     mkdir /usr/local/share/ca-certificates/extra
 COPY allow_list_proxy.py /opt/mitmproxy/
 COPY allow_list.py /opt/mitmproxy/
-ENV HTTP_PROXY="http://127.0.0.1:8081"
-ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
@@ -83,5 +82,15 @@ RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
 
 # Switch to appuser
 USER appuser
+
+# Let sbt download files from Maven
+RUN mkdir -p /tmp/sbt-initialize
+WORKDIR /tmp/sbt-initialize
+RUN /opt/playground/backend/new_scio_project.sh
+WORKDIR /
+
+# Enable mitmproxy
+ENV HTTP_PROXY="http://127.0.0.1:8081"
+ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
 ENTRYPOINT ["/entrypoint.sh"]
