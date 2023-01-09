@@ -1283,8 +1283,8 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
 
-        // Error Prone requires some packages to be exported/opened for Java 17.
-        // This logic handles builds running on JDK 17, notusing -Djava17Home.
+        // Error Prone requires some packages to be exported/opened on Java versions that support modules,
+        // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
         // The -J prefix is not needed if forkOptions.javaHome is unset,
         // see http://github.com/gradle/gradle/issues/22747
         if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
