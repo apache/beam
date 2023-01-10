@@ -98,7 +98,7 @@ public class FileWriteSchemaTransformProvider
       return this;
     }
 
-    private FileWriteSchemaTransformFormatProvider getProvider() {
+    FileWriteSchemaTransformFormatProvider getProvider() {
       Map<String, FileWriteSchemaTransformFormatProvider> providers =
           FileWriteSchemaTransformFormatProviders.loadProviders();
       if (!providers.containsKey(configuration.getFormat())) {

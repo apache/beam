@@ -92,6 +92,8 @@ public abstract class FileWriteSchemaTransformConfiguration {
   @Nullable
   public abstract XmlConfiguration getXmlConfiguration();
 
+  abstract Builder toBuilder();
+
   @AutoValue.Builder
   public abstract static class Builder {
 

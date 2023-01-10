@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.xml.XmlIO;
 import org.apache.beam.sdk.schemas.Schema;
@@ -39,12 +40,12 @@ public class XmlFileWriteSchemaTransformFormatProviderTest
   private static final String RECORD_ELEMENT = "row";
 
   @Override
-  String getFormat() {
+  protected String getFormat() {
     return XML;
   }
 
   @Override
-  String getFilenamePrefix() {
+  protected String getFilenamePrefix() {
     return "";
   }
 
@@ -74,7 +75,7 @@ public class XmlFileWriteSchemaTransformFormatProviderTest
   }
 
   @Override
-  FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
+  protected FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
     return FileWriteSchemaTransformConfiguration.builder()
         .setFormat(XML)
         .setXmlConfiguration(
@@ -83,5 +84,35 @@ public class XmlFileWriteSchemaTransformFormatProviderTest
                 .build())
         .setFilenamePrefix(folder)
         .build();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenCompressionSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenParquetConfigurationSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenXmlConfigurationSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenNumShardsSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenShardNameTemplateSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
+    return Optional.empty();
   }
 }

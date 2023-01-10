@@ -41,6 +41,7 @@ public class AvroWriteSchemaTransformFormatProvider
   @Override
   public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {
+
     return new PTransform<PCollection<Row>, PCollection<String>>() {
       @Override
       public PCollection<String> expand(PCollection<Row> input) {

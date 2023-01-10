@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.fileschematransform;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.AVRO;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AvroGenericCoder;
@@ -37,12 +38,12 @@ import org.junit.runners.JUnit4;
 public class AvroFileWriteSchemaTransformFormatProviderTest
     extends FileWriteSchemaTransformFormatProviderTest {
   @Override
-  String getFormat() {
+  protected String getFormat() {
     return AVRO;
   }
 
   @Override
-  String getFilenamePrefix() {
+  protected String getFilenamePrefix() {
     return "";
   }
 
@@ -61,11 +62,40 @@ public class AvroFileWriteSchemaTransformFormatProviderTest
             .setCoder(coder);
 
     PAssert.that(actual).containsInAnyOrder(expected);
-    readPipeline.run();
   }
 
   @Override
-  FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
+  protected FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
     return defaultConfiguration(folder);
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenCompressionSet() {
+    return Optional.of("configuration with compression is not compatible with AvroIO");
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenParquetConfigurationSet() {
+    return Optional.of("configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a avro format");
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenXmlConfigurationSet() {
+    return Optional.of("configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$XmlConfiguration is not compatible with a avro format");
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenNumShardsSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenShardNameTemplateSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
+    return Optional.of("configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a avro format");
   }
 }

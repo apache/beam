@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.PARQUET;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
@@ -38,12 +39,12 @@ import org.junit.runners.JUnit4;
 public class ParquetFileWriteSchemaTransformFormatProviderTest
     extends FileWriteSchemaTransformFormatProviderTest {
   @Override
-  String getFormat() {
+  protected String getFormat() {
     return PARQUET;
   }
 
   @Override
-  String getFilenamePrefix() {
+  protected String getFilenamePrefix() {
     return "";
   }
 
@@ -77,5 +78,35 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest
         .setFormat(getFormat())
         .setFilenamePrefix(folder + getFilenamePrefix())
         .build();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenCompressionSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenParquetConfigurationSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenXmlConfigurationSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenNumShardsSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenShardNameTemplateSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
+    return Optional.empty();
   }
 }

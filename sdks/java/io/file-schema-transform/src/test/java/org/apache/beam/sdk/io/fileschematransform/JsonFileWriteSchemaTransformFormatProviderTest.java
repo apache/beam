@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
@@ -38,12 +39,12 @@ import org.junit.runners.JUnit4;
 public class JsonFileWriteSchemaTransformFormatProviderTest
     extends FileWriteSchemaTransformFormatProviderTest {
   @Override
-  String getFormat() {
+  protected String getFormat() {
     return JSON;
   }
 
   @Override
-  String getFilenamePrefix() {
+  protected String getFilenamePrefix() {
     return "out";
   }
 
@@ -67,7 +68,37 @@ public class JsonFileWriteSchemaTransformFormatProviderTest
   }
 
   @Override
-  FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
+  protected FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
     return defaultConfiguration(folder);
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenCompressionSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenParquetConfigurationSet() {
+    return Optional.of("configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a json format");
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenXmlConfigurationSet() {
+    return Optional.of("configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$XmlConfiguration is not compatible with a json format");
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenNumShardsSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenShardNameTemplateSet() {
+    return Optional.empty();
+  }
+
+  @Override
+  protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
+    return Optional.of("configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a json format");
   }
 }
