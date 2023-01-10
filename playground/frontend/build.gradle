@@ -188,11 +188,15 @@ tasks.register("integrationTest") {
 }
 
 tasks.register("integrationTest_standalone_change_example_sdk_run") {
-  runIntegrationTest("standalone_change_example_sdk_run", "/")
+  doLast {
+    runIntegrationTest("standalone_change_example_sdk_run", "/")
+  }
 }
 
 tasks.register("integrationTest_standalone_miscellaneous_ui") {
-  runIntegrationTest("standalone_miscellaneous_ui", "/")
+  doLast {
+    runIntegrationTest("standalone_miscellaneous_ui", "/")
+  }
 }
 
 void runIntegrationTest(String path, String url) {
