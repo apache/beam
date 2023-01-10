@@ -273,6 +273,9 @@ Add `unfold` parameter with comma-separated section names:
 
 `https://play.beam.apache.org/?sdk=go&url=https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go&unfold=iam_get_role`
 
+This folds all foldable blocks that do not overlap with
+any of the given section.
+
 #### Hiding everything except a section
 
 Add `show` parameter with a single section name:
@@ -285,7 +288,7 @@ is visible.
 This also makes the editor read-only so the user cannot add code that conflicts
 with the hidden text.
 
-### 6. Linking to multiple examples
+### Linking to multiple examples
 
 With the above URLs, when the SDK is switched the following will be shown:
 
@@ -295,7 +298,7 @@ With the above URLs, when the SDK is switched the following will be shown:
 This can be changed by linking to multiple examples, up to one per SDK.
 
 For this purpose, make a JSON array with any combination of parameters that
-were used for loading single examples, for instance:
+are allowed for loading single examples, for instance:
 
 ```json
 [
@@ -311,8 +314,10 @@ were used for loading single examples, for instance:
 ]
 ```
 
-Then stringify that JSON into `examples` parameter and add `sdk` for the initial SDK.
-For instance:
+This starts with the Go example loaded from the URL.
+If SDK is then switched to Java, the `AggregationMax` catalog example is loaded for it.
+If SDK is switched to any other one, the default example for that SDK is loaded
+because no override was provided.
 
 `https://play.beam.apache.org/?sdk=go&examples=[{"sdk":"java","path":"SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax"},{"sdk":"go","url":"https://raw.githubusercontent.com/GoogleCloudPlatform/golang-samples/main/iam/snippets/roles_get.go","readonly":"iam_get_role"}]`
 
