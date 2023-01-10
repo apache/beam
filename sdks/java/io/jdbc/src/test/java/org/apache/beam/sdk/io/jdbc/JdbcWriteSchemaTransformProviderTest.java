@@ -60,28 +60,35 @@ public class JdbcWriteSchemaTransformProviderTest {
   }
 
   @Test
-  public void testInvalidConfigurations() {
-    JdbcWriteSchemaTransformProvider provider = new JdbcWriteSchemaTransformProvider();
-
+  public void testInvalidWriteSchemaOptions() {
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          provider.from(
-              JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
-                  .setDriverClassName("ClassName")
-                  .setJdbcUrl("JdbcUrl")
-                  .setLocation("Location")
-                  .setWriteStatement("Write Statement")
-                  .build());
+          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+              .setDriverClassName("")
+              .setJdbcUrl("")
+              .build()
+              .validate();
         });
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          provider.from(
-              JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
-                  .setDriverClassName("ClassName")
-                  .setJdbcUrl("JdbcUrl")
-                  .build());
+          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+              .setDriverClassName("ClassName")
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setWriteStatement("WriteStatement")
+              .build()
+              .validate();
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+              .setDriverClassName("ClassName")
+              .setJdbcUrl("JdbcUrl")
+              .build()
+              .validate();
         });
   }
 

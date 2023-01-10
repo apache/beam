@@ -98,39 +98,6 @@ public class JdbcReadSchemaTransformProviderTest {
   }
 
   @Test
-  public void testInvalidWriteSchemaOptions() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
-              .setDriverClassName("")
-              .setJdbcUrl("")
-              .build()
-              .validate();
-        });
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
-              .setDriverClassName("ClassName")
-              .setJdbcUrl("JdbcUrl")
-              .setLocation("Location")
-              .setWriteStatement("WriteStatement")
-              .build()
-              .validate();
-        });
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
-              .setDriverClassName("ClassName")
-              .setJdbcUrl("JdbcUrl")
-              .build()
-              .validate();
-        });
-  }
-
-  @Test
   public void testRead() {
     JdbcReadSchemaTransformProvider provider = null;
     for (SchemaTransformProvider p : ServiceLoader.load(SchemaTransformProvider.class)) {

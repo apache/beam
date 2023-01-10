@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
@@ -159,10 +160,10 @@ public class JdbcReadSchemaTransformProvider
     public abstract Boolean getOutputParallelization();
 
     public void validate() throws IllegalArgumentException {
-      if ("".equals(getDriverClassName())) {
+      if (Strings.isNullOrEmpty(getDriverClassName())) {
         throw new IllegalArgumentException("JDBC Driver class name cannot be blank.");
       }
-      if ("".equals(getJdbcUrl())) {
+      if (Strings.isNullOrEmpty(getJdbcUrl())) {
         throw new IllegalArgumentException("JDBC URL cannot be blank");
       }
 
