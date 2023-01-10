@@ -30,9 +30,12 @@ terraformPlugin {
 tasks {
     /* Terraform initialization task */
     register<TerraformTask>("terraformInit") {
+        if (project.hasProperty("state_bucket")) {
+            environment = project.property("state_bucket") as String
+        }
         args(
                 "init", "-migrate-state",
-                "-backend-config='bucket=$STATE_BUCKET'"
+                "-backend-config='bucket=$state_bucket'"
         )
     }
 
