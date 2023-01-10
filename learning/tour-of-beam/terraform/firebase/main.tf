@@ -21,11 +21,12 @@ resource "google_firebase_project" "tob_firebase_project" {
 
 resource "google_firebase_project_location" "tob_firebase_project_location" {
   provider = google-beta
-  location_id = us-central1
+  location_id = "us-central1"
 }
 
 resource "google_firebase_web_app" "tob_firebase_firebase_webapp" {
   provider     = google-beta
+  project      = var.project_id
   display_name = "Tour Of Beam Web App"
 }
 
