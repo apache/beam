@@ -30,10 +30,8 @@ import pandas
 import onnx
 import onnxruntime as ort
 
-from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.utils.annotations import experimental
 
 try:
   import joblib
@@ -42,17 +40,12 @@ except ImportError:
   pass
 
 __all__ = [
-    'OnnxModelHandler'
+    'OnnxModelHandlerNumpy'
 ]
 
 NumpyInferenceFn = Callable[
     [Sequence[numpy.ndarray], ort.InferenceSession, Optional[Dict[str, Any]]],
     Iterable[PredictionResult]]
-
-
-def _load_model(model_uri):
-  ort_session = ort.InferenceSession(model_uri, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
-  return ort_session
 
 
 def _convert_to_result(
@@ -77,20 +70,24 @@ def default_numpy_inference_fn(
     batch: Sequence[numpy.ndarray],
     inference_args: Optional[Dict[str, Any]] = None) -> Any:
   ort_inputs = {inference_session.get_inputs()[0].name: numpy.stack(batch, axis=0)}
-  ort_outs = inference_session.run(None, ort_inputs)
+  ort_outs = inference_session.run(None, ort_inputs, inference_args)
   return ort_outs
 
 
-class OnnxModelHandler(ModelHandler[numpy.ndarray,
+class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
                                     PredictionResult,
                                     ort.InferenceSession]):
   def __init__(
       self,
       model_uri: str,
+      session_options = None,
+      providers =['CUDAExecutionProvider', 'CPUExecutionProvider'],
+      provider_options = None,
       *,
       inference_fn: NumpyInferenceFn = default_numpy_inference_fn):
     """ Implementation of the ModelHandler interface for onnx
     using numpy arrays as input.
+    Note that inputs to ONNXModelHandler should be of the same sizes
 
     Example Usage::
 
@@ -98,16 +95,20 @@ class OnnxModelHandler(ModelHandler[numpy.ndarray,
 
     Args:
       model_uri: The URI to where the model is saved.
-      inference_fn: The inference function to use.
+      inference_fn: The inference function to use on RunInference calls.
         default=default_numpy_inference_fn
     """
     self._model_uri = model_uri
+    self._session_options = session_options
+    self._providers = providers
+    self._provider_options = provider_options
     self._model_inference_fn = inference_fn
 
   def load_model(self) -> ort.InferenceSession:
     """Loads and initializes an onnx inference session for processing."""
-    return _load_model(self._model_uri)
-
+    ort_session = ort.InferenceSession(self._model_uri, sess_options=self._session_options, providers=self._providers, provider_options = self._provider_options)
+    return ort_session
+  
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
@@ -134,7 +135,7 @@ class OnnxModelHandler(ModelHandler[numpy.ndarray,
     Returns:
       The number of bytes of data for a batch.
     """
-    return sum(sys.getsizeof(element) for element in batch)
+    return sum((np_array.itemsize for np_array in batch))
 
   def get_metrics_namespace(self) -> str:
     """

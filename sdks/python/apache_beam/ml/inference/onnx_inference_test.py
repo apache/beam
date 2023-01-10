@@ -48,7 +48,7 @@ try:
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.onnx_inference import default_numpy_inference_fn
-  from apache_beam.ml.inference.onnx_inference import OnnxModelHandler
+  from apache_beam.ml.inference.onnx_inference import OnnxModelHandlerNumpy
 except ImportError:
   raise unittest.SkipTest('Onnx dependencies are not installed')
 
@@ -159,9 +159,19 @@ def _compare_prediction_result(a, b):
 def _to_numpy(tensor):
       return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
-class TestOnnxModelHandler(OnnxModelHandler):
-  def __init__(self,model_uri: str,*,inference_fn = default_numpy_inference_fn):
+class TestOnnxModelHandler(OnnxModelHandlerNumpy):
+  def __init__(
+      self,
+      model_uri: str,
+      session_options = None,
+      providers =['CUDAExecutionProvider', 'CPUExecutionProvider'],
+      provider_options = None,
+      *,
+      inference_fn = default_numpy_inference_fn):
     self._model_uri = model_uri
+    self._session_options = session_options
+    self._providers = providers
+    self._provider_options = provider_options
     self._model_inference_fn = inference_fn
 
 class OnnxTestBase(unittest.TestCase):
@@ -173,7 +183,7 @@ class OnnxTestBase(unittest.TestCase):
     shutil.rmtree(self.tmpdir)
 
 
-@pytest.mark.uses_pytorch
+@pytest.mark.uses_onnx
 class OnnxPytorchRunInferenceTest(OnnxTestBase):
   def test_onnx_pytorch_run_inference(self):
     examples = self.test_data_and_model.get_one_feature_samples()
@@ -202,26 +212,27 @@ class OnnxPytorchRunInferenceTest(OnnxTestBase):
   def test_num_bytes(self):
     inference_runner = TestOnnxModelHandler("dummy")
     batched_examples_int = [
-        np.array([1, 2, 3]), np.array([4, 5, 6]), np.array([7, 8, 9])
-    ]
+         np.array([1, 2, 3]), np.array([4, 5, 6]), np.array([7, 8, 9])
+     ]
     self.assertEqual(
-        sys.getsizeof(batched_examples_int[0]) * 3,
-        inference_runner.get_num_bytes(batched_examples_int))
+         batched_examples_int[0].itemsize * 3,
+         inference_runner.get_num_bytes(batched_examples_int))
 
     batched_examples_float = [
-        np.array([1.0, 2.0, 3.0]),
-        np.array([4.1, 5.2, 6.3]),
-        np.array([7.7, 8.8, 9.9])
+      np.array([1, 5], dtype=np.float32),
+      np.array([3, 10], dtype=np.float32),
+      np.array([-14, 0], dtype=np.float32),
+      np.array([0.5, 0.5], dtype=np.float32)
     ]
     self.assertEqual(
-        sys.getsizeof(batched_examples_float[0]) * 3,
+        batched_examples_float[0].itemsize * 4,
         inference_runner.get_num_bytes(batched_examples_float))
 
   def test_namespace(self):
     inference_runner = TestOnnxModelHandler("dummy")
     self.assertEqual('BeamML_Onnx', inference_runner.get_metrics_namespace())
       
-@pytest.mark.uses_tensorflow
+@pytest.mark.uses_onnx
 class OnnxTensorflowRunInferenceTest(OnnxTestBase):
   def test_onnx_tensorflow_run_inference(self):
     examples = self.test_data_and_model.get_one_feature_samples()
@@ -238,7 +249,7 @@ class OnnxTensorflowRunInferenceTest(OnnxTestBase):
     for actual, expected in zip(predictions, expected_predictions):
       self.assertEqual(actual, expected)
 
-@pytest.mark.uses_sklearn
+@pytest.mark.uses_onnx
 class OnnxSklearnRunInferenceTest(OnnxTestBase):
   def save_model(self, model, input_dim, path):
     # assume float input
@@ -261,7 +272,7 @@ class OnnxSklearnRunInferenceTest(OnnxTestBase):
       self.assertEqual(actual, expected)
 
 
-@pytest.mark.uses_pytorch
+@pytest.mark.uses_onnx
 class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
   def exportModelToOnnx(self, model, path):
     dummy_input = torch.randn(4, 2, requires_grad=True)
@@ -403,7 +414,7 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
         pcoll | RunInference(model_handler)
 
 
-@pytest.mark.uses_sklearn
+@pytest.mark.uses_onnx
 class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
   def save_model(self, model, input_dim, path):
     # assume float input
