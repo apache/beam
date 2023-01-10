@@ -39,6 +39,8 @@ spec:
          value: {{ .Values.redis_ip }}
        - name: NUM_PARALLEL_JOBS
          value: "5"
+       - name: DATASTORE_NAMESPACE
+         value: {{ .Values.dstore_name }}
        livenessProbe:
          httpGet:
            path: /liveness
@@ -53,10 +55,10 @@ spec:
          periodSeconds: {{ .Values.healthcheck.readPeriodSeconds }}
        resources:
          requests:
-           memory: "1000Mi"
+           memory: "1500Mi"
            cpu: "500m"
          limits:
-           cpu: "1000"
+           cpu: "2000m"
            memory: "1500Mi"
   replicas: {{ .Values.replicaCount  }}
   selector:

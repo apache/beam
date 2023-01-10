@@ -22,3 +22,5 @@ spec:
   healthCheck:
     type: HTTP
     requestPath: /liveness
+  - name: DATASTORE_NAMESPACE
+  timeoutSec: 300
