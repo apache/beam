@@ -392,7 +392,7 @@ tasks.register("takeConfig") {
    var ipaddrname = ""
    var d_tag = ""
    var dns_name = ""
-   dstore_name = ""
+   var dstore_name = ""
    var stdout = ByteArrayOutputStream()
    if (project.hasProperty("dns-name")) {
    dns_name = project.property("dns-name") as String
