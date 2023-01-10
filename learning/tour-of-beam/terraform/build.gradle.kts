@@ -59,5 +59,4 @@ val apply = tasks.getByName("terraformApply")
 dependsOn(init)
 dependsOn(apply)
 apply.mustRunAfter(init)
-prepare.mustRunAfter(apply)
 }
