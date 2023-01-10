@@ -75,7 +75,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
@@ -198,7 +197,6 @@ public class KafkaIOIT {
     // Use batch pipeline to write records.
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
-        .apply("Avoid fusion", Reshuffle.viaRandomKey())
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
         .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
@@ -247,7 +245,6 @@ public class KafkaIOIT {
     expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
-        .apply("Avoid fusion", Reshuffle.viaRandomKey())
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
         .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
