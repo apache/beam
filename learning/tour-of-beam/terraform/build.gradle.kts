@@ -36,7 +36,7 @@ tasks {
         }
         args(
             "init", "-migrate-state",
-            "-backend-config='bucket=$state_bucket'"
+            "-backend-config=bucket=$state_bucket"
         )
     }
 
