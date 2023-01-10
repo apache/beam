@@ -116,9 +116,9 @@ gcloud container clusters get-credentials --region `chosen_location` `gke_name` 
 ```
 Start the following command from the top level repository folder ("beam") to deploy the Payground infrastructure:
 ```
-./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" -Pdns-name="playground.zone" -Psdk-tag=2.43.0
+./gradlew playground:terraform:gkebackend -Pproject_environment="environment_name" -Pdocker-tag="tag" -Pdns-name="playground.zone" -Psdk-tag=2.43.0 -Pdstore-namespace="dev"
 ```
-Where tag - image tag for backend, playground.zone - chosen DNS for Playground, Psdk-tag - current BEAM version
+Where tag - image tag for backend, playground.zone - chosen DNS for Playground, Psdk-tag - current BEAM version, Pdstore-namespace - namespace for Datastore
 
 During script execution, a Google managed certificate will be created. [Provisioning might take up to 60 minutes](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs).
 
