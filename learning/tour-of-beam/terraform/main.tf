@@ -49,7 +49,7 @@ module "cloud_functions" {
 module "firebase" {
   source = "./firebase"
   project_id = var.project_id
-  region = var.region
+  firebase_region = var.firebase_region
   hosting_site_id = var.hosting_site_id
   depends_on = [module.api_enable, module.setup]
 }
