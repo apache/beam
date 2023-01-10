@@ -1895,9 +1895,9 @@ class BeamModulePlugin implements Plugin<Project> {
                 "--region=${dataflowRegion}"
               ])
             } else {
-              project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+              project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
               def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+                  project.project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
               allOptionsList.addAll([
                 // Keep as legacy flag to ensure via test this flag works for
                 // legacy pipeline.
@@ -1945,7 +1945,7 @@ class BeamModulePlugin implements Plugin<Project> {
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
           testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntimeMigration")
-          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
+          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {

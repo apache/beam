@@ -61,19 +61,4 @@ public class SourceOperationExecutorFactoryTest {
             PipelineOptionsFactory.create(), request, null, executionContext, "STAGE");
     assertThat(sourceOperationExecutor, instanceOf(WorkerCustomSourceOperationExecutor.class));
   }
-
-  @Test
-  public void testCreateWithFnApi() throws Exception {
-    SourceOperationRequest request =
-        new SourceOperationRequest()
-            .setName("name")
-            .setOriginalName("original")
-            .setSystemName("system")
-            .setStageName("stage");
-    PipelineOptions options =
-        PipelineOptionsFactory.fromArgs(new String[] {"--experiments=beam_fn_api"}).create();
-    assertThat(
-        SourceOperationExecutorFactory.create(options, request, null, executionContext, "STAGE"),
-        instanceOf(NoOpSourceOperationExecutor.class));
-  }
 }

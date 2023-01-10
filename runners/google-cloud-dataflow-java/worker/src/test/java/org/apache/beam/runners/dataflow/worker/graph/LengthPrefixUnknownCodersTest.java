@@ -21,7 +21,6 @@ import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownC
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.andReplaceForRunnerNetwork;
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forCodec;
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forInstructionOutput;
-import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forInstructionOutputNode;
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forParallelInstruction;
 import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonAssert.assertEqualsAsJson;
 import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonMatcher.jsonOf;
@@ -50,7 +49,6 @@ import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
-import org.apache.beam.runners.dataflow.worker.graph.Nodes.RemoteGrpcPortNode;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -91,15 +89,12 @@ public class LengthPrefixUnknownCodersTest {
 
   private static final String MERGE_BUCKETS_DO_FN = "MergeBucketsDoFn";
   private ParallelInstruction instruction;
-  private InstructionOutputNode instructionOutputNode;
-  @Mock private RemoteGrpcPortNode grpcPortNode;
 
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
     instruction = new ParallelInstruction();
     instruction.setFactory(new JacksonFactory());
-    instructionOutputNode = createInstructionOutputNode("parDo.out", windowedValueCoder);
   }
 
   /** Test wrapping unknown coders with {@code LengthPrefixCoder} */
@@ -261,87 +256,11 @@ public class LengthPrefixUnknownCodersTest {
             jsonOf(prefixedReadNode.getParallelInstruction())));
   }
 
-  @Test
-  public void testLengthPrefixForInstructionOutputNodeWithGrpcNodeSuccessor() {
-    MutableNetwork<Node, Edge> network = createEmptyNetwork();
-    network.addNode(instructionOutputNode);
-    network.addNode(grpcPortNode);
-    network.addEdge(grpcPortNode, instructionOutputNode, DefaultEdge.create());
-    assertEqualsAsJson(
-        CloudObjects.asCloudObject(prefixedWindowedValueCoder, /*sdkComponents=*/ null),
-        ((InstructionOutputNode) forInstructionOutputNode(network).apply(instructionOutputNode))
-            .getInstructionOutput()
-            .getCodec());
-  }
-
-  @Test
-  public void testLengthPrefixForInstructionOutputNodeWithGrpcNodePredecessor() {
-    MutableNetwork<Node, Edge> network = createEmptyNetwork();
-    network.addNode(instructionOutputNode);
-    network.addNode(grpcPortNode);
-    network.addEdge(instructionOutputNode, grpcPortNode, DefaultEdge.create());
-    assertEqualsAsJson(
-        CloudObjects.asCloudObject(prefixedWindowedValueCoder, /*sdkComponents=*/ null),
-        ((InstructionOutputNode) forInstructionOutputNode(network).apply(instructionOutputNode))
-            .getInstructionOutput()
-            .getCodec());
-  }
-
-  @Test
-  public void testLengthPrefixForInstructionOutputNodeWithNonGrpcNodeNeighbor() {
-    MutableNetwork<Node, Edge> network = createEmptyNetwork();
-    ParallelInstructionNode readNode = createReadNode("read", "source", windowedValueCoder);
-    network.addNode(instructionOutputNode);
-    network.addNode(readNode);
-    network.addEdge(readNode, instructionOutputNode, DefaultEdge.create());
-    assertEqualsAsJson(
-        CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null),
-        ((InstructionOutputNode) forInstructionOutputNode(network).apply(instructionOutputNode))
-            .getInstructionOutput()
-            .getCodec());
-  }
-
-  @Test
-  public void testLengthPrefixForSideInputInfos() {
-    List<SideInputInfo> prefixedSideInputInfos =
-        LengthPrefixUnknownCoders.forSideInputInfos(
-            ImmutableList.of(
-                createSideInputInfosWithCoders(windowedValueCoder, prefixedWindowedValueCoder)),
-            false);
-    assertEqualsAsJson(
-        ImmutableList.of(
-            createSideInputInfosWithCoders(prefixedWindowedValueCoder, prefixedWindowedValueCoder)),
-        prefixedSideInputInfos);
-
-    List<SideInputInfo> prefixedAndReplacedSideInputInfos =
-        LengthPrefixUnknownCoders.forSideInputInfos(
-            ImmutableList.of(
-                createSideInputInfosWithCoders(windowedValueCoder, prefixedWindowedValueCoder)),
-            true);
-    assertEqualsAsJson(
-        ImmutableList.of(
-            createSideInputInfosWithCoders(
-                prefixedAndReplacedWindowedValueCoder, prefixedAndReplacedWindowedValueCoder)),
-        prefixedAndReplacedSideInputInfos);
-  }
-
-  private static SideInputInfo createSideInputInfosWithCoders(Coder<?>... coders) {
-    SideInputInfo sideInputInfo = new SideInputInfo().setSources(new ArrayList<>());
-    sideInputInfo.setFactory(new JacksonFactory());
-    for (Coder<?> coder : coders) {
-      Source source =
-          new Source().setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
-      source.setFactory(new JacksonFactory());
-      sideInputInfo.getSources().add(source);
-    }
-    return sideInputInfo;
-  }
-
   private static MutableNetwork<Node, Edge> createEmptyNetwork() {
     return NetworkBuilder.directed()
         .allowsSelfLoops(false)
         .allowsParallelEdges(true)
-        .<Node, Edge>build();
+        .build();
   }
 
   private static ParallelInstructionNode createReadNode(

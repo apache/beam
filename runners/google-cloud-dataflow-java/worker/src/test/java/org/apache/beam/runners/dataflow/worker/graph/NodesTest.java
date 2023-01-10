@@ -31,12 +31,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.runners.dataflow.worker.DataflowPortabilityPCollectionView;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.graph.Nodes.FetchAndFilterStreamingSideInputsNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.OperationNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.OutputReceiverNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
-import org.apache.beam.runners.dataflow.worker.graph.Nodes.RegisterRequestNode;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.sdk.coders.Coder;
@@ -100,73 +98,5 @@ public class NodesTest {
     Operation param = mock(Operation.class);
     assertSame(param, OperationNode.create(param).getOperation());
     assertNotEquals(OperationNode.create(param), OperationNode.create(param));
-  }
-
-  @Test
-  public void testRegisterRequestNode() {
-    BeamFnApi.RegisterRequest param = BeamFnApi.RegisterRequest.getDefaultInstance();
-    Map<String, NameContext> nameContexts =
-        ImmutableMap.of("ABC", NameContext.create(null, "originalName", "systemName", "userName"));
-    Map<String, Iterable<SideInputInfo>> sideInputInfos =
-        ImmutableMap.of("DEF", ImmutableList.of(new SideInputInfo()));
-    Map<String, Iterable<PCollectionView<?>>> pcollectionViews =
-        ImmutableMap.of(
-            "GHI",
-            ImmutableList.of(
-                DataflowPortabilityPCollectionView.with(
-                    new TupleTag<>("JKL"),
-                    FullWindowedValueCoder.of(
-                        KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()),
-                        GlobalWindow.Coder.INSTANCE))));
-    assertSame(
-        param,
-        RegisterRequestNode.create(
-                param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of())
-            .getRegisterRequest());
-    assertSame(
-        nameContexts,
-        RegisterRequestNode.create(
-                param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of())
-            .getPTransformIdToPartialNameContextMap());
-    assertSame(
-        sideInputInfos,
-        RegisterRequestNode.create(
-                param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of())
-            .getPTransformIdToSideInputInfoMap());
-    assertSame(
-        pcollectionViews,
-        RegisterRequestNode.create(
-                param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of())
-            .getPTransformIdToPCollectionViewMap());
-    assertNotEquals(
-        RegisterRequestNode.create(
-            param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of()),
-        RegisterRequestNode.create(
-            param, nameContexts, sideInputInfos, pcollectionViews, ImmutableMap.of()));
-  }
-
-  @Test
-  public void testFetchReadySideInputsAndFilterBlockedStreamingSideInputsNode() {
-    WindowingStrategy windowingStrategy = WindowingStrategy.globalDefault();
-    Map<PCollectionView<?>, RunnerApi.FunctionSpec> pcollectionViewsToWindowMappingFns =
-        ImmutableMap.of(
-            mock(PCollectionView.class),
-            FunctionSpec.newBuilder().setUrn("beam:test:urn:1.0").build());
-    NameContext nameContext = NameContextsForTests.nameContextForTest();
-    assertSame(
-        FetchAndFilterStreamingSideInputsNode.create(
-                windowingStrategy, pcollectionViewsToWindowMappingFns, nameContext)
-            .getWindowingStrategy(),
-        windowingStrategy);
-    assertSame(
-        FetchAndFilterStreamingSideInputsNode.create(
-                windowingStrategy, pcollectionViewsToWindowMappingFns, nameContext)
-            .getPCollectionViewsToWindowMappingFns(),
-        pcollectionViewsToWindowMappingFns);
-    assertSame(
-        FetchAndFilterStreamingSideInputsNode.create(
-                windowingStrategy, pcollectionViewsToWindowMappingFns, nameContext)
-            .getNameContext(),
-        nameContext);
   }
 }

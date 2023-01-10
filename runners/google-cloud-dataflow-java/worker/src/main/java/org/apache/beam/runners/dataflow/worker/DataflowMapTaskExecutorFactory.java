@@ -38,10 +38,6 @@ public interface DataflowMapTaskExecutorFactory {
    * the provided {@link ReaderFactory} as well as a wide variety of other contextual information.
    */
   DataflowMapTaskExecutor create(
-      InstructionRequestHandler instructionRequestHandler,
-      GrpcFnServer<GrpcDataService> grpcDataFnServer,
-      Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
-      GrpcFnServer<GrpcStateService> grpcStateFnServer,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,
       String stageName,

@@ -148,8 +148,6 @@ public class DataflowBatchWorkerHarnessTest {
 
     public FakeWorker(DataflowWorkerHarnessOptions options, boolean returnValue) {
       super(
-          null /* pipeline */,
-          SdkHarnessRegistries.emptySdkHarnessRegistry(),
           mockWorkUnitClient,
           IntrinsicMapTaskExecutorFactory.defaultFactory(),
           options);
@@ -160,8 +158,6 @@ public class DataflowBatchWorkerHarnessTest {
 
     public FakeWorker(DataflowWorkerHarnessOptions options, IOException e) {
       super(
-          null /* pipeline */,
-          SdkHarnessRegistries.emptySdkHarnessRegistry(),
           mockWorkUnitClient,
           IntrinsicMapTaskExecutorFactory.defaultFactory(),
           options);
@@ -172,8 +168,6 @@ public class DataflowBatchWorkerHarnessTest {
 
     public FakeWorker(DataflowWorkerHarnessOptions options, RuntimeException e) {
       super(
-          null /* pipeline */,
-          SdkHarnessRegistries.emptySdkHarnessRegistry(),
           mockWorkUnitClient,
           IntrinsicMapTaskExecutorFactory.defaultFactory(),
           options);

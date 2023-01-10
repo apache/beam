@@ -34,27 +34,18 @@ public class SourceOperationExecutorFactory {
       DataflowExecutionContext<?> executionContext,
       String stageName)
       throws Exception {
-    boolean beamFnApi =
-        DataflowRunner.hasExperiment(options.as(DataflowPipelineDebugOptions.class), "beam_fn_api");
-
     Preconditions.checkNotNull(request, "SourceOperationRequest must be non-null");
     Preconditions.checkNotNull(executionContext, "executionContext must be non-null");
 
-    // Disable splitting when fn api is enabled.
-    // TODO: Fix this once source splitting is supported.
-    if (beamFnApi) {
-      return new NoOpSourceOperationExecutor(request);
-    } else {
-      DataflowOperationContext operationContext =
-          executionContext.createOperationContext(
-              NameContext.create(
-                  stageName,
-                  request.getOriginalName(),
-                  request.getSystemName(),
-                  request.getName()));
+    DataflowOperationContext operationContext =
+        executionContext.createOperationContext(
+            NameContext.create(
+                stageName,
+                request.getOriginalName(),
+                request.getSystemName(),
+                request.getName()));
 
-      return new WorkerCustomSourceOperationExecutor(
-          options, request, counters, executionContext, operationContext);
-    }
+    return new WorkerCustomSourceOperationExecutor(
+        options, request, counters, executionContext, operationContext);
   }
 }

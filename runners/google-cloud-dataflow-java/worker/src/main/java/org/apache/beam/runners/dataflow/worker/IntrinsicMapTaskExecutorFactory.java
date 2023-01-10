@@ -101,10 +101,6 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
    */
   @Override
   public DataflowMapTaskExecutor create(
-      InstructionRequestHandler instructionRequestHandler,
-      GrpcFnServer<GrpcDataService> grpcDataFnServer,
-      Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
-      GrpcFnServer<GrpcStateService> grpcStateFnServer,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,
       String stageName,
@@ -113,12 +109,6 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       DataflowExecutionContext<?> executionContext,
       CounterSet counterSet,
       IdGenerator idGenerator) {
-
-    // TODO: remove this once we trust the code paths
-    checkArgument(
-        !DataflowRunner.hasExperiment(
-            options.as(DataflowPipelineDebugOptions.class), "beam_fn_api"),
-        "experiment beam_fn_api turned on but non-Fn API MapTaskExecutorFactory invoked");
 
     // Swap out all the InstructionOutput nodes with OutputReceiver nodes
     Networks.replaceDirectedNetworkNodes(

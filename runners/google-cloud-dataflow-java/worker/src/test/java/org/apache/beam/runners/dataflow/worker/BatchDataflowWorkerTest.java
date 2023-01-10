@@ -84,8 +84,6 @@ public class BatchDataflowWorkerTest {
     final String workItemId = "14";
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
             mockWorkUnitClient,
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
             options);
@@ -126,8 +124,6 @@ public class BatchDataflowWorkerTest {
   public void testWhenProcessingWorkUnitFailsWeReportStatus() throws Exception {
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
             mockWorkUnitClient,
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
             options);
@@ -153,8 +149,6 @@ public class BatchDataflowWorkerTest {
   public void testStartAndStopProgressReport() throws Exception {
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
             mockWorkUnitClient,
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
             options);
@@ -168,8 +162,6 @@ public class BatchDataflowWorkerTest {
     doThrow(new WorkerException()).when(mockWorkExecutor).execute();
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
             mockWorkUnitClient,
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
             options);

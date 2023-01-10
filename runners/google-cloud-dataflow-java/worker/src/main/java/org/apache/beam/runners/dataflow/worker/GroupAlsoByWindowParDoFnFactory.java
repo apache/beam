@@ -73,8 +73,6 @@ import org.slf4j.LoggerFactory;
 })
 class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
 
-  private static final Logger LOG = LoggerFactory.getLogger(GroupAlsoByWindowParDoFnFactory.class);
-
   @Override
   public ParDoFn create(
       PipelineOptions options,
@@ -98,20 +96,7 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
         entry.getValue());
 
     byte[] encodedWindowingStrategy = getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN);
-    WindowingStrategy windowingStrategy;
-    try {
-      windowingStrategy = deserializeWindowingStrategy(encodedWindowingStrategy);
-    } catch (Exception e) {
-      // Temporarily choose default windowing strategy if fn API is enabled.
-      // TODO: Catch block disappears, becoming an error once Python SDK is compliant.
-      if (DataflowRunner.hasExperiment(
-          options.as(DataflowPipelineDebugOptions.class), "beam_fn_api")) {
-        LOG.info("FnAPI: Unable to deserialize windowing strategy, assuming default", e);
-        windowingStrategy = WindowingStrategy.globalDefault();
-      } else {
-        throw e;
-      }
-    }
+    WindowingStrategy windowingStrategy = deserializeWindowingStrategy(encodedWindowingStrategy);
 
     byte[] serializedCombineFn = getBytes(cloudUserFn, WorkerPropertyNames.COMBINE_FN, null);
     AppliedCombineFn<?, ?, ?, ?> combineFn = null;
