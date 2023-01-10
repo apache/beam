@@ -15,22 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-resource "google_firebase_project" "default" {
+resource "google_firebase_project" "tob_firebase_project" {
   provider = google-beta
 }
 
-resource "google_firebase_project_location" "default" {
+resource "google_firebase_project_location" "tob_firebase_project_location" {
   provider = google-beta
   location_id = var.region
 }
 
-resource "google_firebase_web_app" "tour_of_beam" {
+resource "google_firebase_web_app" "tob_firebase_firebase_webapp" {
   provider     = google-beta
   display_name = "Tour Of Beam Web App"
 }
 
-resource "google_firebase_hosting_site" "full" {
+resource "google_firebase_hosting_site" "tob_firebase_hosting" {
   provider = google-beta
   site_id  = var.hosting_site_id
-  app_id   = google_firebase_web_app.tour_of_beam.app_id
+  app_id   = google_firebase_web_app.tob_firebase_firebase_webapp.app_id
 }
