@@ -16,7 +16,7 @@
 # under the License.
 
 output "firebase_project_name" {
-  value = google_firebase_project.tob_firebase_project.display_name
+  value = google_firebase_project.tob_firebase_project.project
 }
 
 output "firebase_web_app_name" {
