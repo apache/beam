@@ -36,5 +36,5 @@ provider "google" {
 
 provider "google-beta" {
   region = var.region
-  project = var.project_id
+  project = sandbox-tob-001
 }
