@@ -56,8 +56,8 @@ import java.util.Collections;
 import java.util.List;
 
 
-public class Test {
-    private static final Logger LOG = LoggerFactory.getLogger(Test.class);
+public class Task {
+    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     @DefaultSchema(JavaFieldSchema.class)
     @EqualsAndHashCode
