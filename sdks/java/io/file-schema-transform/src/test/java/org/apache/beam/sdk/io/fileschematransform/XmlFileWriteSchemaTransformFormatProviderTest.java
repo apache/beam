@@ -82,6 +82,7 @@ public class XmlFileWriteSchemaTransformFormatProviderTest
                 .setRootElement(ROOT_ELEMENT)
                 .build())
         .setFilenamePrefix(folder)
+        .setNumShards(1)
         .build();
   }
 
