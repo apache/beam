@@ -40,11 +40,13 @@ class FeedbackDropdownContent extends StatelessWidget {
   static const sendButtonKey = Key('sendFeedbackButtonKey');
 
   final void Function() close;
+  final bool isPositive;
   final TextEditingController textController;
 
   const FeedbackDropdownContent({
     Key? key,
     required this.close,
+    required this.isPositive,
     required this.textController,
   }) : super(key: key);
 
@@ -172,9 +174,16 @@ class FeedbackDropdownContent extends StatelessWidget {
                     key: sendButtonKey,
                     onPressed: () {
                       if (textController.text.isNotEmpty) {
-                        AnalyticsService.get(context).trackClickSendFeedback(
-                          textController.text,
-                        );
+                        final text = textController.text;
+                        if (isPositive) {
+                          AnalyticsService.get().trackClickSendPositiveFeedback(
+                            text,
+                          );
+                        } else {
+                          AnalyticsService.get().trackClickSendNegativeFeedback(
+                            text,
+                          );
+                        }
                       }
                       close();
                       textController.clear();

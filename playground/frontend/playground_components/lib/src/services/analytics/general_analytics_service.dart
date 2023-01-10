@@ -16,24 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
+import 'analytics_event.dart';
 
-class ResetAction extends StatelessWidget {
-  const ResetAction();
-
-  @override
-  Widget build(BuildContext context) {
-    final analyticsService = AnalyticsService.get();
-    return Consumer<PlaygroundController>(
-      builder: (context, playgroundController, child) => ResetButton(
-        playgroundController: playgroundController,
-        beforeReset: () {
-          analyticsService.trackReset();
-        },
-      ),
-    );
-  }
+abstract class GeneralAnalyticsService {
+  AnalyticsEvent? get lastSentEvent;
 }

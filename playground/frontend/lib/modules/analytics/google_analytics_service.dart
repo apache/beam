@@ -22,8 +22,6 @@ import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
-import 'analytics_event.dart';
-
 class GoogleAnalyticsService implements AnalyticsService {
   final _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
 
@@ -32,123 +30,137 @@ class GoogleAnalyticsService implements AnalyticsService {
 
   @override
   void trackSelectSdk(Sdk? oldSdk, Sdk newSdk) {
-    safeSendEvent(
-      kSdkCategory,
-      kSelectSdkEvent,
+    _safeSendEvent(AnalyticsEvent(
+      action: kSelectSdkEvent,
+      category: kSdkCategory,
       label: '${oldSdk?.title}_${newSdk.title}',
-    );
+    ));
   }
 
   @override
   void trackSelectExample(ExampleBase newExample) {
-    safeSendEvent(
-      kExampleCategory,
-      kSelectExampleEvent,
+    _safeSendEvent(AnalyticsEvent(
+      action: kSelectExampleEvent,
+      category: kExampleCategory,
       label: newExample.path,
-    );
+    ));
   }
 
   @override
   void trackClickNewExample() {
-    safeSendEvent(kExampleCategory, kClickNewExampleEvent);
+    _safeSendEvent(AnalyticsEvent(
+      action: kClickNewExampleEvent,
+      category: kExampleCategory,
+    ));
   }
 
   @override
   void trackReset() {
-    safeSendEvent(kCommonCategory, kClickResetEvent);
+    _safeSendEvent(AnalyticsEvent(
+      action: kClickResetEvent,
+      category: kCommonCategory,
+    ));
   }
 
   @override
   void trackClickToggleTheme(bool isDark) {
-    safeSendEvent(
-      kCommonCategory,
-      kClickToggleThemeEvent,
+    _safeSendEvent(AnalyticsEvent(
+      action: kClickToggleThemeEvent,
+      category: kCommonCategory,
       label: isDark ? 'dark' : 'light',
-    );
+    ));
   }
 
   @override
   void trackOpenShortcutsModal() {
-    safeSendEvent(kCommonCategory, kOpenShortcutsModalEvent);
+    _safeSendEvent(AnalyticsEvent(
+      action: kOpenShortcutsModalEvent,
+      category: kCommonCategory,
+    ));
   }
 
   @override
   void trackOpenLink(String link) {
-    safeSendEvent(
-      kLinkCategory,
-      kOpenLinkEvent,
+    _safeSendEvent(AnalyticsEvent(
+      action: kOpenLinkEvent,
+      category: kLinkCategory,
       label: link,
-    );
+    ));
   }
 
   @override
   void trackClickEnjoyPlayground(bool isEnjoying) {
-    safeSendEvent(
-      kFeedbackCategory,
-      kClickEnjoyPlaygroundEvent,
+    _safeSendEvent(AnalyticsEvent(
+      action: kClickEnjoyPlaygroundEvent,
+      category: kFeedbackCategory,
       label: 'isEnjoying = $isEnjoying',
-    );
+    ));
   }
 
   @override
   void trackClickReportIssue() {
-    safeSendEvent(kFeedbackCategory, kClickReportIssueEvent);
+    _safeSendEvent(AnalyticsEvent(
+      action: kClickReportIssueEvent,
+      category: kFeedbackCategory,
+    ));
   }
 
   @override
   void trackClickRunEvent(String exampleName) {
-    safeSendEvent(
-      kRunCodeCategory,
-      kClickRunEvent,
+    _safeSendEvent(AnalyticsEvent(
+      action: kClickRunEvent,
+      category: kRunCodeCategory,
       label: exampleName,
-    );
+    ));
   }
 
   @override
   void trackClickCancelRunEvent(String exampleName) {
-    safeSendEvent(
-      kRunCodeCategory,
-      kClickCancelRunEvent,
+    _safeSendEvent(AnalyticsEvent(
+      action: kClickCancelRunEvent,
+      category: kRunCodeCategory,
       label: exampleName,
-    );
+    ));
   }
 
   @override
-  void trackClickSendFeedback(String feedback) {
-    safeSendEvent(
-      kFeedbackCategory,
-      kClickSendFeedbackEvent,
+  void trackClickSendPositiveFeedback(String feedback) {
+    _safeSendEvent(AnalyticsEvent(
+      action: kClickSendPositiveFeedbackEvent,
+      category: kFeedbackCategory,
       label: feedback,
-    );
+    ));
+  }
+
+  @override
+  void trackClickSendNegativeFeedback(String feedback) {
+    _safeSendEvent(AnalyticsEvent(
+      action: kClickSendNegativeFeedbackEvent,
+      category: kFeedbackCategory,
+      label: feedback,
+    ));
   }
 
   @override
   void trackRunTimeEvent(String exampleName, int runTimeMs) {
-    safeSendEvent(
-      kRunCodeCategory,
-      kRunTimeEvent,
+    _safeSendEvent(AnalyticsEvent(
+      action: kRunTimeEvent,
+      category: kRunCodeCategory,
       label: exampleName,
       value: runTimeMs,
-    );
+    ));
   }
 
-  void safeSendEvent(String category, String action,
-      {String? label, int? value, Map<String, String>? parameters}) {
+  void _safeSendEvent(AnalyticsEvent analyticsEvent) {
     try {
       _analytics.sendEvent(
-        category,
-        action,
-        label: label,
-        value: value,
-        parameters: parameters,
+        analyticsEvent.category,
+        analyticsEvent.action,
+        label: analyticsEvent.label,
+        value: analyticsEvent.value,
+        parameters: analyticsEvent.parameters,
       );
-      lastSentEvent = AnalyticsEvent(
-        category: category,
-        action: action,
-        label: label,
-        value: value,
-        parameters: parameters,
-      );
+      lastSentEvent = analyticsEvent;
     } catch (e) {
       // ignore analytics errors sync they don't affect app
       print(e);

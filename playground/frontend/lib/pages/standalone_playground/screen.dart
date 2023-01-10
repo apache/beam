@@ -73,7 +73,7 @@ class StandalonePlaygroundScreen extends StatelessWidget {
                       SDKSelector(
                         value: notifier.playgroundController.sdk,
                         onChanged: (newSdk) {
-                          AnalyticsService.get(context).trackSelectSdk(
+                          AnalyticsService.get().trackSelectSdk(
                               notifier.playgroundController.sdk, newSdk);
                           notifier.playgroundController.setSdk(newSdk);
                         },

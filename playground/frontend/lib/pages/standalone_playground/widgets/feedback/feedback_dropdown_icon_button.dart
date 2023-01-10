@@ -18,6 +18,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground/src/assets/assets.gen.dart';
 
 import '../../../../constants/sizes.dart';
 import 'feedback_dropdown_content.dart';
@@ -33,18 +35,14 @@ const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
 const Offset kAnimationEndOffset = Offset(0.0, 0.0);
 
 class FeedbackDropdownIconButton extends StatefulWidget {
-  final String label;
-  final String iconAsset;
-  final String filledIconAsset;
   final bool isSelected;
+  final bool isPositive;
   final void Function() onClick;
 
   const FeedbackDropdownIconButton({
     Key? key,
-    required this.label,
-    required this.iconAsset,
-    required this.filledIconAsset,
     required this.isSelected,
+    required this.isPositive,
     required this.onClick,
   }) : super(key: key);
 
@@ -83,6 +81,21 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations appLocale = AppLocalizations.of(context)!;
+
+    final String tooltip;
+    final String icon;
+    final String filledIcon;
+    if (widget.isPositive) {
+      tooltip = appLocale.enjoying;
+      icon = Assets.thumbUp;
+      filledIcon = Assets.thumbUpFilled;
+    } else {
+      tooltip = appLocale.notEnjoying;
+      icon = Assets.thumbDown;
+      filledIcon = Assets.thumbDownFilled;
+    }
+
     return Semantics(
       container: true,
       child: IconButton(
@@ -92,9 +105,9 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
           _changeSelectorVisibility();
           widget.onClick();
         },
-        tooltip: widget.label,
+        tooltip: tooltip,
         icon: SvgPicture.asset(
-          widget.isSelected ? widget.filledIconAsset : widget.iconAsset,
+          widget.isSelected ? filledIcon : icon,
         ),
       ),
     );
@@ -131,6 +144,7 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
                     ),
                     child: FeedbackDropdownContent(
                       close: _close,
+                      isPositive: widget.isPositive,
                       textController: feedbackTextController,
                     ),
                   ),

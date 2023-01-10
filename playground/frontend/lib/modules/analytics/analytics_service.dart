@@ -16,16 +16,12 @@
  * limitations under the License.
  */
 
-import 'package:flutter/widgets.dart';
-import 'package:playground/modules/analytics/analytics_event.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
 
-abstract class AnalyticsService {
-  AnalyticsEvent? get lastSentEvent;
-
-  static AnalyticsService get(BuildContext context) {
-    return Provider.of<AnalyticsService>(context, listen: false);
+abstract class AnalyticsService extends GeneralAnalyticsService {
+  static AnalyticsService get() {
+    return GetIt.instance.get<AnalyticsService>();
   }
 
   void trackSelectSdk(Sdk? oldSdk, Sdk newSdk);
@@ -39,6 +35,7 @@ abstract class AnalyticsService {
   void trackClickReportIssue();
   void trackClickRunEvent(String exampleName);
   void trackClickCancelRunEvent(String exampleName);
-  void trackClickSendFeedback(String feedback);
+  void trackClickSendPositiveFeedback(String feedback);
+  void trackClickSendNegativeFeedback(String feedback);
   void trackRunTimeEvent(String exampleName, int runTimeMs);
 }

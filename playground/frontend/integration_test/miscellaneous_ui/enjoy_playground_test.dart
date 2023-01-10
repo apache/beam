@@ -17,9 +17,9 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/modules/analytics/analytics_event.dart';
 import 'package:playground/modules/analytics/analytics_events.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground_components/playground_components.dart';
 
 import '../common/common_finders.dart';
 
@@ -58,13 +58,12 @@ Future<void> _checkEnjoyingAndSendFeedback(WidgetTester wt) async {
   await wt.tap(find.feedbackDropdownSendButton());
   await wt.pumpAndSettle();
 
-  final context = wt.element(find.feedbackThumbUp());
-  final lastSentEvent = AnalyticsService.get(context).lastSentEvent;
+  final lastSentEvent = AnalyticsService.get().lastSentEvent;
   expect(
     lastSentEvent,
     AnalyticsEvent(
       category: kFeedbackCategory,
-      action: kClickSendFeedbackEvent,
+      action: kClickSendPositiveFeedbackEvent,
       label: text,
     ),
   );
@@ -87,13 +86,12 @@ Future<void> _checkNotEnjoyingAndSendFeedback(WidgetTester wt) async {
   await wt.tap(find.feedbackDropdownSendButton());
   await wt.pumpAndSettle();
 
-  final context = wt.element(find.feedbackThumbDown());
-  final lastSentEvent = AnalyticsService.get(context).lastSentEvent;
+  final lastSentEvent = AnalyticsService.get().lastSentEvent;
   expect(
     lastSentEvent,
     AnalyticsEvent(
       category: kFeedbackCategory,
-      action: kClickSendFeedbackEvent,
+      action: kClickSendNegativeFeedbackEvent,
       label: text,
     ),
   );

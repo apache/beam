@@ -38,7 +38,7 @@ class NewExampleAction extends StatelessWidget {
         label: 'intents.playground.newExample'.tr(),
         onPressed: () {
           launchUrl(Uri.parse('/'));
-          AnalyticsService.get(context).trackClickNewExample();
+          AnalyticsService.get().trackClickNewExample();
         },
       ),
     );

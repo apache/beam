@@ -29,29 +29,28 @@ class PlaygroundRunOrCancelButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<PlaygroundController>(
-      builder: (context, playgroundController, child) {
-        final analyticsService = AnalyticsService.get(context);
-        final stopwatch = Stopwatch();
-        final exampleName = getAnalyticsExampleName(playgroundController);
+        builder: (context, playgroundController, child) {
+      final analyticsService = AnalyticsService.get();
+      final stopwatch = Stopwatch();
+      final exampleName = getAnalyticsExampleName(playgroundController);
 
-        return RunOrCancelButton(
-          playgroundController: playgroundController,
-          beforeCancel: () {
-            final exampleName = getAnalyticsExampleName(playgroundController);
-            analyticsService.trackClickCancelRunEvent(exampleName);
-          },
-          beforeRun: () {
-            stopwatch.start();
-            analyticsService.trackClickRunEvent(exampleName);
-          },
-          onComplete: () {
-            analyticsService.trackRunTimeEvent(
-              exampleName,
-              stopwatch.elapsedMilliseconds,
-            );
-          },
-        );
-      }
-    );
+      return RunOrCancelButton(
+        playgroundController: playgroundController,
+        beforeCancel: () {
+          final exampleName = getAnalyticsExampleName(playgroundController);
+          analyticsService.trackClickCancelRunEvent(exampleName);
+        },
+        beforeRun: () {
+          stopwatch.start();
+          analyticsService.trackClickRunEvent(exampleName);
+        },
+        onComplete: () {
+          analyticsService.trackRunTimeEvent(
+            exampleName,
+            stopwatch.elapsedMilliseconds,
+          );
+        },
+      );
+    });
   }
 }

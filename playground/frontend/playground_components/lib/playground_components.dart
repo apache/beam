@@ -56,6 +56,9 @@ export 'src/repositories/example_repository.dart';
 
 export 'src/router/router_delegate.dart';
 
+export 'src/services/analytics/analytics_event.dart';
+export 'src/services/analytics/general_analytics_service.dart';
+
 export 'src/services/symbols/loaders/yaml.dart';
 
 export 'src/theme/switch_notifier.dart';

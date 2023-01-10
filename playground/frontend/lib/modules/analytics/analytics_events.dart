@@ -35,4 +35,5 @@ const kClickRunEvent = 'click_run';
 const kClickCancelRunEvent = 'click_cancel_run';
 const kRunTimeEvent = 'run_time';
 const kClickReportIssueEvent = 'click_report_issue';
-const kClickSendFeedbackEvent = 'click_send_feedback';
+const kClickSendPositiveFeedbackEvent = 'click_send_positive_feedback';
+const kClickSendNegativeFeedbackEvent = 'click_send_negative_feedback';

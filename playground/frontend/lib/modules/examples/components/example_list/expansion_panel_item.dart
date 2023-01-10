@@ -43,10 +43,10 @@ class ExpansionPanelItem extends StatelessWidget {
       builder: (context, controller, child) => MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: () async {
+          onTap: () {
             if (controller.selectedExample != example) {
               _closeDropdown(controller.exampleCache);
-              AnalyticsService.get(context).trackSelectExample(example);
+              AnalyticsService.get().trackSelectExample(example);
               controller.setExampleBase(example);
             }
           },
