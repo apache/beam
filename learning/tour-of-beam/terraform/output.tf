@@ -32,17 +32,5 @@ output "function-bucket-object" {
 }
 
 output "firebase_project_name" {
-  value = module.firebase.firebase_project_name
-}
-
-output "firebase_web_app_name" {
-  value = module.firebase.firebase_web_app_name
-}
-
-output "firebase_web_app_id" {
-  value = module.firebase.firebase_web_app_id
-}
-
-output "firebase_hosting" {
-  value = module.firebase.firebase_hosting
+  value = module.firebase.firebase_project_url
 }

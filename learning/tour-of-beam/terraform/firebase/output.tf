@@ -15,18 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-output "firebase_project_name" {
+output "firebase_project_url" {
   value = "https://console.firebase.google.com/u/1/project/${google_firebase_project.tob_firebase_project.project}/overview"
-}
-
-output "firebase_web_app_name" {
-  value = google_firebase_web_app.tob_firebase_firebase_webapp.name
-}
-
-output "firebase_web_app_id" {
-  value = google_firebase_web_app.tob_firebase_firebase_webapp.app_id
-}
-
-output "firebase_hosting" {
-  value = google_firebase_hosting_site.tob_firebase_hosting.app_id
 }
