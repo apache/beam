@@ -21,63 +21,28 @@ tasks {
     register<TerraformTask>("terraformInit") {
         args(
                 "init", "-migrate-state",
-                "-backend-config=./environment/$environment/state.tfbackend"
+                "-backend-config='bucket=$STATE_BUCKET'"
         )
     }
 
-    /* deploy all App */
+    /* Terraform Aplly task */
     register<TerraformTask>("terraformApply") {
-        var project_id = "unknown"
-        var environment = "unknown"
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
-        if (project.hasProperty("project_environment")) {
-            environment = project.property("project_environment") as String
-        }
-        var docker_tag = if (project.hasProperty("docker-tag")) {
-            project.property("docker-tag") as String
-        } else {
-            environment
-        }
         args(
                 "apply",
                 "-auto-approve",
                 "-lock=false",
-                "-target=module.applications",
-                "-var=project_id=$project_id",
-                "-var=environment=$environment",
-                "-var=docker_image_tag=$docker_tag",
-                if (file("./environment/$environment/terraform.tfvars").exists()) {
-                    "-var-file=./environment/$environment/terraform.tfvars"
-                } else {
-                    "-no-color"
-                }
+                "-var='project_id=$(gcloud config get-value project)'"
         )
     }
 }
 
-    tasks.register("gkebackend") {
-        group = "deploy"
-        val initTask = tasks.getByName("terraformInit")
-        val docRegTask = tasks.getByName("setDockerRegistry")
-        val takeConfigTask = tasks.getByName("takeConfig")
-        val pushBackTask = tasks.getByName("pushBack")
-        val pushFrontTask = tasks.getByName("pushFront")
-        val indexcreateTask = tasks.getByName("indexcreate")
-        val helmTask = tasks.getByName("helmRelease")
-        dependsOn(initTask)
-        dependsOn(docRegTask)
-        dependsOn(takeConfigTask)
-        dependsOn(pushBackTask)
-        dependsOn(pushFrontTask)
-        dependsOn(indexcreateTask)
-        dependsOn(helmTask)
-        docRegTask.mustRunAfter(initTask)
-        takeConfigTask.mustRunAfter(docRegTask)
-        pushBackTask.mustRunAfter(takeConfigTask)
-        pushFrontTask.mustRunAfter(pushBackTask)
-        indexcreateTask.mustRunAfter(pushFrontTask)
-        helmTask.mustRunAfter(indexcreateTask)
-    }
-
+/* initialization infrastructure */
+tasks.register("InitInfrastructure") {
+description = "initialization infrastructure"
+val init = tasks.getByName("terraformInit")
+val apply = tasks.getByName("terraformApply")
+dependsOn(init)
+dependsOn(apply)
+apply.mustRunAfter(init)
+prepare.mustRunAfter(apply)
+}
