@@ -51,7 +51,11 @@ import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TimeContaining;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
+/** Tests for {@link SchemaAwareJavaBeans}. */
+@RunWith(JUnit4.class)
 public class SchemaAwareJavaBeansTest {
   @Test
   public void allPrimitiveDataTypesRowFns() {
