@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Before;
 import org.junit.Test;

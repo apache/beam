@@ -45,7 +45,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,9 +146,7 @@ public class BatchDataflowWorker implements Closeable {
   static BatchDataflowWorker forBatchIntrinsicWorkerHarness(
       WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
     return new BatchDataflowWorker(
-        workUnitClient,
-        IntrinsicMapTaskExecutorFactory.defaultFactory(),
-        options);
+        workUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
   }
 
   protected BatchDataflowWorker(
@@ -177,8 +174,7 @@ public class BatchDataflowWorker implements Closeable {
 
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.statusPages =
-        WorkerStatusPages.create(
-            DEFAULT_STATUS_PORT, this.memoryMonitor, () -> true);
+        WorkerStatusPages.create(DEFAULT_STATUS_PORT, this.memoryMonitor, () -> true);
 
     if (!DataflowRunner.hasExperiment(options, "disable_debug_capture")) {
       this.debugCaptureManager =

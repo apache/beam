@@ -18,8 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.SourceOperationRequest;
-import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -40,10 +38,7 @@ public class SourceOperationExecutorFactory {
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(
             NameContext.create(
-                stageName,
-                request.getOriginalName(),
-                request.getSystemName(),
-                request.getName()));
+                stageName, request.getOriginalName(), request.getSystemName(), request.getName()));
 
     return new WorkerCustomSourceOperationExecutor(
         options, request, counters, executionContext, operationContext);

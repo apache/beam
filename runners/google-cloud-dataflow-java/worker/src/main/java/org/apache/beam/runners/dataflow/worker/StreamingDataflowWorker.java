@@ -125,7 +125,6 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
@@ -548,8 +547,7 @@ public class StreamingDataflowWorker {
   }
 
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
-      DataflowWorkerHarnessOptions options)
-      throws IOException {
+      DataflowWorkerHarnessOptions options) throws IOException {
 
     return new StreamingDataflowWorker(
         Collections.emptyList(),
@@ -588,9 +586,7 @@ public class StreamingDataflowWorker {
     this.executorSupplier = executorSupplier;
     this.windmillServiceEnabled = options.isEnableStreamingEngine();
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
-    this.statusPages =
-        WorkerStatusPages.create(
-            DEFAULT_STATUS_PORT, memoryMonitor, () -> true);
+    this.statusPages = WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor, () -> true);
     if (windmillServiceEnabled) {
       this.debugCaptureManager =
           new DebugCapture.Manager(options, statusPages.getDebugCapturePages());
@@ -2131,7 +2127,8 @@ public class StreamingDataflowWorker {
     // actively processing.  Synchronized by itself.
     private final Map<ShardedKey, Deque<Work>> activeWork = new HashMap<>();
     private final BoundedQueueExecutor executor;
-    private final ConcurrentLinkedQueue<ExecutionState> executionStateQueue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<ExecutionState> executionStateQueue =
+        new ConcurrentLinkedQueue<>();
     private final WindmillStateCache.ForComputation computationStateCache;
 
     public ComputationState(
