@@ -71,7 +71,6 @@ public class XmlFileWriteSchemaTransformFormatProviderTest
                 .withCharset(Charset.defaultCharset()));
 
     PAssert.that(actual).containsInAnyOrder(expected);
-    readPipeline.run();
   }
 
   @Override

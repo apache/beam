@@ -62,8 +62,6 @@ public class JsonFileWriteSchemaTransformFormatProviderTest
                     (Row row) ->
                         new String(payloadSerializer.serialize(row), StandardCharsets.UTF_8))
                 .collect(Collectors.toList()));
-
-    readPipeline.run();
   }
 
   @Override

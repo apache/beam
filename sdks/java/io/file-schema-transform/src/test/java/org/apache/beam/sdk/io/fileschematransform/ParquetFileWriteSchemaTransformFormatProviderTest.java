@@ -64,8 +64,6 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest
                 .withProjection(avroSchema, avroSchema));
 
     PAssert.that(actual).containsInAnyOrder(expected);
-
-    readPipeline.run();
   }
 
   @Override
