@@ -15,21 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-variable "firebase_region" {
-  description = <<EOF
-The ID of the GCP resource location for the Firebase Project.
-For Firebase region details see:
-https://firebase.google.com/docs/projects/locations#location-r
-  EOF
+output "firebase_project_name" {
+  value = google_firebase_project.tob_firebase_project.display_name
 }
 
-variable "project_id" {
-  description = "The ID of the Google Cloud project within which resources are provisioned"
+output "firebase_web_app_name" {
+  value = google_firebase_web_app.tob_firebase_firebase_webapp.name
 }
 
-variable "hosting_site_id" {
-  description = <<EOF
-A globally unique identifier for the Hosting site.
-This identifier is used to construct the Firebase-provisioned subdomains for the site, so it must also be a valid domain name label.
-  EOF
+output "firebase_web_app_id" {
+  value = google_firebase_web_app.tob_firebase_firebase_webapp.app_id
+}
+
+output "firebase_hosting" {
+  value = google_firebase_hosting_site.tob_firebase_hosting.app_id
 }
