@@ -178,6 +178,15 @@ func TestGetPublicClassName(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "Get public class name from empty file",
+			args: args{
+				filePath: filepath.Join(sourceDir, emptyFileName),
+				pattern:  javaPublicClassNamePattern,
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
 			name: "Get public class name from non-existent file",
 			args: args{
 				filePath: filepath.Join(sourceDir, "file1.java"),
