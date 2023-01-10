@@ -20,10 +20,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 
-class PlaygroundDemoWidget extends StatelessWidget {
+class PlaygroundWidget extends StatelessWidget {
   final PlaygroundController playgroundController;
 
-  const PlaygroundDemoWidget({
+  const PlaygroundWidget({
     required this.playgroundController,
   });
 

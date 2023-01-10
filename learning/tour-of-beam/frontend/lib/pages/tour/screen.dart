@@ -24,7 +24,7 @@ import '../../constants/sizes.dart';
 import 'state.dart';
 import 'widgets/content.dart';
 import 'widgets/content_tree.dart';
-import 'widgets/playground_demo.dart';
+import 'widgets/playground.dart';
 
 class TourScreen extends StatelessWidget {
   final TourNotifier notifier;
@@ -56,7 +56,7 @@ class _WideTour extends StatelessWidget {
           child: SplitView(
             direction: Axis.horizontal,
             first: ContentWidget(notifier),
-            second: PlaygroundDemoWidget(
+            second: PlaygroundWidget(
               playgroundController: notifier.playgroundController,
             ),
           ),
