@@ -19,6 +19,7 @@ resource "google_project_service" "required_services" {
   project   = var.project_id
   for_each  = toset([
     "cloudresourcemanager",
+    "iam",
     "cloudbuild",
     "cloudfunctions",
     "firebase",
