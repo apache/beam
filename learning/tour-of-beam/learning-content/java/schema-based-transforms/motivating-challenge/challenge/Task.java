@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: convert
-//   description: Convert example.
+//   name: SchemaBasedChallenge
+//   description: Schema Based Challenge example.
 //   multifile: false
 //   context_line: 46
 //   categories:
@@ -27,8 +27,10 @@
 //   tags:
 //     - hellobeam
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.EqualsAndHashCode;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -36,14 +38,22 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.Convert;
-import org.apache.beam.sdk.schemas.transforms.RenameFields;
+import org.apache.beam.sdk.schemas.transforms.Filter;
+import org.apache.beam.sdk.schemas.transforms.Group;
+import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 
 
 public class Test {
@@ -83,15 +93,11 @@ public class Test {
 
         public String userId;
         public String userName;
-        public Game game;
 
         @SchemaCreate
-        public User(String userId, String userName
-                , Game game
-        ) {
+        public User(String userId, String userName) {
             this.userId = userId;
             this.userName = userName;
-            this.game = game;
         }
 
         @Override
@@ -99,38 +105,6 @@ public class Test {
             return "User{" +
                     "userId='" + userId + '\'' +
                     ", userName='" + userName + '\'' +
-                    ", game=" + game +
-                    '}';
-        }
-    }
-
-    @DefaultSchema(JavaFieldSchema.class)
-    @EqualsAndHashCode
-    public static class Result {
-
-        public String userId;
-        public String userName;
-        public Integer score;
-        public String gameId;
-        public String date;
-
-        @SchemaCreate
-        public Result(String userId, String userName, Integer score, String gameId, String date) {
-            this.userId = userId;
-            this.userName = userName;
-            this.score = score;
-            this.gameId = gameId;
-            this.date = date;
-        }
-
-        @Override
-        public String toString() {
-            return "Result{" +
-                    "userId='" + userId + '\'' +
-                    ", userName='" + userName + '\'' +
-                    ", score=" + score +
-                    ", gameId='" + gameId + '\'' +
-                    ", date='" + date + '\'' +
                     '}';
         }
     }
@@ -140,9 +114,15 @@ public class Test {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> fullStatistics = getProgressPCollection(pipeline);
+        PCollection<User> userInfo = getUserPCollection(pipeline);
+        PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
-        Schema type = Schema.builder()
+        Schema userSchema = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .build();
+
+        Schema totalSchema = Schema.builder()
                 .addStringField("userId")
                 .addStringField("userName")
                 .addInt32Field("score")
@@ -150,43 +130,46 @@ public class Test {
                 .addStringField("date")
                 .build();
 
-        PCollection<Object> pCollection = fullStatistics
-                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
-                .setSchema(type,
-                        TypeDescriptor.of(Object.class), input ->
-                        {
-                            User user = (User) input;
-                            return Row.withSchema(type)
-                                    .addValues(user.userId, user.userName, user.game.score, user.game.gameId, user.game.date)
-                                    .build();
-                        },
-                        input -> new User(input.getString(0), input.getString(1),
-                                new Game(input.getString(0), input.getInt32(2), input.getString(3), input.getString(4))));
+        Schema total = Schema.builder()
+                .addStringField("userId")
+                .addInt32Field("total")
+                .build();
 
-        pCollection
-                .apply(Convert.toRows())
-                .apply("User", ParDo.of(new LogOutput<>("ToRows")));
 
-        pCollection
-                .apply(Convert.to(Result.class))
-                .apply("User", ParDo.of(new LogOutput<>("Convert to Result")));
+        userInfo
+                .apply("User", ParDo.of(new LogOutput<>("Result")));
 
+        gameInfo
+                .apply("Game", ParDo.of(new LogOutput<>("Result")));
 
         pipeline.run();
     }
 
-    public static PCollection<User> getProgressPCollection(Pipeline pipeline) {
+    public static PCollection<User> getUserPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserFn()));
+    }
+
+    public static PCollection<Game> getGamePCollection(Pipeline pipeline) {
+        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
         return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
     }
 
-    static class ExtractUserProgressFn extends DoFn<String, User> {
+    static class ExtractUserFn extends DoFn<String, User> {
         @ProcessElement
         public void processElement(ProcessContext c) {
             String[] items = c.element().split(",");
-            c.output(new User(items[0], items[1], new Game(items[0], Integer.valueOf(items[2]), items[3], items[4])
-            ));
+            c.output(new User(items[0], items[1]));
+        }
+    }
+
+    static class ExtractUserProgressFn extends DoFn<String, Game> {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            String[] items = c.element().split(",");
+            c.output(new Game(items[0], Integer.valueOf(items[2]), items[3], items[4]));
         }
     }
 
