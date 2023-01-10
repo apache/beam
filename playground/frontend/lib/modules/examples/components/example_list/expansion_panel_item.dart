@@ -21,7 +21,7 @@ import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../constants/sizes.dart';
-import '../../../analytics/analytics_service.dart';
+import '../../../analytics/service.dart';
 import 'example_item_actions.dart';
 
 /// An [example] in the example dropdown.

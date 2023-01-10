@@ -20,7 +20,7 @@ import 'package:flutter/widgets.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-import '../modules/analytics/analytics_service.dart';
+import '../modules/analytics/service.dart';
 import '../utils/analytics_utils.dart';
 
 class PlaygroundRunOrCancelButton extends StatelessWidget {

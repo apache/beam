@@ -21,7 +21,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../constants/font_weight.dart';
-import '../../../../modules/analytics/analytics_service.dart';
+import '../../../../modules/analytics/service.dart';
 import '../../notifiers/feedback_state.dart';
 import 'feedback_dropdown_icon_button.dart';
 

@@ -24,7 +24,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../constants/font_weight.dart';
 import '../../../constants/links.dart';
 import '../../../constants/sizes.dart';
-import '../../../modules/analytics/analytics_service.dart';
+import '../../../modules/analytics/service.dart';
 import 'feedback/playground_feedback.dart';
 
 class PlaygroundPageFooter extends StatelessWidget {

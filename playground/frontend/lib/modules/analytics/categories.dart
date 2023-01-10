@@ -11,29 +11,16 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY IND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/modules/analytics/service.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
-
-class ResetAction extends StatelessWidget {
-  const ResetAction();
-
-  @override
-  Widget build(BuildContext context) {
-    final analyticsService = AnalyticsService.get();
-    return Consumer<PlaygroundController>(
-      builder: (context, playgroundController, child) => ResetButton(
-        playgroundController: playgroundController,
-        beforeReset: () {
-          analyticsService.trackReset();
-        },
-      ),
-    );
-  }
+class AnalyticsCategories {
+  static const sdk = 'SDK';
+  static const example = 'Example';
+  static const common = 'Common';
+  static const link = 'Link';
+  static const feedback = 'Feedback';
+  static const runCode = 'Run Code';
 }

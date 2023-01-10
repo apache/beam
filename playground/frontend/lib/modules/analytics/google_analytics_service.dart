@@ -17,8 +17,9 @@
  */
 
 import 'package:playground/config.g.dart';
-import 'package:playground/modules/analytics/analytics_events.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/modules/analytics/categories.dart';
+import 'package:playground/modules/analytics/events.dart';
+import 'package:playground/modules/analytics/service.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
@@ -31,8 +32,8 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackSelectSdk(Sdk? oldSdk, Sdk newSdk) {
     _safeSendEvent(AnalyticsEvent(
-      action: kSelectSdkEvent,
-      category: kSdkCategory,
+      action: AnalyticsEvents.selectSdk,
+      category: AnalyticsCategories.sdk,
       label: '${oldSdk?.title}_${newSdk.title}',
     ));
   }
@@ -40,8 +41,8 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackSelectExample(ExampleBase newExample) {
     _safeSendEvent(AnalyticsEvent(
-      action: kSelectExampleEvent,
-      category: kExampleCategory,
+      action: AnalyticsEvents.selectExample,
+      category: AnalyticsCategories.example,
       label: newExample.path,
     ));
   }
@@ -49,24 +50,24 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackClickNewExample() {
     _safeSendEvent(AnalyticsEvent(
-      action: kClickNewExampleEvent,
-      category: kExampleCategory,
+      action: AnalyticsEvents.clickNewExample,
+      category: AnalyticsCategories.example,
     ));
   }
 
   @override
   void trackReset() {
     _safeSendEvent(AnalyticsEvent(
-      action: kClickResetEvent,
-      category: kCommonCategory,
+      action: AnalyticsEvents.clickReset,
+      category: AnalyticsCategories.common,
     ));
   }
 
   @override
   void trackClickToggleTheme(bool isDark) {
     _safeSendEvent(AnalyticsEvent(
-      action: kClickToggleThemeEvent,
-      category: kCommonCategory,
+      action: AnalyticsEvents.clickToggleTheme,
+      category: AnalyticsCategories.common,
       label: isDark ? 'dark' : 'light',
     ));
   }
@@ -74,16 +75,16 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackOpenShortcutsModal() {
     _safeSendEvent(AnalyticsEvent(
-      action: kOpenShortcutsModalEvent,
-      category: kCommonCategory,
+      action: AnalyticsEvents.openShortcutsModal,
+      category: AnalyticsCategories.common,
     ));
   }
 
   @override
   void trackOpenLink(String link) {
     _safeSendEvent(AnalyticsEvent(
-      action: kOpenLinkEvent,
-      category: kLinkCategory,
+      action: AnalyticsEvents.openLink,
+      category: AnalyticsCategories.link,
       label: link,
     ));
   }
@@ -91,8 +92,8 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackClickEnjoyPlayground(bool isEnjoying) {
     _safeSendEvent(AnalyticsEvent(
-      action: kClickEnjoyPlaygroundEvent,
-      category: kFeedbackCategory,
+      action: AnalyticsEvents.clickEnjoyPlayground,
+      category: AnalyticsCategories.feedback,
       label: 'isEnjoying = $isEnjoying',
     ));
   }
@@ -100,16 +101,16 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackClickReportIssue() {
     _safeSendEvent(AnalyticsEvent(
-      action: kClickReportIssueEvent,
-      category: kFeedbackCategory,
+      action: AnalyticsEvents.clickReportIssue,
+      category: AnalyticsCategories.feedback,
     ));
   }
 
   @override
   void trackClickRunEvent(String exampleName) {
     _safeSendEvent(AnalyticsEvent(
-      action: kClickRunEvent,
-      category: kRunCodeCategory,
+      action: AnalyticsEvents.clickRun,
+      category: AnalyticsCategories.runCode,
       label: exampleName,
     ));
   }
@@ -117,8 +118,8 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackClickCancelRunEvent(String exampleName) {
     _safeSendEvent(AnalyticsEvent(
-      action: kClickCancelRunEvent,
-      category: kRunCodeCategory,
+      action: AnalyticsEvents.clickCancelRun,
+      category: AnalyticsCategories.runCode,
       label: exampleName,
     ));
   }
@@ -126,8 +127,8 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackClickSendPositiveFeedback(String feedback) {
     _safeSendEvent(AnalyticsEvent(
-      action: kClickSendPositiveFeedbackEvent,
-      category: kFeedbackCategory,
+      action: AnalyticsEvents.clickSendPositiveFeedback,
+      category: AnalyticsCategories.feedback,
       label: feedback,
     ));
   }
@@ -135,8 +136,8 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackClickSendNegativeFeedback(String feedback) {
     _safeSendEvent(AnalyticsEvent(
-      action: kClickSendNegativeFeedbackEvent,
-      category: kFeedbackCategory,
+      action: AnalyticsEvents.clickSendNegativeFeedback,
+      category: AnalyticsCategories.feedback,
       label: feedback,
     ));
   }
@@ -144,8 +145,8 @@ class GoogleAnalyticsService implements AnalyticsService {
   @override
   void trackRunTimeEvent(String exampleName, int runTimeMs) {
     _safeSendEvent(AnalyticsEvent(
-      action: kRunTimeEvent,
-      category: kRunCodeCategory,
+      action: AnalyticsEvents.runTime,
+      category: AnalyticsCategories.runCode,
       label: exampleName,
       value: runTimeMs,
     ));

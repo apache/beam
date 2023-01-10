@@ -22,7 +22,7 @@ import 'package:playground_components/playground_components.dart';
 import '../../../../constants/font_weight.dart';
 import '../../../../constants/fonts.dart';
 import '../../../../constants/sizes.dart';
-import '../../../../modules/analytics/analytics_service.dart';
+import '../../../../modules/analytics/service.dart';
 import 'feedback_dropdown_icon_button.dart';
 
 const double kTextFieldWidth = 365.0;

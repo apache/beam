@@ -17,8 +17,9 @@
  */
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/modules/analytics/analytics_events.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/modules/analytics/categories.dart';
+import 'package:playground/modules/analytics/events.dart';
+import 'package:playground/modules/analytics/service.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../common/common_finders.dart';
@@ -62,8 +63,8 @@ Future<void> _checkEnjoyingAndSendFeedback(WidgetTester wt) async {
   expect(
     lastSentEvent,
     AnalyticsEvent(
-      category: kFeedbackCategory,
-      action: kClickSendPositiveFeedbackEvent,
+      category: AnalyticsCategories.feedback,
+      action: AnalyticsEvents.clickSendPositiveFeedback,
       label: text,
     ),
   );
@@ -90,8 +91,8 @@ Future<void> _checkNotEnjoyingAndSendFeedback(WidgetTester wt) async {
   expect(
     lastSentEvent,
     AnalyticsEvent(
-      category: kFeedbackCategory,
-      action: kClickSendNegativeFeedbackEvent,
+      category: AnalyticsCategories.feedback,
+      action: AnalyticsEvents.clickSendNegativeFeedback,
       label: text,
     ),
   );

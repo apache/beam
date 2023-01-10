@@ -23,7 +23,7 @@ import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../constants/links.dart';
-import '../../../modules/analytics/analytics_service.dart';
+import '../../../modules/analytics/service.dart';
 import '../../../modules/shortcuts/components/shortcuts_modal.dart';
 import '../../../src/assets/assets.gen.dart';
 
