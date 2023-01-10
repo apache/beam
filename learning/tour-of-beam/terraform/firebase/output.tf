@@ -16,7 +16,7 @@
 # under the License.
 
 output "firebase_project_name" {
-  value = google_firebase_project.tob_firebase_project.project
+  value = "https://console.firebase.google.com/u/1/project/${google_firebase_project.tob_firebase_project.project}/overview"
 }
 
 output "firebase_web_app_name" {
