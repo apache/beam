@@ -59,7 +59,7 @@ Future<void> _checkEnjoyingAndSendFeedback(WidgetTester wt) async {
   await wt.tap(find.feedbackDropdownSendButton());
   await wt.pumpAndSettle();
 
-  final lastSentEvent = AnalyticsService.get().lastSentEvent;
+  final lastSentEvent = PlaygroundAnalyticsService.get().lastSentEvent;
   expect(
     lastSentEvent,
     AnalyticsEvent(
@@ -87,7 +87,7 @@ Future<void> _checkNotEnjoyingAndSendFeedback(WidgetTester wt) async {
   await wt.tap(find.feedbackDropdownSendButton());
   await wt.pumpAndSettle();
 
-  final lastSentEvent = AnalyticsService.get().lastSentEvent;
+  final lastSentEvent = PlaygroundAnalyticsService.get().lastSentEvent;
   expect(
     lastSentEvent,
     AnalyticsEvent(

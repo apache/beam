@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../constants/font_weight.dart';
@@ -45,13 +46,13 @@ class PlaygroundFeedback extends StatelessWidget {
         ),
         FeedbackDropdownIconButton(
           key: thumbUpKey,
-          isPositive: true,
+          feedbackRating: FeedbackRating.positive,
           isSelected: isSelected,
           onClick: _setEnjoying(context, true),
         ),
         FeedbackDropdownIconButton(
           key: thumbDownKey,
-          isPositive: false,
+          feedbackRating: FeedbackRating.negative,
           isSelected: isSelected,
           onClick: _setEnjoying(context, false),
         ),
@@ -62,7 +63,7 @@ class PlaygroundFeedback extends StatelessWidget {
   _setEnjoying(BuildContext context, bool isEnjoying) {
     return () {
       _getFeedbackState(context, false).setEnjoying(isEnjoying);
-      AnalyticsService.get().trackClickEnjoyPlayground(isEnjoying);
+      PlaygroundAnalyticsService.get().trackClickEnjoyPlayground(isEnjoying);
     };
   }
 

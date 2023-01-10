@@ -46,7 +46,7 @@ class ExpansionPanelItem extends StatelessWidget {
           onTap: () {
             if (controller.selectedExample != example) {
               _closeDropdown(controller.exampleCache);
-              AnalyticsService.get().trackSelectExample(example);
+              PlaygroundAnalyticsService.get().trackSelectExample(example);
               controller.setExampleBase(example);
             }
           },

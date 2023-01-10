@@ -23,7 +23,7 @@ import 'package:playground/modules/analytics/service.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
-class GoogleAnalyticsService implements AnalyticsService {
+class PlaygroundGoogleAnalyticsService implements PlaygroundAnalyticsService {
   final _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
 
   @override

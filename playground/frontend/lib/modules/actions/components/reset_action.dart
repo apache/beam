@@ -26,7 +26,7 @@ class ResetAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final analyticsService = AnalyticsService.get();
+    final analyticsService = PlaygroundAnalyticsService.get();
     return Consumer<PlaygroundController>(
       builder: (context, playgroundController, child) => ResetButton(
         playgroundController: playgroundController,

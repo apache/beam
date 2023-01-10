@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
 import 'package:playground/src/assets/assets.gen.dart';
 
 import '../../../../constants/sizes.dart';
@@ -36,13 +37,13 @@ const Offset kAnimationEndOffset = Offset(0.0, 0.0);
 
 class FeedbackDropdownIconButton extends StatefulWidget {
   final bool isSelected;
-  final bool isPositive;
+  final FeedbackRating feedbackRating;
   final void Function() onClick;
 
   const FeedbackDropdownIconButton({
     Key? key,
     required this.isSelected,
-    required this.isPositive,
+    required this.feedbackRating,
     required this.onClick,
   }) : super(key: key);
 
@@ -86,14 +87,17 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
     final String tooltip;
     final String icon;
     final String filledIcon;
-    if (widget.isPositive) {
-      tooltip = appLocale.enjoying;
-      icon = Assets.thumbUp;
-      filledIcon = Assets.thumbUpFilled;
-    } else {
-      tooltip = appLocale.notEnjoying;
-      icon = Assets.thumbDown;
-      filledIcon = Assets.thumbDownFilled;
+    switch (widget.feedbackRating) {
+      case FeedbackRating.positive:
+        tooltip = appLocale.enjoying;
+        icon = Assets.thumbUp;
+        filledIcon = Assets.thumbUpFilled;
+        break;
+      case FeedbackRating.negative:
+        tooltip = appLocale.notEnjoying;
+        icon = Assets.thumbDown;
+        filledIcon = Assets.thumbDownFilled;
+        break;
     }
 
     return Semantics(
@@ -144,7 +148,7 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
                     ),
                     child: FeedbackDropdownContent(
                       close: _close,
-                      isPositive: widget.isPositive,
+                      feedbackRating: widget.feedbackRating,
                       textController: feedbackTextController,
                     ),
                   ),

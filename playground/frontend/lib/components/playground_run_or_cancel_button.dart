@@ -30,7 +30,7 @@ class PlaygroundRunOrCancelButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<PlaygroundController>(
         builder: (context, playgroundController, child) {
-      final analyticsService = AnalyticsService.get();
+      final analyticsService = PlaygroundAnalyticsService.get();
       final stopwatch = Stopwatch();
       final exampleName = getAnalyticsExampleName(playgroundController);
 

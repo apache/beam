@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/pages/standalone_playground/widgets/feedback/rating_enum.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../../constants/font_weight.dart';
@@ -40,13 +41,13 @@ class FeedbackDropdownContent extends StatelessWidget {
   static const sendButtonKey = Key('sendFeedbackButtonKey');
 
   final void Function() close;
-  final bool isPositive;
+  final FeedbackRating feedbackRating;
   final TextEditingController textController;
 
   const FeedbackDropdownContent({
     Key? key,
     required this.close,
-    required this.isPositive,
+    required this.feedbackRating,
     required this.textController,
   }) : super(key: key);
 
@@ -175,14 +176,19 @@ class FeedbackDropdownContent extends StatelessWidget {
                     onPressed: () {
                       if (textController.text.isNotEmpty) {
                         final text = textController.text;
-                        if (isPositive) {
-                          AnalyticsService.get().trackClickSendPositiveFeedback(
-                            text,
-                          );
-                        } else {
-                          AnalyticsService.get().trackClickSendNegativeFeedback(
-                            text,
-                          );
+                        switch (feedbackRating) {
+                          case FeedbackRating.positive:
+                            PlaygroundAnalyticsService.get()
+                                .trackClickSendPositiveFeedback(
+                              text,
+                            );
+                            break;
+                          case FeedbackRating.negative:
+                            PlaygroundAnalyticsService.get()
+                                .trackClickSendNegativeFeedback(
+                              text,
+                            );
+                            break;
                         }
                       }
                       close();

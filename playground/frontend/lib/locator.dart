@@ -19,6 +19,7 @@
 import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground/modules/analytics/google_analytics_service.dart';
+import 'package:playground/modules/analytics/service.dart';
 import 'package:playground_components/playground_components.dart';
 
 import 'config.g.dart';
@@ -29,7 +30,7 @@ import 'router/route_information_parser.dart';
 Future<void> initializeServiceLocator() async {
   _initializeRepositories();
   _initializeState();
-  _initializeAnalyticsService();
+  _initializeServices();
 }
 
 void _initializeRepositories() {
@@ -60,6 +61,12 @@ void _initializeState() {
   );
 }
 
-void _initializeAnalyticsService() {
-  GetIt.instance.registerSingleton(GoogleAnalyticsService());
+void _initializeServices() {
+  final googleAnalyticsService = PlaygroundGoogleAnalyticsService();
+  GetIt.instance.registerSingleton<AnalyticsService>(
+    googleAnalyticsService,
+  );
+  GetIt.instance.registerSingleton<PlaygroundAnalyticsService>(
+    googleAnalyticsService,
+  );
 }

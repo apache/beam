@@ -67,7 +67,7 @@ class _MoreActionsState extends State<MoreActions> {
               leading: SvgPicture.asset(Assets.shortcuts),
               title: Text(appLocale.shortcuts),
               onTap: () {
-                AnalyticsService.get().trackOpenShortcutsModal();
+                PlaygroundAnalyticsService.get().trackOpenShortcutsModal();
                 showDialog<void>(
                   context: context,
                   builder: (BuildContext context) => ShortcutsModal(
@@ -130,6 +130,6 @@ class _MoreActionsState extends State<MoreActions> {
 
   _openLink(String link, BuildContext context) {
     launchUrl(Uri.parse(link));
-    AnalyticsService.get().trackOpenLink(link);
+    PlaygroundAnalyticsService.get().trackOpenLink(link);
   }
 }

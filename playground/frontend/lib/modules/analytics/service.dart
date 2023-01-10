@@ -19,9 +19,9 @@
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-abstract class AnalyticsService extends GeneralAnalyticsService {
-  static AnalyticsService get() {
-    return GetIt.instance.get<AnalyticsService>();
+abstract class PlaygroundAnalyticsService extends AnalyticsService {
+  static PlaygroundAnalyticsService get() {
+    return GetIt.instance.get<PlaygroundAnalyticsService>();
   }
 
   void trackSelectSdk(Sdk? oldSdk, Sdk newSdk);

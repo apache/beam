@@ -16,8 +16,4 @@
  * limitations under the License.
  */
 
-import 'analytics_event.dart';
-
-abstract class AnalyticsService {
-  AnalyticsEvent? get lastSentEvent;
-}
+enum FeedbackRating { positive, negative }
