@@ -310,28 +310,25 @@ class DatastoreClient:
         self, example: Example, example_id: str
     ) -> List[datastore.Entity]:
         entities = []
-        if len(example.graph) != 0:
-            entities.append(
-                self._pc_obj_entity(
-                    example_id,
-                    example.graph,
-                    PrecompiledExample.GRAPH_EXTENSION.upper(),
-                )
+        entities.append(
+            self._pc_obj_entity(
+                example_id,
+                example.graph,
+                PrecompiledExample.GRAPH_EXTENSION.upper(),
             )
-        if len(example.output) != 0:
-            entities.append(
-                self._pc_obj_entity(
-                    example_id,
-                    example.output,
-                    PrecompiledExample.OUTPUT_EXTENSION.upper(),
-                )
+        )
+        entities.append(
+            self._pc_obj_entity(
+                example_id,
+                example.output,
+                PrecompiledExample.OUTPUT_EXTENSION.upper(),
             )
-        if len(example.logs) != 0:
-            entities.append(
-                self._pc_obj_entity(
-                    example_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper()
-                )
+        )
+        entities.append(
+            self._pc_obj_entity(
+                example_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper()
             )
+        )
         return entities
 
     def _pc_obj_entity(

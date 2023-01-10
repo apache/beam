@@ -19,7 +19,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
 
 import '../../../components/playground_run_or_cancel_button.dart';
 import '../../../constants/sizes.dart';
@@ -29,80 +28,81 @@ import '../../../modules/examples/components/multifile_popover/multifile_popover
 
 /// A code editor with controls stacked above it.
 class CodeTextAreaWrapper extends StatelessWidget {
-  const CodeTextAreaWrapper({Key? key}) : super(key: key);
+  final PlaygroundController controller;
+
+  const CodeTextAreaWrapper({
+    required this.controller,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlaygroundController>(
-        builder: (context, controller, child) {
-      if (controller.result?.errorMessage?.isNotEmpty ?? false) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _handleError(context, controller);
-        });
-      }
+    if (controller.result?.errorMessage?.isNotEmpty ?? false) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleError(context, controller);
+      });
+    }
 
-      final snippetController = controller.snippetEditingController;
+    final snippetController = controller.snippetEditingController;
 
-      if (snippetController == null) {
-        return const LoadingIndicator();
-      }
+    if (snippetController == null) {
+      return const LoadingIndicator();
+    }
 
-      return Column(
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: SnippetEditor(
-                    controller: snippetController,
-                    isEditable: true,
-                  ),
+    return Column(
+      children: [
+        Expanded(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: SnippetEditor(
+                  controller: snippetController,
+                  isEditable: true,
                 ),
-                Positioned(
-                  right: kXlSpacing,
-                  top: kXlSpacing,
-                  height: kButtonHeight,
-                  child: Row(
-                    children: [
-                      if (controller.selectedExample != null) ...[
-                        if (controller.selectedExample?.isMultiFile ?? false)
-                          Semantics(
-                            container: true,
-                            child: MultifilePopoverButton(
-                              example: controller.selectedExample!,
-                              followerAnchor: Alignment.topRight,
-                              targetAnchor: Alignment.bottomRight,
-                            ),
-                          ),
+              ),
+              Positioned(
+                right: kXlSpacing,
+                top: kXlSpacing,
+                height: kButtonHeight,
+                child: Row(
+                  children: [
+                    if (controller.selectedExample != null) ...[
+                      if (controller.selectedExample?.isMultiFile ?? false)
                         Semantics(
                           container: true,
-                          child: DescriptionPopoverButton(
+                          child: MultifilePopoverButton(
                             example: controller.selectedExample!,
                             followerAnchor: Alignment.topRight,
                             targetAnchor: Alignment.bottomRight,
                           ),
                         ),
-                      ],
                       Semantics(
                         container: true,
-                        child: ShareButton(
-                          playgroundController: controller,
+                        child: DescriptionPopoverButton(
+                          example: controller.selectedExample!,
+                          followerAnchor: Alignment.topRight,
+                          targetAnchor: Alignment.bottomRight,
                         ),
                       ),
-                      const SizedBox(width: kLgSpacing),
-                      Semantics(
-                        container: true,
-                        child: const PlaygroundRunOrCancelButton(),
-                      ),
                     ],
-                  ),
+                    Semantics(
+                      container: true,
+                      child: ShareButton(
+                        playgroundController: controller,
+                      ),
+                    ),
+                    const SizedBox(width: kLgSpacing),
+                    Semantics(
+                      container: true,
+                      child: const PlaygroundRunOrCancelButton(),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      );
-    });
+        ),
+      ],
+    );
   }
 
   void _handleError(BuildContext context, PlaygroundController controller) {

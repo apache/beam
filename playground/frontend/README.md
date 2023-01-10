@@ -141,6 +141,37 @@ Code can be automatically reformatted using:
 flutter format ./lib
 ```
 
+### Unit Tests
+
+To delete all generated files and re-generate them again and then run tests:
+
+```bash
+./gradlew :playground:frontend:playground_components_test
+./gradlew :playground:frontend:test
+```
+
+To run tests without re-generating files:
+
+```bash
+cd playground/frontend/playground_components
+flutter test
+cd ..
+flutter test
+```
+
+### Integration Tests
+
+Integration tests currently can be run only on a local development machine.
+Server testing has not been verified yet.
+
+1. Install and run Chrome Driver: https://chromedriver.chromium.org/downloads
+2. Run it on port 4444: `chromedriver --port=4444`
+3. Run:
+
+```bash
+./gradlew :playground:frontend:integrationTest
+```
+
 ## Localization
 
 The project is in the process of migrating from

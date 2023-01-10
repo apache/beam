@@ -41,21 +41,19 @@ class EmbeddedPlaygroundScreen extends StatelessWidget {
       playgroundController: notifier.playgroundController,
       child: PlaygroundShortcutsManager(
         playgroundController: notifier.playgroundController,
-        child: ToastListenerWidget(
-          child: Scaffold(
-            appBar: AppBar(
-              automaticallyImplyLeading: false,
-              title: const EmbeddedAppBarTitle(),
-              actions: const [EmbeddedActions()],
-            ),
-            body: EmbeddedSplitView(
-              first: EmbeddedEditor(isEditable: notifier.isEditable),
-              second: Container(
-                color: Theme.of(context).backgroundColor,
-                child: OutputWidget(
-                  playgroundController: notifier.playgroundController,
-                  graphDirection: Axis.horizontal,
-                ),
+        child: Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            title: const EmbeddedAppBarTitle(),
+            actions: const [EmbeddedActions()],
+          ),
+          body: EmbeddedSplitView(
+            first: EmbeddedEditor(isEditable: notifier.isEditable),
+            second: Container(
+              color: Theme.of(context).backgroundColor,
+              child: OutputWidget(
+                playgroundController: notifier.playgroundController,
+                graphDirection: Axis.horizontal,
               ),
             ),
           ),

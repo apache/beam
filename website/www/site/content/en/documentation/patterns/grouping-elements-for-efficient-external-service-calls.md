@@ -26,7 +26,7 @@ State is kept on a per-key and per-windows basis, and as such, the input to your
 
 Examples of use cases are: assigning a unique ID to each element, joining streams of data in 'more exotic' ways, or batching up API calls to external services. In this section we'll go over the last one in particular.
 
-Make sure to check the [docs](https://beam.apache.org/documentation/programming-guide/#state-and-timers) for deeper understanding on state and timers.
+Make sure to check the [docs](/documentation/programming-guide/#state-and-timers) for deeper understanding on state and timers.
 
 The `GroupIntoBatches`-transform uses state and timers under the hood to allow the user to exercise tight control over the following parameters:
 

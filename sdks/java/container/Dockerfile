@@ -23,6 +23,9 @@ ARG pull_licenses
 
 ADD target/slf4j-api.jar /opt/apache/beam/jars/
 ADD target/slf4j-jdk14.jar /opt/apache/beam/jars/
+ADD target/jcl-over-slf4j.jar /opt/apache/beam/jars/
+ADD target/log4j-over-slf4j.jar /opt/apache/beam/jars/
+ADD target/log4j-to-slf4j.jar /opt/apache/beam/jars/
 ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
 
 # Required to run cross-language pipelines with KafkaIO

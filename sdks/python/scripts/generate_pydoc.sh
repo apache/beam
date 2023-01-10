@@ -65,6 +65,7 @@ excluded_patterns=(
     'apache_beam/runners/test/'
     'apache_beam/runners/worker/'
     'apache_beam/testing/benchmarks/chicago_taxi/'
+    'apache_beam/testing/benchmarks/cloudml/'
     'apache_beam/testing/benchmarks/inference/'
     'apache_beam/testing/benchmarks/data/'
     'apache_beam/testing/benchmarks/load_tests/'

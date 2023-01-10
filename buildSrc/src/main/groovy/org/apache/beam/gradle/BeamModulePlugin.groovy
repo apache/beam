@@ -486,6 +486,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.1"
     def kafka_version = "2.4.1"
+    def log4j2_version = "2.17.2"
     def nemo_version = "0.1"
     def netty_version = "4.1.77.Final"
     def postgres_version = "42.2.16"
@@ -573,6 +574,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_csv                                 : "org.apache.commons:commons-csv:1.8",
         commons_io                                  : "commons-io:commons-io:2.7",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
+        commons_logging                             : "commons-logging:commons-logging:1.2",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
@@ -675,6 +677,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jamm                                        : 'io.github.stephankoelle:jamm:0.4.1',
         jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
+        jcl_over_slf4j                              : "org.slf4j:jcl-over-slf4j:$slf4j_version",
         jmh_core                                    : "org.openjdk.jmh:jmh-core:$jmh_version",
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
@@ -684,6 +687,12 @@ class BeamModulePlugin implements Plugin<Project> {
         junit                                       : "junit:junit:4.13.1",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
+        log4j                                       : "log4j:log4j:1.2.17",
+        log4j_over_slf4j                            : "org.slf4j:log4j-over-slf4j:$slf4j_version",
+        log4j2_api                                  : "org.apache.logging.log4j:log4j-api:$log4j2_version",
+        log4j2_core                                 : "org.apache.logging.log4j:log4j-core:$log4j2_version",
+        log4j2_to_slf4j                             : "org.apache.logging.log4j:log4j-to-slf4j:$log4j2_version",
+        log4j2_slf4j_impl                           : "org.apache.logging.log4j:log4j-slf4j-impl:$log4j2_version",
         mockito_core                                : "org.mockito:mockito-core:3.7.7",
         mockito_inline                              : "org.mockito:mockito-inline:4.5.1",
         mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.11",
@@ -711,9 +720,14 @@ class BeamModulePlugin implements Plugin<Project> {
         sbe_tool                                    : "uk.co.real-logic:sbe-tool:$sbe_tool_version",
         singlestore_jdbc                            : "com.singlestore:singlestore-jdbc-client:$singlestore_jdbc_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
-        slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
+        slf4j_android                               : "org.slf4j:slf4j-android:$slf4j_version",
+        slf4j_ext                                   : "org.slf4j:slf4j-ext:$slf4j_version",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
+        slf4j_nop                                   : "org.slf4j:slf4j-nop:$slf4j_version",
+        slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
+        slf4j_jul_to_slf4j                          : "org.slf4j:jul-to-slf4j:$slf4j_version",
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
+        slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.8.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark2_version",
@@ -2365,7 +2379,8 @@ class BeamModulePlugin implements Plugin<Project> {
       } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
         javaContainerSuffix = 'java17'
       } else {
-        throw new GradleException("unsupported java version.")
+        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
+        throw new GradleException(exceptionMessage)
       }
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
