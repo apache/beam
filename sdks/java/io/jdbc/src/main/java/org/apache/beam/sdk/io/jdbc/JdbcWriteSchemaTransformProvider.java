@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 /**
  * An implementation of {@link org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider} for
- * writing to a JDBC connections using {@link org.apache.beam.sdk.io.jdbc.JdbcIO}
+ * writing to a JDBC connections using {@link org.apache.beam.sdk.io.jdbc.JdbcIO}.
  */
 @AutoService(SchemaTransformProvider.class)
 public class JdbcWriteSchemaTransformProvider
