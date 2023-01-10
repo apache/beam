@@ -31,9 +31,6 @@ tasks {
     /* Terraform initialization task */
     register<TerraformTask>("terraformInit") {
         var state_bucket = "unknown"
-        if (project.hasProperty("state_bucket")) {
-            state_bucket = project.property("state_bucket") as String
-        }
         args(
             "init", "-migrate-state",
             "-backend-config=bucket=$state_bucket"
@@ -42,11 +39,21 @@ tasks {
 
     /* Terraform Aplly task */
     register<TerraformTask>("terraformApply") {
+        var bucket_name = "unknown"
+        var firebase_region = "unknown"
+        var hosting_site_id = "unknown"
+        var region = "unknown"
+        var service_account_id = "unknown"
         args(
                 "apply",
                 "-auto-approve",
                 "-lock=false",
-                "-var='project_id=$(gcloud config get-value project)'"
+                "-var='project_id=$(gcloud config get-value project)'",
+                "-var=bucket_name=$bucket_name",
+                "-var=firebase_region=$firebase_region",
+                "-var=hosting_site_id=$hosting_site_id",
+                "-var=region=$region",
+                "var=service_account_id=$service_account_id"
         )
     }
 }
