@@ -17,10 +17,16 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
-import static org.junit.Assert.assertTrue;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.AVRO;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.JSON;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.PARQUET;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
+import static org.junit.Assert.assertEquals;
 
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,10 +39,6 @@ public class FileWriteSchemaTransformFormatProvidersTest {
     Map<String, FileWriteSchemaTransformFormatProvider> formatProviderMap =
         FileWriteSchemaTransformFormatProviders.loadProviders();
     Set<String> keys = formatProviderMap.keySet();
-    assertTrue(keys.contains("avro"));
-    assertTrue(keys.contains("csv"));
-    assertTrue(keys.contains("json"));
-    assertTrue(keys.contains("parquet"));
-    assertTrue(keys.contains("xml"));
+    assertEquals(ImmutableSet.of(AVRO, CSV, JSON, PARQUET, XML), keys);
   }
 }

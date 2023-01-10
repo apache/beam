@@ -21,48 +21,66 @@ import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransfor
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.CSV;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.PARQUET;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.XML;
+import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 
+/**
+ * A {@link TypedSchemaTransformProvider} implementation for writing a {@link Row} {@link
+ * PCollection} to file systems, driven by a {@link FileWriteSchemaTransformConfiguration}.
+ */
 public class FileWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<FileWriteSchemaTransformConfiguration> {
 
-  private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:file_write:v1";
-  private static final String INPUT_TAG = "input";
+  public static final Field FILE_NAME_FIELD = Field.of("fileName", FieldType.STRING);
+  public static final Schema OUTPUT_SCHEMA = Schema.of(FILE_NAME_FIELD);
 
+  private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:file_write:v1";
+  static final String INPUT_TAG = "input";
+  static final String OUTPUT_TAG = "output";
+
+  /** Provides the required {@link TypedSchemaTransformProvider#configurationClass()}. */
   @Override
   protected Class<FileWriteSchemaTransformConfiguration> configurationClass() {
     return FileWriteSchemaTransformConfiguration.class;
   }
 
+  /** Builds a {@link SchemaTransform} from a {@link FileWriteSchemaTransformConfiguration}. */
   @Override
   protected SchemaTransform from(FileWriteSchemaTransformConfiguration configuration) {
     return new FileWriteSchemaTransform(configuration);
   }
 
+  /** Returns the {@link TypedSchemaTransformProvider#identifier()} required for registration. */
   @Override
   public String identifier() {
     return IDENTIFIER;
   }
 
+  /** The expected {@link PCollectionRowTuple} input tags. */
   @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList(INPUT_TAG);
   }
 
+  /** */
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.emptyList();
+    return Collections.singletonList(OUTPUT_TAG);
   }
 
   static class FileWriteSchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple>
@@ -88,9 +106,19 @@ public class FileWriteSchemaTransformProvider
 
       PTransform<PCollection<Row>, PCollection<String>> transform =
           getProvider().buildTransform(configuration, rowInput.getSchema());
-      rowInput.apply(transform);
 
-      return PCollectionRowTuple.empty(input.getPipeline());
+      PCollection<String> files = rowInput.apply("Write Rows", transform);
+      PCollection<Row> output =
+          files.apply(
+              "Filenames to Rows",
+              MapElements.into(rows())
+                  .via(
+                      (String name) ->
+                          Row.withSchema(OUTPUT_SCHEMA)
+                              .withFieldValue(FILE_NAME_FIELD.getName(), name)
+                              .build()));
+
+      return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
 
     @Override

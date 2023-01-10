@@ -93,7 +93,8 @@ public class XmlFileWriteSchemaTransformFormatProviderTest
 
   @Override
   protected Optional<String> expectedErrorWhenParquetConfigurationSet() {
-    return Optional.empty();
+    return Optional.of(
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a xml format");
   }
 
   @Override
@@ -113,6 +114,7 @@ public class XmlFileWriteSchemaTransformFormatProviderTest
 
   @Override
   protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
-    return Optional.empty();
+    return Optional.of(
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a xml format");
   }
 }

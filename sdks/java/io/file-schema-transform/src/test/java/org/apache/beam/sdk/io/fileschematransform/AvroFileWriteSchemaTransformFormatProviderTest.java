@@ -44,7 +44,7 @@ public class AvroFileWriteSchemaTransformFormatProviderTest
 
   @Override
   protected String getFilenamePrefix() {
-    return "";
+    return "/";
   }
 
   @Override
@@ -58,7 +58,7 @@ public class AvroFileWriteSchemaTransformFormatProviderTest
 
     PCollection<GenericRecord> actual =
         readPipeline
-            .apply(AvroIO.readGenericRecords(avroSchema).from(folder + "/*"))
+            .apply(AvroIO.readGenericRecords(avroSchema).from(folder + getFilenamePrefix() + "*"))
             .setCoder(coder);
 
     PAssert.that(actual).containsInAnyOrder(expected);
@@ -76,12 +76,14 @@ public class AvroFileWriteSchemaTransformFormatProviderTest
 
   @Override
   protected Optional<String> expectedErrorWhenParquetConfigurationSet() {
-    return Optional.of("configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a avro format");
+    return Optional.of(
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$ParquetConfiguration is not compatible with a avro format");
   }
 
   @Override
   protected Optional<String> expectedErrorWhenXmlConfigurationSet() {
-    return Optional.of("configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$XmlConfiguration is not compatible with a avro format");
+    return Optional.of(
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$XmlConfiguration is not compatible with a avro format");
   }
 
   @Override
@@ -96,6 +98,7 @@ public class AvroFileWriteSchemaTransformFormatProviderTest
 
   @Override
   protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
-    return Optional.of("configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a avro format");
+    return Optional.of(
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a avro format");
   }
 }

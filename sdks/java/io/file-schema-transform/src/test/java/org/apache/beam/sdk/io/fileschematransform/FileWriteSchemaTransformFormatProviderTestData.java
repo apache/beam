@@ -48,6 +48,12 @@ import org.joda.time.Instant;
 
 /** Shared {@link SchemaAwareJavaBeans} data to be used across various tests. */
 class FileWriteSchemaTransformFormatProviderTestData {
+  static final FileWriteSchemaTransformFormatProviderTestData DATA =
+      new FileWriteSchemaTransformFormatProviderTestData();
+
+  /* Prevent instantiation outside this class. */
+  private FileWriteSchemaTransformFormatProviderTestData() {}
+
   final List<AllPrimitiveDataTypes> allPrimitiveDataTypesList =
       Arrays.asList(
           allPrimitiveDataTypes(

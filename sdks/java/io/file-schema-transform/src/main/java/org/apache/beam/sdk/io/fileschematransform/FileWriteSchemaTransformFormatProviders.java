@@ -60,6 +60,10 @@ public final class FileWriteSchemaTransformFormatProviders {
         .via(AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(beamSchema)));
   }
 
+  /**
+   * Applies common parameters from {@link FileWriteSchemaTransformConfiguration} to {@link
+   * FileIO.Write}.
+   */
   static <T> FileIO.Write<Void, T> applyCommonFileIOWriteFeatures(
       FileIO.Write<Void, T> write, FileWriteSchemaTransformConfiguration configuration) {
 
@@ -78,6 +82,10 @@ public final class FileWriteSchemaTransformFormatProviders {
     return write;
   }
 
+  /**
+   * Applies common parameters from {@link FileWriteSchemaTransformConfiguration} to {@link
+   * TextIO.Write}.
+   */
   static TextIO.Write applyCommonTextIOWriteFeatures(
       TextIO.Write write, FileWriteSchemaTransformConfiguration configuration) {
     write = write.to(configuration.getFilenamePrefix());

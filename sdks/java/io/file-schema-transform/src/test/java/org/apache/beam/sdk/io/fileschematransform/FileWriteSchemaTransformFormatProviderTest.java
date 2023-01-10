@@ -26,11 +26,11 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.csvConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.parquetConfigurationBuilder;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration.xmlConfigurationBuilder;
-import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestHelpers.DATA;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.loadProviders;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.values.TypeDescriptors.booleans;
+import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -40,24 +40,19 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.Compression;
-import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.AllPrimitiveDataTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.PAssert.IterableAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.Keys;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.Distinct;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.junit.Rule;
 import org.junit.Test;
@@ -101,36 +96,41 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   public void withCompression() {
     String to = folder(AllPrimitiveDataTypes.class, "with_compression");
     Compression compression = Compression.GZIP;
-    FileWriteSchemaTransformConfiguration configuration = buildConfiguration(to)
-        .toBuilder()
-        .setCompression(compression.name())
-        .build();
+    FileWriteSchemaTransformConfiguration configuration =
+        buildConfiguration(to).toBuilder().setCompression(compression.name()).build();
 
     FileWriteSchemaTransformProvider provider = new FileWriteSchemaTransformProvider();
 
     if (expectedErrorWhenCompressionSet().isPresent()) {
       IllegalArgumentException invalidConfiguration =
-          assertThrows(
-              IllegalArgumentException.class, () -> provider.from(configuration));
+          assertThrows(IllegalArgumentException.class, () -> provider.from(configuration));
       assertEquals(expectedErrorWhenCompressionSet().get(), invalidConfiguration.getMessage());
       return;
     }
 
-        applyProviderAndAssertFilesWritten(DATA.allPrimitiveDataTypesRows,
-            ALL_PRIMITIVE_DATA_TYPES_SCHEMA, configuration, (Iterable<String> names) -> {
-              Optional<Iterable<String>> safeNames = Optional.ofNullable(names);
-              checkState(safeNames.isPresent());
-              List<String> namesList =
-                  StreamSupport.stream(safeNames.get().spliterator(), false)
-                      .collect(Collectors.toList());
+    PCollection<String> files =
+        applyProviderAndAssertFilesWritten(
+            DATA.allPrimitiveDataTypesRows, ALL_PRIMITIVE_DATA_TYPES_SCHEMA, configuration);
 
-              assertFalse(namesList.isEmpty());
+    PCollection<String> extension =
+        files
+            .apply(
+                "extract extension",
+                MapElements.into(strings())
+                    .via(fullName -> fullName != null ? Files.getFileExtension(fullName) : null))
+            .apply("distinct extensions", Distinct.create());
 
-              for (String name : namesList) {
-                assertTrue(name.endsWith(compression.name()));
-                assertTrue(compression.isCompressed(name));
-              }
-            });
+    PCollection<Boolean> isCompressed =
+        files
+            .apply(
+                "isCompressed",
+                MapElements.into(booleans())
+                    .via(filename -> filename != null && compression.isCompressed(filename)))
+            .apply("distinct isCompressed", Distinct.create());
+
+    PAssert.thatSingleton("Filenames end with compression name", extension).isEqualTo("gz");
+
+    PAssert.thatSingleton("Files should be compressed", isCompressed).isEqualTo(true);
 
     writePipeline.run();
   }
@@ -144,10 +144,14 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   @Test
   public void invalidConfigurationWithParquet() {
     String to = folder(getFormat(), "configuration_with_parquet");
-    FileWriteSchemaTransformConfiguration configuration = buildConfiguration(to).toBuilder()
-        .setParquetConfiguration(parquetConfigurationBuilder().setCompressionCodecName(
-            CompressionCodecName.GZIP.name()).build())
-        .build();
+    FileWriteSchemaTransformConfiguration configuration =
+        buildConfiguration(to)
+            .toBuilder()
+            .setParquetConfiguration(
+                parquetConfigurationBuilder()
+                    .setCompressionCodecName(CompressionCodecName.GZIP.name())
+                    .build())
+            .build();
 
     FileWriteSchemaTransformProvider provider = new FileWriteSchemaTransformProvider();
 
@@ -157,12 +161,11 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
       return;
     }
 
-      IllegalArgumentException invalidConfigurationError =
-          assertThrows(
-              IllegalArgumentException.class,
-              () -> provider.from(configuration));
+    IllegalArgumentException invalidConfigurationError =
+        assertThrows(IllegalArgumentException.class, () -> provider.from(configuration));
 
-      assertEquals(expectedErrorWhenParquetConfigurationSet().get(), invalidConfigurationError.getMessage());
+    assertEquals(
+        expectedErrorWhenParquetConfigurationSet().get(), invalidConfigurationError.getMessage());
   }
 
   /**
@@ -174,12 +177,15 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   @Test
   public void invalidConfigurationWithXml() {
     String to = folder(getFormat(), "configuration_with_xml");
-    FileWriteSchemaTransformConfiguration configuration = buildConfiguration(to).toBuilder()
-        .setXmlConfiguration(xmlConfigurationBuilder()
-            .setRootElement("rootElement")
-            .setCharset(Charset.defaultCharset().name())
-            .build())
-        .build();
+    FileWriteSchemaTransformConfiguration configuration =
+        buildConfiguration(to)
+            .toBuilder()
+            .setXmlConfiguration(
+                xmlConfigurationBuilder()
+                    .setRootElement("rootElement")
+                    .setCharset(Charset.defaultCharset().name())
+                    .build())
+            .build();
 
     FileWriteSchemaTransformProvider provider = new FileWriteSchemaTransformProvider();
     if (!expectedErrorWhenXmlConfigurationSet().isPresent()) {
@@ -189,9 +195,7 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
     }
 
     IllegalArgumentException configurationError =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> provider.from(configuration));
+        assertThrows(IllegalArgumentException.class, () -> provider.from(configuration));
 
     assertEquals(expectedErrorWhenXmlConfigurationSet().get(), configurationError.getMessage());
   }
@@ -206,16 +210,13 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   public void numShardsSetConfiguration() {
     String to = folder(AllPrimitiveDataTypes.class, "num_shards_configuration");
     int expectedNumShards = 10;
-    FileWriteSchemaTransformConfiguration configuration = buildConfiguration(to).toBuilder()
-        .setNumShards(expectedNumShards)
-        .build();
+    FileWriteSchemaTransformConfiguration configuration =
+        buildConfiguration(to).toBuilder().setNumShards(expectedNumShards).build();
 
     if (expectedErrorWhenNumShardsSet().isPresent()) {
       FileWriteSchemaTransformProvider provider = new FileWriteSchemaTransformProvider();
-      IllegalArgumentException configurationError = assertThrows(
-          IllegalArgumentException.class,
-          () -> provider.from(configuration)
-      );
+      IllegalArgumentException configurationError =
+          assertThrows(IllegalArgumentException.class, () -> provider.from(configuration));
       assertEquals(expectedErrorWhenNumShardsSet().get(), configurationError.getMessage());
       return;
     }
@@ -225,16 +226,14 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
       rows.addAll(DATA.allPrimitiveDataTypesRows);
     }
 
-    applyProviderAndAssertFilesWritten(rows, ALL_PRIMITIVE_DATA_TYPES_SCHEMA, configuration, (Iterable<String> names) -> {
-      Optional<Iterable<String>> safeNames = Optional.ofNullable(names);
-      checkState(safeNames.isPresent());
-      List<String> namesList = StreamSupport.stream(safeNames.get().spliterator(), false).collect(Collectors.toList());
-      assertEquals(expectedNumShards, namesList.size());
-    });
+    PCollection<String> files =
+        applyProviderAndAssertFilesWritten(rows, ALL_PRIMITIVE_DATA_TYPES_SCHEMA, configuration);
+    PCollection<Long> count = files.apply(Count.globally());
+    PAssert.thatSingleton("Amount of files created should match numShards", count)
+        .isEqualTo(Integer.valueOf(expectedNumShards).longValue());
 
     writePipeline.run();
   }
-
 
   /**
    * The expected error message when {@link
@@ -246,27 +245,29 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   public void shardNameTemplateSetConfiguration() {
     String to = folder(AllPrimitiveDataTypes.class, "shard_name_template");
     String shardNameTemplate = "-SS-of-NN";
-    FileWriteSchemaTransformConfiguration configuration = buildConfiguration(to).toBuilder()
-        .setShardNameTemplate(shardNameTemplate)
-        .build();
+    FileWriteSchemaTransformConfiguration configuration =
+        buildConfiguration(to).toBuilder().setShardNameTemplate(shardNameTemplate).build();
 
     if (expectedErrorWhenShardNameTemplateSet().isPresent()) {
       FileWriteSchemaTransformProvider provider = new FileWriteSchemaTransformProvider();
-      IllegalArgumentException configurationError = assertThrows(
-          IllegalArgumentException.class,
-          () -> provider.from(configuration)
-      );
+      IllegalArgumentException configurationError =
+          assertThrows(IllegalArgumentException.class, () -> provider.from(configuration));
       assertEquals(expectedErrorWhenShardNameTemplateSet().get(), configurationError.getMessage());
       return;
     }
 
-    applyProviderAndAssertFilesWritten(DATA.allPrimitiveDataTypesRows, ALL_PRIMITIVE_DATA_TYPES_SCHEMA, configuration, (SerializableFunction<String> names) -> {
-      Optional<Iterable<String>> safeNames = Optional.ofNullable(names);
-      checkState(safeNames.isPresent());
-      for (String name : names) {
-        assertTrue(name.matches("^.*\\d\\d-of-\\d\\d.*$"));
-      }
-    });
+    PCollection<String> files =
+        applyProviderAndAssertFilesWritten(
+            DATA.allPrimitiveDataTypesRows, ALL_PRIMITIVE_DATA_TYPES_SCHEMA, configuration);
+    PAssert.that("All file names match shard name template", files)
+        .satisfies(
+            (Iterable<String> names) -> {
+              assertNotNull(names);
+              for (String name : names) {
+                assertTrue(name.matches("^.*\\d\\d-of-\\d\\d.*$"));
+              }
+              return null;
+            });
 
     writePipeline.run();
   }
@@ -281,18 +282,18 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   public void csvConfigurationSet() {
     String to = folder(getFormat(), "csv_configuration");
     FileWriteSchemaTransformProvider provider = new FileWriteSchemaTransformProvider();
-    FileWriteSchemaTransformConfiguration configuration = buildConfiguration(to).toBuilder()
-        .setCsvConfiguration(csvConfigurationBuilder().build())
-        .build();
+    FileWriteSchemaTransformConfiguration configuration =
+        buildConfiguration(to)
+            .toBuilder()
+            .setCsvConfiguration(csvConfigurationBuilder().build())
+            .build();
     if (!expectedErrorWhenCsvConfigurationSet().isPresent()) {
       // No error expected
       provider.from(configuration);
       return;
     }
-    IllegalArgumentException configurationError = assertThrows(
-        IllegalArgumentException.class,
-        () -> provider.from(configuration)
-    );
+    IllegalArgumentException configurationError =
+        assertThrows(IllegalArgumentException.class, () -> provider.from(configuration));
     assertEquals(expectedErrorWhenCsvConfigurationSet().get(), configurationError.getMessage());
   }
 
@@ -404,34 +405,24 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
 
   private String folder(String... paths) {
     try {
-      return tmpFolder.newFolder(paths).getAbsolutePath();
+      return tmpFolder.newFolder(paths).getAbsolutePath() + getFilenamePrefix();
     } catch (IOException e) {
       throw new IllegalStateException(e);
     }
   }
 
-  private void applyProviderAndAssertFilesWritten(String folder, List<Row> rows, Schema schema) {
-    applyProviderAndAssertFilesWritten(folder, rows, schema, (names)->{/* no additional checks needed */});
+  private PCollection<String> applyProviderAndAssertFilesWritten(
+      String folder, List<Row> rows, Schema schema) {
+    return applyProviderAndAssertFilesWritten(rows, schema, buildConfiguration(folder));
   }
 
-  private void applyProviderAndAssertFilesWritten(
-      String folder, List<Row> rows, Schema schema, Consumer<Iterable<String>> satisfies) {
-    applyProviderAndAssertFilesWritten(
-        rows, schema, buildConfiguration(folder + "/" + getFilenamePrefix()), satisfies);
-  }
-
-  private void applyProviderAndAssertFilesWritten(
-      List<Row> rows, Schema schema, FileWriteSchemaTransformConfiguration configuration, Consumer<Iterable<String>> satisfies) {
+  private PCollection<String> applyProviderAndAssertFilesWritten(
+      List<Row> rows, Schema schema, FileWriteSchemaTransformConfiguration configuration) {
     PCollection<Row> input = writePipeline.apply(Create.of(rows).withRowSchema(schema));
     PCollection<String> files = input.apply(getProvider().buildTransform(configuration, schema));
-    PAssert.that(files)
-            .satisfies(
-                (Iterable<String> names) -> {
-                  assertNotNull(names);
-                  assertTrue(names.iterator().hasNext());
-                  satisfies.accept(names);
-                  return null;
-                });
+    PCollection<Long> count = files.apply("count number of files", Count.globally());
+    PAssert.thatSingleton("At least one file should be written", count).notEqualTo(0L);
+    return files;
   }
 
   protected FileWriteSchemaTransformConfiguration defaultConfiguration(String folder) {

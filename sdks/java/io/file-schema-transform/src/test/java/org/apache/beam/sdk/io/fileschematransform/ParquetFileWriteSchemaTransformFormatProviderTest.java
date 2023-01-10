@@ -92,7 +92,8 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest
 
   @Override
   protected Optional<String> expectedErrorWhenXmlConfigurationSet() {
-    return Optional.empty();
+    return Optional.of(
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$XmlConfiguration is not compatible with a parquet format");
   }
 
   @Override
@@ -107,6 +108,7 @@ public class ParquetFileWriteSchemaTransformFormatProviderTest
 
   @Override
   protected Optional<String> expectedErrorWhenCsvConfigurationSet() {
-    return Optional.empty();
+    return Optional.of(
+        "configuration with org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformConfiguration$CsvConfiguration is not compatible with a parquet format");
   }
 }

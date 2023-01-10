@@ -23,8 +23,11 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link XmlDateTimeAdapter}. */
+@RunWith(JUnit4.class)
 public class XmlDateTimeAdapterTest {
 
   @Test
