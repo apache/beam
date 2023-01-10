@@ -19,10 +19,10 @@ resource "google_firebase_project" "tob_firebase_project" {
   provider = google-beta
 }
 
-resource "google_firebase_project_location" "default" {
+resource "google_firebase_project_location" "tob_firebase_project_location" {
   provider = google-beta
   project = google_firebase_project.tob_firebase_project.project
-  location_id = "us-central1"
+  location_id = "us-west2"
 }
 
 resource "google_firebase_web_app" "tob_firebase_firebase_webapp" {
