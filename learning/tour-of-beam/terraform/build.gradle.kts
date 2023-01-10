@@ -16,6 +16,17 @@
  * limitations under the License.
  */
 
+import com.pswidersk.gradle.terraform.TerraformTask
+import java.io.ByteArrayOutputStream
+
+plugins {
+    id("com.pswidersk.terraform-plugin") version "1.0.0"
+}
+
+terraformPlugin {
+    terraformVersion.set("1.0.9")
+}
+
 tasks {
     /* Terraform initialization task */
     register<TerraformTask>("terraformInit") {
