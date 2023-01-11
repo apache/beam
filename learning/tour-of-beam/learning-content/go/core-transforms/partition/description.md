@@ -81,5 +81,3 @@ output := applyTransform(s, words)
 debug.Printf(s, "Upper: %v", output[0])
 debug.Printf(s, "Lower: %v", output[1])
 ```
-
-Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

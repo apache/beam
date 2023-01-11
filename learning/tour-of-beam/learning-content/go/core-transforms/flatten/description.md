@@ -52,5 +52,3 @@ output := applyTransform(s, input1, input2)
 Overview [file1](https://storage.googleapis.com/apache-beam-samples/counts-00000-of-00003)
 
 Overview [file2](https://storage.googleapis.com/apache-beam-samples/counts-00001-of-00003)
-
-Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

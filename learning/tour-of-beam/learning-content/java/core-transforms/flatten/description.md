@@ -30,6 +30,6 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 
 By default, the coder for the output `PCollection` is the same as the coder for the first `PCollection` in the input `PCollectionList`. However, the input `PCollection` objects can each use different coders, as long as they all contain the same data type in your chosen language.
 
-### Description for example
+### Playground exercise
 
 There are 2 string `PCollection`s at the input, one with words starting with "a" and the other with "b". Since the data type is the same using flatten you can get a combined `PCollection`

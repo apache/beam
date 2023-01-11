@@ -33,3 +33,22 @@ PCollectionList<Student> studentsByPercentile =
 // You can extract each partition from the PCollectionList using the get method, as follows:
 PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
 ```
+
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+You can use other types instead of `Integer`:
+
+```
+public static class SumStrings implements SerializableFunction<Iterable<String>, String> {
+  @Override
+  public String apply(Iterable<String> input) {
+    String allWords = 0;
+    for (String item : input) {
+      allWords += ","+item;
+    }
+    return allWords;
+  }
+}
+```

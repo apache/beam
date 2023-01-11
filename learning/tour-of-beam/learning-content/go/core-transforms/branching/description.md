@@ -130,5 +130,3 @@ You can use a different method of branching. Since `applyTransforms` performs 2 
 reversed := reverseString(s, input)
 toUpper := toUpperString(s, input)
 ```
-
-Have you also noticed the order in which the collection items are displayed in the console? Why is that? You can also run the example several times to see if the output remains the same or changes.

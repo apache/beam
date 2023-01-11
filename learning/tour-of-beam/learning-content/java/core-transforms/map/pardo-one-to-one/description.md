@@ -15,13 +15,13 @@ limitations under the License.
 
 `ParDo` is useful for a variety of common data processing operations, including:
 
-&#8594; Filtering a data set. You can use `ParDo` to consider each element in a `PCollection` and either output that element to a new collection or discard it.
+→ Filtering a data set. You can use `ParDo` to consider each element in a `PCollection` and either output that element to a new collection or discard it.
 
-&#8594; Formatting or type-converting each element in a data set. If your input `PCollection` contains elements that are of a different type or format than you want, you can use `ParDo` to perform a conversion on each element and output the result to a new `PCollection`.
+→ Formatting or type-converting each element in a data set. If your input `PCollection` contains elements that are of a different type or format than you want, you can use `ParDo` to perform a conversion on each element and output the result to a new `PCollection`.
 
-&#8594; Extracting parts of each element in a data set. If you have a PCollection of records with multiple fields, for example, you can use a ParDo to parse out just the fields you want to consider into a new `PCollection`.
+→ Extracting parts of each element in a data set. If you have a PCollection of records with multiple fields, for example, you can use a ParDo to parse out just the fields you want to consider into a new `PCollection`.
 
-&#8594; Performing computations on each element in a data set. You can use `ParDo` to perform simple or complex computations on every element, or certain elements, of a PCollection and output the results as a new `PCollection`.
+→ Performing computations on each element in a data set. You can use `ParDo` to perform simple or complex computations on every element, or certain elements, of a PCollection and output the results as a new `PCollection`.
 
 In such roles, `ParDo` is a common intermediate step in a pipeline. You might use it to extract certain fields from a set of raw input records, or convert raw input into a different format; you might also use `ParDo` to convert processed data into a format suitable for output, like database table rows or printable strings.
 
@@ -86,8 +86,8 @@ A given `DoFn` instance generally gets invoked one or more times to process some
 
 In your processing method, you’ll also need to meet some immutability requirements to ensure that Beam and the processing back-end can safely serialize and cache the values in your pipeline. Your method should meet the following requirements:
 
-&#8594; You should not in any way modify an element returned by the `@Element` annotation or `ProcessContext.sideInput()` (the incoming elements from the input collection).
-&#8594; Once you output a value using `OutputReceiver.output()` you should not modify that value in any way.
+→ You should not in any way modify an element returned by the `@Element` annotation or `ProcessContext.sideInput()` (the incoming elements from the input collection).
+→ Once you output a value using `OutputReceiver.output()` you should not modify that value in any way.
 
 
 ### Accessing additional parameters in your DoFn
@@ -129,7 +129,21 @@ In addition to the element and the OutputReceiver, Beam will populate other para
 `@OnTimer` methods can also access many of these parameters. Timestamp, Window, key, `PipelineOptions`, `OutputReceiver`, and `MultiOutputReceiver` parameters can all be accessed in an @OnTimer method. In addition, an `@OnTimer` method can take a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time. Timers are explained in more detail in the Timely (and Stateful) Processing with Apache Beam blog post.
 
 
+### Playground exercise
 
-### Description for example
+You can find the full code of this example in the playground window, which you can run and experiment with.
 
-There are `PCollection` elements at the input. the `applyTransform()` function will return the elements multiplied by 10.
+You can use other types instead of `Integer`:
+
+```
+public static class SumStrings implements SerializableFunction<Iterable<String>, String> {
+  @Override
+  public String apply(Iterable<String> input) {
+    String allWords = 0;
+    for (String item : input) {
+      allWords += ","+item;
+    }
+    return allWords;
+  }
+}
+```

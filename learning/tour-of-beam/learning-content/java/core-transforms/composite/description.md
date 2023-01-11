@@ -79,3 +79,38 @@ As long as you override the expand method in your `PTransform` subclass to accep
 Your composite transform’s parameters and return value must match the initial input type and final return type for the entire transform, even if the transform’s intermediate data changes type multiple times.
 
 Note: The expand method of a `PTransform` is not meant to be invoked directly by the user of a transform. Instead, you should call the apply method on the PCollection itself, with the transform as an argument. This allows transforms to be nested within the structure of your pipeline.
+
+
+### Playground exercise
+
+You can find the full code of this example in the playground window, which you can run and experiment with.
+
+An input consists of a sentence. The first conversion divides the entire sentence into letters excluding spaces. The second conversion counts how many times a letter occurs.
+
+You can split PCollection by words using `split`:
+
+```
+func extractWords(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, func(line string, emit func(string)){
+    words := strings.Split(line, " ")
+		for _, k := range words {
+			word := string(k)
+			if word != " " {
+				emit(word)
+			}
+		}
+	}, input)
+}
+```
+
+You can use other transformations you can replace `Count` with a `Filter` to output words starting with **p**:
+
+```
+func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	s = s.Scope("CountCharacters")
+	words := extractNonSpaceCharacters(s, input)
+	return filter.Include(s, words, func(word string) bool {
+    		return strings.HasPrefix(word, "p")
+    })
+}
+```
