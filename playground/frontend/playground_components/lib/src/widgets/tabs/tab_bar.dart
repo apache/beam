@@ -16,12 +16,27 @@
  * limitations under the License.
  */
 
-import '../../models/snippet_file.dart';
+import 'package:flutter/material.dart';
+import 'package:keyed_collection_widgets/keyed_collection_widgets.dart';
 
-class GetPrecompiledObjectCodeResponse {
-  final List<SnippetFile> files;
+import '../../constants/sizes.dart';
 
-  const GetPrecompiledObjectCodeResponse({
-    required this.files,
+class BeamTabBar<K extends Object> extends StatelessWidget {
+  const BeamTabBar({
+    super.key,
+    required this.tabs,
   });
+
+  final Map<K, Widget> tabs;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: BeamSizes.tabBarHeight,
+      child: KeyedTabBar.withDefaultController<K>(
+        isScrollable: true,
+        tabs: {for (final key in tabs.keys) key: Tab(child: tabs[key])},
+      ),
+    );
+  }
 }

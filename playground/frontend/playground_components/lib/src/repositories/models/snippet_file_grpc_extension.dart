@@ -16,12 +16,21 @@
  * limitations under the License.
  */
 
+import '../../api/v1/api.pb.dart' as g;
 import '../../models/snippet_file.dart';
 
-class GetPrecompiledObjectCodeResponse {
-  final List<SnippetFile> files;
+extension SnippetFileExtension on SnippetFile {
+  g.SnippetFile get grpc => g.SnippetFile(
+        content: content,
+        isMain: isMain,
+        name: name,
+      );
+}
 
-  const GetPrecompiledObjectCodeResponse({
-    required this.files,
-  });
+extension SnippetFileGrpcExtension on g.SnippetFile {
+  SnippetFile get model => SnippetFile(
+        content: content,
+        isMain: isMain,
+        name: name,
+      );
 }

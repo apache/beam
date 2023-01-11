@@ -16,12 +16,24 @@
  * limitations under the License.
  */
 
-import '../../models/snippet_file.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-class GetPrecompiledObjectCodeResponse {
-  final List<SnippetFile> files;
+import '../../../src/assets/assets.gen.dart';
 
-  const GetPrecompiledObjectCodeResponse({
-    required this.files,
-  });
+class MultiFileIcon extends StatelessWidget {
+  const MultiFileIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+    return Semantics(
+      container: true,
+      child: Tooltip(
+        message: appLocale.exampleMultifile,
+        child: SvgPicture.asset(Assets.multifile),
+      ),
+    );
+  }
 }
