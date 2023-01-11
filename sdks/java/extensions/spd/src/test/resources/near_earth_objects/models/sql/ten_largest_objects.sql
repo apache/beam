@@ -1,1 +1,1 @@
-SELECT * FROM {{ source('nasa','near_earth_objects') }} ORDER BY diameter DESC LIMIT 10
+SELECT * FROM {{ source('nasa','near_earth_objects') }} WHERE diameter IS NOT NULL ORDER BY diameter DESC LIMIT 10

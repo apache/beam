@@ -1,6 +1,6 @@
+# config: {{ config(indexes=false) }}
 # dependsOn:  {{ source('nasa','near_earth_objects') }}
 import numpy as np
-import apache_beam.runners.interactive.interactive_beam as ib
 
 def process(df):
     df = df.drop(['spk_id','full_name','diameter','albedo','diameter_sigma'],axis='columns',inplace=False)
