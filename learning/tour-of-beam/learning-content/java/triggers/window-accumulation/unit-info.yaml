@@ -17,5 +17,6 @@
 # under the License.
 #
 
-id: runner-concepts
-name: Runners
+id: window-accumulation
+name: window-accumulation
+taskName: window-accumulation

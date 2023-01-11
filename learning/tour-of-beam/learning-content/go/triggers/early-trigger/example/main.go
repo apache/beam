@@ -45,10 +45,9 @@ func main() {
 
   words := beam.Create(s, "Hello", "world", "it`s", "triggering")
 
-  trigger := trigger.AfterEndOfWindow().
-	EarlyFiring(trigger.AfterProcessingTime().
-		PlusDelay(60 * time.Second)).
-	LateFiring(trigger.Repeat(trigger.AfterCount(1)))
+  trigger := beam.Trigger(trigger.AfterEndOfWindow().
+             		LateFiring(trigger.AfterProcessingTime().
+             			PlusDelay(10*time.Minute)))
 
 
 
