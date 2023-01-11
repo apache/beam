@@ -103,7 +103,7 @@ Apache Beam, the industry standard for unified distributed processing, has been 
   </div>
 </blockquote>
 
-[With Apache Beam Dataflow runner](/documentation/runners/capability-matrix/), Credit Karma benefitted from [Google Cloud Dataflow](https://cloud.google.com/dataflow) managed service to ensure increased scalability and efficiency. The Apache Beam [built-in I/O connectors](/documentation/io/built-in/) provide native support for a variety of sinks and sources, which has allowed Credit Karma to seamlessly integrate Beam into their ecosystem with various Google Cloud tools and services, including [Pub/Sub](https://cloud.google.com/pubsub/docs/overview), [Big Query](https://cloud.google.com/bigquery), and [Cloud Storage](https://cloud.google.com/storage).
+[With Apache Beam Dataflow runner](/documentation/runners/capability-matrix/), Credit Karma benefitted from [Google Cloud Dataflow](https://cloud.google.com/dataflow) managed service to ensure increased scalability and efficiency. The Apache Beam [built-in I/O connectors](/documentation/io/built-in/) provide native support for a variety of sinks and sources, which has allowed Credit Karma to seamlessly integrate Beam into their ecosystem with various Google Cloud tools and services, including [Pub/Sub](https://cloud.google.com/pubsub/docs/overview), [BigQuery](https://cloud.google.com/bigquery), and [Cloud Storage](https://cloud.google.com/storage).
 
 Credit Karma leveraged an Apache Beam kernel and [Jupyter Notebook](https://jupyter.org/) to create an exploratory environment in Vega and enable their data scientists to create new experimental data pipelines without engineering involvement.
 
@@ -165,7 +165,7 @@ Credit Karma offers a way for third-party data provider partners to deploy their
   </div>
 </blockquote>
 
-Currently, the data ingestion pipeline processes and transforms more than 100 million messages, along with regular backfills, which is equivalent to around 5-10TB worth of data.
+Currently, the data ingestion pipeline processes and transforms more than 100 million messages, along with regular backfills, which is equivalent to around 5-10 TB worth of data.
 
 ## Self-Service Machine Learning
 
@@ -238,7 +238,7 @@ Apache Beam provided an opportunity to reconsider this approach. The data engine
 
 ## Results
 
-Apache Beam has future-proofed Credit Karma’s data ecosystem for scalability and resilience, enabling them to manage over 20,000 features processed by 200 ML models, powering recommendations for nearly 130 million members daily. The scale of data processing has grown 2x since Apache Beam adoption, and their data engineering team did not have to undertake any significant changes to the infrastructure. Onboarding new partners requires minimal changes to the pipelines, compared to several weeks needed before using Apache Beam. The Apache Beam ingestion pipeline accelerated data loading to the warehouse from days to under an hour, processing around 5-10TB of data daily. The Apache Beam batch-scoring pipeline processes historic data and generates features for lightweight ML models, enabling real-time experiences for Credit Karma members.
+Apache Beam has future-proofed Credit Karma’s data ecosystem for scalability and resilience, enabling them to manage over 20,000 features processed by 200 ML models, powering recommendations for nearly 130 million members daily. The scale of data processing has grown 2x since Apache Beam adoption, and their data engineering team did not have to undertake any significant changes to the infrastructure. Onboarding new partners requires minimal changes to the pipelines, compared to several weeks needed before using Apache Beam. The Apache Beam ingestion pipeline accelerated data loading to the warehouse from days to under an hour, processing around 5-10 TB of data daily. The Apache Beam batch-scoring pipeline processes historic data and generates features for lightweight ML models, enabling real-time experiences for Credit Karma members.
 
 Apache Beam paved the way for an end-to-end data science process and efficient ML engineering at Credit Karma by abstracting the low-level details of the infrastructure and providing the data processing framework for the unified, self-service ML workflows. Credit Karma’s data scientists can now experiment with new models and have them deployed to production automatically, without the need for any engineering resources or infrastructure changes. Credit Karma presented their experience of building a self-service data and ML platform and scaling MLOps pipelines with Apache Beam at [Beam Summit 2022](https://2022.beamsummit.org/sessions/vega-mlops/).
 
