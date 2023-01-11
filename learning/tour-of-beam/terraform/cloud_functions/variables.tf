@@ -36,5 +36,5 @@ variable "source_archive_object" {
 
 variable "entry_point_names" {
   type = list
-  default = ["getSdkList", "getContentTree", "getUnitContent"]
+  default = ["getSdkList", "getContentTree", "getUnitContent", "getUserProgress", "postUnitComplete", "postUserCode"]
 }
