@@ -87,7 +87,10 @@ USER appuser
 RUN mkdir -p /tmp/sbt-initialize
 WORKDIR /tmp/sbt-initialize
 RUN /opt/playground/backend/new_scio_project.sh
+WORKDIR /tmp/sbt-initialize/scio
+RUN sbt "+compile"
 WORKDIR /
+RUN rm -r /tmp/sbt-initialize
 
 # Enable mitmproxy
 ENV HTTP_PROXY="http://127.0.0.1:8081"
