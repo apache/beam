@@ -17,9 +17,17 @@
  */
 package org.apache.beam.sdk.io;
 
+import java.io.File;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -45,5 +53,39 @@ public class AvroSchemaTransformsTest {
   @Test
   @Ignore
   @Category({NeedsRunner.class})
-  public void testWriteAndReadTable() {}
+  public void testWriteAndReadTable() {
+    File destinationFile = new File(tempFolder.getRoot(), "person-info-schematransform.avro");
+    List<Row> rowList = Arrays.asList(createRow(1L), createRow(3L), createRow(4L));
+
+    // Write values
+    AvroWriteSchemaTransformProvider writeProvider = new AvroWriteSchemaTransformProvider();
+    PCollectionRowTuple.of(
+            "inout",
+            writePipeline.apply("Create", Create.of(rowList).withCoder(RowCoder.of(SCHEMA))))
+        .apply(
+            writeProvider
+                .from(
+                    AvroWriteSchemaTransformProvider.AvroWriteSchemaTransformConfiguration.builder()
+                        .setDataSchema(SCHEMA)
+                        .setLocation(destinationFile.getAbsolutePath())
+                        .build())
+                .buildTransform());
+    writePipeline.run();
+
+    AvroReadSchemaTransformProvider readProvider = new AvroReadSchemaTransformProvider();
+    PCollection<Row> read =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(
+                readProvider
+                    .from(
+                        AvroReadSchemaTransformProvider.AvroReadSchemaTransformConfiguration
+                            .builder()
+                            .setDataSchema(SCHEMA)
+                            .setLocation(destinationFile.getAbsolutePath())
+                            .build())
+                    .buildTransform())
+            .get("output");
+    readPipeline.run();
+    PAssert.that(read).containsInAnyOrder(rowList);
+  }
 }

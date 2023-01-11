@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 public class AvroReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
@@ -95,7 +96,16 @@ public class AvroReadSchemaTransformProvider
 
     public abstract Schema getDataSchema();
 
-    public Builder builder() {
+    public void validate() throws IllegalArgumentException {
+      if (Strings.isNullOrEmpty(getLocation())) {
+        throw new IllegalArgumentException("Location must be set for Avro reads.");
+      }
+      if (getDataSchema() == null || getDataSchema().getFields().size() == 0) {
+        throw new IllegalArgumentException("Data schema has no fields.");
+      }
+    }
+
+    public static Builder builder() {
       return new AutoValue_AvroReadSchemaTransformProvider_AvroReadSchemaTransformConfiguration
           .Builder();
     }
