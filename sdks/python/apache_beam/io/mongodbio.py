@@ -811,7 +811,7 @@ class _MongoSink:
     if write_func is None:
       self.write_func = self._ReplaceOneWriteFunc
     elif write_func == "ReplaceOne":
-        self.write_func = self._ReplaceOneWriteFunc
+      self.write_func = self._ReplaceOneWriteFunc
     elif write_func == "UpdateOne":
       self.write_func = self._UpdateOneWriteFunc
     elif write_func == "InsertOne":
@@ -835,7 +835,7 @@ class _MongoSink:
               resp.matched_count,
               resp.bulk_api_result.get("writeErrors"),
           ))
-  
+
   @staticmethod
   def _UpdateOneWriteFunc(client, db, coll, documents, logger):
     """a write_func to perform mongo UpdateOne operation"""
