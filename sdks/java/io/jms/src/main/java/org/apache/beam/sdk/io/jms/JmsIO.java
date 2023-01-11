@@ -33,10 +33,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -49,17 +47,12 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -706,6 +699,10 @@ public class JmsIO {
 
     abstract @Nullable SerializableFunction<EventT, String> getTopicNameMapper();
 
+    abstract @Nullable PublicationRetryPolicy getRetryPublicationPolicy();
+
+    abstract @Nullable SerializableFunction<Exception, Boolean> getConnectionFailedPredicate();
+
     abstract Builder<EventT> builder();
 
     @AutoValue.Builder
@@ -725,6 +722,12 @@ public class JmsIO {
 
       abstract Builder<EventT> setTopicNameMapper(
           SerializableFunction<EventT, String> topicNameMapper);
+
+      abstract Builder<EventT> setRetryPublicationPolicy(
+          PublicationRetryPolicy publicationRetryPolicy);
+
+      abstract Builder<EventT> setConnectionFailedPredicate(
+          SerializableFunction<Exception, Boolean> predicate);
 
       abstract Write<EventT> build();
     }
@@ -866,6 +869,60 @@ public class JmsIO {
       return builder().setValueMapper(valueMapper).build();
     }
 
+    /**
+     * Specify the JMS retry policy. The {@link JmsIO.Write} acts as a publisher on the topic.
+     *
+     * <p>Allows a retry for failed published messages, the user should specify the maximum number
+     * of retries and a duration for retrying. By default, the duration used by JmsIO is 15s {@link
+     * PublicationRetryPolicy}
+     *
+     * <p>For example:
+     *
+     * <pre>{@code
+     * PublicationRetryPolicy publicationRetryPolicy =
+     *   PublicationRetryPolicy.create(5, Duration.standardSeconds(30));
+     * }</pre>
+     *
+     * <pre>{@code
+     * .apply(JmsIO.write().withPublicationRetryPolicy(publicationRetryPolicy)
+     * }</pre>
+     *
+     * @param publicationRetryPolicy The retry policy that should be used in case of failed
+     *     publications.
+     * @return The corresponding {@link JmsIO.Write}.
+     */
+    public Write<EventT> withPublicationRetryPolicy(PublicationRetryPolicy publicationRetryPolicy) {
+      checkArgument(publicationRetryPolicy != null, "publicationRetryPolicy can not be null");
+      return builder().setRetryPublicationPolicy(publicationRetryPolicy).build();
+    }
+
+    /**
+     * Specify the predicate function to check whether to retry to reconnect or not. The {@link
+     * JmsIO.Write} acts as a publisher on the topic.
+     *
+     * <p>Allows you to choose depending on the given exception if to reconnect or not.
+     *
+     * <p>For example:
+     *
+     * <pre>{@code
+     * SerializableFunction<Exception, Boolean> reconnectOnFailedExceptionPredicate =
+     *   (exception -> exception.getClass() == JmsException.class);
+     * }</pre>
+     *
+     * <pre>{@code
+     * .apply(JmsIO.write().withConnectionFailedPredicate(reconnectOnFailedExceptionPredicate)
+     * }</pre>
+     *
+     * @param connectionFailedPredicate The predicate function to be used to check if JmsIO should
+     *     reconnect or not.
+     * @return The corresponding {@link JmsIO.Write}.
+     */
+    public Write<EventT> withConnectionFailedPredicate(
+        SerializableFunction<Exception, Boolean> connectionFailedPredicate) {
+      checkArgument(connectionFailedPredicate != null, "connectionFailedPredicate can not be null");
+      return builder().setConnectionFailedPredicate(connectionFailedPredicate).build();
+    }
+
     @Override
     public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
@@ -878,15 +935,7 @@ public class JmsIO {
           "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be set.");
       checkArgument(getValueMapper() != null, "withValueMapper() is required");
 
-      final TupleTag<EventT> failedMessagesTag = new TupleTag<>();
-      final TupleTag<EventT> messagesTag = new TupleTag<>();
-      PCollectionTuple res =
-          input.apply(
-              ParDo.of(new WriterFn<>(this, failedMessagesTag))
-                  .withOutputTags(messagesTag, TupleTagList.of(failedMessagesTag)));
-      PCollection<EventT> failedMessages = res.get(failedMessagesTag).setCoder(input.getCoder());
-      res.get(messagesTag).setCoder(input.getCoder());
-      return WriteJmsResult.in(input.getPipeline(), failedMessagesTag, failedMessages);
+      return input.apply(new JmsIOProducer<>(this));
     }
 
     private boolean isExclusiveTopicQueue() {
@@ -896,73 +945,6 @@ public class JmsIO {
                   .count()
               == 1;
       return exclusiveTopicQueue;
-    }
-
-    private static class WriterFn<EventT> extends DoFn<EventT, EventT> {
-
-      private Write<EventT> spec;
-
-      private Connection connection;
-      private Session session;
-      private MessageProducer producer;
-      private Destination destination;
-      private final TupleTag<EventT> failedMessageTag;
-
-      public WriterFn(Write<EventT> spec, TupleTag<EventT> failedMessageTag) {
-        this.spec = spec;
-        this.failedMessageTag = failedMessageTag;
-      }
-
-      @Setup
-      public void setup() throws Exception {
-        if (producer == null) {
-          if (spec.getUsername() != null) {
-            this.connection =
-                spec.getConnectionFactory()
-                    .createConnection(spec.getUsername(), spec.getPassword());
-          } else {
-            this.connection = spec.getConnectionFactory().createConnection();
-          }
-          this.connection.start();
-          // false means we don't use JMS transaction.
-          this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-
-          if (spec.getQueue() != null) {
-            this.destination = session.createQueue(spec.getQueue());
-          } else if (spec.getTopic() != null) {
-            this.destination = session.createTopic(spec.getTopic());
-          }
-
-          this.producer = this.session.createProducer(null);
-        }
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext ctx) {
-        Destination destinationToSendTo = destination;
-        try {
-          Message message = spec.getValueMapper().apply(ctx.element(), session);
-          if (spec.getTopicNameMapper() != null) {
-            destinationToSendTo =
-                session.createTopic(spec.getTopicNameMapper().apply(ctx.element()));
-          }
-          producer.send(destinationToSendTo, message);
-        } catch (Exception ex) {
-          LOG.error("Error sending message on topic {}", destinationToSendTo);
-          ctx.output(failedMessageTag, ctx.element());
-        }
-      }
-
-      @Teardown
-      public void teardown() throws Exception {
-        producer.close();
-        producer = null;
-        session.close();
-        session = null;
-        connection.stop();
-        connection.close();
-        connection = null;
-      }
     }
   }
 }
