@@ -25,6 +25,8 @@ import io.cdap.plugin.hubspot.sink.batch.HubspotOutputFormat;
 import io.cdap.plugin.hubspot.source.batch.HubspotBatchSource;
 import io.cdap.plugin.hubspot.source.batch.HubspotInputFormat;
 import io.cdap.plugin.hubspot.source.batch.HubspotInputFormatProvider;
+import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceBatchSink;
+import io.cdap.plugin.salesforce.plugin.sink.batch.SalesforceOutputFormat;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceBatchSource;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceInputFormat;
 import io.cdap.plugin.salesforce.plugin.source.batch.SalesforceInputFormatProvider;
@@ -34,21 +36,29 @@ import io.cdap.plugin.zendesk.source.batch.ZendeskBatchSource;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormat;
 import io.cdap.plugin.zendesk.source.batch.ZendeskInputFormatProvider;
 
+/** Util class for mapping plugins. */
 public class MappingUtils {
 
-  public static Plugin getPluginByClass(Class<?> pluginClass) {
+  /** Gets a {@link Plugin} by its class. */
+  static <K, V> Plugin<K, V> getPluginByClass(Class<?> pluginClass) {
     checkArgument(pluginClass != null, "Plugin class can not be null!");
     if (pluginClass.equals(SalesforceBatchSource.class)) {
-      return Plugin.create(
+      return Plugin.createBatch(
           pluginClass, SalesforceInputFormat.class, SalesforceInputFormatProvider.class);
     } else if (pluginClass.equals(HubspotBatchSource.class)) {
-      return Plugin.create(pluginClass, HubspotInputFormat.class, HubspotInputFormatProvider.class);
+      return Plugin.createBatch(
+          pluginClass, HubspotInputFormat.class, HubspotInputFormatProvider.class);
     } else if (pluginClass.equals(ZendeskBatchSource.class)) {
-      return Plugin.create(pluginClass, ZendeskInputFormat.class, ZendeskInputFormatProvider.class);
+      return Plugin.createBatch(
+          pluginClass, ZendeskInputFormat.class, ZendeskInputFormatProvider.class);
     } else if (pluginClass.equals(HubspotBatchSink.class)) {
-      return Plugin.create(pluginClass, HubspotOutputFormat.class, SourceInputFormatProvider.class);
+      return Plugin.createBatch(
+          pluginClass, HubspotOutputFormat.class, SourceInputFormatProvider.class);
+    } else if (pluginClass.equals(SalesforceBatchSink.class)) {
+      return Plugin.createBatch(
+          pluginClass, SalesforceOutputFormat.class, SalesforceInputFormatProvider.class);
     } else if (pluginClass.equals(ServiceNowSource.class)) {
-      return Plugin.create(
+      return Plugin.createBatch(
           pluginClass, ServiceNowInputFormat.class, SourceInputFormatProvider.class);
     }
     throw new UnsupportedOperationException(

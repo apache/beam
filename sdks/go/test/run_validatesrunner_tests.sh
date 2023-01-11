@@ -65,9 +65,6 @@
 #        example in the format "us.gcr.io/<project>".
 #    --region -> GCP region to run Dataflow jobs on.
 #    --gcs_location -> GCS URL for storing temporary files for Dataflow jobs.
-#    --dataflow_worker_jar -> The Dataflow worker jar to use when running jobs.
-#        If not specified, the script attempts to retrieve a previously built
-#        jar from the appropriate gradle module, which may not succeed.
 
 set -e
 trap '! [[ "$BASH_COMMAND" =~ ^(echo|read|if|ARGS|shift|SOCKET_SCRIPT|\[\[) ]] && \
@@ -162,11 +159,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --dataflow_worker_jar)
-        DATAFLOW_WORKER_JAR="$2"
-        shift # past argument
-        shift # past value
-        ;;
     --flink_job_server_jar)
         FLINK_JOB_SERVER_JAR="$2"
         shift # past argument
@@ -237,6 +229,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --java11_home)
+        JAVA11_HOME="$2"
+        shift # past argument
+        shift # past value
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -261,12 +258,7 @@ s.close()
 "
 
 # Set up environment based on runner.
-if [[ "$RUNNER" == "dataflow" ]]; then
-  if [[ -z "$DATAFLOW_WORKER_JAR" ]]; then
-    DATAFLOW_WORKER_JAR=$(find $(pwd)/runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-*.jar)
-  fi
-  echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
-elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" ]]; then
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
     JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
@@ -382,7 +374,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
       JAVA_TAG=$(date +%Y%m%d-%H%M%S)
       JAVA_CONTAINER=us.gcr.io/$PROJECT/$USER/beam_java11_sdk
       echo "Using container $JAVA_CONTAINER for cross-language java transforms"
-      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG
+      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG -Pjava11Home=$JAVA11_HOME
 
       # Verify it exists
       docker images | grep $JAVA_TAG
@@ -412,7 +404,6 @@ ARGS="$ARGS --environment_type=DOCKER"
 ARGS="$ARGS --environment_config=$CONTAINER:$TAG"
 ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test/$GCS_SUBFOLDER"
 ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test/$GCS_SUBFOLDER"
-ARGS="$ARGS --dataflow_worker_jar=$DATAFLOW_WORKER_JAR"
 ARGS="$ARGS --endpoint=$ENDPOINT"
 if [[ -n "$TEST_EXPANSION_ADDR" ]]; then
   ARGS="$ARGS --test_expansion_addr=$TEST_EXPANSION_ADDR"

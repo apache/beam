@@ -24,100 +24,124 @@ import (
 	"beam.apache.org/playground/backend/internal/db/dto"
 	"beam.apache.org/playground/backend/internal/db/entity"
 	"beam.apache.org/playground/backend/internal/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 var pcObjMapper = NewPrecompiledObjectMapper()
 var pcObjMapperCtx = context.Background()
 
 func TestPrecompiledObjectMapper_ToObjectInfo(t *testing.T) {
-	actualResult := pcObjMapper.ToObjectInfo(getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()))
-	if actualResult.Multifile != false ||
-		actualResult.DefaultExample != false ||
-		actualResult.Name != "MOCK_NAME" ||
-		actualResult.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME" ||
-		actualResult.Description != "MOCK_DESCR" ||
-		actualResult.PipelineOptions != "MOCK_OPTIONS" ||
-		actualResult.Link != "MOCK_PATH" ||
-		actualResult.ContextLine != 32 ||
-		len(actualResult.Categories) != 3 ||
-		actualResult.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" {
-		t.Error("ToObjectInfo() unexpected result")
+	expected := &dto.ObjectInfo{
+		Name:            "MOCK_NAME",
+		CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME",
+		Description:     "MOCK_DESCR",
+		Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+		Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+		Categories:      []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
+		PipelineOptions: "MOCK_OPTIONS",
+		Link:            "MOCK_PATH",
+		Multifile:       false,
+		DefaultExample:  false,
+		ContextLine:     32,
+		Sdk:             pb.Sdk_SDK_JAVA,
+		Datasets: []*pb.Dataset{
+			{
+				Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+				Options:     map[string]string{"Topic": "MOCK_TOPIC"},
+				DatasetPath: "MOCK_PATH_0",
+			},
+		},
 	}
+	actualResult := pcObjMapper.ToObjectInfo(
+		getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()),
+	)
+	assert.Equal(t, expected, actualResult)
 }
 
 func TestPrecompiledObjectMapper_ToPrecompiledObj(t *testing.T) {
-	actualResult := pcObjMapper.ToPrecompiledObj(getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()))
-	if actualResult.Multifile != false ||
-		actualResult.DefaultExample != false ||
-		actualResult.Name != "MOCK_NAME" ||
-		actualResult.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME" ||
-		actualResult.Description != "MOCK_DESCR" ||
-		actualResult.PipelineOptions != "MOCK_OPTIONS" ||
-		actualResult.Link != "MOCK_PATH" ||
-		actualResult.ContextLine != 32 ||
-		actualResult.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" {
-		t.Error("ToPrecompiledObj() unexpected result")
+	expected := &pb.PrecompiledObject{
+		Name:            "MOCK_NAME",
+		CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MOCK_NAME",
+		Description:     "MOCK_DESCR",
+		Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+		Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+		PipelineOptions: "MOCK_OPTIONS",
+		Link:            "MOCK_PATH",
+		Multifile:       false,
+		DefaultExample:  false,
+		ContextLine:     32,
+		Sdk:             pb.Sdk_SDK_JAVA,
+		Datasets: []*pb.Dataset{
+			{
+				Type:        pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+				Options:     map[string]string{"Topic": "MOCK_TOPIC"},
+				DatasetPath: "MOCK_PATH_0",
+			},
+		},
 	}
+	actualResult := pcObjMapper.ToPrecompiledObj(
+		getExampleDTO("MOCK_NAME", "MOCK_DEFAULT_EXAMPLE", pb.Sdk_SDK_JAVA.String()),
+	)
+	assert.Equal(t, expected, actualResult)
 }
 
 func TestPrecompiledObjectMapper_ToDefaultPrecompiledObjects(t *testing.T) {
 	actualResult := pcObjMapper.ToDefaultPrecompiledObjects(getDefaultExamplesDTO())
-	javaPCObj, ok := actualResult[pb.Sdk_SDK_JAVA]
-	if !ok ||
-		javaPCObj.DefaultExample != true ||
-		javaPCObj.Name != "1_MOCK_DEFAULT_EXAMPLE" ||
-		javaPCObj.Multifile != false ||
-		javaPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-		javaPCObj.ContextLine != 32 ||
-		javaPCObj.Link != "MOCK_PATH" ||
-		javaPCObj.Description != "MOCK_DESCR" ||
-		javaPCObj.PipelineOptions != "MOCK_OPTIONS" ||
-		javaPCObj.CloudPath != "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/1_MOCK_DEFAULT_EXAMPLE" {
-		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_JAVA")
+	expected := map[pb.Sdk]*pb.PrecompiledObject{
+		pb.Sdk_SDK_JAVA: {
+			DefaultExample:  true,
+			Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+			Name:            "1_MOCK_DEFAULT_EXAMPLE",
+			Multifile:       false,
+			Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+			ContextLine:     32,
+			Link:            "MOCK_PATH",
+			Description:     "MOCK_DESCR",
+			PipelineOptions: "MOCK_OPTIONS",
+			CloudPath:       "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/1_MOCK_DEFAULT_EXAMPLE",
+			Sdk:             pb.Sdk_SDK_JAVA,
+		},
+		pb.Sdk_SDK_GO: {
+			DefaultExample:  true,
+			Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+			Name:            "2_MOCK_DEFAULT_EXAMPLE",
+			Multifile:       false,
+			Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+			ContextLine:     32,
+			Link:            "MOCK_PATH",
+			Description:     "MOCK_DESCR",
+			PipelineOptions: "MOCK_OPTIONS",
+			CloudPath:       "SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/2_MOCK_DEFAULT_EXAMPLE",
+			Sdk:             pb.Sdk_SDK_GO,
+		},
+		pb.Sdk_SDK_PYTHON: {
+			DefaultExample:  true,
+			Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+			Name:            "3_MOCK_DEFAULT_EXAMPLE",
+			Multifile:       false,
+			Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+			ContextLine:     32,
+			Link:            "MOCK_PATH",
+			Description:     "MOCK_DESCR",
+			PipelineOptions: "MOCK_OPTIONS",
+			CloudPath:       "SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/3_MOCK_DEFAULT_EXAMPLE",
+			Sdk:             pb.Sdk_SDK_PYTHON,
+		},
+		pb.Sdk_SDK_SCIO: {
+			DefaultExample:  true,
+			Complexity:      pb.Complexity_COMPLEXITY_MEDIUM,
+			Name:            "4_MOCK_DEFAULT_EXAMPLE",
+			Multifile:       false,
+			Type:            pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+			ContextLine:     32,
+			Link:            "MOCK_PATH",
+			Description:     "MOCK_DESCR",
+			PipelineOptions: "MOCK_OPTIONS",
+			CloudPath:       "SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/4_MOCK_DEFAULT_EXAMPLE",
+			Sdk:             pb.Sdk_SDK_SCIO,
+		},
 	}
-	goPCObj, ok := actualResult[pb.Sdk_SDK_GO]
-	if !ok ||
-		goPCObj.DefaultExample != true ||
-		goPCObj.Name != "2_MOCK_DEFAULT_EXAMPLE" ||
-		goPCObj.Multifile != false ||
-		goPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-		goPCObj.ContextLine != 32 ||
-		goPCObj.Link != "MOCK_PATH" ||
-		goPCObj.Description != "MOCK_DESCR" ||
-		goPCObj.PipelineOptions != "MOCK_OPTIONS" ||
-		goPCObj.CloudPath != "SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/2_MOCK_DEFAULT_EXAMPLE" {
-		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_GO")
-	}
-	scioPCObj, ok := actualResult[pb.Sdk_SDK_SCIO]
-	if !ok ||
-		scioPCObj.DefaultExample != true ||
-		scioPCObj.Name != "4_MOCK_DEFAULT_EXAMPLE" ||
-		scioPCObj.Multifile != false ||
-		scioPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-		scioPCObj.ContextLine != 32 ||
-		scioPCObj.Link != "MOCK_PATH" ||
-		scioPCObj.Description != "MOCK_DESCR" ||
-		scioPCObj.PipelineOptions != "MOCK_OPTIONS" ||
-		scioPCObj.CloudPath != "SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/4_MOCK_DEFAULT_EXAMPLE" {
-		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_SCIO")
-	}
-	pythonPCObj, ok := actualResult[pb.Sdk_SDK_PYTHON]
-	if !ok ||
-		pythonPCObj.DefaultExample != true ||
-		pythonPCObj.Name != "3_MOCK_DEFAULT_EXAMPLE" ||
-		pythonPCObj.Multifile != false ||
-		pythonPCObj.Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
-		pythonPCObj.ContextLine != 32 ||
-		pythonPCObj.Link != "MOCK_PATH" ||
-		pythonPCObj.Description != "MOCK_DESCR" ||
-		pythonPCObj.PipelineOptions != "MOCK_OPTIONS" ||
-		pythonPCObj.CloudPath != "SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/3_MOCK_DEFAULT_EXAMPLE" {
-		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_PYTHON")
-	}
-	_, ok = actualResult[pb.Sdk_SDK_UNSPECIFIED]
-	if ok {
-		t.Error("ToDefaultPrecompiledObjects() unexpected result for SDK_UNSPECIFIED")
-	}
+	assert.Equal(t, expected, actualResult)
 }
 
 func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
@@ -133,7 +157,8 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		javaCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].PipelineOptions != "MOCK_OPTIONS" ||
 		javaCatalog.Categories[0].PrecompiledObjects[0].ContextLine != 32 ||
-		javaCatalog.Categories[0].PrecompiledObjects[0].Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" {
+		javaCatalog.Categories[0].PrecompiledObjects[0].Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+		javaCatalog.Categories[0].PrecompiledObjects[0].Sdk != pb.Sdk_SDK_JAVA {
 		t.Error("ToArrayCategories() unexpected result for Java Catalog")
 	}
 	goCatalog := getCategoryBySdk(actualResult, pb.Sdk_SDK_GO)
@@ -147,7 +172,8 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		goCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
 		goCatalog.Categories[0].PrecompiledObjects[0].PipelineOptions != "MOCK_OPTIONS" ||
 		goCatalog.Categories[0].PrecompiledObjects[0].ContextLine != 32 ||
-		goCatalog.Categories[0].PrecompiledObjects[0].Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" {
+		goCatalog.Categories[0].PrecompiledObjects[0].Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+		goCatalog.Categories[0].PrecompiledObjects[0].Sdk != pb.Sdk_SDK_GO {
 		t.Error("ToArrayCategories() unexpected result for Go Catalog")
 	}
 	pythonCatalog := getCategoryBySdk(actualResult, pb.Sdk_SDK_PYTHON)
@@ -161,7 +187,8 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		pythonCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].PipelineOptions != "MOCK_OPTIONS" ||
 		pythonCatalog.Categories[0].PrecompiledObjects[0].ContextLine != 32 ||
-		pythonCatalog.Categories[0].PrecompiledObjects[0].Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" {
+		pythonCatalog.Categories[0].PrecompiledObjects[0].Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+		pythonCatalog.Categories[0].PrecompiledObjects[0].Sdk != pb.Sdk_SDK_PYTHON {
 		t.Error("ToArrayCategories() unexpected result for Python Catalog")
 	}
 	scioCatalog := getCategoryBySdk(actualResult, pb.Sdk_SDK_SCIO)
@@ -175,7 +202,8 @@ func TestPrecompiledObjectMapper_ToArrayCategories(t *testing.T) {
 		scioCatalog.Categories[0].PrecompiledObjects[0].Link != "MOCK_PATH" ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].PipelineOptions != "MOCK_OPTIONS" ||
 		scioCatalog.Categories[0].PrecompiledObjects[0].ContextLine != 32 ||
-		scioCatalog.Categories[0].PrecompiledObjects[0].Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" {
+		scioCatalog.Categories[0].PrecompiledObjects[0].Type.String() != "PRECOMPILED_OBJECT_TYPE_EXAMPLE" ||
+		scioCatalog.Categories[0].PrecompiledObjects[0].Sdk != pb.Sdk_SDK_SCIO {
 		t.Error("ToArrayCategories() unexpected result for Scio Catalog")
 	}
 }
@@ -192,15 +220,14 @@ func getCategoryBySdk(catalog []*pb.Categories, sdk pb.Sdk) *pb.Categories {
 func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 	return &dto.ExampleDTO{
 		Example: &entity.ExampleEntity{
-			Name:       name,
-			Sdk:        utils.GetSdkKey(pcObjMapperCtx, sdk),
-			Descr:      "MOCK_DESCR",
-			Cats:       []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
-			Complexity: "MEDIUM",
-			Path:       "MOCK_PATH",
-			Type:       "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
-			Origin:     constants.ExampleOrigin,
-			SchVer:     utils.GetSchemaVerKey(pcObjMapperCtx, "MOCK_VERSION"),
+			Name:   name,
+			Sdk:    utils.GetSdkKey(pcObjMapperCtx, sdk),
+			Descr:  "MOCK_DESCR",
+			Cats:   []string{"MOCK_CAT_1", "MOCK_CAT_2", "MOCK_CAT_3"},
+			Path:   "MOCK_PATH",
+			Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+			Origin: constants.ExampleOrigin,
+			SchVer: utils.GetSchemaVerKey(pcObjMapperCtx, "MOCK_VERSION"),
 		},
 		Snippet: &entity.SnippetEntity{
 			Sdk:           utils.GetSdkKey(pcObjMapperCtx, sdk),
@@ -208,6 +235,7 @@ func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 			Origin:        constants.ExampleOrigin,
 			SchVer:        utils.GetSchemaVerKey(pcObjMapperCtx, "MOCK_VERSION"),
 			NumberOfFiles: 1,
+			Complexity:    pb.Complexity_COMPLEXITY_MEDIUM.String(),
 		},
 		Files: []*entity.FileEntity{{
 			Name:     "MOCK_NAME",
@@ -216,6 +244,15 @@ func getExampleDTO(name, defaultName, sdk string) *dto.ExampleDTO {
 			IsMain:   true,
 		}},
 		DefaultExampleName: defaultName,
+		Datasets: []*dto.DatasetDTO{
+			{
+				Path: "MOCK_PATH_0",
+				Config: map[string]string{
+					"Topic": "MOCK_TOPIC",
+				},
+				Emulator: pb.EmulatorType_EMULATOR_TYPE_KAFKA,
+			},
+		},
 	}
 }
 

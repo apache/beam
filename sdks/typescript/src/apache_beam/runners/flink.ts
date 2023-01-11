@@ -20,7 +20,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-import { Pipeline } from "../internal/pipeline";
+import { Pipeline } from "../proto/beam_runner_api";
 import { PipelineResult, Runner } from "./runner";
 import { PortableRunner } from "./portable_runner/runner";
 import { JavaJarService } from "../utils/service";
@@ -61,7 +61,7 @@ export function flinkRunner(runnerOptions: Object = {}): Runner {
       const jobServerJar =
         allOptions.flinkJobServerJar ||
         (await JavaJarService.cachedJar(
-          JavaJarService.gradleToJar(
+          await JavaJarService.gradleToJar(
             `runners:flink:${allOptions.flinkVersion}:job-server:shadowJar`
           )
         ));

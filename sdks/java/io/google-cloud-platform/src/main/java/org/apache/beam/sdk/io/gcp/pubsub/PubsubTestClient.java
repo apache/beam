@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -88,6 +89,12 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
 
     /** Pull mode only: When above messages are due to have their ACK deadlines expire. */
     @Nullable Map<String, Long> ackDeadline;
+
+    /** The Pub/Sub schema resource path. */
+    @Nullable SchemaPath expectedSchemaPath;
+
+    /** Expected Pub/sub mapped Beam Schema. */
+    @Nullable Schema expectedSchema;
   }
 
   private static final State STATE = new State();
@@ -106,6 +113,16 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
     activate(
         () -> setPublishState(expectedTopic, expectedOutgoingMessages, failingOutgoingMessages));
     return new PubsubTestClientFactory() {
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
+      }
+
       @Override
       public PubsubClient newClient(
           @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
@@ -137,6 +154,16 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
     activate(
         () -> setPullState(expectedSubscription, clock, ackTimeoutSec, expectedIncomingMessages));
     return new PubsubTestClientFactory() {
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
+      }
+
       @Override
       public PubsubClient newClient(
           @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
@@ -185,6 +212,16 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
 
       @Override
       public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
+      }
+
+      @Override
+      public PubsubClient newClient(
           @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
           throws IOException {
         return new PubsubTestClient();
@@ -193,6 +230,43 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
       @Override
       public String getKind() {
         return "PublishAndPullTest";
+      }
+    };
+  }
+
+  public static PubsubTestClientFactory createFactoryForGetSchema(
+      TopicPath expectedTopic,
+      @Nullable SchemaPath expectedSchemaPath,
+      @Nullable Schema expectedSchema) {
+    return new PubsubTestClientFactory() {
+      @Override
+      public void close() {
+        deactivate(() -> {});
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride) {
+        activate(
+            () -> {
+              setSchemaState(expectedTopic, expectedSchemaPath, expectedSchema);
+            });
+        return new PubsubTestClient();
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options, null);
+      }
+
+      @Override
+      public String getKind() {
+        return "GetSchemaTest";
       }
     };
   }
@@ -259,6 +333,15 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
     STATE.ackDeadline = new HashMap<>();
   }
 
+  private static void setSchemaState(
+      TopicPath expectedTopic,
+      @Nullable SchemaPath expectedSchemaPath,
+      @Nullable Schema expectedSchema) {
+    STATE.expectedTopic = expectedTopic;
+    STATE.expectedSchemaPath = expectedSchemaPath;
+    STATE.expectedSchema = expectedSchema;
+  }
+
   /** Handles verifying {@code STATE} at end of publish test. */
   private static void performFinalPublishStateChecks() {
     checkState(STATE.isActive, "No test still in flight");
@@ -292,6 +375,16 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
       public void close() throws IOException {
         checkState(
             numCalls == 1, "Expected exactly one subscription to be created, got %s", numCalls);
+      }
+
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampAttribute,
+          @Nullable String idAttribute,
+          PubsubOptions options,
+          @Nullable String rootUrlOverride)
+          throws IOException {
+        return newClient(timestampAttribute, idAttribute, options);
       }
 
       @Override
@@ -485,6 +578,11 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   }
 
   @Override
+  public void createTopic(TopicPath topic, SchemaPath schema) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void deleteTopic(TopicPath topic) throws IOException {
     throw new UnsupportedOperationException();
   }
@@ -524,5 +622,28 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
       checkState(inPullMode(), "Can only check EOF in pull mode");
       return STATE.remainingPendingIncomingMessages.isEmpty();
     }
+  }
+
+  @Override
+  public void createSchema(
+      SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  /** Delete {@link SchemaPath}. */
+  @Override
+  public void deleteSchema(SchemaPath schemaPath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
+    return STATE.expectedSchemaPath;
+  }
+
+  @Override
+  public Schema getSchema(SchemaPath schemaPath) throws IOException {
+    return STATE.expectedSchema;
   }
 }

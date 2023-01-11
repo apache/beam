@@ -18,10 +18,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../constants/sizes.dart';
+import '../../../../pages/standalone_playground/notifiers/example_selector_state.dart';
 
 const double kContainerWidth = 376.0;
 const int kMinLines = 1;
@@ -89,8 +90,8 @@ class SearchField extends StatelessWidget {
     );
   }
 
-  _onChange(ExampleSelectorState state, String filterText) {
-    state.setFilterText(filterText);
-    state.sortCategories();
+  _onChange(ExampleSelectorState state, String searchText) {
+    state.setSearchText(searchText);
+    state.filterCategoriesWithExamples();
   }
 }

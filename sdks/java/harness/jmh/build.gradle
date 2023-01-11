@@ -55,3 +55,8 @@ jmhTest {
     }
 }
 
+test {
+    configurations.jammAgent.resolvedConfiguration.files.each {
+        jvmArgs '-javaagent:' + it
+    }
+}

@@ -82,7 +82,7 @@ and <a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/stre
   <tr>
    <td>S3<br>(Using the <code>s3://</code> URI)
    </td>
-    <td><a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/FileIO.html">FileIO</a> + <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/aws/options/S3Options.html">S3Options</a>
+    <td><a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/FileIO.html">FileIO</a> + <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/aws2/options/S3Options.html">S3Options</a>
    </td>
   </tr>
   <tr>
@@ -168,7 +168,7 @@ and <a href="https://spark.apache.org/docs/latest/api/python/reference/api/pyspa
    </td>
    <td><a href="https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.gcsio.html">io.gcp.gcsio</a>
    </td>
-   <td rowspan="2" ><a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream</a>
+   <td rowspan="2" ><a href="https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.streaming.StreamingContext.html#pyspark.streaming.StreamingContext">textFileStream</a>
    </td>
   </tr>
   <tr>

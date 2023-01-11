@@ -165,7 +165,7 @@ export class SubprocessService {
     if (this.cached) {
       return;
     }
-    console.log(`Tearing down ${this.name}.`);
+    console.info(`Tearing down ${this.name}.`);
     this.address = undefined;
     this.process.kill();
   }
@@ -216,7 +216,7 @@ export function serviceProviderFromJavaGradleTarget(
       }
     } else {
       jar = await JavaJarService.cachedJar(
-        JavaJarService.gradleToJar(gradleTarget)
+        await JavaJarService.gradleToJar(gradleTarget)
       );
     }
 
@@ -260,7 +260,7 @@ export class JavaJarService extends SubprocessService {
       const tmp = dest + ".tmp" + Math.random();
       return new Promise((resolve, reject) => {
         const fout = fs.createWriteStream(tmp);
-        console.log("Downloading", urlOrPath);
+        console.warn("Downloading", urlOrPath);
         const request = https.get(urlOrPath, function (response) {
           if (response.statusCode !== 200) {
             reject(
@@ -281,18 +281,18 @@ export class JavaJarService extends SubprocessService {
     }
   }
 
-  static gradleToJar(
+  static async gradleToJar(
     gradleTarget: string,
     appendix: string | undefined = undefined,
     version: string = beamVersion
-  ): string {
+  ): Promise<string> {
     if (version.startsWith("0.")) {
       // node-ts 0.x corresponds to Beam 2.x.
       version = "2" + version.substring(1);
     }
     const gradlePackage = gradleTarget.match(/^:?(.*):[^:]+:?$/)![1];
     const artifactId = "beam-" + gradlePackage.replaceAll(":", "-");
-    const projectRoot = getProjectRoot();
+    const projectRoot = getBeamProjectRoot();
     const localPath = !projectRoot
       ? undefined
       : path.join(
@@ -302,16 +302,20 @@ export class JavaJarService extends SubprocessService {
           "libs",
           JavaJarService.jarName(
             artifactId,
-            version.replace(".dev", ""),
+            version.replace("-SNAPSHOT", ""),
             "SNAPSHOT",
             appendix
           )
         );
 
+    if (version.includes("SNAPSHOT") && !projectRoot) {
+      version = "latest";
+    }
+
     if (localPath && fs.existsSync(localPath)) {
-      console.log("Using pre-built snapshot at", localPath);
+      console.info("Using pre-built snapshot at", localPath);
       return localPath;
-    } else if (version.includes(".dev")) {
+    } else if (version.includes("SNAPSHOT")) {
       throw new Error(
         `${localPath} not found. Please build the server with
       cd ${projectRoot}; ./gradlew ${gradleTarget})`
@@ -326,14 +330,37 @@ export class JavaJarService extends SubprocessService {
     }
   }
 
-  static mavenJarUrl(
+  static async mavenJarUrl(
     artifactId: string,
     version: string,
     classifier: string | undefined = undefined,
     appendix: string | undefined = undefined,
     repo: string = JavaJarService.APACHE_REPOSITORY,
     groupId: string = JavaJarService.BEAM_GROUP_ID
-  ): string {
+  ): Promise<string> {
+    if (version == "latest") {
+      const medatadataUrl = [
+        repo,
+        groupId.replaceAll(".", "/"),
+        artifactId,
+        "maven-metadata.xml",
+      ].join("/");
+      const metadata = await new Promise<string>((resolve, reject) => {
+        let data = "";
+        https.get(medatadataUrl, (res) => {
+          res.on("data", (chunk) => {
+            data += chunk;
+          });
+          res.on("end", () => {
+            resolve(data);
+          });
+          res.on("error", (e) => {
+            reject(e);
+          });
+        });
+      });
+      version = metadata.match(/<latest>(.*)<\/latest>/)![1];
+    }
     return [
       repo,
       groupId.replaceAll(".", "/"),
@@ -450,9 +477,18 @@ function serviceOverrideFor(name: string): string | undefined {
   }
 }
 
-function getProjectRoot(): string | undefined {
+function getBeamProjectRoot(): string | undefined {
   try {
-    return path.dirname(findGitRoot(__dirname));
+    const projectRoot = path.dirname(findGitRoot(__dirname));
+    if (
+      fs.existsSync(
+        path.join(projectRoot, "sdks", "typescript", "src", "apache_beam")
+      )
+    ) {
+      return projectRoot;
+    } else {
+      return undefined;
+    }
   } catch (Error) {
     return undefined;
   }

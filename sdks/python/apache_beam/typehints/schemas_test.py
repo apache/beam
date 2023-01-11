@@ -32,6 +32,8 @@ from typing import Sequence
 import cloudpickle
 import dill
 import numpy as np
+from hypothesis import given
+from hypothesis import settings
 from parameterized import parameterized
 from parameterized import parameterized_class
 
@@ -44,6 +46,7 @@ from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
+from apache_beam.typehints.testing.strategies import named_fields
 from apache_beam.utils.timestamp import Timestamp
 
 all_nonoptional_primitives = [
@@ -266,6 +269,39 @@ def get_test_beam_fieldtype_protos():
                                           string='str'))),
                           ]) for i,
                       typ in enumerate(all_primitives)
+                  ] + [
+                      schema_pb2.Field(
+                          name='nested',
+                          type=schema_pb2.FieldType(
+                              row_type=schema_pb2.RowType(
+                                  schema=schema_pb2.Schema(
+                                      fields=[
+                                          schema_pb2.Field(
+                                              name='nested_field',
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=schema_pb2.INT64,
+                                              ),
+                                              options=[
+                                                  schema_pb2.Option(
+                                                      name='a_nested_field_flag'
+                                                  ),
+                                              ]),
+                                      ],
+                                      options=[
+                                          schema_pb2.Option(
+                                              name='a_nested_schema_flag'),
+                                          schema_pb2.Option(
+                                              name='a_str',
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=schema_pb2.STRING
+                                              ),
+                                              value=schema_pb2.FieldValue(
+                                                  atomic_value=schema_pb2.
+                                                  AtomicTypeValue(
+                                                      string='str'))),
+                                      ],
+                                  ))),
+                      ),
                   ]))),
       schema_pb2.FieldType(
           row_type=schema_pb2.RowType(
@@ -303,7 +339,7 @@ def get_test_beam_fieldtype_protos():
                                                           atomic_type=schema_pb2
                                                           .DOUBLE)))),
                                       ]))))
-                  ])))
+                  ]))),
   ]
 
   return all_primitives + \
@@ -607,6 +643,20 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(instance, (np.int64(35), 'baz'))
 
 
+class HypothesisTest(unittest.TestCase):
+  # There is considerable variablility in runtime for this test, disable
+  # deadline.
+  @settings(deadline=None)
+  @given(named_fields())
+  def test_named_fields_roundtrip(self, named_fields):
+    typehint = row_type.RowTypeConstraint.from_fields(named_fields)
+    roundtripped = typing_from_runner_api(
+        typing_to_runner_api(typehint, schema_registry=SchemaTypeRegistry()),
+        schema_registry=SchemaTypeRegistry())
+
+    self.assertEqual(typehint, roundtripped)
+
+
 @parameterized_class([
     {
         'pickler': pickle,
@@ -633,8 +683,10 @@ class PickleTest(unittest.TestCase):
 
     self.assertEqual(instance, self.pickler.loads(self.pickler.dumps(instance)))
 
-  @unittest.skip("https://github.com/apache/beam/issues/22714")
   def test_generated_class_pickle(self):
+    if self.pickler in [pickle, dill]:
+      self.skipTest('https://github.com/apache/beam/issues/22714')
+
     schema = schema_pb2.Schema(
         id="some-uuid",
         fields=[

@@ -21,8 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../assets/assets.gen.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
 
 class ProfileContent extends StatelessWidget {
   const ProfileContent();
@@ -125,7 +125,7 @@ class _IconLabel extends StatelessWidget {
   final String label;
   final void Function()? onTap;
 
-  // TODO(nausharipov): Auto-determine.
+  // TODO(alexeyinkin): Auto-determine.
   final bool isSvg;
 
   const _IconLabel({

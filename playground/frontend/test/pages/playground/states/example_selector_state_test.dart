@@ -20,7 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:playground_components/src/models/example_base.dart';
 import 'package:playground_components/src/controllers/example_loaders/examples_loader.dart';
-import 'package:playground/pages/playground/states/example_selector_state.dart';
+import 'package:playground/pages/standalone_playground/notifiers/example_selector_state.dart';
 import 'package:playground_components/src/cache/example_cache.dart';
 import 'package:playground_components/src/controllers/playground_controller.dart';
 
@@ -38,7 +38,6 @@ void main() {
   setUp(() {
     exampleCache = ExampleCache(
       exampleRepository: mockExampleRepository,
-      hasCatalog: true,
     );
 
     playgroundController = PlaygroundController(
@@ -58,7 +57,7 @@ void main() {
   test(
     'ExampleSelector state filterText should be empty string by default',
     () {
-      expect(state.filterText, '');
+      expect(state.searchText, '');
     },
   );
 
@@ -76,9 +75,9 @@ void main() {
     'ExampleSelector state should notify all listeners about filterText change',
     () {
       state.addListener(() {
-        expect(state.filterText, 'test');
+        expect(state.searchText, 'test');
       });
-      state.setFilterText('test');
+      state.setSearchText('test');
     },
   );
 
@@ -93,7 +92,7 @@ void main() {
   );
 
   test(
-      'ExampleSelector state sortCategories should:'
+      'ExampleSelector state filterCategories should:'
       '- update categories and notify all listeners,'
       'but should NOT:'
       '- affect Example state categories', () {
@@ -101,11 +100,11 @@ void main() {
       expect(state.categories, []);
       expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
     });
-    state.sortCategories();
+    state.filterCategoriesWithExamples();
   });
 
   test(
-      'ExampleSelector state sortExamplesByType should:'
+      'ExampleSelector state filterExamplesByType should:'
       '- update categories,'
       '- notify all listeners,'
       'but should NOT:'
@@ -115,15 +114,32 @@ void main() {
       categoriesMock,
     );
     state.addListener(() {
-      expect(state.categories, examplesSortedByTypeMock);
+      expect(state.categories, examplesFilteredByTypeMock);
       expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
     });
-    state.sortExamplesByType(unsortedExamples, ExampleType.kata);
+    state.filterExamplesByType(filteredExamples, ExampleType.kata);
   });
 
   test(
-      'ExampleSelector state sortExamplesByName should:'
-      '- update categories'
+      'ExampleSelector state filterExamplesByTags should:'
+      '- return examples which contain all selected tags'
+      '- notify all listeners,'
+      'but should NOT:'
+      '- affect Example state categories', () {
+    final state = ExampleSelectorState(
+      playgroundController,
+      categoriesMock,
+    );
+    state.addSelectedTag('tag2');
+    expect(
+      state.filterExamplesByTags(filteredExamples),
+      examplesFilteredByTagsMock,
+    );
+  });
+
+  test(
+      'ExampleSelector state filterExamplesByName should:'
+      '- return examples with matching names'
       '- notify all listeners,'
       'but should NOT:'
       '- wait for full name of example,'
@@ -133,10 +149,19 @@ void main() {
       playgroundController,
       categoriesMock,
     );
-    state.addListener(() {
-      expect(state.categories, examplesSortedByNameMock);
-      expect(exampleCache.categoryListsBySdk, exampleCache.categoryListsBySdk);
-    });
-    state.sortExamplesByName(unsortedExamples, 'X1');
+    state.setSearchText('Example X1');
+    expect(
+      state.filterExamplesByName(filteredExamples),
+      examplesFilteredByNameMock,
+    );
+  });
+
+  test('ExampleSelectorState sorts tags by example count', () {
+    final state = ExampleSelectorState(
+      playgroundController,
+      categoriesMock,
+    );
+    const popularTag = 'tag2';
+    expect(state.tags.first == popularTag, true);
   });
 }

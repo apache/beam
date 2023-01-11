@@ -40,7 +40,6 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarUtils;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -55,6 +54,7 @@ import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
@@ -113,13 +113,17 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
     // Initialize accumulators.
-    AggregatorsAccumulator.init(pipelineOptions, jsc);
     MetricsEnvironment.setMetricsSupported(true);
     MetricsAccumulator.init(pipelineOptions, jsc);
 
     final SparkTranslationContext context =
         translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
-    final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    final ExecutorService executorService =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("DefaultSparkRunner-thread")
+                .build());
 
     LOG.info("Running job {} on Spark master {}", jobInfo.jobId(), jsc.master());
 
@@ -127,9 +131,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       final JavaStreamingContext jssc =
           ((SparkStreamingTranslationContext) context).getStreamingContext();
 
-      jssc.addStreamingListener(
-          new JavaStreamingListenerWrapper(
-              new AggregatorsAccumulator.AccumulatorCheckpointingSparkListener()));
       jssc.addStreamingListener(
           new JavaStreamingListenerWrapper(
               new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));

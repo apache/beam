@@ -17,45 +17,64 @@
  */
 
 import 'example_base.dart';
+import 'sdk.dart';
+import 'snippet_file.dart';
 
 /// A [ExampleBase] that also has all large fields fetched.
 class Example extends ExampleBase {
-  final String source;
-  final String? outputs;
-  final String? logs;
+  final List<SnippetFile> files;
   final String? graph;
+  final String? logs;
+  final String? outputs;
 
   const Example({
+    required this.files,
+    required super.name,
     required super.sdk,
     required super.type,
-    required super.name,
     required super.path,
-    required super.description,
+    super.complexity,
     super.contextLine,
-    super.isMultiFile,
-    super.link,
-    required super.pipelineOptions,
-    required this.source,
-    this.outputs,
-    this.logs,
+    super.datasets,
+    super.description,
     this.graph,
+    super.isMultiFile,
+    this.logs,
+    super.link,
+    this.outputs,
+    super.pipelineOptions,
+    super.tags,
+    super.viewOptions,
   });
 
   Example.fromBase(
     ExampleBase example, {
-    required this.source,
-    required this.outputs,
+    required this.files,
     required this.logs,
+    required this.outputs,
     this.graph,
   }) : super(
-          sdk: example.sdk,
-          name: example.name,
-          path: example.path,
-          description: example.description,
-          type: example.type,
+          complexity: example.complexity,
           contextLine: example.contextLine,
+          datasets: example.datasets,
+          description: example.description,
           isMultiFile: example.isMultiFile,
           link: example.link,
+          name: example.name,
+          path: example.path,
           pipelineOptions: example.pipelineOptions,
+          sdk: example.sdk,
+          tags: example.tags,
+          type: example.type,
+          viewOptions: example.viewOptions,
+        );
+
+  Example.empty(Sdk sdk)
+      : this(
+          name: 'Untitled Example',
+          files: [SnippetFile.empty],
+          path: '',
+          sdk: sdk,
+          type: ExampleType.example,
         );
 }

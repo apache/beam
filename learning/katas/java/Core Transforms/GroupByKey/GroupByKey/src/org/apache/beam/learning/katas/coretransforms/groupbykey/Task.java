@@ -26,6 +26,11 @@ package org.apache.beam.learning.katas.coretransforms.groupbykey;
 //   categories:
 //     - Combiners
 //     - Core Transforms
+//   complexity: BASIC
+//   tags:
+//     - transform
+//     - map
+//     - strings
 
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;

@@ -400,6 +400,53 @@ func TestMergeDistributions(t *testing.T) {
 	}
 }
 
+func TestMergePCols(t *testing.T) {
+	realKey := StepKey{Name: "real"}
+	pColA := PColValue{ElementCount: 1, SampledByteSize: DistributionValue{Count: 2, Sum: 3, Min: 4, Max: 5}}
+	pColB := PColValue{ElementCount: 5, SampledByteSize: DistributionValue{Count: 4, Sum: 3, Min: 2, Max: 1}}
+	tests := []struct {
+		name                 string
+		attempted, committed map[StepKey]PColValue
+		want                 []PColResult
+	}{
+		{
+			name: "merge",
+			attempted: map[StepKey]PColValue{
+				realKey: pColA,
+			},
+			committed: map[StepKey]PColValue{
+				realKey: pColB,
+			},
+			want: []PColResult{{Attempted: pColA, Committed: pColB, Key: realKey}},
+		}, {
+			name: "attempted only",
+			attempted: map[StepKey]PColValue{
+				realKey: pColA,
+			},
+			committed: map[StepKey]PColValue{},
+			want:      []PColResult{{Attempted: pColA, Key: realKey}},
+		}, {
+			name:      "committed only",
+			attempted: map[StepKey]PColValue{},
+			committed: map[StepKey]PColValue{
+				realKey: pColB,
+			},
+			want: []PColResult{{Committed: pColB, Key: realKey}},
+		},
+	}
+	less := func(a, b DistributionResult) bool {
+		return a.Key.Name < b.Key.Name
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := MergePCols(test.attempted, test.committed)
+			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
+				t.Errorf("MergePCols(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
+			}
+		})
+	}
+}
+
 func TestMergeGauges(t *testing.T) {
 	realKey := StepKey{Name: "real"}
 	now := time.Now()
@@ -444,6 +491,53 @@ func TestMergeGauges(t *testing.T) {
 			got := MergeGauges(test.attempted, test.committed)
 			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
 				t.Errorf("MergeGauges(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
+			}
+		})
+	}
+}
+
+func TestMergeMsecs(t *testing.T) {
+	realKey := StepKey{Name: "real"}
+	msecA := MsecValue{Start: time.Second, Process: 2 * time.Second, Finish: time.Second, Total: 4 * time.Second}
+	msecB := MsecValue{Start: 2 * time.Second, Process: time.Second, Finish: 2 * time.Second, Total: 5 * time.Second}
+	tests := []struct {
+		name                 string
+		attempted, committed map[StepKey]MsecValue
+		want                 []MsecResult
+	}{
+		{
+			name: "merge",
+			attempted: map[StepKey]MsecValue{
+				realKey: msecA,
+			},
+			committed: map[StepKey]MsecValue{
+				realKey: msecB,
+			},
+			want: []MsecResult{{Attempted: msecA, Committed: msecB, Key: realKey}},
+		}, {
+			name: "attempted only",
+			attempted: map[StepKey]MsecValue{
+				realKey: msecA,
+			},
+			committed: map[StepKey]MsecValue{},
+			want:      []MsecResult{{Attempted: msecA, Key: realKey}},
+		}, {
+			name:      "committed only",
+			attempted: map[StepKey]MsecValue{},
+			committed: map[StepKey]MsecValue{
+				realKey: msecB,
+			},
+			want: []MsecResult{{Committed: msecB, Key: realKey}},
+		},
+	}
+	less := func(a, b DistributionResult) bool {
+		return a.Key.Name < b.Key.Name
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := MergeMsecs(test.attempted, test.committed)
+			if d := cmp.Diff(test.want, got, cmpopts.SortSlices(less)); d != "" {
+				t.Errorf("MergeMsecs(%+v, %+v) = %+v, want %+v\ndiff:\n%v", test.attempted, test.committed, got, test.want, d)
 			}
 		})
 	}
@@ -523,21 +617,23 @@ func TestPcolQueryResult(t *testing.T) {
 	}
 }
 
-// Run on @lostluck's desktop (2020/01/21) go1.13.4
+// Run on @shanemhansen's desktop (2022/01/03) go1.20 RC1 after changing hashName to use a pool of hashers
+// sync.Pool can return thread-local results eliminating the need for a lock and increasing throughput.
+// There are users in the wild who create an excessive number of Counters so a 4x improvement in throughput at the expense of
+// creating GOMAXPROCS hasher values seems reasonable.
 //
-// Allocs & bytes should be consistent within go versions, but ns/op is relative to the running machine.
-//
-// BenchmarkMetrics/counter_inplace-12              6054129               208 ns/op              48 B/op          1 allocs/op
-// BenchmarkMetrics/distribution_inplace-12         5707147               228 ns/op              48 B/op          1 allocs/op
-// BenchmarkMetrics/gauge_inplace-12                4742331               259 ns/op              48 B/op          1 allocs/op
-// BenchmarkMetrics/counter_predeclared-12         90147133                12.7 ns/op             0 B/op          0 allocs/op
-// BenchmarkMetrics/distribution_predeclared-12            55396678                21.6 ns/op             0 B/op          0 allocs/op
-// BenchmarkMetrics/gauge_predeclared-12                   18535839                60.5 ns/op             0 B/op          0 allocs/op
-// BenchmarkMetrics/counter_raw-12                         159581343                7.18 ns/op            0 B/op          0 allocs/op
-// BenchmarkMetrics/distribution_raw-12                    82724314                14.7 ns/op             0 B/op          0 allocs/op
-// BenchmarkMetrics/gauge_raw-12                           23292386                55.2 ns/op             0 B/op          0 allocs/op
-// BenchmarkMetrics/getStore-12                            309361303                3.78 ns/op            0 B/op          0 allocs/op
-// BenchmarkMetrics/getCounterSet-12                       287720998                3.98 ns/op            0 B/op          0 allocs/op
+// name                                 old time/op  new time/op  delta
+// Metrics/counter_inplace-12            376ns ±17%    88ns ± 7%  -76.66%  (p=0.008 n=5+5)
+// Metrics/distribution_inplace-12       394ns ± 3%   153ns ± 8%  -61.17%  (p=0.008 n=5+5)
+// Metrics/gauge_inplace-12              371ns ± 4%   258ns ± 1%  -30.37%  (p=0.008 n=5+5)
+// Metrics/counter_predeclared-12       16.9ns ± 6%  17.0ns ± 3%     ~     (p=0.595 n=5+5)
+// Metrics/distribution_predeclared-12  83.2ns ± 2%  84.9ns ± 1%     ~     (p=0.056 n=5+5)
+// Metrics/gauge_predeclared-12          105ns ± 6%   110ns ± 5%   +4.81%  (p=0.032 n=5+5)
+// Metrics/counter_raw-12               10.8ns ± 4%  12.0ns ±28%     ~     (p=0.151 n=5+5)
+// Metrics/distribution_raw-12          77.6ns ± 7%  78.8ns ± 5%     ~     (p=0.841 n=5+5)
+// Metrics/gauge_raw-12                 78.9ns ± 1%  77.3ns ± 4%     ~     (p=0.151 n=5+5)
+// Metrics/getStore-12                  0.27ns ± 3%  0.27ns ± 2%     ~     (p=0.841 n=5+5)
+// Metrics/getCounterSet-12             0.32ns ± 3%  0.31ns ± 0%   -1.28%  (p=0.048 n=5+4)
 func BenchmarkMetrics(b *testing.B) {
 	pt, c, d, g := "bench.bundle.data", "counter", "distribution", "gauge"
 	aBundleID := "benchBID"
@@ -570,9 +666,11 @@ func BenchmarkMetrics(b *testing.B) {
 	}
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				test.call()
-			}
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					test.call()
+				}
+			})
 		})
 	}
 }

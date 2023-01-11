@@ -18,7 +18,10 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -27,6 +30,8 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,30 +44,46 @@ import org.slf4j.LoggerFactory;
 public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
   private static final Logger LOG = LoggerFactory.getLogger(AsyncDoFnRunner.class);
 
+  // A dummy key to represent null keys
+  private static final Object NULL_KEY = new Object();
+
   private final DoFnRunner<InT, OutT> underlying;
   private final ExecutorService executor;
   private final OpEmitter<OutT> emitter;
   private final FutureCollector<OutT> futureCollector;
+  private final boolean isStateful;
+
+  /**
+   * This map keeps track of the last outputFutures for a certain key. When the next element of the
+   * key comes in, its outputFutures will be chained from the last outputFutures in the map. When
+   * all futures of a key have been complete, the key entry will be removed. The map is bounded by
+   * (bundle size * 2).
+   */
+  private final Map<Object, CompletableFuture<Collection<WindowedValue<OutT>>>> keyedOutputFutures;
 
   public static <InT, OutT> AsyncDoFnRunner<InT, OutT> create(
       DoFnRunner<InT, OutT> runner,
       OpEmitter<OutT> emitter,
       FutureCollector<OutT> futureCollector,
+      boolean isStateful,
       SamzaPipelineOptions options) {
 
     LOG.info("Run DoFn with " + AsyncDoFnRunner.class.getName());
-    return new AsyncDoFnRunner<>(runner, emitter, futureCollector, options);
+    return new AsyncDoFnRunner<>(runner, emitter, futureCollector, isStateful, options);
   }
 
   private AsyncDoFnRunner(
       DoFnRunner<InT, OutT> runner,
       OpEmitter<OutT> emitter,
       FutureCollector<OutT> futureCollector,
+      boolean isStateful,
       SamzaPipelineOptions options) {
     this.underlying = runner;
     this.executor = options.getExecutorServiceForProcessElement();
     this.emitter = emitter;
     this.futureCollector = futureCollector;
+    this.isStateful = isStateful;
+    this.keyedOutputFutures = new ConcurrentHashMap<>();
   }
 
   @Override
@@ -72,21 +93,57 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
 
   @Override
   public void processElement(WindowedValue<InT> elem) {
-    final CompletableFuture<Void> future =
-        CompletableFuture.runAsync(
-            () -> {
-              underlying.processElement(elem);
-            },
-            executor);
-
     final CompletableFuture<Collection<WindowedValue<OutT>>> outputFutures =
-        future.thenApply(
-            x ->
-                emitter.collectOutput().stream()
-                    .map(OpMessage::getElement)
-                    .collect(Collectors.toList()));
+        isStateful ? processStateful(elem) : processElement(elem, null);
 
     futureCollector.addAll(outputFutures);
+  }
+
+  private CompletableFuture<Collection<WindowedValue<OutT>>> processElement(
+      WindowedValue<InT> elem,
+      @Nullable CompletableFuture<Collection<WindowedValue<OutT>>> prevOutputFuture) {
+
+    final CompletableFuture<Collection<WindowedValue<OutT>>> prevFuture =
+        prevOutputFuture == null
+            ? CompletableFuture.completedFuture(Collections.emptyList())
+            : prevOutputFuture;
+
+    // For ordering by key, we chain the processing of the elem to the completion of
+    // the previous output of the same key
+    return prevFuture.thenApplyAsync(
+        x -> {
+          underlying.processElement(elem);
+
+          return emitter.collectOutput().stream()
+              .map(OpMessage::getElement)
+              .collect(Collectors.toList());
+        },
+        executor);
+  }
+
+  private CompletableFuture<Collection<WindowedValue<OutT>>> processStateful(
+      WindowedValue<InT> elem) {
+    final Object key = getKey(elem);
+
+    final CompletableFuture<Collection<WindowedValue<OutT>>> outputFutures =
+        processElement(elem, keyedOutputFutures.get(key));
+
+    // Update the latest outputFuture for key
+    keyedOutputFutures.put(key, outputFutures);
+
+    // Remove the outputFuture from the map once it's complete.
+    // This ensures the map will be cleaned up immediately.
+    return outputFutures.thenApply(
+        output -> {
+          // Under the condition that the outputFutures has not been updated
+          keyedOutputFutures.remove(key, outputFutures);
+          return output;
+        });
+  }
+
+  /** Package private for testing. */
+  boolean hasOutputFuturesForKey(Object key) {
+    return keyedOutputFutures.containsKey(key);
   }
 
   @Override
@@ -114,5 +171,15 @@ public class AsyncDoFnRunner<InT, OutT> implements DoFnRunner<InT, OutT> {
   @Override
   public DoFn<InT, OutT> getFn() {
     return underlying.getFn();
+  }
+
+  private Object getKey(WindowedValue<InT> elem) {
+    KV<?, ?> kv = (KV<?, ?>) elem.getValue();
+    if (kv == null) {
+      return NULL_KEY;
+    } else {
+      Object key = kv.getKey();
+      return key == null ? NULL_KEY : key;
+    }
   }
 }

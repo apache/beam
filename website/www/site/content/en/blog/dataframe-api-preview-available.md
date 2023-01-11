@@ -23,7 +23,7 @@ limitations under the License.
 
 We're excited to announce that a preview of the Beam Python SDK's new DataFrame
 API is now available in [Beam
-2.26.0](https://beam.apache.org/blog/beam-2.26.0/). Much like `SqlTransform`
+2.26.0](/blog/beam-2.26.0/). Much like `SqlTransform`
 ([Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html),
 [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform)),
 the DataFrame API gives Beam users a way to express complex
@@ -76,7 +76,7 @@ as much as possible.
 
 ## DataFrames as a DSL
 You may already be aware of [Beam
-SQL](https://beam.apache.org/documentation/dsls/sql/overview/), which is
+SQL](/documentation/dsls/sql/overview/), which is
 a Domain-Specific Language (DSL) built with Beam's Java SDK. SQL is
 considered a DSL because it's possible to express a full pipeline, including IOs
 and complex operations, entirely with SQL. 
@@ -91,7 +91,7 @@ implementations (`pd.read_{csv,parquet,...}` and `pd.DataFrame.to_{csv,parquet,.
 
 Like SQL, it's also possible to embed the DataFrame API into a larger pipeline
 by using
-[schemas](https://beam.apache.org/documentation/programming-guide/#what-is-a-schema).
+[schemas](/documentation/programming-guide/#what-is-a-schema).
 A schema-aware PCollection can be converted to a DataFrame, processed, and the
 result converted back to another schema-aware PCollection.  For example, if you
 wanted to use traditional Beam IOs rather than one of the DataFrame IOs you
@@ -170,7 +170,7 @@ haven't implemented yet that you'd find useful, so that we can prioritize it.
 
 If you'd like to learn more about how the DataFrame API works under the hood and
 get involved with the development we recommend you take a look at the
-[design doc](http://s.apache.org/beam-dataframes)
+[design doc](https://s.apache.org/beam-dataframes)
 and our [Beam summit
 presentation](https://2020.beamsummit.org/sessions/simpler-python-pipelines/).
 From there the best way to help is to knock out some of those not implemented

@@ -42,8 +42,10 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkServiceException;
+import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.Datapoint;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricStatisticsRequest;
@@ -159,17 +161,20 @@ public class SimplifiedKinesisClientTest {
   @Test
   public void shouldHandleServiceErrorForGetShardIterator() {
     shouldHandleGetShardIteratorError(
-        SdkServiceException.builder().build(), TransientKinesisException.class);
+        SdkServiceException.builder().statusCode(HttpStatusCode.INTERNAL_SERVER_ERROR).build(),
+        TransientKinesisException.class);
   }
 
   @Test
-  public void shouldHandleClientErrorForGetShardIterator() {
-    shouldHandleGetShardIteratorError(SdkClientException.builder().build(), RuntimeException.class);
+  public void shouldHandleRetryableClientErrorForGetShardIterator() {
+    shouldHandleGetShardIteratorError(
+        ApiCallAttemptTimeoutException.builder().build(), TransientKinesisException.class);
   }
 
   @Test
-  public void shouldHandleUnexpectedExceptionForGetShardIterator() {
-    shouldHandleGetShardIteratorError(new NullPointerException(), RuntimeException.class);
+  public void shouldHandleNotRetryableClientErrorForGetShardIterator() {
+    shouldHandleGetShardIteratorError(
+        SdkClientException.builder().build(), SdkClientException.class);
   }
 
   private void shouldHandleGetShardIteratorError(
@@ -505,12 +510,14 @@ public class SimplifiedKinesisClientTest {
   @Test
   public void shouldHandleServiceErrorForShardListing() {
     shouldHandleShardListingError(
-        SdkServiceException.builder().build(), TransientKinesisException.class);
+        SdkServiceException.builder().statusCode(HttpStatusCode.GATEWAY_TIMEOUT).build(),
+        TransientKinesisException.class);
   }
 
   @Test
-  public void shouldHandleClientErrorForShardListing() {
-    shouldHandleShardListingError(SdkClientException.builder().build(), RuntimeException.class);
+  public void shouldHandleRetryableClientErrorForShardListing() {
+    shouldHandleShardListingError(
+        ApiCallAttemptTimeoutException.builder().build(), TransientKinesisException.class);
   }
 
   @Test
@@ -602,17 +609,20 @@ public class SimplifiedKinesisClientTest {
   @Test
   public void shouldHandleServiceErrorForGetBacklogBytes() {
     shouldHandleGetBacklogBytesError(
-        SdkServiceException.builder().build(), TransientKinesisException.class);
+        SdkServiceException.builder().statusCode(HttpStatusCode.SERVICE_UNAVAILABLE).build(),
+        TransientKinesisException.class);
   }
 
   @Test
-  public void shouldHandleClientErrorForGetBacklogBytes() {
-    shouldHandleGetBacklogBytesError(SdkClientException.builder().build(), RuntimeException.class);
+  public void shouldHandleRetryableClientErrorForGetBacklogBytes() {
+    shouldHandleGetBacklogBytesError(
+        ApiCallAttemptTimeoutException.builder().build(), TransientKinesisException.class);
   }
 
   @Test
-  public void shouldHandleUnexpectedExceptionForGetBacklogBytes() {
-    shouldHandleGetBacklogBytesError(new NullPointerException(), RuntimeException.class);
+  public void shouldHandleNotRetryableClientErrorForGetBacklogBytes() {
+    shouldHandleGetBacklogBytesError(
+        SdkClientException.builder().build(), SdkClientException.class);
   }
 
   private void shouldHandleGetBacklogBytesError(

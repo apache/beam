@@ -118,6 +118,8 @@ runShadow {
   if (project.hasProperty('sdkWorkerParallelism'))
     args += ["--sdk-worker-parallelism=${project.property('sdkWorkerParallelism')}"]
 
+  logger.info('Will start flink job server with args {}', args)
+
   // Enable remote debugging.
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
   if (project.hasProperty("logLevel"))
@@ -172,12 +174,12 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
         excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
         if (streaming) {
           excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
@@ -228,9 +230,15 @@ def setupTask = project.tasks.register("flinkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir
   def flinkJobServerJar = shadowJar.archivePath
+  def flinkDir = project.project(":runners:flink").projectDir
+  def additionalArgs = ""
+  if (project.hasProperty('flinkConfDir'))
+    additionalArgs += " --flink-conf-dir=${project.property('flinkConfDir')}"
+  else
+    additionalArgs += "--flink-conf-dir=$flinkDir/src/test/resources"
 
   executable 'sh'
-  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${flinkJobServerJar}"
+  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${flinkJobServerJar} --additional_args \"${additionalArgs}\""
 }
 
 def cleanupTask = project.tasks.register("flinkJobServerCleanup", Exec) {

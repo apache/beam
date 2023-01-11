@@ -30,6 +30,11 @@ package main
 //     - Options
 //     - Branching
 //     - Multiple Outputs
+//   complexity: MEDIUM
+//   tags:
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"

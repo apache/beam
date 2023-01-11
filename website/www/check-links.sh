@@ -34,10 +34,42 @@ function redraw_progress_bar { # int barsize, int base, int current, int top
     echo -n "] $current / $top " $'\r'
 }
 
+function check_absolute_links {
+  local env="$1"
+  local exception_link="$2"
+  local -n env_exception_links="$3"
+
+  echo "Checking $env links."
+  for external_link in "${external_links[@]}";
+  do
+  processed_external_link=`awk -F/ '{print $3}' <<<"$external_link"`
+    if [[ "$processed_external_link" == "$exception_link" ]];
+    then
+      checked_word=`awk -F/ '{print $4}' <<<"$external_link"`
+      if [[ $checked_word != "releases" ]]; then
+        env_exception_links+=("${external_link}")
+        echo "${external_link}"
+      fi
+    fi
+  done
+}
+
+function report_absolute_links {
+  local -n env_exception_links="$1"
+  local env="$2"
+
+  if [[ ${#env_exception_links[@]} -ne 0 ]]; then
+      echo "Found ${#env_exception_links[@]} link(s) leading to $env site. Recommended to use relative links to Apache Beam website. Absolute links to Apache Beam $env website:"
+      printf '%s\n' ${env_exception_links[@]}
+  else
+      echo "No absolute $env links"
+  fi
+}
+
 if ! command -v lynx; then
     echo "This script requires lynx to work properly."
     echo
-    echo "For more information, look at: http://lynx.browser.org/"
+    echo "For more information, look at: https://lynx.browser.org/"
     exit 1
 fi
 
@@ -67,25 +99,54 @@ mapfile -t external_links < <(printf '%s\n' "${links[@]}" | grep "^https\?://" |
 echo "Found ${#links[@]} links including ${#external_links[@]} unique external links."
 
 echo "Checking links."
+prod_exception_links=()
+staging_exception_links=()
+check_absolute_links "production" "beam.apache.org" prod_exception_links
+check_absolute_links "staging" "apache-beam-website-pull-requests.storage.googleapis.com" staging_exception_links
+
+echo "Checking working links."
+verified_list="https://reporter.apache.org/addrelease.html?beam,https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork,https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/,https://qwiklabs.com/focuses/608?locale=en&parent=catalog,https://www.artstation.com/jbruno,https://www.qwiklabs.com/focuses/1098?parent=catalog,https://www.infoworld.com/article/3336072/infoworlds-2019-technology-of-the-year-award-winners.html,https://be.linkedin.com/in/mattcasters,https://www.linkedin.com/company/beam-summit/,https://www.linkedin.com/company/beam-summit/?viewAsMember=true,https://www.ricardo.ch/,https://www.linkedin.com/company/apache-beam/,https://repository.apache.org/content/repositories/orgapachebeam-NNNN/),https://www.meetup.com/Apache-Beam-Stockholm/?_cookie-check=v_YHSSjYcT9rpm61,https://www.meetup.com/Apache-Beam-Stockholm/events/260634514"
 invalid_links=()
-i=1
-for external_link in "${external_links[@]}"
-do
-    redraw_progress_bar 50 1 $i ${#external_links[@]}
 
-    if ! curl -sSfL --max-time 60 --connect-timeout 30 --retry 3 -4 "${external_link}" > /dev/null ; then
-        invalid_links+=("${external_link}")
-        echo "${external_link}"
-    fi
-    i=$((i+1))
-done
-# Clear line - hide progress bar
-echo -n -e "\033[2K"
+function handle_urls {
+  i=1
+  for external_link in "${external_links[@]}"
+  do
+      redraw_progress_bar 50 1 $i ${#external_links[@]}
 
+      curl_result=$(curl -sSfL --max-filesize 1000000 --max-time 10 --connect-timeout 10 --retry 2 -4 "$external_link" 2>&1 > /dev/null) && status=$? || status=$?
+      if [ $status -ne 0 ] ; then
+          if [[ $curl_result =~ (error: )([0-9]{3}) ]]; then
+              error_code=${BASH_REMATCH[0]}
 
-if [[ ${#invalid_links[@]} -ne 0 ]]; then
-    echo "Found ${#invalid_links[@]} invalid links: "
-    printf '%s\n' "${invalid_links[@]}"
+              # Check if link is in verified_list
+              if [[ $verified_list =~ "$external_link" ]]; then
+                  continue
+              fi
+
+              invalid_links+=("${error_code} ${external_link}")
+              echo "${external_link}"
+          fi
+      fi
+      i=$((i+1))
+  done
+  # Clear line - hide progress bar
+  echo -n -e "\033[2K"
+}
+
+handle_urls
+
+report_absolute_links prod_exception_links "production"
+report_absolute_links staging_exception_links "staging"
+
+# Sort invalid links by error status
+IFS=$'\n'
+sorted_invalid_links=($(sort <<<"${invalid_links[*]}"));
+unset IFS
+
+if [[ ${#sorted_invalid_links[@]} -ne 0 ]]; then
+    echo "Found ${#sorted_invalid_links[@]} invalid links: "
+    printf '%s\n' "${sorted_invalid_links[@]}"
 else
     echo "All links work"
 fi

@@ -437,18 +437,18 @@ class UpdateDestinationSchema(beam.DoFn):
     # Trigger potential schema modification by loading zero rows into the
     # destination table with the temporary table schema.
     schema_update_job_reference = self.bq_wrapper.perform_load_job(
-      destination=table_reference,
-      source_stream=io.BytesIO(),  # file with zero rows
-      job_id=job_name,
-      schema=temp_table_schema,
-      write_disposition='WRITE_APPEND',
-      create_disposition='CREATE_NEVER',
-      additional_load_parameters=additional_parameters,
-      job_labels=self._bq_io_metadata.add_additional_bq_job_labels(),
-      # JSON format is hardcoded because zero rows load(unlike AVRO) and
-      # a nested schema(unlike CSV, which a default one) is permitted.
-      source_format="NEWLINE_DELIMITED_JSON",
-      load_job_project_id=self._load_job_project_id)
+        destination=table_reference,
+        source_stream=io.BytesIO(),  # file with zero rows
+        job_id=job_name,
+        schema=temp_table_schema,
+        write_disposition='WRITE_APPEND',
+        create_disposition='CREATE_NEVER',
+        additional_load_parameters=additional_parameters,
+        job_labels=self._bq_io_metadata.add_additional_bq_job_labels(),
+        # JSON format is hardcoded because zero rows load(unlike AVRO) and
+        # a nested schema(unlike CSV, which a default one) is permitted.
+        source_format="NEWLINE_DELIMITED_JSON",
+        load_job_project_id=self._load_job_project_id)
     self.pending_jobs.append(
         GlobalWindows.windowed_value(
             (destination, schema_update_job_reference)))
@@ -515,9 +515,17 @@ class TriggerCopyJobs(beam.DoFn):
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
 
-  def process(self, element, job_name_prefix=None, unused_schema_mod_jobs=None):
-    destination = element[0]
-    job_reference = element[1]
+  def process(
+      self, element_list, job_name_prefix=None, unused_schema_mod_jobs=None):
+    if isinstance(element_list, tuple):
+      # Allow this for streaming update compatibility while fixing BEAM-24535.
+      self.process_one(element_list, job_name_prefix)
+    else:
+      for element in element_list:
+        self.process_one(element, job_name_prefix)
+
+  def process_one(self, element, job_name_prefix):
+    destination, job_reference = element
 
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
     if copy_to_reference.projectId is None:
@@ -597,6 +605,7 @@ class TriggerLoadJobs(beam.DoFn):
   """
 
   TEMP_TABLES = 'TemporaryTables'
+  ONGOING_JOBS = 'OngoingJobs'
 
   def __init__(
       self,
@@ -718,6 +727,8 @@ class TriggerLoadJobs(beam.DoFn):
         source_format=self.source_format,
         job_labels=self.bq_io_metadata.add_additional_bq_job_labels(),
         load_job_project_id=self.load_job_project_id)
+    yield pvalue.TaggedOutput(
+        TriggerLoadJobs.ONGOING_JOBS, (destination, job_reference))
     self.pending_jobs.append(
         GlobalWindows.windowed_value((destination, job_reference)))
 
@@ -760,6 +771,13 @@ class PartitionFiles(beam.DoFn):
     destination = element[0]
     files = element[1]
     partitions = []
+
+    if not files:
+      _LOGGER.warning(
+          'Ignoring a BigQuery batch load partition to %s '
+          'that contains no source URIs.',
+          destination)
+      return
 
     latest_partition = PartitionFiles.Partition(
         self.max_partition_size, self.max_files_per_partition)
@@ -1054,13 +1072,17 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 load_job_project_id=self.load_job_project_id),
             load_job_name_pcv,
             *self.schema_side_inputs).with_outputs(
-                TriggerLoadJobs.TEMP_TABLES, main='main'))
+                TriggerLoadJobs.TEMP_TABLES,
+                TriggerLoadJobs.ONGOING_JOBS,
+                main='main'))
 
-    temp_tables_load_job_ids_pc = trigger_loads_outputs['main']
+    finished_temp_tables_load_job_ids_pc = trigger_loads_outputs['main']
+    temp_tables_load_job_ids_pc = trigger_loads_outputs[
+        TriggerLoadJobs.ONGOING_JOBS]
     temp_tables_pc = trigger_loads_outputs[TriggerLoadJobs.TEMP_TABLES]
 
     schema_mod_job_ids_pc = (
-        temp_tables_load_job_ids_pc
+        finished_temp_tables_load_job_ids_pc
         | beam.ParDo(
             UpdateDestinationSchema(
                 project=self.project,
@@ -1071,8 +1093,24 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 load_job_project_id=self.load_job_project_id),
             schema_mod_job_name_pcv))
 
+    if self.create_disposition == 'WRITE_TRUNCATE':
+      # All loads going to the same table must be processed together so that
+      # the truncation happens only once. See BEAM-24535.
+      finished_temp_tables_load_job_ids_list_pc = (
+          finished_temp_tables_load_job_ids_pc | beam.MapTuple(
+              lambda destination,
+              job_reference: (
+                  bigquery_tools.parse_table_reference(destination).tableId,
+                  (destination, job_reference)))
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda tableId, batch: list(batch)))
+    else:
+      # Loads can happen in parallel.
+      finished_temp_tables_load_job_ids_list_pc = (
+          finished_temp_tables_load_job_ids_pc | beam.Map(lambda x: [x]))
+
     copy_job_outputs = (
-        temp_tables_load_job_ids_pc
+        finished_temp_tables_load_job_ids_list_pc
         | beam.ParDo(
             TriggerCopyJobs(
                 project=self.project,
@@ -1113,7 +1151,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 step_name=step_name,
                 load_job_project_id=self.load_job_project_id),
             load_job_name_pcv,
-            *self.schema_side_inputs))
+            *self.schema_side_inputs).with_outputs(
+                TriggerLoadJobs.ONGOING_JOBS, main='main')
+    )[TriggerLoadJobs.ONGOING_JOBS]
 
     destination_load_job_ids_pc = (
         (temp_tables_load_job_ids_pc, destination_load_job_ids_pc)

@@ -109,6 +109,24 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
     self.assertContains(log_entry.trace, 'some message')
     self.assertContains(log_entry.trace, 'log_handler_test.py')
 
+  def test_format_bad_message(self):
+    # We specifically emit to the handler directly since we don't want to emit
+    # to all handlers in general since we know that this record will raise an
+    # exception during formatting.
+    self.fn_log_handler.emit(
+        logging.LogRecord(
+            'name',
+            logging.ERROR,
+            'pathname',
+            777,
+            'TestLog %d', (None, ),
+            exc_info=None))
+    self.fn_log_handler.close()
+    log_entry = self.test_logging_service.log_records_received[0].log_entries[0]
+    self.assertContains(
+        log_entry.message,
+        "Failed to format 'TestLog %d' with args '(None,)' during logging.")
+
   def test_context(self):
     try:
       with statesampler.instruction_id('A'):

@@ -45,7 +45,6 @@ export class MultiplexingDataChannel {
     );
     this.dataChannel = this.dataClient.data(metadata);
     this.dataChannel.on("data", async (elements) => {
-      console.debug("data", elements);
       for (const data of elements.data) {
         const consumer = this.getConsumer(data.instructionId, data.transformId);
         try {
@@ -73,7 +72,7 @@ export class MultiplexingDataChannel {
       }
     });
     this.dataChannel.on("error", (err) => {
-      console.log("Data channel error", err);
+      console.error("Data channel error", err);
     });
   }
 

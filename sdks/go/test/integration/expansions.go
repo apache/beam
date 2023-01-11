@@ -28,7 +28,7 @@ import (
 // on the --expansion_jar and --expansion_addr flags in this package. The main reason to use this
 // instead of accessing the flags directly is to let it handle jar startup and shutdown.
 //
-// Usage
+// # Usage
 //
 // Create an ExpansionServices object in TestMain with NewExpansionServices. Then use GetAddr for
 // every expansion service needed for the test. Call Shutdown on it before finishing TestMain (or
@@ -39,16 +39,17 @@ import (
 // recommended to only use ExpansionServices in TestMain to avoid this.
 //
 // Example:
-//   flag.Parse()
-//   beam.Init()
-//   services := integration.NewExpansionServices()
-//   defer func() { services.Shutdown() }()
-//   addr, err := services.GetAddr("example")
-//   if err != nil {
-//     panic(err)
-//   }
-//   expansionAddr = addr  // Save address to a package-level variable used by tests.
-//   ptest.MainRet(m)
+//
+//	flag.Parse()
+//	beam.Init()
+//	services := integration.NewExpansionServices()
+//	defer func() { services.Shutdown() }()
+//	addr, err := services.GetAddr("example")
+//	if err != nil {
+//	  panic(err)
+//	}
+//	expansionAddr = addr  // Save address to a package-level variable used by tests.
+//	ptest.MainRet(m)
 type ExpansionServices struct {
 	addrs map[string]string
 	jars  map[string]string

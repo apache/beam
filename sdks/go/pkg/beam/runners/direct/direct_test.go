@@ -23,9 +23,13 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -41,6 +45,7 @@ func init() {
 	beam.RegisterFunction(dofn2x1)
 	beam.RegisterFunction(dofn3x1)
 	beam.RegisterFunction(dofn2x2KV)
+	beam.RegisterFunction(dofnMultiMap)
 	beam.RegisterFunction(dofn2)
 	beam.RegisterFunction(dofnKV)
 	beam.RegisterFunction(dofnKV2)
@@ -55,6 +60,10 @@ func init() {
 
 	beam.RegisterFunction(dofn1Counter)
 	beam.RegisterFunction(dofnSink)
+
+	beam.RegisterFunction(dofnEtKV1)
+	beam.RegisterFunction(dofnEtKV2)
+	beam.RegisterFunction(formatCoGBK2)
 }
 
 func dofn1(imp []byte, emit func(int64)) {
@@ -111,6 +120,16 @@ func dofn2x2KV(imp []byte, iter func(*string, *int64) bool, emitK func(string), 
 		sum += v
 		emitK(k)
 	}
+	emitV(sum)
+}
+
+func dofnMultiMap(key string, lookup func(string) func(*int64) bool, emitK func(string), emitV func(int64)) {
+	var v, sum int64
+	iter := lookup(key)
+	for iter(&v) {
+		sum += v
+	}
+	emitK(key)
 	emitV(sum)
 }
 
@@ -219,6 +238,36 @@ func dofnSink(ctx context.Context, _ []byte) {
 
 func dofn1Counter(ctx context.Context, _ []byte, emit func(int64)) {
 	beam.NewCounter(ns, "count").Inc(ctx, 1)
+}
+
+const baseTs = mtime.Time(1663663026000)
+
+func dofnEtKV1(imp []byte, emit func(beam.EventTime, string, int64)) {
+	emit(baseTs, "a", 1)
+	emit(baseTs.Add(time.Millisecond*1200), "a", 3)
+
+	emit(baseTs.Add(time.Millisecond*2500), "b", 3)
+}
+
+func dofnEtKV2(imp []byte, emit func(beam.EventTime, string, int64)) {
+	emit(baseTs.Add(time.Millisecond*500), "a", 2)
+
+	emit(baseTs.Add(time.Millisecond), "b", 1)
+	emit(baseTs.Add(time.Millisecond*500), "b", 2)
+}
+
+func formatCoGBK2(s string, u func(*int64) bool, v func(*int64) bool) string {
+	var ls0, ls1 []int64
+	val := int64(0)
+	for u(&val) {
+		ls0 = append(ls0, val)
+	}
+	sort.Slice(ls0, func(i, j int) bool { return ls0[i] < ls0[j] })
+	for v(&val) {
+		ls1 = append(ls1, val)
+	}
+	sort.Slice(ls1, func(i, j int) bool { return ls1[i] < ls1[j] })
+	return fmt.Sprintf("%s,%v,%v", s, ls0, ls1)
 }
 
 func TestRunner_Pipelines(t *testing.T) {
@@ -409,6 +458,24 @@ func TestRunner_Pipelines(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Run("sideinput_multimap", func(t *testing.T) {
+		p, s := beam.NewPipelineWithRoot()
+		imp := beam.Impulse(s)
+		col1 := beam.ParDo(s, dofnKV, imp)
+		keys := filter.Distinct(s, beam.DropValue(s, col1))
+		ks, sum := beam.ParDo2(s, dofnMultiMap, keys, beam.SideInput{Input: col1})
+		beam.ParDo(s, &stringCheck{
+			Name: "iterKV sideinput check K",
+			Want: []string{"a", "b"},
+		}, ks)
+		beam.ParDo(s, &int64Check{
+			Name: "iterKV sideinput check V",
+			Want: []int{9, 12},
+		}, sum)
+		if _, err := executeWithT(context.Background(), t, p); err != nil {
+			t.Fatal(err)
+		}
+	})
 	// Validates the waiting on side input readiness in buffer.
 	t.Run("sideinput_2iterable", func(t *testing.T) {
 		p, s := beam.NewPipelineWithRoot()
@@ -421,6 +488,28 @@ func TestRunner_Pipelines(t *testing.T) {
 			Name: "iter sideinput check",
 			Want: []int{16, 17, 18},
 		}, sum)
+		if _, err := executeWithT(context.Background(), t, p); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("window", func(t *testing.T) {
+		p, s := beam.NewPipelineWithRoot()
+		imp := beam.Impulse(s)
+		col1 := beam.ParDo(s, dofnEtKV1, imp)
+		wcol1 := beam.WindowInto(s, window.NewSessions(time.Second), col1)
+		col2 := beam.ParDo(s, dofnEtKV2, imp)
+		wcol2 := beam.WindowInto(s, window.NewSessions(time.Second), col2)
+		coGBK := beam.CoGroupByKey(s, wcol1, wcol2)
+		format := beam.ParDo(s, formatCoGBK2, coGBK)
+		beam.ParDo(s, &stringCheck{
+			Name: "window",
+			Want: []string{
+				"a,[1 3],[2]",
+				"b,[3],[]",
+				"b,[],[1 2]",
+			},
+		}, format)
+
 		if _, err := executeWithT(context.Background(), t, p); err != nil {
 			t.Fatal(err)
 		}

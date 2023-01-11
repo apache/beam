@@ -22,40 +22,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../components/filler_text.dart';
+import '../../assets/assets.gen.dart';
+import '../../components/builders/content_tree.dart';
+import '../../components/builders/sdks.dart';
 import '../../components/scaffold.dart';
 import '../../constants/sizes.dart';
-import '../../generated/assets.gen.dart';
+import '../../models/module.dart';
+import 'state.dart';
 
 class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen();
+  final WelcomeNotifier notifier;
+
+  const WelcomeScreen(this.notifier);
 
   @override
   Widget build(BuildContext context) {
     return TobScaffold(
       child: SingleChildScrollView(
         child: MediaQuery.of(context).size.width > ScreenBreakpoints.twoColumns
-            ? const _WideWelcome()
-            : const _NarrowWelcome(),
+            ? _WideWelcome(notifier)
+            : _NarrowWelcome(notifier),
       ),
     );
   }
 }
 
 class _WideWelcome extends StatelessWidget {
-  const _WideWelcome();
+  final WelcomeNotifier notifier;
+
+  const _WideWelcome(this.notifier);
 
   @override
   Widget build(BuildContext context) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Expanded(
-            child: _SdkSelection(),
+            child: _SdkSelection(notifier),
           ),
           Expanded(
-            child: _TourSummary(),
+            child: _TourSummary(notifier),
           ),
         ],
       ),
@@ -64,21 +71,25 @@ class _WideWelcome extends StatelessWidget {
 }
 
 class _NarrowWelcome extends StatelessWidget {
-  const _NarrowWelcome();
+  final WelcomeNotifier notifier;
+
+  const _NarrowWelcome(this.notifier);
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: const [
-        _SdkSelection(),
-        _TourSummary(),
+      children: [
+        _SdkSelection(notifier),
+        _TourSummary(notifier),
       ],
     );
   }
 }
 
 class _SdkSelection extends StatelessWidget {
-  const _SdkSelection();
+  final WelcomeNotifier notifier;
+
+  const _SdkSelection(this.notifier);
 
   static const double _minimalHeight = 900;
 
@@ -106,10 +117,26 @@ class _SdkSelection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(50, 60, 50, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                _IntroText(),
-                SizedBox(height: BeamSizes.size32),
-                _Buttons(),
+              children: [
+                const _IntroText(),
+                const SizedBox(height: BeamSizes.size32),
+                SdksBuilder(
+                  builder: (context, sdks, child) {
+                    if (sdks.isEmpty) {
+                      return Container();
+                    }
+
+                    return AnimatedBuilder(
+                      animation: notifier,
+                      builder: (context, child) => _Buttons(
+                        sdks: sdks,
+                        sdkId: notifier.sdkId,
+                        setSdkId: (v) => notifier.sdkId = v,
+                        onStartPressed: notifier.startTour,
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -120,35 +147,48 @@ class _SdkSelection extends StatelessWidget {
 }
 
 class _TourSummary extends StatelessWidget {
-  const _TourSummary();
+  final WelcomeNotifier notifier;
+
+  const _TourSummary(this.notifier);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: BeamSizes.size20,
-        horizontal: 27,
-      ),
-      child: Column(
-        children: _modules
-            .map(
-              (module) => _Module(
-                title: module,
-                isLast: module == _modules.last,
-              ),
-            )
-            .toList(growable: false),
-      ),
+    return AnimatedBuilder(
+      animation: notifier,
+      builder: (context, child) {
+        final sdkId = notifier.sdkId;
+        if (sdkId == null) {
+          return Container();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: BeamSizes.size20,
+            horizontal: 27,
+          ),
+          child: ContentTreeBuilder(
+            sdkId: sdkId,
+            builder: (context, contentTree, child) {
+              if (contentTree == null) {
+                return Container();
+              }
+
+              return Column(
+                children: contentTree.modules
+                    .map(
+                      (module) => _Module(
+                        module: module,
+                        isLast: module == contentTree.modules.last,
+                      ),
+                    )
+                    .toList(growable: false),
+              );
+            },
+          ),
+        );
+      },
     );
   }
-
-  static const List<String> _modules = [
-    'Core Transforms',
-    'Common Transforms',
-    'IO',
-    'Windowing',
-    'Triggers',
-  ];
 }
 
 class _IntroText extends StatelessWidget {
@@ -199,46 +239,51 @@ class _IntroText extends StatelessWidget {
 }
 
 class _Buttons extends StatelessWidget {
-  const _Buttons();
+  final List<Sdk> sdks;
+  final String? sdkId;
+  final ValueChanged<String> setSdkId;
+  final VoidCallback onStartPressed;
 
-  void _onSdkChanged(String value) {
-    // TODO(nausharipov): change sdk
-  }
+  const _Buttons({
+    required this.sdks,
+    required this.sdkId,
+    required this.setSdkId,
+    required this.onStartPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Wrap(
       children: [
         Wrap(
-          children: ['Java', 'Python', 'Go']
+          children: sdks
               .map(
-                (e) => _SdkButton(
-                  value: e,
-                  groupValue: _sdk,
-                  onChanged: _onSdkChanged,
+                (sdk) => _SdkButton(
+                  title: sdk.title,
+                  value: sdk.id,
+                  groupValue: sdkId,
+                  onChanged: setSdkId,
                 ),
               )
               .toList(growable: false),
         ),
         ElevatedButton(
-          onPressed: () {
-            // TODO(nausharipov): redirect
-          },
+          onPressed: sdkId == null ? null : onStartPressed,
           child: const Text('pages.welcome.startTour').tr(),
         ),
       ],
     );
   }
-
-  static const String _sdk = 'Java';
 }
 
 class _SdkButton extends StatelessWidget {
+  final String title;
   final String value;
-  final String groupValue;
+  final String? groupValue;
   final ValueChanged<String> onChanged;
 
   const _SdkButton({
+    required this.title,
     required this.value,
     required this.groupValue,
     required this.onChanged,
@@ -258,18 +303,18 @@ class _SdkButton extends StatelessWidget {
         onPressed: () {
           onChanged(value);
         },
-        child: Text(value),
+        child: Text(title),
       ),
     );
   }
 }
 
 class _Module extends StatelessWidget {
-  final String title;
+  final ModuleModel module;
   final bool isLast;
 
   const _Module({
-    required this.title,
+    required this.module,
     required this.isLast,
   });
 
@@ -277,7 +322,7 @@ class _Module extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ModuleHeader(title: title),
+        _ModuleHeader(title: module.title),
         if (isLast) const _LastModuleBody() else const _ModuleBody(),
       ],
     );
@@ -286,6 +331,7 @@ class _Module extends StatelessWidget {
 
 class _ModuleHeader extends StatelessWidget {
   final String title;
+
   const _ModuleHeader({required this.title});
 
   @override
@@ -350,7 +396,6 @@ class _ModuleBody extends StatelessWidget {
       padding: _modulePadding,
       child: Column(
         children: [
-          const FillerText(width: 20),
           const SizedBox(height: BeamSizes.size16),
           Divider(
             color: themeData.dividerColor,
@@ -369,7 +414,6 @@ class _LastModuleBody extends StatelessWidget {
     return Container(
       margin: _moduleLeftMargin,
       padding: _modulePadding,
-      child: const FillerText(width: 20),
     );
   }
 }

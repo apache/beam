@@ -24,19 +24,25 @@ import 'package:playground_components/src/models/sdk.dart';
 import 'examples.dart';
 
 final categoriesMock = [
-  CategoryWithExamples(title: 'Sorted', examples: [exampleMock1]),
-  CategoryWithExamples(title: 'Unsorted', examples: [exampleMock2]),
+  CategoryWithExamples(title: 'Filtered', examples: [examplePython1]),
+  CategoryWithExamples(
+    title: 'Unfiltered',
+    // exampleMock2 is repeated to test that 'tag2' is more frequent than 'tag1'
+    examples: [examplePython1, examplePython2, examplePython2, examplePython2],
+  ),
 ];
 
-final sortedCategories = [
-  CategoryWithExamples(title: 'Sorted', examples: [exampleMock1]),
+final filteredCategories = [
+  CategoryWithExamples(title: 'Filtered', examples: [examplePython1]),
 ];
 
-const unsortedExamples = [exampleMock1, exampleMock2];
+const filteredExamples = [examplePython1, examplePython2];
 
-const examplesSortedByTypeMock = [exampleMock2];
+const examplesFilteredByTypeMock = [examplePython2];
 
-const examplesSortedByNameMock = [exampleMock1];
+const examplesFilteredByTagsMock = [examplePython2];
+
+const examplesFilteredByNameMock = [examplePython1];
 
 final sdkCategoriesFromServerMock = UnmodifiableMapView({
   Sdk.java: categoriesMock,

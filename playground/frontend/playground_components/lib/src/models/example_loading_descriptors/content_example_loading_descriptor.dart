@@ -16,61 +16,66 @@
  * limitations under the License.
  */
 
+import '../../enums/complexity.dart';
+import '../example_view_options.dart';
 import '../sdk.dart';
+import '../snippet_file.dart';
 import 'example_loading_descriptor.dart';
 
+/// Fully contains an example data to be loaded.
 class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
-  /// The source code.
-  final String content;
+  final List<SnippetFile> files;
 
   /// The name of the example, if any, to show in the dropdown.
   final String? name;
 
+  final Complexity? complexity;
+
   final Sdk sdk;
 
   const ContentExampleLoadingDescriptor({
-    required this.content,
-    required this.name,
+    required this.files,
     required this.sdk,
+    this.complexity,
+    this.name,
+    super.viewOptions,
   });
 
-  static ContentExampleLoadingDescriptor? tryParse(Map eventData) {
-    final content = _tryParseContent(eventData);
-    if (content == null) {
+  static ContentExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {
+    final files = map['files'];
+    if (files is! List) {
       return null;
     }
 
-    final sdk = _tryParseSdk(eventData);
+    final sdk = Sdk.tryParse(map['sdk']);
     if (sdk == null) {
       return null;
     }
 
     return ContentExampleLoadingDescriptor(
-      content: content,
-      name: _tryParseName(eventData),
+      files: (map['files'] as List<dynamic>)
+          .map((file) => SnippetFile.fromJson(file as Map<String, dynamic>))
+          .toList(growable: false),
+      name: map['name']?.toString(),
       sdk: sdk,
+      complexity: Complexity.fromString(map['complexity']),
+      viewOptions: ExampleViewOptions.fromShortMap(map),
     );
   }
 
-  static String? _tryParseContent(Map map) {
-    return map['content']?.toString();
-  }
-
-  static String? _tryParseName(Map map) {
-    return map['name']?.toString();
-  }
-
-  static Sdk? _tryParseSdk(Map map) {
-    return Sdk.tryParse(map['sdk']);
-  }
-
   @override
-  List<Object> get props => [content, sdk.id];
+  List<Object?> get props => [
+        complexity,
+        files,
+        name,
+        sdk.id,
+      ];
 
   @override
   Map<String, dynamic> toJson() => {
-    'content': content,
-    'name': name,
-    'sdk': sdk.id,
-  };
+        'complexity': complexity?.name,
+        'files': files.map((e) => e.toJson()).toList(growable: false),
+        'name': name,
+        'sdk': sdk.id,
+      };
 }

@@ -71,6 +71,7 @@ var directFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
 	"TestJDBCIO_PostgresReadWrite",
+	"TestDataframe",
 	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
 	"TestPanes",
@@ -136,8 +137,6 @@ var portableFilters = []string{
 var flinkFilters = []string{
 	// TODO(https://github.com/apache/beam/issues/20723): Flink tests timing out on reads.
 	"TestXLang_Combine.*",
-	// TODO(https://github.com/apache/beam/issues/21094): Test fails on post commits: "Insufficient number of network buffers".
-	"TestXLang_Multi",
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
@@ -224,6 +223,7 @@ var dataflowFilters = []string{
 	"TestJDBCIO_BasicReadWrite",
 	"TestJDBCIO_PostgresReadWrite",
 	"TestDebeziumIO_BasicRead",
+	"TestMongoDBIO.*",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
 	// The Dataflow runner does not support the TestStream primitive

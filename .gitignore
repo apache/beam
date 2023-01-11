@@ -45,6 +45,7 @@ sdks/java/maven-archetypes/examples/src/main/resources/archetype-resources/sampl
 **/env/**/*
 **/.mypy_cache
 **/.dmypy.json
+**/.hypothesis
 sdks/python/**/*.c
 sdks/python/**/*.so
 sdks/python/**/*.egg
@@ -121,11 +122,13 @@ website/www/yarn-error.log
 
 # Dart/Flutter
 **/.dart_tool
-**/.packages
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
+**/.packages
 **/generated_plugin_registrant.dart
-**/*.mocks.dart
+playground/frontend/playground_components/pubspec.lock
+playground/frontend/playground_components/test/tools/extract_symbols_java/dependencies
+playground/frontend/playground_components_dev/pubspec.lock
 
 # Ignore Beam Playground Terraform
 **/.terraform
@@ -133,3 +136,6 @@ website/www/yarn-error.log
 **/*.tfstate.*
 **/*.hcl
 **/*.tfvars
+
+# Ignore Katas auto-generated files
+**/*-remote-info.yaml

@@ -72,7 +72,7 @@ public class PythonService {
         ImmutableList.<String>builder().addAll(this.extraPackages).addAll(extraPackages).build());
   }
 
-  @SuppressWarnings("argument.type.incompatible")
+  @SuppressWarnings("argument")
   public AutoCloseable start() throws IOException, InterruptedException {
     File bootstrapScript = File.createTempFile("bootstrap_beam_venv", ".py");
     bootstrapScript.deleteOnExit();
@@ -107,7 +107,7 @@ public class PythonService {
     int result = bootstrap.waitFor();
     if (result != 0) {
       throw new RuntimeException(
-          "Python boostrap failed with error " + result + ", " + lastNonEmptyLine);
+          "Python bootstrap failed with error " + result + ", " + lastNonEmptyLine);
     }
     String pythonExecutable = lastNonEmptyLine;
     List<String> command = new ArrayList<>();

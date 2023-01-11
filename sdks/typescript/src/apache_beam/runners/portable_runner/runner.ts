@@ -19,6 +19,7 @@
 const childProcess = require("child_process");
 const crypto = require("crypto");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 import { ChannelCredentials } from "@grpc/grpc-js";
@@ -34,6 +35,7 @@ import { Pipeline } from "../../internal/pipeline";
 import { PipelineResult, Runner } from "../runner";
 import { PipelineOptions } from "../../options/pipeline_options";
 import { JobState_Enum, JobStateEvent } from "../../proto/beam_job_api";
+import { MonitoringInfo } from "../../proto/metrics";
 
 import { ExternalWorkerPool } from "../../worker/external_worker_service";
 import * as environments from "../../internal/environments";
@@ -41,6 +43,7 @@ import * as artifacts from "../artifacts";
 import { Service as JobService } from "../../utils/service";
 
 import * as serialization from "../../serialization";
+import { version } from "../../version";
 
 const TERMINAL_STATES = [
   JobState_Enum.DONE,
@@ -50,19 +53,25 @@ const TERMINAL_STATES = [
   JobState_Enum.DRAINED,
 ];
 
+// TODO(robertwb): Change this to docker.io/apache/beam_typescript_sdk
+// once we push images there.
+const DOCKER_BASE = "gcr.io/apache-beam-testing/beam_typescript_sdk";
+
 type completionCallback = (terminalState: JobStateEvent) => Promise<unknown>;
 
-class PortableRunnerPipelineResult implements PipelineResult {
+class PortableRunnerPipelineResult extends PipelineResult {
   jobId: string;
   runner: PortableRunner;
   completionCallbacks: completionCallback[];
   terminalState?: JobStateEvent;
+  finalMetrics?: MonitoringInfo[];
 
   constructor(
     runner: PortableRunner,
     jobId: string,
     completionCallbacks: completionCallback[]
   ) {
+    super();
     this.runner = runner;
     this.jobId = jobId;
     this.completionCallbacks = completionCallbacks;
@@ -79,6 +88,7 @@ class PortableRunnerPipelineResult implements PipelineResult {
     const state = await this.runner.getJobState(this.jobId);
     if (PortableRunnerPipelineResult.isTerminal(state.state)) {
       this.terminalState = state;
+      this.finalMetrics = await this.rawMetrics();
       for (const callback of this.completionCallbacks) {
         await callback(state);
       }
@@ -117,6 +127,15 @@ class PortableRunnerPipelineResult implements PipelineResult {
     }
     return state;
   }
+
+  async rawMetrics() {
+    if (this.finalMetrics !== undefined) {
+      return this.finalMetrics;
+    } else {
+      const metrics = await this.runner.getJobMetrics(this.jobId);
+      return metrics.metrics!.committed!;
+    }
+  }
 }
 
 export class PortableRunner extends Runner {
@@ -150,6 +169,11 @@ export class PortableRunner extends Runner {
     return this.client;
   }
 
+  async getJobMetrics(jobId: string) {
+    const call = (await this.getClient()).getJobMetrics({ jobId });
+    return await call.response;
+  }
+
   async getJobState(jobId: string) {
     const call = (await this.getClient()).getState({ jobId });
     return await call.response;
@@ -161,10 +185,10 @@ export class PortableRunner extends Runner {
   }
 
   async runPipeline(
-    pipeline: Pipeline,
+    pipeline: runnerApiProto.Pipeline,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
-    return this.runPipelineWithProto(pipeline.getProto(), options);
+    return this.runPipelineWithProto(pipeline, options);
   }
 
   async runPipelineWithProto(
@@ -211,20 +235,27 @@ export class PortableRunner extends Runner {
             environments.asDockerEnvironment(
               env,
               (options as any)?.sdkContainerImage ||
-                "gcr.io/apache-beam-testing/beam_typescript_sdk:dev"
+                DOCKER_BASE + ":" + version.replace("-SNAPSHOT", ".dev")
             );
           const deps = pipeline.components!.environments[envId].dependencies;
 
           // Package up this code as a dependency.
-          const result = childProcess.spawnSync("npm", ["pack"], {
-            encoding: "latin1",
-          });
+          const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "beam-pack-"));
+          const result = childProcess.spawnSync(
+            "npm",
+            ["pack", "--pack-destination", tmpDir],
+            {
+              encoding: "latin1",
+            }
+          );
           if (result.status === 0) {
             console.debug(result.stdout);
           } else {
             throw new Error(result.output);
           }
-          const packFile = path.resolve(result.stdout.trim());
+          const packFile = path.resolve(
+            path.join(tmpDir, result.stdout.trim())
+          );
           deps.push(fileArtifact(packFile, "beam:artifact:type:npm:v1"));
 
           // If any dependencies are files, package them up as well.

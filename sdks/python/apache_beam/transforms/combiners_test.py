@@ -563,6 +563,27 @@ class CombineTest(unittest.TestCase):
 
       assert_that(result, has_expected_values)
 
+  def test_combining_with_sliding_windows_and_fanout_raises_error(self):
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with self.assertRaises(ValueError):
+      with TestPipeline(options=options) as p:
+        _ = (
+            p
+            | beam.Create([
+                window.TimestampedValue(0, Timestamp(seconds=1666707510)),
+                window.TimestampedValue(1, Timestamp(seconds=1666707511)),
+                window.TimestampedValue(2, Timestamp(seconds=1666707512)),
+                window.TimestampedValue(3, Timestamp(seconds=1666707513)),
+                window.TimestampedValue(5, Timestamp(seconds=1666707515)),
+                window.TimestampedValue(6, Timestamp(seconds=1666707516)),
+                window.TimestampedValue(7, Timestamp(seconds=1666707517)),
+                window.TimestampedValue(8, Timestamp(seconds=1666707518))
+            ])
+            | beam.WindowInto(window.SlidingWindows(10, 5))
+            | beam.CombineGlobally(beam.combiners.ToListCombineFn()).
+            without_defaults().with_fanout(7))
+
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
       input = (
