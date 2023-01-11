@@ -1025,7 +1025,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;h1 id="apache-beam-go-sdk-quickstart">Apache Beam Go SDK Quickstart&lt;/h1>
+&lt;h1 id="wordcount-quickstart-for-go">WordCount quickstart for Go&lt;/h1>
 &lt;p>This Quickstart will walk you through executing your first Beam pipeline to run &lt;a href="/get-started/wordcount-example">WordCount&lt;/a>, written using Beam&amp;rsquo;s &lt;a href="/documentation/sdks/go">Go SDK&lt;/a>, on a &lt;a href="/documentation#runners">runner&lt;/a> of your choice.&lt;/p>
 &lt;p>If you&amp;rsquo;re interested in contributing to the Apache Beam Go codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/p>
 &lt;nav id="TableOfContents">
@@ -1115,7 +1115,156 @@ and look through the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/
 &lt;li>Dive in to some of our favorite &lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;/ul>
-&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Beam Quickstart for Java</title><link>/get-started/quickstart/java/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/quickstart/java/</guid><description>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Beam Quickstart for Go</title><link>/get-started/quickstart/go/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/quickstart/go/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="apache-beam-go-sdk-quickstart">Apache Beam Go SDK quickstart&lt;/h1>
+&lt;p>This quickstart shows you how to run an
+&lt;a href="https://github.com/apache/beam-starter-go">example pipeline&lt;/a> written with the
+&lt;a href="/documentation/sdks/go">Apache Beam Go SDK&lt;/a>, using the
+&lt;a href="/documentation/runners/direct/">Direct Runner&lt;/a>. The Direct Runner executes
+pipelines locally on your machine.&lt;/p>
+&lt;p>If you&amp;rsquo;re interested in contributing to the Apache Beam Go codebase, see the
+&lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/p>
+&lt;p>On this page:&lt;/p>
+&lt;nav id="TableOfContents">
+&lt;ul>
+&lt;li>&lt;a href="#set-up-your-development-environment">Set up your development environment&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#clone-the-github-repository">Clone the GitHub repository&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-the-quickstart">Run the quickstart&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#explore-the-code">Explore the code&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#create-a-pipeline">Create a pipeline&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#create-an-initial-pcollection">Create an initial PCollection&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#apply-transforms-to-the-pcollection">Apply transforms to the PCollection&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-the-pipeline">Run the pipeline&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#next-steps">Next Steps&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;h2 id="set-up-your-development-environment">Set up your development environment&lt;/h2>
+&lt;p>Make sure you have a &lt;a href="https://go.dev/">Go&lt;/a> development environment ready. If
+not, follow the instructions in the
+&lt;a href="https://go.dev/doc/install">Download and install&lt;/a> page.&lt;/p>
+&lt;h2 id="clone-the-github-repository">Clone the GitHub repository&lt;/h2>
+&lt;p>Clone or download the
+&lt;a href="https://github.com/apache/beam-starter-go">apache/beam-starter-go&lt;/a> GitHub
+repository and change into the &lt;code>beam-starter-go&lt;/code> directory.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>git clone https://github.com/apache/beam-starter-go.git
+cd beam-starter-go&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="run-the-quickstart">Run the quickstart&lt;/h2>
+&lt;p>Run the following command:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>go run main.go --inputText=&amp;#34;Greetings&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>The output is similar to the following:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>Hello
+World!
+Greetings&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>The lines might appear in a different order.&lt;/p>
+&lt;h2 id="explore-the-code">Explore the code&lt;/h2>
+&lt;p>The main code file for this quickstart is &lt;strong>main.go&lt;/strong>
+(&lt;a href="https://github.com/apache/beam-starter-go/blob/main/main.go">GitHub&lt;/a>).
+The code performs the following steps:&lt;/p>
+&lt;ol>
+&lt;li>Create a Beam pipeline.&lt;/li>
+&lt;li>Create an initial &lt;code>PCollection&lt;/code>.&lt;/li>
+&lt;li>Apply transforms.&lt;/li>
+&lt;li>Run the pipeline, using the Direct Runner.&lt;/li>
+&lt;/ol>
+&lt;h3 id="create-a-pipeline">Create a pipeline&lt;/h3>
+&lt;p>Before creating a pipeline, call the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#Init">&lt;code>Init&lt;/code>&lt;/a> function:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Init&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then create the pipeline:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">pipeline&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">scope&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">NewPipelineWithRoot&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>The &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#NewPipelineWithRoot">&lt;code>NewPipelineWithRoot&lt;/code>&lt;/a> function returns a new
+&lt;code>Pipeline&lt;/code> object, along with the pipeline&amp;rsquo;s root scope. A &lt;em>scope&lt;/em> is a
+hierarchical grouping for composite transforms.&lt;/p>
+&lt;h3 id="create-an-initial-pcollection">Create an initial PCollection&lt;/h3>
+&lt;p>The &lt;code>PCollection&lt;/code> abstraction represents a potentially distributed,
+multi-element data set. A Beam pipeline needs a source of data to populate an
+initial &lt;code>PCollection&lt;/code>. The source can be bounded (with a known, fixed size) or
+unbounded (with unlimited size).&lt;/p>
+&lt;p>This example uses the &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#Create">&lt;code>Create&lt;/code>&lt;/a> function to create a &lt;code>PCollection&lt;/code>
+from an in-memory array of strings. The resulting &lt;code>PCollection&lt;/code> contains the
+strings &amp;ldquo;hello&amp;rdquo;, &amp;ldquo;world!&amp;quot;, and a user-provided input string.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">elements&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;hello&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;world!&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">input_text&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="apply-transforms-to-the-pcollection">Apply transforms to the PCollection&lt;/h3>
+&lt;p>Transforms can change, filter, group, analyze, or otherwise process the
+elements in a &lt;code>PCollection&lt;/code>.&lt;/p>
+&lt;p>This example adds a &lt;a href="/documentation/programming-guide/#pardo">ParDo&lt;/a> transform
+to convert the input strings to title case:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">elements&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">scope&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">strings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Title&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">elements&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>The &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#ParDo">&lt;code>ParDo&lt;/code>&lt;/a> function takes the parent scope, a transform function that
+will be applied to the data, and the input PCollection. It returns the output
+PCollection.&lt;/p>
+&lt;p>The previous example uses the built-in &lt;a href="https://pkg.go.dev/strings#Title">&lt;code>strings.Title&lt;/code>&lt;/a> function for
+the transform. You can also provide an application-defined function to a ParDo.
+For example:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">func&lt;/span> &lt;span class="nf">logAndEmit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="nx">context&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Context&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">element&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">emit&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">beamLog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Infoln&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">element&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nf">emit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">element&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>This function logs the input element and returns the same element unmodified.
+Create a ParDo for this function as follows:&lt;/p>
+&lt;pre>&lt;code>beam.ParDo(scope, logAndEmit, elements)
+&lt;/code>&lt;/pre>&lt;p>At runtime, the ParDo will call the &lt;code>logAndEmit&lt;/code> function on each element in
+the input collection.&lt;/p>
+&lt;h3 id="run-the-pipeline">Run the pipeline&lt;/h3>
+&lt;p>The code shown in the previous sections defines a pipeline, but does not
+process any data yet. To process data, you run the pipeline:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="nx">beamx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Run&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pipeline&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>A Beam &lt;a href="https://beam.apache.org/documentation/basics/#runner">runner&lt;/a> runs a
+Beam pipeline on a specific platform. This example uses the Direct Runner,
+which is the default runner if you don&amp;rsquo;t specify one. The Direct Runner runs
+the pipeline locally on your machine. It is meant for testing and development,
+rather than being optimized for efficiency. For more information, see
+&lt;a href="https://beam.apache.org/documentation/runners/direct/">Using the Direct Runner&lt;/a>.&lt;/p>
+&lt;p>For production workloads, you typically use a distributed runner that runs the
+pipeline on a big data processing system such as Apache Flink, Apache Spark, or
+Google Cloud Dataflow. These systems support massively parallel processing.&lt;/p>
+&lt;h2 id="next-steps">Next Steps&lt;/h2>
+&lt;ul>
+&lt;li>Learn more about the &lt;a href="/documentation/sdks/go/">Beam SDK for Go&lt;/a>
+and look through the
+&lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">Go SDK API reference&lt;/a>.&lt;/li>
+&lt;li>Take a self-paced tour through our
+&lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite
+&lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
+&lt;/ul>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any
+issues!&lt;/p></description></item><item><title>Get-Started: Beam Quickstart for Java</title><link>/get-started/quickstart/java/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/quickstart/java/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
