@@ -4,7 +4,7 @@ name: "Credit Karma"
 icon: "/images/logos/powered-by/credit-karma.png"
 category: "study"
 cardTitle: "Self-service Machine Learning Workflows and Scaling MLOps with Apache Beam"
-cardDescription: "We feel that the runner agnosticism of Apache Beam affords flexibility and future-proofs our Stream Processing Platform as new runtimes are developed. Apache Beam enabled the democratization of stream processing at Intuit and the migration of many batch jobs to streaming applications."
+cardDescription: "Apache Beam has future-proofed Credit Karma’s data and ML platform for scalability and efficiency, enabling MLOps with unified pipelines, processing 5-10 TB daily at 5K events per second, and managing 20K+ ML features."
 authorName: "Avneesh Pratap"
 coauthorName: "Raj Katakam"
 authorPosition: "Senior Data Engineer II @ Credit Karma"
@@ -250,7 +250,7 @@ These scalability initiatives enable Credit Karma to provide its members with a 
 
 [Vega: Scaling MLOps Pipelines at Credit Karma using Apache Beam and Dataflow](https://2022.beamsummit.org/sessions/vega-mlops/)
 
-{{< case_study_feedback "Intuit" >}}
+{{< case_study_feedback "CreditKarma" >}}
 
 </div>
 <div class="clear-nav"></div>
