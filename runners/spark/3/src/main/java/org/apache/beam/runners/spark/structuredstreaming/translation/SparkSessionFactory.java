@@ -137,7 +137,9 @@ public class SparkSessionFactory {
     master = sparkConf.get("spark.master"); // update to effective master
 
     if (options != null) {
-      sparkConf.setAppName(options.getAppName());
+      if (options.getAppName() != null) {
+        sparkConf.setAppName(options.getAppName());
+      }
 
       if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
         // Append the files to stage provided by the user to `spark.jars`.
