@@ -34,6 +34,7 @@ processResources {
     'jackson.version': dependencies.create(project.library.java.jackson_core).getVersion(),
     'joda.version': dependencies.create(project.library.java.joda_time).getVersion(),
     'junit.version': dependencies.create(project.library.java.junit).getVersion(),
+    'kafka.version': dependencies.create(project.library.java.kafka_clients).getVersion(),
     'libraries-bom.version': dependencies.create(project.library.java.google_cloud_platform_libraries_bom).getVersion(),
     'pubsub.version': dependencies.create(project.library.java.google_api_services_pubsub).getVersion(),
     'slf4j.version': dependencies.create(project.library.java.slf4j_api).getVersion(),
