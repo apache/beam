@@ -73,7 +73,7 @@ limitations under the License.
 
 ## Background
 
-[Credit Karma](https://www.creditkarma.com/) is an American multinational personal finance company [founded in 2007](https://en.wikipedia.org/wiki/Credit_Karma), now part of Intuit. With a free credit and financial management platform, Credit Karma enables financial progress for nearly  130 million members by providing them with personalized financial insights and recommendations.
+[Credit Karma](https://www.creditkarma.com/) is an American multinational personal finance company [founded in 2007](https://en.wikipedia.org/wiki/Credit_Karma), now part of [Intuit](/case-studies/intuit/). With a free credit and financial management platform, Credit Karma enables financial progress for nearly  130 million members by providing them with personalized financial insights and recommendations.
 
 Credit Karma’s data science and engineering teams use machine learning to serve members the most relevant content and offers optimized for each member's financial profile and goals. Avneesh Pratap and Raj Katakam, senior data engineers at Credit Karma, shared how Apache Beam enabled them to build a robust, resilient and scalable data and ML infrastructure. They also shared details on how unified Apache Beam data processing reduces the gap between experimenting with new ML pipelines and deploying them to production.
 
