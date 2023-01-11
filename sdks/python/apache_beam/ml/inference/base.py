@@ -30,6 +30,7 @@ collection, sharing model between threads, and batching elements.
 import logging
 import pickle
 import sys
+import threading
 import time
 from typing import Any
 from typing import Dict
@@ -422,6 +423,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = None
     self._metrics_namespace = metrics_namespace
     self._update_model_sleep_time = None
+    self._lock = threading.Lock()
 
   def _load_model(self, model_path=None):
     def load():
@@ -452,10 +454,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # model.
     cached_model_container = self._shared_model_handle.acquire(load)
     if cached_model_container['model_id'] != model_path:
-      # TODO: Specify a unique tags for each model path.
-      if self._update_model_sleep_time:
-        logging.info("Sleeping for %s seconds." % self._update_model_sleep_time)
-        time.sleep(self._update_model_sleep_time)
+      # # TODO: Specify a unique tags for each model path.
+      # if self._update_model_sleep_time:
+      #   logging.info("Sleeping for %s seconds." %
+      #   self._update_model_sleep_time)
+      #   time.sleep(self._update_model_sleep_time)
       logging.info(
           "Updating the model path. Previous model path"
           " is %s and "
@@ -477,24 +480,25 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = self._load_model(model_path=model_path)
 
   def process(self, batch, inference_args, side_input_model_path=None):
-    logging.info(side_input_model_path)
-    print(f'Side input model path {side_input_model_path}')
-    self.update_model(model_path=side_input_model_path)
-    start_time = _to_microseconds(self._clock.time_ns())
-    try:
-      result_generator = self._model_handler.run_inference(
-          batch, self._model, inference_args)
-    except BaseException as e:
-      self._metrics_collector.failed_batches_counter.inc()
-      raise e
-    predictions = list(result_generator)
+    with self._lock:
+      logging.info(side_input_model_path)
+      print(f'Side input model path {side_input_model_path}')
+      self.update_model(model_path=side_input_model_path)
+      start_time = _to_microseconds(self._clock.time_ns())
+      try:
+        result_generator = self._model_handler.run_inference(
+            batch, self._model, inference_args)
+      except BaseException as e:
+        self._metrics_collector.failed_batches_counter.inc()
+        raise e
+      predictions = list(result_generator)
 
-    end_time = _to_microseconds(self._clock.time_ns())
-    inference_latency = end_time - start_time
-    num_bytes = self._model_handler.get_num_bytes(batch)
-    num_elements = len(batch)
-    self._metrics_collector.update(num_elements, num_bytes, inference_latency)
-    self._update_model_sleep_time = inference_latency * 1e-06
+      end_time = _to_microseconds(self._clock.time_ns())
+      inference_latency = end_time - start_time
+      num_bytes = self._model_handler.get_num_bytes(batch)
+      num_elements = len(batch)
+      self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+      self._update_model_sleep_time = inference_latency * 1e-06
 
     return predictions
 
