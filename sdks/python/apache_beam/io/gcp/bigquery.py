@@ -352,6 +352,7 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
+from objsize import get_deep_size
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -460,7 +461,13 @@ tried for a very long time. You may reduce this property to reduce the number
 of retries.
 """
 MAX_INSERT_RETRIES = 10000
+"""
+The maximum payload size of rows for a BigQuery insert_rows_json() request.
 
+Actual limit is 10MB, but setting to 9MB to make room for request overhead:
+https://cloud.google.com/bigquery/quotas#streaming_inserts
+"""
+MAX_INSERT_PAYLOAD_SIZE = 9 * 1024 * 1024
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
 def _parse_table_reference(table, dataset=None, project=None):
@@ -1503,7 +1510,8 @@ class BigQueryWriteFn(DoFn):
       row_and_insert_id = element[1]
       self._rows_buffer[destination].append(row_and_insert_id)
       self._total_buffered_rows += 1
-      if len(self._rows_buffer[destination]) >= self._max_batch_size:
+      if (len(self._rows_buffer[destination]) >= self._max_batch_size or
+              get_deep_size(self._rows_buffer[destination]) >= MAX_INSERT_PAYLOAD_SIZE):
         return self._flush_batch(destination)
       elif self._total_buffered_rows >= self._max_buffered_rows:
         return self._flush_all_batches()
