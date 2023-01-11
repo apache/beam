@@ -18,29 +18,21 @@
 package org.apache.beam.sdk.io.jms;
 
 import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+import static org.apache.beam.sdk.io.jms.JmsIOProducer.*;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
+import java.time.Instant;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -55,6 +47,7 @@ import javax.jms.QueueBrowser;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.ConnectionFailedException;
 import org.apache.activemq.broker.BrokerPlugin;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.command.ActiveMQMessage;
@@ -62,8 +55,12 @@ import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.util.Callback;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -73,6 +70,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.joda.time.Duration;
@@ -84,6 +82,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.mockito.internal.invocation.InterceptedInvocation;
+import org.mockito.listeners.InvocationListener;
+import org.mockito.listeners.MethodInvocationReport;
 
 /** Tests of {@link JmsIO}. */
 @RunWith(JUnit4.class)
@@ -665,6 +666,182 @@ public class JmsIOTest {
     assertEquals(6, count(QUEUE));
   }
 
+  @Test
+  public void testPublisherWithRetryPolicy() {
+    PublicationRetryPolicy retryPolicy =
+        PublicationRetryPolicy.create(5, Duration.standardSeconds(15));
+    JmsIO.Write<String> publisher =
+        JmsIO.<String>write()
+            .withConnectionFactory(connectionFactory)
+            .withPublicationRetryPolicy(retryPolicy)
+            .withQueue(QUEUE)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD);
+    assertEquals(
+        publisher.getRetryPublicationPolicy(),
+        PublicationRetryPolicy.create(5, Duration.standardSeconds(15)));
+  }
+
+  @Test
+  public void testWriteMessageWithRetryPolicy() throws Exception {
+    int waitingSeconds = 5;
+    // Margin of the pipeline execution in seconds that should be taken into consideration
+    int pipelineDuration = 5;
+    Instant now = Instant.now();
+    String messageText = now.toString();
+    ArrayList<String> data = new ArrayList<>(Collections.singleton(messageText));
+    PublicationRetryPolicy retryPolicy =
+        PublicationRetryPolicy.create(3, Duration.standardSeconds(waitingSeconds));
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(new TextMessageMapperWithErrorCounter())
+                    .withPublicationRetryPolicy(retryPolicy)
+                    .withQueue(QUEUE)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD));
+
+    PAssert.that(output.getFailedMessages()).empty();
+    pipeline.run();
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+
+    Message message = consumer.receive(1000);
+    assertNotNull(message);
+    long maximumTimestamp =
+        now.plus(java.time.Duration.ofSeconds(waitingSeconds + pipelineDuration)).toEpochMilli();
+    assertThat(
+        message.getJMSTimestamp(),
+        allOf(greaterThanOrEqualTo(now.toEpochMilli()), lessThan(maximumTimestamp)));
+    assertNull(consumer.receiveNoWait());
+  }
+
+  @Test
+  public void testWriteMessagesWithOnConnectionFailedPredicate() throws JMSException {
+    String messageText = "message";
+    ExceptionInvocationListener invocationListener = new ExceptionInvocationListener();
+
+    ArrayList<String> data = new ArrayList<>(Collections.singleton(messageText));
+    SerializableFunction<Exception, Boolean> mockedOnFailedConnectionPredicate =
+        Mockito.mock(
+            FailedConnectionPredicate.class,
+            Mockito.withSettings()
+                .serializable()
+                .invocationListeners(invocationListener)
+                .defaultAnswer(CALLS_REAL_METHODS));
+
+    ConnectionFactory mockedConnectionFactory =
+        Mockito.mock(ConnectionFactory.class, Mockito.withSettings().serializable());
+    Connection mockedConnection =
+        Mockito.mock(
+            FakeConnection.class,
+            Mockito.withSettings().serializable().defaultAnswer(CALLS_REAL_METHODS));
+    doReturn(mockedConnection).when(mockedConnectionFactory).createConnection(USERNAME, PASSWORD);
+
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            JmsIO.<String>write()
+                .withConnectionFactory(mockedConnectionFactory)
+                .withConnectionFailedPredicate(mockedOnFailedConnectionPredicate)
+                .withValueMapper(new TextMessageMapper())
+                .withQueue(QUEUE)
+                .withUsername(USERNAME)
+                .withPassword(PASSWORD));
+    PipelineResult pipelineResult = pipeline.run();
+    MetricQueryResults metricQueryResults =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(
+                            JMS_IO_PRODUCER_METRIC_NAME, CONNECTION_ERRORS_METRIC_NAME))
+                    .build());
+    assertThat(
+        metricQueryResults.getCounters(),
+        contains(
+            allOf(
+                hasProperty("attempted", is((long) 1)),
+                hasProperty(
+                    "key",
+                    hasToString(
+                        containsString(
+                            String.format(
+                                "%s:%s",
+                                JMS_IO_PRODUCER_METRIC_NAME, CONNECTION_ERRORS_METRIC_NAME)))))));
+    Map<Exception, Boolean> invocationCounter = invocationListener.getInvocationCounters();
+    invocationCounter.forEach(
+        (exception, isPredicated) -> {
+          assertEquals(exception.getClass() == ConnectionFailedException.class, isPredicated);
+        });
+    assertEquals(2, invocationCounter.size());
+  }
+
+  @Test
+  public void testWriteMessageWithRetryPolicyReachesLimit() throws Exception {
+    String messageText = "text";
+    int maxPublicationAttempts = 5;
+    ArrayList<String> data = new ArrayList<>(Collections.singleton(messageText));
+    PublicationRetryPolicy retryPolicy =
+        PublicationRetryPolicy.create(maxPublicationAttempts, Duration.standardSeconds(1));
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(
+                        (SerializableBiFunction<String, Session, Message>)
+                            (s, session) -> {
+                              throw new IllegalArgumentException("Error!!");
+                            })
+                    .withPublicationRetryPolicy(retryPolicy)
+                    .withQueue(QUEUE)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD));
+
+    PAssert.that(output.getFailedMessages()).containsInAnyOrder(messageText);
+    PipelineResult pipelineResult = pipeline.run();
+
+    MetricQueryResults metrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(
+                            JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME))
+                    .build());
+
+    assertThat(
+        metrics.getCounters(),
+        contains(
+            allOf(
+                hasProperty("attempted", is((long) maxPublicationAttempts)),
+                hasProperty(
+                    "key",
+                    hasToString(
+                        containsString(
+                            String.format(
+                                "%s:%s",
+                                JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME)))))));
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+    assertNull(consumer.receiveNoWait());
+  }
+
   private int count(String queue) throws Exception {
     Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
     connection.start();
@@ -783,6 +960,57 @@ public class JmsIOTest {
       } catch (JMSException e) {
         throw new JmsIOException("Error creating TextMessage", e);
       }
+    }
+  }
+
+  private static class TextMessageMapperWithErrorCounter
+      implements SerializableBiFunction<String, Session, Message> {
+
+    private static int ERROR_COUNTER;
+
+    TextMessageMapperWithErrorCounter() {
+      ERROR_COUNTER = 0;
+    }
+
+    @Override
+    public Message apply(String value, Session session) {
+      try {
+        if (ERROR_COUNTER == 0) {
+          ERROR_COUNTER++;
+          throw new JMSException("Error!!");
+        }
+        TextMessage msg = session.createTextMessage();
+        msg.setText(value);
+        return msg;
+      } catch (JMSException e) {
+        throw new JmsIOException("Error creating TextMessage", e);
+      }
+    }
+  }
+
+  private static class FailedConnectionPredicate
+      implements SerializableFunction<Exception, Boolean> {
+    FailedConnectionPredicate() {}
+
+    @Override
+    public Boolean apply(Exception exception) {
+      return exception.getClass() == ConnectionFailedException.class;
+    }
+  }
+
+  private static class ExceptionInvocationListener implements InvocationListener, Serializable {
+
+    private static final Map<Exception, Boolean> invocationCounters = new HashMap<>();
+
+    public Map<Exception, Boolean> getInvocationCounters() {
+      return invocationCounters;
+    }
+
+    @Override
+    public void reportInvocation(MethodInvocationReport methodInvocationReport) {
+      invocationCounters.put(
+          ((InterceptedInvocation) methodInvocationReport.getInvocation()).getArgument(0),
+          (boolean) methodInvocationReport.getReturnedValue());
     }
   }
 }
