@@ -212,7 +212,7 @@ func (d *Datastore) GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error) {
 //GetCatalog returns all examples
 func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEntity) ([]*pb.Categories, error) {
 	//Retrieving examples
-	exampleQuery := datastore.NewQuery(constants.ExampleKind).Namespace(utils.GetNamespace(ctx))
+	exampleQuery := datastore.NewQuery(constants.ExampleKind).Namespace(utils.GetNamespace(ctx)).FilterField("origin", "=", constants.ExampleOrigin)
 	var examples []*entity.ExampleEntity
 	exampleKeys, err := d.Client.GetAll(ctx, exampleQuery, &examples)
 	if err != nil {
