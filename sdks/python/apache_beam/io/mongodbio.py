@@ -810,13 +810,13 @@ class _MongoSink:
     self.write_func = write_func
     if write_func is None:
       self.write_func = self._ReplaceOneWriteFunc
-    elif  write_func == "ReplaceOne":
+    elif write_func == "ReplaceOne":
         self.write_func = self._ReplaceOneWriteFunc
     elif write_func == "UpdateOne":
       self.write_func = self._UpdateOneWriteFunc
     elif write_func == "InsertOne":
       self.write_func = self._InsertOneWriteFunc
-  
+
   @staticmethod
   def _ReplaceOneWriteFunc(client, db, coll, documents, logger):
     """a write_func to perform mongo ReplaceOne operation"""
@@ -854,14 +854,13 @@ class _MongoSink:
               resp.matched_count,
               resp.bulk_api_result.get("writeErrors"),
           ))
-  
+
   @staticmethod
   def _InsertOneWriteFunc(client, db, coll, documents, logger):
     """a write_func to perform mongo InsertOne operation"""
     requests = []
     for doc in documents:
-      request = InsertOne(
-          document=doc)
+      request = InsertOne(document=doc)
       requests.append(request)
       resp = client[db][coll].bulk_write(requests)
       # set logger to debug level to log the response
