@@ -99,6 +99,8 @@ try:
   from pymongo import DESCENDING
   from pymongo import MongoClient
   from pymongo import ReplaceOne
+  from pymongo import UpdateOne
+  from pymongo import InsertOne
 except ImportError:
   objectid = None
   json_util = None
@@ -680,7 +682,7 @@ class WriteToMongoDB(PTransform):
       coll=None,
       batch_size=100,
       extra_client_params=None,
-      writeFn=None,
+      write_func=None,
   ):
     """
 
@@ -693,11 +695,11 @@ class WriteToMongoDB(PTransform):
       extra_client_params(dict): Optional `MongoClient
        <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
        parameters as keyword arguments
-      writeFn(callable): Optional
-       A custom function that user could implement to gain more control
-       over the write process. For example,
-       using UpdateOne or InsertOne instead of ReplaceOne for bulk_write
-       refer to _defaultWriteFn as a template.
+      write_func(Optional[Union[str, Callable]]): 
+       Select from the following three options:
+       ("ReplaceOne", "InsertOne", "UpdateOne") or pass in a custom function 
+       that user implement to gain more control over the write process. 
+       default to using the 'ReplaceOne' write_func 
        Args:
           client(`MongoClient`): The MongoClient object
           db(str): The MongoDB database name
@@ -721,7 +723,7 @@ class WriteToMongoDB(PTransform):
     self._coll = coll
     self._batch_size = batch_size
     self._spec = extra_client_params
-    self._writeFn = writeFn
+    self._write_func = write_func
 
   def expand(self, pcoll):
     return (
@@ -735,7 +737,7 @@ class WriteToMongoDB(PTransform):
                 self._coll,
                 self._batch_size,
                 self._spec,
-                self._writeFn)))
+                self._write_func)))
 
 
 class _GenerateObjectIdFn(DoFn):
@@ -761,7 +763,7 @@ class _WriteMongoFn(DoFn):
       coll=None,
       batch_size=100,
       extra_params=None,
-      writeFn=None):
+      write_func=None):
     if extra_params is None:
       extra_params = {}
     self.uri = uri
@@ -770,7 +772,7 @@ class _WriteMongoFn(DoFn):
     self.spec = extra_params
     self.batch_size = batch_size
     self.batch = []
-    self.writeFn = writeFn
+    self.write_func = write_func
 
   def finish_bundle(self):
     self._flush()
@@ -797,7 +799,7 @@ class _WriteMongoFn(DoFn):
 
 class _MongoSink:
   def __init__(
-      self, uri=None, db=None, coll=None, extra_params=None, writeFn=None):
+      self, uri=None, db=None, coll=None, extra_params=None, write_func=None):
     if extra_params is None:
       extra_params = {}
     self.uri = uri
@@ -805,17 +807,19 @@ class _MongoSink:
     self.coll = coll
     self.spec = extra_params
     self.client = None
-    self.writeFn = writeFn
-    if writeFn is None:
-      self.writeFn = self._defaultWriteFn
-
+    self.write_func = write_func
+    if write_func is None:
+      self.write_func = self._ReplaceOneWriteFunc
+    elif  write_func == "ReplaceOne":
+        self.write_func = self._ReplaceOneWriteFunc
+    elif write_func == "UpdateOne":
+      self.write_func = self._UpdateOneWriteFunc
+    elif write_func == "InsertOne":
+      self.write_func = self._InsertOneWriteFunc
+  
   @staticmethod
-  def _defaultWriteFn(client, db, coll, documents, logger):
-    """to gain control over the write process,
-    a user could for example, change ReplaceOne into UpdateOne
-    a user could implement their own WriteFn, using this as a template,
-    notice that the 'self' argument should be ommited
-    """
+  def _ReplaceOneWriteFunc(client, db, coll, documents, logger):
+    """a write_func to perform mongo ReplaceOne operation"""
     requests = []
     for doc in documents:
       request = ReplaceOne(
@@ -831,11 +835,49 @@ class _MongoSink:
               resp.matched_count,
               resp.bulk_api_result.get("writeErrors"),
           ))
+  
+  @staticmethod
+  def _UpdateOneWriteFunc(client, db, coll, documents, logger):
+    """a write_func to perform mongo UpdateOne operation"""
+    requests = []
+    for doc in documents:
+      request = UpdateOne(
+          filter={"_id": doc.get("_id", None)}, update=doc, upsert=True)
+      requests.append(request)
+      resp = client[db][coll].bulk_write(requests)
+      # set logger to debug level to log the response
+      logger.debug(
+          "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
+          "nMatched:%d, Errors:%s" % (
+              resp.modified_count,
+              resp.upserted_count,
+              resp.matched_count,
+              resp.bulk_api_result.get("writeErrors"),
+          ))
+  
+  @staticmethod
+  def _InsertOneWriteFunc(client, db, coll, documents, logger):
+    """a write_func to perform mongo InsertOne operation"""
+    requests = []
+    for doc in documents:
+      request = InsertOne(
+          document=doc)
+      requests.append(request)
+      resp = client[db][coll].bulk_write(requests)
+      # set logger to debug level to log the response
+      logger.debug(
+          "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
+          "nMatched:%d, Errors:%s" % (
+              resp.modified_count,
+              resp.upserted_count,
+              resp.matched_count,
+              resp.bulk_api_result.get("writeErrors"),
+          ))
 
   def write(self, documents):
     if self.client is None:
       self.client = MongoClient(host=self.uri, **self.spec)
-    self.writeFn(self.client, self.db, self.coll, documents, _LOGGER)
+    self.write_func(self.client, self.db, self.coll, documents, _LOGGER)
 
   def __enter__(self):
     if self.client is None:
