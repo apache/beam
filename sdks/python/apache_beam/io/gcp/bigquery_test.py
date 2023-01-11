@@ -782,17 +782,21 @@ class TestWriteToBigQuery(unittest.TestCase):
 
   @mock.patch('google.cloud.bigquery.Client.insert_rows_json')
   def test_streaming_inserts_flushes_on_max_byte_size(self, mock_insert):
-    from apache_beam.io.gcp import bigquery
-    bigquery.MAX_INSERT_PAYLOAD_SIZE = 0
+    beam_bq.MAX_INSERT_PAYLOAD_SIZE = 0
 
     with beam.Pipeline() as p:
-      (p
-       | beam.Create([{'columnA': 'value1'}, {'columnA': 'value2'}])
-       | WriteToBigQuery(
-                table='project:dataset.table',
-                method='STREAMING_INSERTS',
-                create_disposition='CREATE_NEVER',
-                schema='columnA:STRING'))
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }, {
+              'columnA': 'value2'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              method='STREAMING_INSERTS',
+              create_disposition='CREATE_NEVER',
+              schema='columnA:STRING'))
 
     self.assertEqual(2, mock_insert.call_count)
 

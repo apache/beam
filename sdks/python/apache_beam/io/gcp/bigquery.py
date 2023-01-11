@@ -352,7 +352,6 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
-from objsize import get_deep_size
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -360,6 +359,7 @@ from typing import Tuple
 from typing import Union
 
 import fastavro
+from objsize import get_deep_size
 
 import apache_beam as beam
 from apache_beam import coders
@@ -468,6 +468,7 @@ Actual limit is 10MB, but setting to 9MB to make room for request overhead:
 https://cloud.google.com/bigquery/quotas#streaming_inserts
 """
 MAX_INSERT_PAYLOAD_SIZE = 9 * 1024 * 1024
+
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
 def _parse_table_reference(table, dataset=None, project=None):
@@ -1508,12 +1509,22 @@ class BigQueryWriteFn(DoFn):
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]
-      self._rows_buffer[destination].append(row_and_insert_id)
-      self._total_buffered_rows += 1
-      if (len(self._rows_buffer[destination]) >= self._max_batch_size or
-              get_deep_size(self._rows_buffer[destination]) >= MAX_INSERT_PAYLOAD_SIZE):
+      row_byte_size = get_deep_size(row_and_insert_id)
+      if row_byte_size >= MAX_INSERT_PAYLOAD_SIZE:
+        _LOGGER.warning(
+            "Received very large row (%sMB) that may cause an insert error. "
+            "Please keep rows under 10MB.", row_byte_size)
+
+      destination_row_buffer = self._rows_buffer[destination]
+      # first check if adding this row exceeds our limits
+      if (len(destination_row_buffer) >= self._max_batch_size or
+          (get_deep_size(destination_row_buffer) +
+           get_deep_size(row_and_insert_id)) >= MAX_INSERT_PAYLOAD_SIZE):
         return self._flush_batch(destination)
-      elif self._total_buffered_rows >= self._max_buffered_rows:
+
+      destination_row_buffer.append(row_and_insert_id)
+      self._total_buffered_rows += 1
+      if self._total_buffered_rows >= self._max_buffered_rows:
         return self._flush_all_batches()
     else:
       # The input is already batched per destination, flush the rows now.
