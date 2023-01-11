@@ -17,6 +17,7 @@
 # under the License.
 #
 
-id: group
-name: Group
-taskName: group
+id: motivating-challenge
+name: Schema Based Challenge
+taskName: SchemaBasedChallenge
+solutionName: SchemaBasedSolution

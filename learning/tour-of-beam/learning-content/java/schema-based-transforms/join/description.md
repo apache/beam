@@ -39,3 +39,8 @@ PCollection<Row> joined = pCollection1.apply(Join.innerJoin(pCollection2)
 * `Inner join`
 * `Left inner join`
 * `Right inner join`
+
+
+### Playground exercise
+
+In the playground window you can find examples of using the `Join`. By running this example, you will see user statistics in certain games. Can you output data that doesn't have shared data?

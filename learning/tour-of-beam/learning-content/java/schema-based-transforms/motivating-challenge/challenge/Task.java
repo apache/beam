@@ -17,8 +17,8 @@
  */
 
 // beam-playground:
-//   name: co-group
-//   description: CoGroup example.
+//   name: SchemaBasedChallenge
+//   description: Schema Based Challenge example.
 //   multifile: false
 //   context_line: 46
 //   categories:
@@ -27,8 +27,10 @@
 //   tags:
 //     - hellobeam
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.EqualsAndHashCode;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -36,15 +38,22 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.CoGroup;
+import org.apache.beam.sdk.schemas.transforms.Filter;
+import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 
 
 public class Test {
@@ -108,19 +117,37 @@ public class Test {
         PCollection<User> userInfo = getUserPCollection(pipeline);
         PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
-        PCollection<Row> coGroupPCollection =
-                PCollectionTuple.of("user", userInfo).and("game", gameInfo)
-                        .apply(CoGroup.join(CoGroup.By.fieldNames("userId")));
+        Schema userSchema = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .build();
 
-        coGroupPCollection
-                .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
+        Schema totalSchema = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .addInt32Field("score")
+                .addStringField("gameId")
+                .addStringField("date")
+                .build();
+
+        Schema total = Schema.builder()
+                .addStringField("userId")
+                .addInt32Field("total")
+                .build();
+
+
+        userInfo
+                .apply("User", ParDo.of(new LogOutput<>("Result")));
+
+        gameInfo
+                .apply("Game", ParDo.of(new LogOutput<>("Result")));
 
         pipeline.run();
     }
 
     public static PCollection<User> getUserPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
-        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
         return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserFn()));
     }
 

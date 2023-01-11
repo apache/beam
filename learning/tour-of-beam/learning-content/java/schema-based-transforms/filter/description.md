@@ -40,7 +40,7 @@ locations.apply(Filter
 
 ### Multiple fields filter
 
-Predicates that require examining multiple fields at once are also supported. For example, consider the following class representing a user account:
+You can also use multiple fields inside the filtering predicate. For example, consider the following schema type representing user account:
 
 ```
 class UserAccount {
@@ -50,7 +50,7 @@ class UserAccount {
 }
 ```
 
-Say you want to examine only users who`s total spend is above $100. You could write:
+Let's say you'd like to process only users who's total spend is over $100. You could write:
 
 ```
 PCollection<UserAccount> users = readUsers();
@@ -58,3 +58,7 @@ users.apply(Filter
     .whereFieldNames(Lists.newArrayList("spendOnBooks", "spendOnMovies"),
         row -> return row.getDouble("spendOnBooks") + row.getDouble("spendOnMovies") > 100.00));
 ```
+
+### Playground exercise
+
+In the playground window you can find examples of using the `Filter` button. By running this example, you will see user statistics in certain games. Can you output data that `userName` starts with `B`

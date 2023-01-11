@@ -23,3 +23,7 @@ purchases.apply(RenameFields.<PurchasePojo>create()
 ```
 
 Results in the same set of unmodified input elements, however the schema on the ```PCollection``` has been changed to rename **userId** to **userIdentifier** and **shippingAddress.streetAddress** to **shippingAddress.street**.
+
+### Playground exercise
+
+In the playground window you can find examples of using the `Rename`. By running this example, you will see user statistics in certain games. Can you add your own class with similar `field` and change the name?

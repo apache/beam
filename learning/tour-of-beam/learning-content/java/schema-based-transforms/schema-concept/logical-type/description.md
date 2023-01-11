@@ -1,8 +1,23 @@
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 # Logical types
 
-Users can extend the schema type system to add custom logical types that can be used as a field. A logical type is identified by a unique identifier and an argument. A logical type also specifies an underlying schema type to be used for storage, along with conversions to and from that type. As an example, a logical union can always be represented as a row with nullable fields, where the user ensures that only one of those fields is ever set at a time.
+There may be cases when you need to extend the schema type system to add custom logical types. A unique identifier and an argument identify a logical type. Apart from defining the underlying schema type for storage, you also need to implement to and from type conversions. For example, you can represent the union logical type as a row with nullable fields, with only one field set at a time.
 
-In Java, a logical type is specified as a subclass of the LogicalType class. A custom Java class can be specified to represent the logical type and conversion functions must be supplied to convert back and forth between this Java class and the underlying Schema type representation. For example, the logical type representing nanosecond timestamp might be implemented as follows
+In Java, you need to subclass from LogicalType class to implement the logical type. In addition, you will also need to implement to and from underlying Schema type conversions by overriding toBaseTpe and toInputType methods, respectively.
+
+For example, the logical type representing nanosecond timestamp might be implemented as follows:
 
 ```
 // A Logical type using java.time.Instant to represent the logical type.

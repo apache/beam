@@ -82,3 +82,7 @@ PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
                  .join("input2", By.fieldNames("user").withOptionalParticipation())
                  .crossProductJoin();
 ```
+
+### Playground exercise
+
+In the playground window you can find examples of using the `CoGroup`. By running this example, you will see user statistics in certain games. Can you add your **own class** to have **real-time** time in it and do `CoGroup`?

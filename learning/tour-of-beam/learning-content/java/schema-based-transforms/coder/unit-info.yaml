@@ -17,6 +17,6 @@
 # under the License.
 #
 
-id: group
-name: Group
-taskName: group
+id: coder
+name: Coder
+taskName: coder

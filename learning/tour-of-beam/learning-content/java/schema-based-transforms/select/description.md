@@ -12,17 +12,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Select 
+# Select
 
-The `Select` transform allows one to easily project out only the fields of interest. The resulting `PCollection` has a schema containing each selected field as a top-level field. Both top-level and nested fields can be selected.
+The `Select` transform allows one to easily project out only the fields of interest. The resulting `PCollection` has a schema containing each selected field as a top-level field. You can choose both top-level and nested fields.
 
-The output of this transform is of type Row, though that can be converted into any other type with matching schema using the `Convert` transform.
-
-Sometimes different nested rows will have fields with the same name. Selecting multiple of these fields would result in a name conflict, as all selected fields are put in the same row schema. When this situation arises, the Select.withFieldNameAs builder method can be used to provide an alternate name for the selected field.
+The output of this transform is of type Row, which you can convert into any other type with matching schema using the `Convert` transform.
 
 ### Top-level fields
 
-In order to select a field at the top level of a schema, the name of the field is specified. For example, to select just the user ids from a `PCollection` of purchases one would write (using the Select transform).
+To select a field at the top level of a schema, you need to specify their names. For example, using the following code, you can choose just user ids from a `PCollection` of purchases:
 
 ```
 PCollection<Row> rows = purchases.apply(Select.fieldNames("userId", "shippingAddress.postCode"));
@@ -31,23 +29,25 @@ PCollection<Row> rows = purchases.apply(Select.fieldNames("userId", "shippingAdd
 Will result in the following schema:
 
 ```
-Field Name	   Field Type
-userId	           STRING
+Field Name       Field Type
+userId           STRING
 ```
 
 ### Nested fields
 
-Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the shipping address one would write.
+Individual nested fields can be specified using the dot operator. For example, you can select just the postal code from the shipping address using the following:
 
 ```
-PCollection<Row> rows = purchases.apply(Select.fieldNames("shippingAddress.postCode"));
+PCollection<Row> rows = input.apply(Select.fieldNames("shippingAddress.userId","shippingAddress.postCode","shippingAddress.email"));
 ```
 
 Will result in the following schema:
 
 ```
-Field Name	   Field Type
-postCode	       STRING
+Field Name       Field Type
+userId           INT64
+postCode         STRING
+email         STRING
 ```
 
 ### Wildcards
@@ -63,12 +63,12 @@ PCollection<Row> rows = purchases.apply(Select.fieldNames("shippingAddress.*"));
 Will result in the following schema:
 
 ```
-Field Name	   Field Type
-streetAddress	   STRING
-city	           STRING
-state	  nullable STRING
-country	           STRING
-postCode	       STRING
+Field Name         Field Type
+streetAddress      STRING
+city               STRING
+state              nullable STRING
+country            STRING
+postCode           STRING
 
 ```
 
@@ -83,9 +83,9 @@ PCollection<Row> rows = purchases.apply(Select.fieldNames( "transactions.bank", 
 Will result in the following schema:
 
 ```
-Field Name	   Field Type
-bank	          ARRAY[STRING]
-purchaseAmount	  ARRAY[DOUBLE]
+Field Name        Field Type
+bank              ARRAY[STRING]
+purchaseAmount    ARRAY[DOUBLE]
 ```
 
 ### Flatten schema
@@ -99,16 +99,20 @@ PCollection<Row> rows = purchases.apply(Select.flattenedSchema());
 Will result in the following schema:
 
 ```
-Field Name	                    Field Type
-userId	                            STRING
-itemId	                            STRING
-shippingAddress_streetAddress	    STRING
-shippingAddress_city	   nullable STRING
-shippingAddress_state	            STRING
-shippingAddress_country	            STRING
-shippingAddress_postCode	        STRING
-costCents	INT64
-transactions_bank	         ARRAY[STRING]
-transactions_purchaseAmount	 ARRAY[DOUBLE]
+Field Name                          Field Type
+userId                              STRING
+itemId                              STRING
+shippingAddress_streetAddress       STRING
+shippingAddress_city                nullable STRING
+shippingAddress_state               STRING
+shippingAddress_country             STRING
+shippingAddress_postCode            STRING
+costCents                           INT64
+transactions_bank                   ARRAY[STRING]
+transactions_purchaseAmount         ARRAY[DOUBLE]
 
 ```
+
+### Playground exercise
+
+In the playground window you can find examples of using `Select`. By running this example, you will see user statistics in certain games. Can you change it so that it outputs the userName and his score?
