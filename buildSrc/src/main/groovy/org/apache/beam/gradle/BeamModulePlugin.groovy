@@ -792,6 +792,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // Disabling checks since this property is only used for Jenkins tests
       // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
       options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+      // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
       options.forkOptions.jvmArgs += [
         "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
         "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
@@ -1295,6 +1296,27 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.withType(JavaCompile) {
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
+
+        // Error Prone requires some packages to be exported/opened on Java versions that support modules,
+        // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
+        // The -J prefix is not needed if forkOptions.javaHome is unset,
+        // see http://github.com/gradle/gradle/issues/22747
+        if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
+        && options.forkOptions.javaHome == null) {
+          options.fork = true
+          options.forkOptions.jvmArgs += [
+            "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+            "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+            "--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+            "--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+            "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+            "--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+            "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+            "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+            "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+            "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+          ]
+        }
 
         // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
         options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
