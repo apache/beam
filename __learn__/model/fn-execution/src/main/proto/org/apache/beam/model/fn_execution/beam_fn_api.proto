@@ -120,5 +120,14 @@ message HarnessMonitoringInfosResponse {
   map<string, bytes> monitoring_data = 1;
 }
 
+// In future requests the runner refers to this list of objects - stable
+message RegisterRequest {
+  // Descriptors for processing bundles (optional)
+  repeated ProcessBundleDescriptor process_bundle_descriptor = 1;
+}
+
+message RegisterResponse { // stable
+}
+
 
 
