@@ -51,6 +51,7 @@ import org.junit.Rule;
 import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.shaded.org.apache.commons.lang3.RandomStringUtils;
 
 /**
  * Base class for Templates. It wraps around tests that extend it to stage the Templates when
@@ -241,6 +242,7 @@ public abstract class TemplateTestBase {
       // Do not make all dependencies every time. Faster but requires prior `mvn install`.
       //      "-am",
       "-PtemplatesStage,pluginOutputDir",
+      "-DpluginRunId=" + RandomStringUtils.randomAlphanumeric(0, 20),
       "-DskipShade",
       "-DskipTests",
       "-Dcheckstyle.skip",
