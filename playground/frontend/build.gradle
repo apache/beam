@@ -183,8 +183,12 @@ ext.deleteFilesByRegExp = { re ->
 }
 
 tasks.register("integrationTest") {
-  dependsOn("integrationTest_standalone_change_example_sdk_run")
-  dependsOn("integrationTest_standalone_miscellaneous_ui")
+  // dependsOn("integrationTest_standalone_change_example_sdk_run")
+  // dependsOn("integrationTest_standalone_miscellaneous_ui")
+  // dependsOn("integrationTest_standalone_run_shortcuts")
+  // dependsOn("integrationTest_standalone_cancel_running_example")
+  // dependsOn("integrationTest_standalone_change_pipeline_options_and_run")
+  dependsOn("integrationTest_standalone_editing")
 }
 
 tasks.register("integrationTest_standalone_change_example_sdk_run") {
@@ -195,6 +199,22 @@ tasks.register("integrationTest_standalone_miscellaneous_ui") {
   runIntegrationTest("standalone_miscellaneous_ui", "/")
 }
 
+tasks.register("integrationTest_standalone_run_shortcuts") {
+  runIntegrationTest("standalone_run_shortcuts", "/")
+}
+
+tasks.register("integrationTest_standalone_cancel_running_example") {
+  runIntegrationTest("standalone_cancel_running_example", "/")
+}
+
+tasks.register("integrationTest_standalone_change_pipeline_options_and_run") {
+  runIntegrationTest("standalone_change_pipeline_options_and_run", "/")
+}
+
+tasks.register("integrationTest_standalone_editing") {
+  runIntegrationTest("standalone_editing", "/")
+}
+
 void runIntegrationTest(String path, String url) {
   exec {
     executable("flutter")
@@ -202,6 +222,7 @@ void runIntegrationTest(String path, String url) {
       "drive",
       "--driver=test_driver/integration_test.dart",
       "--target=integration_test/${path}_test.dart",
+      "--web-port=4000",
       "--web-launch-url='$url'",
       "--device-id=chrome",
     )

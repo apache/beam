@@ -18,6 +18,9 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:playground/components/dropdown_button/dropdown_button.dart';
+import 'package:playground/modules/actions/components/reset_action.dart';
+import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_body.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/example_selector.dart';
@@ -33,6 +36,13 @@ import 'package:playground_components/src/widgets/drag_handle.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 extension CommonFindersExtension on CommonFinders {
+  Finder appDropdownButtonWithText(String text) {
+    return find.descendant(
+      of: byType(AppDropdownButton),
+      matching: find.text(text),
+    );
+  }
+
   Finder codeTextAreaWrapper() {
     return byType(CodeTextAreaWrapper);
   }
@@ -83,6 +93,22 @@ extension CommonFindersExtension on CommonFinders {
 
   Finder moreActions() {
     return byType(MoreActions);
+  }
+
+  Finder pipelineOptionsOptionsTab() {
+    return find.byKey(PipelineOptionsDropdownBody.optionsTabKey);
+  }
+
+  Finder pipelineOptionsRawTab() {
+    return find.byKey(PipelineOptionsDropdownBody.rawTabKey);
+  }
+
+  Finder pipelineOptionsSaveAndCloseButton() {
+    return find.byKey(PipelineOptionsDropdownBody.saveAndCloseButtonKey);
+  }
+
+  Finder resetButton() {
+    return find.byType(ResetAction);
   }
 
   Finder sdkItemInDropdown(Sdk sdk) {

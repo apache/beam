@@ -24,6 +24,8 @@ import 'package:playground/modules/editor/components/pipeline_options_dropdown/p
 const kPipelineOptionsInputLines = 8;
 
 class PipelineOptionsDropdownInput extends StatelessWidget {
+  static const textFieldKey = ValueKey('PipelineOptionsRawInput');
+
   final TextEditingController controller;
 
   const PipelineOptionsDropdownInput({
@@ -39,6 +41,7 @@ class PipelineOptionsDropdownInput extends StatelessWidget {
       children: [
         PipelineOptionLabel(text: appLocale.input),
         PipelineOptionsTextField(
+          key: textFieldKey,
           lines: kPipelineOptionsInputLines,
           controller: controller,
         ),

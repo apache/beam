@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
@@ -49,5 +50,19 @@ extension WidgetTesterExtension on WidgetTester {
   PlaygroundController findPlaygroundController() {
     final context = element(find.codeField());
     return context.read<PlaygroundController>();
+  }
+
+  Future<void> runShortcut(Set<LogicalKeyboardKey> shortcut) async {
+    for (final key in shortcut) {
+      await sendKeyDownEvent(key);
+    }
+    for (final key in shortcut) {
+      await sendKeyUpEvent(key);
+    }
+  }
+
+  Future<void> tapAndSettle(Finder finder) async {
+    await tap(finder);
+    await pumpAndSettle();
   }
 }

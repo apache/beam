@@ -284,6 +284,7 @@ class PlaygroundController with ChangeNotifier {
 
   void clearOutput() {
     _result = null;
+    outputResult = '';
     notifyListeners();
   }
 
@@ -378,7 +379,11 @@ class PlaygroundController with ChangeNotifier {
     // add a little delay to improve user experience
     await Future.delayed(kPrecompiledDelay);
 
-    String logs = selectedExample.logs ?? '';
+    if (_result?.status != RunCodeStatus.preparation) {
+      return;
+    }
+
+    final logs = selectedExample.logs ?? '';
     _result = RunCodeResult(
       status: RunCodeStatus.finished,
       output: selectedExample.outputs,
@@ -394,7 +399,7 @@ class PlaygroundController with ChangeNotifier {
   StreamController<int> _createExecutionTimeStream() {
     StreamController<int>? streamController;
     Timer? timer;
-    Duration timerInterval = const Duration(milliseconds: kExecutionTimeUpdate);
+    const timerInterval = Duration(milliseconds: kExecutionTimeUpdate);
     int ms = 0;
 
     void stopTimer() {

@@ -55,6 +55,7 @@ class PipelineOptionsForm extends StatelessWidget {
           (index, controller) => Row(
             children: [
               Expanded(
+                key: ValueKey('PipelineOptionsKey$index'),
                 child: SizedBox(
                   height: kTextFieldHeight,
                   child: PipelineOptionsTextField(
@@ -64,6 +65,7 @@ class PipelineOptionsForm extends StatelessWidget {
               ),
               kSpace,
               Expanded(
+                key: ValueKey('PipelineOptionsValue$index'),
                 child: SizedBox(
                   height: kTextFieldHeight,
                   child: PipelineOptionsTextField(
@@ -74,6 +76,7 @@ class PipelineOptionsForm extends StatelessWidget {
               SizedBox(
                 width: kIconSizeLg,
                 child: IconButton(
+                  key: ValueKey('PipelineOptionsDelete$index'),
                   iconSize: kIconSizeMd,
                   splashRadius: kIconButtonSplashRadius,
                   icon: const Icon(

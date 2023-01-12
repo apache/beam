@@ -194,7 +194,7 @@ class SnippetEditingController extends ChangeNotifier {
   }
 
   void reset() {
-    codeController.text = _selectedExample?.source ?? '';
+    codeController.fullText = _selectedExample?.source ?? '';
     _pipelineOptions = _selectedExample?.pipelineOptions ?? '';
   }
 
