@@ -108,5 +108,17 @@ message InstructionResponse {
   }
 }
 
+// Request for complete MonitoringInfo related to whole SDK harness process, not limited to a bundle
+// An id provided to the SDK is tied to a relevant payload
+// All the ids can be provided as a list via MonitoringInfosMetadataRequest so that if a runner wants to get all their metrics/metadata it can do so this way
+// Ids for the entire lifecycle of their individual control connection can be reused by the SDK - condition is that the MonitoringInfo can be reinstantiated with the overwriting of the payload field with the following
+message HarnessMonitoringInfosRequest {
+}
+
+message HarnessMonitoringInfosResponse {
+  // a response counterpart to the above HarnessMonitoringInfosRequest
+  map<string, bytes> monitoring_data = 1;
+}
+
 
 
