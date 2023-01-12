@@ -209,6 +209,8 @@ def convert_to_beam_type(typ):
     return typehints.Any
   elif getattr(typ, '__module__', None) != 'typing':
     # Only translate types from the typing module.
+    # TODO(https://github.com/apache/beam/issues/23366): Update logic to properly handle built-in generic type hints
+    _LOGGER.warning('PEP 585 typehints are not currently supported, use typing module containers instead.')
     return typ
 
   type_map = [
