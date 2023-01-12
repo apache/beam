@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -28,6 +32,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /** Contains classes and methods to help with converting between {@link Row} and CSV strings. */
 class CsvRowConversions {
@@ -46,24 +51,13 @@ class CsvRowConversions {
     /** The {@link CSVFormat} of the converted {@link Row} input. */
     abstract CSVFormat getCSVFormat();
 
-    /** The order and subset of {@link Schema} field names to drive the {@link Row} conversion. */
-    abstract List<String> getSchemaFields();
-
-    /** Builds a header from {@link #getSchemaFields()} using the {@link #getCSVFormat()}. */
-    String buildHeader() {
-      return buildHeaderFrom(getSchemaFields(), getCSVFormat());
-    }
-
     /** Converts a {@link Row} to a CSV string formatted using {@link #getCSVFormat()}. */
     @Override
     public String apply(Row input) {
-      List<String> schemaFields = getSchemaFields();
-      Object[] values = new Object[schemaFields.size()];
-      for (int i = 0; i < schemaFields.size(); i++) {
-        String name = schemaFields.get(i);
-        values[i] = input.getValue(name);
-      }
-      return getCSVFormat().format(values);
+      // // resolves incompatible @Nullable assigment
+      Optional<Row> safeInput = Optional.ofNullable(input);
+      checkState(safeInput.isPresent());
+      return getCSVFormat().format(safeInput.get().getValues());
     }
 
     @AutoValue.Builder
@@ -76,88 +70,21 @@ class CsvRowConversions {
 
       /** The {@link CSVFormat} of the converted {@link Row} input. */
       abstract Builder setCSVFormat(CSVFormat format);
-
-      /** The order and subset of {@link Schema} field names to drive the {@link Row} conversion. */
-      abstract Builder setSchemaFields(List<String> fields);
-
-      abstract List<String> getSchemaFields();
+      abstract CSVFormat getCSVFormat();
 
       abstract RowToCsv autoBuild();
 
       final RowToCsv build() {
-
-        validateHeaderAgainstSchema(getSchemaFields(), getSchema());
+        validateHeaderAgainstSchema(getCSVFormat().getHeader(), getSchema());
 
         return autoBuild();
       }
     }
   }
 
-  /** Formats columns into a header String based upon {@link CSVFormat}. */
-  static String buildHeaderFrom(List<String> columns, CSVFormat csvFormat) {
-    StringBuilder builder = new StringBuilder();
-    try {
-      boolean newRecord = true;
-      for (String name : columns) {
-        csvFormat.print(name, builder, newRecord);
-        newRecord = false;
-      }
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
-    return builder.toString();
-  }
-
-  private static void validateHeaderAgainstSchema(List<String> schemaFields, Schema schema) {
+  private static void validateHeaderAgainstSchema(String[] csvHeader, Schema schema) {
     if (schema.getFieldCount() == 0) {
       throw new IllegalArgumentException("schema is empty");
     }
-    if (schemaFields.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Columns is empty. An intent to not override columns, should assign null to the columns parameter.");
-    }
-    List<String> missing = new ArrayList<>();
-    List<Field> invalid = new ArrayList<>();
-
-    for (String name : schemaFields) {
-      if (name.isEmpty()) {
-        throw new IllegalArgumentException(
-            String.format("empty schema field found in: %s", String.join(", ", schemaFields)));
-      }
-      if (!schema.hasField(name)) {
-        missing.add(name);
-        continue;
-      }
-      Field field = schema.getField(name);
-      FieldType fieldType = field.getType().withNullable(false);
-      if (!CsvIO.VALID_FIELD_TYPE_SET.contains(fieldType)) {
-        invalid.add(field);
-      }
-    }
-
-    String missingErrorMessage = "";
-    String invalidErrorMessage = "";
-
-    String schemaString = String.join(", ", schema.getFieldNames());
-
-    if (!missing.isEmpty()) {
-      String missingString = String.join(", ", missing);
-      missingErrorMessage =
-          String.format(" [%s] missing columns: [%s]", schemaString, missingString);
-    }
-
-    if (!invalid.isEmpty()) {
-      String invalidString =
-          invalid.stream().map(Field::toString).collect(Collectors.joining(", "));
-      invalidErrorMessage =
-          String.format(" [%s] invalid columns: [%s]", schemaString, invalidString);
-    }
-
-    if (missingErrorMessage.isEmpty() && invalidErrorMessage.isEmpty()) {
-      return;
-    }
-
-    throw new IllegalArgumentException(
-        String.format("schema error: %s%s", missingErrorMessage, invalidErrorMessage));
   }
 }

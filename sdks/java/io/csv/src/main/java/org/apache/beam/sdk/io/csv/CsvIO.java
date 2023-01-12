@@ -199,27 +199,20 @@ import org.apache.commons.csv.CSVFormat;
  */
 public class CsvIO {
   /**
-   * The valid {@link Schema.FieldType} from which {@link CsvIO} converts CSV records.
+   * The valid {@link Schema.FieldType} from which {@link CsvIO} converts CSV records to the fields:
    *
-   * <p>{@link FieldType#BYTE}
-   *
-   * <p>{@link FieldType#BOOLEAN}
-   *
-   * <p>{@link FieldType#DATETIME}
-   *
-   * <p>{@link FieldType#DECIMAL}
-   *
-   * <p>{@link FieldType#DOUBLE}
-   *
-   * <p>{@link FieldType#INT16}
-   *
-   * <p>{@link FieldType#INT32}
-   *
-   * <p>{@link FieldType#INT64}
-   *
-   * <p>{@link FieldType#FLOAT}
-   *
-   * <p>{@link FieldType#STRING}
+   * <ul>
+   *   <li>{@link FieldType#BYTE}
+   *   <li>{@link FieldType#BOOLEAN}
+   *   <li>{@link FieldType#DATETIME}
+   *   <li>{@link FieldType#DECIMAL}
+   *   <li>{@link FieldType#DOUBLE}
+   *   <li>{@link FieldType#INT16}
+   *   <li>{@link FieldType#INT32}
+   *   <li>{@link FieldType#INT64}
+   *   <li>{@link FieldType#FLOAT}
+   *   <li>{@link FieldType#STRING}
+   * </ul>
    */
   public static final Set<Schema.FieldType> VALID_FIELD_TYPE_SET =
       ImmutableSet.of(
@@ -307,8 +300,7 @@ public class CsvIO {
     abstract String getPreamble();
 
     /**
-     * The column names of the CSV file written at the top line of each shard after the preamble, if
-     * available.
+     * The column names of the CSV file written at the top line of each shard after the preamble.
      */
     abstract String getHeader();
 
@@ -325,8 +317,7 @@ public class CsvIO {
       abstract Builder<T> setPreamble(String value);
 
       /**
-       * The column names of the CSV file written at the top line of each shard after the preamble,
-       * if available.
+       * The column names of the CSV file written at the top line of each shard after the preamble.
        */
       abstract Builder<T> setHeader(String value);
 
@@ -362,6 +353,15 @@ public class CsvIO {
      * {@link Field#getName()}, included in schemaFields, matches any {@link #VALID_FIELD_TYPE_SET}.
      */
     public Write<T> withSchemaFields(List<String> schemaFields) {
+      if (schemaFields.isEmpty()) {
+        throw new IllegalArgumentException("schemaFields is empty");
+      }
+      for (String name : schemaFields) {
+        if (name == null || name.isEmpty()) {
+          throw new IllegalArgumentException(
+              String.format("empty or null field found in %s", String.join(", ", schemaFields)));
+        }
+      }
       return toBuilder().setSchemaFields(schemaFields).build();
     }
 
@@ -501,9 +501,10 @@ public class CsvIO {
 
       Schema schema = input.getSchema();
       SerializableFunction<T, Row> toRowFn = input.getToRowFunction();
+      Sink<Row> sink = buildSink(schema);
       PCollection<Row> rows =
           input.apply("To Rows", MapElements.into(rows()).via(toRowFn)).setRowSchema(schema);
-      rows.apply("Write Rows To CSV", getFileWrite().via(buildSink(schema)));
+      rows.apply("Write Rows To CSV", getFileWrite().via(sink));
       return PDone.in(input.getPipeline());
     }
 
@@ -518,7 +519,6 @@ public class CsvIO {
           RowToCsv.builder()
               .setSchema(schema)
               .setCSVFormat(getCSVFormat())
-              .setSchemaFields(schemaFields)
               .build();
 
       Sink.Builder<Row> builder = sinkBuilder();
@@ -528,7 +528,7 @@ public class CsvIO {
         builder = builder.setPreamble(preamble);
       }
 
-      return builder.setHeader(rowToCsv.buildHeader()).setFormatFunction(rowToCsv).build();
+      return builder.setFormatFunction(rowToCsv).build();
     }
   }
 }
