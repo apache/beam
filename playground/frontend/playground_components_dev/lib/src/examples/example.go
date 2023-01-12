@@ -32,11 +32,11 @@ func Folded() {
 
 func Unfolded1() {
 	fmt.Print("editable")// [START unfold1]
-	fmt.print("readonly")// [START readonly1] [END unfold1] [END readonly1]
+	fmt.Print("readonly")// [START readonly1] [END unfold1] [END readonly1]
 }
 
 func Unfolded2() {
 	fmt.Print("editable")// [START unfold2]
-	fmt.print("readonly")// [START readonly2] [END unfold2] [END readonly2]
+	fmt.Print("readonly")// [START readonly2] [END unfold2] [END readonly2]
 }
 // [END show]
