@@ -36,7 +36,10 @@ public final class ArtifactUtils {
     return String.format(
         "%s-%s",
         DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneId.of("UTC")).format(Instant.now()),
-        UUID.randomUUID());
+        // by default some templates replace "dd" in the output paths with a day of month, since
+        // this id is used as a part of output paths replace "dd" with arbitrary number to avoid
+        // confusion and potential flaky tests
+        UUID.randomUUID().toString().replace("dd", "99"));
   }
 
   /**
