@@ -30,7 +30,3 @@ output "functions-bucket-name" {
 output "function-bucket-object" {
   value = module.functions_buckets.function-bucket-object
 }
-
-output "firebase_project_name" {
-  value = module.firebase.firebase_project_url
-}

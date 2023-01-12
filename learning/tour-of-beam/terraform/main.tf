@@ -27,7 +27,7 @@ module "functions_buckets" {
   # project_id = var.project_id
   region      = var.region
   bucket_name = var.bucket_name
-  depends_on = [module.setup, module.api_enable, module.firebase]
+  depends_on = [module.setup, module.api_enable]
 }
 
 module "api_enable" {
@@ -43,13 +43,5 @@ module "cloud_functions" {
   service_account_id = module.setup.service-account-email
   source_archive_bucket = module.functions_buckets.functions-bucket-name
   source_archive_object = module.functions_buckets.function-bucket-object
-  depends_on = [module.functions_buckets, module.setup, module.api_enable, module.firebase]
-}
-
-module "firebase" {
-  source = "./firebase"
-  project_id = var.project_id
-  firebase_region = var.firebase_region
-  hosting_site_id = var.hosting_site_id
-  depends_on = [module.api_enable, module.setup]
+  depends_on = [module.functions_buckets, module.setup, module.api_enable]
 }
