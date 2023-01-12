@@ -16,8 +16,19 @@
  * limitations under the License.
  */
 
-import 'analytics_event.dart';
+// To build and run the app, copy this file to './config.g.dart'
+// This is a temporary solution while we cannot have 'config.g.dart'
+// in the repository.
+// TODO: https://github.com/apache/beam/issues/24200
 
-abstract class AnalyticsService {
-  AnalyticsEvent? get lastSentEvent;
-}
+const String kAnalyticsUA = 'UA-73650088-2';
+const String kApiClientURL =
+    'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
+const String kApiJavaClientURL =
+    'https://backend-java-beta-dot-apache-beam-testing.appspot.com';
+const String kApiGoClientURL =
+    'https://backend-go-beta-dot-apache-beam-testing.appspot.com';
+const String kApiPythonClientURL =
+    'https://backend-python-beta-dot-apache-beam-testing.appspot.com';
+const String kApiScioClientURL =
+    'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';

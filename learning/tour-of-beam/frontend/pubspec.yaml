@@ -45,6 +45,7 @@ dependencies:
   shared_preferences: ^2.0.15
   url_launcher: ^6.1.5
   url_strategy: ^0.2.0
+  usage: ^4.1.0
 
 dev_dependencies:
   build_runner: ^2.2.0
