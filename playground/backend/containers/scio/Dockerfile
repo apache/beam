@@ -95,5 +95,6 @@ RUN rm -r /tmp/sbt-initialize
 # Enable mitmproxy
 ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
+ENV SBT_OPTS="-Xmx512M -XX:+UseG1GC -XX:+UseStringDeduplication"
 
 ENTRYPOINT ["/entrypoint.sh"]
