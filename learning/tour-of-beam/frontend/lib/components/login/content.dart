@@ -17,13 +17,13 @@
  */
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../assets/assets.gen.dart';
-import '../../auth/method.dart';
 import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
 
@@ -132,7 +132,7 @@ class _BrandedLoginButtons extends StatelessWidget {
         const SizedBox(height: BeamSizes.size16),
         ElevatedButton.icon(
           onPressed: () async {
-            await authNotifier.logIn(AuthMethod.google);
+            await authNotifier.logIn(GoogleAuthProvider());
             onLoggedIn();
           },
           style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,

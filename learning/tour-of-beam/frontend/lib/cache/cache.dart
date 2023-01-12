@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 
 import '../repositories/client/client.dart';
 
+/// A base class for caching entities from network requests.
 abstract class Cache extends ChangeNotifier {
   final TobClient client;
 

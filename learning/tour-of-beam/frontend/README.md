@@ -36,7 +36,7 @@ However, after changes you may need to re-run code generation:
 cd beam
 ./gradlew :playground:frontend:playground_components:generateCode
 cd learning/tour-of-beam/frontend
-flutter pub run build_runner build
+flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
 ### Run
