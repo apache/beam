@@ -16,3 +16,5 @@
 # limitations under the License.
 
 { printf scio\\nscio\\n; yes; } | sbt new spotify/scio-template.g8
+
+echo "Compile / run / fork := false" >> scio/build.sbt
