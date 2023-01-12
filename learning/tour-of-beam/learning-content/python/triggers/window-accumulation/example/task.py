@@ -15,8 +15,8 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: early-trigger
-#   description: Early trigger example.
+#   name: window-accumulation
+#   description: Window Accumulation example.
 #   multifile: false
 #   context_line: 48
 #   categories:

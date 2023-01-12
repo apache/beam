@@ -52,7 +52,7 @@ func main() {
 
 
 
-  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),words,beam.Trigger(trigger), beam.AccumulationMode())
+  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),words,beam.Trigger(trigger), beam.PanesAccumulate())
 
   output(s, fixedWindowedItems)
 

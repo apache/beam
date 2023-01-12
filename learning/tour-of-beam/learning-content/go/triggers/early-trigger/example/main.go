@@ -51,7 +51,7 @@ func main() {
 
 
 
-  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),words,beam.Trigger(trigger), beam.PanesDiscard())
+  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),words,trigger, beam.PanesDiscard())
 
   output(s, fixedWindowedItems)
 
