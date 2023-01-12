@@ -147,6 +147,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
           'inference_args were provided, but should be None because this '
           'framework does not expect extra arguments on inferences.')
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    """Update the model paths produced by side inputs."""
+    raise NotImplementedError
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
@@ -193,6 +197,9 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     return self._unkeyed.validate_inference_args(inference_args)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._unkeyed.update_model_path(model_path=model_path)
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
@@ -267,6 +274,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     return self._unkeyed.validate_inference_args(inference_args)
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._unkeyed.update_model_path(model_path=model_path)
+
 
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
@@ -338,9 +348,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                 _RunInferenceDoFn(
                     self._model_handler, self._clock, self._metrics_namespace),
                 self._inference_args,
-                beam.pvalue.AsSingleton(self._update_model_pcoll)
-                if self._update_model_pcoll else None).with_resource_hints(
-                    **resource_hints)))
+                self._update_model_pcoll if self._update_model_pcoll else
+                None).with_resource_hints(**resource_hints)))
 
 
 class _MetricsCollector:
@@ -413,6 +422,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = None
     self._metrics_namespace = metrics_namespace
     self._update_model_sleep_time = None
+    self._side_input_cache = {}
 
   def _load_model(self):
     def load():
