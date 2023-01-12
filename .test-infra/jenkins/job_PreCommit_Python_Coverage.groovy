@@ -20,7 +20,7 @@ import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python',
+    nameBase: 'Python_Coverage',
     gradleTask: ':sdks:python:test-suites:tox:py38:preCommitPyCoverage',
     timeoutMins: 180,
     triggerPathPatterns: [
