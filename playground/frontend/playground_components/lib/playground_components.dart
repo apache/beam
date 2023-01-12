@@ -44,6 +44,7 @@ export 'src/models/loading_status.dart';
 export 'src/models/outputs.dart';
 export 'src/models/sdk.dart';
 export 'src/models/shortcut.dart';
+export 'src/models/snippet_file.dart';
 export 'src/models/toast.dart';
 export 'src/models/toast_type.dart';
 

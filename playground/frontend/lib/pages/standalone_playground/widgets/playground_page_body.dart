@@ -45,7 +45,7 @@ class PlaygroundPageBody extends StatelessWidget {
       );
 
       final codeTextArea = CodeTextAreaWrapper(
-        controller: controller,
+        playgroundController: controller,
       );
 
       switch (outputState.placement) {

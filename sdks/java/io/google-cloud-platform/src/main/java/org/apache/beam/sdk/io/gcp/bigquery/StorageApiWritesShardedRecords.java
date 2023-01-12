@@ -181,7 +181,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           try {
             task.run();
           } catch (Exception e) {
-            //
+            System.err.println("Exception happened while executing async task. Ignoring: " + e);
           }
         });
   }
@@ -398,9 +398,18 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       tableSchema,
                       // Make sure that the client is always closed in a different thread to avoid
                       // blocking.
-                      client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close));
+                      client ->
+                          runAsyncIgnoreFailure(
+                              closeWriterExecutor,
+                              () -> {
+                                // Remove the pin that is "owned" by the cache.
+                                client.unpin();
+                                client.close();
+                              }));
               if (createAppendClient) {
                 info = info.createAppendClient(datasetService, getOrCreateStream, false);
+                // This pin is "owned" by the cache.
+                Preconditions.checkStateNotNull(info.streamAppendClient).pin();
               }
               return info;
             } catch (Exception e) {
