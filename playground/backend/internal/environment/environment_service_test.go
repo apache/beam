@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	javaConfig       = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"org.junit.runner.JUnitCore\"\n  ]\n}"
+	javaConfig       = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-parameters\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"org.junit.runner.JUnitCore\"\n  ]\n}"
 	goConfig         = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"test_cmd\": \"go\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ],\n  \"test_args\": [\n    \"test\",\n    \"-v\"\n  ]\n}\n"
 	pythonConfig     = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"test_cmd\": \"pytest\",\n  \"compile_args\": [],\n  \"run_args\": [],\n  \"test_args\": []\n}\n"
 	scioConfig       = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"sbt\",\n  \"test_cmd\": \"sbt\",\n  \"compile_args\": [],\n  \"run_args\": [\n    \"runMain\"\n  ],\n  \"test_args\": []\n}\n"
@@ -71,7 +71,7 @@ func setup() error {
 	}
 	executorConfig = NewExecutorConfig(
 		"javac", "java", "java",
-		[]string{"-d", "bin", "-classpath", jars},
+		[]string{"-d", "bin", "-parameters", "-classpath", jars},
 		[]string{"-cp", "bin:" + jars},
 		[]string{"-cp", "bin:" + jars, "org.junit.runner.JUnitCore"},
 	)
@@ -323,7 +323,7 @@ func Test_getConfigFromJson(t *testing.T) {
 		{
 			name:    "Get object from json",
 			args:    args{filepath.Join(configFolderName, defaultSdk.String()+jsonExt)},
-			want:    NewExecutorConfig("javac", "java", "java", []string{"-d", "bin", "-classpath"}, []string{"-cp", "bin:"}, []string{"-cp", "bin:", "org.junit.runner.JUnitCore"}),
+			want:    NewExecutorConfig("javac", "java", "java", []string{"-d", "bin", "-parameters", "-classpath"}, []string{"-cp", "bin:"}, []string{"-cp", "bin:", "org.junit.runner.JUnitCore"}),
 			wantErr: false,
 		},
 		{

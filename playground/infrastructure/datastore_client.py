@@ -44,17 +44,13 @@ class DatastoreClient:
 
     _datastore_client: datastore.Client
 
-    def __init__(self):
+    def __init__(self, project:str, namespace: str):
         self._check_envs()
         self._datastore_client = datastore.Client(
-            namespace=DatastoreProps.NAMESPACE, project=Config.GOOGLE_CLOUD_PROJECT
+            namespace=namespace, project=project
         )
 
     def _check_envs(self):
-        if Config.GOOGLE_CLOUD_PROJECT is None:
-            raise KeyError(
-                "GOOGLE_CLOUD_PROJECT environment variable should be specified in os"
-            )
         if Config.SDK_CONFIG is None:
             raise KeyError("SDK_CONFIG environment variable should be specified in os")
 
@@ -310,28 +306,25 @@ class DatastoreClient:
         self, example: Example, example_id: str
     ) -> List[datastore.Entity]:
         entities = []
-        if len(example.graph) != 0:
-            entities.append(
-                self._pc_obj_entity(
-                    example_id,
-                    example.graph,
-                    PrecompiledExample.GRAPH_EXTENSION.upper(),
-                )
+        entities.append(
+            self._pc_obj_entity(
+                example_id,
+                example.graph,
+                PrecompiledExample.GRAPH_EXTENSION.upper(),
             )
-        if len(example.output) != 0:
-            entities.append(
-                self._pc_obj_entity(
-                    example_id,
-                    example.output,
-                    PrecompiledExample.OUTPUT_EXTENSION.upper(),
-                )
+        )
+        entities.append(
+            self._pc_obj_entity(
+                example_id,
+                example.output,
+                PrecompiledExample.OUTPUT_EXTENSION.upper(),
             )
-        if len(example.logs) != 0:
-            entities.append(
-                self._pc_obj_entity(
-                    example_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper()
-                )
+        )
+        entities.append(
+            self._pc_obj_entity(
+                example_id, example.logs, PrecompiledExample.LOG_EXTENSION.upper()
             )
+        )
         return entities
 
     def _pc_obj_entity(

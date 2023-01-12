@@ -38,6 +38,9 @@ configurations {
 dependencies {
   dockerDependency library.java.slf4j_api
   dockerDependency library.java.slf4j_jdk14
+  dockerDependency library.java.jcl_over_slf4j
+  dockerDependency library.java.log4j_over_slf4j
+  dockerDependency library.java.log4j2_to_slf4j
   dockerDependency project(path: ":sdks:java:harness", configuration: "shadow")
   // For executing KafkaIO, e.g. as an external transform
   dockerDependency project(":sdks:java:io:kafka")

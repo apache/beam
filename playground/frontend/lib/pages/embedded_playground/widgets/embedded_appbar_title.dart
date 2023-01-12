@@ -19,11 +19,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/components/playground_run_or_cancel_button.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/sizes.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../../components/playground_run_or_cancel_button.dart';
+import '../../../constants/sizes.dart';
+import '../../../src/assets/assets.gen.dart';
 
 class EmbeddedAppBarTitle extends StatelessWidget {
   const EmbeddedAppBarTitle({Key? key}) : super(key: key);
@@ -40,7 +41,7 @@ class EmbeddedAppBarTitle extends StatelessWidget {
           IconButton(
             iconSize: kIconSizeLg,
             splashRadius: kIconButtonSplashRadius,
-            icon: SvgPicture.asset(kCopyIconAsset),
+            icon: SvgPicture.asset(Assets.copy),
             onPressed: () {
               final source = controller.source;
               Clipboard.setData(ClipboardData(text: source));

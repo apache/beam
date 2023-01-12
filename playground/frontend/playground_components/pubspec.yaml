@@ -34,7 +34,7 @@ dependencies:
   enum_map: ^0.2.1
   equatable: ^2.0.5
   flutter: { sdk: flutter }
-  flutter_code_editor: ^0.2.4
+  flutter_code_editor: ^0.2.5
   flutter_markdown: ^0.6.12
   flutter_svg: ^1.0.3
   fluttertoast: ^8.1.1
@@ -44,6 +44,7 @@ dependencies:
   highlight: ^0.7.0
   http: ^0.13.5
   json_annotation: ^4.7.0
+  keyed_collection_widgets: ^0.4.3
   meta: ^1.7.0
   protobuf: ^2.1.0
   provider: ^6.0.3
@@ -68,6 +69,7 @@ flutter:
     - assets/png/
     - assets/svg/
     - assets/symbols/go.g.yaml
+    - assets/symbols/java.g.yaml
     - assets/symbols/python.g.yaml
     - assets/translations/en.yaml
 

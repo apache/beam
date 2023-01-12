@@ -181,7 +181,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           try {
             task.run();
           } catch (Exception e) {
-            //
+            System.err.println("Exception happened while executing async task. Ignoring: " + e);
           }
         });
   }
@@ -318,7 +318,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         DatasetService datasetService) {
       try {
         String stream = streamName.read();
-        if (Strings.isNullOrEmpty(stream)) {
+        if (stream == null || "".equals(stream)) {
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
           stream = datasetService.createWriteStream(tableId, Type.BUFFERED).getName();
           streamName.write(stream);
@@ -398,9 +398,18 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       tableSchema,
                       // Make sure that the client is always closed in a different thread to avoid
                       // blocking.
-                      client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close));
+                      client ->
+                          runAsyncIgnoreFailure(
+                              closeWriterExecutor,
+                              () -> {
+                                // Remove the pin that is "owned" by the cache.
+                                client.unpin();
+                                client.close();
+                              }));
               if (createAppendClient) {
                 info = info.createAppendClient(datasetService, getOrCreateStream, false);
+                // This pin is "owned" by the cache.
+                Preconditions.checkStateNotNull(info.streamAppendClient).pin();
               }
               return info;
             } catch (Exception e) {
@@ -426,14 +435,17 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               appendClientInfo.get().createAppendClient(datasetService, getOrCreateStream, false);
               StreamAppendClient streamAppendClient =
                   Preconditions.checkArgumentNotNull(appendClientInfo.get().streamAppendClient);
+              String streamNameRead = Preconditions.checkArgumentNotNull(streamName.read());
+              long currentOffset = Preconditions.checkArgumentNotNull(streamOffset.read());
               for (AppendRowsContext context : contexts) {
-                context.streamName = streamName.read();
+                context.streamName = streamNameRead;
                 streamAppendClient.pin();
                 context.client = appendClientInfo.get().streamAppendClient;
-                context.offset = streamOffset.read();
+                context.offset = currentOffset;
                 ++context.tryIteration;
-                streamOffset.write(context.offset + context.protoRows.getSerializedRowsCount());
+                currentOffset = context.offset + context.protoRows.getSerializedRowsCount();
               }
+              streamOffset.write(currentOffset);
             } catch (Exception e) {
               throw new RuntimeException(e);
             }

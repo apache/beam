@@ -63,10 +63,12 @@ Future<void> main() async {
       expect(controller.pipelineOptions, '');
     });
 
-    test('Initial value of source should be empty string', () {
+    test('source', () {
       expect(controller.source, null);
       controller.setSdk(Sdk.go);
-      expect(controller.source, '');
+      expect(controller.source, null);
+      controller.snippetEditingController!.setExample(exampleGo4Multifile);
+      expect(controller.source, exampleGo4Multifile.files[1].content);
     });
 
     group('isExampleChanged Tests', () {
@@ -74,12 +76,13 @@ Future<void> main() async {
         'If example source is changed, value of isExampleChanged should be true',
         () {
           controller.setExample(
-            exampleMock1,
+            examplePython1,
             descriptor: emptyDescriptor,
             setCurrentSdk: true,
           );
           expect(controller.isExampleChanged, false);
-          controller.setSource('test');
+          controller.snippetEditingController?.fileControllers.first
+              .codeController.text = 'test';
           expect(controller.isExampleChanged, true);
         },
       );
@@ -88,7 +91,7 @@ Future<void> main() async {
         'If pipelineOptions is changed, value of isExampleChanged should be true',
         () {
           controller.setExample(
-            exampleMock1,
+            examplePython1,
             descriptor: emptyDescriptor,
             setCurrentSdk: true,
           );
@@ -103,7 +106,7 @@ Future<void> main() async {
       'If selected example type is not test and SDK is java or python, graph should be available',
       () {
         controller.setExample(
-          exampleMock1,
+          examplePython1,
           descriptor: emptyDescriptor,
           setCurrentSdk: true,
         );
@@ -116,11 +119,11 @@ Future<void> main() async {
       () {
         controller.addListener(() {
           expect(controller.sdk, Sdk.go);
-          expect(controller.source, exampleMockGo.source);
-          expect(controller.selectedExample, exampleMockGo);
+          expect(controller.source, exampleGo6.files.first.content);
+          expect(controller.selectedExample, exampleGo6);
         });
         controller.setExample(
-          exampleMockGo,
+          exampleGo6,
           descriptor: emptyDescriptor,
           setCurrentSdk: true,
         );
@@ -138,13 +141,14 @@ Future<void> main() async {
         'Playground state reset should reset source to example notify all listeners',
         () {
       controller.setExample(
-        exampleMock1,
+        examplePython1,
         descriptor: emptyDescriptor,
         setCurrentSdk: true,
       );
-      controller.setSource('source');
+      controller.snippetEditingController?.fileControllers.first.codeController
+          .text = 'source';
       controller.addListener(() {
-        expect(controller.source, exampleMock1.source);
+        expect(controller.source, examplePython1.files.first.content);
       });
       controller.reset();
     });
@@ -170,12 +174,12 @@ Future<void> main() async {
 
     test('getLoadingDescriptor()', () {
       controller.setExample(
-        exampleMock2,
+        examplePython2,
         descriptor: standardDescriptor2,
         setCurrentSdk: true,
       );
       controller.setExample(
-        exampleMockGo,
+        exampleGo6,
         descriptor: standardGoDescriptor,
         setCurrentSdk: false,
       );
@@ -199,7 +203,8 @@ Future<void> main() async {
 
       expect(controller.sdk, Sdk.go);
       expect(
-        controller.requireSnippetEditingController().codeController.text,
+        controller.snippetEditingController?.fileControllers.first
+            .codeController.fullText,
         '',
       );
 
@@ -221,11 +226,13 @@ Future<void> main() async {
 
         expect(controller.sdk, Sdk.go);
 
-        controller.requireSnippetEditingController().setSource(text);
+        controller.snippetEditingController?.fileControllers.first
+            .codeController.text = text;
         controller.setEmptyIfNotExists(Sdk.go, setCurrentSdk: true);
 
         expect(
-          controller.requireSnippetEditingController().codeController.text,
+          controller.snippetEditingController?.fileControllers.first
+              .codeController.fullText,
           text,
         );
       });

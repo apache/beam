@@ -42,8 +42,8 @@ Use [`sdkman`](https://sdkman.io/) to install the Java Development Kit (JDK).
 # Install sdkman
 curl -s "https://get.sdkman.io" | bash
 
-# Install Java 11
-sdk install java 11.0.16-tem
+# Install Java 17
+sdk install java 17.0.5-tem
 {{< /highlight >}}
 
 You can use either [Gradle](https://gradle.org/) or

@@ -120,3 +120,66 @@ cd beam
 
 See [terraform](./terraform/README.md) for details on how to build and deploy
 the application and its dependent infrastructure.
+
+# Manual Example deployment
+
+The following requirements are needed for deploying examples manually:
+
+1. GCP project with deployed Playground backend
+2. Python (3.9.x)
+3. Login into GCP (gcloud default login or using service account key)
+
+## Run example deployment script
+Example deployment scripts uses following environment variables:
+
+- GOOGLE_CLOUD_PROJECT    - GCP project id where Playground backend is deployed
+- BEAM_ROOT_DIR           - root folder to search for playground examples
+- SDK_CONFIG              - location of sdk and default example configuration file
+- BEAM_EXAMPLE_CATEGORIES - location of example category configuration file
+- BEAM_USE_WEBGRPC        - use grpc-Web instead of grpc (default)
+- GRPC_TIMEOUT            - timeout for grpc calls (defaults to 10 sec)
+- BEAM_CONCURRENCY        - number of eaxmples to run in parallel (defaults to 10)
+- SERVER_ADDRESS          - address of the backend runnner service for a particular SDK
+
+```
+usage: ci_cd.py [-h] --step {CI,CD} [--namespace NAMESPACE] --datastore-project DATASTORE_PROJECT --sdk {SDK_JAVA,SDK_GO,SDK_PYTHON,SDK_SCIO} --origin {PG_EXAMPLES,TB_EXAMPLES} --subdirs SUBDIRS [SUBDIRS ...]
+
+CI/CD Steps for Playground objects
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --step {CI,CD}        CI step to verify all beam examples/tests/katas. CD step to save all beam examples/tests/katas and their outputs on the GCD
+  --namespace NAMESPACE
+                        Datastore namespace to use when saving data (default: Playground)
+  --datastore-project DATASTORE_PROJECT
+                        Datastore project to use when saving data
+  --sdk {SDK_JAVA,SDK_GO,SDK_PYTHON,SDK_SCIO}
+                        Supported SDKs
+  --origin {PG_EXAMPLES,TB_EXAMPLES}
+                        ORIGIN field of pg_examples/pg_snippets
+  --subdirs SUBDIRS [SUBDIRS ...]
+                        limit sub directories to walk through, relative to BEAM_ROOT_DIR
+```
+
+Helper script to deploy examples for all supported sdk's:
+
+```shell
+cd playground/infrastructure
+
+export BEAM_ROOT_DIR="../../"
+export SDK_CONFIG="../../playground/sdks.yaml"
+export BEAM_EXAMPLE_CATEGORIES="../categories.yaml"
+export BEAM_USE_WEBGRPC=yes
+export BEAM_CONCURRENCY=4
+export PLAYGROUND_DNS_NAME="your registered dns name for Playground"
+
+for sdk in go java python scio; do
+    export SDK=$sdk &&
+    export SERVER_ADDRESS=https://${SDK}.$PLAYGROUND_DNS_NAME &&
+
+    python3 ci_cd.py --datastore-project $GOOGLE_CLOUD_PROJECT \
+                     --step CD --sdk SDK_${SDK^^} \
+                     --origin PG_EXAMPLES \
+                     --subdirs ./learning/katas ./examples ./sdks
+done
+```

@@ -15,29 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import PrecommitJobBuilder
 
-/**
- * Sole purpose of this class is to override {@link #toString()} of {@link MetricsContainerStepMap}
- * in order to show meaningful metrics in Spark Web Interface.
- */
-class SparkMetricsContainerStepMap extends MetricsContainerStepMap {
-
-  @Override
-  public String toString() {
-    return asAttemptedOnlyMetricResults(this).toString();
-  }
-
-  @Override
-  public boolean equals(@Nullable Object o) {
-    return super.equals(o);
-  }
-
-  @Override
-  public int hashCode() {
-    return super.hashCode();
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Python_Integration',
+    gradleTask: ':pythonPreCommitIT',
+    timeoutMins: 180,
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/python/.*$',
+      '^release/.*$',
+    ]
+    )
+builder.build {
+  // Publish all test results to Jenkins.
+  publishers {
+    archiveJunit('**/pytest*.xml')
   }
 }

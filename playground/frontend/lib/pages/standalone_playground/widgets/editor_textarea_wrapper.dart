@@ -24,84 +24,59 @@ import '../../../components/playground_run_or_cancel_button.dart';
 import '../../../constants/sizes.dart';
 import '../../../modules/editor/components/share_dropdown/share_button.dart';
 import '../../../modules/examples/components/description_popover/description_popover_button.dart';
-import '../../../modules/examples/components/multifile_popover/multifile_popover_button.dart';
 
 /// A code editor with controls stacked above it.
 class CodeTextAreaWrapper extends StatelessWidget {
-  final PlaygroundController controller;
+  final PlaygroundController playgroundController;
 
   const CodeTextAreaWrapper({
-    required this.controller,
+    required this.playgroundController,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (controller.result?.errorMessage?.isNotEmpty ?? false) {
+    if (playgroundController.result?.errorMessage?.isNotEmpty ?? false) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleError(context, controller);
+        _handleError(context, playgroundController);
       });
     }
 
-    final snippetController = controller.snippetEditingController;
+    final snippetController = playgroundController.snippetEditingController;
 
     if (snippetController == null) {
       return const LoadingIndicator();
     }
 
-    return Column(
-      children: [
-        Expanded(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: SnippetEditor(
-                  controller: snippetController,
-                  isEditable: true,
-                ),
+    final example = snippetController.example;
+
+    return SnippetEditor(
+      controller: snippetController,
+      isEditable: true,
+      actionsWidget: Row(
+        children: [
+          if (example != null)
+            Semantics(
+              container: true,
+              child: DescriptionPopoverButton(
+                example: example,
+                followerAnchor: Alignment.topRight,
+                targetAnchor: Alignment.bottomRight,
               ),
-              Positioned(
-                right: kXlSpacing,
-                top: kXlSpacing,
-                height: kButtonHeight,
-                child: Row(
-                  children: [
-                    if (controller.selectedExample != null) ...[
-                      if (controller.selectedExample?.isMultiFile ?? false)
-                        Semantics(
-                          container: true,
-                          child: MultifilePopoverButton(
-                            example: controller.selectedExample!,
-                            followerAnchor: Alignment.topRight,
-                            targetAnchor: Alignment.bottomRight,
-                          ),
-                        ),
-                      Semantics(
-                        container: true,
-                        child: DescriptionPopoverButton(
-                          example: controller.selectedExample!,
-                          followerAnchor: Alignment.topRight,
-                          targetAnchor: Alignment.bottomRight,
-                        ),
-                      ),
-                    ],
-                    Semantics(
-                      container: true,
-                      child: ShareButton(
-                        playgroundController: controller,
-                      ),
-                    ),
-                    const SizedBox(width: kLgSpacing),
-                    Semantics(
-                      container: true,
-                      child: const PlaygroundRunOrCancelButton(),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
+          Semantics(
+            container: true,
+            child: ShareButton(
+              playgroundController: playgroundController,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: kLgSpacing),
+          Semantics(
+            container: true,
+            child: const PlaygroundRunOrCancelButton(),
+          ),
+          const SizedBox(width: kLgSpacing),
+        ],
+      ),
     );
   }
 

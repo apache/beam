@@ -91,6 +91,7 @@ jobs:
         working-directory: playground/infrastructure
         env:
           BEAM_ROOT_DIR: "../.."
+          BEAM_EXAMPLE_CATEGORIES: "../categories.yaml"
 
   ci_cd:
     name: ${{ inputs.step }} ${{ inputs.sdk }} ${{ inputs.origin }}
@@ -172,6 +173,7 @@ jobs:
       - name: Run ci_cd.py
         run: |
              python3 ci_cd.py \
+              --datastore-project $GOOGLE_CLOUD_PROJECT \
               --step $STEP \
               --sdk SDK_${SDK^^} \
               --origin $ORIGIN \

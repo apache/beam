@@ -16,14 +16,37 @@
  * limitations under the License.
  */
 
-class SharedFile {
-  final String code;
+import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
+
+part 'snippet_file.g.dart';
+
+@JsonSerializable()
+class SnippetFile with EquatableMixin {
+  final String content;
   final bool isMain;
   final String name;
 
-  const SharedFile({
-    required this.code,
+  const SnippetFile({
+    required this.content,
     required this.isMain,
     this.name = '',
   });
+
+  static const empty = SnippetFile(
+    content: '',
+    isMain: true,
+  );
+
+  Map<String, dynamic> toJson() => _$SnippetFileToJson(this);
+
+  factory SnippetFile.fromJson(Map<String, dynamic> map) =>
+      _$SnippetFileFromJson(map);
+
+  @override
+  List<Object?> get props => [
+        content,
+        isMain,
+        name,
+      ];
 }
