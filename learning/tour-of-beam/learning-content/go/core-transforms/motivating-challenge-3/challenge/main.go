@@ -40,7 +40,12 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
     _ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 )
+
+func less(a, b string) bool{
+    return true
+}
 
 var (
     wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
@@ -55,7 +60,9 @@ func main() {
 
     lines := getLines(s, file)
 
-    words := getWords(s,lines)
+    fixedSizeLines := top.Largest(s,lines,100,less)
+
+    words := getWords(s,fixedSizeLines)
 
     distinctWordsStartLetterS := getCompositeWordsStartWith(s,words)
 

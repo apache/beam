@@ -74,6 +74,8 @@ with beam.Pipeline() as p:
   # ParDo ProcessNumbersDoFn with tags
   # Result by tags compare with EnrichCountryDoFn
   results = (p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
+            | beam.combiners.Sample.FixedSizeGlobally(100) \
+            | beam.FlatMap(lambda line: line) \
             | beam.FlatMap(lambda sentence: sentence.split()) \
             | beam.Filter(lambda word: not word.isspace() or word.isalnum()) \
             )

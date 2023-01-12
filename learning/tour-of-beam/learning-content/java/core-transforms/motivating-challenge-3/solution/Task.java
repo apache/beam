@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.transforms.Flatten;
 
 import java.util.Arrays;
 import java.util.List;
@@ -53,7 +54,11 @@ public class Task {
                 .apply(FlatMapElements.into(TypeDescriptors.strings()).via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
                 .apply(Filter.by((String word) -> !word.isEmpty()));
 
-        PCollection<String> countWords = words.apply(new CountWords());
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+
+        PCollection<String> limitedPCollection = words.apply(sample).apply(Flatten.iterables());
+
+        PCollection<String> countWords = limitedPCollection.apply(new CountWords());
 
         TupleTag<String> wordWithUpperCase = new TupleTag<String>() {
         };

@@ -39,6 +39,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.transforms.Flatten;
 
 import java.util.Arrays;
 
@@ -55,7 +56,11 @@ public class Task {
                 .apply(FlatMapElements.into(TypeDescriptors.strings()).via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
                 .apply(Filter.by((String word) -> !word.isEmpty()));
 
-        PCollectionList<String> pCollectionList = partitionPCollectionByCase(words);
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+
+        PCollection<String> limitedPCollection = words.apply(sample).apply(Flatten.iterables());
+
+        PCollectionList<String> pCollectionList = partitionPCollectionByCase(limitedPCollection);
 
         PCollection<KV<String, Long>> allLetterUpperCase = countPerElement(pCollectionList.get(0));
         PCollection<KV<String, Long>> firstLetterUpperCase = countPerElement(pCollectionList.get(1));

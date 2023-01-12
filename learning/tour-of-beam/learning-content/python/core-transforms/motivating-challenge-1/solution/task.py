@@ -55,17 +55,17 @@ def partition_fn(word, num_partitions):
 
 
 with beam.Pipeline() as p:
-
-  parts = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
+  parts = p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
+            | beam.combiners.Sample.FixedSizeGlobally(100) \
+            | beam.FlatMap(lambda line: line) \
             | beam.FlatMap(lambda sentence: sentence.split()) \
-            | beam.Filter(lambda word: not word.isspace() or word.isalnum()) \
             | beam.Partition(partition_fn, 3)
 
   allLetterUpperCase = parts[0] | 'All upper' >> beam.combiners.Count.PerElement() | beam.Map(lambda key: (key[0].lower(),key[1]))
   firstLetterUpperCase = parts[1] | 'First upper' >> beam.combiners.Count.PerElement() | beam.Map(lambda key: (key[0].lower(),key[1]))
   allLetterLowerCase = parts[2] | 'Lower' >> beam.combiners.Count.PerElement()
 
-  flattenPCollection = (allLetterUpperCase, firstLetterUpperCase, allLetterLowerCase)
-            | beam.Flatten()
-            | beam.GroupByKey()
+  flattenPCollection = (allLetterUpperCase, firstLetterUpperCase, allLetterLowerCase) \
+            | beam.Flatten() \
+            | beam.GroupByKey() \
             | Output()

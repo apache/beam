@@ -39,7 +39,12 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 )
+
+func less(a, b string) bool{
+    return true
+}
 
 var (
     result = make(map[string][]string)
@@ -55,7 +60,9 @@ func main() {
 
     lines := getLines(s, file)
 
-    words := getWords(s,lines)
+    fixedSizeLines := top.Largest(s,lines,100,less)
+
+    words := getWords(s,fixedSizeLines)
 
     groupedPCollection := groupWordsByFirstLetter(s,words)
 

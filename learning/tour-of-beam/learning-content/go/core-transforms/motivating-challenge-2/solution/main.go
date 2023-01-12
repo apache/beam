@@ -39,7 +39,12 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 )
+
+func less(a, b string) bool{
+    return true
+}
 
 func main() {
 	ctx := context.Background()
@@ -50,7 +55,9 @@ func main() {
 
     lines := getLines(s, file)
 
-    kvPCollection := getSplitLineAsMap(s,lines)
+    fixedSizeLines := top.Largest(s,lines,100,less)
+
+    kvPCollection := getSplitLineAsMap(s,fixedSizeLines)
 
     combined := combine(s,kvPCollection)
     debug.Print(s, combined)

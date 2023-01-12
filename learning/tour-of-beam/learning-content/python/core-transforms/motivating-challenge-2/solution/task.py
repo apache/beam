@@ -49,6 +49,8 @@ class Output(beam.PTransform):
 with beam.Pipeline() as p:
 
   parts = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/counts-00000-of-00003') \
+            | beam.combiners.Sample.FixedSizeGlobally(100) \
+            | beam.FlatMap(lambda line: line) \
             | beam.FlatMap(lambda line : [line.split(':')]) \
             | beam.Map(lambda arr : (arr[0],int(arr[1].strip()))) \
             | beam.CombinePerKey(sum) \

@@ -84,6 +84,8 @@ class EnrichCountryDoFn(beam.DoFn):
 with beam.Pipeline() as p:
 
   results = (p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
+            | beam.combiners.Sample.FixedSizeGlobally(100) \
+            | beam.FlatMap(lambda line: line) \
             | beam.FlatMap(lambda sentence: sentence.split()) \
             | beam.Filter(lambda word: not word.isspace() or word.isalnum()) \
             | ExtractAndCountWord()

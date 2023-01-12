@@ -40,11 +40,16 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
 )
 
 var (
     wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 )
+
+func less(a, b string) bool{
+    return true
+}
 
 func main() {
 	ctx := context.Background()
@@ -55,7 +60,9 @@ func main() {
 
     lines := getLines(s, file)
 
-    words := getWords(s,lines)
+    fixedSizeLines := top.Largest(s,lines,100,less)
+
+    words := getWords(s,fixedSizeLines)
 
     allCaseWords := partitionPCollectionByCase(s,words)
 

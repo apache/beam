@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.transforms.Flatten;
 
 import java.io.Serializable;
 import java.util.*;
@@ -54,7 +55,11 @@ public class Task {
                 .apply(FlatMapElements.into(TypeDescriptors.strings()).via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
                 .apply(Filter.by((String word) -> !word.isEmpty()));
 
-        groupWordsByFirstLetter(words).apply(ParDo.of(new LogOutput<>()));
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+
+        PCollection<String> limitedPCollection = words.apply(sample).apply(Flatten.iterables());
+
+        groupWordsByFirstLetter(limitedPCollection).apply(ParDo.of(new LogOutput<>()));
 
         pipeline.run();
     }

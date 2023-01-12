@@ -44,27 +44,19 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
-
 def partition_fn(word, num_partitions):
     return 0
 
-
 with beam.Pipeline() as p:
+  parts = p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
+            | beam.combiners.Sample.FixedSizeGlobally(100) \
+            | beam.FlatMap(lambda line: line) \
+            | beam.FlatMap(lambda sentence: sentence.split())
 
-  parts = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
-            | beam.FlatMap(lambda sentence: sentence.split()) \
-            | beam.Filter(lambda word: not word.isspace() or word.isalnum()) \
-            # Partition
-
-  # Get parts(allLetterUpperCase,firstLetterUpperCase,allLetterLowerCase) by index
-  # Count per element
-  # Get KV structure which key word lower and value first letter
   allLetterUpperCase = parts
   firstLetterUpperCase = parts
   allLetterLowerCase = parts
 
-
-  flattenPCollection = (
-              # Flatten
-              # GroupByKey
-              Output())
+  flattenPCollection = (# Flatten
+                        # GroupByKey
+                        Output())

@@ -44,31 +44,27 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
-class Accum:
-    current = [{}]
 
-    def __init__(self):
-
-class AverageFn(beam.CombineFn):
-
+class GroupWordsByFirstLetter(beam.CombineFn):
     def create_accumulator(self):
-        return Accum()
+        return {}
 
-    def add_input(self, accumulator, element):
-        return word + element
+    def add_input(self, accumulator, word):
+
+        return accumulator
 
     def merge_accumulators(self, accumulators):
-        return sums
+        return {}
 
     def extract_output(self, accumulator):
-        sum = accumulator
-        return sum
-
+        return accumulator
 
 
 with beam.Pipeline() as p:
   parts = p | 'Log words' >> beam.io.ReadFromText('gs://apache-beam-samples/shakespeare/kinglear.txt') \
+            | beam.combiners.Sample.FixedSizeGlobally(100) \
+            | beam.FlatMap(lambda line: line) \
             | beam.FlatMap(lambda sentence: sentence.split()) \
             | beam.Filter(lambda word: not word.isspace() or word.isalnum()) \
-            | beam.CombineGlobally(AverageFn()) \
+            | beam.CombineGlobally(GroupWordsByFirstLetter()) \
             | Output()

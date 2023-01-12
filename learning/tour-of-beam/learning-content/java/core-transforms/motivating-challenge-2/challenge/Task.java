@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.transforms.Flatten;
 
 import java.util.Arrays;
 
@@ -51,7 +52,11 @@ public class Task {
 
         PCollection<String> words = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/counts-00000-of-00003"));
 
-        PCollection<KV<String, Integer>> kvPCollection = getSplitLineAsMap(words);
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+
+        PCollection<String> limitedPCollection = words.apply(sample).apply(Flatten.iterables());
+
+        PCollection<KV<String, Integer>> kvPCollection = getSplitLineAsMap(limitedPCollection);
 
         combine(kvPCollection).apply("Log words", ParDo.of(new LogOutput<>()));
 
