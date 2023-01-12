@@ -422,14 +422,18 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = None
     self._metrics_namespace = metrics_namespace
     self._update_model_sleep_time = None
+    self._side_input_cache = {}
 
-  def _load_model(self, model_path=None):
+  def start_bundle(self):
+    self._side_input_cache = {}
+
+  def _load_model(self, side_input_model_path=None):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
       # this will be a breaking change.
-      self._model_handler.update_model_path(model_path)
+      self._model_handler.update_model_path(side_input_model_path)
       model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
@@ -445,24 +449,27 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
       model_container = ModelContainer()
       model_container['model'] = model
-      model_container['model_id'] = model_path
+      model_container['model_id'] = side_input_model_path
+      model_container['side_input_cache'] = self._side_input_cache
       return model_container
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
     cached_model_container = self._shared_model_handle.acquire(load)
-    if cached_model_container['model_id'] != model_path:
-      # TODO: Specify a unique tags for each model path.
-      if self._update_model_sleep_time:
-        logging.info("Sleeping for %s seconds." % self._update_model_sleep_time)
-        time.sleep(self._update_model_sleep_time)
+    # retrieve the side input cache
+    self._side_input_cache: set = cached_model_container['side_input_cache']
+    if (side_input_model_path is
+        not None) and side_input_model_path not in self._side_input_cache:
+      self._side_input_cache.add(side_input_model_path)
       logging.info(
           "Updating the model path. Previous model path"
           " is %s and "
           "updated model path is %s" %
-          (cached_model_container['model_id'], model_path))
+          (cached_model_container['model_id'], side_input_model_path))
+
       cached_model_container = self._shared_model_handle.acquire(
-          load, tag=model_path)
+          load, tag=side_input_model_path)
+
     return cached_model_container['model']
 
   def setup(self):
@@ -473,13 +480,13 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
     self._model = self._load_model()
 
-  def update_model(self, model_path):
-    self._model = self._load_model(model_path=model_path)
+  def update_model(self, side_input_model_path):
+    self._model = self._load_model(side_input_model_path)
 
   def process(self, batch, inference_args, side_input_model_path=None):
     logging.info(side_input_model_path)
     print(f'Side input model path {side_input_model_path}')
-    self.update_model(model_path=side_input_model_path)
+    self.update_model(side_input_model_path)
     start_time = _to_microseconds(self._clock.time_ns())
     try:
       result_generator = self._model_handler.run_inference(
