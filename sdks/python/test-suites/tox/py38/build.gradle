@@ -126,6 +126,10 @@ task archiveFilesToLint(type: Zip) {
   }
 }
 
+project.tasks.register("preCommitPyCoverage") {
+      dependsOn = ["testPy38CloudCoverage"]
+}
+
 task unpackFilesToLint(type: Copy) {
   from zipTree("$buildDir/dist/files-to-whitespacelint.zip")
   into "$buildDir/files-to-whitespacelint"
