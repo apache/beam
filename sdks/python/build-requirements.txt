@@ -25,7 +25,7 @@ setuptools
 six
 wheel>=0.36.0
 
-grpcio-tools==1.37.0
+grpcio-tools==1.51.1
 # TODO(https://github.com/apache/beam/issues/23734): the sdist for grpcio==1.50.0 is failing on GH workers
 # pin grpcio to the previous version.
 grpcio==1.49.1;sys_platform=="darwin"
