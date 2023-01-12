@@ -213,7 +213,8 @@ def convert_to_beam_type(typ):
     # properly handle built-in generic type hints
     _LOGGER.warning(
         'PEP 585 typehints are not currently supported, use typing module ' +
-        'containers for %s instead.', typ)
+        'containers for %s instead.',
+        typ)
     return typ
 
   type_map = [
