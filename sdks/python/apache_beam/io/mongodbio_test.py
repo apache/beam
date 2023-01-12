@@ -29,6 +29,8 @@ from bson import objectid
 from parameterized import parameterized_class
 from pymongo import ASCENDING
 from pymongo import ReplaceOne
+from pymongo import UpdateOne
+from pymongo import InsertOne
 
 import apache_beam as beam
 from apache_beam.io import ReadFromMongoDB
@@ -652,6 +654,69 @@ class WriteToMongoDBTest(unittest.TestCase):
       p.run()
       mock_client.return_value.__getitem__.return_value.__getitem__. \
         return_value.bulk_write.assert_called_with(expected_update)
+
+  def test_write_to_mongodb_update_one(self, mock_client):
+    _id = objectid.ObjectId()
+    docs = [{'x': 1, '_id': _id}]
+    expected_update = [
+        UpdateOne({'_id': _id}, {
+            'x': 1, '_id': _id
+        }, True, None)
+    ]
+    with TestPipeline() as p:
+      _ = (
+          p | "Create" >> beam.Create(docs)
+          | "Write" >> WriteToMongoDB(db='test', coll='test', write_func="UpdateOne"))
+      p.run()
+      mock_client.return_value.__getitem__.return_value.__getitem__. \
+        return_value.bulk_write.assert_called_with(expected_update)
+
+  def test_write_to_mongodb_insert_one(self, mock_client):
+      _id = objectid.ObjectId()
+      docs = [{'x': 1, '_id': _id}]
+      expected_update = [
+          InsertOne({
+              'x': 1, '_id': _id
+          })
+      ]
+      with TestPipeline() as p:
+        _ = (
+            p | "Create" >> beam.Create(docs)
+            | "Write" >> WriteToMongoDB(db='test', coll='test', write_func="InsertOne"))
+        p.run()
+        mock_client.return_value.__getitem__.return_value.__getitem__. \
+          return_value.bulk_write.assert_called_with(expected_update)
+
+  def test_write_to_mongodb_custom_write_func(self, mock_client):
+        _id = objectid.ObjectId()
+        docs = [{'x': 1, '_id': _id}]
+        def _my_write_func(client, db, coll, documents, logger):
+          requests = []
+          for doc in documents:
+            request = InsertOne(document=doc)
+            requests.append(request)
+            resp = client[db][coll].bulk_write(requests)
+            logger.debug(
+                "BulkWrite to MongoDB result in nModified:%d, nUpserted:%d, "
+                "nMatched:%d, Errors:%s" % (
+                    resp.modified_count,
+                    resp.upserted_count,
+                    resp.matched_count,
+                    resp.bulk_api_result.get("writeErrors"),
+                ))
+
+        expected_update = [
+            InsertOne({
+                'x': 1, '_id': _id
+            })
+        ]
+        with TestPipeline() as p:
+          _ = (
+              p | "Create" >> beam.Create(docs)
+              | "Write" >> WriteToMongoDB(db='test', coll='test', write_func=_my_write_func))
+          p.run()
+          mock_client.return_value.__getitem__.return_value.__getitem__. \
+            return_value.bulk_write.assert_called_with(expected_update)
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_write_to_mongodb_with_generated_id(self, mock_client):

@@ -695,7 +695,7 @@ class WriteToMongoDB(PTransform):
       extra_client_params(dict): Optional `MongoClient
        <https://api.mongodb.com/python/current/api/pymongo/mongo_client.html>`_
        parameters as keyword arguments
-      write_func(Optional[Union[str, Callable]]):
+      write_func(optional[union[str, callable]]):
        Select from the following three options:
        ("ReplaceOne", "InsertOne", "UpdateOne") or pass in a custom function
        that user implement to gain more control over the write process.
