@@ -35,6 +35,7 @@ resource "google_cloudfunctions_function" "cloud_function" {
   environment_variables = {
     DATASTORE_PROJECT_ID=var.project_id
     TOB_MOCK=1
+    GOOGLE_PROJECT_ID=var.project_id
   }
 
 }
