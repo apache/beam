@@ -18,7 +18,7 @@
 #   name: CoreTransformsSolution1
 #   description: Core Transforms first motivating solution.
 #   multifile: false
-#   context_line: 23
+#   context_line: 31
 #   categories:
 #     - Quickstart
 #   complexity: BASIC

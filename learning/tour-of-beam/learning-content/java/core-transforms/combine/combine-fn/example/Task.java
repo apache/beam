@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-  // beam-playground:
+// beam-playground:
 //   name: combine-fn
 //   description: Combine Fn example.
 //   multifile: false

@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
- // beam-playground:
+// beam-playground:
 //   name: binary-combine-fn
 //   description: Core Transforms third motivating challenge.
 //   multifile: false

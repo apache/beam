@@ -32,7 +32,6 @@ package main
 import (
 	"context"
 	"regexp"
-	"fmt"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"

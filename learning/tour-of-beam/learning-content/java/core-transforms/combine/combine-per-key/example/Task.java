@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-  // beam-playground:
+// beam-playground:
 //   name: combine-per-key
 //   description: Combine per key example.
 //   multifile: false

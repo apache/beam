@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-//   beam-playground:
+// beam-playground:
 //   name: simple-function-combine
 //   description: Simple combine functions
 //   multifile: false
