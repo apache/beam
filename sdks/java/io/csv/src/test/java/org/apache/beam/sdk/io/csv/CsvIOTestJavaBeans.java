@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.csv;
 
 import com.google.auto.value.AutoValue;
@@ -6,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -18,11 +36,26 @@ import org.joda.time.Instant;
 
 // TODO(https://github.com/apache/beam/issues/24980): replace per task description
 /** Classes and data to drive CsvIO tests. */
-class CSVIOTestData {
-  private static final DefaultSchemaProvider DEFAULT_SCHEMA_PROVIDER = new DefaultSchemaProvider();
+class CsvIOTestData {
+
+  static final CsvIOTestData DATA = new CsvIOTestData();
+  private CsvIOTestData() {}
+
+  private static final AutoValueSchema DEFAULT_SCHEMA_PROVIDER = new AutoValueSchema();
+
+  final List<Row> allPrimitiveDataTypeRows =
+      Stream.of(
+              allPrimitiveDataTypes(
+                  false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a"),
+              allPrimitiveDataTypes(
+                  false, (byte) 2, BigDecimal.TEN, 2.0, 2.0f, (short) 2.0, 2, 2L, "b"),
+              allPrimitiveDataTypes(
+                  false, (byte) 3, BigDecimal.TEN, 3.0, 3.0f, (short) 3.0, 3, 3L, "c"))
+          .map(allPrimitiveDataTypesToRowFn()::apply)
+          .collect(Collectors.toList());
 
   /** Convenience method for {@link AllPrimitiveDataTypes} instantiation. */
-  public static AllPrimitiveDataTypes allPrimitiveDataTypes(
+  static AllPrimitiveDataTypes allPrimitiveDataTypes(
       Boolean aBoolean,
       Byte aByte,
       BigDecimal aDecimal,
@@ -32,7 +65,7 @@ class CSVIOTestData {
       Integer anInteger,
       Long aLong,
       String aString) {
-    return new AutoValue_CSVIOTestData_AllPrimitiveDataTypes.Builder()
+    return new AutoValue_CsvIOTestData_AllPrimitiveDataTypes.Builder()
         .setABoolean(aBoolean)
         .setAByte(aByte)
         .setADecimal(aDecimal)
@@ -46,14 +79,14 @@ class CSVIOTestData {
   }
 
   /** Convenience method for {@link NullableAllPrimitiveDataTypes} instantiation. */
-  public static NullableAllPrimitiveDataTypes nullableAllPrimitiveDataTypes(
+  static NullableAllPrimitiveDataTypes nullableAllPrimitiveDataTypes(
       @Nullable Boolean aBoolean,
       @Nullable Double aDouble,
       @Nullable Float aFloat,
       @Nullable Integer anInteger,
       @Nullable Long aLong,
       @Nullable String aString) {
-    return new AutoValue_CSVIOTestData_NullableAllPrimitiveDataTypes.Builder()
+    return new AutoValue_CsvIOTestData_NullableAllPrimitiveDataTypes.Builder()
         .setABoolean(aBoolean)
         .setADouble(aDouble)
         .setAFloat(aFloat)
@@ -64,15 +97,15 @@ class CSVIOTestData {
   }
 
   /** Convenience method for {@link TimeContaining} instantiation. */
-  public static TimeContaining timeContaining(Instant instant, List<Instant> instantList) {
-    return new AutoValue_CSVIOTestData_TimeContaining.Builder()
+  static TimeContaining timeContaining(Instant instant, List<Instant> instantList) {
+    return new AutoValue_CsvIOTestData_TimeContaining.Builder()
         .setInstant(instant)
         .setInstantList(instantList)
         .build();
   }
 
   /** Convenience method for {@link ArrayPrimitiveDataTypes} instantiation. */
-  public static ArrayPrimitiveDataTypes arrayPrimitiveDataTypes(
+  static ArrayPrimitiveDataTypes arrayPrimitiveDataTypes(
       List<Boolean> booleans,
       List<Double> doubles,
       List<Float> floats,
@@ -80,7 +113,7 @@ class CSVIOTestData {
       List<Integer> integers,
       List<Long> longs,
       List<String> strings) {
-    return new AutoValue_CSVIOTestData_ArrayPrimitiveDataTypes.Builder()
+    return new AutoValue_CsvIOTestData_ArrayPrimitiveDataTypes.Builder()
         .setBooleanList(booleans)
         .setDoubleList(doubles)
         .setFloatList(floats)
@@ -92,9 +125,9 @@ class CSVIOTestData {
   }
 
   /** Convenience method for {@link SinglyNestedDataTypes} instantiation. */
-  public static SinglyNestedDataTypes singlyNestedDataTypes(
+  static SinglyNestedDataTypes singlyNestedDataTypes(
       AllPrimitiveDataTypes allPrimitiveDataTypes, AllPrimitiveDataTypes... repeated) {
-    return new AutoValue_CSVIOTestData_SinglyNestedDataTypes.Builder()
+    return new AutoValue_CsvIOTestData_SinglyNestedDataTypes.Builder()
         .setAllPrimitiveDataTypes(allPrimitiveDataTypes)
         .setAllPrimitiveDataTypesList(Arrays.stream(repeated).collect(Collectors.toList()))
         .build();
@@ -104,14 +137,14 @@ class CSVIOTestData {
       ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(AllPrimitiveDataTypes.class);
 
   /** The schema for {@link AllPrimitiveDataTypes}. */
-  public static final Schema ALL_PRIMITIVE_DATA_TYPES_SCHEMA =
+  static final Schema ALL_PRIMITIVE_DATA_TYPES_SCHEMA =
       DEFAULT_SCHEMA_PROVIDER.schemaFor(ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
 
   /**
    * Returns a {@link SerializableFunction} to convert from a {@link AllPrimitiveDataTypes} to a
    * {@link Row}.
    */
-  public static SerializableFunction<AllPrimitiveDataTypes, Row> allPrimitiveDataTypesToRowFn() {
+  static SerializableFunction<AllPrimitiveDataTypes, Row> allPrimitiveDataTypesToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
@@ -119,24 +152,24 @@ class CSVIOTestData {
    * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
    * AllPrimitiveDataTypes}.
    */
-  public static SerializableFunction<Row, AllPrimitiveDataTypes> allPrimitiveDataTypesFromRowFn() {
+  static SerializableFunction<Row, AllPrimitiveDataTypes> allPrimitiveDataTypesFromRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
   private static final TypeDescriptor<NullableAllPrimitiveDataTypes>
       NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR =
-      TypeDescriptor.of(NullableAllPrimitiveDataTypes.class);
+          TypeDescriptor.of(NullableAllPrimitiveDataTypes.class);
 
   /** The schema for {@link NullableAllPrimitiveDataTypes}. */
-  public static final Schema NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA =
+  static final Schema NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA =
       DEFAULT_SCHEMA_PROVIDER.schemaFor(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
 
   /**
    * Returns a {@link SerializableFunction} to convert from a {@link NullableAllPrimitiveDataTypes}
    * to a {@link Row}.
    */
-  public static SerializableFunction<NullableAllPrimitiveDataTypes, Row>
-  nullableAllPrimitiveDataTypesToRowFn() {
+  static SerializableFunction<NullableAllPrimitiveDataTypes, Row>
+      nullableAllPrimitiveDataTypesToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
@@ -144,8 +177,8 @@ class CSVIOTestData {
    * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
    * NullableAllPrimitiveDataTypes}.
    */
-  public static SerializableFunction<Row, NullableAllPrimitiveDataTypes>
-  nullableAllPrimitiveDataTypesFromRowFn() {
+  static SerializableFunction<Row, NullableAllPrimitiveDataTypes>
+      nullableAllPrimitiveDataTypesFromRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(
         NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
@@ -154,14 +187,14 @@ class CSVIOTestData {
       TypeDescriptor.of(TimeContaining.class);
 
   /** The schema for {@link TimeContaining}. */
-  public static final Schema TIME_CONTAINING_SCHEMA =
+  static final Schema TIME_CONTAINING_SCHEMA =
       DEFAULT_SCHEMA_PROVIDER.schemaFor(TIME_CONTAINING_TYPE_DESCRIPTOR);
 
   /**
    * Returns a {@link SerializableFunction} to convert from a {@link TimeContaining} to a {@link
    * Row}.
    */
-  public static SerializableFunction<TimeContaining, Row> timeContainingToRowFn() {
+  static SerializableFunction<TimeContaining, Row> timeContainingToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(TIME_CONTAINING_TYPE_DESCRIPTOR);
   }
 
@@ -169,7 +202,7 @@ class CSVIOTestData {
    * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
    * TimeContaining}.
    */
-  public static SerializableFunction<Row, TimeContaining> timeContainingFromRowFn() {
+  static SerializableFunction<Row, TimeContaining> timeContainingFromRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(TIME_CONTAINING_TYPE_DESCRIPTOR);
   }
 
@@ -177,15 +210,15 @@ class CSVIOTestData {
       ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(ArrayPrimitiveDataTypes.class);
 
   /** The schema for {@link ArrayPrimitiveDataTypes}. */
-  public static final Schema ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA =
+  static final Schema ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA =
       DEFAULT_SCHEMA_PROVIDER.schemaFor(ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
 
   /**
    * Returns a {@link SerializableFunction} to convert from a {@link ArrayPrimitiveDataTypes} to a
    * {@link Row}.
    */
-  public static SerializableFunction<ArrayPrimitiveDataTypes, Row>
-  arrayPrimitiveDataTypesToRowFn() {
+  static SerializableFunction<ArrayPrimitiveDataTypes, Row>
+      arrayPrimitiveDataTypesToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
@@ -193,8 +226,8 @@ class CSVIOTestData {
    * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
    * ArrayPrimitiveDataTypes}.
    */
-  public static SerializableFunction<Row, ArrayPrimitiveDataTypes>
-  arrayPrimitiveDataTypesFromRowFn() {
+  static SerializableFunction<Row, ArrayPrimitiveDataTypes>
+      arrayPrimitiveDataTypesFromRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
@@ -202,14 +235,14 @@ class CSVIOTestData {
       SINGLY_NESTED_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(SinglyNestedDataTypes.class);
 
   /** The schema for {@link SinglyNestedDataTypes}. */
-  public static final Schema SINGLY_NESTED_DATA_TYPES_SCHEMA =
+  static final Schema SINGLY_NESTED_DATA_TYPES_SCHEMA =
       DEFAULT_SCHEMA_PROVIDER.schemaFor(SINGLY_NESTED_DATA_TYPES_TYPE_DESCRIPTOR);
 
   /**
    * Returns a {@link SerializableFunction} to convert from a {@link SinglyNestedDataTypes} to a
    * {@link Row}.
    */
-  public static SerializableFunction<SinglyNestedDataTypes, Row> singlyNestedDataTypesToRowFn() {
+  static SerializableFunction<SinglyNestedDataTypes, Row> singlyNestedDataTypesToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(SINGLY_NESTED_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
@@ -217,7 +250,7 @@ class CSVIOTestData {
    * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
    * SinglyNestedDataTypes}.
    */
-  public static SerializableFunction<Row, SinglyNestedDataTypes> singlyNestedDataTypesFromRowFn() {
+  static SerializableFunction<Row, SinglyNestedDataTypes> singlyNestedDataTypesFromRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(SINGLY_NESTED_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
@@ -227,50 +260,50 @@ class CSVIOTestData {
    */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class AllPrimitiveDataTypes implements Serializable {
+  abstract static class AllPrimitiveDataTypes implements Serializable {
 
-    public abstract Boolean getABoolean();
+    abstract Boolean getABoolean();
 
-    public abstract Byte getAByte();
+    abstract Byte getAByte();
 
-    public abstract BigDecimal getADecimal();
+    abstract BigDecimal getADecimal();
 
-    public abstract Double getADouble();
+    abstract Double getADouble();
 
-    public abstract Float getAFloat();
+    abstract Float getAFloat();
 
-    public abstract Short getAShort();
+    abstract Short getAShort();
 
-    public abstract Integer getAnInteger();
+    abstract Integer getAnInteger();
 
-    public abstract Long getALong();
+    abstract Long getALong();
 
-    public abstract String getAString();
+    abstract String getAString();
 
-    public abstract Builder toBuilder();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
-    public abstract static class Builder {
+    abstract static class Builder {
 
-      public abstract Builder setABoolean(Boolean value);
+      abstract Builder setABoolean(Boolean value);
 
-      public abstract Builder setAByte(Byte value);
+      abstract Builder setAByte(Byte value);
 
-      public abstract Builder setADecimal(BigDecimal value);
+      abstract Builder setADecimal(BigDecimal value);
 
-      public abstract Builder setADouble(Double value);
+      abstract Builder setADouble(Double value);
 
-      public abstract Builder setAFloat(Float value);
+      abstract Builder setAFloat(Float value);
 
-      public abstract Builder setAShort(Short value);
+      abstract Builder setAShort(Short value);
 
-      public abstract Builder setAnInteger(Integer value);
+      abstract Builder setAnInteger(Integer value);
 
-      public abstract Builder setALong(Long value);
+      abstract Builder setALong(Long value);
 
-      public abstract Builder setAString(String value);
+      abstract Builder setAString(String value);
 
-      public abstract AllPrimitiveDataTypes build();
+      abstract AllPrimitiveDataTypes build();
     }
   }
 
@@ -281,44 +314,44 @@ class CSVIOTestData {
    */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class NullableAllPrimitiveDataTypes implements Serializable {
+  abstract static class NullableAllPrimitiveDataTypes implements Serializable {
 
     @Nullable
-    public abstract Boolean getABoolean();
+    abstract Boolean getABoolean();
 
     @Nullable
-    public abstract Double getADouble();
+    abstract Double getADouble();
 
     @Nullable
-    public abstract Float getAFloat();
+    abstract Float getAFloat();
 
     @Nullable
-    public abstract Integer getAnInteger();
+    abstract Integer getAnInteger();
 
     @Nullable
-    public abstract Long getALong();
+    abstract Long getALong();
 
     @Nullable
-    public abstract String getAString();
+    abstract String getAString();
 
-    public abstract Builder toBuilder();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
-    public abstract static class Builder {
+    abstract static class Builder {
 
-      public abstract Builder setABoolean(Boolean value);
+      abstract Builder setABoolean(Boolean value);
 
-      public abstract Builder setADouble(Double value);
+      abstract Builder setADouble(Double value);
 
-      public abstract Builder setAFloat(Float value);
+      abstract Builder setAFloat(Float value);
 
-      public abstract Builder setAnInteger(Integer value);
+      abstract Builder setAnInteger(Integer value);
 
-      public abstract Builder setALong(Long value);
+      abstract Builder setALong(Long value);
 
-      public abstract Builder setAString(String value);
+      abstract Builder setAString(String value);
 
-      public abstract NullableAllPrimitiveDataTypes build();
+      abstract NullableAllPrimitiveDataTypes build();
     }
   }
 
@@ -328,22 +361,22 @@ class CSVIOTestData {
    */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class TimeContaining {
+  abstract static class TimeContaining {
 
-    public abstract Instant getInstant();
+    abstract Instant getInstant();
 
-    public abstract List<Instant> getInstantList();
+    abstract List<Instant> getInstantList();
 
-    public abstract Builder toBuilder();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
-    public abstract static class Builder {
+    abstract static class Builder {
 
-      public abstract Builder setInstant(Instant value);
+      abstract Builder setInstant(Instant value);
 
-      public abstract Builder setInstantList(List<Instant> value);
+      abstract Builder setInstantList(List<Instant> value);
 
-      public abstract TimeContaining build();
+      abstract TimeContaining build();
     }
   }
 
@@ -354,42 +387,42 @@ class CSVIOTestData {
    */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class ArrayPrimitiveDataTypes {
+  abstract static class ArrayPrimitiveDataTypes {
 
-    public abstract List<Boolean> getBooleanList();
+    abstract List<Boolean> getBooleanList();
 
-    public abstract List<Double> getDoubleList();
+    abstract List<Double> getDoubleList();
 
-    public abstract List<Float> getFloatList();
+    abstract List<Float> getFloatList();
 
-    public abstract List<Short> getShortList();
+    abstract List<Short> getShortList();
 
-    public abstract List<Integer> getIntegerList();
+    abstract List<Integer> getIntegerList();
 
-    public abstract List<Long> getLongList();
+    abstract List<Long> getLongList();
 
-    public abstract List<String> getStringList();
+    abstract List<String> getStringList();
 
-    public abstract Builder toBuilder();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
-    public abstract static class Builder {
+    abstract static class Builder {
 
-      public abstract Builder setBooleanList(List<Boolean> value);
+      abstract Builder setBooleanList(List<Boolean> value);
 
-      public abstract Builder setDoubleList(List<Double> value);
+      abstract Builder setDoubleList(List<Double> value);
 
-      public abstract Builder setFloatList(List<Float> value);
+      abstract Builder setFloatList(List<Float> value);
 
-      public abstract Builder setShortList(List<Short> value);
+      abstract Builder setShortList(List<Short> value);
 
-      public abstract Builder setIntegerList(List<Integer> value);
+      abstract Builder setIntegerList(List<Integer> value);
 
-      public abstract Builder setLongList(List<Long> value);
+      abstract Builder setLongList(List<Long> value);
 
-      public abstract Builder setStringList(List<String> value);
+      abstract Builder setStringList(List<String> value);
 
-      public abstract ArrayPrimitiveDataTypes build();
+      abstract ArrayPrimitiveDataTypes build();
     }
   }
 
@@ -400,22 +433,22 @@ class CSVIOTestData {
    */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class SinglyNestedDataTypes {
+  abstract static class SinglyNestedDataTypes {
 
-    public abstract AllPrimitiveDataTypes getAllPrimitiveDataTypes();
+    abstract AllPrimitiveDataTypes getAllPrimitiveDataTypes();
 
-    public abstract List<AllPrimitiveDataTypes> getAllPrimitiveDataTypesList();
+    abstract List<AllPrimitiveDataTypes> getAllPrimitiveDataTypesList();
 
-    public abstract Builder toBuilder();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
-    public abstract static class Builder {
+    abstract static class Builder {
 
-      public abstract Builder setAllPrimitiveDataTypes(AllPrimitiveDataTypes value);
+      abstract Builder setAllPrimitiveDataTypes(AllPrimitiveDataTypes value);
 
-      public abstract Builder setAllPrimitiveDataTypesList(List<AllPrimitiveDataTypes> value);
+      abstract Builder setAllPrimitiveDataTypesList(List<AllPrimitiveDataTypes> value);
 
-      public abstract SinglyNestedDataTypes build();
+      abstract SinglyNestedDataTypes build();
     }
   }
 }
