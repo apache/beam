@@ -31,7 +31,7 @@ public final class SpannerResourceManagerUtils {
   private static final Pattern ILLEGAL_DATABASE_CHARS = Pattern.compile("[\\W-]");
   private static final Pattern ILLEGAL_INSTANCE_CHARS = Pattern.compile("[^a-z0-9-]");
   private static final String REPLACE_INSTANCE_CHAR = "-";
-  public static final int MAX_INSTANCE_ID_LENGTH = 36;
+  public static final int MAX_INSTANCE_ID_LENGTH = 30;
   private static final DateTimeFormatter TIME_FORMAT =
       DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSSSSS");
 

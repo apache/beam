@@ -52,9 +52,17 @@ public class DataGenerator {
             .build();
   }
 
-  public static DataGenerator.Builder builder(String jobName, String schemaLocation) {
+  public static DataGenerator.Builder builderWithSchemaLocation(
+      String jobName, String schemaLocation) {
     return new DataGenerator.Builder(jobName)
         .setSchemaLocation(schemaLocation)
+        .setAutoscalingAlgorithm(AutoscalingAlgorithmType.THROUGHPUT_BASED);
+  }
+
+  public static DataGenerator.Builder builderWithSchemaTemplate(
+      String jobName, String schemaTemplate) {
+    return new DataGenerator.Builder(jobName)
+        .setSchemaTemplate(schemaTemplate)
         .setAutoscalingAlgorithm(AutoscalingAlgorithmType.THROUGHPUT_BASED);
   }
 
@@ -103,6 +111,11 @@ public class DataGenerator {
 
     public Map<String, String> getParameters() {
       return parameters;
+    }
+
+    public DataGenerator.Builder setSchemaTemplate(String value) {
+      parameters.put("schemaTemplate", value);
+      return this;
     }
 
     public DataGenerator.Builder setSchemaLocation(String value) {

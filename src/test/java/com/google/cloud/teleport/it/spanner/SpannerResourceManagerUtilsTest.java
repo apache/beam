@@ -31,11 +31,11 @@ public final class SpannerResourceManagerUtilsTest extends ResourceManagerUtilsT
 
   @Test
   public void testGenerateInstanceIdShouldReplaceNonLetterFirstCharWithLetter() {
-    String testBaseString = "0-test-inst";
+    String testBaseString = "0-test";
 
     String actual = generateInstanceId(testBaseString);
 
-    assertThat(actual).matches("[a-z]-test-inst-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("[a-z]-test-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test
