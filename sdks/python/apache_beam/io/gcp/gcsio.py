@@ -769,10 +769,8 @@ class GcsUploader(Uploader):
     self._upload_thread.last_error = None
     self._upload_thread.start()
 
-  # TODO(silviuc): Refactor so that retry logic can be applied.
-  # There is retry logic in the underlying transfer library but we should make
-  # it more explicit so we can control the retry parameters.
-  @retry.no_retries  # Using no_retries marks this as an integration point.
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _start_upload(self):
     # This starts the uploader thread.  We are forced to run the uploader in
     # another thread because the apitools uploader insists on taking a stream
