@@ -317,7 +317,7 @@ class PipelineOptionsTest(unittest.TestCase):
         parser.add_argument('--test_arg_none', default=None, type=int)
         parser.add_argument('--test_arg_int', default=1, type=int)
 
-    options_dict = {'test_arg_none': None, 'test_arg_int' : 5}
+    options_dict = {'test_arg_none': None, 'test_arg_int': 5}
     options_from_dict = NoneDefaultOptions.from_dictionary(options_dict)
     result = options_from_dict.get_all_options()
     self.assertEqual(result['test_arg_int'], 5)
