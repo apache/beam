@@ -188,13 +188,20 @@ def get_tag(filepath) -> Optional[Tag]:
         line[len(tag_prefix) :] for line in lines[line_start:line_finish]
     )
     yml = yaml.load(embdedded_yaml_content, Loader=yaml.SafeLoader)
-    return Tag(
-        filepath=filepath,
-        line_start=line_start,
-        line_finish=line_finish,
-        **yml[Config.BEAM_PLAYGROUND],
-    )
 
+    try:
+        return Tag(
+            filepath=filepath,
+            line_start=line_start,
+            line_finish=line_finish,
+            **yml[Config.BEAM_PLAYGROUND],
+            )
+    except pydantic.ValidationError as err:
+        if len(err.errors()) > 1:
+            raise
+        if err.errors()[0]["msg"] == "multifile is True but no files defined":
+            logging.warning("incomplete multifile example ignored %s", filepath)
+            return None
 
 def _load_example(filename, filepath, sdk: SdkEnum) -> Optional[Example]:
     """
