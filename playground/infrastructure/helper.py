@@ -197,11 +197,10 @@ def get_tag(filepath: PurePath) -> Optional[Tag]:
             **yml[Config.BEAM_PLAYGROUND],
             )
     except pydantic.ValidationError as err:
-        if len(err.errors()) > 1:
-            raise
-        if err.errors()[0]["msg"] == "multifile is True but no files defined":
+        if len(err.errors()) == 1 and err.errors()[0]["msg"] == "multifile is True but no files defined":
             logging.warning("incomplete multifile example ignored %s", filepath)
             return None
+        raise
 
 def _load_example(filename, filepath, sdk: SdkEnum) -> Optional[Example]:
     """
