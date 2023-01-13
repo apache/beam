@@ -92,11 +92,6 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
     return new DefaultBigQueryResourceManager.Builder(testId, projectId);
   }
 
-  /**
-   * Returns the project ID this Resource Manager is configured to operate on.
-   *
-   * @return the project ID.
-   */
   public String getProjectId() {
     return projectId;
   }
@@ -193,7 +188,8 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
   }
 
   @Override
-  public synchronized TableId createTable(String tableName, Schema schema, Long expirationTime) {
+  public synchronized TableId createTable(
+      String tableName, Schema schema, Long expirationTimeMillis) {
     // Check table ID
     checkValidTableId(tableName);
 
@@ -215,7 +211,7 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
         TableDefinition tableDefinition = StandardTableDefinition.of(schema);
         TableInfo tableInfo =
             TableInfo.newBuilder(tableId, tableDefinition)
-                .setExpirationTime(expirationTime)
+                .setExpirationTime(expirationTimeMillis)
                 .build();
         bigQuery.create(tableInfo);
         LOG.info(
@@ -310,7 +306,6 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
         tableName);
 
     // Read all the rows from the table given by tableId
-    TableResult results;
     String query =
         "SELECT TO_JSON_STRING(t) FROM `"
             + String.join(".", projectId, datasetId, tableName)

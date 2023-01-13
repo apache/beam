@@ -64,11 +64,12 @@ public interface BigQueryResourceManager {
    *
    * @param tableName The name of the table.
    * @param schema A schema object that defines the table.
-   * @param expirationTime Sets the time when this table expires, in milliseconds since the epoch.
+   * @param expirationTimeMillis Sets the time when this table expires, in milliseconds since the
+   *     epoch.
    * @return The TableId (reference) to the table
    * @throws BigQueryResourceManagerException if there is an error creating the table in BigQuery.
    */
-  TableId createTable(String tableName, Schema schema, Long expirationTime);
+  TableId createTable(String tableName, Schema schema, Long expirationTimeMillis);
 
   /**
    * Writes a given row into a table. This method requires {@link

@@ -147,13 +147,13 @@ public final class TestProperties {
   }
 
   /** Gets a property or returns {@code defaultValue} if it is not found. */
-  private static String getProperty(String name, @Nullable String defaultValue, Type type) {
+  public static String getProperty(String name, @Nullable String defaultValue, Type type) {
     String value = type == Type.PROPERTY ? System.getProperty(name) : System.getenv(name);
     return value != null ? value : defaultValue;
   }
 
   /** Defines the types of properties there may be. */
-  private enum Type {
+  public enum Type {
     PROPERTY,
     ENVIRONMENT_VARIABLE
   }

@@ -34,6 +34,20 @@ public interface BigtableResourceManager {
   void createInstance(Iterable<BigtableResourceManagerCluster> clusters);
 
   /**
+   * Return the instance ID this Resource Manager uses to create and manage tables in.
+   *
+   * @return the instance ID.
+   */
+  String getInstanceId();
+
+  /**
+   * Returns the project ID this Resource Manager is configured to operate on.
+   *
+   * @return the project ID.
+   */
+  String getProjectId();
+
+  /**
    * Creates a table within the current instance given a table ID and a collection of column family
    * names.
    *
