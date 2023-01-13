@@ -32,9 +32,10 @@ import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
 import java.util.Collections;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.SpannerChangestreamsReadSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -114,21 +115,38 @@ public class SpannerChangeStreamsSchemaTransformIT {
                             .setEndAtTimestamp(endAt.toString())
                             .build())
                     .buildTransform())
-            .get("output");
-
-    // Each row is composed by the following data
-    // <mod type, singer id, old first name, old last name, new first name, new last name>
-    PAssert.that(
-            tokens
-                .apply(
-                    Window.<Row>into(new GlobalWindows())
-                        .triggering(AfterWatermark.pastEndOfWindow())
-                        .discardingFiredPanes())
-                .apply(Count.globally()))
-        .containsInAnyOrder(15L);
+            .get("output")
+            .apply(
+                Window.<Row>into(new GlobalWindows())
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes());
+    
+    PAssert.that(tokens.apply(Select.fieldNames("operation")))
+        .containsInAnyOrder(
+            operationRow("INSERT"),
+            operationRow("INSERT"),
+            operationRow("INSERT"),
+            operationRow("INSERT"),
+            operationRow("INSERT"),
+            operationRow("UPDATE"),
+            operationRow("UPDATE"),
+            operationRow("UPDATE"),
+            operationRow("UPDATE"),
+            operationRow("UPDATE"),
+            operationRow("DELETE"),
+            operationRow("DELETE"),
+            operationRow("DELETE"),
+            operationRow("DELETE"),
+            operationRow("DELETE"));
     pipeline.run().waitUntilFinish();
 
     assertMetadataTableHasBeenDropped();
+  }
+
+  private Row operationRow(String operation) {
+    return Row.withSchema(Schema.builder().addField("operation", Schema.FieldType.STRING).build())
+        .addValue(operation)
+        .build();
   }
 
   private static void assertMetadataTableHasBeenDropped() {

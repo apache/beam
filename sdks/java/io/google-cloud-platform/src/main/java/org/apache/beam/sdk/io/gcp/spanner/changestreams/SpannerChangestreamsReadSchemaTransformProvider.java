@@ -197,7 +197,12 @@ public class SpannerChangestreamsReadSchemaTransformProvider
       final Instant timestamp = new Instant(record.getRecordTimestamp().toSqlTimestamp());
 
       for (Mod mod : record.getMods()) {
-        Row.FieldValueBuilder rowBuilder = Row.fromRow(Row.nullRow(tableChangeRecordSchema));
+        Schema internalRowSchema =
+            tableChangeRecordSchema.getField("rowValues").getType().getRowSchema();
+        if (internalRowSchema == null) {
+          throw new RuntimeException("Row schema for internal row is null and cannot be utilized.");
+        }
+        Row.FieldValueBuilder rowBuilder = Row.fromRow(Row.nullRow(internalRowSchema));
         final Map<String, String> newValues =
             Optional.ofNullable(mod.getNewValuesJson())
                 .map(nonNullValues -> getGson().fromJson(nonNullValues, Map.class))
@@ -216,7 +221,7 @@ public class SpannerChangestreamsReadSchemaTransformProvider
               rowBuilder.withFieldValue(
                   valueEntry.getKey().toLowerCase(),
                   stringToParsedValue(
-                      tableChangeRecordSchema.getField(valueEntry.getKey().toLowerCase()).getType(),
+                      internalRowSchema.getField(valueEntry.getKey().toLowerCase()).getType(),
                       valueEntry.getValue()));
         }
 
@@ -229,10 +234,17 @@ public class SpannerChangestreamsReadSchemaTransformProvider
               rowBuilder.withFieldValue(
                   pkEntry.getKey().toLowerCase(),
                   stringToParsedValue(
-                      tableChangeRecordSchema.getField(pkEntry.getKey().toLowerCase()).getType(),
+                      internalRowSchema.getField(pkEntry.getKey().toLowerCase()).getType(),
                       pkEntry.getValue()));
         }
-        receiver.outputWithTimestamp(rowBuilder.build(), timestamp);
+        receiver.outputWithTimestamp(
+            Row.withSchema(tableChangeRecordSchema)
+                .addValue(record.getModType().toString())
+                .addValue(record.getCommitTimestamp().toString())
+                .addValue(Long.parseLong(record.getRecordSequence()))
+                .addValue(rowBuilder.build())
+                .build(),
+            timestamp);
       }
     }
   }
@@ -306,7 +318,12 @@ public class SpannerChangestreamsReadSchemaTransformProvider
                         .map(SpannerSchema.KeyPart::getField)
                         .collect(Collectors.toList())));
 
-    return schemaBuilder.build();
+    return Schema.builder()
+        .addStringField("operation")
+        .addStringField("commitTimestamp")
+        .addInt64Field("recordSequence")
+        .addRowField("rowValues", schemaBuilder.build())
+        .build();
   }
 
   private static Object stringToParsedValue(Schema.FieldType fieldType, String fieldValue) {
