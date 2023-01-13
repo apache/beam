@@ -312,14 +312,14 @@ func TestCompiler(t *testing.T) {
 		WithCommand(javaSdkEnv.ExecutorConfig.CompileCmd).
 		WithWorkingDir(javaPaths.AbsoluteBaseFolderPath).
 		WithArgs(javaSdkEnv.ExecutorConfig.CompileArgs).
-		WithFileNames(GetJavaFilesFromFolder(javaPaths.AbsoluteSourceFileFolderPath))
+		WithFileNames(GetFilesFromFolder(javaPaths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension))
 
 	wantGoExecutor := executors.NewExecutorBuilder().
 		WithCompiler().
 		WithCommand(goSdkEnv.ExecutorConfig.CompileCmd).
 		WithWorkingDir(goPaths.AbsoluteBaseFolderPath).
 		WithArgs(goSdkEnv.ExecutorConfig.CompileArgs).
-		WithFileName(goPaths.AbsoluteSourceFilePath)
+		WithFileNames(GetFilesFromFolder(goPaths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension))
 
 	wantScioExecutor := executors.NewExecutorBuilder().
 		WithCompiler().

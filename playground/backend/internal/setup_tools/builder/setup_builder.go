@@ -78,7 +78,12 @@ func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *exec
 	case pb.Sdk_SDK_JAVA:
 		builder = builder.
 			WithCompiler().
-			WithFileNames(GetJavaFilesFromFolder(paths.AbsoluteSourceFileFolderPath)).
+			WithFileNames(GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)).
+			ExecutorBuilder
+	case pb.Sdk_SDK_GO:
+		builder = builder.
+			WithCompiler().
+			WithFileNames(GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)).
 			ExecutorBuilder
 	default:
 		builder = builder.
@@ -191,7 +196,7 @@ func replaceLogPlaceholder(paths *fs_tool.LifeCyclePaths, executorConfig *enviro
 }
 
 // GetFirstFileFromFolder return a name of the first file in a specified folder
-func GetJavaFilesFromFolder(folderAbsolutePath string) []string {
-	files, _ := filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, fs_tool.JavaSourceFileExtension))
+func GetFilesFromFolder(folderAbsolutePath string, extension string) []string {
+	files, _ := filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
 	return files
 }
