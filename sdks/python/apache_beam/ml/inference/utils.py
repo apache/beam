@@ -19,13 +19,40 @@
 Util/helper functions used in apache_beam.ml.inference.
 """
 
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import Optional
+from typing import Union
+
 import apache_beam as beam
 from apache_beam.io.fileio import MatchContinuously
 from apache_beam.ml.inference.base import ModelMetdata
+from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.transforms import window
 from apache_beam.transforms import trigger
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+
+
+def _convert_to_result(
+    batch: Iterable,
+    predictions: Union[Iterable, Dict[Any, Iterable]],
+    model_id: Optional[str] = None,
+) -> Iterable[PredictionResult]:
+  if isinstance(predictions, dict):
+    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
+    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
+    # length batch_size, to a list of dictionaries:
+    # [{key_type1: value_type1, key_type2: value_type2}]
+    predictions_per_tensor = [
+        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
+    ]
+    return [
+        PredictionResult(x, y, model_id) for x,
+        y in zip(batch, predictions_per_tensor)
+    ]
+  return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
 
 
 class WatchFilePattern(beam.PTransform):
