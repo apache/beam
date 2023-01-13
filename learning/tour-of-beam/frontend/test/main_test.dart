@@ -16,12 +16,6 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
-import 'package:flutter/widgets.dart';
-import 'path.dart';
-
-class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  // TODO(nausharipov): remove state from Welcome?
-  @override
-  PagePath get path => const WelcomePath();
+void main() {
+  // TODO(nausharipov): add unit and integration tests: // https://github.com/apache/beam/issues/24982
 }

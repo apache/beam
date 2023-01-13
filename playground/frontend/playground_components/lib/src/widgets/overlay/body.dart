@@ -17,34 +17,20 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:playground_components/playground_components.dart';
 
-class TourProgressIndicator extends StatelessWidget {
-  // TODO(nausharipov): replace assetPath with progress enum
-  final String assetPath;
-  final bool isSelected;
+import '../../constants/sizes.dart';
 
-  const TourProgressIndicator({
-    required this.assetPath,
-    required this.isSelected,
-  });
+class OverlayBody extends StatelessWidget {
+  final Widget child;
+
+  const OverlayBody({required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
-
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: BeamSizes.size4,
-        right: BeamSizes.size8,
-      ),
-      child: SvgPicture.asset(
-        assetPath,
-        color: isSelected
-            ? ext.selectedProgressColor
-            : ext.unselectedProgressColor,
-      ),
+    return Material(
+      elevation: BeamSizes.size10,
+      borderRadius: BorderRadius.circular(BeamSizes.size10),
+      child: child,
     );
   }
 }

@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
-import 'package:flutter/widgets.dart';
-import 'path.dart';
+enum UnitCompletion {
+  completed,
+  uncompleted,
 
-class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  // TODO(nausharipov): remove state from Welcome?
-  @override
-  PagePath get path => const WelcomePath();
+  /// Sent the request to complete or to undo completion.
+  updating,
+  unauthenticated,
 }

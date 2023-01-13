@@ -18,33 +18,41 @@
 
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../repositories/models/get_sdks_response.dart';
-import 'cache.dart';
+import 'constants/storage_keys.dart';
 
-class SdkCache extends Cache {
-  SdkCache({
-    required super.client,
-  });
+class AppNotifier extends ChangeNotifier {
+  String? _sdkId;
 
-  final _sdks = <Sdk>[];
-  Future<GetSdksResponse>? _future;
-
-  List<Sdk> getSdks() {
-    if (_future == null) {
-      unawaited(_loadSdks());
-    }
-
-    return _sdks;
+  AppNotifier() {
+    unawaited(_readSdkId());
   }
 
-  Future<List<Sdk>> _loadSdks() async {
-    _future = client.getSdks();
-    final result = await _future!;
+  // TODO(nausharipov): remove sdkId getter and setter
+  String? get sdkId => _sdkId;
+  Sdk? get sdk => Sdk.tryParse(_sdkId);
 
-    _sdks.addAll(result.sdks);
+  set sdkId(String? newValue) {
+    _sdkId = newValue;
+    unawaited(_writeSdkId(newValue));
     notifyListeners();
-    return _sdks;
+  }
+
+  Future<void> _writeSdkId(String? value) async {
+    final preferences = await SharedPreferences.getInstance();
+    if (value != null) {
+      await preferences.setString(StorageKeys.sdkId, value);
+    } else {
+      await preferences.remove(StorageKeys.sdkId);
+    }
+  }
+
+  Future<void> _readSdkId() async {
+    final preferences = await SharedPreferences.getInstance();
+    _sdkId = preferences.getString(StorageKeys.sdkId);
+    notifyListeners();
   }
 }

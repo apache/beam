@@ -17,51 +17,47 @@
  */
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../assets/assets.gen.dart';
+import '../../auth/notifier.dart';
 import '../../constants/sizes.dart';
 
 class LoginContent extends StatelessWidget {
-  const LoginContent();
+  final VoidCallback onLoggedIn;
+
+  const LoginContent({
+    required this.onLoggedIn,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return _Body(
-      child: Column(
-        children: [
-          Text(
-            'ui.signIn',
-            style: Theme.of(context).textTheme.titleLarge,
-          ).tr(),
-          const SizedBox(height: BeamSizes.size10),
-          const Text(
-            'dialogs.signInIf',
-            textAlign: TextAlign.center,
-          ).tr(),
-          const _Divider(),
-          const _BrandedLoginButtons(),
-        ],
-      ),
-    );
-  }
-}
-
-class _Body extends StatelessWidget {
-  final Widget child;
-  const _Body({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: BeamSizes.size10,
-      borderRadius: BorderRadius.circular(10),
+    return OverlayBody(
       child: Container(
         width: TobSizes.authOverlayWidth,
         padding: const EdgeInsets.all(BeamSizes.size24),
-        child: child,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'ui.signIn',
+              style: Theme.of(context).textTheme.titleLarge,
+            ).tr(),
+            const SizedBox(height: BeamSizes.size10),
+            const Text(
+              'dialogs.signInIf',
+              textAlign: TextAlign.center,
+            ).tr(),
+            const _Divider(),
+            _BrandedLoginButtons(
+              onLoggedIn: onLoggedIn,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -82,10 +78,16 @@ class _Divider extends StatelessWidget {
 }
 
 class _BrandedLoginButtons extends StatelessWidget {
-  const _BrandedLoginButtons();
+  final VoidCallback onLoggedIn;
+
+  const _BrandedLoginButtons({
+    required this.onLoggedIn,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final authNotifier = GetIt.instance.get<AuthNotifier>();
+
     final isLightTheme = Theme.of(context).brightness == Brightness.light;
     final textStyle =
         MaterialStatePropertyAll(Theme.of(context).textTheme.bodyMedium);
@@ -129,7 +131,10 @@ class _BrandedLoginButtons extends StatelessWidget {
         ),
         const SizedBox(height: BeamSizes.size16),
         ElevatedButton.icon(
-          onPressed: () {},
+          onPressed: () async {
+            await authNotifier.logIn(GoogleAuthProvider());
+            onLoggedIn();
+          },
           style: isLightTheme ? googleLightButtonStyle : darkButtonStyle,
           icon: SvgPicture.asset(Assets.svg.googleLogo),
           label: const Text('ui.continueGoogle').tr(),

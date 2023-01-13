@@ -16,12 +16,24 @@
  * limitations under the License.
  */
 
-import 'package:app_state/app_state.dart';
-import 'package:flutter/widgets.dart';
-import 'path.dart';
+import 'package:flutter/material.dart';
 
-class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  // TODO(nausharipov): remove state from Welcome?
-  @override
-  PagePath get path => const WelcomePath();
+import '../../controllers/public_notifier.dart';
+import 'dismissible.dart';
+
+void openOverlay({
+  required BuildContext context,
+  required PublicNotifier closeNotifier,
+  required Positioned positioned,
+}) {
+  final overlay = OverlayEntry(
+    builder: (context) {
+      return DismissibleOverlay(
+        close: closeNotifier.notifyPublic,
+        child: positioned,
+      );
+    },
+  );
+  closeNotifier.addListener(overlay.remove);
+  Overlay.of(context)?.insert(overlay);
 }

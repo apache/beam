@@ -22,7 +22,6 @@ class TobSizes {
 }
 
 class ScreenSizes {
-  // TODO(nausharipov): name better
   static const medium = 1024;
 }
 

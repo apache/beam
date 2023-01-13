@@ -16,42 +16,41 @@
  * limitations under the License.
  */
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'user_menu.dart';
+import '../../../assets/assets.gen.dart';
 
-class Avatar extends StatelessWidget {
-  final User user;
-  const Avatar({required this.user});
+class CompletenessIndicator extends StatelessWidget {
+  final bool isCompleted;
+  final bool isSelected;
+
+  const CompletenessIndicator({
+    required this.isCompleted,
+    required this.isSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final photoUrl = user.photoURL;
-    return GestureDetector(
-      onTap: () {
-        final closeNotifier = PublicNotifier();
-        openOverlay(
-          context: context,
-          closeNotifier: closeNotifier,
-          positioned: Positioned(
-            right: BeamSizes.size10,
-            top: BeamSizes.appBarHeight,
-            child: UserMenu(
-              closeOverlayCallback: closeNotifier.notifyPublic,
-              user: user,
-            ),
-          ),
-        );
-      },
-      child: CircleAvatar(
-        backgroundColor: BeamColors.white,
-        foregroundImage: photoUrl == null ? null : NetworkImage(photoUrl),
-        child: const Icon(
-          Icons.person,
-          color: BeamColors.grey3,
-        ),
+    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
+    final Color color;
+    if (isCompleted) {
+      color = BeamColors.green;
+    } else if (isSelected) {
+      color = ext.selectedProgressColor;
+    } else {
+      color = ext.unselectedProgressColor;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: BeamSizes.size4,
+        right: BeamSizes.size8,
+      ),
+      child: SvgPicture.asset(
+        isCompleted ? Assets.svg.unitProgress100 : Assets.svg.unitProgress0,
+        color: color,
       ),
     );
   }
