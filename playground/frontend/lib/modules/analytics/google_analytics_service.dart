@@ -23,11 +23,20 @@ import 'package:playground/modules/analytics/service.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
-class PlaygroundGoogleAnalyticsService implements PlaygroundAnalyticsService {
-  final _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
+class PlaygroundGoogleAnalyticsService extends GoogleAnalyticsService
+    implements PlaygroundAnalyticsService {
+  static const _appName = 'beam';
+  static const _appVersion = '1.0';
+  final _analytics = AnalyticsHtml(kAnalyticsUA, _appName, _appVersion);
 
-  @override
-  AnalyticsEvent? lastSentEvent;
+  PlaygroundGoogleAnalyticsService()
+      : super(
+          appAnalytics: AnalyticsHtml(
+            kAnalyticsUA,
+            _appName,
+            _appVersion,
+          ),
+        );
 
   @override
   void trackSelectSdk(Sdk? oldSdk, Sdk newSdk) {

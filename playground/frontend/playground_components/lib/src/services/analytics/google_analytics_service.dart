@@ -18,15 +18,15 @@
 
 import 'package:usage/usage_html.dart';
 
-import '../event.dart';
-import 'categories.dart';
-import 'events.dart';
+import 'event.dart';
+import 'generic/categories.dart';
+import 'generic/events.dart';
 import 'service.dart';
 
-class GenericGoogleAnalyticsService implements GenericAnalyticsService {
+class GoogleAnalyticsService implements AnalyticsService {
   late AnalyticsHtml _appAnalytics;
 
-  GenericGoogleAnalyticsService({
+  GoogleAnalyticsService({
     required AnalyticsHtml appAnalytics,
   }) {
     _appAnalytics = appAnalytics;

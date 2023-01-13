@@ -18,10 +18,12 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
+import 'package:playground_components/playground_components.dart';
 
 import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
+import 'modules/analytics/google_analytics_service.dart';
 import 'pages/welcome/page.dart';
 import 'repositories/client/cloud_functions_client.dart';
 import 'router/page_factory.dart';
@@ -30,6 +32,7 @@ import 'router/route_information_parser.dart';
 Future<void> initializeServiceLocator() async {
   _initializeCaches();
   _initializeState();
+  _initializeServices();
 }
 
 void _initializeCaches() {
@@ -48,4 +51,10 @@ void _initializeState() {
       routeInformationParser: TobRouteInformationParser(),
     ),
   );
+}
+
+void _initializeServices() {
+  final analytics = TobGoogleAnalyticsService();
+  GetIt.instance.registerSingleton<AnalyticsService>(analytics);
+  GetIt.instance.registerSingleton<TobGoogleAnalyticsService>(analytics);
 }

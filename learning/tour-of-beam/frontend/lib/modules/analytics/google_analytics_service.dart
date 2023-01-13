@@ -24,11 +24,20 @@ import 'categories.dart';
 import 'events.dart';
 import 'service.dart';
 
-class TobGoogleAnalyticsService implements TobAnalyticsService {
-  final _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
+class TobGoogleAnalyticsService extends GoogleAnalyticsService
+    implements TobAnalyticsService {
+  static const _appName = 'beam';
+  static const _appVersion = '1.0';
+  final _analytics = AnalyticsHtml(kAnalyticsUA, _appName, _appVersion);
 
-  @override
-  AnalyticsEvent? lastSentEvent;
+  TobGoogleAnalyticsService()
+      : super(
+          appAnalytics: AnalyticsHtml(
+            kAnalyticsUA,
+            _appName,
+            _appVersion,
+          ),
+        );
 
   @override
   Future<void> trackOpenUnit(Sdk? oldSdk, Sdk newSdk) async {

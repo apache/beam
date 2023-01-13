@@ -57,7 +57,7 @@ export 'src/repositories/example_repository.dart';
 export 'src/router/router_delegate.dart';
 
 export 'src/services/analytics/event.dart';
-export 'src/services/analytics/generic/google_analytics_service.dart';
+export 'src/services/analytics/google_analytics_service.dart';
 export 'src/services/analytics/service.dart';
 
 export 'src/services/symbols/loaders/yaml.dart';

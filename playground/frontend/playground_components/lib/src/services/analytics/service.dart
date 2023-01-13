@@ -16,8 +16,16 @@
  * limitations under the License.
  */
 
+import 'package:get_it/get_it.dart';
+
 import 'event.dart';
 
 abstract class AnalyticsService {
   AnalyticsEvent? get lastSentEvent;
+
+  static AnalyticsService get() {
+    return GetIt.instance.get<AnalyticsService>();
+  }
+
+  Future<void> trackRunExample(String exampleName);
 }
