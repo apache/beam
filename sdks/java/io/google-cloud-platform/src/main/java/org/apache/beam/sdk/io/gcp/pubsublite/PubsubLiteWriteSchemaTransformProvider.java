@@ -59,7 +59,7 @@ public class PubsubLiteWriteSchemaTransformProvider
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
       PubsubLiteWriteSchemaTransformConfiguration configuration) {
 
     if (!SUPPORTED_FORMATS.contains(configuration.getFormat())) {

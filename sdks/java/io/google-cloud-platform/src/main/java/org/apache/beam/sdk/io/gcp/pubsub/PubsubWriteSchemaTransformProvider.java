@@ -97,7 +97,7 @@ public class PubsubWriteSchemaTransformProvider
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(PubsubWriteSchemaTransformConfiguration configuration) {
+  public SchemaTransform from(PubsubWriteSchemaTransformConfiguration configuration) {
     return new PubsubWriteSchemaTransform(configuration);
   }
 
