@@ -27,7 +27,6 @@
   <modelVersion>4.0.0</modelVersion>
 
   <properties>
-    <autovalue.version>1.8.2</autovalue.version>
     <cloud-storage.version>2.2.2</cloud-storage.version>
     <elasticsearch.version>7.9.2</elasticsearch.version>
     <guava.version>31.0.1-jre</guava.version>
