@@ -135,7 +135,7 @@ class _SharedControlBlock(object):
       # self._ref is None if this is a new control block.
       # self._ref() is None if the weak reference was GCed.
       # self._tag != tag if user specifies a new identifier
-      if self._ref is None or self._ref() is None or self._tag != tag:
+      if self._ref is None or self._ref() is None or (tag and self._tag != tag):
         result = constructor_fn()
         if result is None:
           return None
@@ -155,15 +155,15 @@ class _SharedMap(object):
   the cache.
 
   One big caveat is this: we want to support cases where there is some delay
-  between reacquistion of Shared objects, i.e. there may be a short period of
+  between reacquisition of Shared objects, i.e. there may be a short period of
   time in which there are no references to the object before it is reacquired.
 
   This happens in various Beam runners (e.g. Dataflow runner): if we use a
   single thread for doing predictions with a large model, when the thread
-  finishes its workitem, it will release the reference to the model. Since
+  finishes its work item, it will release the reference to the model. Since
   there's only a single thread, the model will have zero references to it
   and will be garbage collected. Shortly after this, the process receives a new
-  workitem, creates a new thread, and attempts to reacquire the model. If we
+  work item, creates a new thread, and attempts to reacquire the model. If we
   don't keep the model alive in between, the new thread will have to
   reinitialise the model from scratch.
 
