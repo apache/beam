@@ -23,7 +23,7 @@ This Apache Beam I/O Standards document lays out the prescriptive guidance for 1
 
 ### What are built-in I/O Connectors?
 
-An I/O connector (I/O) living in the Apache Beam Github repository is known as a **Built-in I/O connector**. Built-in I/O’s have their [integration tests](#integration-tests) and performance tests routinely run by the Google Cloud Dataflow Team using the Dataflow Runner and metrics published publicly for [reference](#dashboard). Otherwise, the following guidelines will apply to both unless explicitly stated. 
+An I/O connector (I/O) living in the Apache Beam Github repository is known as a **Built-in I/O connector**. Built-in I/O’s have their [integration tests](#integration-tests) and performance tests routinely run by the Google Cloud Dataflow Team using the Dataflow Runner and metrics published publicly for [reference](#dashboard). Otherwise, the following guidelines will apply to both unless explicitly stated.
 
 
 # Guidance
@@ -40,7 +40,7 @@ This section lays out the superset of all documentation that is expected to be m
 <table class="table table-bordered table-io-standards">
    <tr>
       <td>
-         <p>Provided code docs for the relevant language of the I/O. This should also have links to any external sources of information within the Apache Beam site or external documentation location. 
+         <p>Provided code docs for the relevant language of the I/O. This should also have links to any external sources of information within the Apache Beam site or external documentation location.
          <p>Examples:
          <ul>
             <li><a href="https://beam.apache.org/releases/javadoc/current/overview-summary.html">Java doc</a>
@@ -58,8 +58,7 @@ This section lays out the superset of all documentation that is expected to be m
    </tr>
    <tr>
       <td>
-         <p>Formatting of the section headers in your Javadoc/Pythondoc<strong> </strong>should be consistent throughout such that programmatic information extraction for other pages can be enabled in the future.
-         <p>In the future we may want to use the documents as a source of information for programmatic information extraction for other pages. The position and naming of headers should be consistent to allow this to be enabled in the future. (Take Resource Scalability contents and transfer it to Java/Python docs).
+         <p>Formatting of the section headers in your Javadoc/Pythondoc should be consistent throughout such that programmatic information extraction for other pages can be enabled in the future.
          <p>Example <strong>subset</strong> of sections to include in your page in order:
          <ol>
             <li>Before you start
@@ -74,16 +73,16 @@ This section lays out the superset of all documentation that is expected to be m
             <li>Writing to {Connector}
             <li><a href="#unit-tests">Resource scalability</a>
             <li>Limitations
-            <li>Report and Issue
+            <li>Reporting an Issue
             </li>
          </ol>
          <p>Example:
-         <p>The KafkaIO <a href="https://beam.apache.org/releases/javadoc/2.1.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">output JavaDoc</a>
+         <p>The KafkaIO <a href="https://beam.apache.org/releases/javadoc/2.1.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">JavaDoc</a>
       </td>
    </tr>
    <tr>
       <td>
-         <p>I/O Connectors should include a note indicating the Relational Features supported in their page under <strong>I/O connector guides</strong>.
+         <p>I/O Connectors should include a note indicating <a href="https://2022.beamsummit.org/sessions/relational-beam/">Relational Features</a> supported in their page under <strong>I/O connector guides</strong>.
          <p>Relational Features are efficiency concepts that can be implemented by an I/O Connector. Using end user supplied pipeline configuration (SchemaIO) and user query (FieldAccessDescriptor) data, apply relational theory to derive improvements. Results in faster pipeline execution, lower operation cost, less data read/written.
          <p>Example table:
          <p><img src="/images/io-standards/io-supported-relational-features-table.png" width="" alt="Supported Relational Features" title="Supported Relational Features"></img>
@@ -121,7 +120,7 @@ This section lays out the superset of all documentation that is expected to be m
    </tr>
    <tr>
       <td>
-         <p>Indicate how timestamps for elements are assigned, this includes batch sources, to allow for future I/O which may provide more useful information that current_time()
+         <p>Indicate how timestamps for elements are assigned. This includes batch sources to allow for future I/Os which may provide more useful information than current_time().
          <p>Example:
       </td>
    </tr>
@@ -131,19 +130,6 @@ This section lays out the superset of all documentation that is expected to be m
       </td>
    </tr>
    <tr>
-      <td>
-         <p>Indicate how timestamps for elements are assigned, this includes batch sources, to allow for future I/O which may provide more useful information that current_time()
-         <p>Example:
-         <p>BigQuery batch loads first create a temp GCS location <a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.java#L455">https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.java#L455</a>
-      </td>
-   </tr>
-   <tr>
-      <td>
-         <p>Indicate how timestamps are advanced; for Batch sources this will be marked as n/a in most cases.
-         <p>Example:
-      </td>
-  </tr>
-  <tr>
       <td>
          <p>Outline any temporary resources (for example, files) that the connector will create.
          <p>Example:
@@ -153,7 +139,7 @@ This section lays out the superset of all documentation that is expected to be m
   </tr>
   <tr>
       <td>
-         <p>Provide, in an <strong>Authentication Subheader</strong>, how to acquire partner authorization material to securely access the source/sink.
+         <p>Provide, under an <strong>Authentication</strong> subheader, how to acquire partner authorization material to securely access the source/sink.
          <p>Example:
          <p><a href="https://beam.apache.org/documentation/io/built-in/snowflake/#authentication">https://beam.apache.org/documentation/io/built-in/snowflake/#authentication</a>
          <p>Here BigQuery names it permissions but the topic covers similarities
@@ -169,14 +155,14 @@ This section lays out the superset of all documentation that is expected to be m
   </tr>
   <tr>
       <td>
-         <p>Indicate if there is (native | X-language | Not Available) support in each language with a link to the docs. 
+         <p>Indicate if there is native or X-language support in each language with a link to the docs.
          <p>Example:
          <p>Kinesis I/O has a native implementation of java and X-language support for python but no support for Golang.
       </td>
   </tr>
   <tr>
    <td>
-      <p>Indicate known limitations under a <strong>Limitations Header</strong>. If the limitation has a tracking issue, please link it inline.
+      <p>Indicate known limitations under a <strong>Limitations</strong> header. If the limitation has a tracking issue, please link it inline.
       <p>Example:
       <p><a href="https://beam.apache.org/documentation/io/built-in/snowflake/#limitations">https://beam.apache.org/documentation/io/built-in/snowflake/#limitations</a>
    </td>
@@ -408,10 +394,10 @@ Development guidelines are written with the following principles in mind:
          <p>A few different sources implement runtime configuration for reading from a data source. This is a valuable pattern because it enables a purely batch source to become a more sophisticated streaming source.
          <p>As much as possible, this type of transform should have the type richness of a construction-time-configured transform:
          <ul>
-            <li>Support Beam Row output with a schema known at construction-time 
+            <li>Support Beam Row output with a schema known at construction-time
             <li>Extra configuration may be needed (and acceptable) in this case (e.g. a SchemaProvider parameter, a Schema parameter, a Schema Catalog or a utility of that sort).
             <li>The input PCollection should have a fixed type with a schema, so it can be easily manipulated by users.
-            </li> 
+            </li>
          </ul>
          <p>Example:
          <p><a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.ReadAll.html">JdbcIO.ReadAll</a>, <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.ReadFiles.html">ParquetIO.ReadFiles</a>
@@ -425,10 +411,10 @@ Development guidelines are written with the following principles in mind:
          <p>Gives access to the class that represents writes within the I/O. The Write class should implement an interface similar to the builder pattern (e.g. withX(...).withY(...)).
          <p>A user should not create this class directly. It should be created by a <a href="#bookmark=id.7yk3g4vwt7yn">top-level utility method</a>.
          <ul>
-            <li>Support Beam Row output with a schema known at construction-time 
+            <li>Support Beam Row output with a schema known at construction-time
             <li>Extra configuration may be needed (and acceptable) in this case (e.g. a SchemaProvider parameter, a Schema parameter, a Schema Catalog or a utility of that sort).
             <li>The input PCollection should have a fixed type with a schema, so it can be easily manipulated by users.
-            </li> 
+            </li>
          </ul>
          <p>Example:
          <p><a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.ReadAll.html">JdbcIO.ReadAll</a>, <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.ReadFiles.html">ParquetIO.ReadFiles</a>
@@ -443,10 +429,10 @@ Development guidelines are written with the following principles in mind:
          <p>These classes should be added <strong>only if it is impossible or prohibitively difficult to encapsulate their functionality as part of extra configuration of Read, Write and ReadAll</strong> transforms, to avoid increasing the cognitive load on users.
          <p>A user should not create these classes directly. They should be created by a <a href="#bookmark=id.7yk3g4vwt7yn">top-level static method</a>.
          <ul>
-            <li>Support Beam Row output with a schema known at construction-time 
+            <li>Support Beam Row output with a schema known at construction-time
             <li>Extra configuration may be needed (and acceptable) in this case (e.g. a SchemaProvider parameter, a Schema parameter, a Schema Catalog or a utility of that sort).
             <li>The input PCollection should have a fixed type with a schema, so it can be easily manipulated by users.
-            </li> 
+            </li>
          </ul>
          <p>Example:
          <p><a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.ReadAll.html">JdbcIO.ReadAll</a>, <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.ReadFiles.html">ParquetIO.ReadFiles</a>
@@ -459,7 +445,7 @@ Development guidelines are written with the following principles in mind:
       <td>
          <p>Some connectors rely on other user-facing classes to set configuration parameters.
          <p>(e.g. <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.DataSourceConfiguration.html">JdbcIO.DataSourceConfiguration</a>). These classes should be <strong>nested within the {Connector}IO class</strong>.
-         <p>This format makes them visible in the main Javadoc, and easy to discover by users.      
+         <p>This format makes them visible in the main Javadoc, and easy to discover by users.
       </td>
    </tr>
    <tr>
@@ -587,16 +573,16 @@ Development guidelines are written with the following principles in mind:
          <p>Some connectors in Java receive a configuration object as part of their configuration. <strong>This pattern is encouraged only for particular cases</strong>. In most cases, a connector can hold all necessary configuration parameters at the top level.
          <p>To determine whether a multi-parameter configuration object is an appropriate parameter for a high level transform, the configuration object must:
          <ul>
-            <li>Hold only properties related to the connection/authentication parameters for the external data store (e.g. JdbcIO.DataSourceConfiguration). 
+            <li>Hold only properties related to the connection/authentication parameters for the external data store (e.g. JdbcIO.DataSourceConfiguration).
             <ul>
                <li>Generally, <strong>secrets should not be passed as parameters</strong>, unless an alternative is not feasible. For secret management, a secret-management service or KMS is the recommended approach.
             </ul>
-            <li><strong>Or </strong>mirror an API characteristic from the external data source (e.g. KafkaIO.Read.withConsumerConfigUpdates), without exposing that external API in the Beam API. 
+            <li><strong>Or </strong>mirror an API characteristic from the external data source (e.g. KafkaIO.Read.withConsumerConfigUpdates), without exposing that external API in the Beam API.
             <ul>
                <li>The method should mirror the name of the API object (e.g. given an object SubscriptionStatConfig, a method would be withSubscriptionStatConfig).
             </ul>
             <li><strong>Or</strong> when a connector can support different configuration ‘paths’ where a particular property requires other properties to be specified (e.g. BigQueryIO’s method will entail various different properties). (see last examples).
-            </li> 
+            </li>
          </ul>
          <p>Example:
          <p><a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.DataSourceConfiguration.html">JdbcIO.DataSourceConfiguration</a>, <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerConfig.html">SpannerConfig</a>, <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.ReadSourceDescriptors.html#withConsumerConfigUpdates-java.util.Map-">KafkaIO.Read.withConsumerConfigUpdates</a>
@@ -693,15 +679,15 @@ BigQueryIO.write()
       <td>
          <p>The type of the PCollection will usually be one of the following four options. For each of these option, the encoding / data is recommended to be as follows:
          <ul>
-            <li>A pre-set, basic Java type (e.g. String) 
+            <li>A pre-set, basic Java type (e.g. String)
             <ul>
                <li>This encoding should be simple, and use a simple Beam coder (e.g. Utf8StringCoder)
-               </li> 
+               </li>
             </ul>
-            <li>A pre-set POJO type (e.g. <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/fs/MatchResult.Metadata.html">Metadata</a>) with a schema 
+            <li>A pre-set POJO type (e.g. <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/fs/MatchResult.Metadata.html">Metadata</a>) with a schema
             <ul>
                <li>The preferred strategy for these is to define the output type as an <a href="https://stackoverflow.com/questions/62546191/how-do-i-use-an-autovalue-data-type-for-my-pcollection-in-apache-beam">@AutoValue, with @DefaultSchema and @SchemaCreate</a> annotations. This will ensure compact, fast encoding with RowCoder.
-               </li> 
+               </li>
             </ul>
             <li>A Beam Row with a specific schema
             <li>A type with a schema that’s not know <em>a priori</em> (i.e. at construction time)
@@ -736,7 +722,7 @@ BigQueryIO.write()
 Over time, I/O need to evolve to address new use cases, or use new APIs under the covers. Some examples of necessary evolution of an I/O:
 
 * A new data type needs to be supported within it (e.g. [any-type partitioning in JdbcIO.ReadWithPartitions](https://github.com/apache/beam/pull/15848))
-* A new backend API needs to be supported (e.g. 
+* A new backend API needs to be supported (e.g.
 
 <div class="table-container-wrapper">
 <table class="table table-bordered table-io-standards">
@@ -775,15 +761,15 @@ Over time, I/O need to evolve to address new use cases, or use new APIs under th
 <div class="table-container-wrapper">
 <table class="table table-bordered table-io-standards">
    <tr>
-      <td>If the I/O lives in Apache Beam it should be placed in the package :
-      <p><strong>apache_beam.io.{connector}</strong> or <strong>apache_beam.io.{namespace}.{connector}</strong>
-      <p>Example:
-      <p>apache_beam.io.fileio and apache_beam.io.gcp.bigquery
+      <td>
+         <p>If the I/O lives in Apache Beam it should be placed in the package <strong>apache_beam.io.{connector}</strong> or <strong>apache_beam.io.{namespace}.{connector}</strong>
+         <p>Example:
+         <p>apache_beam.io.fileio and apache_beam.io.gcp.bigquery
       </td>
    </tr>
    <tr>
-      <td>There will be a module named {connector}.py which is the primary entry point used in working with the connector in a pipeline.
-         <p><strong>apache_beam.io.{connector}</strong> or <strong>apache_beam.io.{namespace}.{connector}</strong>
+      <td>
+         <p>There will be a module named {connector}.py which is the primary entry point used in working with the connector in a pipeline <strong>apache_beam.io.{connector}</strong> or <strong>apache_beam.io.{namespace}.{connector}</strong>
          <p>Example:
          <p>apache_beam.io.gcp.bigquery / apache_beam/io/gcp/bigquery.py
          <p>Another possible layout: apache_beam/io/gcp/bigquery/bigquery.py (automatically import public classes in bigquery/__init__.py)
@@ -795,7 +781,8 @@ Over time, I/O need to evolve to address new use cases, or use new APIs under th
       </td>
    </tr>
    <tr>
-      <td>If the I/O implementation exists in a single module (a single file), then the file {connector}.py can hold it.
+      <td>
+         <p>If the I/O implementation exists in a single module (a single file), then the file {connector}.py can hold it.
          <p>Otherwise, the connector code should be defined within a directory (connector package) with an __init__.py file that documents the public API.
          <p>If the connector defines other files containing utilities for its implementation, these files must clearly document the fact that they are not meant to be a public interface.
       </td>
@@ -834,10 +821,10 @@ Over time, I/O need to evolve to address new use cases, or use new APIs under th
       <td>A few different sources implement runtime configuration for reading from a data source. This is a valuable pattern because it enables a purely batch source to become a more sophisticated streaming source.
          <p>As much as possible, this type of transform should have the type richness and safety of a construction-time-configured transform:
          <ul>
-            <li>Support output with a schema known at construction-time 
+            <li>Support output with a schema known at construction-time
             <ul>
                <li>Extra configuration may be needed (and acceptable) in this case (e.g. a SchemaProvider parameter, a Schema parameter, a Schema Catalog or a utility of that sort).
-               </li> 
+               </li>
             </ul>
             <li>The input PCollection should have a fixed type with a schema, so it can be easily manipulated by users.
             </li>
@@ -890,13 +877,13 @@ Over time, I/O need to evolve to address new use cases, or use new APIs under th
          <p>The preferred API pattern in Python is to pass callables (e.g. <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html#apache_beam.io.gcp.bigquery.WriteToBigQuery">WriteToBigQuery</a>) for all parameters that will need to be configured. In general, examples of callable parameters may be:
          <ul>
             <li>Destination callable → Should receive an element, and return a destination for that element
-            <li>Other examples 
+            <li>Other examples
             <ul>
                <li>Schema callable → Should receive a destination and return a schema for the destination
                <li>Format function → Should receive a record (and maybe a destination) and format the record to be inserted.
-               </li> 
+               </li>
             </ul>
-            </li> 
+            </li>
          </ul>
          <p>Using these callables also allows maintainers to add new parameterizable callables over time (with <strong>default values</strong> to avoid breaking existing users) that will define extra configuration parameters if necessary.
          <p><strong>Corner case</strong>: It is often necessary to pass side inputs to some of these callables. The recommended pattern is to have an extra parameter in the constructor to include these side inputs (e.g. <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html#apache_beam.io.gcp.bigquery.WriteToBigQuery">WriteToBigQuery’s table_side_inputs parameter</a>)
@@ -953,10 +940,10 @@ Over time, I/O need to evolve to address new use cases, or use new APIs under th
          <p>For complex types:
          <ol>
             <li>A NamedTuple or DataClass with a set schema, encoded with RowCoder
-            <li>A Python dictionary 
+            <li>A Python dictionary
             <ol>
                <li>The dictionaries should be encoded via RowCoder, if possible.
-               </li> 
+               </li>
             </ol>
             <li>A preset Python class, if a schema is not possible
             </li>
@@ -977,7 +964,7 @@ Over time, I/O need to evolve to address new use cases, or use new APIs under th
             <li>API tokens from calls issued by the transform
             </li>
          </ul>
-         <p>Example: 
+         <p>Example:
          <p>BigQueryIO’s <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html">WriteResult</a>
          <p>Motivating example (a bad pattern): WriteToBigQuery’s inconsistent dictionary results[<a href="https://github.com/apache/beam/blob/v2.34.0/sdks/python/apache_beam/io/gcp/bigquery.py#L2138">1</a>][<a href="https://github.com/apache/beam/blob/b3b184361100492f92fcc51ff82a0fcd962d5ee0/sdks/python/apache_beam/io/gcp/bigquery_file_loads.py#L1203-L1207">2</a>]
       </td>
@@ -1037,7 +1024,7 @@ Over time, I/O need to evolve to address new use cases, or use new APIs under th
          <p>function readFromXXX
       </td>
       <td>
-         <p>The method to start constructing an I/O.Read transform. 
+         <p>The method to start constructing an I/O.Read transform.
       </td>
    </tr>
    <tr>
@@ -1045,13 +1032,13 @@ Over time, I/O need to evolve to address new use cases, or use new APIs under th
          <p>function writeToXXX
       </td>
       <td>
-         <p>The method to start constructing an I/O.Write transform. 
+         <p>The method to start constructing an I/O.Write transform.
       </td>
    </tr>
 </table>
 </div>
 
-## Testing 
+## Testing
 
 An I/O should have unit tests, integration tests, and performance tests. In the following guidance we explain what each type of test aims to achieve, and provide a _baseline_ standard of test coverage. Do note that the actual test cases and business logic of the actual test would vary depending on specifics of each source/sink but we have included some suggested test cases as a baseline.
 
@@ -1070,7 +1057,7 @@ This guide complements the [Apache Beam I/O transform testing guide](https://bea
 
 ### Unit Tests
 
-I/O unit tests need to efficiently test the functionality of the code. Given that unit tests are expected to be executed many times over multiple test suites (for example, for each Python version) these tests should execute relatively fast and should not have side effects. We recommend trying to achieve 100% code coverage through unit tests. 
+I/O unit tests need to efficiently test the functionality of the code. Given that unit tests are expected to be executed many times over multiple test suites (for example, for each Python version) these tests should execute relatively fast and should not have side effects. We recommend trying to achieve 100% code coverage through unit tests.
 
 When possible, unit tests are favored over integration tests due to faster execution time and low resource usage. Additionally, unit tests can be easily included in pre-commit tests suites (for example, Jenkins beam_PreCommit_* test suites) hence has a better chance of discovering regressions early. Unit tests are also preferred for error conditions.
 
@@ -1079,7 +1066,7 @@ When possible, unit tests are favored over integration tests due to faster execu
    <tr>
       <td>
          <p>The unit testing class should be part of the same package as the IO and named {connector}IOTest.
-         <p>Example: 
+         <p>Example:
          <p><a href=https://github.com/apache/beam/blob/v2.43.0/sdks/java/io/cassandra/src/test/java/org/apache/beam/sdk/io/cassandra/CassandraIOTest.java>sdks/java/io/cassandra/src/test/java/org/apache/beam/sdk/io/cassandra/CassandraIOTest.java</a>
       </td>
    </tr>
@@ -1376,7 +1363,7 @@ Integration tests test end-to-end interactions between the Beam runner and the d
          <p>“Write then read” test using Dataflow
       </td>
       <td>
-         <p>Writes generated data to the datastore and reads the same data back from the datastore using Dataflow. 
+         <p>Writes generated data to the datastore and reads the same data back from the datastore using Dataflow.
       </td>
       <td>
          <p><a href="https://github.com/apache/beam/blob/774008de21090c635dc23c58b2f7d9d4aaa40cbf/sdks/java/io/jdbc/src/test/java/org/apache/beam/sdk/io/jdbc/JdbcIOIT.java#L129">JdbcIOIT.testWriteThenRead</a>
@@ -1445,10 +1432,10 @@ Google performs the performance tests routinely for built-in I/Os and publishes 
    </tr>
    <tr>
       <td>
-         <p>Include a <strong>resource scalability</strong> section into your page under <strong> <a href="#built-in-io">Built-in I/O connector guides</a> </strong>documentation<strong> </strong> which will indicate the upper bounds which the IO has integration tests for. 
+         <p>Include a <strong>resource scalability</strong> section into your page under <strong> <a href="#built-in-io">Built-in I/O connector guides</a> </strong>documentation<strong> </strong> which will indicate the upper bounds which the IO has integration tests for.
          <p>For example:
-         <p>An indication that kafkaIO has integration tests with <strong>xxxx</strong> topics. The documentation can state if the connector authors believe that the connector can scale beyond the integration test number, however this will make it clear to the user the limits of the tested paths. 
-         <p>The documentation should clearly indicate the configuration that was followed for the limits. For example using runner x and configuration option a. 
+         <p>An indication that kafkaIO has integration tests with <strong>xxxx</strong> topics. The documentation can state if the connector authors believe that the connector can scale beyond the integration test number, however this will make it clear to the user the limits of the tested paths.
+         <p>The documentation should clearly indicate the configuration that was followed for the limits. For example using runner x and configuration option a.
       </td>
    </tr>
    <tr>
@@ -1458,7 +1445,7 @@ Google performs the performance tests routinely for built-in I/Os and publishes 
    </tr>
    <tr>
       <td>
-         <p>Include expected performance characteristics of the I/O based on performance tests that the connector has in place. 
+         <p>Include expected performance characteristics of the I/O based on performance tests that the connector has in place.
       </td>
    </tr>
 </table>
