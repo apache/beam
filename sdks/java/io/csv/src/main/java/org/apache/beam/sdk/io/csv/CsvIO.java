@@ -199,7 +199,7 @@ import org.apache.commons.csv.CSVFormat;
  */
 public class CsvIO {
   /**
-   * The valid {@link Schema.FieldType} from which {@link CsvIO} converts CSV records to the fields:
+   * The valid {@link Schema.FieldType} from which {@link CsvIO} converts CSV records to the fields.
    *
    * <ul>
    *   <li>{@link FieldType#BYTE}
@@ -515,11 +515,7 @@ public class CsvIO {
         schemaFields = schema.sorted().getFieldNames();
       }
 
-      RowToCsv rowToCsv =
-          RowToCsv.builder()
-              .setSchema(schema)
-              .setCSVFormat(getCSVFormat())
-              .build();
+      RowToCsv rowToCsv = RowToCsv.builder().setSchema(schema).setCSVFormat(getCSVFormat()).build();
 
       Sink.Builder<Row> builder = sinkBuilder();
 

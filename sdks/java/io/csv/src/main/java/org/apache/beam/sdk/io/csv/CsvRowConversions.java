@@ -18,17 +18,9 @@
 package org.apache.beam.sdk.io.csv;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
@@ -54,10 +46,18 @@ class CsvRowConversions {
     /** Converts a {@link Row} to a CSV string formatted using {@link #getCSVFormat()}. */
     @Override
     public String apply(Row input) {
-      // // resolves incompatible @Nullable assigment
-      Optional<Row> safeInput = Optional.ofNullable(input);
-      checkState(safeInput.isPresent());
-      return getCSVFormat().format(safeInput.get().getValues());
+      Row safeInput = checkNotNull(input);
+      String[] header = getHeader();
+      Object[] values = new Object[header.length];
+      for (int i = 0; i < header.length; i++) {
+        values[i] = input.getValue(header[i]);
+      }
+      return getCSVFormat().format(safeInput.getValues());
+    }
+
+    @NonNull
+    String[] getHeader() {
+      return checkNotNull(getCSVFormat().getHeader());
     }
 
     @AutoValue.Builder
@@ -70,6 +70,7 @@ class CsvRowConversions {
 
       /** The {@link CSVFormat} of the converted {@link Row} input. */
       abstract Builder setCSVFormat(CSVFormat format);
+
       abstract CSVFormat getCSVFormat();
 
       abstract RowToCsv autoBuild();
@@ -83,8 +84,13 @@ class CsvRowConversions {
   }
 
   private static void validateHeaderAgainstSchema(String[] csvHeader, Schema schema) {
+    checkNotNull(csvHeader);
+    checkNotNull(schema);
     if (schema.getFieldCount() == 0) {
       throw new IllegalArgumentException("schema is empty");
+    }
+    if (csvHeader.length == 0) {
+      throw new IllegalArgumentException("csvHeader length is zero");
     }
   }
 }

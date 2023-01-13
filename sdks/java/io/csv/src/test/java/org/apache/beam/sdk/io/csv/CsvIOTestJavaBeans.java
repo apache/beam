@@ -23,12 +23,10 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -36,23 +34,9 @@ import org.joda.time.Instant;
 
 // TODO(https://github.com/apache/beam/issues/24980): replace per task description
 /** Classes and data to drive CsvIO tests. */
-class CsvIOTestData {
-
-  static final CsvIOTestData DATA = new CsvIOTestData();
-  private CsvIOTestData() {}
+class CsvIOTestJavaBeans {
 
   private static final AutoValueSchema DEFAULT_SCHEMA_PROVIDER = new AutoValueSchema();
-
-  final List<Row> allPrimitiveDataTypeRows =
-      Stream.of(
-              allPrimitiveDataTypes(
-                  false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a"),
-              allPrimitiveDataTypes(
-                  false, (byte) 2, BigDecimal.TEN, 2.0, 2.0f, (short) 2.0, 2, 2L, "b"),
-              allPrimitiveDataTypes(
-                  false, (byte) 3, BigDecimal.TEN, 3.0, 3.0f, (short) 3.0, 3, 3L, "c"))
-          .map(allPrimitiveDataTypesToRowFn()::apply)
-          .collect(Collectors.toList());
 
   /** Convenience method for {@link AllPrimitiveDataTypes} instantiation. */
   static AllPrimitiveDataTypes allPrimitiveDataTypes(
@@ -65,7 +49,7 @@ class CsvIOTestData {
       Integer anInteger,
       Long aLong,
       String aString) {
-    return new AutoValue_CsvIOTestData_AllPrimitiveDataTypes.Builder()
+    return new AutoValue_CsvIOTestJavaBeans_AllPrimitiveDataTypes.Builder()
         .setABoolean(aBoolean)
         .setAByte(aByte)
         .setADecimal(aDecimal)
@@ -86,7 +70,7 @@ class CsvIOTestData {
       @Nullable Integer anInteger,
       @Nullable Long aLong,
       @Nullable String aString) {
-    return new AutoValue_CsvIOTestData_NullableAllPrimitiveDataTypes.Builder()
+    return new AutoValue_CsvIOTestJavaBeans_NullableAllPrimitiveDataTypes.Builder()
         .setABoolean(aBoolean)
         .setADouble(aDouble)
         .setAFloat(aFloat)
@@ -98,7 +82,7 @@ class CsvIOTestData {
 
   /** Convenience method for {@link TimeContaining} instantiation. */
   static TimeContaining timeContaining(Instant instant, List<Instant> instantList) {
-    return new AutoValue_CsvIOTestData_TimeContaining.Builder()
+    return new AutoValue_CsvIOTestJavaBeans_TimeContaining.Builder()
         .setInstant(instant)
         .setInstantList(instantList)
         .build();
@@ -113,7 +97,7 @@ class CsvIOTestData {
       List<Integer> integers,
       List<Long> longs,
       List<String> strings) {
-    return new AutoValue_CsvIOTestData_ArrayPrimitiveDataTypes.Builder()
+    return new AutoValue_CsvIOTestJavaBeans_ArrayPrimitiveDataTypes.Builder()
         .setBooleanList(booleans)
         .setDoubleList(doubles)
         .setFloatList(floats)
@@ -127,7 +111,7 @@ class CsvIOTestData {
   /** Convenience method for {@link SinglyNestedDataTypes} instantiation. */
   static SinglyNestedDataTypes singlyNestedDataTypes(
       AllPrimitiveDataTypes allPrimitiveDataTypes, AllPrimitiveDataTypes... repeated) {
-    return new AutoValue_CsvIOTestData_SinglyNestedDataTypes.Builder()
+    return new AutoValue_CsvIOTestJavaBeans_SinglyNestedDataTypes.Builder()
         .setAllPrimitiveDataTypes(allPrimitiveDataTypes)
         .setAllPrimitiveDataTypesList(Arrays.stream(repeated).collect(Collectors.toList()))
         .build();
@@ -217,8 +201,7 @@ class CsvIOTestData {
    * Returns a {@link SerializableFunction} to convert from a {@link ArrayPrimitiveDataTypes} to a
    * {@link Row}.
    */
-  static SerializableFunction<ArrayPrimitiveDataTypes, Row>
-      arrayPrimitiveDataTypesToRowFn() {
+  static SerializableFunction<ArrayPrimitiveDataTypes, Row> arrayPrimitiveDataTypesToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
@@ -226,8 +209,7 @@ class CsvIOTestData {
    * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
    * ArrayPrimitiveDataTypes}.
    */
-  static SerializableFunction<Row, ArrayPrimitiveDataTypes>
-      arrayPrimitiveDataTypesFromRowFn() {
+  static SerializableFunction<Row, ArrayPrimitiveDataTypes> arrayPrimitiveDataTypesFromRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
