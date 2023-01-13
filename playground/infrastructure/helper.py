@@ -191,7 +191,7 @@ def get_tag(filepath) -> Optional[Tag]:
 
     try:
         return Tag(
-            filepath=filepath,
+            filepath=str(filepath),
             line_start=line_start,
             line_finish=line_finish,
             **yml[Config.BEAM_PLAYGROUND],
