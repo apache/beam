@@ -48,6 +48,9 @@ task copyDockerfileDependencies(type: Copy) {
     from configurations.dockerDependency
     rename 'slf4j-api.*', 'slf4j-api.jar'
     rename 'slf4j-jdk14.*', 'slf4j-jdk14.jar'
+    rename 'jcl-over-slf4j.*', 'jcl-over-slf4j.jar'
+    rename 'log4j-over-slf4j.*', 'log4j-over-slf4j.jar'
+    rename 'log4j-to-slf4j.*', 'log4j-to-slf4j.jar'
     if (imageJavaVersion == "11" || imageJavaVersion == "17") {
         rename 'beam-sdks-java-container-agent.*.jar', 'open-module-agent.jar'
     }
@@ -80,8 +83,10 @@ task copyGolangLicenses(type: Copy) {
 task copyJdkOptions(type: Copy) {
     if (imageJavaVersion == "17" || imageJavaVersion == "11") {
         from "option-jamm.json"
-        into "build/target/options"
     }
+    from "java${imageJavaVersion}-security.properties"
+    from "option-java${imageJavaVersion}-security.json"
+    into "build/target/options"
 }
 
 task skipPullLicenses(type: Exec) {

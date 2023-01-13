@@ -50,7 +50,7 @@ public class PortableTranslationContext extends TranslationContext {
 
   public PortableTranslationContext(
       StreamApplicationDescriptor appDescriptor, SamzaPipelineOptions options, JobInfo jobInfo) {
-    super(appDescriptor, Collections.emptyMap(), options);
+    super(appDescriptor, Collections.emptyMap(), Collections.emptySet(), options);
     this.jobInfo = jobInfo;
   }
 

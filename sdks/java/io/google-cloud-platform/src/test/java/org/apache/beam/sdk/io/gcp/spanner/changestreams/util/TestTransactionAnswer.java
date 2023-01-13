@@ -24,8 +24,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-@SuppressWarnings("rawtypes")
-public class TestTransactionAnswer implements Answer<TransactionResult> {
+public class TestTransactionAnswer implements Answer<TransactionResult<Object>> {
 
   private final InTransactionContext transaction;
 
@@ -34,9 +33,9 @@ public class TestTransactionAnswer implements Answer<TransactionResult> {
   }
 
   @Override
-  public TransactionResult answer(InvocationOnMock invocation) {
+  public TransactionResult<Object> answer(InvocationOnMock invocation) {
     Function<InTransactionContext, Object> callable = invocation.getArgument(0);
     final Object result = callable.apply(transaction);
-    return new TransactionResult(result, Timestamp.now());
+    return new TransactionResult<>(result, Timestamp.now());
   }
 }

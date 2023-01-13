@@ -66,7 +66,7 @@ func (n *ParDo) GetPID() string {
 type cacheElm struct {
 	key       typex.Window
 	sideinput []ReusableInput
-	extra     []interface{}
+	extra     []any
 }
 
 // ID returns the UnitID for this ParDo.
@@ -268,7 +268,7 @@ func (n *ParDo) initSideInput(ctx context.Context, w typex.Window) error {
 
 		n.cache = &cacheElm{
 			key:   w,
-			extra: make([]interface{}, sideCount+emitCount),
+			extra: make([]any, sideCount+emitCount),
 		}
 		attachEstimator := false
 		if n.we != nil {
