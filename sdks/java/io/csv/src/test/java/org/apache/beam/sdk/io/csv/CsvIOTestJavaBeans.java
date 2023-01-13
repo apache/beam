@@ -20,9 +20,7 @@ package org.apache.beam.sdk.io.csv;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -88,32 +86,11 @@ class CsvIOTestJavaBeans {
         .build();
   }
 
-  /** Convenience method for {@link ArrayPrimitiveDataTypes} instantiation. */
-  static ArrayPrimitiveDataTypes arrayPrimitiveDataTypes(
-      List<Boolean> booleans,
-      List<Double> doubles,
-      List<Float> floats,
-      List<Short> shorts,
-      List<Integer> integers,
-      List<Long> longs,
-      List<String> strings) {
-    return new AutoValue_CsvIOTestJavaBeans_ArrayPrimitiveDataTypes.Builder()
-        .setBooleanList(booleans)
-        .setDoubleList(doubles)
-        .setFloatList(floats)
-        .setShortList(shorts)
-        .setIntegerList(integers)
-        .setLongList(longs)
-        .setStringList(strings)
-        .build();
-  }
-
   /** Convenience method for {@link SinglyNestedDataTypes} instantiation. */
   static SinglyNestedDataTypes singlyNestedDataTypes(
       AllPrimitiveDataTypes allPrimitiveDataTypes, AllPrimitiveDataTypes... repeated) {
     return new AutoValue_CsvIOTestJavaBeans_SinglyNestedDataTypes.Builder()
         .setAllPrimitiveDataTypes(allPrimitiveDataTypes)
-        .setAllPrimitiveDataTypesList(Arrays.stream(repeated).collect(Collectors.toList()))
         .build();
   }
 
@@ -188,29 +165,6 @@ class CsvIOTestJavaBeans {
    */
   static SerializableFunction<Row, TimeContaining> timeContainingFromRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(TIME_CONTAINING_TYPE_DESCRIPTOR);
-  }
-
-  private static final TypeDescriptor<ArrayPrimitiveDataTypes>
-      ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(ArrayPrimitiveDataTypes.class);
-
-  /** The schema for {@link ArrayPrimitiveDataTypes}. */
-  static final Schema ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA =
-      DEFAULT_SCHEMA_PROVIDER.schemaFor(ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link ArrayPrimitiveDataTypes} to a
-   * {@link Row}.
-   */
-  static SerializableFunction<ArrayPrimitiveDataTypes, Row> arrayPrimitiveDataTypesToRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.toRowFunction(ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
-  }
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
-   * ArrayPrimitiveDataTypes}.
-   */
-  static SerializableFunction<Row, ArrayPrimitiveDataTypes> arrayPrimitiveDataTypesFromRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(ARRAY_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
   private static final TypeDescriptor<SinglyNestedDataTypes>
@@ -363,52 +317,6 @@ class CsvIOTestJavaBeans {
   }
 
   /**
-   * Contains arrays of all primitive Java types i.e. String, Integer, etc and {@link BigDecimal}.
-   * The purpose of this class is to test schema-aware PTransforms with {@link Row}s containing
-   * repeated primitive Java types.
-   */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  abstract static class ArrayPrimitiveDataTypes {
-
-    abstract List<Boolean> getBooleanList();
-
-    abstract List<Double> getDoubleList();
-
-    abstract List<Float> getFloatList();
-
-    abstract List<Short> getShortList();
-
-    abstract List<Integer> getIntegerList();
-
-    abstract List<Long> getLongList();
-
-    abstract List<String> getStringList();
-
-    abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    abstract static class Builder {
-
-      abstract Builder setBooleanList(List<Boolean> value);
-
-      abstract Builder setDoubleList(List<Double> value);
-
-      abstract Builder setFloatList(List<Float> value);
-
-      abstract Builder setShortList(List<Short> value);
-
-      abstract Builder setIntegerList(List<Integer> value);
-
-      abstract Builder setLongList(List<Long> value);
-
-      abstract Builder setStringList(List<String> value);
-
-      abstract ArrayPrimitiveDataTypes build();
-    }
-  }
-
-  /**
    * Contains a singly nested and repeated {@link AllPrimitiveDataTypes}. The purpose of this class
    * is to test schema-aware PTransforms with {@link Row}s containing nested and repeated complex
    * Java types.
@@ -419,16 +327,12 @@ class CsvIOTestJavaBeans {
 
     abstract AllPrimitiveDataTypes getAllPrimitiveDataTypes();
 
-    abstract List<AllPrimitiveDataTypes> getAllPrimitiveDataTypesList();
-
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
 
       abstract Builder setAllPrimitiveDataTypes(AllPrimitiveDataTypes value);
-
-      abstract Builder setAllPrimitiveDataTypesList(List<AllPrimitiveDataTypes> value);
 
       abstract SinglyNestedDataTypes build();
     }

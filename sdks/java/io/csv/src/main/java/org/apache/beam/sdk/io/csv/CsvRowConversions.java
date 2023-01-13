@@ -50,9 +50,9 @@ class CsvRowConversions {
       String[] header = getHeader();
       Object[] values = new Object[header.length];
       for (int i = 0; i < header.length; i++) {
-        values[i] = input.getValue(header[i]);
+        values[i] = safeInput.getValue(header[i]);
       }
-      return getCSVFormat().format(safeInput.getValues());
+      return getCSVFormat().withSkipHeaderRecord().format(values);
     }
 
     @NonNull
@@ -75,7 +75,14 @@ class CsvRowConversions {
 
       abstract RowToCsv autoBuild();
 
+      private String[] buildHeaderFromSchema() {
+        return getSchema().getFieldNames().toArray(new String[0]);
+      }
+
       final RowToCsv build() {
+        if (getCSVFormat().getHeader() == null) {
+          setCSVFormat(getCSVFormat().withHeader(buildHeaderFromSchema()));
+        }
         validateHeaderAgainstSchema(getCSVFormat().getHeader(), getSchema());
 
         return autoBuild();

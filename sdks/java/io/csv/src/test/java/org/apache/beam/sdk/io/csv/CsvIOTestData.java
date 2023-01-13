@@ -19,40 +19,47 @@ package org.apache.beam.sdk.io.csv;
 
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.allPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.allPrimitiveDataTypesToRowFn;
-import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.arrayPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.nullableAllPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.nullableAllPrimitiveDataTypesToRowFn;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.timeContaining;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.timeContainingToRowFn;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.math.BigDecimal;
 import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
 class CsvIOTestData {
-  static CsvIOTestData DATA = new CsvIOTestData();
+  static final CsvIOTestData DATA = new CsvIOTestData();
 
   private CsvIOTestData() {}
 
   final Row allPrimitiveDataTypesRow =
-      allPrimitiveDataTypesToRowFn().apply(
-          allPrimitiveDataTypes(
-              false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a")
-      );
+      allPrimitiveDataTypesToRowFn()
+          .apply(
+              allPrimitiveDataTypes(
+                  false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a"));
 
   final Row nullableTypesRow =
-      nullableAllPrimitiveDataTypesToRowFn().apply(
-          nullableAllPrimitiveDataTypes(null, null, null, null, null, null)
-      );
+      nullableAllPrimitiveDataTypesToRowFn()
+          .apply(nullableAllPrimitiveDataTypes(null, null, null, null, null, null));
 
   final Row timeContainingRow =
-      timeContainingToRowFn().apply(
-          timeContaining(Instant.ofEpochMilli(1L), Collections.singletonList(Instant.ofEpochMilli(1L)))
-      );
+      timeContainingToRowFn()
+          .apply(
+              timeContaining(
+                  Instant.ofEpochMilli(1L), Collections.singletonList(Instant.ofEpochMilli(1L))));
 
-  final Row arrayPrimitiveDataTypes()
+  private final Schema arrayContainingSchema =
+      Schema.builder()
+          .addNullableField("array", Schema.FieldType.array(Schema.FieldType.INT32))
+          .build();
+
+  final Row arrayContainingRow =
+      Row.withSchema(arrayContainingSchema)
+          .withFieldValue("array", ImmutableList.of(1, 2, 3))
+          .build();
 }
