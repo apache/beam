@@ -42,12 +42,30 @@ public final class Providers {
   public static <T extends Identifyable> Map<String, T> loadProviders(Class<T> klass) {
     Map<String, T> providers = new HashMap<>();
     for (T provider : ServiceLoader.load(klass)) {
-      checkArgument(
-          !providers.containsKey(provider.identifier()),
-          "Duplicate providers exist with identifier `%s` for class %s.",
-          provider.identifier(),
-          klass);
-      providers.put(provider.identifier(), provider);
+      // Avro provider is treated as a special case until two providers may exist: in "core"
+      // (deprecated) and in "extensions/avro" (actual).
+      if (provider.identifier().equals("avro")) {
+        // Avro provider from "extensions/avro" must have a priority.
+        if (provider
+            .toString()
+            .startsWith(
+                "org.apache.beam.sdk.extensions.avro.schemas.io.payloads.AvroPayloadSerializerProvider")) {
+          // Use AvroPayloadSerializerProvider from extensions/avro by any case.
+          providers.put(provider.identifier(), provider);
+        } else {
+          // Load Avro provider from "core" if it was not loaded from Avro extension before.
+          if (!providers.containsKey(provider.identifier())) {
+            providers.put(provider.identifier(), provider);
+          }
+        }
+      } else {
+        checkArgument(
+            !providers.containsKey(provider.identifier()),
+            "Duplicate providers exist with identifier `%s` for class %s.",
+            provider.identifier(),
+            klass);
+        providers.put(provider.identifier(), provider);
+      }
     }
     return providers;
   }
