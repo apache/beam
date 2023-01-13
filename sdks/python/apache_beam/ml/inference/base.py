@@ -26,6 +26,7 @@ RunInference.
 The transform handles standard inference functionality, like metric
 collection, sharing model between threads, and batching elements.
 """
+# pylint: skip-file
 
 import logging
 import pickle
@@ -74,6 +75,10 @@ PredictionResult.__doc__ = """A NamedTuple containing both input and output
 PredictionResult.example.__doc__ = """The input example."""
 PredictionResult.inference.__doc__ = """Results for the inference on the model
   for the given example."""
+
+
+class ModelMetdata(NamedTuple):
+  model_id: str
 
 
 def _to_milliseconds(time_ns: int) -> int:
@@ -287,7 +292,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
       *,
-      update_model_pcoll: beam.PCollection[str] = None):
+      model_path_pcoll: beam.PCollection[ModelMetdata] = None):
     """A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
     those examples in a PCollection of PredictionResults that contains the input
@@ -305,14 +310,14 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
-        update_model_pcoll: PCollection that emits model path
+        model_path_pcoll: PCollection that emits model path
           that is used as a side input to the _RunInferenceDoFn.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
     self._metrics_namespace = metrics_namespace
-    self._update_model_pcoll = update_model_pcoll
+    self._model_path_pcoll = model_path_pcoll
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -348,8 +353,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                 _RunInferenceDoFn(
                     self._model_handler, self._clock, self._metrics_namespace),
                 self._inference_args,
-                self._update_model_pcoll if self._update_model_pcoll else
-                None).with_resource_hints(**resource_hints)))
+                beam.pvalue.AsSingleton(self._model_path_pcoll)
+                if self._model_path_pcoll else None).with_resource_hints(
+                    **resource_hints)))
 
 
 class _MetricsCollector:
@@ -422,12 +428,12 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = None
     self._metrics_namespace = metrics_namespace
     self._update_model_sleep_time = None
-    self._side_input_cache = {}
+    self._side_input_cache = set()
 
   def start_bundle(self):
-    self._side_input_cache = {}
+    self._side_input_cache = set()
 
-  def _load_model(self, side_input_model_path=None):
+  def _load_model(self, side_input_model_path: str = None):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
@@ -450,16 +456,24 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_container = ModelContainer()
       model_container['model'] = model
       model_container['model_id'] = side_input_model_path
-      model_container['side_input_cache'] = self._side_input_cache
+      model_container['side_input_cache'] = self._side_input_cache.copy()
       return model_container
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
+    start_time = time.time()
     cached_model_container = self._shared_model_handle.acquire(load)
+    logging.info(
+        f'first call items of Cache model container: {cached_model_container}')
+    end_time = time.time()
+    logging.info(
+        f"First call of shared handle acquire time {end_time-start_time}")
     # retrieve the side input cache
     self._side_input_cache: set = cached_model_container['side_input_cache']
     if (side_input_model_path is
         not None) and side_input_model_path not in self._side_input_cache:
+      logging.info(
+          f"Side input cache: {cached_model_container['side_input_cache']}")
       self._side_input_cache.add(side_input_model_path)
       logging.info(
           "Updating the model path. Previous model path"
@@ -467,8 +481,12 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           "updated model path is %s" %
           (cached_model_container['model_id'], side_input_model_path))
 
+      start_time = time.time()
       cached_model_container = self._shared_model_handle.acquire(
           load, tag=side_input_model_path)
+      end_time = time.time()
+      logging.info(
+          f"Second call of shared handle acquire time {end_time-start_time}")
 
     return cached_model_container['model']
 
@@ -483,10 +501,14 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def update_model(self, side_input_model_path):
     self._model = self._load_model(side_input_model_path)
 
-  def process(self, batch, inference_args, side_input_model_path=None):
-    logging.info(side_input_model_path)
-    print(f'Side input model path {side_input_model_path}')
-    self.update_model(side_input_model_path)
+  def process(
+      self,
+      batch,
+      inference_args,
+      si_model_metadata: Optional[ModelMetdata] = None):
+    if si_model_metadata is not None:
+      logging.info(f"Side Input model path: {si_model_metadata.model_id}")
+      self.update_model(si_model_metadata.model_id)
     start_time = _to_microseconds(self._clock.time_ns())
     try:
       result_generator = self._model_handler.run_inference(
@@ -495,7 +517,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self._metrics_collector.failed_batches_counter.inc()
       raise e
     predictions = list(result_generator)
-
+    logging.info(f'Prediction result: {predictions}')
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
     num_bytes = self._model_handler.get_num_bytes(batch)
