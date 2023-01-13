@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
+public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   private final SpannerConfig config;
 
