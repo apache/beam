@@ -120,7 +120,33 @@ public class SpannerChangeStreamsSchemaTransformIT {
                 Window.<Row>into(new GlobalWindows())
                     .triggering(AfterWatermark.pastEndOfWindow())
                     .discardingFiredPanes());
-    
+
+    assertEquals(
+        Schema.builder()
+            .addStringField("operation")
+            .addStringField("commitTimestamp")
+            .addInt64Field("recordSequence")
+            .addRowField(
+                "rowValues",
+                Schema.builder()
+                    .addNullableField("singerid", Schema.FieldType.INT64)
+                    .addNullableField("firstname", Schema.FieldType.STRING)
+                    .addNullableField("lastname", Schema.FieldType.STRING)
+                    .addNullableField("singerinfo", Schema.FieldType.BYTES)
+                    .setOptions(
+                        Schema.Options.builder()
+                            .addOptions(
+                                Schema.Options.builder()
+                                    .setOption(
+                                        "primaryKeyColumns",
+                                        Schema.FieldType.array(Schema.FieldType.STRING),
+                                        Collections.singletonList("singerid"))
+                                    .build())
+                            .build())
+                    .build())
+            .build(),
+        tokens.getSchema());
+
     PAssert.that(tokens.apply(Select.fieldNames("operation")))
         .containsInAnyOrder(
             operationRow("INSERT"),
