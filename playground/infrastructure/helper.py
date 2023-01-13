@@ -155,7 +155,7 @@ async def get_statuses(
     await tqdm.gather(*tasks)
 
 
-def get_tag(filepath) -> Optional[Tag]:
+def get_tag(filepath: PurePath) -> Optional[Tag]:
     """
     Parse file by filepath and find beam tag
 
