@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.allPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.allPrimitiveDataTypesToRowFn;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.nullableAllPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.nullableAllPrimitiveDataTypesToRowFn;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.timeContaining;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.timeContainingToRowFn;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -38,14 +38,21 @@ class CsvIOTestData {
   private CsvIOTestData() {}
 
   final Row allPrimitiveDataTypesRow =
-      allPrimitiveDataTypesToRowFn()
-          .apply(
-              allPrimitiveDataTypes(
-                  false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a"));
+      requireNonNull(
+          allPrimitiveDataTypesToRowFn()
+              .apply(
+                  allPrimitiveDataTypes(
+                      false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a")));
 
-  final Row nullableTypesRow =
-      nullableAllPrimitiveDataTypesToRowFn()
-          .apply(nullableAllPrimitiveDataTypes(null, null, null, null, null, null));
+  final Row nullableTypesRowAllNull =
+      requireNonNull(
+          nullableAllPrimitiveDataTypesToRowFn()
+              .apply(nullableAllPrimitiveDataTypes(null, null, null, null, null, null)));
+
+  final Row nullableTypesRowSomeNull =
+      requireNonNull(
+          nullableAllPrimitiveDataTypesToRowFn()
+              .apply(nullableAllPrimitiveDataTypes(true, null, null, 1, null, "a")));
 
   final Row timeContainingRow =
       timeContainingToRowFn()

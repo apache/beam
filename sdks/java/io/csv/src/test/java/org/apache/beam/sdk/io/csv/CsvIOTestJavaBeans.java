@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -99,7 +101,7 @@ class CsvIOTestJavaBeans {
 
   /** The schema for {@link AllPrimitiveDataTypes}. */
   static final Schema ALL_PRIMITIVE_DATA_TYPES_SCHEMA =
-      DEFAULT_SCHEMA_PROVIDER.schemaFor(ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
+      requireNonNull(DEFAULT_SCHEMA_PROVIDER.schemaFor(ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR));
 
   /**
    * Returns a {@link SerializableFunction} to convert from a {@link AllPrimitiveDataTypes} to a
@@ -123,7 +125,8 @@ class CsvIOTestJavaBeans {
 
   /** The schema for {@link NullableAllPrimitiveDataTypes}. */
   static final Schema NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA =
-      DEFAULT_SCHEMA_PROVIDER.schemaFor(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
+      requireNonNull(
+          DEFAULT_SCHEMA_PROVIDER.schemaFor(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR));
 
   /**
    * Returns a {@link SerializableFunction} to convert from a {@link NullableAllPrimitiveDataTypes}

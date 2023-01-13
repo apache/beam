@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -52,7 +53,7 @@ class CsvRowConversions {
       for (int i = 0; i < header.length; i++) {
         values[i] = safeInput.getValue(header[i]);
       }
-      return getCSVFormat().withSkipHeaderRecord().format(values);
+      return getCSVFormat().format(values);
     }
 
     @NonNull
@@ -75,14 +76,8 @@ class CsvRowConversions {
 
       abstract RowToCsv autoBuild();
 
-      private String[] buildHeaderFromSchema() {
-        return getSchema().getFieldNames().toArray(new String[0]);
-      }
-
       final RowToCsv build() {
-        if (getCSVFormat().getHeader() == null) {
-          setCSVFormat(getCSVFormat().withHeader(buildHeaderFromSchema()));
-        }
+        setCSVFormat(getCSVFormat().withSkipHeaderRecord());
         validateHeaderAgainstSchema(getCSVFormat().getHeader(), getSchema());
 
         return autoBuild();
@@ -91,13 +86,8 @@ class CsvRowConversions {
   }
 
   private static void validateHeaderAgainstSchema(String[] csvHeader, Schema schema) {
-    checkNotNull(csvHeader);
-    checkNotNull(schema);
-    if (schema.getFieldCount() == 0) {
-      throw new IllegalArgumentException("schema is empty");
-    }
-    if (csvHeader.length == 0) {
-      throw new IllegalArgumentException("csvHeader length is zero");
-    }
+    checkNotNull(csvHeader, "CSVFormat withHeader is required");
+    checkArgument(csvHeader.length > 0, "CSVFormat withHeader requires at least one column");
+    checkArgument(schema.getFieldCount() > 0, "Schema has no fields");
   }
 }
