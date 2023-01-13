@@ -552,11 +552,35 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   BIGQUERY_DATASET = 'python_xlang_write_'
 
   ELEMENTS = [
-  # (int, float, string, timestamp, bool, bytes)
-    (1, 0.1, 'a', Timestamp(seconds=100, micros=10), False, bytes('a', 'utf-8')),
-    (2, 0.2, 'b', Timestamp(seconds=200, micros=20), True, bytes('b', 'utf-8')),
-    (3, 0.3, 'c', Timestamp(seconds=300, micros=30), False, bytes('c', 'utf-8')),
-    (4, 0.4, 'd', Timestamp(seconds=400, micros=40), True, bytes('d', 'utf-8')),
+      # (int, float, string, timestamp, bool, bytes)
+      (
+          1,
+          0.1,
+          'a',
+          Timestamp(seconds=100, micros=10),
+          False,
+          bytes('a', 'utf-8')),
+      (
+          2,
+          0.2,
+          'b',
+          Timestamp(seconds=200, micros=20),
+          True,
+          bytes('b', 'utf-8')),
+      (
+          3,
+          0.3,
+          'c',
+          Timestamp(seconds=300, micros=30),
+          False,
+          bytes('c', 'utf-8')),
+      (
+          4,
+          0.4,
+          'd',
+          Timestamp(seconds=400, micros=40),
+          True,
+          bytes('d', 'utf-8')),
   ]
 
   def setUp(self):
@@ -571,19 +595,21 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
     self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
-    self.row_elements = [beam.Row(
-        my_int=e[0],
-        my_float=e[1],
-        my_string=e[2],
-        my_timestamp=e[3],
-        my_bool=e[4],
-        my_bytes=e[5]) for e in self.ELEMENTS]
+    self.row_elements = [
+        beam.Row(
+            my_int=e[0],
+            my_float=e[1],
+            my_string=e[2],
+            my_timestamp=e[3],
+            my_bool=e[4],
+            my_bytes=e[5]) for e in self.ELEMENTS
+    ]
 
     # BigQuery matcher query returns a datetime.datetime object
-    # TODO(https://github.com/apache/beam/issues/24782): remove microsecond reset
-    self.expected_elements = [
-      (e[:3] + (e[3].to_utc_datetime().replace(microsecond=0, tzinfo=datetime.timezone.utc),) + e[4:])
-      for e in self.ELEMENTS]
+    self.expected_elements = [(
+        e[:3] +
+        (e[3].to_utc_datetime().replace(tzinfo=datetime.timezone.utc), ) +
+        e[4:]) for e in self.ELEMENTS]
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(
@@ -601,24 +627,21 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   @pytest.mark.it_postcommit
   @pytest.mark.uses_java_expansion_service
   def test_xlang_storage_write(self):
-    table_id = '{}:{}.python_xlang_storage_write'.format(self.project, self.dataset_id)
+    table_id = '{}:{}.python_xlang_storage_write'.format(
+        self.project, self.dataset_id)
 
     bq_matcher = BigqueryFullResultMatcher(
-      project=self.project,
-      query="SELECT * FROM %s" % '{}.python_xlang_storage_write'.format(self.dataset_id),
-      data= self.expected_elements)
+        project=self.project,
+        query="SELECT * FROM %s" %
+        '{}.python_xlang_storage_write'.format(self.dataset_id),
+        data=self.expected_elements)
 
     with beam.Pipeline() as p:
-      input_rows = p | beam.Create(self.row_elements)
-      _ = {'input': input_rows} | beam.io.StorageWriteToBigQuery(
-        table=table_id,
-        create_disposition="",
-        write_disposition="",
-        triggering_frequency=0,
-        use_at_least_once=False)
+      _ = (
+          p
+          | beam.Create(self.row_elements)
+          | beam.io.StorageWriteToBigQuery(table=table_id))
     hamcrest_assert(p, bq_matcher)
-
-
 
 
 if __name__ == '__main__':

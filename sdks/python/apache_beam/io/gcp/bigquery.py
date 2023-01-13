@@ -397,12 +397,12 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.transforms.external import SchemaAwareExternalTransform
-from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
@@ -2302,8 +2302,12 @@ class WriteResult:
 
     return self.attributes[key].__get__(self, WriteResult)
 
+
 def _default_io_expansion_service(append_args=None):
-  return BeamJarExpansionService('sdks:java:io:google-cloud-platform:expansion-service:build', append_args=append_args)
+  return BeamJarExpansionService(
+      'sdks:java:io:google-cloud-platform:expansion-service:build',
+      append_args=append_args)
+
 
 class StorageWriteToBigQuery(PTransform):
   """Writes data to BigQuery using Storage API.
@@ -2368,13 +2372,14 @@ class StorageWriteToBigQuery(PTransform):
     self._write_disposition = write_disposition
     self._triggering_frequency = triggering_frequency
     self._use_at_least_once = use_at_least_once
-    self._expansion_service = expansion_service or _default_io_expansion_service()
-    self._schematransform_config = SchemaAwareExternalTransform.discover_one(
+    self._expansion_service = (
+        expansion_service or _default_io_expansion_service())
+    self.schematransform_config = SchemaAwareExternalTransform.discover_one(
         self._expansion_service, self.URN)
 
   def expand(self, input):
     external_storage_write = SchemaAwareExternalTransform(
-        self._schematransform_config.identifier,
+        self.schematransform_config.identifier,
         expansion_service=self._expansion_service,
         table=self._table,
         createDisposition=self._create_disposition,
@@ -2382,7 +2387,8 @@ class StorageWriteToBigQuery(PTransform):
         useAtLeastOnceSemantics=self._use_at_least_once,
         writeDisposition=self._write_disposition)
 
-    return input | external_storage_write
+    input_tag = self.schematransform_config.inputs[0]
+    return {input_tag: input} | external_storage_write
 
 
 class ReadFromBigQuery(PTransform):
