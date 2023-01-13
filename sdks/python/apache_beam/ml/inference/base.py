@@ -26,6 +26,7 @@ RunInference.
 The transform handles standard inference functionality, like metric
 collection, sharing model between threads, and batching elements.
 """
+# pylint: skip-file
 
 import logging
 import pickle
@@ -74,6 +75,10 @@ PredictionResult.__doc__ = """A NamedTuple containing both input and output
 PredictionResult.example.__doc__ = """The input example."""
 PredictionResult.inference.__doc__ = """Results for the inference on the model
   for the given example."""
+
+
+class ModelMetdata(NamedTuple):
+  model_id: str
 
 
 def _to_milliseconds(time_ns: int) -> int:
@@ -287,7 +292,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
       *,
-      update_model_pcoll: beam.PCollection[str] = None):
+      model_path_pcoll: beam.PCollection[ModelMetdata] = None):
     """A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
     those examples in a PCollection of PredictionResults that contains the input
@@ -305,14 +310,14 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
-        update_model_pcoll: PCollection that emits model path
+        model_path_pcoll: PCollection that emits model path
           that is used as a side input to the _RunInferenceDoFn.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
     self._metrics_namespace = metrics_namespace
-    self._update_model_pcoll = update_model_pcoll
+    self._model_path_pcoll = model_path_pcoll
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -348,8 +353,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                 _RunInferenceDoFn(
                     self._model_handler, self._clock, self._metrics_namespace),
                 self._inference_args,
-                self._update_model_pcoll if self._update_model_pcoll else
-                None).with_resource_hints(**resource_hints)))
+                beam.pvalue.AsSingleton(self._model_path_pcoll)
+                if self._model_path_pcoll else None).with_resource_hints(
+                    **resource_hints)))
 
 
 class _MetricsCollector:
@@ -422,7 +428,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = None
     self._metrics_namespace = metrics_namespace
     self._update_model_sleep_time = None
-    self._side_input_cache = {}
+    self._side_input_cache = set()
 
   def _load_model(self):
     def load():
@@ -458,7 +464,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self._metrics_collector.failed_batches_counter.inc()
       raise e
     predictions = list(result_generator)
-
+    logging.info(f'Prediction result: {predictions}')
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
     num_bytes = self._model_handler.get_num_bytes(batch)
