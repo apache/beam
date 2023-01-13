@@ -116,15 +116,6 @@ class PlaygroundGoogleAnalyticsService extends GoogleAnalyticsService
   }
 
   @override
-  void trackClickRunEvent(String exampleName) {
-    _safeSendEvent(AnalyticsEvent(
-      action: AnalyticsEvents.clickRun,
-      category: AnalyticsCategories.runCode,
-      label: exampleName,
-    ));
-  }
-
-  @override
   void trackClickCancelRunEvent(String exampleName) {
     _safeSendEvent(AnalyticsEvent(
       action: AnalyticsEvents.clickCancelRun,

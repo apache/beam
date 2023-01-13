@@ -42,7 +42,7 @@ class PlaygroundRunOrCancelButton extends StatelessWidget {
         },
         beforeRun: () {
           stopwatch.start();
-          analyticsService.trackClickRunEvent(exampleName);
+          analyticsService.trackRunExample(exampleName);
         },
         onComplete: () {
           analyticsService.trackRunTimeEvent(

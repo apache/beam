@@ -23,6 +23,7 @@ import '../controllers/playground_controller.dart';
 import '../models/toast.dart';
 import '../models/toast_type.dart';
 import '../playground_components.dart';
+import '../services/analytics/service.dart';
 import 'run_button.dart';
 
 class RunOrCancelButton extends StatelessWidget {
@@ -50,7 +51,10 @@ class RunOrCancelButton extends StatelessWidget {
               (_) => PlaygroundComponents.toastNotifier.add(_getErrorToast()),
             );
       },
-      runCode: () {
+      runCode: () async {
+        await AnalyticsService.get().trackRunExample(
+          playgroundController.selectedExample!.name,
+        );
         beforeRun?.call();
         playgroundController.runCode(
           onFinish: onComplete,

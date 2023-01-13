@@ -33,7 +33,6 @@ abstract class PlaygroundAnalyticsService extends AnalyticsService {
   void trackOpenLink(String link);
   void trackClickEnjoyPlayground(bool isEnjoying);
   void trackClickReportIssue();
-  void trackClickRunEvent(String exampleName);
   void trackClickCancelRunEvent(String exampleName);
   void trackClickSendPositiveFeedback(String feedback);
   void trackClickSendNegativeFeedback(String feedback);
