@@ -2339,7 +2339,11 @@ public class DoFnSignatures {
         ReflectHelpers.declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 
     if (matches.isEmpty()) {
-      errors.checkArgument(!required, "No method annotated with @%s found", format(anno));
+      errors.checkArgument(
+          !required,
+          "No method annotated with @%s found in class %s",
+          format(anno),
+          format(fnClazz));
       return null;
     }
 
@@ -2351,10 +2355,11 @@ public class DoFnSignatures {
       errors.checkArgument(
           first.getName().equals(other.getName())
               && Arrays.equals(first.getParameterTypes(), other.getParameterTypes()),
-          "Found multiple methods annotated with @%s. [%s] and [%s]",
+          "Found multiple methods annotated with @%s. [%s] and [%s] in class %s",
           format(anno),
           format(first),
-          format(other));
+          format(other),
+          format(fnClazz));
     }
 
     ErrorReporter methodErrors = errors.forMethod(anno, first);
@@ -2375,7 +2380,7 @@ public class DoFnSignatures {
   }
 
   private static String format(Class<?> kls) {
-    return kls.getSimpleName();
+    return kls.getSimpleName().isEmpty() ? kls.getName() : kls.getSimpleName();
   }
 
   static class ErrorReporter {
