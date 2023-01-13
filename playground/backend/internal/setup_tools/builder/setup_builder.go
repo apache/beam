@@ -72,14 +72,18 @@ func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *exec
 		WithCommand(executorConfig.CompileCmd).
 		WithWorkingDir(paths.AbsoluteBaseFolderPath).
 		WithArgs(executorConfig.CompileArgs).
-		WithFileName(paths.AbsoluteSourceFilePath).
 		ExecutorBuilder
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
 		builder = builder.
 			WithCompiler().
-			WithFileName(GetFirstFileFromFolder(paths.AbsoluteSourceFileFolderPath)).
+			WithFileNames(GetJavaFilesFromFolder(paths.AbsoluteSourceFileFolderPath)).
+			ExecutorBuilder
+	default:
+		builder = builder.
+			WithCompiler().
+			WithFileName(paths.AbsoluteSourceFilePath).
 			ExecutorBuilder
 	}
 	return &builder
@@ -116,7 +120,6 @@ func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *envir
 	case pb.Sdk_SDK_GO: //go run command is executable file itself
 		builder = builder.
 			WithRunner().
-			WithExecutableFileName("").
 			WithCommand(paths.AbsoluteExecutableFilePath).
 			WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 			ExecutorBuilder
@@ -147,7 +150,6 @@ func TestRunner(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*e
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
 		WithTestRunner().
-		WithExecutableFileName(paths.AbsoluteExecutableFilePath).
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
 		WithWorkingDir(paths.AbsoluteSourceFileFolderPath).
@@ -167,6 +169,10 @@ func TestRunner(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*e
 		builder = builder.WithTestRunner().
 			WithExecutableFileName(paths.AbsoluteSourceFileFolderPath). // run all tests in folder
 			ExecutorBuilder
+	default:
+		builder = builder.WithTestRunner().
+			WithExecutableFileName(paths.AbsoluteExecutableFilePath).
+			ExecutorBuilder
 	}
 	return &builder, nil
 }
@@ -185,7 +191,7 @@ func replaceLogPlaceholder(paths *fs_tool.LifeCyclePaths, executorConfig *enviro
 }
 
 // GetFirstFileFromFolder return a name of the first file in a specified folder
-func GetFirstFileFromFolder(folderAbsolutePath string) string {
+func GetJavaFilesFromFolder(folderAbsolutePath string) []string {
 	files, _ := filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, fs_tool.JavaSourceFileExtension))
-	return files[0]
+	return files
 }

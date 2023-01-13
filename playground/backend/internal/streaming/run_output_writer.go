@@ -17,6 +17,7 @@ package streaming
 
 import (
 	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/logger"
 	"context"
 	"fmt"
 	"github.com/google/uuid"
@@ -35,9 +36,10 @@ type RunOutputWriter struct {
 //
 // As a result new bytes will be added to cache with old run output value.
 // Example:
-// 	p = []byte(" with new run output")
-// 	before Write(p): {pipelineId}:cache.RunOutput = "old run output"
-// 	after Write(p): {pipelineId}:cache.RunOutput = "old run output with new run output"
+//
+//	p = []byte(" with new run output")
+//	before Write(p): {pipelineId}:cache.RunOutput = "old run output"
+//	after Write(p): {pipelineId}:cache.RunOutput = "old run output with new run output"
 func (row *RunOutputWriter) Write(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
@@ -53,6 +55,7 @@ func (row *RunOutputWriter) Write(p []byte) (int, error) {
 	str := fmt.Sprintf("%s%s", prevOutput.(string), string(p))
 
 	// set new cache value
+	logger.Infof("%s: Out: %s", row.PipelineId.String(), string(p))
 	err = row.CacheService.SetValue(row.Ctx, row.PipelineId, cache.RunOutput, str)
 	if err != nil {
 		customErr := fmt.Errorf("error during saving output: %s", err)

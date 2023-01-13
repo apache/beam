@@ -593,7 +593,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 		Build()
 
 	wantRunExec := exec.CommandContext(context.Background(), "runCommand", "arg1")
-	wantTestExec := exec.CommandContext(context.Background(), "testCommand", "arg1", "")
+	wantTestExec := exec.CommandContext(context.Background(), "testCommand", "arg1")
 
 	type args struct {
 		isUnitTest     bool

@@ -47,6 +47,7 @@ func newJavaLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
 
 // executableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
 func executableName(executableFileFolderPath string) (string, error) {
+	logger.Infof("java_fs.go executableName(): Started")
 	dirEntries, err := os.ReadDir(executableFileFolderPath)
 	if err != nil {
 		return "", err
@@ -70,6 +71,8 @@ func executableName(executableFileFolderPath string) (string, error) {
 		filename := strings.TrimSuffix(entry.Name(), ext)
 		sdk := utils.ToSDKFromExt(ext)
 
+		logger.Infof("executableName(): %s", filename)
+
 		if sdk == pb.Sdk_SDK_UNSPECIFIED {
 			logger.Error("invalid file extension")
 			break
@@ -82,6 +85,7 @@ func executableName(executableFileFolderPath string) (string, error) {
 				return "", err
 			}
 			if isMain {
+				logger.Infof("executableName(): main file is %s", filename)
 				return filename, nil
 			}
 		default:
