@@ -17,11 +17,19 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static org.apache.beam.sdk.io.csv.CsvIO.VALID_FIELD_TYPE_SET;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
@@ -77,7 +85,9 @@ class CsvRowConversions {
       abstract RowToCsv autoBuild();
 
       final RowToCsv build() {
+        checkArgument(getSchema().getFieldCount() > 0, "Schema has no fields");
         setCSVFormat(getCSVFormat().withSkipHeaderRecord());
+        validateCSVFormat(getCSVFormat());
         validateHeaderAgainstSchema(getCSVFormat().getHeader(), getSchema());
 
         return autoBuild();
@@ -85,9 +95,49 @@ class CsvRowConversions {
     }
   }
 
+  private static void validateCSVFormat(CSVFormat csvFormat) {
+    String[] header = checkNotNull(csvFormat.getHeader(), "CSVFormat withHeader is required");
+
+    checkArgument(header.length > 0, "CSVFormat withHeader requires at least one column");
+
+    checkArgument(!csvFormat.getAutoFlush(), "withAutoFlush is an illegal CSVFormat setting");
+
+    checkArgument(
+        !csvFormat.getIgnoreHeaderCase(), "withIgnoreHeaderCase is an illegal CSVFormat setting");
+
+    checkArgument(
+        !csvFormat.getAllowMissingColumnNames(),
+        "withAllowMissingColumnNames is an illegal CSVFormat setting");
+
+    checkArgument(
+        !csvFormat.getIgnoreSurroundingSpaces(),
+        "withIgnoreSurroundingSpaces is an illegal CSVFormat setting");
+  }
+
   private static void validateHeaderAgainstSchema(String[] csvHeader, Schema schema) {
-    checkNotNull(csvHeader, "CSVFormat withHeader is required");
-    checkArgument(csvHeader.length > 0, "CSVFormat withHeader requires at least one column");
-    checkArgument(schema.getFieldCount() > 0, "Schema has no fields");
+    Set<String> distinctColumns = Stream.of(csvHeader).collect(Collectors.toSet());
+    List<String> mismatchColumns = new ArrayList<>();
+    List<String> invalidTypes = new ArrayList<>();
+    Set<TypeName> validTypeNames =
+        VALID_FIELD_TYPE_SET.stream().map(FieldType::getTypeName).collect(Collectors.toSet());
+    for (String column : distinctColumns) {
+      if (!schema.hasField(column)) {
+        mismatchColumns.add(column);
+        continue;
+      }
+      TypeName typeName = schema.getField(column).getType().getTypeName();
+      if (!validTypeNames.contains(typeName)) {
+        invalidTypes.add(column);
+      }
+    }
+
+    checkArgument(
+        mismatchColumns.isEmpty(),
+        "columns in CSVFormat header do not exist in Schema: %s",
+        String.join(",", mismatchColumns));
+    checkArgument(
+        invalidTypes.isEmpty(),
+        "columns in header match fields in Schema with invalid types: %s. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
+        String.join(",", invalidTypes));
   }
 }

@@ -40,31 +40,17 @@ import org.junit.runners.JUnit4;
  * org.apache.beam.sdk.io.csv.CsvRowConversions.RowToCsv}.
  */
 @RunWith(JUnit4.class)
-public class CSVFormatRowToStringBehaviorTest {
+public class RowToCsvCSVFormatTest {
 
   @Test
   public void withAllowDuplicateHeaderNamesDuplicatesRowFieldOutput() {
-    IllegalArgumentException exception =
-        assertThrows(
-            "allowDuplicateHeaderNames=false",
-            IllegalArgumentException.class,
-            () ->
-                rowToCsv(
-                    DATA.allPrimitiveDataTypesRow,
-                    csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
-                        .withHeader("aString", "aString", "aString")
-                        .withAllowDuplicateHeaderNames(false)));
-
-    assertEquals(
-        "CSVFormat header contains duplicates in the setting of allowDuplicateHeaderNames=false",
-        exception.getMessage());
-
     assertEquals(
         "allowDuplicateHeaderNames=true",
         "a,a,a",
         rowToCsv(
             DATA.allPrimitiveDataTypesRow,
             csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+                .withAllowDuplicateHeaderNames(true)
                 .withHeader("aString", "aString", "aString")));
   }
 
@@ -80,7 +66,7 @@ public class CSVFormatRowToStringBehaviorTest {
                     csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withAllowMissingColumnNames(true)));
 
     assertEquals(
-        "withAllowMissingColumnNames is a illegal CSVFormat setting", exception.getMessage());
+        "withAllowMissingColumnNames is an illegal CSVFormat setting", exception.getMessage());
   }
 
   @Test
@@ -94,7 +80,7 @@ public class CSVFormatRowToStringBehaviorTest {
                     DATA.allPrimitiveDataTypesRow,
                     csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withAutoFlush(true)));
 
-    assertEquals("withAutoFlush is a illegal CSVFormat setting", exception.getMessage());
+    assertEquals("withAutoFlush is an illegal CSVFormat setting", exception.getMessage());
   }
 
   @Test

@@ -88,14 +88,6 @@ class CsvIOTestJavaBeans {
         .build();
   }
 
-  /** Convenience method for {@link SinglyNestedDataTypes} instantiation. */
-  static SinglyNestedDataTypes singlyNestedDataTypes(
-      AllPrimitiveDataTypes allPrimitiveDataTypes, AllPrimitiveDataTypes... repeated) {
-    return new AutoValue_CsvIOTestJavaBeans_SinglyNestedDataTypes.Builder()
-        .setAllPrimitiveDataTypes(allPrimitiveDataTypes)
-        .build();
-  }
-
   private static final TypeDescriptor<AllPrimitiveDataTypes>
       ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(AllPrimitiveDataTypes.class);
 
@@ -109,14 +101,6 @@ class CsvIOTestJavaBeans {
    */
   static SerializableFunction<AllPrimitiveDataTypes, Row> allPrimitiveDataTypesToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
-  }
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
-   * AllPrimitiveDataTypes}.
-   */
-  static SerializableFunction<Row, AllPrimitiveDataTypes> allPrimitiveDataTypesFromRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
   private static final TypeDescriptor<NullableAllPrimitiveDataTypes>
@@ -137,22 +121,12 @@ class CsvIOTestJavaBeans {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
-   * NullableAllPrimitiveDataTypes}.
-   */
-  static SerializableFunction<Row, NullableAllPrimitiveDataTypes>
-      nullableAllPrimitiveDataTypesFromRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(
-        NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR);
-  }
-
   private static final TypeDescriptor<TimeContaining> TIME_CONTAINING_TYPE_DESCRIPTOR =
       TypeDescriptor.of(TimeContaining.class);
 
   /** The schema for {@link TimeContaining}. */
   static final Schema TIME_CONTAINING_SCHEMA =
-      DEFAULT_SCHEMA_PROVIDER.schemaFor(TIME_CONTAINING_TYPE_DESCRIPTOR);
+      requireNonNull(DEFAULT_SCHEMA_PROVIDER.schemaFor(TIME_CONTAINING_TYPE_DESCRIPTOR));
 
   /**
    * Returns a {@link SerializableFunction} to convert from a {@link TimeContaining} to a {@link
@@ -160,37 +134,6 @@ class CsvIOTestJavaBeans {
    */
   static SerializableFunction<TimeContaining, Row> timeContainingToRowFn() {
     return DEFAULT_SCHEMA_PROVIDER.toRowFunction(TIME_CONTAINING_TYPE_DESCRIPTOR);
-  }
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
-   * TimeContaining}.
-   */
-  static SerializableFunction<Row, TimeContaining> timeContainingFromRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(TIME_CONTAINING_TYPE_DESCRIPTOR);
-  }
-
-  private static final TypeDescriptor<SinglyNestedDataTypes>
-      SINGLY_NESTED_DATA_TYPES_TYPE_DESCRIPTOR = TypeDescriptor.of(SinglyNestedDataTypes.class);
-
-  /** The schema for {@link SinglyNestedDataTypes}. */
-  static final Schema SINGLY_NESTED_DATA_TYPES_SCHEMA =
-      DEFAULT_SCHEMA_PROVIDER.schemaFor(SINGLY_NESTED_DATA_TYPES_TYPE_DESCRIPTOR);
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link SinglyNestedDataTypes} to a
-   * {@link Row}.
-   */
-  static SerializableFunction<SinglyNestedDataTypes, Row> singlyNestedDataTypesToRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.toRowFunction(SINGLY_NESTED_DATA_TYPES_TYPE_DESCRIPTOR);
-  }
-
-  /**
-   * Returns a {@link SerializableFunction} to convert from a {@link Row} to a {@link
-   * SinglyNestedDataTypes}.
-   */
-  static SerializableFunction<Row, SinglyNestedDataTypes> singlyNestedDataTypesFromRowFn() {
-    return DEFAULT_SCHEMA_PROVIDER.fromRowFunction(SINGLY_NESTED_DATA_TYPES_TYPE_DESCRIPTOR);
   }
 
   /**
@@ -316,28 +259,6 @@ class CsvIOTestJavaBeans {
       abstract Builder setInstantList(List<Instant> value);
 
       abstract TimeContaining build();
-    }
-  }
-
-  /**
-   * Contains a singly nested and repeated {@link AllPrimitiveDataTypes}. The purpose of this class
-   * is to test schema-aware PTransforms with {@link Row}s containing nested and repeated complex
-   * Java types.
-   */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  abstract static class SinglyNestedDataTypes {
-
-    abstract AllPrimitiveDataTypes getAllPrimitiveDataTypes();
-
-    abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    abstract static class Builder {
-
-      abstract Builder setAllPrimitiveDataTypes(AllPrimitiveDataTypes value);
-
-      abstract SinglyNestedDataTypes build();
     }
   }
 }
