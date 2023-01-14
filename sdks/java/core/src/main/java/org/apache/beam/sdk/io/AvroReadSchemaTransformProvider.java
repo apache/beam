@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
@@ -26,12 +27,14 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
+@AutoService(SchemaTransformProvider.class)
 public class AvroReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         AvroReadSchemaTransformProvider.AvroReadSchemaTransformConfiguration> {
@@ -60,7 +63,7 @@ public class AvroReadSchemaTransformProvider
     return new AvroReadSchemaTransform(configuration);
   }
 
-  static class AvroReadSchemaTransform implements SchemaTransform {
+  static class AvroReadSchemaTransform extends PTransform<PCollectionRowTuple,PCollectionRowTuple> implements SchemaTransform {
 
     AvroReadSchemaTransformConfiguration config;
 
@@ -70,22 +73,22 @@ public class AvroReadSchemaTransformProvider
 
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-          return PCollectionRowTuple.of(
+      return this;
+    }
+
+    @Override
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      return PCollectionRowTuple.of(
               "output",
               input
-                  .getPipeline()
-                  .apply(
-                      "AvroIORead",
-                      AvroIO.readGenericRecords(
-                              AvroUtils.toAvroSchema(config.getDataSchema(), null, null))
-                          .withBeamSchemas(true)
-                          .from(config.getLocation()))
-                  .apply("ToRows", Convert.toRows()));
-        }
-      };
+                      .getPipeline()
+                      .apply(
+                              "AvroIORead",
+                              AvroIO.readGenericRecords(
+                                              AvroUtils.toAvroSchema(config.getDataSchema(), null, null))
+                                      .withBeamSchemas(true)
+                                      .from(config.getLocation()))
+                      .apply("ToRows", Convert.toRows()));
     }
   }
 

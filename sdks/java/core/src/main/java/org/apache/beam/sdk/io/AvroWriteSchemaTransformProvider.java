@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -38,6 +40,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
 
+@AutoService(SchemaTransformProvider.class)
 public class AvroWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         AvroWriteSchemaTransformProvider.AvroWriteSchemaTransformConfiguration> {
@@ -66,7 +69,7 @@ public class AvroWriteSchemaTransformProvider
     return new AvroWriteSchemaTransform(configuration);
   }
 
-  static class AvroWriteSchemaTransform implements SchemaTransform, Serializable {
+  static class AvroWriteSchemaTransform extends PTransform<PCollectionRowTuple,PCollectionRowTuple> implements SchemaTransform, Serializable {
 
     AvroWriteSchemaTransformConfiguration config;
 
@@ -76,30 +79,30 @@ public class AvroWriteSchemaTransformProvider
 
     @Override
     public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-          PCollection<GenericRecord> asRecords =
+      return this;
+    }
+
+    @Override
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      PCollection<GenericRecord> asRecords =
               input.get("input").apply("ToGenericRecords", Convert.to(GenericRecord.class));
-          AvroIO.Write<GenericRecord> avroWrite =
+      AvroIO.Write<GenericRecord> avroWrite =
               AvroIO.writeGenericRecords(AvroUtils.toAvroSchema(config.getDataSchema(), null, null))
-                  .to(config.getLocation());
-          if (input.get("input").isBounded() == PCollection.IsBounded.UNBOUNDED
+                      .to(config.getLocation());
+      if (input.get("input").isBounded() == PCollection.IsBounded.UNBOUNDED
               || config.getWriteWindowSizeSeconds() != null) {
-            Long seconds = config.getWriteWindowSizeSeconds();
-            if (seconds == null) {
-              seconds = 60L;
-            }
-            Duration windowSize = Duration.standardSeconds(seconds);
-            asRecords = asRecords.apply(Window.into(FixedWindows.of(windowSize)));
-            avroWrite = avroWrite.withWindowedWrites().withNumShards(1);
-          } else {
-            avroWrite = avroWrite.withoutSharding();
-          }
-          asRecords.apply("AvroIOWrite", avroWrite);
-          return PCollectionRowTuple.empty(asRecords.getPipeline());
+        Long seconds = config.getWriteWindowSizeSeconds();
+        if (seconds == null) {
+          seconds = 60L;
         }
-      };
+        Duration windowSize = Duration.standardSeconds(seconds);
+        asRecords = asRecords.apply(Window.into(FixedWindows.of(windowSize)));
+        avroWrite = avroWrite.withWindowedWrites().withNumShards(1);
+      } else {
+        avroWrite = avroWrite.withoutSharding();
+      }
+      asRecords.apply("AvroIOWrite", avroWrite);
+      return PCollectionRowTuple.empty(asRecords.getPipeline());
     }
   }
 
