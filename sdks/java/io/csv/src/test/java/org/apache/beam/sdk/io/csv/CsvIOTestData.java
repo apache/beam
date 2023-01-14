@@ -27,6 +27,9 @@ import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.timeContainingToRowF
 
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -43,6 +46,33 @@ class CsvIOTestData {
               .apply(
                   allPrimitiveDataTypes(
                       false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a")));
+
+  final List<Row> allPrimitiveDataTypeRows =
+      Stream.of(
+              allPrimitiveDataTypes(
+                  false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a"),
+              allPrimitiveDataTypes(
+                  false,
+                  (byte) 2,
+                  BigDecimal.TEN.add(BigDecimal.TEN),
+                  2.0,
+                  2.0f,
+                  (short) 2.0,
+                  2,
+                  2L,
+                  "b"),
+              allPrimitiveDataTypes(
+                  false,
+                  (byte) 3,
+                  BigDecimal.TEN.add(BigDecimal.TEN).add(BigDecimal.TEN),
+                  3.0,
+                  3.0f,
+                  (short) 3.0,
+                  3,
+                  3L,
+                  "c"))
+          .map(allPrimitiveDataTypesToRowFn()::apply)
+          .collect(Collectors.toList());
 
   final Row nullableTypesRowAllNull =
       requireNonNull(

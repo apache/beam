@@ -17,33 +17,26 @@
  */
 package org.apache.beam.sdk.io.csv;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.rows;
+import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.google.auto.value.AutoValue;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
-import java.util.List;
 import java.util.Set;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Compression;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.io.FileIO.Write.FileNaming;
-import org.apache.beam.sdk.io.csv.CsvRowConversions.RowToCsv;
+import org.apache.beam.sdk.io.ShardNameTemplate;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.WriteFilesResult;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
@@ -91,7 +84,7 @@ import org.apache.commons.csv.CSVFormat;
  *
  * <pre>{@code
  * PCollection<Transaction> transactions ...
- * transactions.apply(CsvIO.<Transaction>write().to("gs://bucket/path/to/folder/prefix"));
+ * transactions.apply(CsvIO.<Transaction>writeTo("gs://bucket/path/to/folder/prefix", CSVFormat.DEFAULT));
  * }</pre>
  *
  * <p>The resulting CSV files will look like the following where the header is repeated for every
@@ -105,17 +98,23 @@ import org.apache.commons.csv.CSVFormat;
  * C,11.76,98765
  * }</pre>
  *
- * <p>{@link CsvIO.Write} allows outputting a subset of the available fields or control the order of
- * their output using {@link CsvIO.Write#withSchemaFields} listing of matching {@link Schema schema
- * field names}.
+ * <p>To control the order and subset of fields that {@link CsvIO.Write} writes, use {@link
+ * CSVFormat#withHeader(String...)}. Note, however, the following constraints:
+ *
+ * <ol>
+ *   <li>Each header column must match a field name in the {@link Schema}; matching is case
+ *       sensitive.
+ *   <li>Matching header columns must match {@link Schema} fields that are valid {@link FieldType}s;
+ *       see {@link #VALID_FIELD_TYPE_SET}.
+ *   <li>{@link CSVFormat} only allows repeated header columns when {@link
+ *       CSVFormat#withAllowDuplicateHeaderNames()}
+ * </ol>
  *
  * <pre>{@code
  * PCollection<Transaction> transactions ...
  * transactions.apply(
  *  CsvIO
- *    .<Transaction>write()
- *    .to("gs://bucket/path/to/folder/prefix")
- *    .withSchemaFields(Arrays.asList("transactionId", "purchaseAmount"))
+ *    .<Transaction>writeTo("gs://bucket/path/to/folder/prefix", CSVFormat.DEFAULT.withHeader("transactionId", "purchaseAmount"))
  * );
  * }</pre>
  *
@@ -129,31 +128,9 @@ import org.apache.commons.csv.CSVFormat;
  * 98765,11.76
  * }</pre>
  *
- * <p>Additionally, we may override the default {@link CSVFormat#DEFAULT}.
- *
- * <pre>{@code
- * PCollection<Transaction> transactions ...
- * transactions.apply(
- *  CsvIO
- *    .<Transaction>write()
- *    .to("gs://bucket/path/to/folder/prefix")
- *    .withCSVFormat(CSVFormat.POSTGRESQL_CSV)
- *  );
- * }</pre>
- *
- * <p>The resulting CSV files will look like the following formatted according to {@link
- * CSVFormat#POSTGRESQL_CSV}.
- *
- * <pre>{@code
- * "bank","purchaseAmount","transactionId"
- * "A","10.23","12345"
- * "B","54.65","54321"
- * "C","11.76","98765"
- * }</pre>
- *
  * <p>A {@link PCollection} of {@link Row}s works just like custom Java types illustrated above,
- * except we use {@link CsvIO#writeRows()} as shown below for the same {@code Transaction} class. We
- * derive {@code Transaction}'s {@link Schema} using a {@link
+ * except we use {@link CsvIO#writeRowsTo(String, CSVFormat)} as shown below for the same {@code
+ * Transaction} class. We derive {@code Transaction}'s {@link Schema} using a {@link
  * org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider}.
  *
  * <pre>{@code
@@ -182,8 +159,7 @@ import org.apache.commons.csv.CSVFormat;
  *
  * transactions.apply(
  *  CsvIO
- *    .writeRows()
- *    .to("gs://bucket/path/to/folder/prefix")
+ *    .writeRowsTo("gs://bucket/path/to/folder/prefix", CSVFormat.DEFAULT)
  * );
  * }</pre>
  *
@@ -230,133 +206,102 @@ public class CsvIO {
   static final String DEFAULT_FILENAME_SUFFIX = ".csv";
 
   /** Instantiates a {@link Write} for writing user types in {@link CSVFormat} format. */
-  public static <T> Write<T> write(CSVFormat csvFormat) {
+  public static <T> Write<T> write(String to, CSVFormat csvFormat) {
     return new AutoValue_CsvIO_Write.Builder<T>()
+        .setTextIOWrite(createDefaultTextIOWrite(to))
         .setCSVFormat(csvFormat)
-        .setFileWrite(FileIO.write())
         .build();
   }
 
-  /** Instantiates a {@link Sink.Builder} for writing {@link Row} elements to CSV file sinks. */
-  static Sink.Builder<Row> sinkBuilder(CSVFormat csvFormat) {
-    return new AutoValue_CsvIO_Sink.Builder<>();
-  }
-
-  /** Implementation of {@link FileIO.Sink}. */
-  @AutoValue
-  abstract static class Sink<T> implements FileIO.Sink<T> {
-
-    private transient @Nullable PrintWriter writer;
-
-    abstract CSVFormat getCSVFormat();
-
-    abstract SerializableFunction<T, String> getFormatFunction();
-
-    /**
-     * Opens a {@link WritableByteChannel} for writing CSV files.
-     */
-    @Override
-    public void open(WritableByteChannel channel) throws IOException {
-      writer =
-          new PrintWriter(
-              new BufferedWriter(new OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)));
-    }
-
-    /** Serializes and writes the element to a file. */
-    @Override
-    public void write(T element) throws IOException {
-    }
-
-    @Override
-    public void flush() throws IOException {
-      writer.flush();
-    }
-
-    @AutoValue.Builder
-    abstract static class Builder<T> {
-
-      abstract Sink<T> build();
-    }
+  public static Write<Row> writeRowsTo(String to, CSVFormat csvFormat) {
+    return new AutoValue_CsvIO_Write.Builder<Row>()
+        .setTextIOWrite(createDefaultTextIOWrite(to))
+        .setCSVFormat(csvFormat)
+        .build();
   }
 
   /** {@link PTransform} for writing CSV files. */
   @AutoValue
-  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-
-    /** Specifies a common prefix for all generated files. */
-    public Write<T> to(String filenamePrefix) {
-      return toBuilder()
-          .setFileWrite(FileIO.<Row>write().to(filenamePrefix).withSuffix(DEFAULT_FILENAME_SUFFIX))
-          .build();
-    }
+  public abstract static class Write<T>
+      extends PTransform<PCollection<T>, WriteFilesResult<String>> {
 
     /** Specifies the {@link Compression} of all generated shard files. */
     public Write<T> withCompression(Compression compression) {
-      return toBuilder().setFileWrite(getFileWrite().withCompression(compression)).build();
+      return toBuilder().setTextIOWrite(getTextIOWrite().withCompression(compression)).build();
+    }
+
+    public Write<T> withNoSpilling() {
+      return toBuilder().setTextIOWrite(getTextIOWrite().withNoSpilling()).build();
     }
 
     /**
      * Specifies to use a given fixed number of shards per window. See {@link
-     * FileIO.Write#withNumShards(int)} for details.
+     * TextIO.Write#withNumShards(int)}.
      */
     public Write<T> withNumShards(Integer numShards) {
-      return toBuilder().setFileWrite(getFileWrite().withNumShards(numShards)).build();
+      return toBuilder().setTextIOWrite(getTextIOWrite().withNumShards(numShards)).build();
     }
 
     /**
-     * The sharding {@link PTransform} to use with the underlying {@link FileIO.Write}. Since {@link
-     * CsvIO.Write} converts user types to {@link Row}, the sharding transform is limited to {@link
-     * PCollection} of {@link Row}s.
+     * Forces a single file as output and empty shard name template. See {@link
+     * TextIO.Write#withoutSharding()}.
      */
-    public CsvIO.Write<T> withSharding(
-        PTransform<PCollection<Row>, PCollectionView<Integer>> sharding) {
-      return toBuilder().setFileWrite(getFileWrite().withSharding(sharding)).build();
+    public Write<T> withoutSharding() {
+      return toBuilder().setTextIOWrite(getTextIOWrite().withoutSharding()).build();
     }
 
     /**
-     * The {@link Contextful} destinationFn to use with the underlying {@link FileIO.Write}. See
-     * {@link FileIO.Write#by(Contextful)} for more details.
+     * Uses the given {@link ShardNameTemplate} for naming output files. See {@link
+     * TextIO.Write#withShardNameTemplate(String)}.
      */
-    public CsvIO.Write<T> by(Contextful<Contextful.Fn<Row, Void>> destinationFn) {
-      return toBuilder().setFileWrite(getFileWrite().by(destinationFn)).build();
+    public Write<T> withShardTemplate(String shardTemplate) {
+      return toBuilder()
+          .setTextIOWrite(getTextIOWrite().withShardNameTemplate(shardTemplate))
+          .build();
     }
 
     /**
-     * The {@link Contextful} namingFn to use with the underlying {@link FileIO.Write}. See {@link
-     * FileIO.Write#withNaming(Contextful)} for more details.
+     * Configures the filename suffix for written files. See {@link
+     * TextIO.Write#withSuffix(String)}.
      */
-    public CsvIO.Write<T> withNaming(
-        Contextful<Contextful.Fn<Void, FileIO.Write.FileNaming>> namingFn) {
-      return toBuilder().setFileWrite(getFileWrite().withNaming(namingFn)).build();
+    public Write<T> withSuffix(String suffix) {
+      return toBuilder().setTextIOWrite(getTextIOWrite().withSuffix(suffix)).build();
     }
 
     /**
-     * The {@link FileIO.Write.FileNaming} naming to use with the underlying {@link FileIO.Write}.
-     * See {@link FileIO.Write#withNaming(FileNaming)} for more details.
+     * Set the base directory used to generate temporary files. See {@link
+     * TextIO.Write#withTempDirectory(ResourceId)}.
      */
-    public CsvIO.Write<T> withNaming(FileNaming naming) {
-      return toBuilder().setFileWrite(getFileWrite().withNaming(naming)).build();
+    public Write<T> withTempDirectory(ResourceId tempDirectory) {
+      return toBuilder().setTextIOWrite(getTextIOWrite().withTempDirectory(tempDirectory)).build();
     }
 
     /**
-     * The String prefix to use with the underlying {@link FileIO.Write}. See {@link
-     * FileIO.Write#withPrefix(String)} for more details.
+     * Preserves windowing of input elements and writes them to files based on the element's window.
+     * See {@link TextIO.Write#withWindowedWrites()}.
      */
-    public CsvIO.Write<T> withPrefix(String prefix) {
-      return toBuilder().setFileWrite(getFileWrite().withPrefix(prefix)).build();
+    public Write<T> withWindowedWrites() {
+      return toBuilder().setTextIOWrite(getTextIOWrite().withWindowedWrites()).build();
     }
 
     /**
-     * Determines whether to use {@link FileIO.Write#withNoSpilling()} with the underlying {@link
-     * FileIO.Write}.
+     * Returns a transform for writing to text files like this one but that has the given {@link
+     * FileBasedSink.WritableByteChannelFactory} to be used by the {@link FileBasedSink} during
+     * output. See {@link
+     * TextIO.Write#withWritableByteChannelFactory(FileBasedSink.WritableByteChannelFactory)}.
      */
-    public CsvIO.Write<T> withNoSpilling() {
-      return toBuilder().setFileWrite(getFileWrite().withNoSpilling()).build();
+    public Write<T> withWritableByteChannelFactory(
+        FileBasedSink.WritableByteChannelFactory writableByteChannelFactory) {
+      return toBuilder()
+          .setTextIOWrite(
+              getTextIOWrite().withWritableByteChannelFactory(writableByteChannelFactory))
+          .build();
     }
 
     /** The underlying {@link FileIO.Write} that writes converted input to CSV formatted output. */
-    abstract FileIO.Write<Void, Row> getFileWrite();
+    abstract TextIO.Write getTextIOWrite();
 
+    /** The {@link CSVFormat} to inform headers, header comments, and format CSV row content. */
     abstract CSVFormat getCSVFormat();
 
     abstract Builder<T> toBuilder();
@@ -367,25 +312,16 @@ public class CsvIO {
       /**
        * The underlying {@link FileIO.Write} that writes converted input to CSV formatted output.
        */
-      abstract Builder<T> setFileWrite(FileIO.Write<Void, Row> value);
+      abstract Builder<T> setTextIOWrite(TextIO.Write value);
 
       /** The {@link CSVFormat} to convert input. Defaults to {@link CSVFormat#DEFAULT}. */
       abstract Builder<T> setCSVFormat(CSVFormat value);
-
-      /**
-       * The order and set of {@link Schema} fields driving the CSV conversion. See {@link
-       * #withSchemaFields(List)}.
-       */
-      abstract Builder<T> setSchemaFields(List<String> value);
-
-      /** The text preceding the CSV header. See {@link #withPreamble(String)}. */
-      abstract Builder<T> setPreamble(String value);
 
       abstract Write<T> build();
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
+    public WriteFilesResult<String> expand(PCollection<T> input) {
       if (!input.hasSchema()) {
         throw new IllegalArgumentException(
             String.format(
@@ -394,31 +330,43 @@ public class CsvIO {
       }
 
       Schema schema = input.getSchema();
-      SerializableFunction<T, Row> toRowFn = input.getToRowFunction();
-      Sink<Row> sink = buildSink(schema);
+
+      RowCoder rowCoder = RowCoder.of(schema);
+
       PCollection<Row> rows =
-          input.apply("To Rows", MapElements.into(rows()).via(toRowFn)).setRowSchema(schema);
-      rows.apply("Write Rows To CSV", getFileWrite().via(sink));
-      return PDone.in(input.getPipeline());
+          input
+              .apply("To Rows", MapElements.into(rows()).via(input.getToRowFunction()))
+              .setCoder(rowCoder);
+
+      CSVFormat csvFormat = applyRequiredCSVFormatSettings(schema);
+      String header = formatHeader(csvFormat);
+
+      SerializableFunction<Row, String> toCsvFn =
+          CsvRowConversions.RowToCsv.builder()
+              .setCSVFormat(csvFormat)
+              .setSchema(input.getSchema())
+              .build();
+
+      PCollection<String> csv = rows.apply("To CSV", MapElements.into(strings()).via(toCsvFn));
+
+      return csv.apply("Write CSV", getTextIOWrite().withHeader(header).withOutputFilenames());
     }
 
-    private Sink<Row> buildSink(Schema schema) {
-
-      List<String> schemaFields = getSchemaFields();
-      if (schemaFields == null) {
-        schemaFields = schema.sorted().getFieldNames();
+    CSVFormat applyRequiredCSVFormatSettings(Schema schema) {
+      CSVFormat csvFormat = getCSVFormat().withSkipHeaderRecord();
+      if (csvFormat.getHeader() == null) {
+        csvFormat = csvFormat.withHeader(schema.sorted().getFieldNames().toArray(new String[0]));
       }
-
-      RowToCsv rowToCsv = RowToCsv.builder().setSchema(schema).setCSVFormat(getCSVFormat()).build();
-
-      Sink.Builder<Row> builder = sinkBuilder();
-
-      String preamble = getPreamble();
-      if (preamble != null) {
-        builder = builder.setPreamble(preamble);
-      }
-
-      return builder.setFormatFunction(rowToCsv).build();
+      return csvFormat;
     }
+
+    private static String formatHeader(CSVFormat csvFormat) {
+      String[] header = requireNonNull(csvFormat.getHeader());
+      return csvFormat.format((Object[]) header);
+    }
+  }
+
+  private static TextIO.Write createDefaultTextIOWrite(String to) {
+    return TextIO.write().to(to).withSuffix(DEFAULT_FILENAME_SUFFIX);
   }
 }
