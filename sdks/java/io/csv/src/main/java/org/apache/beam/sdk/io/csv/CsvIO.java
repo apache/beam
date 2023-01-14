@@ -22,8 +22,6 @@ import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.google.auto.value.AutoValue;
-
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
