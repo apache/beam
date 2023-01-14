@@ -22,6 +22,11 @@ import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.google.auto.value.AutoValue;
+
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Compression;
@@ -362,7 +367,12 @@ public class CsvIO {
 
     private static String formatHeader(CSVFormat csvFormat) {
       String[] header = requireNonNull(csvFormat.getHeader());
-      return csvFormat.format((Object[]) header);
+      List<String> result = new ArrayList<>();
+      if (csvFormat.getHeaderComments() != null) {
+        result.addAll(Arrays.asList(csvFormat.getHeaderComments()));
+      }
+      result.add(csvFormat.format((Object[]) header));
+      return String.join("\n", result);
     }
   }
 

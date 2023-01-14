@@ -17,21 +17,29 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.beam.sdk.io.csv.CsvIOTestData.DATA;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.AllPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.allPrimitiveDataTypes;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.List;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,16 +57,91 @@ public class CsvIOWriteTest {
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Test
-  public void headersWrittenFirstOnEachShard() {}
+  public void headersWithCommentsWrittenFirstOnEachShard() {
+    File folder =
+        createFolder(
+            AllPrimitiveDataTypes.class.getSimpleName(),
+            "headersWithCommentsWrittenFirstOnEachShard");
+
+    PCollection<Row> input =
+        writePipeline.apply(
+            Create.of(DATA.allPrimitiveDataTypeRows)
+                .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
+    String expectedHeader = "aBoolean,aByte,aDecimal,aDouble,aFloat,aLong,aShort,aString,anInteger";
+    CSVFormat csvFormat = CSVFormat.DEFAULT.withHeaderComments("foo", "bar", "baz");
+
+    input.apply(CsvIO.writeRowsTo(toFilenamePrefix(folder), csvFormat).withNumShards(3));
+    writePipeline.run().waitUntilFinish();
+
+    PCollection<FileIO.ReadableFile> files =
+        readPipeline
+            .apply(FileIO.match().filepattern(toFilenamePrefix(folder) + "*"))
+            .apply(FileIO.readMatches());
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<FileIO.ReadableFile> itr) -> {
+              Iterable<FileIO.ReadableFile> safeItr = requireNonNull(itr);
+              for (FileIO.ReadableFile file : safeItr) {
+                try {
+                  List<String> lines = Splitter.on('\n').splitToList(file.readFullyAsUTF8String());
+                  assertFalse(lines.isEmpty());
+                  assertEquals("foo", lines.get(0));
+                  assertEquals("bar", lines.get(1));
+                  assertEquals("baz", lines.get(2));
+                  assertEquals(expectedHeader, lines.get(3));
+
+                  assertTrue(
+                      lines.subList(4, lines.size()).stream().noneMatch(expectedHeader::equals));
+
+                } catch (IOException e) {
+                  fail(e.getMessage());
+                }
+              }
+              return null;
+            });
+
+    readPipeline.run();
+  }
 
   @Test
-  public void headersDefaultToAllSortedSchemaFields() {}
+  public void headersWrittenFirstOnEachShard() {
+    File folder =
+        createFolder(AllPrimitiveDataTypes.class.getSimpleName(), "headersWrittenFirstOnEachShard");
 
-  @Test
-  public void headerCommentsWrittenFirstOnEachShard() {}
+    PCollection<Row> input =
+        writePipeline.apply(
+            Create.of(DATA.allPrimitiveDataTypeRows)
+                .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
+    String expectedHeader = "aBoolean,aByte,aDecimal,aDouble,aFloat,aLong,aShort,aString,anInteger";
+    CSVFormat csvFormat = CSVFormat.DEFAULT;
 
-  @Test
-  public void throwsCSVFormatValidationErrors() {}
+    input.apply(CsvIO.writeRowsTo(toFilenamePrefix(folder), csvFormat).withNumShards(3));
+    writePipeline.run().waitUntilFinish();
+
+    PCollection<FileIO.ReadableFile> files =
+        readPipeline
+            .apply(FileIO.match().filepattern(toFilenamePrefix(folder) + "*"))
+            .apply(FileIO.readMatches());
+    PAssert.that(files)
+        .satisfies(
+            (Iterable<FileIO.ReadableFile> itr) -> {
+              Iterable<FileIO.ReadableFile> safeItr = requireNonNull(itr);
+              for (FileIO.ReadableFile file : safeItr) {
+                try {
+                  List<String> lines = Splitter.on('\n').splitToList(file.readFullyAsUTF8String());
+                  assertFalse(lines.isEmpty());
+                  assertEquals(expectedHeader, lines.get(0));
+                  assertTrue(
+                      lines.subList(1, lines.size()).stream().noneMatch(expectedHeader::equals));
+                } catch (IOException e) {
+                  fail(e.getMessage());
+                }
+              }
+              return null;
+            });
+
+    readPipeline.run();
+  }
 
   @Test
   public void writesUserDefinedTypes() {
