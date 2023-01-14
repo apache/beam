@@ -113,6 +113,7 @@ class MutationSizeEstimator {
       case TIMESTAMP:
         return 12;
       case STRING:
+      case PG_NUMERIC:
         return v.isNull() ? 0 : v.getString().length();
       case BYTES:
         return v.isNull() ? 0 : v.getBytes().length();
@@ -142,6 +143,7 @@ class MutationSizeEstimator {
       case FLOAT64:
         return 8L * v.getFloat64Array().size();
       case STRING:
+      case PG_NUMERIC:
         long totalLength = 0;
         for (String s : v.getStringArray()) {
           if (s == null) {

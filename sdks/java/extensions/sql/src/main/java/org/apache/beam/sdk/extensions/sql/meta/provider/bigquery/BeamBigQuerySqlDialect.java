@@ -36,7 +36,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 // TODO(CALCITE-3381): some methods below can be deleted after updating vendor Calcite version.
 // Calcite v1_20_0 does not have type translation implemented, but later (unreleased) versions do.
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
 

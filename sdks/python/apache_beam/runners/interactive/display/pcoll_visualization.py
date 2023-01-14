@@ -39,10 +39,10 @@ from apache_beam.transforms.window import IntervalWindow
 
 try:
   from IPython import get_ipython  # pylint: disable=import-error
-  from IPython.core.display import HTML  # pylint: disable=import-error
-  from IPython.core.display import Javascript  # pylint: disable=import-error
-  from IPython.core.display import display  # pylint: disable=import-error
-  from IPython.core.display import display_javascript  # pylint: disable=import-error
+  from IPython.display import HTML  # pylint: disable=import-error
+  from IPython.display import Javascript  # pylint: disable=import-error
+  from IPython.display import display  # pylint: disable=import-error
+  from IPython.display import display_javascript  # pylint: disable=import-error
   from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=import-error
   from timeloop import Timeloop  # pylint: disable=import-error
 

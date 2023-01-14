@@ -18,17 +18,20 @@ package main
 import (
 	"context"
 	"flag"
-	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/synthetic"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/test/load"
 )
 
 func init() {
-	beam.RegisterDoFn(reflect.TypeOf((*doFn)(nil)))
+	register.DoFn4x0[[]byte, []byte, func(*[]byte, *[]byte) bool, func([]byte, []byte)]((*iterSideInputFn)(nil))
+	register.Emitter2[[]byte, []byte]()
+	register.Iter2[[]byte, []byte]()
+	register.Function2x0(impToKV)
 }
 
 var (
@@ -51,14 +54,19 @@ func parseSyntheticConfig() synthetic.SourceConfig {
 	}
 }
 
-type doFn struct {
-	ElementsToAccess int
+// impToKV just turns an impulse signal into a KV instead of
+// adding a single value input version of RuntimeMonitor
+func impToKV(imp []byte, emit func([]byte, []byte)) {
+	emit(imp, imp)
 }
 
-func (fn *doFn) ProcessElement(_ []byte, values func(*[]byte, *[]byte) bool, emit func([]byte, []byte)) {
-	var key []byte
-	var value []byte
-	i := 0
+type iterSideInputFn struct {
+	ElementsToAccess int64
+}
+
+func (fn *iterSideInputFn) ProcessElement(_, _ []byte, values func(*[]byte, *[]byte) bool, emit func([]byte, []byte)) {
+	var key, value []byte
+	var i int64
 	for values(&key, &value) {
 		if i >= fn.ElementsToAccess {
 			break
@@ -75,18 +83,21 @@ func main() {
 	p, s := beam.NewPipelineWithRoot()
 
 	syntheticConfig := parseSyntheticConfig()
-	elementsToAccess := syntheticConfig.NumElements * *accessPercentage / 100
+	elementsToAccess := syntheticConfig.NumElements * int64(float64(*accessPercentage)/float64(100))
 
 	src := synthetic.SourceSingle(s, syntheticConfig)
-	src = beam.ParDo(s, &load.RuntimeMonitor{}, src)
 
-	src = beam.ParDo(
+	imp := beam.Impulse(s)
+	impKV := beam.ParDo(s, impToKV, imp)
+	monitored := beam.ParDo(s, &load.RuntimeMonitor{}, impKV)
+
+	useSide := beam.ParDo(
 		s,
-		&doFn{ElementsToAccess: elementsToAccess},
-		beam.Impulse(s),
+		&iterSideInputFn{ElementsToAccess: elementsToAccess},
+		monitored,
 		beam.SideInput{Input: src})
 
-	beam.ParDo(s, &load.RuntimeMonitor{}, src)
+	beam.ParDo(s, &load.RuntimeMonitor{}, useSide)
 
 	presult, err := beamx.RunWithMetrics(ctx, p)
 	if err != nil {

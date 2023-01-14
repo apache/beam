@@ -38,7 +38,7 @@ def chicagoTaxiJob = { scope ->
         "${DOCKER_CONTAINER_REGISTRY}/${beamSdkDockerImage}"
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   def pipelineOptions = [
     parallelism             : numberOfWorkers,
@@ -67,7 +67,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
       chicagoTaxiJob(delegate)
     }
 
-// TODO(BEAM-9154): Chicago Taxi Example doesn't work in Python 3.
+// TODO(https://github.com/apache/beam/issues/19973): Chicago Taxi Example doesn't work in Python 3.
 // Uncomment below once it is fixed.
 //
 // CronJobBuilder.cronJob(

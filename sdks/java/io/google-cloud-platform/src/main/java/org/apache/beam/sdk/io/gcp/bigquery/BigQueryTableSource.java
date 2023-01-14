@@ -19,19 +19,20 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.AvroSource;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link BigQuerySourceBase} for reading BigQuery tables. */
 @VisibleForTesting
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
 
   static <T> BigQueryTableSource<T> create(
@@ -39,23 +40,23 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
       boolean useAvroLogicalTypes) {
     return new BigQueryTableSource<>(
-        stepUuid, tableDef, bqServices, coder, parseFn, useAvroLogicalTypes);
+        stepUuid, tableDef, bqServices, coder, readerFactory, useAvroLogicalTypes);
   }
 
   private final BigQueryTableSourceDef tableDef;
-  private final AtomicReference<Long> tableSizeBytes;
+  private final AtomicReference<@Nullable Long> tableSizeBytes;
 
   private BigQueryTableSource(
       String stepUuid,
       BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
       boolean useAvroLogicalTypes) {
-    super(stepUuid, bqServices, coder, parseFn, useAvroLogicalTypes);
+    super(stepUuid, bqServices, coder, readerFactory, useAvroLogicalTypes);
     this.tableDef = tableDef;
     this.tableSizeBytes = new AtomicReference<>();
   }
@@ -67,19 +68,29 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
 
   @Override
   public synchronized long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-    if (tableSizeBytes.get() == null) {
+    Long maybeNumBytes = tableSizeBytes.get();
+    if (maybeNumBytes != null) {
+      return maybeNumBytes;
+    } else {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       TableReference tableRef = tableDef.getTableReference(bqOptions);
-      Table table = bqServices.getDatasetService(bqOptions).getTable(tableRef);
-      Long numBytes = table.getNumBytes();
-      if (table.getStreamingBuffer() != null
-          && table.getStreamingBuffer().getEstimatedBytes() != null) {
-        numBytes += table.getStreamingBuffer().getEstimatedBytes().longValue();
-      }
+      try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
+        Table table = datasetService.getTable(tableRef);
 
-      tableSizeBytes.compareAndSet(null, numBytes);
+        if (table == null) {
+          throw new IllegalStateException("Table not found: " + table);
+        }
+
+        Long numBytes = table.getNumBytes();
+        if (table.getStreamingBuffer() != null
+            && table.getStreamingBuffer().getEstimatedBytes() != null) {
+          numBytes += table.getStreamingBuffer().getEstimatedBytes().longValue();
+        }
+
+        tableSizeBytes.compareAndSet(null, numBytes);
+        return numBytes;
+      }
     }
-    return tableSizeBytes.get();
   }
 
   @Override

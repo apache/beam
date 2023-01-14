@@ -56,7 +56,7 @@ public class ExecutorServiceParallelExecutorTest {
   @Rule public final TestName testName = new TestName();
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
+  @Ignore("https://github.com/apache/beam/issues/18950 Test reliably fails.")
   public void ensureMetricsThreadDoesntLeak() throws ExecutionException, InterruptedException {
     final DirectGraph graph =
         DirectGraph.create(
@@ -95,7 +95,7 @@ public class ExecutorServiceParallelExecutorTest {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
+  @Ignore("https://github.com/apache/beam/issues/18950 Test reliably fails.")
   public void testNoThreadsLeakInPipelineExecution() {
     pipeline.apply(GenerateSequence.from(0).to(NUM_ELEMENTS)).apply(ParDo.of(new CountingDoFn()));
     pipeline.run();

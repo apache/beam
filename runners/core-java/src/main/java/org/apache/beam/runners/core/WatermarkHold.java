@@ -51,7 +51,7 @@ import org.joda.time.Instant;
  * @param <W> The kind of {@link BoundedWindow} the hold is for.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /** Return tag for state containing the output watermark hold used for elements. */
@@ -73,7 +73,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       StateTags.makeSystemTagInternal(
           StateTags.watermarkStateInternal("extra", TimestampCombiner.EARLIEST));
 
-  // [BEAM-420] Seems likely these should all be transient or this class should not be Serializable
+  // [https://github.com/apache/beam/issues/18014] Seems likely these should all be transient or
+  // this class should not be Serializable
   @SuppressFBWarnings("SE_BAD_FIELD")
   private final TimerInternals timerInternals;
 

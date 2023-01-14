@@ -49,6 +49,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -57,11 +58,12 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SparkRunnerDebuggerTest {
 
+  @ClassRule public static SparkContextRule contextRule = new SparkContextRule("local[1]");
+
   @Test
   public void debugBatchPipeline() {
-    PipelineOptions options = PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
+    PipelineOptions options = contextRule.configure(PipelineOptionsFactory.create());
     options.setRunner(SparkRunnerDebugger.class);
-
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> lines =
@@ -84,14 +86,15 @@ public class SparkRunnerDebuggerTest {
         "sparkContext.<readFrom(org.apache.beam.sdk.transforms.Create$Values$CreateSource)>()\n"
             + "_.mapPartitions("
             + "new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Count$PerElement$1())\n"
             + "_.combineByKey(..., new org.apache.beam.sdk.transforms.Count$CountFn(), ...)\n"
             + "_.groupByKey()\n"
             + "_.map(new org.apache.beam.sdk.transforms.Sum$SumLongFn())\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.mapPartitions("
+            + "new org.apache.beam.runners.spark.SparkRunnerDebuggerTest$PlusOne())\n"
             + "sparkContext.union(...)\n"
             + "_.mapPartitions("
-            + "new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "new org.apache.beam.runners.spark.examples.WordCount$FormatAsTextFn())\n"
             + "_.<org.apache.beam.sdk.io.TextIO$Write>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =
@@ -105,11 +108,9 @@ public class SparkRunnerDebuggerTest {
 
   @Test
   public void debugStreamingPipeline() {
-    TestSparkPipelineOptions options =
-        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
-    options.setForceStreaming(true);
+    PipelineOptions options = contextRule.configure(PipelineOptionsFactory.create());
     options.setRunner(SparkRunnerDebugger.class);
-
+    options.as(TestSparkPipelineOptions.class).setStreaming(true);
     Pipeline pipeline = Pipeline.create(options);
 
     KafkaIO.Read<String, String> read =
@@ -142,11 +143,11 @@ public class SparkRunnerDebuggerTest {
             + "_.map(new org.apache.beam.sdk.transforms.windowing.FixedWindows())\n"
             + "_.mapPartitions(new org.apache.beam.runners.spark."
             + "SparkRunnerDebuggerTest$FormatKVFn())\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$1())\n"
             + "_.groupByKey()\n"
             + "_.map(new org.apache.beam.sdk.transforms.Combine$IterableCombineFn())\n"
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$3())\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.WithKeys$1())\n"
             + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =

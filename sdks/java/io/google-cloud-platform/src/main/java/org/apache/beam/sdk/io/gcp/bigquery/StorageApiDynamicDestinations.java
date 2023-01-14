@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Message;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -32,9 +31,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 abstract class StorageApiDynamicDestinations<T, DestinationT>
     extends DynamicDestinations<T, DestinationT> {
   public interface MessageConverter<T> {
-    Descriptor getSchemaDescriptor();
+    com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema();
 
-    Message toMessage(T element);
+    StorageApiWritePayload toMessage(T element) throws Exception;
+
+    TableRow toTableRow(T element);
   }
 
   private DynamicDestinations<T, DestinationT> inner;
@@ -47,7 +48,7 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
       DestinationT destination, DatasetService datasetService) throws Exception;
 
   @Override
-  public DestinationT getDestination(ValueInSingleWindow<T> element) {
+  public DestinationT getDestination(@Nullable ValueInSingleWindow<T> element) {
     return inner.getDestination(element);
   }
 
@@ -62,7 +63,7 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
   }
 
   @Override
-  public TableSchema getSchema(DestinationT destination) {
+  public @Nullable TableSchema getSchema(DestinationT destination) {
     return inner.getSchema(destination);
   }
 

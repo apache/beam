@@ -262,11 +262,22 @@ public interface TimerInternals {
               .compare(this.getDomain(), that.getDomain())
               .compare(this.getTimerId(), that.getTimerId())
               .compare(this.getTimerFamilyId(), that.getTimerFamilyId());
-      if (chain.result() == 0 && !this.getNamespace().equals(that.getNamespace())) {
+      int compResult = chain.result();
+      if (compResult == 0 && !this.getNamespace().equals(that.getNamespace())) {
         // Obtaining the stringKey may be expensive; only do so if required
-        chain = chain.compare(getNamespace().stringKey(), that.getNamespace().stringKey());
+        compResult = this.getNamespace().stringKey().compareTo(that.getNamespace().stringKey());
       }
-      return chain.result();
+      return compResult;
+    }
+
+    public String stringKey() {
+      return getNamespace().stringKey()
+          + "/"
+          + getDomain().toString()
+          + "/"
+          + getTimerFamilyId()
+          + ":"
+          + getTimerId();
     }
   }
 

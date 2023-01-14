@@ -53,6 +53,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.AnnotatedSimplePojo;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.FirstCircularNestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArraysPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithEnum.Color;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithIterable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithNestedArray;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.SelfNestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.SimplePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -727,5 +729,47 @@ public class JavaFieldSchemaTest {
         "Message should suggest using zero-argument constructor.",
         thrown.getMessage(),
         containsString("zero-argument constructor"));
+  }
+
+  @Test
+  public void testSelfNestedPOJOThrows() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> {
+              registry.getSchema(SelfNestedPOJO.class);
+            });
+
+    assertThat(
+        "Message should suggest not using a circular schema reference.",
+        thrown.getMessage(),
+        containsString("circular reference"));
+    assertThat(
+        "Message should suggest which class has circular schema reference.",
+        thrown.getMessage(),
+        containsString("TestPOJOs$SelfNestedPOJO"));
+  }
+
+  @Test
+  public void testCircularNestedPOJOThrows() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> {
+              registry.getSchema(FirstCircularNestedPOJO.class);
+            });
+
+    assertThat(
+        "Message should suggest not using a circular schema reference.",
+        thrown.getMessage(),
+        containsString("circular reference"));
+    assertThat(
+        "Message should suggest which class has circular schema reference.",
+        thrown.getMessage(),
+        containsString("TestPOJOs$FirstCircularNestedPOJO"));
   }
 }

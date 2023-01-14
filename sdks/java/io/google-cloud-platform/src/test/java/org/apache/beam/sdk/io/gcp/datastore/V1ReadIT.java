@@ -36,6 +36,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,7 +49,9 @@ public class V1ReadIT {
   private V1TestOptions options;
   private String project;
   private String ancestor;
-  private final long numEntities = 1000;
+  private final long numEntitiesBeforeReadTime = 600;
+  private final long totalNumEntities = 1000;
+  private Instant readTime;
 
   @Before
   public void setup() throws Exception {
@@ -57,7 +60,15 @@ public class V1ReadIT {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     ancestor = UUID.randomUUID().toString();
     // Create entities and write them to datastore
-    writeEntitiesToDatastore(options, project, ancestor, numEntities);
+    writeEntitiesToDatastore(options, project, ancestor, 0, numEntitiesBeforeReadTime);
+
+    Thread.sleep(1000);
+    readTime = Instant.now();
+    Thread.sleep(1000);
+
+    long moreEntitiesToWrite = totalNumEntities - numEntitiesBeforeReadTime;
+    writeEntitiesToDatastore(
+        options, project, ancestor, numEntitiesBeforeReadTime, moreEntitiesToWrite);
   }
 
   @After
@@ -77,6 +88,7 @@ public class V1ReadIT {
     Query query =
         V1TestUtil.makeAncestorKindQuery(options.getKind(), options.getNamespace(), ancestor);
 
+    // Read entities without readTime.
     DatastoreV1.Read read =
         DatastoreIO.v1()
             .read()
@@ -88,8 +100,23 @@ public class V1ReadIT {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> count = p.apply(read).apply(Count.globally());
 
-    PAssert.thatSingleton(count).isEqualTo(numEntities);
+    PAssert.thatSingleton(count).isEqualTo(totalNumEntities);
     p.run();
+
+    // Read entities with readTime.
+    DatastoreV1.Read snapshotRead =
+        DatastoreIO.v1()
+            .read()
+            .withProjectId(project)
+            .withQuery(query)
+            .withNamespace(options.getNamespace())
+            .withReadTime(readTime);
+
+    Pipeline p2 = Pipeline.create(options);
+    PCollection<Long> count2 = p2.apply(snapshotRead).apply(Count.globally());
+
+    PAssert.thatSingleton(count2).isEqualTo(numEntitiesBeforeReadTime);
+    p2.run();
   }
 
   @Test
@@ -114,12 +141,13 @@ public class V1ReadIT {
             "SELECT * from %s WHERE __key__ HAS ANCESTOR KEY(%s, '%s')",
             options.getKind(), options.getKind(), ancestor);
 
-    long expectedNumEntities = numEntities;
+    long expectedNumEntities = totalNumEntities;
     if (limit > 0) {
       gqlQuery = String.format("%s LIMIT %d", gqlQuery, limit);
       expectedNumEntities = limit;
     }
 
+    // Read entities without readTime.
     DatastoreV1.Read read =
         DatastoreIO.v1()
             .read()
@@ -133,18 +161,36 @@ public class V1ReadIT {
 
     PAssert.thatSingleton(count).isEqualTo(expectedNumEntities);
     p.run();
+
+    // Read entities with readTime.
+    DatastoreV1.Read snapshotRead =
+        DatastoreIO.v1()
+            .read()
+            .withProjectId(project)
+            .withLiteralGqlQuery(gqlQuery)
+            .withNamespace(options.getNamespace())
+            .withReadTime(readTime);
+
+    Pipeline p2 = Pipeline.create(options);
+    PCollection<Long> count2 = p2.apply(snapshotRead).apply(Count.globally());
+
+    long expectedNumEntities2 = limit > 0 ? limit : numEntitiesBeforeReadTime;
+    PAssert.thatSingleton(count2).isEqualTo(expectedNumEntities2);
+    p2.run();
   }
 
   // Creates entities and write them to datastore
   private static void writeEntitiesToDatastore(
-      V1TestOptions options, String project, String ancestor, long numEntities) throws Exception {
+      V1TestOptions options, String project, String ancestor, long valueOffset, long numEntities)
+      throws Exception {
     Datastore datastore = getDatastore(options, project);
     // Write test entities to datastore
     V1TestWriter writer = new V1TestWriter(datastore, new UpsertMutationBuilder());
     Key ancestorKey = makeAncestorKey(options.getNamespace(), options.getKind(), ancestor);
 
     for (long i = 0; i < numEntities; i++) {
-      Entity entity = makeEntity(i, ancestorKey, options.getKind(), options.getNamespace(), 0);
+      Entity entity =
+          makeEntity(valueOffset + i, ancestorKey, options.getKind(), options.getNamespace(), 0);
       writer.write(entity);
     }
     writer.close();

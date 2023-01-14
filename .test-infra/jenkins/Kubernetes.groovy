@@ -58,11 +58,11 @@ class Kubernetes {
 
   private static void setupKubeconfig() {
     job.steps {
+      shell("gcloud container clusters get-credentials ${cluster} --zone=us-central1-a")
       shell("cp /home/jenkins/.kube/config ${kubeconfigLocation}")
       environmentVariables {
         env('KUBECONFIG', kubeconfigLocation)
       }
-      shell("gcloud container clusters get-credentials ${cluster} --zone=us-central1-a")
     }
   }
 
@@ -130,6 +130,36 @@ class Kubernetes {
       environmentVariables {
         propertiesFile('job.properties')
       }
+    }
+  }
+
+  /**
+   * Specifies steps that will return an available port on the Kubernetes cluster,
+   * the value of the available port will be stored in job.properties using referenceName as key
+   *
+   * @param lowRangePort - low range port to be used
+   * @param highRangePort - high range port to be used
+   * @param referenceName - name of the environment variable
+   */
+  void availablePort(String lowRangePort, String highRangePort, String referenceName) {
+    job.steps {
+      String command = "${KUBERNETES_SCRIPT} getAvailablePort ${lowRangePort} ${highRangePort}"
+      shell("set -xo pipefail; eval ${command} | sed 's/^/${referenceName}=/' > job.properties")
+      environmentVariables {
+        propertiesFile('job.properties')
+      }
+    }
+  }
+
+  /**
+   * Specifies steps to wait until a job finishes
+   * @param jobName - job running in Kubernetes cluster
+   * @param timeout - max time to wait for job to finish
+   */
+  void waitForJob(String jobName, String timeout){
+    job.steps{
+      String command="${KUBERNETES_SCRIPT} waitForJob ${jobName} ${timeout}"
+      shell("eval ${command}")
     }
   }
 }

@@ -34,7 +34,7 @@
       "id": 8,
       "links": [],
       "options": {
-        "content": "The graph shows: average greenness of critical post-commit tests jobs per week. This graph show health of our project.\n\nTable shows list of relevant jobs failures during selected time interval (You can change time interval on top-right corner of the dashboard). Please, triage failed jobs and update or create corresponding jira tickets. You can utilized provided links to help with this.",
+        "content": "The graph shows: average greenness of critical post-commit tests jobs per week. This graph show health of our project.\n\nTable shows list of relevant jobs failures during selected time interval (You can change time interval on top-right corner of the dashboard). Please, triage failed jobs and update or create corresponding issues. You can utilized provided links to help with this.",
         "mode": "markdown"
       },
       "pluginVersion": "8.1.2",
@@ -189,7 +189,7 @@
       "id": 6,
       "links": [],
       "options": {
-        "content": "[List existing jira tickets](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)\n\n[Create new Jira ticket](https://issues.apache.org/jira/secure/CreateIssueDetails!init.jspa?pid=12319527&issuetype=1&summary=%5BjobName%5D%5BTestName%5D%5BIsFlake%5D%20Failure%20summary&priority=3&components=12334203&description=%3CFailure%20summary%3E%0AFailing%20job%20url:%0AJob%20history%20url:%0ARelevant%20log:)",
+        "content": "[List existing issues](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Atest-failures)\n\n[Create new Issue](https://github.com/apache/beam/issues/new/choose)",
         "mode": "markdown"
       },
       "pluginVersion": "8.1.2",

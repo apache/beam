@@ -32,7 +32,7 @@ import org.joda.time.Instant;
  * using the coder of the {@link PCollection}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class CloningBundleFactory implements BundleFactory {
   private static final CloningBundleFactory INSTANCE = new CloningBundleFactory();

@@ -16,13 +16,18 @@
  * limitations under the License.
  */
 
+<<<<<<<< HEAD:sdks/python/test-suites/tox/py39/build.gradle
 /**
  * Unit tests for Python 3.9
  */
+========
+import org.apache.beam.gradle.GrpcVendoring_1_48_1
+>>>>>>>> master:vendor/grpc-1_48_1/build.gradle
 
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
+<<<<<<<< HEAD:sdks/python/test-suites/tox/py39/build.gradle
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.9'
 
@@ -30,3 +35,20 @@ apply from: "../common.gradle"
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
 testPy39Cython.mustRunAfter testPython39, testPy39Cloud
+========
+description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.48.1"
+
+group = "org.apache.beam"
+version = "0.1"
+
+vendorJava(
+  dependencies: GrpcVendoring_1_48_1.dependencies(),
+  runtimeDependencies: GrpcVendoring_1_48_1.runtimeDependencies(),
+  testDependencies: GrpcVendoring_1_48_1.testDependencies(),
+  relocations: GrpcVendoring_1_48_1.relocations(),
+  exclusions: GrpcVendoring_1_48_1.exclusions(),
+  artifactId: "beam-vendor-grpc-1_48_1",
+  groupId: group,
+  version: version,
+)
+>>>>>>>> master:vendor/grpc-1_48_1/build.gradle

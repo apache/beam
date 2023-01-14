@@ -115,7 +115,9 @@ abstract class HllCountInitFn<InputT, HllT>
     @Override
     public HyperLogLogPlusPlus<Integer> addInput(
         HyperLogLogPlusPlus<Integer> accumulator, Integer input) {
-      accumulator.add(input.intValue());
+      if (input != null) {
+        accumulator.add(input.intValue());
+      }
       return accumulator;
     }
   }
@@ -129,7 +131,9 @@ abstract class HllCountInitFn<InputT, HllT>
 
     @Override
     public HyperLogLogPlusPlus<Long> addInput(HyperLogLogPlusPlus<Long> accumulator, Long input) {
-      accumulator.add(input.longValue());
+      if (input != null) {
+        accumulator.add(input.longValue());
+      }
       return accumulator;
     }
   }
@@ -144,7 +148,9 @@ abstract class HllCountInitFn<InputT, HllT>
     @Override
     public HyperLogLogPlusPlus<String> addInput(
         HyperLogLogPlusPlus<String> accumulator, String input) {
-      accumulator.add(input);
+      if (input != null) {
+        accumulator.add(input);
+      }
       return accumulator;
     }
   }
@@ -159,7 +165,9 @@ abstract class HllCountInitFn<InputT, HllT>
     @Override
     public HyperLogLogPlusPlus<ByteString> addInput(
         HyperLogLogPlusPlus<ByteString> accumulator, byte[] input) {
-      accumulator.add(input);
+      if (input != null) {
+        accumulator.add(input);
+      }
       return accumulator;
     }
   }

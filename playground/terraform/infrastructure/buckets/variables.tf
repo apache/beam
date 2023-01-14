@@ -17,36 +17,41 @@
 # under the License.
 #
 
-variable "examples_bucket_name" {
-  description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-examples"
-}
-
-variable "examples_bucket_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
 variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
-variable "examples_storage_class" {
-  description = "Examples Bucket Storage Class"
-  default     = "STANDARD"
+variable "machine_type" {
+  description = "Node pool machine types , for prod set  c2d-highcpu-16"
+  default     = "e2-standard-4"
+}
+variable "service_account_email" {
+  description = "Service account email"
 }
 
-variable "terraform_bucket_name" {
-  description = "Name of Bucket to Store Terraform States"
-  default     = "playground_terraform"
+variable "name" {
+  description = "Name of GKE cluster"
+  default     = "playground-backend"
 }
 
-variable "terraform_bucket_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
+variable "location" {
+  description = "Location of GKE cluster"
 }
 
-variable "terraform_storage_class" {
-  description = "Terrafomr Bucket Storage Class"
-  default     = "STANDARD"
+variable "network" {
+  description = "GCP network within which resources are provisioned"
+}
+
+variable "subnetwork" {
+  description = "GCP subnetwork within which resources are provisioned"
+}
+
+variable "min_count" {
+  description = "Min cluster node count"
+  default     = 2
+}
+
+variable "max_count" {
+  description = "Max cluster node count"
+  default     = 6
 }

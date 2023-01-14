@@ -82,8 +82,10 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link PTransformMatcher}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class PTransformMatchersTest implements Serializable {
   @Rule

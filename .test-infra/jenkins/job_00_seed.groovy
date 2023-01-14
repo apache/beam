@@ -73,8 +73,8 @@ job('beam_SeedJob') {
   }
 
   triggers {
-    // Run once per day
-    cron('H */6 * * *')
+    // Run every six hours
+    cron('H H/6 * * *')
 
     githubPullRequest {
       admins(['asfbot'])

@@ -145,12 +145,6 @@ func newComponents(ts []string) *pipepb.Components {
 	return components
 }
 
-func expectPanic(t *testing.T, err string) {
-	if r := recover(); r == nil {
-		t.Errorf("expected panic; %v", err)
-	}
-}
-
 func TestExpandedTransform(t *testing.T) {
 	t.Run("Correct PTransform", func(t *testing.T) {
 		want := newTransform("x")

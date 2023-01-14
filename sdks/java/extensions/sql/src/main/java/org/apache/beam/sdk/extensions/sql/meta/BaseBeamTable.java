@@ -18,13 +18,20 @@
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 
-/** Basic implementation of {@link BeamSqlTable} methods used by predicate and filter push-down. */
+/** Basic implementation of {@link BeamSqlTable}. */
 public abstract class BaseBeamTable implements BeamSqlTable {
+
+  @Override
+  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+    return BeamTableStatistics.BOUNDED_UNKNOWN;
+  }
 
   @Override
   public PCollection<Row> buildIOReader(

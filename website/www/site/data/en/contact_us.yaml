@@ -62,33 +62,38 @@
     - purpose: Report bugs, request features, follow known issues
       contact:
         {
-          email: Apache Beam Jira Tracker,
-          link: "https://issues.apache.org/jira/browse/BEAM",
+          email: Apache Beam Issues,
+          link: "https://github.com/apache/beam/issues/new",
         }
       icon: icons/community/contact-us/bug.svg
-      actions:
-        [
-          {
-            action: To create an issue you need a Jira account. Open one here.,
-            link: "https://issues.apache.org/jira/secure/Signup!default.jspa",
-          },
-        ]
+      actions: [{ action: "&#8208;" }]
     - purpose: Ask and answer community questions
       contact:
         {
-          email: "Apache Beam category in Stackoverflow.",
+          email: "Apache Beam category in Stackoverflow",
           link: "https://stackoverflow.com/questions/tagged/apache-beam",
         }
       icon: icons/community/contact-us/messages.svg
       actions: [{ action: "&#8208;" }]
-    - purpose: Contact users and contributors in real time through the ASF slack workspace.
+    - purpose: Contact users and contributors in real time through the ASF slack workspace
       contact:
         {
           email: The ASF slack workspace,
           link: "https://s.apache.org/beam-slack-channel",
         }
       icon: icons/community/contact-us/knot.svg
-      actions: [{ action: "Join the #beam chanel and browse other available channels. Don’t ask Beam questions in #general, we don’t monitor it." }]
+      actions: [
+        {
+          action: "Join the",
+        },
+        {
+          action: "#beam channel",
+          link: "https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P",
+        },
+        {
+          action: " and browse other available channels."
+        },
+      ]
     - purpose: Firehose of commits, bugs, pull requests, etc.
       contact:
         {
@@ -99,12 +104,12 @@
       icon: icons/community/contact-us/gitArrows.svg
       actions: [{
             action: Archives,
-            link: "https://lists.apache.org/list.html?commits@beam.apache.org",
+            link: "https://lists.apache.org/list.html?builds@beam.apache.org",
           }]
     - purpose: 'Firehose of build notifications from Jenkins'
       contact: {
         email: commits@beam.apache.org,
-        link: "https://s.apache.org/beam-slack-channel",
+        link: "https://lists.apache.org/list.html?commits@beam.apache.org",
         add: Commits mailing list
       }
       icon: icons/community/contact-us/notification.svg

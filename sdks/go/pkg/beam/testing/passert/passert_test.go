@@ -118,3 +118,21 @@ func TestEmpty_bad(t *testing.T) {
 		t.Errorf("Pipeline failed but did not produce the expected error, got %v", err)
 	}
 }
+
+func TestNonEmpty(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	col := beam.CreateList(s, []string{"a", "b", "c"})
+	NonEmpty(s, col)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("Pipeline failed: %v", err)
+	}
+}
+
+func TestNonEmpty_Bad(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	col := beam.CreateList(s, []string{})
+	NonEmpty(s, col)
+	if err := ptest.Run(p); err == nil {
+		t.Error("Pipeline succeeded when it should have failed.")
+	}
+}

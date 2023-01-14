@@ -21,9 +21,14 @@ limitations under the License.
 
 # Apache Beam Overview
 
-Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the pipeline. The pipeline is then executed by one of Beam's supported **distributed processing back-ends**, which include [Apache Flink](https://flink.apache.org), [Apache Spark](http://spark.apache.org), and [Google Cloud Dataflow](https://cloud.google.com/dataflow).
+Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the pipeline. The pipeline is then executed by one of Beam's supported **distributed processing back-ends**, which include [Apache Flink](https://flink.apache.org), [Apache Spark](https://spark.apache.org), and [Google Cloud Dataflow](https://cloud.google.com/dataflow).
 
 Beam is particularly useful for [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarassingly_parallel) data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.
+
+<div style="display: flex; justify-content: center">
+  <img src="/images/learner_graph.png" width="800px" alt="Learner Graph">
+</div>
+
 
 ## Apache Beam SDKs
 
@@ -58,7 +63,7 @@ Beam currently supports the following runners:
 
 Get started using Beam for your data processing tasks.
 
-> If you already know [Apache Spark](http://spark.apache.org/),
+> If you already know [Apache Spark](https://spark.apache.org/),
 > check our [Getting started from Apache Spark](/get-started/from-spark) page.
 
 1. Take the [Tour of Beam](/get-started/tour-of-beam) as an online interactive learning experience.
@@ -73,4 +78,4 @@ Get started using Beam for your data processing tasks.
 
 ## Contribute
 
-Beam is an <a href="http://www.apache.org" target="_blank">Apache Software Foundation</a> project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute](/contribute/) section.
+Beam is an <a href="https://www.apache.org" target="_blank">Apache Software Foundation</a> project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute](/contribute/) section.

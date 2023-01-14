@@ -26,6 +26,7 @@ import java.util.Optional;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryBag;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryCombiningState;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryMap;
+import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryMultimap;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryOrderedList;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemorySet;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryState;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
@@ -63,8 +65,8 @@ import org.joda.time.Instant;
  * accessed, an independent copy will be created within this table.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
   private final CopyOnAccessInMemoryStateTable table;
@@ -371,6 +373,22 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
           }
 
           @Override
+          public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+              StateTag<MultimapState<KeyT, ValueT>> address,
+              Coder<KeyT> keyCoder,
+              Coder<ValueT> valueCoder) {
+            if (containedInUnderlying(namespace, address)) {
+              @SuppressWarnings("unchecked")
+              InMemoryState<? extends MultimapState<KeyT, ValueT>> existingState =
+                  (InMemoryState<? extends MultimapState<KeyT, ValueT>>)
+                      underlying.get().get(namespace, address, c);
+              return existingState.copy();
+            } else {
+              return new InMemoryMultimap<>(keyCoder, valueCoder);
+            }
+          }
+
+          @Override
           public <InputT, AccumT, OutputT>
               CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
                   StateTag<CombiningState<InputT, AccumT, OutputT>> address,
@@ -455,6 +473,14 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
               StateTag<MapState<KeyT, ValueT>> address,
               Coder<KeyT> mapKeyCoder,
               Coder<ValueT> mapValueCoder) {
+            return underlying.get(namespace, address, c);
+          }
+
+          @Override
+          public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+              StateTag<MultimapState<KeyT, ValueT>> address,
+              Coder<KeyT> keyCoder,
+              Coder<ValueT> valueCoder) {
             return underlying.get(namespace, address, c);
           }
 

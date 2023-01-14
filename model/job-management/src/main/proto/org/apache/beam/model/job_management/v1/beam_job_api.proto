@@ -1,0 +1,314 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing the Job API, api for communicating with a runner
+ * for job submission over GRPC.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.model.job_management.v1;
+
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1;jobmanagement_v1";
+option java_package = "org.apache.beam.model.jobmanagement.v1";
+option java_outer_classname = "JobApi";
+
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/endpoints.proto";
+import "org/apache/beam/model/pipeline/v1/metrics.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// Job Service for running RunnerAPI pipelines
+service JobService {
+  // Prepare a job for execution. The job will not be executed until a call is made to run with the
+  // returned preparationId.
+  rpc Prepare (PrepareJobRequest) returns (PrepareJobResponse);
+
+  // Submit the job for execution
+  rpc Run (RunJobRequest) returns (RunJobResponse);
+
+  // Get a list of all invoked jobs
+  rpc GetJobs (GetJobsRequest) returns (GetJobsResponse);
+
+  // Get the current state of the job
+  rpc GetState (GetJobStateRequest) returns (JobStateEvent);
+
+  // Get the job's pipeline
+  rpc GetPipeline (GetJobPipelineRequest) returns (GetJobPipelineResponse);
+
+  // Cancel the job
+  rpc Cancel (CancelJobRequest) returns (CancelJobResponse);
+
+  // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
+  rpc GetStateStream (GetJobStateRequest) returns (stream JobStateEvent);
+
+  // Subscribe to a stream of state changes and messages from the job
+  rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
+
+  // Fetch metrics for a given job
+  rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse);
+
+  // Get the supported pipeline options of the runner
+  rpc DescribePipelineOptions (DescribePipelineOptionsRequest) returns (DescribePipelineOptionsResponse);
+}
+
+
+// Prepare is a synchronous request that returns a preparationId back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error ALREADY_EXISTS if the jobName is reused. Runners are permitted to deduplicate based on the name of the job.
+// Throws error UNKNOWN for all other issues
+message PrepareJobRequest {
+  org.apache.beam.model.pipeline.v1.Pipeline pipeline = 1; // (required)
+  google.protobuf.Struct pipeline_options = 2; // (required)
+  string job_name = 3;  // (required)
+}
+
+message PrepareJobResponse {
+  // (required) The ID used to associate calls made while preparing the job. preparationId is used
+  // to run the job.
+  string preparation_id = 1;
+
+  // An endpoint which exposes the Beam Artifact Staging API. Artifacts used by the job should be
+  // staged to this endpoint, and will be available during job execution.
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_staging_endpoint = 2;
+
+  // (required) Token for the artifact staging. This token also represent an artifact
+  // staging session with the artifact staging service.
+  string staging_session_token = 3;
+}
+
+
+// Run is a synchronous request that returns a jobId back.
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the preparation ID does not exist
+// Throws error UNKNOWN for all other issues
+message RunJobRequest {
+  // (required) The ID provided by an earlier call to prepare. Runs the job. All prerequisite tasks
+  // must have been completed.
+  string preparation_id = 1;
+  // (optional) If any artifacts have been staged for this job, contains the retrieval_token returned
+  // from the CommitManifestResponse.
+  string retrieval_token = 2;
+}
+
+
+message RunJobResponse {
+  string job_id = 1; // (required) The ID for the executing job
+}
+
+
+// Cancel is a synchronus request that returns a job state back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+message CancelJobRequest {
+  string job_id = 1; // (required)
+
+}
+
+// Valid responses include any terminal state or CANCELLING
+message CancelJobResponse {
+  JobState.Enum state = 1; // (required)
+}
+
+// A subset of info provided by ProvisionApi.ProvisionInfo
+message JobInfo {
+  string job_id = 1; // (required)
+  string job_name = 2; // (required)
+  google.protobuf.Struct pipeline_options = 3; // (required)
+  JobState.Enum state = 4; // (required)
+}
+
+// GetJobs is a synchronus request that returns a list of invoked jobs back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+message GetJobsRequest { }
+
+message GetJobsResponse {
+  repeated JobInfo job_info = 1; // (required)
+}
+
+
+// GetState is a synchronus request that returns a job state back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+message GetJobStateRequest {
+  string job_id = 1; // (required)
+
+}
+
+message JobStateEvent {
+  JobState.Enum state = 1; // (required)
+  google.protobuf.Timestamp timestamp = 2; // (required)
+}
+
+
+// GetPipeline is a synchronus request that returns a pipeline back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+message GetJobPipelineRequest {
+  string job_id = 1; // (required)
+
+}
+
+message GetJobPipelineResponse {
+  org.apache.beam.model.pipeline.v1.Pipeline pipeline = 1; // (required)
+}
+
+
+// GetJobMessages is a streaming api for streaming job messages from the service
+// One request will connect you to the job and you'll get a stream of job state
+// and job messages back; one is used for logging and the other for detecting
+// the job ended.
+message JobMessagesRequest {
+  string job_id = 1; // (required)
+}
+
+message JobMessage {
+  string message_id = 1;
+  string time = 2;
+  MessageImportance importance = 3;
+  string message_text = 4;
+
+  enum MessageImportance {
+    MESSAGE_IMPORTANCE_UNSPECIFIED = 0;
+    JOB_MESSAGE_DEBUG = 1;
+    JOB_MESSAGE_DETAILED = 2;
+    JOB_MESSAGE_BASIC = 3;
+    JOB_MESSAGE_WARNING = 4;
+    JOB_MESSAGE_ERROR = 5;
+  }
+}
+
+message JobMessagesResponse {
+  oneof response {
+    JobMessage message_response = 1;
+    JobStateEvent state_response = 2;
+  }
+}
+
+// Enumeration of all JobStates
+//
+// The state transition diagram is:
+//   STOPPED -> STARTING -> RUNNING -> DONE
+//                                  \> FAILED
+//                                  \> CANCELLING -> CANCELLED
+//                                  \> UPDATING -> UPDATED
+//                                  \> DRAINING -> DRAINED
+//
+// Transitions are optional such that a job may go from STOPPED to RUNNING
+// without needing to pass through STARTING.
+message JobState {
+  enum Enum {
+    // The job state reported by a runner cannot be interpreted by the SDK.
+    UNSPECIFIED = 0;
+
+    // The job has not yet started.
+    STOPPED = 1;
+
+    // The job is currently running.
+    RUNNING = 2;
+
+    // The job has successfully completed. (terminal)
+    DONE = 3;
+
+    // The job has failed. (terminal)
+    FAILED = 4;
+
+    // The job has been explicitly cancelled. (terminal)
+    CANCELLED = 5;
+
+    // The job has been updated. (terminal)
+    UPDATED = 6;
+
+    // The job is draining its data. (optional)
+    DRAINING = 7;
+
+    // The job has completed draining its data. (terminal)
+    DRAINED = 8;
+
+    // The job is starting up.
+    STARTING = 9;
+
+    // The job is cancelling. (optional)
+    CANCELLING = 10;
+
+    // The job is in the process of being updated. (optional)
+    UPDATING = 11;
+  }
+}
+
+
+message GetJobMetricsRequest {
+  string job_id = 1; // (required)
+}
+
+message GetJobMetricsResponse {
+  MetricResults metrics = 1;
+}
+
+// All metrics for a given job.  Runners may support one or the other or both.
+message MetricResults {
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo attempted = 1;
+  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo committed = 2;
+}
+
+
+// DescribePipelineOptions provides metadata about the options supported by a runner.
+// It will be used by the SDK client to validate the options specified by or
+// list available options to the user.
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+message DescribePipelineOptionsRequest {
+}
+
+// Type for pipeline options.
+// Types mirror those of JSON, since that's how pipeline options are serialized.
+message PipelineOptionType {
+  enum Enum {
+    STRING = 0;
+    BOOLEAN = 1;
+    // whole numbers, see https://json-schema.org/understanding-json-schema/reference/numeric.html
+    INTEGER = 2;
+    NUMBER = 3;
+    ARRAY = 4;
+    OBJECT = 5;
+  };
+}
+
+// Metadata for a pipeline option.
+message PipelineOptionDescriptor {
+  // (Required) The option name.
+  string name = 1;
+
+  // (Required) Type of option.
+  PipelineOptionType.Enum type = 2;
+
+  // (Optional) Description suitable for display / help text.
+  string description = 3;
+
+  // (Optional) Default value.
+  string default_value = 4;
+
+  // (Required) The group this option belongs to.
+  string group = 5;
+}
+
+message DescribePipelineOptionsResponse {
+  // List of pipeline option descriptors.
+  repeated PipelineOptionDescriptor options = 1;
+}

@@ -40,7 +40,7 @@ final class StructUtils {
 
   // It's not possible to pass nulls as values even with a field is nullable
   @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
   })
   public static Row structToBeamRow(Struct struct, Schema schema) {
     Map<String, @Nullable Object> structValues =
@@ -357,7 +357,7 @@ final class StructUtils {
       case STRING:
         return struct.getStringList(column);
       case NUMERIC:
-        return struct.getBigDecimal(column);
+        return struct.getBigDecimalList(column);
       case ARRAY:
         throw new IllegalStateException(
             String.format("Column %s has array of arrays which is prohibited in Spanner.", column));

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesNull;
 import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 import static org.junit.Assert.assertEquals;
 
@@ -72,6 +73,15 @@ public class BeamSqlDslAggregationNullableTest {
   }
 
   @Test
+  public void testCountNull() {
+    String sql = "SELECT COUNT(f_int1) FROM PCOLLECTION WHERE f_int2 IS NULL GROUP BY f_int3";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(0L));
+
+    pipeline.run();
+  }
+
+  @Test
   public void testCountStar() {
     String sql = "SELECT COUNT(*) FROM PCOLLECTION GROUP BY f_int3";
 
@@ -112,10 +122,64 @@ public class BeamSqlDslAggregationNullableTest {
   }
 
   @Test
+  public void testSumNull() {
+    String sql = "SELECT SUM(f_int1) FROM PCOLLECTION WHERE f_int2 IS NULL GROUP BY f_int3";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesNull());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMin() {
+    String sql = "SELECT MIN(f_int1) FROM PCOLLECTION GROUP BY f_int3";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(1));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMinNull() {
+    String sql = "SELECT MIN(f_int1) FROM PCOLLECTION WHERE f_int2 IS NULL GROUP BY f_int3";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesNull());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMax() {
+    String sql = "SELECT MAX(f_int1) FROM PCOLLECTION GROUP BY f_int3";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(3));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMaxNull() {
+    String sql = "SELECT MAX(f_int1) FROM PCOLLECTION WHERE f_int2 IS NULL GROUP BY f_int3";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesNull());
+
+    pipeline.run();
+  }
+
+  @Test
   public void testAvg() {
     String sql = "SELECT AVG(f_int1) FROM PCOLLECTION GROUP BY f_int3";
 
     PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(2));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testAvgNull() {
+    String sql = "SELECT AVG(f_int1) FROM PCOLLECTION WHERE f_int2 IS NULL GROUP BY f_int3";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesNull());
 
     pipeline.run();
   }

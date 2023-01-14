@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assume.assumeFalse;
 
 import java.io.Serializable;
 import java.net.URI;
@@ -64,7 +63,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.hamcrest.Matchers;
 import org.hamcrest.core.IsIterableContaining;
 import org.joda.time.Instant;
@@ -85,8 +83,10 @@ import org.slf4j.LoggerFactory;
  * a different parallelism.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
+  // errorprone is released (2.11.0)
+  "unused"
 })
 public class FlinkSavepointTest implements Serializable {
 
@@ -160,8 +160,6 @@ public class FlinkSavepointTest implements Serializable {
 
   @Test
   public void testSavepointRestoreLegacy() throws Exception {
-    // Don't run on Flink 1.11. https://issues.apache.org/jira/browse/BEAM-10955
-    assumeFalse(EnvironmentInformation.getVersion().startsWith("1.11"));
     runSavepointAndRestore(false);
   }
 
@@ -278,7 +276,7 @@ public class FlinkSavepointTest implements Serializable {
     // try multiple times because the job might not be ready yet
     for (int i = 0; i < 10; i++) {
       try {
-        return flinkCluster.triggerSavepoint(jobID, null, false).get();
+        return MiniClusterCompat.triggerSavepoint(flinkCluster, jobID, null, false).get();
       } catch (Exception e) {
         exception = e;
         LOG.debug("Exception while triggerSavepoint, trying again", e);
@@ -320,7 +318,7 @@ public class FlinkSavepointTest implements Serializable {
                   MapElements.via(
                       new InferableFunction<byte[], KV<String, Void>>() {
                         @Override
-                        public KV<String, Void> apply(byte[] input) throws Exception {
+                        public KV<String, Void> apply(byte[] input) {
                           // This only writes data to one of the two initial partitions.
                           // We want to test this due to
                           // https://jira.apache.org/jira/browse/BEAM-7144

@@ -20,6 +20,20 @@ package org.apache.beam.sdk.schemas.utils;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.asm.AsmVisitorWrapper;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -34,20 +48,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.asm.AsmVisitorWrapper;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.ClassWriter;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
 /** Helper functions for converting between equivalent schema types. */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class ConvertHelpers {

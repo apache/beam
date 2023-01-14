@@ -18,7 +18,7 @@ limitations under the License.
 
 # Release blockers
 
-A release blocking Jira is any open Jira that has its `Fix Version` field set
+A release blocking GitHub Issue is any open Issue that has its Milestone set
 to an upcoming version of Beam.
 
 ## Release-blocking bugs

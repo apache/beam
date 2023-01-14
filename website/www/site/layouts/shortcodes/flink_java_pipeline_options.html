@@ -16,6 +16,7 @@ This is an auto-generated file.
 Use generatePipelineOptionsTableJava and generatePipelineOptionsTablePython respectively.
 Should be called before running the tests.
 -->
+<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <td><code>allowNonRestoredState</code></td>
@@ -69,7 +70,7 @@ Should be called before running the tests.
 </tr>
 <tr>
   <td><code>failOnCheckpointingErrors</code></td>
-  <td>Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure. If this is set to true, the task will fail on checkpointing error. If this is set to false, the task will only decline a the checkpoint and continue running. </td>
+  <td>Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure. If this is set to true, the task will fail on checkpointing error. If this is set to false, the task will only decline the checkpoint and continue running. </td>
   <td>Default: <code>true</code></td>
 </tr>
 <tr>
@@ -78,14 +79,14 @@ Should be called before running the tests.
   <td>Default: <code>false</code></td>
 </tr>
 <tr>
-  <td><code>filesToStage</code></td>
-  <td>Jar-Files to send to all workers and put on the classpath. The default value is all files from the classpath.</td>
-  <td></td>
-</tr>
-<tr>
   <td><code>finishBundleBeforeCheckpointing</code></td>
   <td>If set, finishes the current bundle and flushes all output before checkpointing the state of the operators. By default, starts checkpointing immediately and buffers any remaining bundle output as part of the checkpoint. The setting may affect the checkpoint alignment.</td>
   <td>Default: <code>false</code></td>
+</tr>
+<tr>
+  <td><code>flinkConfDir</code></td>
+  <td>Directory containing Flink YAML configuration files. These properties will be set to all jobs submitted to Flink and take precedence over configurations in FLINK_CONF_DIR.</td>
+  <td></td>
 </tr>
 <tr>
   <td><code>flinkMaster</code></td>
@@ -178,3 +179,4 @@ Should be called before running the tests.
   <td></td>
 </tr>
 </table>
+</div>

@@ -13,13 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+<<<<<<<< HEAD:sdks/go/pkg/beam/util/errorx/guarded_test.go
 package errorx
+========
+package preparers
+>>>>>>>> master:playground/backend/internal/preparers/scio_preparers_test.go
 
 import (
 	"errors"
 	"testing"
 )
 
+<<<<<<<< HEAD:sdks/go/pkg/beam/util/errorx/guarded_test.go
 func TestTrySetError(t *testing.T) {
 	var gu GuardedError
 	setErr := errors.New("attempted error")
@@ -41,5 +46,33 @@ func TestTrySetError_bad(t *testing.T) {
 	}
 	if got, want := gu.Error(), setErr; got != want {
 		t.Errorf("got error %v when checking message, want %v", got, want)
+========
+func TestGetScioPreparers(t *testing.T) {
+	type args struct {
+		filePath      string
+		prepareParams map[string]string
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		{
+			// Test case with calling GetScioPreparers method.
+			// As a result, want to receive slice of preparers with len = 3
+			name: "Get scio preparers",
+			args: args{"MOCK_FILEPATH", make(map[string]string)},
+			want: 3,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			builder := NewPreparersBuilder(tt.args.filePath, tt.args.prepareParams)
+			GetScioPreparers(builder)
+			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
+				t.Errorf("GetScioPreparers() returns %v Preparers, want %v", len(*got), tt.want)
+			}
+		})
+>>>>>>>> master:playground/backend/internal/preparers/scio_preparers_test.go
 	}
 }

@@ -40,21 +40,21 @@ RC_VERSION="rc${RC_NUM}"
 echo "================Confirming Release and RC version==========="
 echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
 echo "Publishing the following images:"
-IMAGES=$(docker images --filter "reference=apache/beam_*:${RELEASE}_${RC_VERSION}" --format "{{.Repository}}")
+IMAGES=$(docker images --filter "reference=apache/beam_*:${RELEASE}${RC_VERSION}" --format "{{.Repository}}")
 echo "${IMAGES}"
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "${IMAGES}" | while read IMAGE; do
     # Pull verified RC from dockerhub.
-    docker pull "${IMAGE}:${RELEASE}_${RC_VERSION}"
+    docker pull "${IMAGE}:${RELEASE}${RC_VERSION}"
 
     # Tag with ${RELEASE} and push to dockerhub.
-    docker tag "${IMAGE}:${RELEASE}_${RC_VERSION}" "${IMAGE}:${RELEASE}"
+    docker tag "${IMAGE}:${RELEASE}${RC_VERSION}" "${IMAGE}:${RELEASE}"
     docker push "${IMAGE}:${RELEASE}"
 
     # Tag with latest and push to dockerhub.
-    docker tag "${IMAGE}:${RELEASE}_${RC_VERSION}" "${IMAGE}:latest"
+    docker tag "${IMAGE}:${RELEASE}${RC_VERSION}" "${IMAGE}:latest"
     docker push "${IMAGE}:latest"
   done
 

@@ -36,19 +36,19 @@ is often inconvenient for the original author. To help the author fix the
 issue, follow these steps when you rollback someone's change.
 
 1.  Rollback the PR (or individual commit of the PR). The rollback PR should be green except in rare cases.
-1.  Create a JIRA issue that contains the following information:
+1.  Create a GitHub issue that contains the following information:
     * the reason for the rollback
-    * a link to the test failure's JIRA issue
+    * a link to the test failure's GitHub issue
     * triage information
     * any other relevant details
-1.  Assign the new JIRA issue to the original PR author.
-1.  Consider re-opening the JIRA issue associated with the original PR (if
+1.  Assign the new GitHub issue to the original PR author.
+1.  Consider re-opening the GitHub issue associated with the original PR (if
     there is one).
 1.  Send a notification email with information about the rollback, links to the
     original PR and the rollback PR, and the reasons for the rollback to:
     *   dev@beam.apache.org
     *   the original PR author and the committer of the PR
-1.  Close the test failure JIRA issue. Your work is done here!
+1.  Close the test failure GitHub issue. Your work is done here!
 
 ## Disabling a failing test {#disabling}
 

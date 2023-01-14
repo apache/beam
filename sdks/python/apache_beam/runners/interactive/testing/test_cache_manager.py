@@ -20,9 +20,8 @@ import sys
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
-from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api import beam_interactive_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive.cache_manager import CacheManager
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
@@ -92,33 +91,35 @@ class NoopSink(beam.PTransform):
 
 class FileRecordsBuilder(object):
   def __init__(self, tag=None):
-    self._header = TestStreamFileHeader(tag=tag)
+    self._header = beam_interactive_api_pb2.TestStreamFileHeader(tag=tag)
     self._records = []
     self._coder = coders.FastPrimitivesCoder()
 
   def add_element(self, element, event_time_secs):
-    element_payload = TestStreamPayload.TimestampedElement(
+    element_payload = beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
         encoded_element=self._coder.encode(element),
         timestamp=Timestamp.of(event_time_secs).micros)
-    record = TestStreamFileRecord(
-        recorded_event=TestStreamPayload.Event(
-            element_event=TestStreamPayload.Event.AddElements(
-                elements=[element_payload])))
+    record = beam_interactive_api_pb2.TestStreamFileRecord(
+        recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
+            element_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AddElements(elements=[element_payload])))
     self._records.append(record)
     return self
 
   def advance_watermark(self, watermark_secs):
-    record = TestStreamFileRecord(
-        recorded_event=TestStreamPayload.Event(
-            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
+    record = beam_interactive_api_pb2.TestStreamFileRecord(
+        recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
+            watermark_event=beam_runner_api_pb2.TestStreamPayload.
+            Event.AdvanceWatermark(
                 new_watermark=Timestamp.of(watermark_secs).micros)))
     self._records.append(record)
     return self
 
   def advance_processing_time(self, delta_secs):
-    record = TestStreamFileRecord(
-        recorded_event=TestStreamPayload.Event(
-            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+    record = beam_interactive_api_pb2.TestStreamFileRecord(
+        recorded_event=beam_runner_api_pb2.TestStreamPayload.Event(
+            processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+            AdvanceProcessingTime(
                 advance_duration=Duration.of(delta_secs).micros)))
     self._records.append(record)
     return self

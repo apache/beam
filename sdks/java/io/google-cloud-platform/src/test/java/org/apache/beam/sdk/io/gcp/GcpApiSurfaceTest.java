@@ -66,6 +66,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.api.client.util"),
             classesInPackage("com.google.api.gax.retrying"),
             classesInPackage("com.google.api.gax.longrunning"),
+            classesInPackage("com.google.api.gax.rpc"),
             classesInPackage("com.google.api.services.bigquery.model"),
             classesInPackage("com.google.api.services.healthcare"),
             classesInPackage("com.google.auth"),

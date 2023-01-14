@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.PValue;
 
 /** Logic that specifies how to apply translations when traversing the nodes of a Beam pipeline. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class JetGraphVisitor extends Pipeline.PipelineVisitor.Defaults {
 

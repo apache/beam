@@ -20,8 +20,11 @@ package org.apache.beam.sdk.util;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.RoundingMode;
+import java.util.Arrays;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +43,8 @@ public class HistogramData implements Serializable {
 
   private final BucketType bucketType;
 
-  // TODO(BEAM-12103): Update this function to remove the numTopRecords and numBottomRecords
+  // TODO(https://github.com/apache/beam/issues/20853): Update this function to remove the
+  // numTopRecords and numBottomRecords
   // and include those counters in the buckets array.
   private long[] buckets;
   private long numBoundedBucketRecords;
@@ -65,8 +69,8 @@ public class HistogramData implements Serializable {
   }
 
   /**
-   * TODO(BEAM-12103): Update this function to define numBuckets total, including the infinite
-   * buckets. Create a histogram with linear buckets.
+   * TODO(https://github.com/apache/beam/issues/20853): Update this function to define numBuckets
+   * total, including the infinite buckets. Create a histogram with linear buckets.
    *
    * @param start Lower bound of a starting bucket.
    * @param width Bucket width. Smaller width implies a better resolution for percentile estimation.
@@ -100,7 +104,8 @@ public class HistogramData implements Serializable {
     }
   }
 
-  // TODO(BEAM-12103): Update this function to allow incrementing the infinite buckets as well.
+  // TODO(https://github.com/apache/beam/issues/20853): Update this function to allow incrementing
+  // the infinite buckets as well.
   // and remove the incTopBucketCount and incBotBucketCount methods.
   // Using 0 and length -1 as the bucketIndex.
   public synchronized void incBucketCount(int bucketIndex, long count) {
@@ -147,8 +152,8 @@ public class HistogramData implements Serializable {
   }
 
   /**
-   * TODO(BEAM-12103): Update this function to allow indexing the -INF and INF bucket (using 0 and
-   * length -1) Get the bucket count for the given bucketIndex.
+   * TODO(https://github.com/apache/beam/issues/20853): Update this function to allow indexing the
+   * -INF and INF bucket (using 0 and length -1) Get the bucket count for the given bucketIndex.
    *
    * <p>This method does not guarantee the atomicity when sequentially accessing the multiple
    * buckets i.e. other threads may alter the value between consecutive invocations. For summing the
@@ -274,5 +279,30 @@ public class HistogramData implements Serializable {
     }
 
     // Note: equals() and hashCode() are implemented by the AutoValue.
+  }
+
+  @Override
+  public synchronized boolean equals(@Nullable Object object) {
+    if (object instanceof HistogramData) {
+      HistogramData other = (HistogramData) object;
+      synchronized (other) {
+        return Objects.equals(bucketType, other.bucketType)
+            && numBoundedBucketRecords == other.numBoundedBucketRecords
+            && numTopRecords == other.numTopRecords
+            && numBottomRecords == other.numBottomRecords
+            && Arrays.equals(buckets, other.buckets);
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public synchronized int hashCode() {
+    return Objects.hash(
+        bucketType,
+        numBoundedBucketRecords,
+        numBottomRecords,
+        numTopRecords,
+        Arrays.hashCode(buckets));
   }
 }

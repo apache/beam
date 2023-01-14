@@ -40,7 +40,7 @@ import org.joda.time.Instant;
 
 /** The Java SDK Harness implementation of the {@link Window.Assign} primitive. */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class AssignWindowsRunner<T, W extends BoundedWindow> {
 
@@ -89,7 +89,8 @@ class AssignWindowsRunner<T, W extends BoundedWindow> {
   }
 
   WindowedValue<T> assignWindows(WindowedValue<T> input) throws Exception {
-    // TODO: BEAM-4272 consider allocating only once and updating the current value per call.
+    // TODO: https://github.com/apache/beam/issues/18870 consider allocating only once and updating
+    // the current value per call.
     WindowFn<T, W>.AssignContext ctxt =
         windowFn.new AssignContext() {
           @Override

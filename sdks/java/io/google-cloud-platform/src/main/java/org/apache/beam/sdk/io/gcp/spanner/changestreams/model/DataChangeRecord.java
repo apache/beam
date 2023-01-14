@@ -52,6 +52,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
   private ValueCaptureType valueCaptureType;
   private long numberOfRecordsInTransaction;
   private long numberOfPartitionsInTransaction;
+  private String transactionTag;
+  private boolean isSystemTransaction;
   @Nullable private ChangeStreamRecordMetadata metadata;
 
   /** Default constructor for serialization only. */
@@ -78,6 +80,9 @@ public class DataChangeRecord implements ChangeStreamRecord {
    * @param numberOfRecordsInTransaction the total number of records for the given transaction
    * @param numberOfPartitionsInTransaction the total number of partitions within the given
    *     transaction
+   * @param transactionTag the transaction tag associated with the given transaction
+   * @param isSystemTransaction whether the given transaction is Spanner system transaction (or user
+   *     transaction)
    * @param metadata connector execution metadata for the given record
    */
   public DataChangeRecord(
@@ -93,6 +98,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
       ValueCaptureType valueCaptureType,
       long numberOfRecordsInTransaction,
       long numberOfPartitionsInTransaction,
+      String transactionTag,
+      boolean isSystemTransaction,
       ChangeStreamRecordMetadata metadata) {
     this.commitTimestamp = commitTimestamp;
     this.partitionToken = partitionToken;
@@ -106,6 +113,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
     this.valueCaptureType = valueCaptureType;
     this.numberOfRecordsInTransaction = numberOfRecordsInTransaction;
     this.numberOfPartitionsInTransaction = numberOfPartitionsInTransaction;
+    this.transactionTag = transactionTag;
+    this.isSystemTransaction = isSystemTransaction;
     this.metadata = metadata;
   }
 
@@ -181,6 +190,19 @@ public class DataChangeRecord implements ChangeStreamRecord {
     return numberOfPartitionsInTransaction;
   }
 
+  /** The transaction tag associated with the given transaction. */
+  public String getTransactionTag() {
+    return transactionTag;
+  }
+
+  /**
+   * Whether the given transaction is Spanner system transaction. Otherwise it is user/application
+   * transaction.
+   */
+  public boolean isSystemTransaction() {
+    return isSystemTransaction;
+  }
+
   /** The connector execution metadata for this record. */
   public ChangeStreamRecordMetadata getMetadata() {
     return metadata;
@@ -198,6 +220,8 @@ public class DataChangeRecord implements ChangeStreamRecord {
     return isLastRecordInTransactionInPartition == that.isLastRecordInTransactionInPartition
         && numberOfRecordsInTransaction == that.numberOfRecordsInTransaction
         && numberOfPartitionsInTransaction == that.numberOfPartitionsInTransaction
+        && Objects.equals(transactionTag, that.transactionTag)
+        && isSystemTransaction == that.isSystemTransaction
         && Objects.equals(partitionToken, that.partitionToken)
         && Objects.equals(commitTimestamp, that.commitTimestamp)
         && Objects.equals(serverTransactionId, that.serverTransactionId)
@@ -223,7 +247,9 @@ public class DataChangeRecord implements ChangeStreamRecord {
         modType,
         valueCaptureType,
         numberOfRecordsInTransaction,
-        numberOfPartitionsInTransaction);
+        numberOfPartitionsInTransaction,
+        transactionTag,
+        isSystemTransaction);
   }
 
   @Override
@@ -257,6 +283,11 @@ public class DataChangeRecord implements ChangeStreamRecord {
         + numberOfRecordsInTransaction
         + ", numberOfPartitionsInTransaction="
         + numberOfPartitionsInTransaction
+        + ", transactionTag='"
+        + transactionTag
+        + '\''
+        + ", isSystemTransaction="
+        + isSystemTransaction
         + ", metadata"
         + metadata
         + '}';

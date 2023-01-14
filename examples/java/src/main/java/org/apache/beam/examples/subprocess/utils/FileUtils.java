@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 /** Utilities for dealing with movement of files from object stores and workers. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FileUtils {
 

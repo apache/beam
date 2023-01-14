@@ -44,7 +44,7 @@ import org.joda.time.Instant;
  * after it is added to an output {@link PCollection}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ImmutabilityCheckingBundleFactory implements BundleFactory {
   /**

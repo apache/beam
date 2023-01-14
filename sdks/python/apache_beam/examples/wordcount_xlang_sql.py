@@ -17,9 +17,8 @@
 
 """A word-counting workflow that uses the SQL transform.
 
-Java 8 must be available to run this pipeline, and the
---experiments=use_runner_v2 flag must be passed when running on Dataflow.
-Docker must also be available to run this pipeline locally.
+A Java version supported by Beam must be installed locally to run this pipeline.
+Additionally, Docker must also be available to run this pipeline locally.
 """
 
 import argparse

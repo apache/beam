@@ -42,16 +42,16 @@
 
      h1 {
        @extend .hero-heading;
-       width: 506px;
+       width: 600px;
        height: 92px;
        font-size: 46px;
-       margin: 0 auto 36px auto;
+       margin: 0 auto 30px auto;
      }
 
      h2 {
        @extend .hero-subheading;
-       width: 344px;
-       margin: 0 auto 56px auto;
+       width: 550px;
+       margin: 0 auto 55px auto;
      }
 
      a {
@@ -59,7 +59,7 @@
      }
 
      button {
-       width: 184px;
+       width: 204px;
        height: 46px;
        border-radius: 100px;
        box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),

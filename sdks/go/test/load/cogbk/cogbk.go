@@ -18,11 +18,11 @@ package main
 import (
 	"context"
 	"flag"
-	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/synthetic"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/test/load"
 )
@@ -43,13 +43,17 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*ungroupAndReiterateFn)(nil)).Elem())
+	register.DoFn4x0[[]byte, func(*[]byte) bool, func(*[]byte) bool, func([]byte, []byte)]((*ungroupAndReiterateFn)(nil))
+	register.Emitter2[[]byte, []byte]()
+	register.Iter1[[]byte]()
 }
 
 // ungroupAndReiterateFn reiterates given number of times over CoGBK's output.
 type ungroupAndReiterateFn struct {
 	Iterations int
 }
+
+// TODO use re-iterators once supported.
 
 func (fn *ungroupAndReiterateFn) ProcessElement(key []byte, p1values, p2values func(*[]byte) bool, emit func([]byte, []byte)) {
 	var value []byte

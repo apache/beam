@@ -31,6 +31,28 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.asm.AsmVisitorWrapper;
+import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import net.bytebuddy.implementation.bytecode.Duplication;
+import net.bytebuddy.implementation.bytecode.Removal;
+import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.TypeCreation;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -42,42 +64,22 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.asm.AsmVisitorWrapper;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Duplication;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Removal;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.TypeCreation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.ClassWriter;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for managing AutoValue schemas. */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class AutoValueUtils {
   public static Class getBaseAutoValueClass(Class<?> clazz) {
-    int lastDot = clazz.getName().lastIndexOf('.');
-    String baseName = clazz.getName().substring(lastDot + 1, clazz.getName().length());
-    return baseName.startsWith("AutoValue_") ? clazz.getSuperclass() : clazz;
+    // AutoValue extensions may be nested
+    while (clazz != null && clazz.getName().contains("AutoValue_")) {
+      clazz = clazz.getSuperclass();
+    }
+    return clazz;
   }
 
   private static Class getAutoValueGenerated(Class<?> clazz) {
@@ -90,8 +92,19 @@ public class AutoValueUtils {
   }
 
   private static @Nullable Class getAutoValueGeneratedBuilder(Class<?> clazz) {
-    // TODO: Handle extensions. Find the class with the maximum number of $ character prefixexs.
-    String builderName = getAutoValueGeneratedName(clazz.getName()) + "$Builder";
+    Class generated;
+    try {
+      generated = Class.forName(getAutoValueGeneratedName(clazz.getName()));
+    } catch (ClassNotFoundException e) {
+      return null;
+    }
+    // Find the first generated class
+    Class base = generated;
+    while (base != null && base.getName().contains("AutoValue_")) {
+      generated = base;
+      base = base.getSuperclass();
+    }
+    String builderName = generated.getName() + "$Builder";
     try {
       return Class.forName(builderName);
     } catch (ClassNotFoundException e) {
@@ -144,9 +157,27 @@ public class AutoValueUtils {
                     f -> ReflectUtils.stripGetterPrefix(f.getMethod().getName()),
                     Function.identity()));
 
+    boolean valid = true;
     // Verify that constructor parameters match (name and type) the inferred schema.
     for (Parameter parameter : constructor.getParameters()) {
-      FieldValueTypeInformation type = typeMap.getOrDefault(parameter.getName(), null);
+      FieldValueTypeInformation type = typeMap.get(parameter.getName());
+      if (type == null || type.getRawType() != parameter.getType()) {
+        valid = false;
+        break;
+      }
+    }
+    if (valid) {
+      return valid;
+    }
+
+    // Extensions add a $ suffix
+    for (Parameter parameter : constructor.getParameters()) {
+      String name = parameter.getName();
+      if (!name.endsWith("$")) {
+        return false;
+      }
+      name = name.substring(0, name.length() - 1);
+      FieldValueTypeInformation type = typeMap.get(name);
       if (type == null || type.getRawType() != parameter.getType()) {
         return false;
       }

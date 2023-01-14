@@ -52,6 +52,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
@@ -84,10 +85,10 @@ import org.joda.time.Instant;
 
 /** {@link StateInternals} that uses Samza local {@link KeyValueStore} to manage state. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "keyfor",
   "nullness"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class SamzaStoreStateInternals<K> implements StateInternals {
   static final String BEAM_STORE = "beamStore";
 
@@ -208,6 +209,15 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
               Coder<KeyT> mapKeyCoder,
               Coder<ValueT> mapValueCoder) {
             return new SamzaMapStateImpl<>(namespace, address, mapKeyCoder, mapValueCoder);
+          }
+
+          @Override
+          public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+              StateTag<MultimapState<KeyT, ValueT>> spec,
+              Coder<KeyT> keyCoder,
+              Coder<ValueT> valueCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", MultimapState.class.getSimpleName()));
           }
 
           @Override

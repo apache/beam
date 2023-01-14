@@ -110,7 +110,7 @@ import org.joda.time.Duration;
  * <p>JUnit and Hamcrest must be linked in by any code that uses PAssert.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PAssert {
   public static final String SUCCESS_COUNTER = "PAssertSuccess";
@@ -779,7 +779,7 @@ public class PAssert {
       // Safe covariant cast. Could be elided by changing a lot of this file to use
       // more flexible bounds.
       @SuppressWarnings({
-        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
         "unchecked"
       })
       SerializableFunction<Iterable<T>, Void> checkerFn =
@@ -921,7 +921,7 @@ public class PAssert {
     public final PCollectionSingletonIterableAssert<T> containsInAnyOrder(
         SerializableMatcher<? super T>... elementMatchers) {
       @SuppressWarnings({
-        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
         "unchecked"
       })
       SerializableFunction<Iterable<T>, Void> checkerFn =

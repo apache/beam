@@ -68,7 +68,7 @@ type visiter struct {
 
 func newVisiter(xforms map[string]*pipepb.PTransform, ids []string) *visiter {
 	ret := &visiter{
-		output: make([]string, len(ids), len(ids)),
+		output: make([]string, len(ids)),
 		index:  len(ids) - 1,
 		seen:   make(map[string]bool),
 		next:   make(map[string][]string),

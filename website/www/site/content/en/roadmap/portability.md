@@ -100,7 +100,7 @@ common pattern for new portability features is that the overall
 feature is in "beam-model" with subtasks for each SDK and runner in
 their respective components.
 
-**JIRA:** [query](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20portability%20order%20by%20priority%20DESC%2Cupdated%20DESC)
+**Issues:** [query](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Aportability)
 
 Prerequisites: [Docker](https://docs.docker.com/compose/install/), [Python](https://docs.python-guide.org/starting/install3/linux/), [Java 8](https://openjdk.java.net/install/)
 

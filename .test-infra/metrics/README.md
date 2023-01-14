@@ -21,8 +21,7 @@ This folder contains resources required to deploy the Beam metrics stack.
 
 There are two types of metrics in Beam:
 * Community metrics. The stack includes:
-  * Python scripts for ingesting data from sources (Jenkins, JIRA,
-  GitHub)
+  * Python scripts for ingesting data from sources (Jenkins and GitHub)
   * Postgres analytics database
 
 * Test Results, i.e. metrics published by tests (IO Performance tests, Load tests and Nexmark tests). Beam uses InfluxDB time series database to store test metrics.
@@ -105,6 +104,24 @@ these volumes. (List volumes via `docker volume ls`)
 
 ## Kubernetes setup
 
+### Cluster Specification
+* Name: metrics
+* GKE Version: 1.22.6-gke.300
+* Node Pool Version: 1.22.6-gke.300
+* Runtime: Container-Optimized OS with containerd (cos_containerd)
+* Authentication method: OAuth Client Certificate.
+
 Kubernetes deployment instructions are maintained in the wiki:
 * [Community metrics](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics)
 * [Test Results Monitoring](https://cwiki.apache.org/confluence/display/BEAM/Test+Results+Monitoring)
+
+
+### Note: Basic Auth is not supported on BEAM Clusters as of March 4th 2022
+
+Prior to v1.19 GKE allowed to log into a cluster using basic authentication methods, which relies on a username and password, and now it is deprecated.
+
+Currently, OAuth is the standard authentication method, previous usernames and passwords were removed so only the certificate remains as master auth.
+
+Some Beam Performance tests need to be logged into the cluster so they can create its own resources, the correct method to do so is by setting up the right Kubeconfig inside the worker and execute get credentials within GCP.
+
+In the future if you need to create an automatic process that need to have access to the cluster, use OAuth inside your script or job.

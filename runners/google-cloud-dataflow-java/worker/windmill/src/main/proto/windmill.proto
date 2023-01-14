@@ -42,6 +42,8 @@ message Timer {
   }
   optional Type type = 3 [default = WATERMARK];
   optional string state_family = 4;
+  optional int64 metadata_timestamp = 5 [default = 0x7fffffffffffffff];
+  optional bytes metadata_payload = 6;
 }
 
 message InputMessageBundle {
@@ -54,6 +56,18 @@ message KeyedMessageBundle {
   optional fixed64 sharding_key = 4;
   repeated Message messages = 2;
   repeated bytes messages_ids = 3;
+}
+
+message LatencyAttribution {
+  enum State {
+    UNKNOWN = 0;
+    QUEUED = 1;
+    ACTIVE = 2;
+    READING = 3;
+    COMMITTING = 4;
+  }
+  optional State state = 1;
+  optional int64 total_duration_millis = 2;
 }
 
 message OutputMessageBundle {
@@ -284,6 +298,7 @@ message KeyedGetDataRequest {
   // Must be at most one sorted_list_to_fetch for a given state family and tag.
   repeated TagSortedListFetchRequest sorted_lists_to_fetch = 9;
   repeated WatermarkHold watermark_holds_to_fetch = 5;
+  repeated LatencyAttribution latency_attribution = 13;
 
   optional int64 max_bytes = 7;
   reserved 4;

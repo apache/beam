@@ -82,7 +82,7 @@ import org.joda.time.Duration;
  * </ul>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, PDone> {
   /** Default maximum number of messages per publish. */
@@ -198,6 +198,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     private final int publishBatchSize;
     private final int publishBatchBytes;
 
+    private final String pubsubRootUrl;
+
     /** Client on which to talk to Pubsub. Null until created by {@link #startBundle}. */
     private transient @Nullable PubsubClient pubsubClient;
 
@@ -218,6 +220,24 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       this.idAttribute = idAttribute;
       this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
+      this.pubsubRootUrl = null;
+    }
+
+    WriterFn(
+        PubsubClientFactory pubsubFactory,
+        ValueProvider<TopicPath> topic,
+        String timestampAttribute,
+        String idAttribute,
+        int publishBatchSize,
+        int publishBatchBytes,
+        String pubsubRootUrl) {
+      this.pubsubFactory = pubsubFactory;
+      this.topic = topic;
+      this.timestampAttribute = timestampAttribute;
+      this.idAttribute = idAttribute;
+      this.publishBatchSize = publishBatchSize;
+      this.publishBatchBytes = publishBatchBytes;
+      this.pubsubRootUrl = pubsubRootUrl;
     }
 
     /** BLOCKING Send {@code messages} as a batch to Pubsub. */
@@ -238,7 +258,10 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       checkState(pubsubClient == null, "startBundle invoked without prior finishBundle");
       pubsubClient =
           pubsubFactory.newClient(
-              timestampAttribute, idAttribute, c.getPipelineOptions().as(PubsubOptions.class));
+              timestampAttribute,
+              idAttribute,
+              c.getPipelineOptions().as(PubsubOptions.class),
+              pubsubRootUrl);
     }
 
     @ProcessElement
@@ -327,6 +350,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
    */
   private final RecordIdMethod recordIdMethod;
 
+  private final String pubsubRootUrl;
+
   @VisibleForTesting
   PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
@@ -337,7 +362,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       int publishBatchSize,
       int publishBatchBytes,
       Duration maxLatency,
-      RecordIdMethod recordIdMethod) {
+      RecordIdMethod recordIdMethod,
+      String pubsubRootUrl) {
     this.pubsubFactory = pubsubFactory;
     this.topic = topic;
     this.timestampAttribute = timestampAttribute;
@@ -346,6 +372,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     this.publishBatchSize = publishBatchSize;
     this.publishBatchBytes = publishBatchBytes;
     this.maxLatency = maxLatency;
+    this.pubsubRootUrl = pubsubRootUrl;
     this.recordIdMethod = idAttribute == null ? RecordIdMethod.NONE : recordIdMethod;
   }
 
@@ -364,7 +391,28 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         DEFAULT_PUBLISH_BATCH_SIZE,
         DEFAULT_PUBLISH_BATCH_BYTES,
         DEFAULT_MAX_LATENCY,
-        RecordIdMethod.RANDOM);
+        RecordIdMethod.RANDOM,
+        null);
+  }
+
+  public PubsubUnboundedSink(
+      PubsubClientFactory pubsubFactory,
+      ValueProvider<TopicPath> topic,
+      String timestampAttribute,
+      String idAttribute,
+      int numShards,
+      String pubsubRootUrl) {
+    this(
+        pubsubFactory,
+        topic,
+        timestampAttribute,
+        idAttribute,
+        numShards,
+        DEFAULT_PUBLISH_BATCH_SIZE,
+        DEFAULT_PUBLISH_BATCH_BYTES,
+        DEFAULT_MAX_LATENCY,
+        RecordIdMethod.RANDOM,
+        pubsubRootUrl);
   }
 
   public PubsubUnboundedSink(
@@ -384,7 +432,30 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         publishBatchSize,
         publishBatchBytes,
         DEFAULT_MAX_LATENCY,
-        RecordIdMethod.RANDOM);
+        RecordIdMethod.RANDOM,
+        null);
+  }
+
+  public PubsubUnboundedSink(
+      PubsubClientFactory pubsubFactory,
+      ValueProvider<TopicPath> topic,
+      String timestampAttribute,
+      String idAttribute,
+      int numShards,
+      int publishBatchSize,
+      int publishBatchBytes,
+      String pubsubRootUrl) {
+    this(
+        pubsubFactory,
+        topic,
+        timestampAttribute,
+        idAttribute,
+        numShards,
+        publishBatchSize,
+        publishBatchBytes,
+        DEFAULT_MAX_LATENCY,
+        RecordIdMethod.RANDOM,
+        pubsubRootUrl);
   }
   /** Get the topic being written to. */
   public TopicPath getTopic() {
@@ -451,7 +522,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                       outer.timestampAttribute,
                       outer.idAttribute,
                       outer.publishBatchSize,
-                      outer.publishBatchBytes)));
+                      outer.publishBatchBytes,
+                      outer.pubsubRootUrl)));
       return PDone.in(input.getPipeline());
     }
   }

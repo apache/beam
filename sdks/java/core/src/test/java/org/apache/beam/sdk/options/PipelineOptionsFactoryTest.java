@@ -92,7 +92,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link PipelineOptionsFactory}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class PipelineOptionsFactoryTest {
   private static final String DEFAULT_RUNNER_NAME = "DirectRunner";
@@ -1915,7 +1915,7 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testAllFromPipelineOptions() {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10724
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20466
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(

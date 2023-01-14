@@ -35,18 +35,15 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Coder} for {@link KafkaRecord}. */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
 
-  private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
-  private static final VarLongCoder longCoder = VarLongCoder.of();
-  private static final VarIntCoder intCoder = VarIntCoder.of();
-  private static final IterableCoder headerCoder =
+  private static final Coder<String> stringCoder = StringUtf8Coder.of();
+  private static final Coder<Long> longCoder = VarLongCoder.of();
+  private static final Coder<Integer> intCoder = VarIntCoder.of();
+  private static final Coder<Iterable<KV<String, byte[]>>> headerCoder =
       IterableCoder.of(KvCoder.of(stringCoder, ByteArrayCoder.of()));
 
   private final KvCoder<K, V> kvCoder;
@@ -82,7 +79,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
         kvCoder.decode(inStream));
   }
 
-  private Object toHeaders(Iterable<KV<String, byte[]>> records) {
+  private @Nullable Object toHeaders(Iterable<KV<String, byte[]>> records) {
     if (!ConsumerSpEL.hasHeaders()) {
       return null;
     }
@@ -93,14 +90,16 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
     return consumerRecord.headers();
   }
 
-  private Iterable<KV<String, byte[]>> toIterable(KafkaRecord record) {
+  private Iterable<KV<String, byte[]>> toIterable(KafkaRecord<K, V> record) {
     if (!ConsumerSpEL.hasHeaders()) {
       return Collections.emptyList();
     }
 
     List<KV<String, byte[]>> vals = new ArrayList<>();
-    for (Header header : record.getHeaders()) {
-      vals.add(KV.of(header.key(), header.value()));
+    if (record.getHeaders() != null) {
+      for (Header header : record.getHeaders()) {
+        vals.add(KV.of(header.key(), header.value()));
+      }
     }
     return vals;
   }

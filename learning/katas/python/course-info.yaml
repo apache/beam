@@ -17,17 +17,22 @@
 # under the License.
 #
 
+type: marketplace
 title: Beam Katas - Python
 language: English
-summary: "This course provides a series of katas to get familiar with Apache Beam.\
-  \ \n\nApache Beam website – https://beam.apache.org/"
+summary: |-
+  This course provides a series of katas to get familiar with Apache Beam.
+
+  Apache Beam website – https://beam.apache.org/
+vendor:
+  name: Beam Katas
 programming_language: Python
-programming_language_version: 3.7
+programming_language_version: 3.0
+environment: unittest
 content:
 - Introduction
 - Core Transforms
 - Common Transforms
 - IO
-- Windowing
-- Triggers
+- Streaming
 - Examples

@@ -13,15 +13,15 @@
 - title: Join Beam Community
   body: Learn more about the <a href="/community/join-beam">contribution pathway</a> you can take to become a committer or PMC member.
   icon: icons/community/bee-icon.svg
-- title: Contact us
+- title: Contact Us
   body: <a href="/community/contact-us">Here’s a list of channels</a> that the Apache Beam community and Project Management Committee (PMC) monitor and interact in. We look forward to seeing you!
   icon: icons/community/envelope-icon.svg
-- title: Keep up with Beam news and updates
+- title: Keep Up with Beam News and Updates
   body: Follow our <a target="_blank" href="https://twitter.com/apachebeam?lang=en">official Twitter account</a> and subscribe to our <a target="_blank" href="https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ">YouTube channel</a> to stay up-to-date with project updates and the latest training.
   icon: icons/community/message-icon.svg
-- title: Meet with the community
+- title: Meet with the Community
   body: Check out our <a target="_blank" href="https://calendar.google.com/calendar/u/0/r?cid=r24up18ne2ddgl0t93flk0hsj8@group.calendar.google.com">calendar of events</a> in the homepage, we update it frequently so you know where to meet us.
   icon: icons/community/calendar-icon.svg
-- title: Promotional assets
+- title: Promotional Assets
   body: Looking for some marketing material for your next Beam talk or pitch? Here’s a list of our brand assets including <a href="/community/logos">logos</a>, <a href="/community/presentation-materials">presentations</a>, and the firefly <a href="/community/mascot">mascot</a>!
   icon: icons/community/box-icon.svg

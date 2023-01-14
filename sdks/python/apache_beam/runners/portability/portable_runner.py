@@ -232,7 +232,8 @@ class JobServiceHandle(object):
           beam_job_api_pb2.JobMessagesRequest(job_id=preparation_id),
           timeout=self.timeout)
     except Exception:
-      # TODO(BEAM-6442): Unify preparation_id and job_id for all runners.
+      # TODO(https://github.com/apache/beam/issues/19284): Unify preparation_id
+      # and job_id for all runners.
       state_stream = message_stream = None
 
     # Run the job and wait for a result, we don't set a timeout here because
@@ -325,7 +326,7 @@ class PortableRunner(runner.PipelineRunner):
         default_environment=PortableRunner._create_environment(
             portable_options))
 
-    # TODO: https://issues.apache.org/jira/browse/BEAM-7199
+    # TODO: https://github.com/apache/beam/issues/19493
     # Eventually remove the 'pre_optimize' option alltogether and only perform
     # the equivalent of the 'default' case below (minus the 'lift_combiners'
     # part).
@@ -335,8 +336,8 @@ class PortableRunner(runner.PipelineRunner):
         pre_optimize != 'none'):
       if pre_optimize == 'default':
         phases = [
-            # TODO: https://issues.apache.org/jira/browse/BEAM-4678
-            #       https://issues.apache.org/jira/browse/BEAM-11478
+            # TODO: https://github.com/apache/beam/issues/18584
+            #       https://github.com/apache/beam/issues/18586
             # Eventually remove the 'lift_combiners' phase from 'default'.
             translations.pack_combiners,
             translations.lift_combiners,
@@ -361,8 +362,8 @@ class PortableRunner(runner.PipelineRunner):
         ]
         partial = False
       elif pre_optimize == 'all_except_fusion':
-        # TODO(BEAM-7248): Delete this branch after PortableRunner supports
-        # beam:runner:executable_stage:v1.
+        # TODO(https://github.com/apache/beam/issues/19422): Delete this branch
+        # after PortableRunner supports beam:runner:executable_stage:v1.
         phases = [
             translations.annotate_downstream_side_inputs,
             translations.annotate_stateful_dofns_as_roots,
@@ -411,7 +412,7 @@ class PortableRunner(runner.PipelineRunner):
     # type: (Pipeline, PipelineOptions) -> PipelineResult
     portable_options = options.view_as(PortableOptions)
 
-    # TODO: https://issues.apache.org/jira/browse/BEAM-5525
+    # TODO: https://github.com/apache/beam/issues/19168
     # portable runner specific default
     if options.view_as(SetupOptions).sdk_location == 'default':
       options.view_as(SetupOptions).sdk_location = 'container'
@@ -515,18 +516,24 @@ class PipelineResult(runner.PipelineResult):
   def state(self):
     runner_api_state = self._job_service.GetState(
         beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)).state
-    self._state = self._runner_api_state_to_pipeline_state(runner_api_state)
+    self._state = self.runner_api_state_to_pipeline_state(runner_api_state)
     return self._state
 
   @staticmethod
-  def _runner_api_state_to_pipeline_state(runner_api_state):
+  def runner_api_state_to_pipeline_state(runner_api_state):
     return getattr(
         runner.PipelineState,
         beam_job_api_pb2.JobState.Enum.Name(runner_api_state))
 
   @staticmethod
-  def _pipeline_state_to_runner_api_state(pipeline_state):
-    return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
+  def pipeline_state_to_runner_api_state(pipeline_state):
+    if pipeline_state == runner.PipelineState.PENDING:
+      return beam_job_api_pb2.JobState.STARTING
+    else:
+      try:
+        return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
+      except ValueError:
+        return beam_job_api_pb2.JobState.UNSPECIFIED
 
   def metrics(self):
     if not self._metrics:
@@ -573,7 +580,7 @@ class PipelineResult(runner.PipelineResult):
           if current_state != previous_state:
             _LOGGER.info(
                 "Job state changed to %s",
-                self._runner_api_state_to_pipeline_state(current_state))
+                self.runner_api_state_to_pipeline_state(current_state))
             previous_state = current_state
         self._messages.append(message)
 
@@ -604,7 +611,7 @@ class PipelineResult(runner.PipelineResult):
   def _observe_state(self, message_thread):
     try:
       for state_response in self._state_stream:
-        self._state = self._runner_api_state_to_pipeline_state(
+        self._state = self.runner_api_state_to_pipeline_state(
             state_response.state)
         if state_response.state in TERMINAL_STATES:
           # Wait for any last messages.

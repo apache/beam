@@ -24,8 +24,6 @@ import os
 import tempfile
 import unittest
 
-import pytest
-
 import apache_beam as beam
 from apache_beam.examples.cookbook import custom_ptransform
 from apache_beam.testing.test_pipeline import TestPipeline

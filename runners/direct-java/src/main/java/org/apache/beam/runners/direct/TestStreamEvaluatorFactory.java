@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.TestStreamTranslation;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -52,8 +51,8 @@ import org.joda.time.Instant;
 
 /** The {@link TransformEvaluatorFactory} for the {@link TestStream} primitive. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -140,17 +139,15 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
   @VisibleForTesting
   static class TestClock implements Clock {
-    private final AtomicReference<Instant> currentTime =
-        new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    private Instant currentTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-    public void advance(Duration amount) {
-      Instant now = currentTime.get();
-      currentTime.compareAndSet(now, now.plus(amount));
+    public synchronized void advance(Duration amount) {
+      currentTime = currentTime.plus(amount);
     }
 
     @Override
-    public Instant now() {
-      return currentTime.get();
+    public synchronized Instant now() {
+      return currentTime;
     }
   }
 

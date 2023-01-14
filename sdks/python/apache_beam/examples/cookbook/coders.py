@@ -35,13 +35,14 @@ import json
 import logging
 
 import apache_beam as beam
+from apache_beam.coders import Coder
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
 
-class JsonCoder(object):
+class JsonCoder(Coder):
   """A JSON coder interpreting each line as a JSON string."""
   def encode(self, x):
     return json.dumps(x).encode('utf-8')

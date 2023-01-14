@@ -20,13 +20,15 @@
 # pytype: skip-file
 
 import logging
-import tempfile
 import unittest
+import uuid
 
 import pytest
 
 from apache_beam.examples.cookbook import mergecontacts
-from apache_beam.testing.util import open_shards
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import create_file
+from apache_beam.testing.test_utils import read_files_from_pattern
 
 
 class MergeContactsTest(unittest.TestCase):
@@ -118,11 +120,6 @@ class MergeContactsTest(unittest.TestCase):
 
   EXPECTED_STATS = '\n'.join(['2 luddites', '1 writers', '3 nomads', ''])
 
-  def create_temp_file(self, contents):
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents.encode('utf-8'))
-      return f.name
-
   def normalize_tsv_results(self, tsv_data):
     """Sort .tsv file data so we can compare it with expected output."""
     lines_in = tsv_data.strip().split('\n')
@@ -139,26 +136,40 @@ class MergeContactsTest(unittest.TestCase):
     return '\n'.join(sorted(lines_out)) + '\n'
 
   @pytest.mark.examples_postcommit
+  @pytest.mark.sickbay_flink
   def test_mergecontacts(self):
-    path_email = self.create_temp_file(self.CONTACTS_EMAIL)
-    path_phone = self.create_temp_file(self.CONTACTS_PHONE)
-    path_snailmail = self.create_temp_file(self.CONTACTS_SNAILMAIL)
+    test_pipeline = TestPipeline(is_integration_test=True)
 
-    result_prefix = self.create_temp_file('')
+    # Setup the files with expected content.
+    temp_location = test_pipeline.get_option('temp_location')
+    input_folder = '/'.join([temp_location, str(uuid.uuid4())])
+    path_email = create_file(
+        '/'.join([input_folder, 'path_email.txt']), self.CONTACTS_EMAIL)
+    path_phone = create_file(
+        '/'.join([input_folder, 'path_phone.txt']), self.CONTACTS_PHONE)
+    path_snailmail = create_file(
+        '/'.join([input_folder, 'path_snailmail.txt']), self.CONTACTS_SNAILMAIL)
 
-    mergecontacts.run([
-        '--input_email=%s' % path_email,
-        '--input_phone=%s' % path_phone,
-        '--input_snailmail=%s' % path_snailmail,
-        '--output_tsv=%s.tsv' % result_prefix,
-        '--output_stats=%s.stats' % result_prefix
-    ],
-                      assert_results=(2, 1, 3),
-                      save_main_session=False)
+    result_prefix = '/'.join([temp_location, str(uuid.uuid4()), 'result'])
+    extra_opts = {
+        'input_email': path_email,
+        'input_phone': path_phone,
+        'input_snailmail': path_snailmail,
+        'output_tsv': '%s.tsv' % result_prefix,
+        'output_stats': '%s.stats' % result_prefix
+    }
 
-    with open_shards('%s.tsv-*-of-*' % result_prefix) as f:
-      contents = f.read()
-      self.assertEqual(self.EXPECTED_TSV, self.normalize_tsv_results(contents))
+    pipeline_opts = test_pipeline.get_full_options_as_args(**extra_opts)
+    # Prevent ambiguous option error between output in
+    # args and expected output_tsv and output_stats
+    output_arg = [i for i in pipeline_opts if i.startswith('--output=')]
+    if output_arg:
+      pipeline_opts.remove(output_arg[0])
+    mergecontacts.run(
+        pipeline_opts, assert_results=(2, 1, 3), save_main_session=False)
+
+    contents = read_files_from_pattern('%s*' % result_prefix)
+    self.assertEqual(self.EXPECTED_TSV, self.normalize_tsv_results(contents))
 
 
 if __name__ == '__main__':

@@ -23,4 +23,4 @@ package stats
 {{- with $x := .X }}
 //go:generate starcgen --package=stats --identifiers=countFn,keyedCountFn,meanFn{{- range $i, $t := $x -}},max{{$t.Name}}Fn,min{{$t.Name}}Fn,sum{{$t.Name}}Fn{{- end -}}
 {{end}}
-
+//go:generate gofmt -w stats.shims.go

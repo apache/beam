@@ -19,17 +19,16 @@
 import 'package:flutter/material.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground_components/playground_components.dart';
 
 class SdkSelectorRow extends StatelessWidget {
-  final SDK sdk;
+  final Sdk sdk;
   final VoidCallback onSelect;
 
-  const SdkSelectorRow({
-    Key? key,
+  SdkSelectorRow({
     required this.sdk,
     required this.onSelect,
-  }) : super(key: key);
+  }) : super(key: ValueKey(sdk));
 
   @override
   Widget build(BuildContext context) {
@@ -45,11 +44,11 @@ class SdkSelectorRow extends StatelessWidget {
           ),
         ),
       ),
+      onPressed: onSelect,
       child: Padding(
         padding: const EdgeInsets.all(kLgSpacing),
-        child: Text(sdk.displayName),
+        child: Text(sdk.title),
       ),
-      onPressed: onSelect,
     );
   }
 }

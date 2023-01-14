@@ -34,6 +34,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
@@ -44,7 +45,6 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSch
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.CalciteCatalogReader;
@@ -72,8 +72,8 @@ import org.slf4j.LoggerFactory;
 
 /** ZetaSQLQueryPlanner. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ZetaSQLQueryPlanner implements QueryPlanner {
   public static final Collection<RelOptRule> DEFAULT_CALC =
@@ -127,7 +127,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     for (RuleSet ruleSet : ruleSets) {
       ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
       for (RelOptRule rule : ruleSet) {
-        // TODO[BEAM-9075]: Fix join re-ordering for ZetaSQL planner. Currently join re-ordering
+        // TODO[https://github.com/apache/beam/issues/20077]: Fix join re-ordering for ZetaSQL
+        // planner. Currently join re-ordering
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
           continue;
@@ -219,7 +220,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     root.rel.getCluster().invalidateMetadataQuery();
     try {
       BeamRelNode beamRelNode = (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
-      LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
+      LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
       return beamRelNode;
     } catch (RelOptPlanner.CannotPlanException e) {
       throw new SqlConversionException("Failed to produce plan for query " + sql, e);

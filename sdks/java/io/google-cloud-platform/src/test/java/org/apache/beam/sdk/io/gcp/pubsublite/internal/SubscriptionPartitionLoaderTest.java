@@ -25,6 +25,7 @@ import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.TopicPath;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SerializableMatchers.SerializableSupplier;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -41,6 +42,8 @@ import org.mockito.Mock;
 public class SubscriptionPartitionLoaderTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Mock SerializableFunction<TopicPath, Integer> getPartitionCount;
+
+  @Mock SerializableSupplier<Boolean> terminate;
   private SubscriptionPartitionLoader loader;
 
   @Before
@@ -48,18 +51,21 @@ public class SubscriptionPartitionLoaderTest {
     initMocks(this);
     FakeSerializable.Handle<SerializableFunction<TopicPath, Integer>> handle =
         FakeSerializable.put(getPartitionCount);
+    FakeSerializable.Handle<SerializableSupplier<Boolean>> terminateHandle =
+        FakeSerializable.put(terminate);
     loader =
         new SubscriptionPartitionLoader(
             example(TopicPath.class),
             example(SubscriptionPath.class),
             topic -> handle.get().apply(topic),
             Duration.millis(50),
-            true);
+            () -> terminateHandle.get().get());
   }
 
   @Test
   public void singleResult() {
     when(getPartitionCount.apply(example(TopicPath.class))).thenReturn(3);
+    when(terminate.get()).thenReturn(false).thenReturn(false).thenReturn(true);
     PCollection<SubscriptionPartition> output = pipeline.apply(loader);
     PAssert.that(output)
         .containsInAnyOrder(
@@ -72,6 +78,7 @@ public class SubscriptionPartitionLoaderTest {
   @Test
   public void addedResults() {
     when(getPartitionCount.apply(example(TopicPath.class))).thenReturn(3).thenReturn(4);
+    when(terminate.get()).thenReturn(false).thenReturn(false).thenReturn(true);
     PCollection<SubscriptionPartition> output = pipeline.apply(loader);
     PAssert.that(output)
         .containsInAnyOrder(

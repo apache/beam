@@ -31,27 +31,31 @@ class OutputPlacements extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<OutputPlacementState>(
       builder: (context, state, child) {
-        return Wrap(
-          spacing: kMdSpacing,
-          children: OutputPlacement.values
-              .map(
-                (placement) => Semantics(
-                  label:
-                      '${AppLocalizations.of(context)!.outputPlacementSemantic}'
-                      ' ${placement.name(context)}',
-                  child: IconButton(
-                    splashRadius: kIconButtonSplashRadius,
-                    icon: SvgPicture.asset(
-                      placement.icon,
-                      color: state.placement == placement
-                          ? Theme.of(context).primaryColor
-                          : null,
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: kXlSpacing),
+          child: Wrap(
+            spacing: kMdSpacing,
+            children: OutputPlacement.values
+                .map(
+                  (placement) => Semantics(
+                    label:
+                        '${AppLocalizations.of(context)!.outputPlacementSemantic}'
+                        ' ${placement.name(context)}',
+                    child: IconButton(
+                      key: ValueKey(placement),
+                      splashRadius: kIconButtonSplashRadius,
+                      icon: SvgPicture.asset(
+                        placement.icon,
+                        color: state.placement == placement
+                            ? Theme.of(context).primaryColor
+                            : null,
+                      ),
+                      onPressed: () => state.setPlacement(placement),
                     ),
-                    onPressed: () => state.setPlacement(placement),
                   ),
-                ),
-              )
-              .toList(),
+                )
+                .toList(),
+          ),
         );
       },
     );

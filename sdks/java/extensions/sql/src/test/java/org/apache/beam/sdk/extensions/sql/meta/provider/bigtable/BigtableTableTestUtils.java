@@ -179,6 +179,25 @@ class BigtableTableTestUtils {
         .build();
   }
 
+  static com.google.bigtable.v2.Row[] bigTableSegmentedRows() {
+    com.google.bigtable.v2.Row[] rows = new com.google.bigtable.v2.Row[5];
+    List<Column> columns =
+        ImmutableList.of(
+            column("boolColumn", booleanToByteArray(true)),
+            column("doubleColumn", doubleToByteArray(5.5)),
+            column("longColumn", Longs.toByteArray(10L)),
+            column("stringColumn", "stringValue".getBytes(UTF_8)));
+    Family family = Family.newBuilder().setName("familyTest").addAllColumns(columns).build();
+    for (int i = 0; i < 5; i++) {
+      rows[i] =
+          com.google.bigtable.v2.Row.newBuilder()
+              .setKey(byteStringUtf8("key" + i))
+              .addFamilies(family)
+              .build();
+    }
+    return rows;
+  }
+
   // There is no possibility to insert a value with fixed timestamp so we have to replace it
   // for the testing purpose.
   static com.google.bigtable.v2.Row setFixedTimestamp(com.google.bigtable.v2.Row row) {

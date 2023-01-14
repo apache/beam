@@ -153,14 +153,15 @@ type MultiEdge struct {
 	parent *Scope
 
 	Op               Opcode
-	DoFn             *DoFn              // ParDo
-	RestrictionCoder *coder.Coder       // SplittableParDo
-	CombineFn        *CombineFn         // Combine
-	AccumCoder       *coder.Coder       // Combine
-	Value            []byte             // Impulse
-	External         *ExternalTransform // Current External Transforms API
-	Payload          *Payload           // Legacy External Transforms API
-	WindowFn         *window.Fn         // WindowInto
+	DoFn             *DoFn                   // ParDo
+	RestrictionCoder *coder.Coder            // SplittableParDo
+	StateCoders      map[string]*coder.Coder // Stateful ParDo
+	CombineFn        *CombineFn              // Combine
+	AccumCoder       *coder.Coder            // Combine
+	Value            []byte                  // Impulse
+	External         *ExternalTransform      // Current External Transforms API
+	Payload          *Payload                // Legacy External Transforms API
+	WindowFn         *window.Fn              // WindowInto
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -426,8 +427,12 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, rc *coder.C
 	for i := 0; i < len(in); i++ {
 		edge.Input = append(edge.Input, &Inbound{Kind: kinds[i], From: in[i], Type: inbound[i]})
 	}
+
+	_, continuation := u.ProcessElementFn().ProcessContinuation()
+
+	bounded := inputBounded(in) && !continuation
 	for i := 0; i < len(out); i++ {
-		n := g.NewNode(out[i], inputWindow(in), inputBounded(in))
+		n := g.NewNode(out[i], inputWindow(in), bounded)
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
 	edge.RestrictionCoder = rc

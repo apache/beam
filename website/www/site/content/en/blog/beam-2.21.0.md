@@ -3,6 +3,7 @@ title:  "Apache Beam 2.21.0"
 date:   2020-05-27 00:00:01 -0800
 categories:
   - blog
+  - release
 authors:
   - ibzib
 ---
@@ -45,9 +46,9 @@ for example usage.
     for that function.
 
     More details can be found in
-    [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/)
+    [Ensuring Python Type Safety](/documentation/sdks/python-type-safety/)
     and the Python SDK Typing Changes
-    [blog post](https://beam.apache.org/blog/python-typing/).
+    [blog post](/blog/python-typing/).
 
 * Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
 context to fields and schemas. This replaces the current Beam metadata that is present

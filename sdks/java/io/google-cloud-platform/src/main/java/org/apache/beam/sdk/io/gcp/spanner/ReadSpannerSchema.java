@@ -18,26 +18,31 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * This {@link DoFn} reads Cloud Spanner 'information_schema.*' tables to build the {@link
  * SpannerSchema}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   private final SpannerConfig config;
 
+  private final PCollectionView<Dialect> dialectView;
+
   private transient SpannerAccessor spannerAccessor;
 
-  public ReadSpannerSchema(SpannerConfig config) {
+  public ReadSpannerSchema(SpannerConfig config, PCollectionView<Dialect> dialectView) {
     this.config = config;
+    this.dialectView = dialectView;
   }
 
   @Setup
@@ -52,10 +57,11 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    SpannerSchema.Builder builder = SpannerSchema.builder();
+    Dialect dialect = c.sideInput(dialectView);
+    SpannerSchema.Builder builder = SpannerSchema.builder(dialect);
     DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
     try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
-      ResultSet resultSet = readTableInfo(tx);
+      ResultSet resultSet = readTableInfo(tx, dialect);
 
       while (resultSet.next()) {
         String tableName = resultSet.getString(0);
@@ -66,7 +72,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         builder.addColumn(tableName, columnName, type, cellsMutated);
       }
 
-      resultSet = readPrimaryKeyInfo(tx);
+      resultSet = readPrimaryKeyInfo(tx, dialect);
       while (resultSet.next()) {
         String tableName = resultSet.getString(0);
         String columnName = resultSet.getString(1);
@@ -78,13 +84,15 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     c.output(builder.build());
   }
 
-  private ResultSet readTableInfo(ReadOnlyTransaction tx) {
+  private ResultSet readTableInfo(ReadOnlyTransaction tx, Dialect dialect) {
     // retrieve schema information for all tables, as well as aggregating the
     // number of indexes that cover each column. this will be used to estimate
     // the number of cells (table column plus indexes) mutated in an upsert operation
     // in order to stay below the 20k threshold
-    return tx.executeQuery(
-        Statement.of(
+    String statement = "";
+    switch (dialect) {
+      case GOOGLE_STANDARD_SQL:
+        statement =
             "SELECT"
                 + "    c.table_name"
                 + "  , c.column_name"
@@ -101,16 +109,58 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
                 + "      AND t.table_schema = ''"
                 + "      GROUP BY t.table_name, t.column_name) AS t"
                 + "  USING (table_name, column_name)"
-                + "  ORDER BY c.table_name, c.ordinal_position"));
+                + "  ORDER BY c.table_name, c.ordinal_position";
+        break;
+      case POSTGRESQL:
+        statement =
+            "SELECT"
+                + "    c.table_name"
+                + "  , c.column_name"
+                + "  , c.spanner_type"
+                + "  , (1 + COALESCE(t.indices, 0)) AS cells_mutated"
+                + "  FROM ("
+                + "    SELECT c.table_name, c.column_name, c.spanner_type, c.ordinal_position"
+                + "      FROM information_schema.columns as c"
+                + "      WHERE c.table_schema NOT IN"
+                + "      ('information_schema', 'spanner_sys', 'pg_catalog')) AS c"
+                + "  LEFT OUTER JOIN ("
+                + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
+                + "      FROM information_schema.index_columns AS t "
+                + "      WHERE t.index_name != 'PRIMARY_KEY'"
+                + "      AND t.table_schema NOT IN"
+                + "      ('information_schema', 'spanner_sys', 'pg_catalog')"
+                + "      GROUP BY t.table_name, t.column_name) AS t"
+                + "  USING (table_name, column_name)"
+                + "  ORDER BY c.table_name, c.ordinal_position";
+        break;
+      default:
+        throw new IllegalArgumentException("Unrecognized dialect: " + dialect.name());
+    }
+    return tx.executeQuery(Statement.of(statement));
   }
 
-  private ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx) {
-    return tx.executeQuery(
-        Statement.of(
+  private ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx, Dialect dialect) {
+    String statement = "";
+    switch (dialect) {
+      case GOOGLE_STANDARD_SQL:
+        statement =
             "SELECT t.table_name, t.column_name, t.column_ordering"
                 + " FROM information_schema.index_columns AS t "
                 + " WHERE t.index_name = 'PRIMARY_KEY' AND t.table_catalog = ''"
                 + " AND t.table_schema = ''"
-                + " ORDER BY t.table_name, t.ordinal_position"));
+                + " ORDER BY t.table_name, t.ordinal_position";
+        break;
+      case POSTGRESQL:
+        statement =
+            "SELECT t.table_name, t.column_name, t.column_ordering"
+                + " FROM information_schema.index_columns AS t "
+                + " WHERE t.index_name = 'PRIMARY_KEY'"
+                + " AND t.table_schema NOT IN ('information_schema', 'spanner_sys', 'pg_catalog')"
+                + " ORDER BY t.table_name, t.ordinal_position";
+        break;
+      default:
+        throw new IllegalArgumentException("Unrecognized dialect: " + dialect.name());
+    }
+    return tx.executeQuery(Statement.of(statement));
   }
 }

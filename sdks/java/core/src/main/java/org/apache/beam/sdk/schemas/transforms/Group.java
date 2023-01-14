@@ -94,7 +94,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Group {
   /**
@@ -433,7 +433,7 @@ public class Group {
      * aggregateField and aggregateFields. This transform will have an unknown schema that will be
      * determined by the output types of all the composed combiners.
      */
-    public static CombineFieldsGlobally create() {
+    public static CombineFieldsGlobally<?> create() {
       return new CombineFieldsGlobally<>(SchemaAggregateFn.create());
     }
 

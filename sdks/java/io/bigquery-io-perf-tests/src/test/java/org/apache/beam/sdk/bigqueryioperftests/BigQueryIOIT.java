@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.bigqueryioperftests;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -26,6 +29,7 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.TableId;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -41,7 +45,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testutils.NamedTestResult;
@@ -52,6 +59,7 @@ import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -85,6 +93,7 @@ public class BigQueryIOIT {
   private static final String READ_TIME_METRIC_NAME = "read_time";
   private static final String WRITE_TIME_METRIC_NAME = "write_time";
   private static final String AVRO_WRITE_TIME_METRIC_NAME = "avro_write_time";
+  private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private static String testBigQueryDataset;
   private static String testBigQueryTable;
   private static SyntheticSourceOptions sourceOptions;
@@ -139,10 +148,11 @@ public class BigQueryIOIT {
   private void testJsonWrite() {
     BigQueryIO.Write<byte[]> writeIO =
         BigQueryIO.<byte[]>write()
+            .withSuccessfulInsertsPropagation(false)
             .withFormatFunction(
                 input -> {
                   TableRow tableRow = new TableRow();
-                  tableRow.set("data", input);
+                  tableRow.set("data", Base64.getEncoder().encodeToString(input));
                   return tableRow;
                 });
     testWrite(writeIO, WRITE_TIME_METRIC_NAME);
@@ -163,9 +173,13 @@ public class BigQueryIOIT {
   }
 
   private void testWrite(BigQueryIO.Write<byte[]> writeIO, String metricName) {
-    Pipeline pipeline = Pipeline.create(options);
-
     BigQueryIO.Write.Method method = BigQueryIO.Write.Method.valueOf(options.getWriteMethod());
+    if (method == BigQueryIO.Write.Method.STREAMING_INSERTS) {
+      // set streaming for STREAMING_INSERTS write
+      options.as(StreamingOptions.class).setStreaming(true);
+    }
+
+    Pipeline pipeline = Pipeline.create(options);
     pipeline
         .apply("Read from source", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, metricName)))
@@ -183,18 +197,33 @@ public class BigQueryIOIT {
                                 new TableFieldSchema().setName("data").setType("BYTES")))));
 
     PipelineResult pipelineResult = pipeline.run();
-    pipelineResult.waitUntilFinish();
+    PipelineResult.State pipelineState =
+        options.getPipelineTimeout() == null
+            ? pipelineResult.waitUntilFinish()
+            : pipelineResult.waitUntilFinish(
+                Duration.standardSeconds(options.getPipelineTimeout()));
     extractAndPublishTime(pipelineResult, metricName);
+    // Fail the test if pipeline failed.
+    assertNotEquals(PipelineResult.State.FAILED, pipelineState);
+
+    // set back streaming
+    options.as(StreamingOptions.class).setStreaming(false);
   }
 
   private void testRead() {
     Pipeline pipeline = Pipeline.create(options);
     pipeline
         .apply("Read from BQ", BigQueryIO.readTableRows().from(tableQualifier))
-        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)));
+        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+        .apply("Counting element", ParDo.of(new CountingFn<>(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    PipelineResult.State pipelineState = result.waitUntilFinish();
+
+    assertEquals(
+        sourceOptions.numRecords, readElementMetric(result, NAMESPACE, READ_ELEMENT_METRIC_NAME));
     extractAndPublishTime(result, READ_TIME_METRIC_NAME);
+    // Fail the test if pipeline failed.
+    assertNotEquals(PipelineResult.State.FAILED, pipelineState);
   }
 
   private void extractAndPublishTime(PipelineResult pipelineResult, String writeTimeMetricName) {
@@ -211,6 +240,11 @@ public class BigQueryIOIT {
       return NamedTestResult.create(
           TEST_ID, TEST_TIMESTAMP, metricName, (endTime - startTime) / 1e3);
     };
+  }
+
+  private long readElementMetric(PipelineResult result, String namespace, String name) {
+    MetricsReader metricsReader = new MetricsReader(result, namespace);
+    return metricsReader.getCounterMetric(name);
   }
 
   /** Options for this io performance test. */
@@ -250,12 +284,31 @@ public class BigQueryIOIT {
 
     @Description("Write Avro or JSON to BQ")
     void setWriteFormat(String value);
+
+    Integer getPipelineTimeout();
+
+    @Description("Time to wait for the events to be processed by the pipeline (in seconds)")
+    void setPipelineTimeout(Integer writeTimeout);
   }
 
   private static class MapKVToV extends DoFn<KV<byte[], byte[]>, byte[]> {
     @ProcessElement
     public void process(ProcessContext context) {
       context.output(context.element().getValue());
+    }
+  }
+
+  private static class CountingFn<T> extends DoFn<T, Void> {
+
+    private final Counter elementCounter;
+
+    CountingFn(String namespace, String name) {
+      elementCounter = Metrics.counter(namespace, name);
+    }
+
+    @ProcessElement
+    public void processElement() {
+      elementCounter.inc(1L);
     }
   }
 

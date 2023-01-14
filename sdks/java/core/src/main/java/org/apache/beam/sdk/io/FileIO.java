@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MetadataCoderV2;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.StreamUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -309,7 +311,7 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FileIO {
   private static final Logger LOG = LoggerFactory.getLogger(FileIO.class);
@@ -472,10 +474,13 @@ public class FileIO {
     public static MatchConfiguration create(EmptyMatchTreatment emptyMatchTreatment) {
       return new AutoValue_FileIO_MatchConfiguration.Builder()
           .setEmptyMatchTreatment(emptyMatchTreatment)
+          .setMatchUpdatedFiles(false)
           .build();
     }
 
     public abstract EmptyMatchTreatment getEmptyMatchTreatment();
+
+    public abstract boolean getMatchUpdatedFiles();
 
     public abstract @Nullable Duration getWatchInterval();
 
@@ -486,6 +491,8 @@ public class FileIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
+
+      abstract Builder setMatchUpdatedFiles(boolean matchUpdatedFiles);
 
       abstract Builder setWatchInterval(Duration watchInterval);
 
@@ -502,21 +509,45 @@ public class FileIO {
     /**
      * Continuously watches for new files at the given interval until the given termination
      * condition is reached, where the input to the condition is the filepattern.
+     *
+     * <p>If {@code matchUpdatedFiles} is set, also watches for files with timestamp change, with
+     * the watching frequency given by the {@code interval}. The pipeline will throw a {@code
+     * RuntimeError} if timestamp extraction for the matched file has failed, suggesting the
+     * timestamp metadata is not available with the IO connector.
+     */
+    public MatchConfiguration continuously(
+        Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
+      return toBuilder()
+          .setWatchInterval(interval)
+          .setWatchTerminationCondition(condition)
+          .setMatchUpdatedFiles(matchUpdatedFiles)
+          .build();
+    }
+
+    /**
+     * Continuously watches for new files at the given interval until the given termination
+     * condition is reached, where the input to the condition is the filepattern. To watch also for
+     * updated files, please set {@code matchUpdatedFiles} as {@code true}.
      */
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition) {
-      return toBuilder().setWatchInterval(interval).setWatchTerminationCondition(condition).build();
+      return continuously(interval, condition, false);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder
-          .add(
-              DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
-                  .withLabel("Treatment of filepatterns that match no files"))
-          .addIfNotNull(
-              DisplayData.item("watchForNewFilesInterval", getWatchInterval())
-                  .withLabel("Interval to watch for new files"));
+      builder.add(
+          DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
+              .withLabel("Treatment of filepatterns that match no files"));
+      if (getWatchInterval() != null) {
+        builder
+            .add(
+                DisplayData.item("watchForNewFilesInterval", getWatchInterval())
+                    .withLabel("Interval to watch for new files"))
+            .add(
+                DisplayData.item("isMatchUpdatedFiles", getMatchUpdatedFiles())
+                    .withLabel("If also match for files with timestamp change"));
+      }
     }
   }
 
@@ -566,8 +597,22 @@ public class FileIO {
      * org.apache.beam.sdk.transforms.DoFn}.
      */
     public Match continuously(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withConfiguration(
+          getConfiguration().continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /**
+     * See {@link MatchConfiguration#continuously}. The returned {@link PCollection} is unbounded.
+     *
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
+     */
+    public Match continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));
+      return continuously(pollInterval, terminationCondition, false);
     }
 
     @Override
@@ -612,10 +657,19 @@ public class FileIO {
       return withConfiguration(getConfiguration().withEmptyMatchTreatment(treatment));
     }
 
-    /** Like {@link Match#continuously}. */
+    /** Like {@link Match#continuously(Duration, TerminationCondition, boolean)}. */
+    public MatchAll continuously(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withConfiguration(
+          getConfiguration().continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /** Like {@link Match#continuously(Duration, TerminationCondition)}. */
     public MatchAll continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));
+      return continuously(pollInterval, terminationCondition, false);
     }
 
     @Override
@@ -627,16 +681,15 @@ public class FileIO {
                 "Match filepatterns",
                 ParDo.of(new MatchFn(getConfiguration().getEmptyMatchTreatment())));
       } else {
-        res =
-            input
-                .apply(
-                    "Continuously match filepatterns",
-                    Watch.growthOf(
-                            Contextful.of(new MatchPollFn(), Requirements.empty()),
-                            new ExtractFilenameFn())
-                        .withPollInterval(getConfiguration().getWatchInterval())
-                        .withTerminationPerInput(getConfiguration().getWatchTerminationCondition()))
-                .apply(Values.create());
+        if (getConfiguration().getMatchUpdatedFiles()) {
+          res =
+              input
+                  .apply(createWatchTransform(new ExtractFilenameAndLastUpdateFn()))
+                  .apply(Values.create())
+                  .setCoder(MetadataCoderV2.of());
+        } else {
+          res = input.apply(createWatchTransform(new ExtractFilenameFn())).apply(Values.create());
+        }
       }
       return res.apply(Reshuffle.viaRandomKey());
     }
@@ -645,6 +698,14 @@ public class FileIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.include("configuration", getConfiguration());
+    }
+
+    /** Helper function creating a watch transform based on outputKeyFn. */
+    private <KeyT> Watch.Growth<String, MatchResult.Metadata, KeyT> createWatchTransform(
+        SerializableFunction<MatchResult.Metadata, KeyT> outputKeyFn) {
+      return Watch.growthOf(Contextful.of(new MatchPollFn(), Requirements.empty()), outputKeyFn)
+          .withPollInterval(getConfiguration().getWatchInterval())
+          .withTerminationPerInput(getConfiguration().getWatchTerminationCondition());
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
@@ -681,6 +742,18 @@ public class FileIO {
       @Override
       public String apply(MatchResult.Metadata input) {
         return input.resourceId().toString();
+      }
+    }
+
+    private static class ExtractFilenameAndLastUpdateFn
+        implements SerializableFunction<MatchResult.Metadata, KV<String, Long>> {
+      @Override
+      public KV<String, Long> apply(MatchResult.Metadata input) throws RuntimeException {
+        long timestamp = input.lastModifiedMillis();
+        if (0L == timestamp) {
+          throw new RuntimeException("Extract file timestamp failed: got file timestamp == 0.");
+        }
+        return KV.of(input.resourceId().toString(), timestamp);
       }
     }
   }

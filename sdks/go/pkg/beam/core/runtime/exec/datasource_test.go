@@ -16,31 +16,40 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"testing"
+	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/coderx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestDataSource_PerElement(t *testing.T) {
 	tests := []struct {
 		name     string
-		expected []interface{}
+		expected []any
 		Coder    *coder.Coder
-		driver   func(*coder.Coder, io.WriteCloser, []interface{})
+		driver   func(*coder.Coder, io.WriteCloser, []any)
 	}{
 		{
 			name:     "perElement",
-			expected: []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			expected: []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder:    coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, pw io.WriteCloser, expected []interface{}) {
+			driver: func(c *coder.Coder, pw io.WriteCloser, expected []any) {
 				wc := MakeWindowEncoder(c.Window)
 				ec := MakeElementEncoder(coder.SkipW(c))
 				for _, v := range expected {
@@ -87,16 +96,16 @@ func TestDataSource_Iterators(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		keys, vals []interface{}
+		keys, vals []any
 		Coder      *coder.Coder
-		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []interface{})
+		driver     func(c *coder.Coder, dmw io.WriteCloser, siwFn func() io.WriteCloser, ks, vs []any)
 	}{
 		{
 			name:  "beam:coder:iterable:v1-singleChunk",
-			keys:  []interface{}{int64(42), int64(53)},
-			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			keys:  []any{int64(42), int64(53)},
+			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -111,10 +120,10 @@ func TestDataSource_Iterators(t *testing.T) {
 		},
 		{
 			name:  "beam:coder:iterable:v1-multiChunk",
-			keys:  []interface{}{int64(42), int64(53)},
-			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			keys:  []any{int64(42), int64(53)},
+			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -132,10 +141,10 @@ func TestDataSource_Iterators(t *testing.T) {
 		},
 		{
 			name:  "beam:coder:state_backed_iterable:v1",
-			keys:  []interface{}{int64(42), int64(53)},
-			vals:  []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)},
+			keys:  []any{int64(42), int64(53)},
+			vals:  []any{int64(1), int64(2), int64(3), int64(4), int64(5)},
 			Coder: coder.NewW(coder.NewCoGBK([]*coder.Coder{coder.NewVarInt(), coder.NewVarInt()}), coder.NewGlobalWindow()),
-			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
+			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []any) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
 					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
@@ -158,68 +167,79 @@ func TestDataSource_Iterators(t *testing.T) {
 		},
 		// TODO: Test progress.
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			out := &IteratorCaptureNode{CaptureNode: CaptureNode{UID: 1}}
-			source := &DataSource{
-				UID:   2,
-				SID:   StreamID{PtransformID: "myPTransform"},
-				Name:  test.name,
-				Coder: test.Coder,
-				Out:   out,
-			}
-			dmr, dmw := io.Pipe()
-
-			// Simulate individual state channels with pipes and a channel.
-			sRc := make(chan io.ReadCloser)
-			swFn := func() io.WriteCloser {
-				sr, sw := io.Pipe()
-				sRc <- sr
-				return sw
-			}
-			go test.driver(source.Coder, dmw, swFn, test.keys, test.vals)
-
-			constructAndExecutePlanWithContext(t, []Unit{out, source}, DataContext{
-				Data:  &TestDataManager{R: dmr},
-				State: &TestStateReader{Rc: sRc},
-			})
-			if len(out.CapturedInputs) == 0 {
-				t.Fatal("did not capture source output")
-			}
-
-			expectedKeys := makeValues(test.keys...)
-			expectedValues := makeValuesNoWindowOrTime(test.vals...)
-			if got, want := len(out.CapturedInputs), len(expectedKeys); got != want {
-				t.Fatalf("lengths don't match: got %v, want %v", got, want)
-			}
-			var iVals []FullValue
-			for _, i := range out.CapturedInputs {
-				iVals = append(iVals, i.Key)
-
-				if got, want := i.Values, expectedValues; !equalList(got, want) {
-					t.Errorf("DataSource => key(%v) = %#v, want %#v", i.Key, extractValues(got...), extractValues(want...))
+	for _, singleIterate := range []bool{true, false} {
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				capture := &IteratorCaptureNode{CaptureNode: CaptureNode{UID: 1}}
+				out := Node(capture)
+				units := []Unit{out}
+				uid := 2
+				if singleIterate {
+					out = &Multiplex{UID: UnitID(uid), Out: []Node{capture}}
+					units = append(units, out)
+					uid++
 				}
-			}
+				source := &DataSource{
+					UID:   UnitID(uid),
+					SID:   StreamID{PtransformID: "myPTransform"},
+					Name:  test.name,
+					Coder: test.Coder,
+					Out:   out,
+				}
+				units = append(units, source)
+				dmr, dmw := io.Pipe()
 
-			if got, want := iVals, expectedKeys; !equalList(got, want) {
-				t.Errorf("DataSource => %#v, want %#v", extractValues(got...), extractValues(want...))
-			}
+				// Simulate individual state channels with pipes and a channel.
+				sRc := make(chan io.ReadCloser)
+				swFn := func() io.WriteCloser {
+					sr, sw := io.Pipe()
+					sRc <- sr
+					return sw
+				}
+				go test.driver(source.Coder, dmw, swFn, test.keys, test.vals)
 
-			// We're using integers that encode to 1 byte, so do some quick math to validate.
-			sizeOfSmallInt := 1
-			snap := quickTestSnapshot(source, int64(len(test.keys)))
-			snap.pcol.SizeSum = int64(len(test.keys) * (1 + len(test.vals)) * sizeOfSmallInt)
-			snap.pcol.SizeMin = int64((1 + len(test.vals)) * sizeOfSmallInt)
-			snap.pcol.SizeMax = int64((1 + len(test.vals)) * sizeOfSmallInt)
-			if got, want := source.Progress(), snap; got != want {
-				t.Errorf("progress didn't match: got %v, want %v", got, want)
-			}
-		})
+				constructAndExecutePlanWithContext(t, units, DataContext{
+					Data:  &TestDataManager{R: dmr},
+					State: &TestStateReader{Rc: sRc},
+				})
+				if len(capture.CapturedInputs) == 0 {
+					t.Fatal("did not capture source output")
+				}
+
+				expectedKeys := makeValues(test.keys...)
+				expectedValues := makeValuesNoWindowOrTime(test.vals...)
+				if got, want := len(capture.CapturedInputs), len(expectedKeys); got != want {
+					t.Fatalf("lengths don't match: got %v, want %v", got, want)
+				}
+				var iVals []FullValue
+				for _, i := range capture.CapturedInputs {
+					iVals = append(iVals, i.Key)
+
+					if got, want := i.Values, expectedValues; !equalList(got, want) {
+						t.Errorf("DataSource => key(%v) = %#v, want %#v", i.Key, extractValues(got...), extractValues(want...))
+					}
+				}
+
+				if got, want := iVals, expectedKeys; !equalList(got, want) {
+					t.Errorf("DataSource => %#v, want %#v", extractValues(got...), extractValues(want...))
+				}
+
+				// We're using integers that encode to 1 byte, so do some quick math to validate.
+				sizeOfSmallInt := 1
+				snap := quickTestSnapshot(source, int64(len(test.keys)))
+				snap.pcol.SizeSum = int64(len(test.keys) * (1 + len(test.vals)) * sizeOfSmallInt)
+				snap.pcol.SizeMin = int64((1 + len(test.vals)) * sizeOfSmallInt)
+				snap.pcol.SizeMax = int64((1 + len(test.vals)) * sizeOfSmallInt)
+				if got, want := source.Progress(), snap; got != want {
+					t.Errorf("progress didn't match: got %v, want %v", got, want)
+				}
+			})
+		}
 	}
 }
 
 func TestDataSource_Split(t *testing.T) {
-	elements := []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5)}
+	elements := []any{int64(1), int64(2), int64(3), int64(4), int64(5)}
 	initSourceTest := func(name string) (*DataSource, *CaptureNode, io.ReadCloser) {
 		out := &CaptureNode{UID: 1}
 		c := coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow())
@@ -232,7 +252,7 @@ func TestDataSource_Split(t *testing.T) {
 		}
 		pr, pw := io.Pipe()
 
-		go func(c *coder.Coder, pw io.WriteCloser, elements []interface{}) {
+		go func(c *coder.Coder, pw io.WriteCloser, elements []any) {
 			wc := MakeWindowEncoder(c.Window)
 			ec := MakeElementEncoder(coder.SkipW(c))
 			for _, v := range elements {
@@ -246,7 +266,7 @@ func TestDataSource_Split(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		expected []interface{}
+		expected []any
 		splitIdx int64
 	}{
 		{splitIdx: 1},
@@ -290,7 +310,7 @@ func TestDataSource_Split(t *testing.T) {
 			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
 			// SDK never splits on 0, so check that every test.
-			splitRes, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}})
+			splitRes, err := p.Split(ctx, SplitPoints{Splits: []int64{0, test.splitIdx}})
 			if err != nil {
 				t.Fatalf("error in Split: %v", err)
 			}
@@ -301,7 +321,10 @@ func TestDataSource_Split(t *testing.T) {
 				t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
 			}
 
-			runOnRoots(ctx, t, p, "Process", Root.Process)
+			runOnRoots(ctx, t, p, "Process", func(root Root, ctx context.Context) error {
+				_, err := root.Process(ctx)
+				return err
+			})
 			runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
 
 			validateSource(t, out, source, makeValues(test.expected...))
@@ -312,7 +335,7 @@ func TestDataSource_Split(t *testing.T) {
 		// Check splitting *while* elements are in process.
 		tests := []struct {
 			name     string
-			expected []interface{}
+			expected []any
 			splitIdx int64
 		}{
 			{splitIdx: 1},
@@ -360,7 +383,7 @@ func TestDataSource_Split(t *testing.T) {
 					<-blockedCh
 					// Validate that we do not split on the element we're blocking on index.
 					// The first valid split is at test.splitIdx.
-					if splitRes, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, -1, 0); err != nil {
+					if splitRes, err := source.Split(context.Background(), []int64{0, 1, 2, 3, 4, 5}, -1, 0); err != nil {
 						t.Errorf("error in Split: %v", err)
 					} else {
 						if got, want := splitRes.RI, test.splitIdx; got != want {
@@ -393,7 +416,7 @@ func TestDataSource_Split(t *testing.T) {
 			frac     float64
 			bufSize  int64
 			splitIdx int64
-			expected []interface{}
+			expected []any
 		}{
 			// splitIdx defaults to the max int64, so if bufSize is respected
 			// the closest splitPt is 3, otherwise it'll be 5000.
@@ -426,7 +449,7 @@ func TestDataSource_Split(t *testing.T) {
 
 		// SDK never splits on 0, so check that every test.
 		sp := SplitPoints{Splits: test.splitPts, Frac: test.frac, BufSize: test.bufSize}
-		splitRes, err := p.Split(sp)
+		splitRes, err := p.Split(ctx, sp)
 		if err != nil {
 			t.Fatalf("error in Split: %v", err)
 		}
@@ -436,7 +459,10 @@ func TestDataSource_Split(t *testing.T) {
 		if got, want := splitRes.PI, test.splitIdx-1; got != want {
 			t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
 		}
-		runOnRoots(ctx, t, p, "Process", Root.Process)
+		runOnRoots(ctx, t, p, "Process", func(root Root, ctx context.Context) error {
+			_, err := root.Process(ctx)
+			return err
+		})
 		runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
 
 		validateSource(t, out, source, makeValues(test.expected...))
@@ -492,7 +518,7 @@ func TestDataSource_Split(t *testing.T) {
 					<-blockedCh
 					// Validate that we either do or do not perform a sub-element split with the
 					// given fraction.
-					if splitRes, err := source.Split([]int64{0, 1, 2, 3, 4, 5}, test.fraction, int64(len(elements))); err != nil {
+					if splitRes, err := source.Split(context.Background(), []int64{0, 1, 2, 3, 4, 5}, test.fraction, int64(len(elements))); err != nil {
 						t.Errorf("error in Split: %v", err)
 					} else {
 						// For sub-element splits, check sub-element split only results.
@@ -506,6 +532,9 @@ func TestDataSource_Split(t *testing.T) {
 							}
 							if got, want := splitRes.InId, testInputId; got != want {
 								t.Errorf("error in Split: got incorrect Input Id = %v, want %v", got, want)
+							}
+							if _, ok := splitRes.OW["output1"]; !ok {
+								t.Errorf("error in Split: no output watermark for output1")
 							}
 						}
 
@@ -550,8 +579,8 @@ func TestDataSource_Split(t *testing.T) {
 		dc := DataContext{Data: &TestDataManager{R: pr}}
 		ctx := context.Background()
 
-		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
-			t.Fatal("plan uninitialized, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(before active) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		for i, root := range p.units {
 			if err := root.Up(ctx); err != nil {
@@ -559,30 +588,33 @@ func TestDataSource_Split(t *testing.T) {
 			}
 		}
 		p.status = Active
-		if _, err := p.Split(SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err == nil {
-			t.Fatal("plan not started, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0, 3}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(active, not started) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
-		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
-			t.Fatal("plan started, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(active) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
-		runOnRoots(ctx, t, p, "Process", Root.Process)
-		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
-			t.Fatal("plan in progress, expected error when unable to get a desired split, got nil")
+		runOnRoots(ctx, t, p, "Process", func(root Root, ctx context.Context) error {
+			_, err := root.Process(ctx)
+			return err
+		})
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(active, unable to get desired split) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
-		if _, err := p.Split(SplitPoints{Splits: []int64{0}, Frac: -1}); err == nil {
-			t.Fatal("plan finished, expected error when splitting, got nil")
+		if sr, err := p.Split(ctx, SplitPoints{Splits: []int64{0}, Frac: -1}); err != nil || !sr.Unsuccessful {
+			t.Fatalf("p.Split(finished) = %v,%v want unsuccessful split & nil err", sr, err)
 		}
 		validateSource(t, out, source, makeValues(elements...))
 	})
 
 	t.Run("sanity_errors", func(t *testing.T) {
 		var source *DataSource
-		if _, err := source.Split([]int64{0}, -1, 0); err == nil {
+		if _, err := source.Split(context.Background(), []int64{0}, -1, 0); err == nil {
 			t.Fatal("expected error splitting nil *DataSource")
 		}
-		if _, err := source.Split(nil, -1, 0); err == nil {
+		if _, err := source.Split(context.Background(), nil, -1, 0); err == nil {
 			t.Fatal("expected error splitting nil desired splits")
 		}
 	})
@@ -594,7 +626,7 @@ const testInputId = "input_id"
 // TestSplittableUnit is an implementation of the SplittableUnit interface
 // for DataSource tests.
 type TestSplittableUnit struct {
-	elm interface{} // The element to split.
+	elm any // The element to split.
 }
 
 // Split checks the input fraction for correctness, but otherwise always returns
@@ -604,6 +636,12 @@ func (n *TestSplittableUnit) Split(f float64) ([]*FullValue, []*FullValue, error
 		return nil, nil, errors.Errorf("Error")
 	}
 	return []*FullValue{{Elm: n.elm}}, []*FullValue{{Elm: n.elm}}, nil
+}
+
+// Checkpoint routes through the Split() function to satisfy the interface.
+func (n *TestSplittableUnit) Checkpoint() ([]*FullValue, error) {
+	_, r, err := n.Split(0.0)
+	return r, err
 }
 
 // GetProgress always returns 0, to keep tests consistent.
@@ -619,6 +657,14 @@ func (n *TestSplittableUnit) GetTransformId() string {
 // GetInputId returns a constant input ID that can be tested for.
 func (n *TestSplittableUnit) GetInputId() string {
 	return testInputId
+}
+
+// GetOutputWatermark gets the current output watermark of the splittable unit
+// if one is defined, or returns nil otherwise
+func (n *TestSplittableUnit) GetOutputWatermark() map[string]*timestamppb.Timestamp {
+	ow := make(map[string]*timestamppb.Timestamp)
+	ow["output1"] = timestamppb.New(time.Date(2022, time.January, 1, 1, 0, 0, 0, time.UTC))
+	return ow
 }
 
 func floatEquals(a, b, epsilon float64) bool {
@@ -824,6 +870,139 @@ func TestSplitHelper(t *testing.T) {
 					t.Errorf("incorrect split fraction: got: %v, want: %v", gotFrac, test.wantFrac)
 				}
 			})
+		}
+	})
+}
+
+func TestCheckpointing(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		cps, err := (&DataSource{}).checkpointThis(nil)
+		if err != nil {
+			t.Fatalf("checkpointThis() = %v, %v", cps, err)
+		}
+	})
+	t.Run("Stop", func(t *testing.T) {
+		cps, err := (&DataSource{}).checkpointThis(sdf.StopProcessing())
+		if err != nil {
+			t.Fatalf("checkpointThis() = %v, %v", cps, err)
+		}
+	})
+	t.Run("Delay_no_residuals", func(t *testing.T) {
+		wesInv, _ := newWatermarkEstimatorStateInvoker(nil)
+		root := &DataSource{
+			Out: &ProcessSizedElementsAndRestrictions{
+				PDo:    &ParDo{},
+				wesInv: wesInv,
+				rt:     offsetrange.NewTracker(offsetrange.Restriction{}),
+				elm: &FullValue{
+					Windows: window.SingleGlobalWindow,
+				},
+			},
+		}
+		cp, err := root.checkpointThis(sdf.ResumeProcessingIn(time.Second * 13))
+		if err != nil {
+			t.Fatalf("checkpointThis() = %v, %v, want nil", cp, err)
+		}
+		if cp != nil {
+			t.Fatalf("checkpointThis() = %v, want nil", cp)
+		}
+	})
+	dfn, err := graph.NewDoFn(&CheckpointingSdf{delay: time.Minute}, graph.NumMainInputs(graph.MainSingle))
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+
+	intCoder, _ := coderx.NewVarIntZ(reflectx.Int)
+	ERSCoder := coder.NewKV([]*coder.Coder{
+		coder.NewKV([]*coder.Coder{
+			coder.CoderFrom(intCoder), // Element
+			coder.NewKV([]*coder.Coder{
+				coder.NewR(typex.New(reflect.TypeOf((*offsetrange.Restriction)(nil)).Elem())), // Restriction
+				coder.NewBool(), // Watermark State
+			}),
+		}),
+		coder.NewDouble(), // Size
+	})
+	wvERSCoder := coder.NewW(
+		ERSCoder,
+		coder.NewGlobalWindow(),
+	)
+
+	rest := offsetrange.Restriction{Start: 1, End: 10}
+	value := &FullValue{
+		Elm: &FullValue{
+			Elm: 42,
+			Elm2: &FullValue{
+				Elm:  rest,  // Restriction
+				Elm2: false, // Watermark State falsie
+			},
+		},
+		Elm2:      rest.Size(),
+		Windows:   window.SingleGlobalWindow,
+		Timestamp: mtime.MaxTimestamp,
+		Pane:      typex.NoFiringPane(),
+	}
+	t.Run("Delay_residuals_Process", func(t *testing.T) {
+		ctx := context.Background()
+		wesInv, _ := newWatermarkEstimatorStateInvoker(nil)
+		rest := offsetrange.Restriction{Start: 1, End: 10}
+		root := &DataSource{
+			Coder: wvERSCoder,
+			Out: &ProcessSizedElementsAndRestrictions{
+				PDo: &ParDo{
+					Fn:  dfn,
+					Out: []Node{&Discard{}},
+				},
+				TfId:   "testTransformID",
+				wesInv: wesInv,
+				rt:     offsetrange.NewTracker(rest),
+			},
+		}
+		if err := root.Up(ctx); err != nil {
+			t.Fatalf("invalid function: %v", err)
+		}
+		if err := root.Out.Up(ctx); err != nil {
+			t.Fatalf("invalid function: %v", err)
+		}
+
+		enc := MakeElementEncoder(wvERSCoder)
+		var buf bytes.Buffer
+
+		// We encode the element several times to ensure we don't
+		// drop any residuals, the root of issue #24931.
+		wantCount := 3
+		for i := 0; i < wantCount; i++ {
+			if err := enc.Encode(value, &buf); err != nil {
+				t.Fatalf("couldn't encode value: %v", err)
+			}
+		}
+
+		if err := root.StartBundle(ctx, "testBund", DataContext{
+			Data: &TestDataManager{
+				R: io.NopCloser(&buf),
+			},
+		},
+		); err != nil {
+			t.Fatalf("invalid function: %v", err)
+		}
+		cps, err := root.Process(ctx)
+		if err != nil {
+			t.Fatalf("Process() = %v, %v, want nil", cps, err)
+		}
+		if got, want := len(cps), wantCount; got != want {
+			t.Fatalf("Process() = len %v checkpoints, want %v", got, want)
+		}
+		// Check each checkpoint has the expected values.
+		for _, cp := range cps {
+			if got, want := cp.Reapply, time.Minute; got != want {
+				t.Errorf("Process(delay(%v)) delay = %v, want %v", want, got, want)
+			}
+			if got, want := cp.SR.TId, root.Out.(*ProcessSizedElementsAndRestrictions).TfId; got != want {
+				t.Errorf("Process() transformID = %v, want %v", got, want)
+			}
+			if got, want := cp.SR.InId, "i0"; got != want {
+				t.Errorf("Process() transformID = %v, want %v", got, want)
+			}
 		}
 	})
 }

@@ -26,43 +26,51 @@ import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedMessage> {
-  private final Duration maxSleepTime;
-  private final ManagedBacklogReaderFactory backlogReaderFactory;
+
+  private static final Logger LOG = LoggerFactory.getLogger(PerSubscriptionPartitionSdf.class);
+  private final ManagedFactory<TopicBacklogReader> backlogReaderFactory;
+  private final ManagedFactory<BlockingCommitter> committerFactory;
   private final SubscriptionPartitionProcessorFactory processorFactory;
   private final SerializableFunction<SubscriptionPartition, InitialOffsetReader>
       offsetReaderFactory;
   private final SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
       trackerFactory;
-  private final SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory;
 
   PerSubscriptionPartitionSdf(
-      Duration maxSleepTime,
-      ManagedBacklogReaderFactory backlogReaderFactory,
+      ManagedFactory<TopicBacklogReader> backlogReaderFactory,
+      ManagedFactory<BlockingCommitter> committerFactory,
       SerializableFunction<SubscriptionPartition, InitialOffsetReader> offsetReaderFactory,
       SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
           trackerFactory,
-      SubscriptionPartitionProcessorFactory processorFactory,
-      SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory) {
-    this.maxSleepTime = maxSleepTime;
+      SubscriptionPartitionProcessorFactory processorFactory) {
     this.backlogReaderFactory = backlogReaderFactory;
+    this.committerFactory = committerFactory;
     this.processorFactory = processorFactory;
     this.offsetReaderFactory = offsetReaderFactory;
     this.trackerFactory = trackerFactory;
-    this.committerFactory = committerFactory;
   }
 
   @Teardown
-  public void teardown() {
-    backlogReaderFactory.close();
+  public void teardown() throws Exception {
+    try (AutoCloseable c1 = committerFactory;
+        AutoCloseable c2 = backlogReaderFactory) {}
   }
 
+  /**
+   * The initial watermark state is not allowed to return less than the element's input timestamp.
+   *
+   * <p>The polling logic for identifying new partitions will export all preexisting partitions with
+   * very old (EPOCH) initial watermarks, and any new partitions with a recent watermark likely to
+   * be before all messages that could exist on that partition given the polling delay.
+   */
   @GetInitialWatermarkEstimatorState
-  public Instant getInitialWatermarkState() {
-    return Instant.EPOCH;
+  public Instant getInitialWatermarkState(@Timestamp Instant elementTimestamp) {
+    return elementTimestamp;
   }
 
   @NewWatermarkEstimator
@@ -76,20 +84,25 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
       @Element SubscriptionPartition subscriptionPartition,
       OutputReceiver<SequencedMessage> receiver)
       throws Exception {
+    LOG.debug("Starting process for {} at {}", subscriptionPartition, Instant.now());
     SubscriptionPartitionProcessor processor =
         processorFactory.newProcessor(subscriptionPartition, tracker, receiver);
-    ProcessContinuation result = processor.runFor(maxSleepTime);
+    ProcessContinuation result = processor.run();
+    LOG.debug("Starting commit for {} at {}", subscriptionPartition, Instant.now());
+    // TODO(dpcollins-google): Move commits to a bundle finalizer for drain correctness
     processor
         .lastClaimed()
         .ifPresent(
-            lastClaimedOffset -> {
-              Offset commitOffset = Offset.of(lastClaimedOffset.value() + 1);
+            lastClaimed -> {
               try {
-                committerFactory.apply(subscriptionPartition).commitOffset(commitOffset);
+                committerFactory
+                    .create(subscriptionPartition)
+                    .commitOffset(Offset.of(lastClaimed.value() + 1));
               } catch (Exception e) {
                 throw ExtractStatus.toCanonical(e).underlying;
               }
             });
+    LOG.debug("Finishing process for {} at {}", subscriptionPartition, Instant.now());
     return result;
   }
 
@@ -103,7 +116,7 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
   @NewTracker
   public TrackerWithProgress newTracker(
       @Element SubscriptionPartition subscriptionPartition, @Restriction OffsetByteRange range) {
-    return trackerFactory.apply(backlogReaderFactory.newReader(subscriptionPartition), range);
+    return trackerFactory.apply(backlogReaderFactory.create(subscriptionPartition), range);
   }
 
   @GetSize

@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 /** Runtime context for the Samza runner. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SamzaExecutionContext implements ApplicationContainerContext {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaExecutionContext.class);

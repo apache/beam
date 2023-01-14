@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
 
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SystemReduceFnBuffering<K, T, W extends BoundedWindow>
     extends SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W> {

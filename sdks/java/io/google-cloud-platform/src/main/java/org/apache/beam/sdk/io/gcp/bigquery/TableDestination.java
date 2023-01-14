@@ -22,12 +22,10 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.Serializable;
 import java.util.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Encapsulates a BigQuery table destination. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TableDestination implements Serializable {
   private static final long serialVersionUID = 1L;
   private final String tableSpec;
@@ -125,8 +123,14 @@ public class TableDestination implements Serializable {
   }
 
   /** Return the tablespec in projects/[project]/datasets/[dataset]/tables/[table] format. */
-  public String getTableUrn() {
+  public String getTableUrn(BigQueryOptions bigQueryOptions) {
     TableReference table = getTableReference();
+    if (Strings.isNullOrEmpty(table.getProjectId())) {
+      table.setProjectId(
+          bigQueryOptions.getBigQueryProject() == null
+              ? bigQueryOptions.getProject()
+              : bigQueryOptions.getBigQueryProject());
+    }
     return String.format(
         "projects/%s/datasets/%s/tables/%s",
         table.getProjectId(), table.getDatasetId(), table.getTableId());
@@ -136,11 +140,11 @@ public class TableDestination implements Serializable {
     return BigQueryHelpers.parseTableSpec(tableSpec);
   }
 
-  public String getJsonTimePartitioning() {
+  public @Nullable String getJsonTimePartitioning() {
     return jsonTimePartitioning;
   }
 
-  public TimePartitioning getTimePartitioning() {
+  public @Nullable TimePartitioning getTimePartitioning() {
     if (jsonTimePartitioning == null) {
       return null;
     } else {
@@ -148,11 +152,11 @@ public class TableDestination implements Serializable {
     }
   }
 
-  public String getJsonClustering() {
+  public @Nullable String getJsonClustering() {
     return jsonClustering;
   }
 
-  public Clustering getClustering() {
+  public @Nullable Clustering getClustering() {
     if (jsonClustering == null) {
       return null;
     } else {

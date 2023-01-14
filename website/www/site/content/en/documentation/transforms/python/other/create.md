@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Create">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/python.png" width="20px" height="20px"
            alt="Pydoc" />
      Pydoc
     </a>
@@ -32,6 +32,6 @@ in parallel. For example, a single element to execute a one-time
 `ParDo` or a list of filenames to be read.
 
 ## Examples
-See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates.
+See [Issue 19498](https://github.com/apache/beam/issues/19498) for updates.
 
 ## Related transforms

@@ -60,7 +60,7 @@ import org.joda.time.Minutes;
 
 /** Wraps {@link AmazonKinesis} class providing much simpler interface and proper error handling. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SimplifiedKinesisClient {
 

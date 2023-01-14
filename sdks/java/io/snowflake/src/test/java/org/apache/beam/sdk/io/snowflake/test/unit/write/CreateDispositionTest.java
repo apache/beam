@@ -29,10 +29,10 @@ import org.apache.beam.sdk.io.snowflake.data.SnowflakeColumn;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeVarchar;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServices;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBatchServiceImpl;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServicesImpl;
 import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -48,9 +48,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class CreateDispositionTest {
   private static final String FAKE_TABLE = "FAKE_TABLE";
   private static final String BUCKET_NAME = "bucket/";
@@ -63,7 +60,7 @@ public class CreateDispositionTest {
   private static String stagingBucketName;
   private static String storageIntegrationName;
 
-  private static SnowflakeService snowflakeService;
+  private static SnowflakeServices snowflakeServices;
   private static List<Long> testData;
 
   @BeforeClass
@@ -76,7 +73,7 @@ public class CreateDispositionTest {
     stagingBucketName = options.getStagingBucketName();
     storageIntegrationName = options.getStorageIntegrationName();
 
-    snowflakeService = new FakeSnowflakeBatchServiceImpl();
+    snowflakeServices = new FakeSnowflakeServicesImpl();
     testData = LongStream.range(0, 100).boxed().collect(Collectors.toList());
 
     dc =
@@ -109,7 +106,7 @@ public class CreateDispositionTest {
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withFileNameTemplate("output")
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
 
@@ -137,7 +134,7 @@ public class CreateDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(getCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
   }
@@ -161,7 +158,7 @@ public class CreateDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
     List<Long> actualData = FakeSnowflakeDatabase.getElementsAsLong("NO_EXIST_TABLE");
@@ -185,7 +182,7 @@ public class CreateDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
     List<Long> actualData = FakeSnowflakeDatabase.getElementsAsLong(FAKE_TABLE);
@@ -211,7 +208,7 @@ public class CreateDispositionTest {
                 .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                .withSnowflakeService(snowflakeService));
+                .withSnowflakeServices(snowflakeServices));
 
     pipeline.run(options).waitUntilFinish();
   }

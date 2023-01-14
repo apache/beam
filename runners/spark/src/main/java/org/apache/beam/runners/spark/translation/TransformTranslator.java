@@ -85,8 +85,8 @@ import scala.Tuple2;
 
 /** Supports translation between a Beam transform, and Spark's operations on RDDs. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class TransformTranslator {
 
@@ -143,9 +143,10 @@ public final class TransformTranslator {
         Partitioner partitioner = getPartitioner(context);
         // As this is batch, we can ignore triggering and allowed lateness parameters.
         if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
-                && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
+            && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
           // we can drop the windows and recover them later
-          groupedByKey = GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
+          groupedByKey =
+              GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
                   inRDD, keyCoder, coder.getValueCoder(), partitioner);
         } else if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
           // we can have a memory sensitive translation for non-merging windows
@@ -362,10 +363,19 @@ public final class TransformTranslator {
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
+        DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
+
         checkState(
-            !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+            !signature.processElement().isSplittable(),
             "Not expected to directly translate splittable DoFn, should have been overridden: %s",
             doFn);
+
+        // https://github.com/apache/beam/issues/22524
+        checkState(
+            signature.onWindowExpiration() == null,
+            "onWindowExpiration is not supported: %s",
+            doFn);
+
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
@@ -375,7 +385,6 @@ public final class TransformTranslator {
         Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
 
-        DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
         boolean stateful =
             signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
 

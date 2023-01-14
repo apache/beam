@@ -50,7 +50,7 @@ import software.amazon.awssdk.regions.Region;
  * <pre>{@code
  * ./gradlew :sdks:java:io:amazon-web-services2:integrationTest \
  *   --info \
- *   --tests "org.apache.beam.sdk.io.aws2.s3.S3FileSystemIT" \
+ *   --tests "org.apache.beam.sdk.io.aws2.s3.testing.S3FileSystemIT" \
  *   -DintegrationTestPipelineOptions='["--awsRegion=eu-central-1","--useLocalstack=false"]'
  * }</pre>
  *

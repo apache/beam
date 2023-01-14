@@ -51,8 +51,8 @@ public class HistogramCell
 
   @Override
   public void reset() {
-    dirty.afterModification();
     value.clear();
+    dirty.reset();
   }
 
   /** Increment the corresponding histogram bucket count for the value by 1. */
@@ -70,7 +70,8 @@ public class HistogramCell
     dirty.afterModification();
   }
 
-  // TODO(BEAM-12103): Update this function to allow incrementing the infinite buckets as well.
+  // TODO(https://github.com/apache/beam/issues/20853): Update this function to allow incrementing
+  // the infinite buckets as well.
   // and remove the incTopBucketCount and incBotBucketCount methods.
   // Using 0 and length -1 as the bucketIndex.
   public void incBucketCount(int bucketIndex, long count) {

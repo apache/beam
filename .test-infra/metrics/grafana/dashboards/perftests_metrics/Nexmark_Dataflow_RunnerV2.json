@@ -380,6 +380,28 @@
             ]
           ],
           "tags": []
+        },
+        {
+          "alias": "[[m]]_java17",
+          "groupBy": [],
+          "measurement": "",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\"./nexmark_${ID}_\\w*${processingType}/ WHERE \"runner\" = 'DataflowRunner' AND \"runnerVersion\" = 'V2' AND \"javaVersion\" = '17' AND $timeFilter GROUP BY \"runner\"",
+          "rawQuery": true,
+          "refId": "C",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": []
         }
       ],
       "thresholds": [],

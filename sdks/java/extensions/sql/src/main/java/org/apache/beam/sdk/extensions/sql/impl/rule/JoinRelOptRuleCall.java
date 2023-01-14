@@ -33,7 +33,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelBuilde
  * actual RelOptRuleCall.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class JoinRelOptRuleCall extends RelOptRuleCall {
   private final RelOptRuleCall originalCall;

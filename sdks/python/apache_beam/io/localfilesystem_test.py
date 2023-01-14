@@ -293,8 +293,14 @@ class LocalFileSystemTest(unittest.TestCase):
       f.write('Hello')
     with open(path2, 'a') as f:
       f.write('foo')
-    self.assertEqual(self.fs.checksum(path1), str(5))
-    self.assertEqual(self.fs.checksum(path2), str(3))
+    # tests that localfilesystem checksum returns file size
+    checksum1 = self.fs.checksum(path1)
+    checksum2 = self.fs.checksum(path2)
+    self.assertEqual(checksum1, str(5))
+    self.assertEqual(checksum2, str(3))
+    # tests that fs.checksum and str(fs.size) are consistent
+    self.assertEqual(checksum1, str(self.fs.size(path1)))
+    self.assertEqual(checksum2, str(self.fs.size(path2)))
 
   def make_tree(self, path, value, expected_leaf_count=None):
     """Create a file+directory structure from a simple dict-based DSL

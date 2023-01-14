@@ -57,9 +57,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setRunner(TestFlinkRunner.class);
     options.setParallelism(42);
 
-    ExecutionEnvironment bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
 
     assertThat(options.getParallelism(), is(42));
     assertThat(bev.getParallelism(), is(42));
@@ -72,8 +70,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setParallelism(42);
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(options.getParallelism(), is(42));
     assertThat(sev.getParallelism(), is(42));
@@ -86,8 +83,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setMaxParallelism(42);
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(options.getMaxParallelism(), is(42));
     assertThat(sev.getMaxParallelism(), is(42));
@@ -131,9 +127,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("host:80");
 
-    ExecutionEnvironment bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
 
     assertThat(options.getParallelism(), is(1));
     assertThat(bev.getParallelism(), is(1));
@@ -146,8 +140,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setFlinkMaster("host:80");
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(options.getParallelism(), is(1));
     assertThat(sev.getParallelism(), is(1));
@@ -158,9 +151,7 @@ public class FlinkExecutionEnvironmentsTest {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(TestFlinkRunner.class);
 
-    ExecutionEnvironment bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
 
     assertThat(bev, instanceOf(LocalEnvironment.class));
     assertThat(options.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
@@ -173,8 +164,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setRunner(TestFlinkRunner.class);
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(sev, instanceOf(LocalStreamEnvironment.class));
     assertThat(options.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
@@ -187,9 +177,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setRunner(FlinkRunner.class);
     options.setFlinkMaster("host:1234");
 
-    ExecutionEnvironment bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
 
     assertThat(bev, instanceOf(RemoteEnvironment.class));
     checkHostAndPort(bev, "host", 1234);
@@ -202,8 +190,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setFlinkMaster("host:1234");
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(sev, instanceOf(RemoteStreamEnvironment.class));
     checkHostAndPort(sev, "host", 1234);
@@ -215,9 +202,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setRunner(FlinkRunner.class);
     options.setFlinkMaster("host");
 
-    ExecutionEnvironment bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
 
     assertThat(bev, instanceOf(RemoteEnvironment.class));
     checkHostAndPort(bev, "host", RestOptions.PORT.defaultValue());
@@ -230,8 +215,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setFlinkMaster("host");
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(sev, instanceOf(RemoteStreamEnvironment.class));
     checkHostAndPort(sev, "host", RestOptions.PORT.defaultValue());
@@ -242,15 +226,11 @@ public class FlinkExecutionEnvironmentsTest {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(FlinkRunner.class);
 
-    ExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment sev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
 
     options.setFlinkMaster("[auto]");
 
-    ExecutionEnvironment sev2 =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment sev2 = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
 
     assertEquals(sev.getClass(), sev2.getClass());
   }
@@ -261,14 +241,12 @@ public class FlinkExecutionEnvironmentsTest {
     options.setRunner(FlinkRunner.class);
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     options.setFlinkMaster("[auto]");
 
     StreamExecutionEnvironment sev2 =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertEquals(sev.getClass(), sev2.getClass());
   }
@@ -282,7 +260,7 @@ public class FlinkExecutionEnvironmentsTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Unparseable port number");
 
-    FlinkExecutionEnvironments.createBatchExecutionEnvironment(options, Collections.emptyList());
+    FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
   }
 
   @Test
@@ -294,7 +272,7 @@ public class FlinkExecutionEnvironmentsTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Unparseable port number");
 
-    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
   }
 
   @Test
@@ -303,15 +281,11 @@ public class FlinkExecutionEnvironmentsTest {
     options.setRunner(FlinkRunner.class);
 
     options.setFlinkMaster("192.168.1.1:1234");
-    ExecutionEnvironment bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
     checkHostAndPort(bev, "192.168.1.1", 1234);
 
     options.setFlinkMaster("192.168.1.1");
-    bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
     checkHostAndPort(bev, "192.168.1.1", RestOptions.PORT.defaultValue());
   }
 
@@ -321,15 +295,11 @@ public class FlinkExecutionEnvironmentsTest {
     options.setRunner(FlinkRunner.class);
 
     options.setFlinkMaster("192.168.1.1:1234");
-    ExecutionEnvironment bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
     checkHostAndPort(bev, "192.168.1.1", 1234);
 
     options.setFlinkMaster("192.168.1.1");
-    bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
     checkHostAndPort(bev, "192.168.1.1", RestOptions.PORT.defaultValue());
   }
 
@@ -339,15 +309,11 @@ public class FlinkExecutionEnvironmentsTest {
     options.setRunner(FlinkRunner.class);
 
     options.setFlinkMaster("[FE80:CD00:0000:0CDE:1257:0000:211E:729C]:1234");
-    ExecutionEnvironment bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    ExecutionEnvironment bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
     checkHostAndPort(bev, "FE80:CD00:0000:0CDE:1257:0000:211E:729C", 1234);
 
     options.setFlinkMaster("FE80:CD00:0000:0CDE:1257:0000:211E:729C");
-    bev =
-        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList());
+    bev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
     checkHostAndPort(
         bev, "FE80:CD00:0000:0CDE:1257:0000:211E:729C", RestOptions.PORT.defaultValue());
   }
@@ -359,14 +325,11 @@ public class FlinkExecutionEnvironmentsTest {
 
     options.setFlinkMaster("[FE80:CD00:0000:0CDE:1257:0000:211E:729C]:1234");
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     checkHostAndPort(sev, "FE80:CD00:0000:0CDE:1257:0000:211E:729C", 1234);
 
     options.setFlinkMaster("FE80:CD00:0000:0CDE:1257:0000:211E:729C");
-    sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+    sev = FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     checkHostAndPort(
         sev, "FE80:CD00:0000:0CDE:1257:0000:211E:729C", RestOptions.PORT.defaultValue());
   }
@@ -382,8 +345,7 @@ public class FlinkExecutionEnvironmentsTest {
         }) {
       options.setFlinkMaster(flinkMaster);
       ExecutionEnvironment sev =
-          FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-              options, Collections.emptyList());
+          FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
       checkHostAndPort(sev, "host", 1234);
     }
   }
@@ -399,8 +361,7 @@ public class FlinkExecutionEnvironmentsTest {
         }) {
       options.setFlinkMaster(flinkMaster);
       StreamExecutionEnvironment sev =
-          FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-              options, Collections.emptyList());
+          FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
       checkHostAndPort(sev, "host", 1234);
     }
   }
@@ -416,7 +377,7 @@ public class FlinkExecutionEnvironmentsTest {
   public void shouldAutoSetIdleSourcesFlagWithoutCheckpointing() {
     // Checkpointing disabled, shut down sources immediately
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
-    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     assertThat(options.getShutdownSourcesAfterIdleMs(), is(0L));
   }
 
@@ -425,7 +386,7 @@ public class FlinkExecutionEnvironmentsTest {
     // Checkpointing is enabled, never shut down sources
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setCheckpointingInterval(1000L);
-    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     assertThat(options.getShutdownSourcesAfterIdleMs(), is(Long.MAX_VALUE));
   }
 
@@ -434,7 +395,7 @@ public class FlinkExecutionEnvironmentsTest {
     // Checkpointing disabled, accept flag
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setShutdownSourcesAfterIdleMs(42L);
-    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     assertThat(options.getShutdownSourcesAfterIdleMs(), is(42L));
   }
 
@@ -444,7 +405,7 @@ public class FlinkExecutionEnvironmentsTest {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setCheckpointingInterval(1000L);
     options.setShutdownSourcesAfterIdleMs(42L);
-    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     assertThat(options.getShutdownSourcesAfterIdleMs(), is(42L));
   }
 
@@ -457,8 +418,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setSavepointPath(path);
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
     // subject to change with https://issues.apache.org/jira/browse/FLINK-11048
     assertThat(sev, instanceOf(RemoteStreamEnvironment.class));
     assertThat(getSavepointPath(sev), is(path));
@@ -474,9 +434,7 @@ public class FlinkExecutionEnvironmentsTest {
     assertThrows(
         "State backend was set to 'unknown' but no storage path was provided.",
         IllegalArgumentException.class,
-        () ->
-            FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-                options, Collections.emptyList()));
+        () -> FlinkExecutionEnvironments.createStreamExecutionEnvironment(options));
   }
 
   @Test
@@ -488,9 +446,7 @@ public class FlinkExecutionEnvironmentsTest {
     assertThrows(
         "State backend was set to 'unknown' but no storage path was provided.",
         IllegalArgumentException.class,
-        () ->
-            FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-                options, Collections.emptyList()));
+        () -> FlinkExecutionEnvironments.createStreamExecutionEnvironment(options));
   }
 
   @Test
@@ -501,8 +457,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setStateBackendStoragePath(temporaryFolder.getRoot().toURI().toString());
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(sev.getStateBackend(), instanceOf(FsStateBackend.class));
   }
@@ -515,8 +470,7 @@ public class FlinkExecutionEnvironmentsTest {
     options.setStateBackendStoragePath(temporaryFolder.getRoot().toURI().toString());
 
     StreamExecutionEnvironment sev =
-        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-            options, Collections.emptyList());
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(sev.getStateBackend(), instanceOf(RocksDBStateBackend.class));
   }

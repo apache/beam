@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -26,7 +27,6 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderMalfunctionError;
-import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.util.Formatter;
 import java.util.Locale;
@@ -35,6 +35,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -42,17 +43,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * {@link Handler} at the specified {@link Level}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class JulHandlerPrintStreamAdapterFactory {
-  private static final AtomicBoolean outputWarning = new AtomicBoolean(false);
+  private static final AtomicBoolean OUTPUT_WARNING = new AtomicBoolean(false);
+
+  @VisibleForTesting
+  static final String LOGGING_DISCLAIMER =
+      String.format(
+          "Please use a logger instead of System.out or System.err.%n"
+              + "Please switch to using org.slf4j.Logger.%n"
+              + "See: https://cloud.google.com/dataflow/pipelines/logging");
 
   private static class JulHandlerPrintStream extends PrintStream {
-    private static final String LOGGING_DISCLAIMER =
-        String.format(
-            "Please use a logger instead of System.out or System.err.%n"
-                + "Please switch to using org.slf4j.Logger.%n"
-                + "See: https://cloud.google.com/dataflow/pipelines/logging");
     // This limits the number of bytes which we buffer in case we don't have a flush.
     private static final int BUFFER_LIMIT = 1 << 10; // 1024 chars
 
@@ -61,12 +64,19 @@ class JulHandlerPrintStreamAdapterFactory {
 
     private final Handler handler;
     private final String loggerName;
-    private final StringBuilder buffer;
     private final Level messageLevel;
+
+    @GuardedBy("this")
+    private final StringBuilder buffer;
+
+    @GuardedBy("this")
     private final CharsetDecoder decoder;
+
+    @GuardedBy("this")
     private final CharBuffer decoded;
-    private int carryOverBytes;
-    private byte[] carryOverByteArray;
+
+    @GuardedBy("this")
+    private ByteArrayOutputStream carryOverBytes;
 
     private JulHandlerPrintStream(
         Handler handler, String loggerName, Level logLevel, Charset charset)
@@ -90,8 +100,7 @@ class JulHandlerPrintStreamAdapterFactory {
               .newDecoder()
               .onMalformedInput(CodingErrorAction.REPLACE)
               .onUnmappableCharacter(CodingErrorAction.REPLACE);
-      this.carryOverByteArray = new byte[6];
-      this.carryOverBytes = 0;
+      this.carryOverBytes = new ByteArrayOutputStream();
       this.decoded = CharBuffer.allocate(BUFFER_LIMIT);
     }
 
@@ -129,47 +138,55 @@ class JulHandlerPrintStreamAdapterFactory {
 
     @Override
     public void write(byte[] a, int offset, int length) {
+      if (length == 0) {
+        return;
+      }
+
       ByteBuffer incoming = ByteBuffer.wrap(a, offset, length);
+      assert incoming.hasArray();
+
+      String msg = null;
       // Consume the added bytes, flushing on decoded newlines or if we hit
       // the buffer limit.
-      String msg = null;
-      synchronized (decoder) {
-        decoded.clear();
-        boolean flush = false;
+      synchronized (this) {
+        int startLength = buffer.length();
+
         try {
           // Process any remaining bytes from last time by adding a byte at a time.
-          while (carryOverBytes > 0 && incoming.hasRemaining()) {
-            carryOverByteArray[carryOverBytes++] = incoming.get();
-            ByteBuffer wrapped = ByteBuffer.wrap(carryOverByteArray, 0, carryOverBytes);
+          while (carryOverBytes.size() > 0 && incoming.hasRemaining()) {
+            carryOverBytes.write(incoming.get());
+            ByteBuffer wrapped =
+                ByteBuffer.wrap(carryOverBytes.toByteArray(), 0, carryOverBytes.size());
             decoder.decode(wrapped, decoded, false);
             if (!wrapped.hasRemaining()) {
-              carryOverBytes = 0;
+              carryOverBytes.reset();
             }
           }
-          carryOverBytes = 0;
-          if (incoming.hasRemaining()) {
-            CoderResult result = decoder.decode(incoming, decoded, false);
-            if (result.isOverflow()) {
-              flush = true;
-            }
-            // Keep the unread bytes.
-            assert (incoming.remaining() <= carryOverByteArray.length);
-            while (incoming.hasRemaining()) {
-              carryOverByteArray[carryOverBytes++] = incoming.get();
-            }
+
+          // Append chunks while we are hitting the decoded buffer limit
+          while (decoder.decode(incoming, decoded, false).isOverflow()) {
+            decoded.flip();
+            buffer.append(decoded);
+            decoded.clear();
           }
-        } catch (CoderMalfunctionError error) {
-          decoder.reset();
-          carryOverBytes = 0;
-          error.printStackTrace();
-        }
-        decoded.flip();
-        synchronized (this) {
-          int startLength = buffer.length();
+
+          // Append the partial chunk
+          decoded.flip();
           buffer.append(decoded);
-          if (flush || buffer.indexOf("\n", startLength) >= 0) {
+          decoded.clear();
+
+          // Check to see if we should output this message
+          if (buffer.length() > BUFFER_LIMIT || buffer.indexOf("\n", startLength) >= 0) {
             msg = flushBufferToString();
           }
+
+          // Keep all unread bytes.
+          carryOverBytes.write(
+              incoming.array(), incoming.arrayOffset() + incoming.position(), incoming.remaining());
+        } catch (CoderMalfunctionError error) {
+          decoder.reset();
+          carryOverBytes.reset();
+          error.printStackTrace();
         }
       }
       publishIfNonEmpty(msg);
@@ -386,7 +403,7 @@ class JulHandlerPrintStreamAdapterFactory {
         return;
       }
       if (logger.isLoggable(messageLevel)) {
-        if (outputWarning.compareAndSet(false, true)) {
+        if (OUTPUT_WARNING.compareAndSet(false, true)) {
           LogRecord log = new LogRecord(Level.WARNING, LOGGING_DISCLAIMER);
           log.setLoggerName(loggerName);
           handler.publish(log);
@@ -411,8 +428,7 @@ class JulHandlerPrintStreamAdapterFactory {
     }
   }
 
-  @VisibleForTesting
   static void reset() {
-    outputWarning.set(false);
+    OUTPUT_WARNING.set(false);
   }
 }

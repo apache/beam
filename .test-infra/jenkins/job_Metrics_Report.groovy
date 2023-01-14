@@ -39,10 +39,9 @@ job('beam_Metrics_Report') {
       false
       )
 
-  // This is a job that runs weekly.
   commonJobProperties.setAutoJob(
       delegate,
-      '0 12 * * 1')
+      '@weekly')
 
   steps {
     gradle {

@@ -15,12 +15,14 @@
 # limitations under the License.
 #
 
-"""Generates Python proto modules and grpc stubs for Beam protos."""
+"""
+Generates Python proto modules and grpc stubs for Beam protos.
+"""
+
 import contextlib
 import glob
 import inspect
 import logging
-import multiprocessing
 import os
 import platform
 import re
@@ -28,27 +30,88 @@ import shutil
 import subprocess
 import sys
 import time
-import warnings
+from collections import defaultdict
 from importlib import import_module
 
 import pkg_resources
 
+LOG = logging.getLogger()
+LOG.setLevel(logging.INFO)
+
+LICENSE_HEADER = """
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+"""
+
+NO_PROMISES_NOTICE = """
+\"\"\"
+For internal use only; no backwards-compatibility guarantees.
+Automatically generated when running setup.py sdist or build[_py].
+\"\"\"
+"""
+
+
+def clean_path(path):
+  return os.path.realpath(os.path.abspath(path))
+
+
+# These paths are relative to the project root
 BEAM_PROTO_PATHS = [
-    os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
-    os.path.join('..', '..', 'model', 'job-management', 'src', 'main', 'proto'),
-    os.path.join('..', '..', 'model', 'fn-execution', 'src', 'main', 'proto'),
-    os.path.join('..', '..', 'model', 'interactive', 'src', 'main', 'proto'),
+    os.path.join('model', 'pipeline', 'src', 'main', 'proto'),
+    os.path.join('model', 'job-management', 'src', 'main', 'proto'),
+    os.path.join('model', 'fn-execution', 'src', 'main', 'proto'),
+    os.path.join('model', 'interactive', 'src', 'main', 'proto'),
 ]
 
-PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
+PYTHON_SDK_ROOT = os.path.dirname(clean_path(__file__))
+PROJECT_ROOT = clean_path(os.path.join(PYTHON_SDK_ROOT, '..', '..'))
+PYTHON_OUTPUT_PATH = os.path.join(
+    PYTHON_SDK_ROOT, 'apache_beam', 'portability', 'api')
 
 MODEL_RESOURCES = [
-    os.path.normpath('../../model/fn-execution/src/main/resources'\
-            + '/org/apache/beam/model/fnexecution/v1/standard_coders.yaml'),
+    os.path.normpath((
+        'model/fn-execution/src/main/resources/org/'
+        'apache/beam/model/fnexecution/v1/standard_coders.yaml')),
 ]
 
 
-def generate_urn_files(log, out_dir):
+class PythonPath(object):
+  def __init__(self, path: str, front: bool = False):
+    self._path = path
+    self._front = front
+
+  def __enter__(self):
+    if not self._path:
+      return
+
+    self._sys_path = sys.path.copy()
+    if self._front:
+      sys.path.insert(0, self._path)
+    else:
+      sys.path.append(self._path)
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    if not self._path:
+      return
+
+    sys.path = self._sys_path
+
+
+def generate_urn_files(out_dir, api_path):
   """
   Create python files with statically defined URN constants.
 
@@ -97,6 +160,7 @@ def generate_urn_files(log, out_dir):
         return typ.__name__
       else:
         self.imports.add(modname)
+        _, modname = modname.rsplit('.', 1)
         return modname + '.' + typ.__name__
 
     @staticmethod
@@ -111,17 +175,20 @@ def generate_urn_files(log, out_dir):
     def python_repr(self, obj):
       if isinstance(obj, message.Message):
         return self.message_repr(obj)
-      elif isinstance(obj, (list,
-                            pyext_message.RepeatedCompositeContainer,  # pylint: disable=c-extension-no-member
-                            pyext_message.RepeatedScalarContainer)):  # pylint: disable=c-extension-no-member
+      elif isinstance(
+          obj,
+          (
+              list,
+              pyext_message.RepeatedCompositeContainer,  # pylint: disable=c-extension-no-member
+              pyext_message.RepeatedScalarContainer)):  # pylint: disable=c-extension-no-member
         return '[%s]' % ', '.join(self.python_repr(x) for x in obj)
       else:
         return repr(obj)
 
     def empty_type(self, typ):
-      name = ('EMPTY_' +
-              '_'.join(x.upper()
-                       for x in self.CAP_SPLIT.findall(typ.__name__)))
+      name = (
+          'EMPTY_' +
+          '_'.join(x.upper() for x in self.CAP_SPLIT.findall(typ.__name__)))
       self.empty_types.add('%s = %s()' % (name, self.import_type(typ)))
       return name
 
@@ -150,8 +217,9 @@ def generate_urn_files(log, out_dir):
           reprs = [self.python_repr(x) for x in prop]
           if all(x == "''" or x.startswith('EMPTY_') for x in reprs):
             continue
-          ctx.line('%s = PropertiesFromEnumValue(%s)' %
-                   (v.name, ', '.join(self.python_repr(x) for x in prop)))
+          ctx.line(
+              '%s = PropertiesFromEnumValue(%s)' %
+              (v.name, ', '.join(self.python_repr(x) for x in prop)))
 
       if ctx.lines:
         ctx.prepend('class %s(object):' % enum_name)
@@ -174,22 +242,20 @@ def generate_urn_files(log, out_dir):
         ctx.prepend('')
       return ctx.lines
 
-  pb2_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py'))]
-  api_path = os.path.dirname(pb2_files[0])
-  sys.path.insert(0, os.path.dirname(api_path))
+  pb2_files = list(glob.glob(os.path.join(out_dir, '*_pb2.py')))
 
-  def _import(m):
-    return import_module('api.%s' % m)
-
-  try:
-    beam_runner_api_pb2 = _import('beam_runner_api_pb2')
-    metrics_pb2 = _import('metrics_pb2')
+  with PythonPath(os.path.dirname(api_path), front=True):
+    beam_runner_api_pb2 = import_module(
+        'api.org.apache.beam.model.pipeline.v1.beam_runner_api_pb2')
+    metrics_pb2 = import_module(
+        'api.org.apache.beam.model.pipeline.v1.metrics_pb2')
 
     for pb2_file in pb2_files:
       modname = os.path.splitext(pb2_file)[0]
       out_file = modname + '_urns.py'
-      modname = os.path.basename(modname)
-      mod = _import(modname)
+      api_start_idx = modname.index(os.path.sep + 'api' + os.path.sep)
+      import_path = modname[api_start_idx + 1:].replace(os.path.sep, '.')
+      mod = import_module(import_path)
 
       ctx = Context()
       for obj_name, obj in inspect.getmembers(mod):
@@ -201,16 +267,17 @@ def generate_urn_files(log, out_dir):
           ctx.prepend(line)
 
         for modname in reversed(sorted(ctx.imports)):
-          ctx.prepend('from . import %s' % modname)
+          pkg, target = modname.rsplit('.', 1)
+          rel_import = build_relative_import(api_path, pkg, out_file)
+          ctx.prepend('from %s import %s' % (rel_import, target))
 
-        ctx.prepend('from ..utils import PropertiesFromEnumValue')
+        rel_import = build_relative_import(
+            os.path.dirname(api_path), 'utils', out_file)
+        ctx.prepend('from %s import PropertiesFromEnumValue' % rel_import)
 
-        log.info("Writing urn stubs: %s" % out_file)
+        LOG.info("Writing urn stubs: %s" % out_file)
         with open(out_file, 'w') as f:
           f.writelines(ctx.lines)
-
-  finally:
-    sys.path.pop(0)
 
 
 def _find_protoc_gen_mypy():
@@ -227,167 +294,268 @@ def _find_protoc_gen_mypy():
   for path in search_paths:
     fullpath = os.path.join(path, fname)
     if os.path.exists(fullpath):
+      LOG.info('Found protoc_gen_mypy at %s' % fullpath)
       return fullpath
-  raise RuntimeError("Could not find %s in %s" %
-                     (fname, ', '.join(search_paths)))
+  raise RuntimeError(
+      "Could not find %s in %s" % (fname, ', '.join(search_paths)))
 
 
-def generate_proto_files(force=False, log=None):
+def find_by_ext(root_dir, ext):
+  for root, _, files in os.walk(root_dir):
+    for file in files:
+      if file.endswith(ext):
+        yield clean_path(os.path.join(root, file))
 
+
+def ensure_grpcio_exists():
   try:
-    import grpc_tools  # pylint: disable=unused-import
+    from grpc_tools import protoc  # pylint: disable=unused-import
   except ImportError:
-    warnings.warn('Installing grpcio-tools is recommended for development.')
+    if platform.system() == 'Windows':
+      # For Windows, grpcio-tools has to be installed manually.
+      raise RuntimeError(
+          'Cannot generate protos for Windows since grpcio-tools package is '
+          'not installed. Please install this package manually '
+          'using \'pip install grpcio-tools\'.')
+    return _install_grpcio_tools()
 
-  if log is None:
-    logging.basicConfig()
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.INFO)
 
-  py_sdk_root = os.path.dirname(os.path.abspath(__file__))
-  common = os.path.join(py_sdk_root, '..', 'common')
-  proto_dirs = [os.path.join(py_sdk_root, path) for path in BEAM_PROTO_PATHS]
-  proto_files = sum(
-      [glob.glob(os.path.join(d, '*.proto')) for d in proto_dirs], [])
-  out_dir = os.path.join(py_sdk_root, PYTHON_OUTPUT_PATH)
-  out_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py'))]
+def _install_grpcio_tools():
+  """
+  Though wheels are available for grpcio-tools, setup_requires uses
+  easy_install which doesn't understand them.  This means that it is
+  compiled from scratch (which is expensive as it compiles the full
+  protoc compiler).  Instead, we attempt to install a wheel in a temporary
+  directory and add it to the path as needed.
+  See https://github.com/pypa/setuptools/issues/377
+  """
+  install_path = os.path.join(PYTHON_SDK_ROOT, '.eggs', 'grpcio-wheels')
+  logging.warning('Installing grpcio-tools into %s', install_path)
+  start = time.time()
+  subprocess.check_call([
+      sys.executable,
+      '-m',
+      'pip',
+      'install',
+      '--target',
+      install_path,
+      '--upgrade',
+      '-r',
+      os.path.join(PYTHON_SDK_ROOT, 'build-requirements.txt')
+  ])
+  logging.warning(
+      'Installing grpcio-tools took %0.2f seconds.', time.time() - start)
+
+  return install_path
+
+
+def build_relative_import(root_path, import_path, start_file_path):
+  tail_path = import_path.replace('.', os.path.sep)
+  source_path = os.path.join(root_path, tail_path)
+
+  is_module = os.path.isfile(source_path + '.py')
+  if is_module:
+    source_path = os.path.dirname(source_path)
+
+  rel_path = os.path.relpath(
+      source_path, start=os.path.dirname(start_file_path))
+
+  if rel_path == '.':
+    if is_module:
+      rel_path += os.path.basename(tail_path)
+
+    return rel_path
+
+  if rel_path.endswith('..'):
+    rel_path += os.path.sep
+
+  # In a path that looks like ../../../foo, every double dot
+  # after the right most double dot needs to be collapsed to
+  # a single dot to look like ././../foo to which we can convert
+  # to ....foo for the proper relative import.
+  first_half_idx = rel_path.rfind('..' + os.path.sep)
+  if first_half_idx == 0:
+    return rel_path.replace(os.path.sep, '')
+
+  first_half = rel_path[:first_half_idx].replace('..', '.')
+  final_import = first_half.replace(os.path.sep, '') + '..' + \
+         rel_path[first_half_idx+3:].replace(os.path.sep, '.')
+
+  if is_module:
+    if final_import.count('.') == len(final_import):
+      return final_import + os.path.basename(tail_path)
+
+    return final_import + '.{}'.format(os.path.basename(tail_path))
+
+  return final_import
+
+
+def generate_init_files_lite(api_root):
+  proto_root = os.path.join(api_root, 'org')
+  for root, _, _ in os.walk(proto_root):
+    init_file = os.path.join(root, '__init__.py')
+    with open(init_file, 'w+'):
+      pass
+
+
+def generate_init_files_full(api_root):
+  proto_root = os.path.join(api_root, 'org')
+  api_module_root = os.path.join(api_root, '__init__.py')
+  modules = defaultdict(list)
+
+  for root, _, files in os.walk(proto_root):
+    init_file = os.path.join(root, '__init__.py')
+    with open(init_file, 'w+') as f:
+      f.write(LICENSE_HEADER.lstrip())
+      for file in files:
+        if not file.endswith('.py') or file == '__init__.py':
+          continue
+        module_name = file.split('.')[0]
+        f.write('from . import {}\n'.format(module_name))
+        modules[root].append(module_name)
+
+  with open(api_module_root, 'w+') as f:
+    f.write(LICENSE_HEADER.lstrip())
+    f.write(NO_PROMISES_NOTICE.lstrip())
+    remaining_lines = []
+
+    duplicate_modules = {}
+    for module_root, modules in modules.items():
+      import_path = os.path.relpath(module_root,
+                                    api_root).replace(os.path.sep, '.')
+      import_root, imported_module = import_path.rsplit('.', 1)
+
+      if imported_module not in duplicate_modules:
+        f.write('from .{} import {}\n'.format(import_root, imported_module))
+        duplicate_modules[imported_module] = 1
+      else:
+        duplicate_modules[imported_module] += 1
+        module_alias = '{}_{}'.format(
+            imported_module, duplicate_modules[imported_module])
+        f.write(
+            'from .{} import {} as {}\n'.format(
+                import_root, imported_module, module_alias))
+        imported_module = module_alias
+
+      for module in modules:
+        remaining_lines.append(
+            '{module} = {}.{module}\n'.format(imported_module, module=module))
+    f.write('\n')
+    f.writelines(remaining_lines)
+
+
+def generate_proto_files(force=False):
+  """
+  Will compile proto files for python. If force is not true, then several
+  heuristics are used to determine whether a compilation is necessary. If
+  a compilation is not necessary, no compilation will be performed.
+  :param force: Whether to force a recompilation of the proto files.
+  """
+  proto_dirs = [
+      clean_path(os.path.join(PROJECT_ROOT, path)) for path in BEAM_PROTO_PATHS
+  ]
+  proto_files = [
+      proto_file for d in proto_dirs for proto_file in find_by_ext(d, '.proto')
+  ]
+
+  out_files = list(find_by_ext(PYTHON_OUTPUT_PATH, '_pb2.py'))
 
   if out_files and not proto_files and not force:
-    # We have out_files but no protos; assume they're up to date.
+    # We have out_files but no protos; assume they're up-to-date.
     # This is actually the common case (e.g. installation from an sdist).
-    log.info('No proto files; using existing generated files.')
+    LOG.info('No proto files; using existing generated files.')
     return
 
   elif not out_files and not proto_files:
-    if not os.path.exists(common):
-      raise RuntimeError(
-          'Not in apache git tree; unable to find proto definitions.')
+    model = os.path.join(PROJECT_ROOT, 'model')
+    if os.path.exists(model):
+      error_msg = 'No proto files found in %s.' % proto_dirs
     else:
-      raise RuntimeError(
-          'No proto files found in %s.' % proto_dirs)
+      error_msg = 'Not in apache git tree, unable to find proto definitions.'
+
+    raise RuntimeError(error_msg)
 
   if force:
-    regenerate = 'forced'
+    regenerate_reason = 'forced'
   elif not out_files:
-    regenerate = 'no output files'
+    regenerate_reason = 'no output files'
   elif len(out_files) < len(proto_files):
-    regenerate = 'not enough output files'
-  elif (
-      min(os.path.getmtime(path) for path in out_files)
-      <= max(os.path.getmtime(path)
-             for path in proto_files + [os.path.realpath(__file__)])):
-    regenerate = 'output files are out-of-date'
+    regenerate_reason = 'not enough output files'
+  elif (min(os.path.getmtime(path) for path in out_files) <= max(
+      os.path.getmtime(path)
+      for path in proto_files + [os.path.realpath(__file__)])):
+    regenerate_reason = 'output files are out-of-date'
   elif len(out_files) > len(proto_files):
-    regenerate = 'output files without corresponding .proto files'
+    regenerate_reason = 'output files without corresponding .proto files'
     # too many output files: probably due to switching between git branches.
     # remove them so they don't trigger constant regeneration.
     for out_file in out_files:
       os.remove(out_file)
   else:
-    regenerate = None
+    regenerate_reason = ''
 
-  if regenerate:
-    try:
-      from grpc_tools import protoc
-    except ImportError:
-      if platform.system() == 'Windows':
-        # For Windows, grpcio-tools has to be installed manually.
-        raise RuntimeError(
-            'Cannot generate protos for Windows since grpcio-tools package is '
-            'not installed. Please install this package manually '
-            'using \'pip install grpcio-tools\'.')
+  if not regenerate_reason:
+    LOG.info('Skipping proto regeneration: all files up to date')
+    return
 
-      # Use a subprocess to avoid messing with this process' path and imports.
-      # Note that this requires a separate module from setup.py for Windows:
-      # https://docs.python.org/2/library/multiprocessing.html#windows
-      p = multiprocessing.Process(
-          target=_install_grpcio_tools_and_generate_proto_files,
-          kwargs={'force': force})
-      p.start()
-      p.join()
-      if p.exitcode:
-        raise ValueError("Proto generation failed (see log for details).")
+  shutil.rmtree(PYTHON_OUTPUT_PATH, ignore_errors=True)
+  if not os.path.exists(PYTHON_OUTPUT_PATH):
+    os.mkdir(PYTHON_OUTPUT_PATH)
 
-    else:
-      log.info('Regenerating Python proto definitions (%s).' % regenerate)
-      builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
+  grpcio_install_loc = ensure_grpcio_exists()
+  protoc_gen_mypy = _find_protoc_gen_mypy()
+  with PythonPath(grpcio_install_loc):
+    from grpc_tools import protoc
+    builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
+    args = ([sys.executable] +  # expecting to be called from command line
+            ['--proto_path=%s' % builtin_protos] +
+            ['--proto_path=%s' % d
+             for d in proto_dirs] + ['--python_out=%s' % PYTHON_OUTPUT_PATH] +
+            ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
+            ['--mypy_out=%s' % PYTHON_OUTPUT_PATH] +
+            # TODO(robertwb): Remove the prefix once it's the default.
+            ['--grpc_python_out=grpc_2_0:%s' % PYTHON_OUTPUT_PATH] +
+            proto_files)
 
-      protoc_gen_mypy = _find_protoc_gen_mypy()
+    LOG.info('Regenerating Python proto definitions (%s).' % regenerate_reason)
+    ret_code = protoc.main(args)
+    if ret_code:
+      raise RuntimeError(
+          'Protoc returned non-zero status (see logs for details): '
+          '%s' % ret_code)
 
-      log.info('Found protoc_gen_mypy at %s' % protoc_gen_mypy)
+  # copy resource files
+  for path in MODEL_RESOURCES:
+    shutil.copy2(os.path.join(PROJECT_ROOT, path), PYTHON_OUTPUT_PATH)
 
-      args = (
-          [sys.executable] +  # expecting to be called from command line
-          ['--proto_path=%s' % builtin_protos] +
-          ['--proto_path=%s' % d for d in proto_dirs] +
-          ['--python_out=%s' % out_dir] +
-          ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
-          ['--mypy_out=%s' % out_dir] +
-          # TODO(robertwb): Remove the prefix once it's the default.
-          ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
-          proto_files)
-      ret_code = protoc.main(args)
-      if ret_code:
-        raise RuntimeError(
-            'Protoc returned non-zero status (see logs for details): '
-            '%s' % ret_code)
+  proto_packages = set()
+  # see: https://github.com/protocolbuffers/protobuf/issues/1491
+  # force relative import paths for proto files
+  compiled_import_re = re.compile('^from (.*) import (.*)$')
+  for file_path in find_by_ext(PYTHON_OUTPUT_PATH,
+                               ('_pb2.py', '_pb2_grpc.py', '_pb2.pyi')):
+    proto_packages.add(os.path.dirname(file_path))
+    lines = []
+    with open(file_path) as f:
+      for line in f:
+        match_obj = compiled_import_re.match(line)
+        if match_obj and \
+                match_obj.group(1).startswith('org.apache.beam.model'):
+          new_import = build_relative_import(
+              PYTHON_OUTPUT_PATH, match_obj.group(1), file_path)
+          line = 'from %s import %s\n' % (new_import, match_obj.group(2))
 
-      # copy resource files
-      for path in MODEL_RESOURCES:
-        shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
+        lines.append(line)
 
-      # see: https://github.com/protocolbuffers/protobuf/issues/1491
-      # force relative import paths for proto files
-      for filename in os.listdir(out_dir):
-        if filename.endswith(('_pb2.py', '_pb2_grpc.py', '_pb2.pyi')):
-          filename = os.path.join(out_dir, filename)
-          lines = []
-          with open(filename) as f:
-            for line in f:
-              lines.append(
-                re.sub('^(import [a-zA-Z_]+_pb2)', r'from . \1', line),
-              )
-          with open(filename, 'w') as f:
-            f.writelines(lines)
+    with open(file_path, 'w') as f:
+      f.writelines(lines)
 
-      generate_urn_files(log, out_dir)
+  generate_init_files_lite(PYTHON_OUTPUT_PATH)
+  for proto_package in proto_packages:
+    generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
 
-  else:
-    log.info('Skipping proto regeneration: all files up to date')
-
-
-# Though wheels are available for grpcio-tools, setup_requires uses
-# easy_install which doesn't understand them.  This means that it is
-# compiled from scratch (which is expensive as it compiles the full
-# protoc compiler).  Instead, we attempt to install a wheel in a temporary
-# directory and add it to the path as needed.
-# See https://github.com/pypa/setuptools/issues/377
-def _install_grpcio_tools_and_generate_proto_files(force=False):
-  py_sdk_root = os.path.dirname(os.path.abspath(__file__))
-  install_path = os.path.join(py_sdk_root, '.eggs', 'grpcio-wheels')
-  build_path = install_path + '-build'
-  if os.path.exists(build_path):
-    shutil.rmtree(build_path)
-  logging.warning('Installing grpcio-tools into %s', install_path)
-  try:
-    start = time.time()
-    subprocess.check_call(
-        [sys.executable, '-m', 'pip', 'install',
-         '--target', install_path, '--build', build_path,
-         '--upgrade',
-         '-r', os.path.join(py_sdk_root, 'build-requirements.txt')])
-    logging.warning(
-        'Installing grpcio-tools took %0.2f seconds.', time.time() - start)
-  finally:
-    sys.stderr.flush()
-    shutil.rmtree(build_path, ignore_errors=True)
-  sys.path.append(install_path)
-  try:
-    generate_proto_files(force=force)
-  finally:
-    sys.stderr.flush()
+  generate_init_files_full(PYTHON_OUTPUT_PATH)
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
   generate_proto_files(force=True)

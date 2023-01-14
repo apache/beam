@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-// TODO(BEAM-490): This file contains support for the handling of CoGBK
+// TODO(https://github.com/apache/beam/issues/18032): This file contains support for the handling of CoGBK
 // over the model pipeline. Once it's a primitive, the translation will
 // no longer be needed. See graphx/cogbk.go for details.
 

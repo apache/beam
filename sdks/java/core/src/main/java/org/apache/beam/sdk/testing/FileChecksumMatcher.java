@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  * of empty string (da39a3ee5e6b4b0d3255bfef95601890afd80709) is used as expected.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FileChecksumMatcher extends TypeSafeMatcher<ShardedFile>
     implements SerializableMatcher<ShardedFile> {

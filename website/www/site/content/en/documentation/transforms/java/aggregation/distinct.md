@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Distinct.html">
-      <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
@@ -32,7 +32,23 @@ answer using `ApproximateUnique`, which also allows for determining distinct
 values for each key.
 
 ## Examples
-See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
+
+**Example 1** Find the distinct element from a `PCollection` of `String`.
+
+{{< highlight java >}}
+
+static final String[] WORDS_ARRAY = new String[]{
+            "hi", "hi", "sue",
+            "sue",  "bob"
+    };
+static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
+
+PCollection<String> input =
+        pipeline.apply(Create.of(WORDS)).withCoder(StringUtf8Coder.of());
+
+PCollection<String> distinctWords = input.apply(Distinct.create());
+
+{{< /highlight >}}
 
 ## Related transforms
 * [Count](/documentation/transforms/java/aggregation/count)

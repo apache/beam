@@ -98,18 +98,6 @@ services:
       - DB_DBNAME=beam_metrics
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
-  syncjira:
-    image: syncjira
-    container_name: beamsyncjira
-    build:
-      context: ./sync/jira
-      dockerfile: Dockerfile
-    environment:
-      - DB_HOST=beampostgresql
-      - DB_PORT=5432
-      - DB_DBNAME=beam_metrics
-      - DB_DBUSERNAME=admin
-      - DB_DBPWD=<PGPasswordHere>
 volumes:
   beam-postgresql-data:
   beam-grafana-libdata:

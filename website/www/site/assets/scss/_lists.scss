@@ -104,6 +104,9 @@
    margin-top: 32px;
    max-width: 640px;
  }
+ .list--about {
+   margin-bottom: 32px;
+ }
  .icon-list {
    .list-item {
      display: flex;
@@ -111,6 +114,9 @@
      position: relative;
      @media (max-width: $tablet) {
        margin-bottom: 43px;
+     }
+     @media (max-width: $ak-breakpoint-sm) {
+       height: 74px;
      }
      img {
        position: absolute;
@@ -140,6 +146,16 @@
        display: block;
        margin-right: 25px;
      }
+     .list-item-icon--about {
+       width: 96px;
+       @media (max-width: $mobile) {
+         width: 64px;
+         svg {
+           width: 64px;
+           height: 64px;
+         }
+       }
+     }
      .list-item-header {
        font-size: 22px;
        font-weight: 500;
@@ -151,12 +167,6 @@
        }
        @media (max-width: $mobile) {
          font-weight: 500;
-       }
-     }
-     .list-item-description {
-       @media (max-width: $mobile) {
-         position: absolute;
-         left: 55px;
        }
      }
    }
@@ -275,7 +285,7 @@
  .margin-50 {
    margin-top: 50px;
  }
- @media (min-width: 768px) {
+ @media (min-width: $mobile) {
    .arrow-list {
      .collapse.dont-collapse-sm {
        display: block;
@@ -301,4 +311,8 @@
      line-height: 22px;
      height: 44px;
    }
+ }
+
+ .arrow-list--no-mt {
+   margin-top: 0;
  }

@@ -40,6 +40,7 @@ from apache_beam.io.parquetio import ReadAllFromParquetBatched
 from apache_beam.io.parquetio import ReadFromParquet
 from apache_beam.io.parquetio import ReadFromParquetBatched
 from apache_beam.io.parquetio import WriteToParquet
+from apache_beam.io.parquetio import WriteToParquetBatched
 from apache_beam.io.parquetio import _create_parquet_sink
 from apache_beam.io.parquetio import _create_parquet_source
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -56,6 +57,8 @@ except ImportError:
   pa = None
   pl = None
   pq = None
+
+ARROW_MAJOR_VERSION, _, _ = map(int, pa.__version__.split('.'))
 
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
@@ -108,6 +111,37 @@ class TestParquet(unittest.TestCase):
     self.SCHEMA96 = pa.schema([('name', pa.string(), False),
                                ('favorite_number', pa.timestamp('ns'), False),
                                ('favorite_color', pa.string())])
+
+    self.RECORDS_NESTED = [{
+        'items': [
+            {
+                'name': 'Thomas',
+                'favorite_number': 1,
+                'favorite_color': 'blue'
+            },
+            {
+                'name': 'Henry',
+                'favorite_number': 3,
+                'favorite_color': 'green'
+            },
+        ]
+    },
+                           {
+                               'items': [
+                                   {
+                                       'name': 'Toby',
+                                       'favorite_number': 7,
+                                       'favorite_color': 'brown'
+                                   },
+                               ]
+                           }]
+
+    self.SCHEMA_NESTED = pa.schema([(
+        'items',
+        pa.list_(
+            pa.struct([('name', pa.string(), False),
+                       ('favorite_number', pa.int64(), False),
+                       ('favorite_color', pa.string())])))])
 
   def tearDown(self):
     shutil.rmtree(self.temp_dir)
@@ -251,8 +285,7 @@ class TestParquet(unittest.TestCase):
         file_name,
         self.SCHEMA,
         'none',
-        1024 * 1024,
-        1000,
+        False,
         False,
         '.end',
         0,
@@ -265,7 +298,6 @@ class TestParquet(unittest.TestCase):
             'file_pattern',
             'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
         DisplayDataItemMatcher('codec', 'none'),
-        DisplayDataItemMatcher('row_group_buffer_size', str(1024 * 1024)),
         DisplayDataItemMatcher('compression', 'uncompressed')
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
@@ -274,10 +306,26 @@ class TestParquet(unittest.TestCase):
     file_name = 'some_parquet_sink'
     write = WriteToParquet(file_name, self.SCHEMA)
     dd = DisplayData.create_from(write)
+
     expected_items = [
         DisplayDataItemMatcher('codec', 'none'),
         DisplayDataItemMatcher('schema', str(self.SCHEMA)),
         DisplayDataItemMatcher('row_group_buffer_size', str(64 * 1024 * 1024)),
+        DisplayDataItemMatcher(
+            'file_pattern',
+            'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
+        DisplayDataItemMatcher('compression', 'uncompressed')
+    ]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_write_batched_display_data(self):
+    file_name = 'some_parquet_sink'
+    write = WriteToParquetBatched(file_name, self.SCHEMA)
+    dd = DisplayData.create_from(write)
+
+    expected_items = [
+        DisplayDataItemMatcher('codec', 'none'),
+        DisplayDataItemMatcher('schema', str(self.SCHEMA)),
         DisplayDataItemMatcher(
             'file_pattern',
             'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
@@ -314,6 +362,44 @@ class TestParquet(unittest.TestCase):
             | Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
+  def test_sink_transform_batched(self):
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
+      with TestPipeline() as p:
+        _ = p \
+        | Create([self._records_as_arrow()]) \
+        | WriteToParquetBatched(
+            path, self.SCHEMA, num_shards=1, shard_name_template='')
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+            p \
+            | ReadFromParquet(path) \
+            | Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
+  def test_sink_transform_compliant_nested_type(self):
+    if ARROW_MAJOR_VERSION < 4:
+      return unittest.skip(
+          'Writing with compliant nested type is only '
+          'supported in pyarrow 4.x and above')
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + 'tmp_filename')
+      with TestPipeline() as p:
+        _ = p \
+        | Create(self.RECORDS_NESTED) \
+        | WriteToParquet(
+            path, self.SCHEMA_NESTED, num_shards=1,
+            shard_name_template='', use_compliant_nested_type=True)
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+            p \
+            | ReadFromParquet(path) \
+            | Map(json.dumps)
+        assert_that(
+            readback, equal_to([json.dumps(r) for r in self.RECORDS_NESTED]))
+
   def test_batched_read(self):
     with TemporaryDirectory() as tmp_dirname:
       path = os.path.join(tmp_dirname + "tmp_filename")
@@ -337,7 +423,7 @@ class TestParquet(unittest.TestCase):
       param(compression_type='zstd')
   ])
   def test_sink_transform_compressed(self, compression_type):
-    if compression_type == 'lz4' and int(pa.__version__.split('.')[0]) == 1:
+    if compression_type == 'lz4' and ARROW_MAJOR_VERSION == 1:
       return unittest.skip(
           "Writing with LZ4 compression is not supported in "
           "pyarrow 1.x")
@@ -368,7 +454,7 @@ class TestParquet(unittest.TestCase):
     # a list of pa.Table instances to model this expecation
     expected_result = [
         pa.Table.from_batches([batch]) for batch in self._records_as_arrow(
-            count=12000).to_batches(chunksize=1000)
+            count=12000).to_batches(max_chunksize=1000)
     ]
     self._run_parquet_test(file_name, None, None, False, expected_result)
 
@@ -378,7 +464,7 @@ class TestParquet(unittest.TestCase):
     # a list of pa.Table instances to model this expecation
     expected_result = [
         pa.Table.from_batches([batch]) for batch in self._records_as_arrow(
-            count=12000).to_batches(chunksize=1000)
+            count=12000).to_batches(max_chunksize=1000)
     ]
     self._run_parquet_test(file_name, None, 10000, True, expected_result)
 
@@ -416,7 +502,7 @@ class TestParquet(unittest.TestCase):
     orig = self._records_as_arrow(count=120, schema=self.SCHEMA96)
     expected_result = [
         pa.Table.from_batches([batch], schema=self.SCHEMA96)
-        for batch in orig.to_batches(chunksize=20)
+        for batch in orig.to_batches(max_chunksize=20)
     ]
     self._run_parquet_test(file_name, None, None, False, expected_result)
 

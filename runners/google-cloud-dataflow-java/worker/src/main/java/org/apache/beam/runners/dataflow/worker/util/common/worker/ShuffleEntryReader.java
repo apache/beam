@@ -39,6 +39,6 @@ public interface ShuffleEntryReader extends Closeable {
    *     key is greater than or equal to startPosition).
    * @return a {@link Reiterator} over the requested range of entries.
    */
-  public Reiterator<ShuffleEntry> read(
+  Reiterator<ShuffleEntry> read(
       @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition);
 }

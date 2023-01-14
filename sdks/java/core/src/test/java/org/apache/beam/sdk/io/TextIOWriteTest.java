@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.TestUtils.LINES2_ARRAY;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.io.fs.MatchResult.Status.NOT_FOUND;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -367,6 +368,12 @@ public class TextIOWriteTest {
 
   private void runTestWrite(String[] elems, String header, String footer, int numShards)
       throws Exception {
+    runTestWrite(elems, header, footer, numShards, false);
+  }
+
+  private void runTestWrite(
+      String[] elems, String header, String footer, int numShards, boolean skipIfEmpty)
+      throws Exception {
     String outputName = "file.txt";
     Path baseDir = Files.createTempDirectory(tempFolder.getRoot().toPath(), "testwrite");
     ResourceId baseFilename =
@@ -383,6 +390,9 @@ public class TextIOWriteTest {
     } else if (numShards > 0) {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
+    if (skipIfEmpty) {
+      write = write.skipIfEmpty();
+    }
 
     input.apply(write);
 
@@ -395,7 +405,8 @@ public class TextIOWriteTest {
         numShards,
         baseFilename,
         firstNonNull(
-            write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE));
+            write.getShardTemplate(), DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE),
+        skipIfEmpty);
   }
 
   private static void assertOutputFiles(
@@ -406,8 +417,25 @@ public class TextIOWriteTest {
       ResourceId outputPrefix,
       String shardNameTemplate)
       throws Exception {
+    assertOutputFiles(elems, header, footer, numShards, outputPrefix, shardNameTemplate, false);
+  }
+
+  private static void assertOutputFiles(
+      String[] elems,
+      final String header,
+      final String footer,
+      int numShards,
+      ResourceId outputPrefix,
+      String shardNameTemplate,
+      boolean skipIfEmpty)
+      throws Exception {
     List<File> expectedFiles = new ArrayList<>();
-    if (numShards == 0) {
+    if (skipIfEmpty && elems.length == 0) {
+      String pattern = outputPrefix.toString() + "*";
+      MatchResult matches =
+          Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(pattern)));
+      assertEquals(NOT_FOUND, matches.status());
+    } else if (numShards == 0) {
       String pattern = outputPrefix.toString() + "*";
       List<MatchResult> matches = FileSystems.match(Collections.singletonList(pattern));
       for (Metadata expectedFile : Iterables.getOnlyElement(matches).metadata()) {
@@ -509,6 +537,12 @@ public class TextIOWriteTest {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testWriteEmptyStringsSkipIfEmpty() throws Exception {
+    runTestWrite(NO_LINES_ARRAY, null, null, 0, true);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testShardedWrite() throws Exception {
     runTestWrite(LINES_ARRAY, 5);
   }
@@ -577,7 +611,7 @@ public class TextIOWriteTest {
 
   @Test
   public void testWriteDisplayData() {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10737
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20467
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     TextIO.Write write =
         TextIO.write()

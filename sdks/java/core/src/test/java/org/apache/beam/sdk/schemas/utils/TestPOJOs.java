@@ -1106,4 +1106,133 @@ public class TestPOJOs {
       this.user = user;
     }
   }
+
+  /** A POJO containing itself as a nested class. * */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class SelfNestedPOJO {
+    public SelfNestedPOJO nested;
+
+    public SelfNestedPOJO(SelfNestedPOJO nested) {
+      this.nested = nested;
+    }
+
+    public SelfNestedPOJO() {}
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SelfNestedPOJO that = (SelfNestedPOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /**
+   * A POJO containing a circular reference back to itself through the accompanying POJO below. *
+   */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class FirstCircularNestedPOJO {
+    public SecondCircularNestedPOJO nested;
+
+    public FirstCircularNestedPOJO(SecondCircularNestedPOJO nested) {
+      this.nested = nested;
+    }
+
+    public FirstCircularNestedPOJO() {}
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      FirstCircularNestedPOJO that = (FirstCircularNestedPOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /**
+   * A POJO containing a circular reference back to itself through the accompanying POJO below. *
+   */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class SecondCircularNestedPOJO {
+    public FirstCircularNestedPOJO nested;
+
+    public SecondCircularNestedPOJO(FirstCircularNestedPOJO nested) {
+      this.nested = nested;
+    }
+
+    public SecondCircularNestedPOJO() {}
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SecondCircularNestedPOJO that = (SecondCircularNestedPOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /** A POJO containing a nested class, along with a SimplePOJO. * */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class NestedPOJOWithSimplePOJO {
+    public NestedPOJO nested;
+    public SimplePOJO simplePojo;
+
+    public NestedPOJOWithSimplePOJO(NestedPOJO nested, SimplePOJO simplePojo) {
+      this.nested = nested;
+      this.simplePojo = simplePojo;
+    }
+
+    public NestedPOJOWithSimplePOJO() {}
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      NestedPOJOWithSimplePOJO that = (NestedPOJOWithSimplePOJO) o;
+      return Objects.equals(nested, that.nested);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(nested);
+    }
+  }
+
+  /** The schema for {@link NestedPOJOWithSimplePOJO}. * */
+  public static final Schema NESTED_POJO_WITH_SIMPLE_POJO_SCHEMA =
+      Schema.builder()
+          .addRowField("nested", NESTED_POJO_SCHEMA)
+          .addRowField("simplePojo", SIMPLE_POJO_SCHEMA)
+          .build();
 }

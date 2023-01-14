@@ -31,7 +31,7 @@ import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution.SimpleTableWit
 
 /** QueryTrait. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class QueryTrait {
   public Map<String, ResolvedWithEntry> withEntries = new HashMap<>();

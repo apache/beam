@@ -16,7 +16,9 @@
 package xlang
 
 import (
+	"flag"
 	"fmt"
+	"log"
 	"reflect"
 	"sort"
 	"testing"
@@ -32,6 +34,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
+var expansionAddr string // Populate with expansion address labelled "test".
+
 func init() {
 	beam.RegisterType(reflect.TypeOf((*IntString)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*StringInt)(nil)).Elem())
@@ -46,8 +50,8 @@ func init() {
 }
 
 func checkFlags(t *testing.T) {
-	if *integration.TestExpansionAddr == "" {
-		t.Skip("No expansion address provided.")
+	if expansionAddr == "" {
+		t.Skip("No Test expansion address provided.")
 	}
 }
 
@@ -121,7 +125,7 @@ func TestXLang_Prefix(t *testing.T) {
 
 	// Using the cross-language transform
 	strings := beam.Create(s, "a", "b", "c")
-	prefixed := xlang.Prefix(s, "prefix_", *integration.TestExpansionAddr, strings)
+	prefixed := xlang.Prefix(s, "prefix_", expansionAddr, strings)
 	passert.Equals(s, prefixed, "prefix_a", "prefix_b", "prefix_c")
 
 	ptest.RunAndValidate(t, p)
@@ -137,7 +141,7 @@ func TestXLang_CoGroupBy(t *testing.T) {
 	// Using the cross-language transform
 	col1 := beam.ParDo(s, getIntString, beam.Create(s, IntString{X: 0, Y: "1"}, IntString{X: 0, Y: "2"}, IntString{X: 1, Y: "3"}))
 	col2 := beam.ParDo(s, getIntString, beam.Create(s, IntString{X: 0, Y: "4"}, IntString{X: 1, Y: "5"}, IntString{X: 1, Y: "6"}))
-	c := xlang.CoGroupByKey(s, *integration.TestExpansionAddr, col1, col2)
+	c := xlang.CoGroupByKey(s, expansionAddr, col1, col2)
 	sums := beam.ParDo(s, sumCounts, c)
 	formatted := beam.ParDo(s, formatIntStringsFn, sums)
 	passert.Equals(s, formatted, "0:[1 2 4]", "1:[3 5 6]")
@@ -155,7 +159,7 @@ func TestXLang_Combine(t *testing.T) {
 	// Using the cross-language transform
 	kvs := beam.Create(s, StringInt{X: "a", Y: 1}, StringInt{X: "a", Y: 2}, StringInt{X: "b", Y: 3})
 	ins := beam.ParDo(s, getStringInt, kvs)
-	c := xlang.CombinePerKey(s, *integration.TestExpansionAddr, ins)
+	c := xlang.CombinePerKey(s, expansionAddr, ins)
 
 	formatted := beam.ParDo(s, formatStringIntFn, c)
 	passert.Equals(s, formatted, "a:3", "b:3")
@@ -173,7 +177,7 @@ func TestXLang_CombineGlobally(t *testing.T) {
 	in := beam.CreateList(s, []int64{1, 2, 3})
 
 	// Using the cross-language transform
-	c := xlang.CombineGlobally(s, *integration.TestExpansionAddr, in)
+	c := xlang.CombineGlobally(s, expansionAddr, in)
 
 	formatted := beam.ParDo(s, formatIntFn, c)
 	passert.Equals(s, formatted, "6")
@@ -192,7 +196,7 @@ func TestXLang_Flatten(t *testing.T) {
 	col2 := beam.CreateList(s, []int64{4, 5, 6})
 
 	// Using the cross-language transform
-	c := xlang.Flatten(s, *integration.TestExpansionAddr, col1, col2)
+	c := xlang.Flatten(s, expansionAddr, col1, col2)
 
 	formatted := beam.ParDo(s, formatIntFn, c)
 	passert.Equals(s, formatted, "1", "2", "3", "4", "5", "6")
@@ -210,7 +214,7 @@ func TestXLang_GroupBy(t *testing.T) {
 	// Using the cross-language transform
 	kvs := beam.Create(s, StringInt{X: "0", Y: 1}, StringInt{X: "0", Y: 2}, StringInt{X: "1", Y: 3})
 	in := beam.ParDo(s, getStringInt, kvs)
-	out := xlang.GroupByKey(s, *integration.TestExpansionAddr, in)
+	out := xlang.GroupByKey(s, expansionAddr, in)
 
 	vals := beam.ParDo(s, collectValues, out)
 	formatted := beam.ParDo(s, formatStringIntsFn, vals)
@@ -231,7 +235,7 @@ func TestXLang_Multi(t *testing.T) {
 	side := beam.CreateList(s, []string{"s"})
 
 	// Using the cross-language transform
-	mainOut, sideOut := xlang.Multi(s, *integration.TestExpansionAddr, main1, main2, side)
+	mainOut, sideOut := xlang.Multi(s, expansionAddr, main1, main2, side)
 
 	passert.Equals(s, mainOut, "as", "bbs", "xs", "yys", "zzzs")
 	passert.Equals(s, sideOut, "ss")
@@ -249,7 +253,7 @@ func TestXLang_Partition(t *testing.T) {
 	col := beam.CreateList(s, []int64{1, 2, 3, 4, 5, 6})
 
 	// Using the cross-language transform
-	out0, out1 := xlang.Partition(s, *integration.TestExpansionAddr, col)
+	out0, out1 := xlang.Partition(s, expansionAddr, col)
 	formatted0 := beam.ParDo(s, formatIntFn, out0)
 	formatted1 := beam.ParDo(s, formatIntFn, out1)
 
@@ -260,5 +264,17 @@ func TestXLang_Partition(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	ptest.Main(m)
+	flag.Parse()
+	beam.Init()
+
+	services := integration.NewExpansionServices()
+	defer func() { services.Shutdown() }()
+	addr, err := services.GetAddr("test")
+	if err != nil {
+		log.Printf("skipping missing expansion service: %v", err)
+	} else {
+		expansionAddr = addr
+	}
+
+	ptest.MainRet(m)
 }

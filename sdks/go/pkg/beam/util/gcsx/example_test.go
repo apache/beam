@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+<<<<<<<< HEAD:sdks/go/pkg/beam/util/gcsx/example_test.go
 package gcsx_test
 
 import (
@@ -44,4 +45,29 @@ func Example() {
 	}
 
 	_ = bytes
+========
+package xlangx
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
+)
+
+func TestStartAutomated(t *testing.T) {
+	if strings.HasSuffix(core.SdkVersion, ".dev") {
+		t.Skipf("need a released SDK version to test auto python expansion service, got: %s", core.SdkVersion)
+	}
+	sp, addr, err := startPythonExpansionService("apache_beam.runners.portability.expansion_service_main", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if addr == "" {
+		t.Fatal("no address")
+	}
+	if err := sp(); err != nil {
+		t.Fatal("error stoping service")
+	}
+>>>>>>>> master:sdks/go/pkg/beam/core/runtime/xlangx/expand_test.go
 }

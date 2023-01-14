@@ -33,13 +33,18 @@ from functools import wraps
 import pytest
 
 import apache_beam as beam
+import apache_beam.io.gcp.bigquery
+from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.runners.interactive import interactive_beam
+from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils.timestamp import Timestamp
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -176,6 +181,132 @@ class ReadTests(BigQueryReadIntegrationTests):
               query=query, use_standard_sql=True, project=self.project))
       assert_that(result, equal_to(self.TABLE_DATA))
 
+  @pytest.mark.it_postcommit
+  def test_table_schema_retrieve(self):
+    the_table = bigquery_tools.BigQueryWrapper().get_table(
+        project_id="apache-beam-testing",
+        dataset_id="beam_bigquery_io_test",
+        table_id="table_schema_retrieve")
+    table = the_table.schema
+    utype = bigquery_schema_tools.\
+        generate_user_type_from_bq_schema(table)
+    with beam.Pipeline(argv=self.args) as p:
+      result = (
+          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+              gcs_location="gs://bqio_schema_test",
+              dataset="beam_bigquery_io_test",
+              table="table_schema_retrieve",
+              project="apache-beam-testing",
+              output_type='BEAM_ROW'))
+      assert_that(
+          result,
+          equal_to([
+              utype(
+                  id=1,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1633262400)),
+              utype(
+                  id=3,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1664798400)),
+              utype(
+                  id=2,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1601726400)),
+              utype(
+                  id=4,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1570104000))
+          ]))
+
+  @pytest.mark.it_postcommit
+  def test_table_schema_retrieve_specifying_only_table(self):
+    the_table = bigquery_tools.BigQueryWrapper().get_table(
+        project_id="apache-beam-testing",
+        dataset_id="beam_bigquery_io_test",
+        table_id="table_schema_retrieve")
+    table = the_table.schema
+    utype = bigquery_schema_tools.\
+        generate_user_type_from_bq_schema(table)
+    with beam.Pipeline(argv=self.args) as p:
+      result = (
+          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+              gcs_location="gs://bqio_schema_test",
+              table="apache-beam-testing:"
+              "beam_bigquery_io_test."
+              "table_schema_retrieve",
+              output_type='BEAM_ROW'))
+      assert_that(
+          result,
+          equal_to([
+              utype(
+                  id=1,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1633262400)),
+              utype(
+                  id=3,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1664798400)),
+              utype(
+                  id=2,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1601726400)),
+              utype(
+                  id=4,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1570104000))
+          ]))
+
+  @pytest.mark.it_postcommit
+  def test_table_schema_retrieve_with_direct_read(self):
+    the_table = bigquery_tools.BigQueryWrapper().get_table(
+        project_id="apache-beam-testing",
+        dataset_id="beam_bigquery_io_test",
+        table_id="table_schema_retrieve")
+    table = the_table.schema
+    utype = bigquery_schema_tools.\
+        generate_user_type_from_bq_schema(table)
+    with beam.Pipeline(argv=self.args) as p:
+      result = (
+          p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+              method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
+              table="apache-beam-testing:"
+              "beam_bigquery_io_test."
+              "table_schema_retrieve",
+              output_type='BEAM_ROW'))
+      assert_that(
+          result,
+          equal_to([
+              utype(
+                  id=1,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1633262400)),
+              utype(
+                  id=3,
+                  name='customer1',
+                  type='test',
+                  times=Timestamp(1664798400)),
+              utype(
+                  id=2,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1601726400)),
+              utype(
+                  id=4,
+                  name='customer2',
+                  type='test',
+                  times=Timestamp(1570104000))
+          ]))
+
 
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   TABLE_DATA = [{
@@ -291,6 +422,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
     cls.bigquery_client.wait_for_bq_job(job_ref, max_retries=0)
     return cls.bigquery_client._get_temp_table(project)
 
+  @pytest.mark.it_postcommit
   def test_iobase_source(self):
     EXPECTED_TABLE_DATA = [
         {
@@ -320,6 +452,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               table=self.temp_table_reference))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_native_datetime(self):
     EXPECTED_TABLE_DATA = [
         {
@@ -351,6 +484,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               use_native_datetime=True))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_column_selection(self):
     EXPECTED_TABLE_DATA = [{'number': 1}, {'number': 4}]
     with beam.Pipeline(argv=self.args) as p:
@@ -361,6 +495,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               selected_fields=['number']))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_row_restriction(self):
     EXPECTED_TABLE_DATA = [{
         'number': 1,
@@ -378,6 +513,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               use_native_datetime=True))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_column_selection_and_row_restriction(self):
     EXPECTED_TABLE_DATA = [{'string': u'привет'}]
     with beam.Pipeline(argv=self.args) as p:
@@ -389,6 +525,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               selected_fields=['string']))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_very_selective_filters(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
@@ -401,6 +538,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               selected_fields=['string']))
       assert_that(result, equal_to([]))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_query(self):
     EXPECTED_TABLE_DATA = [
         {
@@ -435,6 +573,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
               query=query))
       assert_that(result, equal_to(EXPECTED_TABLE_DATA))
 
+  @pytest.mark.it_postcommit
   def test_iobase_source_with_query_and_filters(self):
     EXPECTED_TABLE_DATA = [{'string': u'привет'}]
     query = StaticValueProvider(str, self.query)
@@ -655,7 +794,8 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
   @skip(['PortableRunner', 'FlinkRunner'])
   @pytest.mark.it_postcommit
   def test_read_queries(self):
-    # TODO(BEAM-11311): Remove experiment when tests run on r_v2.
+    # TODO(https://github.com/apache/beam/issues/20610): Remove experiment when
+    # tests run on r_v2.
     args = self.args + ["--experiments=use_runner_v2"]
     with beam.Pipeline(argv=args) as p:
       result = (
@@ -671,6 +811,16 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
       assert_that(
           result,
           equal_to(self.TABLE_DATA_1 + self.TABLE_DATA_2 + self.TABLE_DATA_3))
+
+
+class ReadInteractiveRunnerTests(BigQueryReadIntegrationTests):
+  @skip(['PortableRunner', 'FlinkRunner'])
+  @pytest.mark.it_postcommit
+  def test_read_in_interactive_runner(self):
+    p = beam.Pipeline(InteractiveRunner(), argv=self.args)
+    pcoll = p | beam.io.ReadFromBigQuery(query="SELECT 1")
+    result = interactive_beam.collect(pcoll)
+    assert result.iloc[0, 0] == 1
 
 
 if __name__ == '__main__':

@@ -125,8 +125,71 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
 | Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
 
+### Release Preparation and Validation Workflows
+
+#### Start Snapshot Build - [start_snapshot_build.yml](.github/workflows/start_snapshot_build.yml)
+| Job                   | Description                                                             | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------------|-------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Start Snapshot Build  | Creates PR against apache:master and triggers a job to build a snapshot | No               | No                    | No            | No                       |
+
+#### Choose RC Commit - [choose_rc_commit.yml](.github/workflows/choose_rc_commit.yml)
+
+| Job              | Description                                                                                         | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------|-----------------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Choose RC Commit | Chooses a commit to be the basis of a release candidate and pushes a new tagged commit for that RC. | No               | No                    | No            | No                       |
+
+#### Cut Release Branch - [verify_release_build.yml](.github/workflows/cut_release_branch.yml)
+| Job                   | Description                                                | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|-----------------------|------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Update Master         | Update Apache Beam master branch with next release version | No               | No                    | No            | No                       |
+| Update Release Branch | Cut release branch for current development version         | No               | No                    | No            | No                       |
+
+#### Verify Release Build - [verify_release_build.yml](.github/workflows/verify_release_build.yml)
+
+| Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------------------|-----------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Verify Release Build         | Verifies full life cycle of Gradle Build and all PostCommit/PreCommit tests against Release Branch on CI.                   | No               | No                    | No            | No                       |
+
+#### Git tag Release Version - [git_tag_released_version.yml](.github/workflows/git_tag_released_version.yml)
+
+| Job                             | Description                                                                                                    | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|---------------------------------|----------------------------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Git Tag Release Version         | Create and push a new tag for the released version by copying the tag for the final release candidate.         | No               | No                    | No            | No                       |
+
+#### Run RC Validation - [run_rc_validation.yml](.github/workflows/run_rc_validation.yml)
+
+| Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------------------|-----------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Python Release Candidate     | Comment on PR to trigger Python ReleaseCandidate Jenkins job.                                 | No               | No                    | No            | No                       |
+| Python XLang SQL Taxi        | Runs Python XLang SQL Taxi with DataflowRunner                                                | No               | No                    | No            | Yes                      |
+| Python XLang Kafka           | Runs Python XLang Kafka Taxi with DataflowRunner                                              | No               | No                    | No            | Yes                      |
+| Direct Runner Leaderboard    | Runs Python Leaderboard with DirectRunner                                                     | No               | No                    | No            | Yes                      |
+| Direct Runner GameStats      | Runs Python GameStats with DirectRunner.                                                      | No               | No                    | No            | Yes                      |
+| Dataflow Runner Leaderboard  | Runs Python Leaderboard with DataflowRunner                                                   | No               | No                    | No            | Yes                      |
+| Dataflow Runner GameStats    | Runs Python GameStats with DataflowRunner                                                     | No               | No                    | No            | Yes                      |
+
+### All migrated workflows run based on the following triggers
+
+| Description | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Workflow Dispatch |
+|-------------|------------------|-----------------------|---------------|-------------------|
+| PostCommit  | No               | Yes                   | Yes           | Yes               |
+| PreCommit   | Yes              | Yes                   | Yes           | Yes               |
+
+### PreCommit Workflows
+
+| Workflow                                                                         | Description             | Requires GCP Credentials  |
+|----------------------------------------------------------------------------------|-------------------------|---------------------------|
+| [job-precommit-placeholder.yml](.github/workflows/job-precommit-placeholder.yml) | Description placeholder | Yes/No                    |
+
+### PostCommit Workflows
+
+| Workflow                                                                           | Description             | Requires GCP Credentials |
+|------------------------------------------------------------------------------------|-------------------------|--------------------------|
+| [job-postcommit-placeholder.yml](.github/workflows/job-postcommit-placeholder.yml) | Description placeholder | Yes/No                   |
+
 ### GitHub Action Tips
 
+* All migrated workflows get executed on **pre-configured self-hosted** runners. For this reason, GCP credentials are **only** needed when running the workflows in a different runner.
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
 In this case please attach link to the modified workflow run executed on your fork.
 * Possible timeouts with macOS runner - existing issue: [(X) This check failed - sometimes happens on macOS runner #841](https://github.com/actions/virtual-environments/issues/841)

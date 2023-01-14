@@ -40,6 +40,10 @@ package main
 //   categories:
 //     - Flatten
 //     - Branching
+//   complexity: MEDIUM
+//   tags:
+//     - pipeline
+//     - branch
 
 import (
 	"context"

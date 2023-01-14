@@ -121,7 +121,7 @@ public class BeamRuleSets {
           // CoreRules.AGGREGATE_REDUCE_FUNCTIONS,
 
           // remove unnecessary sort rule
-          // https://issues.apache.org/jira/browse/BEAM-5073
+          // https://github.com/apache/beam/issues/19006
           // CoreRules.SORT_REMOVE,,
           BeamTableFunctionScanRule.INSTANCE,
           // prune empty results rules

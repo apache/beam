@@ -59,13 +59,19 @@ cdef class OutputStream(object):
   cpdef write_var_int64(self, libc.stdint.int64_t signed_v):
     """Encode a long using variable-length encoding to a stream."""
     cdef libc.stdint.uint64_t v = signed_v
+    # Inline common case.
+    if v <= 0x7F and self.pos < self.buffer_size - 1:
+      self.data[self.pos] = v
+      self.pos += 1
+      return
+
     cdef long bits
     while True:
       bits = v & 0x7F
       v >>= 7
       if v:
         bits |= 0x80
-      self.write_byte(bits)
+      self.write_byte(<unsigned char>bits)
       if not v:
         break
 
@@ -97,6 +103,9 @@ cdef class OutputStream(object):
 
   cpdef write_bigendian_double(self, double d):
     self.write_bigendian_int64((<libc.stdint.int64_t*><char*>&d)[0])
+
+  cpdef write_bigendian_float(self, float f):
+    self.write_bigendian_int32((<libc.stdint.int32_t*><char*>&f)[0])
 
   cpdef bytes get(self):
     return self.data[:self.pos]
@@ -132,6 +141,9 @@ cdef class ByteCountingOutputStream(OutputStream):
     if nested:
       self.write_var_int64(blen)
     self.count += blen
+
+  cpdef write_var_int64(self, libc.stdint.int64_t signed_v):
+    self.count += get_varint_size(signed_v)
 
   cpdef write_byte(self, unsigned char _):
     self.count += 1
@@ -180,23 +192,28 @@ cdef class InputStream(object):
 
   cpdef libc.stdint.int64_t read_var_int64(self) except? -1:
     """Decode a variable-length encoded long from a stream."""
-    cdef long byte
-    cdef long bits
+    # Inline common case.
+    cdef long byte = <unsigned char> self.allc[self.pos]
+    self.pos += 1
+    if byte <= 0x7F:
+      return byte
+
+    cdef libc.stdint.int64_t bits
     cdef long shift = 0
     cdef libc.stdint.int64_t result = 0
     while True:
-      byte = self.read_byte()
-      if byte < 0:
-        raise RuntimeError('VarInt not terminated.')
-
       bits = byte & 0x7F
-      if (shift >= sizeof(long) * 8 or
-          (shift >= (sizeof(long) * 8 - 1) and bits > 1)):
+      if (shift >= sizeof(libc.stdint.int64_t) * 8 or
+          (shift >= (sizeof(libc.stdint.int64_t) * 8 - 1) and bits > 1)):
         raise RuntimeError('VarLong too long.')
       result |= bits << shift
       shift += 7
       if not (byte & 0x80):
         break
+      byte = self.read_byte()
+      if byte < 0:
+        raise RuntimeError('VarInt not terminated.')
+
     return result
 
   cpdef libc.stdint.int64_t read_bigendian_int64(self) except? -1:
@@ -223,6 +240,10 @@ cdef class InputStream(object):
   cpdef double read_bigendian_double(self) except? -1:
     cdef libc.stdint.int64_t as_long = self.read_bigendian_int64()
     return (<double*><char*>&as_long)[0]
+
+  cpdef float read_bigendian_float(self) except? -1:
+    cdef libc.stdint.int32_t as_int = self.read_bigendian_int32()
+    return (<float*><char*>&as_int)[0]
 
 cpdef libc.stdint.int64_t get_varint_size(libc.stdint.int64_t value):
   """Returns the size of the given integer value when encode as a VarInt."""

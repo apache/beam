@@ -25,7 +25,7 @@ import java.nio.file.StandardCopyOption;
 
 /** Implementation of a WindmillServerBase. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WindmillServer extends WindmillServerBase {
   private static final String WINDMILL_SERVER_JNI_LIBRARY_PROPERTY = "windmill.jni_library";

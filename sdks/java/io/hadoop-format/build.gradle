@@ -32,21 +32,13 @@ ext.summary = "IO to read data from sources and to write data to sinks that impl
 def hadoopVersions = [
     "285": "2.8.5",
     "292": "2.9.2",
-    "2101": "2.10.1",
-    "321": "3.2.1",
+    "2102": "2.10.2",
+    "324": "3.2.4",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 def elastic_search_version = "7.12.0"
-
-configurations.create("sparkRunner")
-configurations.sparkRunner {
-  // Ban certain dependencies to prevent a StackOverflow within Spark
-  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
-  exclude group: "org.slf4j", module: "jul-to-slf4j"
-  exclude group: "org.slf4j", module: "slf4j-jdk14"
-}
 
 // Ban dependencies from the test runtime classpath
 configurations.testRuntimeClasspath {
@@ -80,8 +72,6 @@ dependencies {
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:io:jdbc")
-  testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":examples:java:twitter", configuration: "testRuntimeMigration")
   testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testImplementation library.java.testcontainers_elasticsearch
   testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
@@ -114,15 +104,6 @@ dependencies {
   testImplementation library.java.netty_all
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-
-  delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntimeMigration"))
-
-  sparkRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
-  sparkRunner project(path: ":examples:java:twitter", configuration: "testRuntimeMigration")
-  sparkRunner project(":runners:spark:2")
-  sparkRunner project(":sdks:java:io:hadoop-file-system")
-  sparkRunner library.java.spark_streaming
-  sparkRunner library.java.spark_core
 
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
@@ -168,29 +149,6 @@ task createTargetDirectoryForCassandra() {
   }
 }
 test.dependsOn createTargetDirectoryForCassandra
-
-def runnerClass = "org.apache.beam.runners.spark.TestSparkRunner"
-task sparkRunner(type: Test) {
-  group = "Verification"
-  def beamTestPipelineOptions = [
-          "--project=hadoop-format",
-          "--tempRoot=/tmp/hadoop-format/",
-          "--streaming=false",
-          "--runner=" + runnerClass,
-          "--enableSparkMetricSinks=false",
-  ]
-  classpath = configurations.sparkRunner
-  include "**/HadoopFormatIOSequenceFileTest.class"
-  useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-  }
-  forkEvery 1
-  maxParallelForks 4
-  systemProperty "spark.ui.enabled", "false"
-  systemProperty "spark.ui.showConsoleProgress", "false"
-  systemProperty "beam.spark.test.reuseSparkContext", "true"
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
-}
 
 task hadoopVersionsTest(group: "Verification") {
   description = "Runs Hadoop format tests with different Hadoop versions"

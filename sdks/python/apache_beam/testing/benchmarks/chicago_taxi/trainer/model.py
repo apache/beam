@@ -16,8 +16,8 @@
 # pytype: skip-file
 
 import tensorflow as tf
-
 import tensorflow_model_analysis as tfma
+from tensorflow import estimator as tf_estimator
 from trainer import taxi
 
 
@@ -59,7 +59,7 @@ def build_estimator(tf_transform_output, config, hidden_units=None):
           taxi.transformed_names(taxi.CATEGORICAL_FEATURE_KEYS),  #
           taxi.MAX_CATEGORICAL_FEATURE_VALUES)
   ]
-  return tf.estimator.DNNLinearCombinedClassifier(
+  return tf_estimator.DNNLinearCombinedClassifier(
       config=config,
       linear_feature_columns=categorical_columns,
       dnn_feature_columns=real_valued_columns,
@@ -79,14 +79,14 @@ def example_serving_receiver_fn(tf_transform_output, schema):
   raw_feature_spec = taxi.get_raw_feature_spec(schema)
   raw_feature_spec.pop(taxi.LABEL_KEY)
 
-  raw_input_fn = tf.estimator.export.build_parsing_serving_input_receiver_fn(
+  raw_input_fn = tf_estimator.export.build_parsing_serving_input_receiver_fn(
       raw_feature_spec, default_batch_size=None)
   serving_input_receiver = raw_input_fn()
 
   transformed_features = tf_transform_output.transform_raw_features(
       serving_input_receiver.features)
 
-  return tf.estimator.export.ServingInputReceiver(
+  return tf_estimator.export.ServingInputReceiver(
       transformed_features, serving_input_receiver.receiver_tensors)
 
 

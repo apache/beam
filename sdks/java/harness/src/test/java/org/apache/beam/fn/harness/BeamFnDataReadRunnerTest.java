@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyDouble;
 import static org.mockito.Mockito.mock;
@@ -31,12 +32,16 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
@@ -50,7 +55,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
+import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
@@ -60,6 +67,7 @@ import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -111,6 +119,13 @@ public class BeamFnDataReadRunnerTest {
 
   private static final String PTRANSFORM_ID = "ptransform_id";
 
+  private static final MonitoringInfo DATA_CHANNEL_READ_IDX_MONITORING_INFO =
+      MonitoringInfo.newBuilder()
+          .setUrn(MonitoringInfoConstants.Urns.DATA_CHANNEL_READ_INDEX)
+          .setType(TypeUrns.SUM_INT64_TYPE)
+          .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, INPUT_TRANSFORM_ID)
+          .build();
+
   // Test basic executions of BeamFnDataReadRunner.
   @RunWith(JUnit4.class)
   public static class BeamFnDataReadRunnerExecutionTest {
@@ -141,7 +156,7 @@ public class BeamFnDataReadRunnerTest {
               .coders(COMPONENTS.getCodersMap())
               .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
               .build();
-      context.addPCollectionConsumer(localOutputId, outputValues::add, StringUtf8Coder.of());
+      context.<String>addPCollectionConsumer(localOutputId, outputValues::add);
 
       new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
 
@@ -179,7 +194,7 @@ public class BeamFnDataReadRunnerTest {
               .coders(COMPONENTS.getCodersMap())
               .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
               .build();
-      context.addPCollectionConsumer(localOutputId, outputValues::add, StringUtf8Coder.of());
+      context.<String>addPCollectionConsumer(localOutputId, outputValues::add);
 
       BeamFnDataReadRunner<String> readRunner =
           new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
@@ -188,32 +203,26 @@ public class BeamFnDataReadRunnerTest {
           (DataEndpoint<WindowedValue<String>>)
               Iterables.getOnlyElement(
                   context.getIncomingDataEndpoints().get(PORT_SPEC.getApiServiceDescriptor()));
-      List<PTransformRunnerFactory.ProgressRequestCallback> progressCallbacks =
-          context.getProgressRequestCallbacks();
 
       // Process for bundle id 0
-      assertEquals(
-          createReadIndexMonitoringInfoAt(-1),
-          Iterables.getOnlyElement(
-              Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
+      assertIntermediateMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), -1);
 
       endpoint.getReceiver().accept(valueInGlobalWindow("ABC"));
-      assertEquals(
-          createReadIndexMonitoringInfoAt(0),
-          Iterables.getOnlyElement(
-              Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
+
+      assertIntermediateMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), 0);
       endpoint.getReceiver().accept(valueInGlobalWindow("DEF"));
-      assertEquals(
-          createReadIndexMonitoringInfoAt(1),
-          Iterables.getOnlyElement(
-              Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
+
+      assertIntermediateMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), 1);
 
       readRunner.blockTillReadFinishes();
 
-      assertEquals(
-          createReadIndexMonitoringInfoAt(2),
-          Iterables.getOnlyElement(
-              Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
+      assertIntermediateMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), 2);
+      assertFinalMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), 2);
       assertThat(outputValues, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
       // The BundleProcessor should be released first before calling reset.
@@ -223,29 +232,27 @@ public class BeamFnDataReadRunnerTest {
 
       // Ensure that when we reuse the BeamFnDataReadRunner the read index is reset to -1
       // before registerInputLocation.
-      assertEquals(
-          createReadIndexMonitoringInfoAt(-1),
-          Iterables.getOnlyElement(
-              Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
+
+      assertIntermediateMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), -1);
 
       // Process for bundle id 1
       bundleId.set("1");
       endpoint.getReceiver().accept(valueInGlobalWindow("GHI"));
-      assertEquals(
-          createReadIndexMonitoringInfoAt(0),
-          Iterables.getOnlyElement(
-              Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
+
+      assertIntermediateMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), 0);
       endpoint.getReceiver().accept(valueInGlobalWindow("JKL"));
-      assertEquals(
-          createReadIndexMonitoringInfoAt(1),
-          Iterables.getOnlyElement(
-              Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
+
+      assertIntermediateMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), 1);
 
       readRunner.blockTillReadFinishes();
-      assertEquals(
-          createReadIndexMonitoringInfoAt(2),
-          Iterables.getOnlyElement(
-              Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
+
+      assertIntermediateMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), 2);
+      assertFinalMonitoringDataDataChannelReadIndexEquals(
+          context.getShortIdMap(), context.getBundleProgressReporters(), 2);
       assertThat(outputValues, contains(valueInGlobalWindow("GHI"), valueInGlobalWindow("JKL")));
     }
 
@@ -659,17 +666,33 @@ public class BeamFnDataReadRunnerTest {
             .coders(COMPONENTS.getCodersMap())
             .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
             .build();
-    context.addPCollectionConsumer(localOutputId, consumer, StringUtf8Coder.of());
+    context.addPCollectionConsumer(localOutputId, consumer);
 
     return new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
   }
 
-  private static MonitoringInfo createReadIndexMonitoringInfoAt(int index) {
-    return new SimpleMonitoringInfoBuilder()
-        .setUrn(MonitoringInfoConstants.Urns.DATA_CHANNEL_READ_INDEX)
-        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, INPUT_TRANSFORM_ID)
-        .setInt64SumValue(index)
-        .build();
+  private static void assertIntermediateMonitoringDataDataChannelReadIndexEquals(
+      ShortIdMap shortIdMap, Collection<BundleProgressReporter> reporters, long expectedIndex) {
+    Map<String, ByteString> monitoringData = new HashMap<>();
+    for (BundleProgressReporter reporter : reporters) {
+      reporter.updateIntermediateMonitoringData(monitoringData);
+    }
+    String shortId = shortIdMap.getOrCreateShortId(DATA_CHANNEL_READ_IDX_MONITORING_INFO);
+    assertTrue(monitoringData.containsKey(shortId));
+    assertEquals(
+        expectedIndex, MonitoringInfoEncodings.decodeInt64Counter(monitoringData.get(shortId)));
+  }
+
+  private static void assertFinalMonitoringDataDataChannelReadIndexEquals(
+      ShortIdMap shortIdMap, Collection<BundleProgressReporter> reporters, long expectedIndex) {
+    Map<String, ByteString> monitoringData = new HashMap<>();
+    for (BundleProgressReporter reporter : reporters) {
+      reporter.updateFinalMonitoringData(monitoringData);
+    }
+    String shortId = shortIdMap.getOrCreateShortId(DATA_CHANNEL_READ_IDX_MONITORING_INFO);
+    assertTrue(monitoringData.containsKey(shortId));
+    assertEquals(
+        expectedIndex, MonitoringInfoEncodings.decodeInt64Counter(monitoringData.get(shortId)));
   }
 
   private static ProcessBundleSplitResponse executeSplit(

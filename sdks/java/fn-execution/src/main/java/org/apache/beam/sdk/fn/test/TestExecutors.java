@@ -30,7 +30,7 @@ import org.junit.runners.model.Statement;
  * allows for testing that tasks have exercised the appropriate shutdown logic.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class TestExecutors {
   public static TestExecutorService from(final ExecutorService staticExecutorService) {

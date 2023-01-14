@@ -32,7 +32,7 @@ import org.apache.beam.sdk.io.aws.coders.AwsCoders;
 
 /** Coders for SNS {@link PublishResult}. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class PublishResultCoders {
 

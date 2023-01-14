@@ -29,7 +29,7 @@ import (
 )
 
 //go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
-//go:generate starcgen --package=passert --identifiers=diffFn,failFn,failIfBadEntries,failKVFn,failGBKFn,hashFn,sumFn,errFn,elmCountCombineFn
+//go:generate starcgen --package=passert --identifiers=diffFn,failFn,failIfBadEntries,failKVFn,failGBKFn,hashFn,sumFn,errFn,elmCountCombineFn,nonEmptyFn
 //go:generate go fmt
 
 // Diff splits 2 incoming PCollections into 3: left only, both, right only. Duplicates are
@@ -124,13 +124,13 @@ func index(enc beam.ElementEncoder, iter func(*beam.T) bool) (map[string]indexEn
 }
 
 // True asserts that all elements satisfy the given predicate.
-func True(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func True(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	fail(s, filter.Exclude(s, col, fn), "predicate(%v) = false, want true")
 	return col
 }
 
 // False asserts that the given predicate does not satisfy any element in the condition.
-func False(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func False(s beam.Scope, col beam.PCollection, fn any) beam.PCollection {
 	fail(s, filter.Include(s, col, fn), "predicate(%v) = true, want false")
 	return col
 }
@@ -178,4 +178,21 @@ type failGBKFn struct {
 
 func (f *failGBKFn) ProcessElement(x beam.X, _ func(*beam.Y) bool) error {
 	return errors.Errorf(f.Format, fmt.Sprintf("(%v,*)", x))
+}
+
+type nonEmptyFn struct{}
+
+func (n *nonEmptyFn) ProcessElement(_ []byte, iter func(*beam.Z) bool) error {
+	var val beam.Z
+	for iter(&val) {
+		return nil
+	}
+	return errors.New("PCollection is empty, want non-empty collection")
+}
+
+// NonEmpty asserts that the given PCollection has at least one element.
+func NonEmpty(s beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("passert.NonEmpty")
+	beam.ParDo0(s, &nonEmptyFn{}, beam.Impulse(s), beam.SideInput{Input: col})
+	return col
 }

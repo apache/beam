@@ -17,6 +17,7 @@
 # under the License.
 #
 
+<<<<<<<< HEAD:playground/terraform/infrastructure/setup/services.tf
 resource "google_project_service" "required_services" {
   for_each = toset([
     "artifactregistry",
@@ -26,5 +27,13 @@ resource "google_project_service" "required_services" {
   ])
   service            = "${each.key}.googleapis.com"
   disable_on_destroy = false
+========
+output "gke_name" {
+  value = google_container_cluster.playground-gke.name
+}
+
+output "playground_gke_project" {
+  value = google_container_cluster.playground-gke.project
+>>>>>>>> master:playground/terraform/infrastructure/gke/output.tf
 }
 

@@ -49,7 +49,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** This is the builder used by {@link Group} to build up a composed {@link CombineFn}. */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 class SchemaAggregateFn {
@@ -61,6 +61,8 @@ class SchemaAggregateFn {
 
   /** Implementation of {@link #create}. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings("rawtypes")
   abstract static class Inner extends CombineFn<Row, Object[], Row> {
     // Represents an aggregation of one or more fields.
     static class FieldAggregation<FieldT, AccumT, OutputT> implements Serializable {
@@ -72,7 +74,7 @@ class SchemaAggregateFn {
       private final CombineFn<FieldT, AccumT, OutputT> fn;
       // The TupleTag identifying this aggregation element in the composed combine fn.
       private final TupleTag<Object> combineTag;
-      // The schema corresponding to the the subset of input fields being aggregated.
+      // The schema corresponding to the subset of input fields being aggregated.
       private final @Nullable Schema inputSubSchema;
       private final @Nullable FieldAccessDescriptor flattenedFieldAccessDescriptor;
       // The flattened version of inputSubSchema.
@@ -147,6 +149,8 @@ class SchemaAggregateFn {
     abstract Builder toBuilder();
 
     @AutoValue.Builder
+    @AutoValue.CopyAnnotations
+    @SuppressWarnings("rawtypes")
     abstract static class Builder {
       abstract Builder setInputSchema(@Nullable Schema inputSchema);
 

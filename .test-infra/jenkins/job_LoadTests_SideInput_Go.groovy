@@ -22,12 +22,14 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
+import static LoadTestsBuilder.GO_SDK_CONTAINER
+
 String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
 def batchScenarios = {
   [
     [
-      title          : 'SideInput Go Load test: 400mb-1kb-10workers-1window-first-iterable',
+      title          : 'SideInput Go Load test: 10gb-1kb-10workers-1window-first-iterable',
       test           : 'sideinput',
       runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
@@ -39,16 +41,18 @@ def batchScenarios = {
         influx_namespace     : 'dataflow',
         influx_measurement   : 'go_batch_sideinput_3',
         input_options        : '\'{' +
-        '"num_records": 400000,' +
+        '"num_records": 10000000,' +
         '"key_size": 100,' +
         '"value_size": 900}\'',
         access_percentage: 1,
         num_workers          : 10,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ],
     [
-      title          : 'SideInput Go Load test: 400mb-1kb-10workers-1window-iterable',
+      title          : 'SideInput Go Load test: 10gb-1kb-10workers-1window-iterable',
       test           : 'sideinput',
       runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
@@ -60,11 +64,13 @@ def batchScenarios = {
         influx_namespace     : 'dataflow',
         influx_measurement   : 'go_batch_sideinput_4',
         input_options        : '\'{' +
-        '"num_records": 400000,' +
+        '"num_records": 10000000,' +
         '"key_size": 100,' +
         '"value_size": 900}\'',
         num_workers          : 10,
         autoscaling_algorithm: 'NONE',
+        environment_type     : 'DOCKER',
+        environment_config   : GO_SDK_CONTAINER,
       ]
     ]
   ]

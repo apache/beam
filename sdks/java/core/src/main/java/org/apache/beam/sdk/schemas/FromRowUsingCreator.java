@@ -44,7 +44,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Function to convert a {@link Row} to a user type using a creator factory. */
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
@@ -148,7 +148,9 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
                 typeFactory);
         return (ValueT) oneOfType.createValue(oneOfValue.getCaseType(), fromValue);
       } else if (type.getTypeName().isLogicalType()) {
-        return (ValueT) type.getLogicalType().toBaseType(value);
+        Schema.LogicalType<ValueT, ValueT> logicalType =
+            (Schema.LogicalType<ValueT, ValueT>) type.getLogicalType();
+        return logicalType.toBaseType(value);
       }
       return value;
     }

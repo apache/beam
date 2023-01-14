@@ -21,8 +21,10 @@
 
 import logging
 from functools import partial
+from typing import Any
 from typing import Optional
 
+from apache_beam import typehints
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
@@ -38,6 +40,7 @@ __all__ = [
     'ReadFromText',
     'ReadFromTextWithFilename',
     'ReadAllFromText',
+    'ReadAllFromTextContinuously',
     'WriteToText'
 ]
 
@@ -402,12 +405,21 @@ class _TextSource(filebasedsource.FileBasedSource):
       escape_count += 1
     return escape_count % 2 == 1
 
+  def output_type_hint(self):
+    try:
+      return self._coder.to_type_hint()
+    except NotImplementedError:
+      return Any
+
 
 class _TextSourceWithFilename(_TextSource):
   def read_records(self, file_name, range_tracker):
     records = super().read_records(file_name, range_tracker)
     for record in records:
       yield (file_name, record)
+
+  def output_type_hint(self):
+    return typehints.KV[str, super().output_type_hint()]
 
 
 class _TextSink(filebasedsink.FileBasedSink):
@@ -422,7 +434,11 @@ class _TextSink(filebasedsink.FileBasedSink):
                coder=coders.ToBytesCoder(),  # type: coders.Coder
                compression_type=CompressionTypes.AUTO,
                header=None,
-               footer=None):
+               footer=None,
+               *,
+               max_records_per_shard=None,
+               max_bytes_per_shard=None,
+               skip_if_empty=False):
     """Initialize a _TextSink.
 
     Args:
@@ -456,6 +472,15 @@ class _TextSink(filebasedsink.FileBasedSink):
         append_trailing_newlines is set, '\n' will be added.
       footer: String to write at the end of file as a footer. If not None and
         append_trailing_newlines is set, '\n' will be added.
+      max_records_per_shard: Maximum number of records to write to any
+        individual shard.
+      max_bytes_per_shard: Target maximum number of bytes to write to any
+        individual shard. This may be exceeded slightly, as a new shard is
+        created once this limit is hit, but the remainder of a given record, a
+        subsequent newline, and a footer may cause the actual shard size
+        to exceed this value.  This also tracks the uncompressed,
+        not compressed, size of the shard.
+      skip_if_empty: Don't write any shards if the PCollection is empty.
 
     Returns:
       A _TextSink object usable for writing.
@@ -467,7 +492,10 @@ class _TextSink(filebasedsink.FileBasedSink):
         shard_name_template=shard_name_template,
         coder=coder,
         mime_type='text/plain',
-        compression_type=compression_type)
+        compression_type=compression_type,
+        max_records_per_shard=max_records_per_shard,
+        max_bytes_per_shard=max_bytes_per_shard,
+        skip_if_empty=skip_if_empty)
     self._append_trailing_newlines = append_trailing_newlines
     self._header = header
     self._footer = footer
@@ -506,6 +534,7 @@ def _create_text_source(
     compression_type=None,
     strip_trailing_newlines=None,
     coder=None,
+    validate=False,
     skip_header_lines=None,
     delimiter=None,
     escapechar=None):
@@ -515,7 +544,7 @@ def _create_text_source(
       compression_type=compression_type,
       strip_trailing_newlines=strip_trailing_newlines,
       coder=coder,
-      validate=False,
+      validate=validate,
       skip_header_lines=skip_header_lines,
       delimiter=delimiter,
       escapechar=escapechar)
@@ -536,8 +565,10 @@ class ReadAllFromText(PTransform):
 
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
-  """
 
+  This implementation is only tested with batch pipeline. In streaming,
+  reading may happen with delay due to the limitation in ReShuffle involved.
+  """
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
 
   def __init__(
@@ -546,6 +577,7 @@ class ReadAllFromText(PTransform):
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
+      validate=False,
       coder=coders.StrUtf8Coder(),  # type: coders.Coder
       skip_header_lines=0,
       with_filename=False,
@@ -582,11 +614,12 @@ class ReadAllFromText(PTransform):
         delimiter, can also escape itself.
     """
     super().__init__(**kwargs)
-    source_from_file = partial(
+    self._source_from_file = partial(
         _create_text_source,
         min_bundle_size=min_bundle_size,
         compression_type=compression_type,
         strip_trailing_newlines=strip_trailing_newlines,
+        validate=validate,
         coder=coder,
         skip_header_lines=skip_header_lines,
         delimiter=delimiter,
@@ -594,16 +627,82 @@ class ReadAllFromText(PTransform):
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._compression_type = compression_type
+    self._with_filename = with_filename
     self._read_all_files = ReadAllFiles(
         True,
-        compression_type,
-        desired_bundle_size,
-        min_bundle_size,
-        source_from_file,
-        with_filename)
+        self._compression_type,
+        self._desired_bundle_size,
+        self._min_bundle_size,
+        self._source_from_file,
+        self._with_filename)
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files
+
+
+class ReadAllFromTextContinuously(ReadAllFromText):
+  """A ``PTransform`` for reading text files in given file patterns.
+  This PTransform acts as a Source and produces continuously a ``PCollection``
+  of strings.
+
+  For more details, see ``ReadAllFromText`` for text parsing settings;
+  see ``apache_beam.io.fileio.MatchContinuously`` for watching settings.
+
+  ReadAllFromTextContinuously is experimental.  No backwards-compatibility
+  guarantees. Due to the limitation on Reshuffle, current implementation does
+  not scale.
+  """
+  _ARGS_FOR_MATCH = (
+      'interval',
+      'has_deduplication',
+      'start_timestamp',
+      'stop_timestamp',
+      'match_updated_files',
+      'apply_windowing')
+  _ARGS_FOR_READ = (
+      'min_bundle_size',
+      'desired_bundle_size',
+      'compression_type',
+      'strip_trailing_newlines',
+      'validate',
+      'coder',
+      'skip_header_lines',
+      'with_filename',
+      'delimiter',
+      'escapechar')
+
+  def __init__(self, file_pattern, **kwargs):
+    """Initialize the ``ReadAllFromTextContinuously`` transform.
+
+    Accepts args for constructor args of both :class:`ReadAllFromText` and
+    :class:`~apache_beam.io.fileio.MatchContinuously`.
+    """
+    kwargs_for_match = {
+        k: v
+        for (k, v) in kwargs.items() if k in self._ARGS_FOR_MATCH
+    }
+    kwargs_for_read = {
+        k: v
+        for (k, v) in kwargs.items() if k in self._ARGS_FOR_READ
+    }
+    kwargs_additinal = {
+        k: v
+        for (k, v) in kwargs.items()
+        if k not in self._ARGS_FOR_MATCH and k not in self._ARGS_FOR_READ
+    }
+    super().__init__(**kwargs_for_read, **kwargs_additinal)
+    self._file_pattern = file_pattern
+    self._kwargs_for_match = kwargs_for_match
+
+  def expand(self, pbegin):
+    # Importing locally to prevent circular dependency issues.
+    from apache_beam.io.fileio import MatchContinuously
+
+    # TODO(BEAM-14497) always reshuffle once gbk always trigger works.
+    return (
+        pbegin
+        | MatchContinuously(self._file_pattern, **self._kwargs_for_match)
+        | 'ReadAllFiles' >> self._read_all_files._disable_reshuffle())
 
 
 class ReadFromText(PTransform):
@@ -675,7 +774,8 @@ class ReadFromText(PTransform):
         escapechar=escapechar)
 
   def expand(self, pvalue):
-    return pvalue.pipeline | Read(self._source)
+    return pvalue.pipeline | Read(self._source).with_output_types(
+        self._source.output_type_hint())
 
 
 class ReadFromTextWithFilename(ReadFromText):
@@ -703,7 +803,11 @@ class WriteToText(PTransform):
       coder=coders.ToBytesCoder(),  # type: coders.Coder
       compression_type=CompressionTypes.AUTO,
       header=None,
-      footer=None):
+      footer=None,
+      *,
+      max_records_per_shard=None,
+      max_bytes_per_shard=None,
+      skip_if_empty=False):
     r"""Initialize a :class:`WriteToText` transform.
 
     Args:
@@ -742,6 +846,15 @@ class WriteToText(PTransform):
       footer (str): String to write at the end of file as a footer.
         If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will
         be added.
+      max_records_per_shard: Maximum number of records to write to any
+        individual shard.
+      max_bytes_per_shard: Target maximum number of bytes to write to any
+        individual shard. This may be exceeded slightly, as a new shard is
+        created once this limit is hit, but the remainder of a given record, a
+        subsequent newline, and a footer may cause the actual shard size
+        to exceed this value.  This also tracks the uncompressed,
+        not compressed, size of the shard.
+      skip_if_empty: Don't write any shards if the PCollection is empty.
     """
 
     self._sink = _TextSink(
@@ -753,7 +866,10 @@ class WriteToText(PTransform):
         coder,
         compression_type,
         header,
-        footer)
+        footer,
+        max_records_per_shard=max_records_per_shard,
+        max_bytes_per_shard=max_bytes_per_shard,
+        skip_if_empty=skip_if_empty)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)

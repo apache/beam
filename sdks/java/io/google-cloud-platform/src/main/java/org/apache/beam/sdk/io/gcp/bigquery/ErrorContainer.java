@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
@@ -30,9 +31,6 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  *
  * @param <T>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public interface ErrorContainer<T> extends Serializable {
   void add(
       List<ValueInSingleWindow<T>> failedInserts,
@@ -44,8 +42,10 @@ public interface ErrorContainer<T> extends Serializable {
       (failedInserts, error, ref, tableRow) ->
           failedInserts.add(
               ValueInSingleWindow.of(
-                  tableRow.getFailsafeValue(), tableRow.getTimestamp(),
-                  tableRow.getWindow(), tableRow.getPane()));
+                  Preconditions.checkArgumentNotNull(tableRow.getFailsafeValue()),
+                  tableRow.getTimestamp(),
+                  tableRow.getWindow(),
+                  tableRow.getPane()));
 
   ErrorContainer<BigQueryInsertError> BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER =
       (failedInserts, error, ref, tableRow) -> {

@@ -170,8 +170,8 @@ class JsonLogFormatter(logging.Formatter):
     return json.dumps(output)
 
 
-def initialize(job_id, worker_id, log_path):
-  # type: (str, str, str) -> None
+def initialize(job_id, worker_id, log_path, log_level=logging.INFO):
+  # type: (str, str, str, int) -> None
 
   """Initialize root logger so that we log JSON to a file and text to stdout."""
 
@@ -179,6 +179,6 @@ def initialize(job_id, worker_id, log_path):
   file_handler.setFormatter(JsonLogFormatter(job_id, worker_id))
   logging.getLogger().addHandler(file_handler)
 
-  # Set default level to INFO to avoid logging various DEBUG level log calls
+  # Default level is set to INFO to avoid logging various DEBUG level log calls
   # sprinkled throughout the code.
-  logging.getLogger().setLevel(logging.INFO)
+  logging.getLogger().setLevel(log_level)

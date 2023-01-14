@@ -47,9 +47,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of the value(s) accessible via this {@link PCollectionView}
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public interface PCollectionView<T> extends PValue, Serializable {
   /**
    * <b>For internal use only.</b>

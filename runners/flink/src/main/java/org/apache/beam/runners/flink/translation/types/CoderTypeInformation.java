@@ -34,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * org.apache.beam.sdk.coders.Coder}s.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 
@@ -42,10 +42,14 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   private final SerializablePipelineOptions pipelineOptions;
 
   public CoderTypeInformation(Coder<T> coder, PipelineOptions pipelineOptions) {
+    this(coder, new SerializablePipelineOptions(pipelineOptions));
+  }
+
+  public CoderTypeInformation(Coder<T> coder, SerializablePipelineOptions pipelineOptions) {
     checkNotNull(coder);
     checkNotNull(pipelineOptions);
     this.coder = coder;
-    this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
+    this.pipelineOptions = pipelineOptions;
   }
 
   public Coder<T> getCoder() {

@@ -23,6 +23,7 @@ import collections
 import contextlib
 import copy
 import logging
+import os
 import queue
 import subprocess
 import sys
@@ -64,6 +65,7 @@ from apache_beam.runners.portability.fn_api_runner.execution import Buffer
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
@@ -79,7 +81,8 @@ if TYPE_CHECKING:
 # State caching is enabled in the fn_api_runner for testing, except for one
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
 # The cache is disabled in production for other runners.
-STATE_CACHE_SIZE = 100
+STATE_CACHE_SIZE_MB = 100
+MB_TO_BYTES = 1 << 20
 
 # Time-based flush is enabled in the fn_api_runner by default.
 DATA_BUFFER_TIME_LIMIT_MS = 1000
@@ -358,16 +361,14 @@ class EmbeddedWorkerHandler(WorkerHandler):
         self, data_plane.InMemoryDataChannel(), state, provision_info)
     self.control_conn = self  # type: ignore  # need Protocol to describe this
     self.data_conn = self.data_plane_handler
-    state_cache = StateCache(STATE_CACHE_SIZE)
+    state_cache = StateCache(STATE_CACHE_SIZE_MB * MB_TO_BYTES)
     self.bundle_processor_cache = sdk_worker.BundleProcessorCache(
         SingletonStateHandlerFactory(
             sdk_worker.GlobalCachingStateHandler(state_cache, state)),
         data_plane.InMemoryDataChannelFactory(
             self.data_plane_handler.inverse()),
         worker_manager._process_bundle_descriptors)
-    self.worker = sdk_worker.SdkWorker(
-        self.bundle_processor_cache,
-        state_cache_metrics_fn=state_cache.get_monitoring_infos)
+    self.worker = sdk_worker.SdkWorker(self.bundle_processor_cache)
     self._uid_counter = 0
 
   def push(self, request):
@@ -406,24 +407,12 @@ class EmbeddedWorkerHandler(WorkerHandler):
 
 
 class BasicLoggingService(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
-  LOG_LEVEL_MAP = {
-      beam_fn_api_pb2.LogEntry.Severity.CRITICAL: logging.CRITICAL,
-      beam_fn_api_pb2.LogEntry.Severity.ERROR: logging.ERROR,
-      beam_fn_api_pb2.LogEntry.Severity.WARN: logging.WARNING,
-      beam_fn_api_pb2.LogEntry.Severity.NOTICE: logging.INFO + 1,
-      beam_fn_api_pb2.LogEntry.Severity.INFO: logging.INFO,
-      beam_fn_api_pb2.LogEntry.Severity.DEBUG: logging.DEBUG,
-      beam_fn_api_pb2.LogEntry.Severity.TRACE: logging.DEBUG - 1,
-      beam_fn_api_pb2.LogEntry.Severity.UNSPECIFIED: logging.NOTSET,
-  }
-
   def Logging(self, log_messages, context=None):
     # type: (Iterable[beam_fn_api_pb2.LogEntry.List], Any) -> Iterator[beam_fn_api_pb2.LogControl]
     yield beam_fn_api_pb2.LogControl()
     for log_message in log_messages:
       for log in log_message.log_entries:
-        logging.log(self.LOG_LEVEL_MAP[log.severity], str(log))
+        logging.log(LOGENTRY_TO_LOG_LEVEL_MAP[log.severity], str(log))
 
 
 class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
@@ -439,7 +428,7 @@ class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
       worker_id = dict(context.invocation_metadata())['worker_id']
       worker = self._worker_manager.get_worker(worker_id)
       info = copy.copy(worker.provision_info.provision_info)
-      info.logging_endpoint.CopyFrom(worker.logging_api_service_descriptor())
+      info.logging_endpoint.CopyFrom(worker.logging_api_service_descriptor())  # type: ignore
       info.artifact_endpoint.CopyFrom(worker.artifact_api_service_descriptor())
       info.control_endpoint.CopyFrom(worker.control_api_service_descriptor())
     else:
@@ -642,7 +631,8 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
   def host_from_worker(self):
     # type: () -> str
-    # TODO(BEAM-8646): Reconcile across platforms.
+    # TODO(https://github.com/apache/beam/issues/19947): Reconcile across
+    # platforms.
     if sys.platform in ['win32', 'darwin']:
       return 'localhost'
     import socket
@@ -662,7 +652,8 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
 
     from apache_beam.transforms.environments import EmbeddedPythonGrpcEnvironment
     config = EmbeddedPythonGrpcEnvironment.parse_config(payload.decode('utf-8'))
-    self._state_cache_size = config.get('state_cache_size') or STATE_CACHE_SIZE
+    self._state_cache_size = (
+        config.get('state_cache_size') or STATE_CACHE_SIZE_MB) << 20
     self._data_buffer_time_limit_ms = \
         config.get('data_buffer_time_limit_ms') or DATA_BUFFER_TIME_LIMIT_MS
 
@@ -745,6 +736,29 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
   def start_worker(self):
     # type: () -> None
+    credential_options = []
+    try:
+      # This is the public facing API, skip if it is not available.
+      # (If this succeeds but the imports below fail, better to actually raise
+      # an error below rather than silently fail.)
+      # pylint: disable=unused-import
+      import google.auth
+    except ImportError:
+      pass
+    else:
+      from google.auth import environment_vars
+      from google.auth import _cloud_sdk
+      gcloud_cred_file = os.environ.get(
+          environment_vars.CREDENTIALS,
+          _cloud_sdk.get_application_default_credentials_path())
+      if os.path.exists(gcloud_cred_file):
+        docker_cred_file = '/docker_cred_file.json'
+        credential_options.extend([
+            '--mount',
+            f'type=bind,source={gcloud_cred_file},target={docker_cred_file}',
+            '--env',
+            f'{environment_vars.CREDENTIALS}={docker_cred_file}'
+        ])
     with SUBPROCESS_LOCK:
       try:
         _LOGGER.info('Attempting to pull image %s', self._container_image)
@@ -757,8 +771,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
           'docker',
           'run',
           '-d',
-          # TODO:  credentials
           '--network=host',
+      ] + credential_options + [
           self._container_image,
           '--id=%s' % self.worker_id,
           '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
@@ -965,6 +979,9 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
       if self._key not in self._overlay:
         self._overlay[self._key] = list(self._underlying[self._key])
       self._overlay[self._key].append(item)
+
+    def extend(self, other: Buffer) -> None:
+      raise NotImplementedError()
 
   StateType = Union[CopyOnWriteState, DefaultDict[bytes, Buffer]]
 

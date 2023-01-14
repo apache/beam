@@ -126,12 +126,14 @@ class MainInputTest(unittest.TestCase):
     result = [(1, 2)] | beam.ParDo(MyDoFn())
     self.assertEqual([1], sorted(result))
 
-    with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*Tuple\[int, int\].*got.*str'):
+    with self.assertRaisesRegex(
+        typehints.TypeCheckError,
+        r'requires.*Tuple\[<class \'int\'>, <class \'int\'>\].*got.*str'):
       _ = ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
-    with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*Tuple\[int, int\].*got.*int'):
+    with self.assertRaisesRegex(
+        typehints.TypeCheckError,
+        r'requires.*Tuple\[<class \'int\'>, <class \'int\'>\].*got.*int'):
       _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_callable_iterable_output(self):
@@ -745,15 +747,17 @@ class SideInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        r'requires Tuple\[int, ...\] but got Tuple\[str, ...\]'):
+        (r'requires Tuple\[<class \'int\'>, ...\] but got '
+         r'Tuple\[<class \'str\'>, ...\]')):
       ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
 
   def test_var_positional_only_side_input_hint(self):
     # Test that a lambda that accepts only a VAR_POSITIONAL can accept
     # side-inputs.
-    # TODO(BEAM-8247): There's a bug with trivial_inference inferring the output
-    #   type when side-inputs are used (their type hints are not passed). Remove
-    #   with_output_types(...) when this bug is fixed.
+    # TODO(https://github.com/apache/beam/issues/19824): There's a bug with
+    #   trivial_inference inferring the output type when side-inputs are used
+    #   (their type hints are not passed). Remove with_output_types(...) when
+    #   this bug is fixed.
     result = (['a', 'b', 'c']
               | beam.Map(lambda *args: args, 5).with_input_types(
                   str, int).with_output_types(typehints.Tuple[str, int]))
@@ -761,8 +765,8 @@ class SideInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        r'requires Tuple\[Union\[int, str\], ...\] but got '
-        r'Tuple\[Union\[float, int\], ...\]'):
+        r'requires Tuple\[Union\[<class \'int\'>, <class \'str\'>\], ...\] but '
+        r'got Tuple\[Union\[<class \'float\'>, <class \'int\'>\], ...\]'):
       _ = [1.2] | beam.Map(lambda *_: 'a', 5).with_input_types(int, str)
 
   def test_var_keyword_side_input_hint(self):
@@ -782,7 +786,8 @@ class SideInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        r'requires Dict\[str, str\] but got Dict\[str, int\]'):
+        r'requires Dict\[<class \'str\'>, <class \'str\'>\] but got '
+        r'Dict\[<class \'str\'>, <class \'int\'>\]'):
       _ = (['a', 'b', 'c']
            | beam.Map(lambda e, **_: 'a', kw=5).with_input_types(
                str, ignored=str))
@@ -960,9 +965,12 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((int, ), {}))
 
-  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
+  @unittest.skip(
+      'https://github.com/apache/beam/issues/19961: Py3 annotations not yet '
+      'supported for MapTuple')
   def test_flat_map_tuple_wrapper(self):
-    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
+    # TODO(https://github.com/apache/beam/issues/19961): Also test with a fn
+    # that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> typehints.Iterable[str]:
       return [a, b, c]
 
@@ -987,9 +995,12 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((typehints.Optional[int], ), {}))
 
-  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
+  @unittest.skip(
+      'https://github.com/apache/beam/issues/19961: Py3 annotations not yet '
+      'supported for MapTuple')
   def test_map_tuple(self):
-    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
+    # TODO(https://github.com/apache/beam/issues/19961): Also test with a fn
+    # that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> str:
       return a + b + c
 

@@ -81,9 +81,9 @@ public class TpcdsRunResult {
     return jobName.substring(0, endIndex);
   }
 
-  public String getDataSize() throws Exception {
+  public String getDataSize() {
     PipelineOptions pipelineOptions = getPipelineOptions();
-    return TpcdsParametersReader.getAndCheckDataSize(pipelineOptions.as(TpcdsOptions.class));
+    return pipelineOptions.as(TpcdsOptions.class).getDataSize();
   }
 
   public String getDialect() {

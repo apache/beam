@@ -51,7 +51,7 @@ users to specify a DoFn's type hints in one place.
 We've also expanded Beam's support of `typing` module types.
 
 For more background see:
-[Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/).
+[Ensuring Python Type Safety](/documentation/sdks/python-type-safety/).
 
 # Beam Is Typed
 
@@ -115,7 +115,7 @@ There are several reasons why this is not the case.
 only known at that time, such as a config file or database table schema.
 - PCollections don't have the necessary type information, so mypy sees them as
 effectively containing any element type.
-This may change in in the future.
+This may change in the future.
 - Transforms using lambdas (ex: `beam.Map(lambda x: (1, x)`) cannot be
 annotated properly using PEP 484.
 However, Beam does a best-effort attempt to analyze the output type
@@ -132,5 +132,5 @@ native typing types. Native types have  as these are supported by additional too
 While working on Python 3 annotations syntax support, we've also discovered and
 fixed issues with native type support. There may still be bugs and unsupported
 native types. Please
-[let us know](https://beam.apache.org/community/contact-us/) if you encounter
+[let us know](/community/contact-us/) if you encounter
 issues.

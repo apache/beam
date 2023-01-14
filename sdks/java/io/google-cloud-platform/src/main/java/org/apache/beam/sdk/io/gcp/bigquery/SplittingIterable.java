@@ -28,10 +28,10 @@ import java.util.NoSuchElementException;
  * the next one.
  */
 class SplittingIterable implements Iterable<ProtoRows> {
-  private final Iterable<byte[]> underlying;
+  private final Iterable<StorageApiWritePayload> underlying;
   private final long splitSize;
 
-  public SplittingIterable(Iterable<byte[]> underlying, long splitSize) {
+  public SplittingIterable(Iterable<StorageApiWritePayload> underlying, long splitSize) {
     this.underlying = underlying;
     this.splitSize = splitSize;
   }
@@ -39,7 +39,7 @@ class SplittingIterable implements Iterable<ProtoRows> {
   @Override
   public Iterator<ProtoRows> iterator() {
     return new Iterator<ProtoRows>() {
-      final Iterator<byte[]> underlyingIterator = underlying.iterator();
+      final Iterator<StorageApiWritePayload> underlyingIterator = underlying.iterator();
 
       @Override
       public boolean hasNext() {
@@ -55,7 +55,9 @@ class SplittingIterable implements Iterable<ProtoRows> {
         ProtoRows.Builder inserts = ProtoRows.newBuilder();
         long bytesSize = 0;
         while (underlyingIterator.hasNext()) {
-          ByteString byteString = ByteString.copyFrom(underlyingIterator.next());
+          StorageApiWritePayload payload = underlyingIterator.next();
+          ByteString byteString = ByteString.copyFrom(payload.getPayload());
+
           inserts.addSerializedRows(byteString);
           bytesSize += byteString.size();
           if (bytesSize > splitSize) {

@@ -33,6 +33,7 @@ import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -47,15 +48,14 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A set of helper functions and classes used by {@link BigQueryIO}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryHelpers {
   private static final String RESOURCE_NOT_FOUND_ERROR =
       "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
@@ -91,9 +91,10 @@ public class BigQueryHelpers {
   static class PendingJobManager {
     private static class JobInfo {
       private final PendingJob pendingJob;
-      private final @Nullable SerializableFunction<PendingJob, Exception> onSuccess;
+      private final SerializableFunction<PendingJob, @Nullable Exception> onSuccess;
 
-      public JobInfo(PendingJob pendingJob, SerializableFunction<PendingJob, Exception> onSuccess) {
+      public JobInfo(
+          PendingJob pendingJob, SerializableFunction<PendingJob, @Nullable Exception> onSuccess) {
         this.pendingJob = pendingJob;
         this.onSuccess = onSuccess;
       }
@@ -118,7 +119,7 @@ public class BigQueryHelpers {
 
     // Add a pending job and a function to call when the job has completed successfully.
     PendingJobManager addPendingJob(
-        PendingJob pendingJob, @Nullable SerializableFunction<PendingJob, Exception> onSuccess) {
+        PendingJob pendingJob, SerializableFunction<PendingJob, @Nullable Exception> onSuccess) {
       this.pendingJobs.add(new JobInfo(pendingJob, onSuccess));
       return this;
     }
@@ -173,7 +174,7 @@ public class BigQueryHelpers {
     private final int maxRetries;
     private int currentAttempt;
     RetryJobId currentJobId;
-    Job lastJobAttempted;
+    @Nullable Job lastJobAttempted = null;
     boolean started;
 
     PendingJob(
@@ -396,6 +397,9 @@ public class BigQueryHelpers {
    *
    * <p>If the project id is omitted, the default project id is used.
    */
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
   public static TableReference parseTableSpec(String tableSpec) {
     Matcher match = BigQueryIO.TABLE_SPEC.matcher(tableSpec);
     if (!match.matches()) {
@@ -414,6 +418,9 @@ public class BigQueryHelpers {
     return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
   }
 
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
   public static TableReference parseTableUrn(String tableUrn) {
     Matcher match = BigQueryIO.TABLE_URN_SPEC.matcher(tableUrn);
     if (!match.matches()) {
@@ -435,6 +442,9 @@ public class BigQueryHelpers {
     return (index == -1) ? tableSpec : tableSpec.substring(0, index);
   }
 
+  @SuppressWarnings({
+    "nullness" // The BigQuery API library is documented to accept nulls but is not annotated
+  })
   static String jobToPrettyString(@Nullable Job job) throws IOException {
     if (job != null && job.getConfiguration().getLoad() != null) {
       // Removing schema and sourceUris from error messages for load jobs since these fields can be
@@ -465,7 +475,7 @@ public class BigQueryHelpers {
     }
   }
 
-  public static String toJsonString(Object item) {
+  public static @PolyNull String toJsonString(@PolyNull Object item) {
     if (item == null) {
       return null;
     }
@@ -478,12 +488,18 @@ public class BigQueryHelpers {
     }
   }
 
-  public static <T> T fromJsonString(String json, Class<T> clazz) {
+  public static <T> @PolyNull T fromJsonString(@PolyNull String json, Class<T> clazz) {
     if (json == null) {
       return null;
     }
     try {
-      return BigQueryIO.JSON_FACTORY.fromString(json, clazz);
+      // If T is Void then this ends up null, otherwise it is not; kind of a tough invariant
+      @SuppressWarnings({
+        "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+      })
+      @NonNull
+      T result = BigQueryIO.JSON_FACTORY.fromString(json, clazz);
+      return result;
     } catch (IOException e) {
       throw new RuntimeException(
           String.format("Cannot deserialize %s from a JSON string: %s.", clazz, json), e);
@@ -501,7 +517,9 @@ public class BigQueryHelpers {
 
   static void verifyTableNotExistOrEmpty(DatasetService datasetService, TableReference tableRef) {
     try {
-      if (datasetService.getTable(tableRef) != null) {
+      if (datasetService.getTable(
+              tableRef, Collections.emptyList(), DatasetService.TableMetadataView.BASIC)
+          != null) {
         checkState(
             datasetService.isTableEmpty(tableRef),
             "BigQuery table is not empty: %s.",

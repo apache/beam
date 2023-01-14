@@ -87,8 +87,8 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ApiSurface {
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
@@ -251,7 +251,7 @@ public class ApiSurface {
       }
 
       @SuppressWarnings({
-        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
         "unchecked"
       })
       private boolean classIsAllowed(
@@ -321,7 +321,8 @@ public class ApiSurface {
       try {
         clazz = classInfo.load();
       } catch (NoClassDefFoundError e) {
-        // TODO: Ignore any NoClassDefFoundError errors as a workaround. (BEAM-2231)
+        // TODO: Ignore any NoClassDefFoundError errors as a workaround.
+        // (https://github.com/apache/beam/issues/18368)
         LOG.warn("Failed to load class: {}", classInfo.toString(), e);
         continue;
       }

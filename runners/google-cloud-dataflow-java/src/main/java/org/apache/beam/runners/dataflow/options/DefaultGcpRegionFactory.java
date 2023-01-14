@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 @VisibleForTesting
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultGcpRegionFactory.class);

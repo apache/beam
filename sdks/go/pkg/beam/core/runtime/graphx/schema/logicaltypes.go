@@ -124,7 +124,6 @@ type LogicalType struct {
 	identifier          string
 	goT, storageT, argT reflect.Type
 	argV                reflect.Value
-	toStorage, toGo     func(value reflect.Value) reflect.Value
 }
 
 // ID is a unique identifier for the logical type.

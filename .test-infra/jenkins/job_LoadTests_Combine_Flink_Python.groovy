@@ -28,7 +28,7 @@ import static LoadTestsBuilder.DOCKER_BEAM_SDK_IMAGE
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-// TODO(BEAM-10852): Skipping some cases because they are too slow.
+// TODO(https://github.com/apache/beam/issues/20402): Skipping some cases because they are too slow.
 def TESTS_TO_SKIP = [
   'load-tests-python-flink-streaming-combine-1',
 ]
@@ -132,7 +132,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
         "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       initialParallelism,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   // Execute all scenarios connected with initial parallelism.
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, initialScenarios, 'Combine', mode)
@@ -177,6 +177,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Streaming', 'H 18 * 
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  // TODO(BEAM-12898): Re-enable this test once fixed.
-  // loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
+  // TODO(BEAM): Fix this test.
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }

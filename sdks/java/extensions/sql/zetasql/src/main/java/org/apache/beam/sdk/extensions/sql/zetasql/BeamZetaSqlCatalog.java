@@ -357,7 +357,7 @@ public class BeamZetaSqlCatalog {
         throw new IllegalArgumentException(
             String.format(
                 "Expected exactly 1 definition for function '%s', but found %d."
-                    + " Beam ZetaSQL supports only a single function definition per function name (BEAM-12073).",
+                    + " Beam ZetaSQL supports only a single function definition per function name (https://github.com/apache/beam/issues/20828).",
                 functionName, functions.size()));
       }
       for (org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function function :
@@ -465,7 +465,7 @@ public class BeamZetaSqlCatalog {
       case "SQL":
         if (createFunctionStmt.getIsAggregate()) {
           throw new UnsupportedOperationException(
-              "Native SQL aggregate functions are not supported (BEAM-9954).");
+              "Native SQL aggregate functions are not supported (https://github.com/apache/beam/issues/20193).");
         }
         return USER_DEFINED_SQL_FUNCTIONS;
       case "PY":

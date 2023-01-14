@@ -35,7 +35,7 @@ public class DefaultFilenamePolicyTest {
 
   @Before
   public void setup() {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10738
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20463
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
   }
 

@@ -27,6 +27,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryRe
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -37,7 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <T> the type of the elements read from the source
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class UngroupedShuffleReader<T> extends NativeReader<T> {
   final byte[] shuffleReaderConfig;
@@ -114,9 +115,9 @@ public class UngroupedShuffleReader<T> extends NativeReader<T> {
       }
       ShuffleEntry record = iterator.next();
       // Throw away the primary and the secondary keys.
-      byte[] value = record.getValue();
+      ByteString value = record.getValue();
       shuffleReader.notifyElementRead(record.length());
-      current = CoderUtils.decodeFromByteArray(shuffleReader.coder, value);
+      current = CoderUtils.decodeFromByteString(shuffleReader.coder, value);
       return true;
     }
 

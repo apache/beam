@@ -24,6 +24,7 @@ ext.summary = """A Maven Archetype to create a project containing all the
 example pipelines from the Apache Beam Java SDK."""
 
 processResources {
+  dependsOn 'generateSources'
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'project.version':  version,
     'bigquery.version': dependencies.create(project.library.java.google_api_services_bigquery).getVersion(),
@@ -33,10 +34,11 @@ processResources {
     'jackson.version': dependencies.create(project.library.java.jackson_core).getVersion(),
     'joda.version': dependencies.create(project.library.java.joda_time).getVersion(),
     'junit.version': dependencies.create(project.library.java.junit).getVersion(),
+    'kafka.version': dependencies.create(project.library.java.kafka_clients).getVersion(),
     'libraries-bom.version': dependencies.create(project.library.java.google_cloud_platform_libraries_bom).getVersion(),
     'pubsub.version': dependencies.create(project.library.java.google_api_services_pubsub).getVersion(),
     'slf4j.version': dependencies.create(project.library.java.slf4j_api).getVersion(),
-    'spark.version': dependencies.create(project.library.java.spark_core).getVersion(),
+    'spark.version': dependencies.create(project.library.java.spark3_core).getVersion(),
     'nemo.version': dependencies.create(project.library.java.nemo_compiler_frontend_beam).getVersion(),
     'hadoop.version': dependencies.create(project.library.java.hadoop_client).getVersion(),
     'mockito.version': dependencies.create(project.library.java.mockito_core).getVersion(),

@@ -74,7 +74,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link FileBasedSink}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class FileBasedSinkTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -172,7 +172,7 @@ public class FileBasedSinkTest {
   /** Finalize copies temporary files to output files and removes any temporary files. */
   @Test
   public void testFinalize() throws Exception {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10743
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20471
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     List<File> files = generateTemporaryFilesForFinalize(3);
     runFinalize(buildWriteOperation(), files);
@@ -181,7 +181,7 @@ public class FileBasedSinkTest {
   /** Finalize can be called repeatedly. */
   @Test
   public void testFinalizeMultipleCalls() throws Exception {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10744
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20482
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     List<File> files = generateTemporaryFilesForFinalize(3);
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
@@ -192,7 +192,7 @@ public class FileBasedSinkTest {
   /** Finalize can be called when some temporary files do not exist and output files exist. */
   @Test
   public void testFinalizeWithIntermediateState() throws Exception {
-    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10745
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20479
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
     List<File> files = generateTemporaryFilesForFinalize(3);

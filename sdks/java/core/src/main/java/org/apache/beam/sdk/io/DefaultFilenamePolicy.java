@@ -59,7 +59,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * WriteOneFilePerWindow} example pipeline.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class DefaultFilenamePolicy extends FilenamePolicy {
   /** The default sharding name template. */
@@ -269,7 +269,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * ".txt", with shardNum = 1 and numShards = 100, the following is produced:
    * "path/to/output-001-of-100.txt".
    */
-  static ResourceId constructName(
+  public static ResourceId constructName(
       ResourceId baseFilename,
       String shardTemplate,
       String suffix,

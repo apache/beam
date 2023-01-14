@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * combine functions.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class GlobalCombineFnRunners {
   /** Returns a {@link GlobalCombineFnRunner} from a {@link GlobalCombineFn}. */

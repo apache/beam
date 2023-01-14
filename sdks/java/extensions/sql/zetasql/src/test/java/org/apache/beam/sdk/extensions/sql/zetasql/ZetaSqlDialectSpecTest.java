@@ -1346,7 +1346,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-9191] CAST operator does not work fully due to bugs in unparsing")
+  @Ignore(
+      "[https://github.com/apache/beam/issues/20101] CAST operator does not work fully due to bugs in unparsing")
   public void testZetaSQLStructFieldAccessInCast2() {
     String sql =
         "SELECT CAST(A.struct_col.struct_col_str AS TIMESTAMP) FROM table_with_struct_ts_string AS"
@@ -2293,7 +2294,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-9515] ArrayScanToUncollectConverter Unnest does not support sub-queries")
+  @Ignore(
+      "[https://github.com/apache/beam/issues/20139] ArrayScanToUncollectConverter Unnest does not support sub-queries")
   public void testUNNESTExpression() {
     String sql = "SELECT * FROM UNNEST(ARRAY(SELECT Value FROM KeyValue));";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -3411,7 +3413,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-9191")
+  @Ignore("https://github.com/apache/beam/issues/20101")
   public void testCastBytesToString1() {
     String sql = "SELECT CAST(@p0 AS STRING)";
     ImmutableMap<String, Value> params =
@@ -3436,7 +3438,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-9191")
+  @Ignore("https://github.com/apache/beam/issues/20101")
   public void testCastBytesToStringFromTable() {
     String sql = "SELECT CAST(bytes_col AS STRING) FROM table_all_types";
     PCollection<Row> stream = execute(sql);
@@ -3492,7 +3494,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-10340")
+  @Ignore("https://github.com/apache/beam/issues/20351")
   public void testCastBetweenTimeAndString() {
     String sql =
         "SELECT CAST(s1 as TIME) as t2, CAST(t1 as STRING) as s2 FROM "
@@ -3548,7 +3550,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-8593] ZetaSQL does not support Map type")
+  @Ignore("[https://github.com/apache/beam/issues/19963] ZetaSQL does not support Map type")
   public void testSelectFromTableWithMap() {
     String sql = "SELECT row_field FROM table_with_map";
     PCollection<Row> stream = execute(sql);

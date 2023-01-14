@@ -21,17 +21,24 @@ import com.google.auto.service.AutoService;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.AvroIO.Write;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 /**
  * An implementation of {@link SchemaIOProvider} for reading and writing Avro files with {@link
@@ -40,7 +47,7 @@ import org.apache.beam.sdk.values.Row;
 @Internal
 @AutoService(SchemaIOProvider.class)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AvroSchemaIOProvider implements SchemaIOProvider {
   /** Returns an id that uniquely represents this IO. */
@@ -55,7 +62,7 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
    */
   @Override
   public Schema configurationSchema() {
-    return Schema.builder().build();
+    return Schema.builder().addNullableField("writeWindowSizeSeconds", FieldType.INT64).build();
   }
 
   /**
@@ -64,7 +71,7 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
    */
   @Override
   public AvroSchemaIO from(String location, Row configuration, Schema dataSchema) {
-    return new AvroSchemaIO(location, dataSchema);
+    return new AvroSchemaIO(location, dataSchema, configuration);
   }
 
   @Override
@@ -74,6 +81,8 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
 
   @Override
   public PCollection.IsBounded isBounded() {
+    // This supports streaming now as well but there's no option for this. The move to
+    // SchemaTransform will remove the need to provide this.
     return PCollection.IsBounded.BOUNDED;
   }
 
@@ -81,10 +90,16 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
   private static class AvroSchemaIO implements SchemaIO, Serializable {
     protected final Schema dataSchema;
     protected final String location;
+    protected final @Nullable Duration windowSize;
 
-    private AvroSchemaIO(String location, Schema dataSchema) {
+    private AvroSchemaIO(String location, Schema dataSchema, Row configuration) {
       this.dataSchema = dataSchema;
       this.location = location;
+      if (configuration.getInt64("writeWindowSizeSeconds") != null) {
+        windowSize = Duration.standardSeconds(configuration.getInt64("writeWindowSizeSeconds"));
+      } else {
+        windowSize = null;
+      }
     }
 
     @Override
@@ -113,13 +128,22 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PCollection<Row>, POutput>() {
         @Override
         public PDone expand(PCollection<Row> input) {
-          return input
-              .apply("ToGenericRecords", Convert.to(GenericRecord.class))
-              .apply(
-                  "AvroIOWrite",
-                  AvroIO.writeGenericRecords(AvroUtils.toAvroSchema(dataSchema, null, null))
-                      .to(location)
-                      .withoutSharding());
+          PCollection<GenericRecord> asRecords =
+              input.apply("ToGenericRecords", Convert.to(GenericRecord.class));
+          Write<GenericRecord> avroWrite =
+              AvroIO.writeGenericRecords(AvroUtils.toAvroSchema(dataSchema, null, null))
+                  .to(location);
+          if (input.isBounded() == IsBounded.UNBOUNDED || windowSize != null) {
+            asRecords =
+                asRecords.apply(
+                    Window.into(
+                        FixedWindows.of(
+                            windowSize == null ? Duration.standardMinutes(1) : windowSize)));
+            avroWrite = avroWrite.withWindowedWrites().withNumShards(1);
+          } else {
+            avroWrite = avroWrite.withoutSharding();
+          }
+          return asRecords.apply("AvroIOWrite", avroWrite);
         }
       };
     }

@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 
 /** Manages lifecycle of {@link DatabaseClient} and {@link Spanner} instances. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SpannerAccessor implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerAccessor.class);
@@ -185,6 +185,10 @@ public class SpannerAccessor implements AutoCloseable {
     }
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
     builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
+    ValueProvider<String> databaseRole = spannerConfig.getDatabaseRole();
+    if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
+      builder.setDatabaseRole(databaseRole.get());
+    }
     SpannerOptions options = builder.build();
 
     Spanner spanner = options.getService();

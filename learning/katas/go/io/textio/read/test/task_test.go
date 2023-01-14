@@ -18,11 +18,11 @@ package test
 import (
 	"beam.apache.org/learning/katas/io/textio/read/pkg/task"
 	"beam.apache.org/learning/katas/io/textio/read/testdata"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"testing"
 )
 

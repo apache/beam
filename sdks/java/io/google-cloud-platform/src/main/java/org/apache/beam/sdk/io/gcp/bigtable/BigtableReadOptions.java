@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Configuration for which values to read from Bigtable. */
 @AutoValue
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 abstract class BigtableReadOptions implements Serializable {
 
@@ -41,6 +41,9 @@ abstract class BigtableReadOptions implements Serializable {
 
   /** Returns the key ranges to read. */
   abstract @Nullable ValueProvider<List<ByteKeyRange>> getKeyRanges();
+
+  /** Returns the size limit for reading segements. */
+  abstract @Nullable Integer getMaxBufferElementCount();
 
   abstract Builder toBuilder();
 
@@ -53,9 +56,15 @@ abstract class BigtableReadOptions implements Serializable {
 
     abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
 
+    abstract Builder setMaxBufferElementCount(@Nullable Integer maxBufferElementCount);
+
     abstract Builder setKeyRanges(ValueProvider<List<ByteKeyRange>> keyRanges);
 
     abstract BigtableReadOptions build();
+  }
+
+  BigtableReadOptions setMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
+    return toBuilder().setMaxBufferElementCount(maxBufferElementCount).build();
   }
 
   BigtableReadOptions withRowFilter(RowFilter rowFilter) {
@@ -79,6 +88,10 @@ abstract class BigtableReadOptions implements Serializable {
   void validate() {
     if (getRowFilter() != null && getRowFilter().isAccessible()) {
       checkArgument(getRowFilter().get() != null, "rowFilter can not be null");
+    }
+    if (getMaxBufferElementCount() != null) {
+      checkArgument(
+          getMaxBufferElementCount() > 0, "maxBufferElementCount can not be zero or negative");
     }
 
     if (getKeyRanges() != null && getKeyRanges().isAccessible()) {

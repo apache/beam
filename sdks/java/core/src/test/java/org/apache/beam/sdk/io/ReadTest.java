@@ -81,7 +81,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link Read}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ReadTest implements Serializable {
 
@@ -176,7 +176,8 @@ public class ReadTest implements Serializable {
     PAssert.that(input)
         .containsInAnyOrder(
             LongStream.rangeClosed(1L, numElements).boxed().collect(Collectors.toList()));
-    // TODO(BEAM-10670): Remove additional experiments when SDF read is default.
+    // TODO(https://github.com/apache/beam/issues/20530): Remove additional experiments when SDF
+    // read is default.
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
     // Force the pipeline to run with one thread to ensure the reader will be reused on one DoFn

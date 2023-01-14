@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.hadoop.format;
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
+import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
 import java.sql.SQLException;
@@ -207,7 +208,7 @@ public class HadoopFormatIOIT {
                     new HDFSSynchronization(tmpFolder.getRoot().getAbsolutePath())));
 
     PipelineResult writeResult = writePipeline.run();
-    writeResult.waitUntilFinish();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
 
     PCollection<String> consolidatedHashcode =
         readPipeline
@@ -223,11 +224,14 @@ public class HadoopFormatIOIT {
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(getExpectedHashForRowCount(numberOfRows));
 
     PipelineResult readResult = readPipeline.run();
-    readResult.waitUntilFinish();
+    PipelineResult.State readState = readResult.waitUntilFinish();
 
     if (!options.isWithTestcontainers()) {
       collectAndPublishMetrics(writeResult, readResult);
     }
+    // Fail the test if pipeline failed.
+    assertNotEquals(PipelineResult.State.FAILED, writeState);
+    assertNotEquals(PipelineResult.State.FAILED, readState);
   }
 
   private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {

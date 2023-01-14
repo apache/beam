@@ -39,8 +39,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 /**
  * Utility methods for translating a {@link Unbounded} which reads from {@link
@@ -140,6 +139,7 @@ public class PubSubPayloadTranslation {
   public static class WriteRegistrar implements TransformPayloadTranslatorRegistrar {
 
     @Override
+    @SuppressWarnings("rawtypes")
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(
@@ -151,6 +151,7 @@ public class PubSubPayloadTranslation {
   public static class ReadRegistrar implements TransformPayloadTranslatorRegistrar {
 
     @Override
+    @SuppressWarnings("rawtypes")
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(Read.Unbounded.class, new PubSubReadPayloadTranslator());

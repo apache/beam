@@ -34,6 +34,41 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.NamingStrategy;
+import net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
+import net.bytebuddy.asm.AsmVisitorWrapper;
+import net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
+import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.Implementation.Context;
+import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import net.bytebuddy.implementation.bytecode.Duplication;
+import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
+import net.bytebuddy.implementation.bytecode.TypeCreation;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import net.bytebuddy.implementation.bytecode.constant.NullConstant;
+import net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.jar.asm.Label;
+import net.bytebuddy.jar.asm.MethodVisitor;
+import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.matcher.ElementMatchers;
+import net.bytebuddy.utility.RandomString;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
@@ -41,41 +76,6 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.NamingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.asm.AsmVisitorWrapper;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.Implementation.Context;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.Duplication;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.TypeCreation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.assign.Assigner;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.constant.NullConstant;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.ClassWriter;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.Label;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.MethodVisitor;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.jar.asm.Opcodes;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.vendor.bytebuddy.v1_11_0.net.bytebuddy.utility.RandomString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -94,7 +94,7 @@ import org.joda.time.base.BaseLocal;
 @Internal
 @SuppressWarnings({
   "keyfor",
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class ByteBuddyUtils {
@@ -1434,9 +1434,17 @@ public class ByteBuddyUtils {
         if (index == null) {
           index = fieldsByJavaClassMember.get(paramName);
         }
+        if (index == null && paramName.endsWith("$")) {
+          // AutoValue appends "$" in some cases
+          index = fieldsByJavaClassMember.get(paramName.substring(0, paramName.length() - 1));
+        }
         if (index == null) {
           throw new RuntimeException(
-              "Creator parameter " + paramName + " Doesn't correspond to a schema field");
+              "Creator parameter "
+                  + paramName
+                  + " Doesn't correspond to a schema field."
+                  + " Make sure that you are compiling with -parameters parameter to include"
+                  + " constructor parameter information in class files.");
         }
         fieldMapping.put(i, index);
       }

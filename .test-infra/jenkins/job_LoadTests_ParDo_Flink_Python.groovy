@@ -320,7 +320,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
         "${DOCKER_CONTAINER_REGISTRY}/${DOCKER_BEAM_SDK_IMAGE}"
       ],
       numberOfWorkers,
-      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.12_job_server:latest")
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink${CommonTestProperties.getFlinkVersion()}_job_server:latest")
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'ParDo', mode)
 }
@@ -350,8 +350,8 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H 13 * * *', 
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  // TODO(BEAM-12898): Re-enable this test once fixed.
-  // loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
+  // TODO(BEAM): Fix this test.
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H 12 * * *', this) {
@@ -359,6 +359,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H 12 * * 
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  // TODO(BEAM-12898): Re-enable this test once fixed.
-  // loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
+  // TODO(BEAM): Fix this test.
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }

@@ -119,7 +119,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
     if (warn && MISSING_EQUALS_METHOD.add(clazz)) {
       LOG.warn(
           "Can't verify serialized elements of type {} have well defined equals method. "
-              + "This may produce incorrect results on some {}",
+              + "This may produce incorrect results on some {} implementations",
           clazz.getSimpleName(),
           PipelineRunner.class.getSimpleName());
     }
@@ -169,8 +169,11 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   private final Class<T> type;
 
-  /** Access via {@link #getEncodedTypeDescriptor()}. */
-  // the field is restored lazily if it is not present due to serialization
+  /**
+   * Access via {@link #getEncodedTypeDescriptor()}.
+   *
+   * <p>The field is restored lazily if it is not present due to serialization.
+   */
   @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private transient @Nullable TypeDescriptor<T> typeDescriptor;
 

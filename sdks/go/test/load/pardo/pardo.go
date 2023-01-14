@@ -19,11 +19,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/synthetic"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/test/load"
 )
@@ -48,7 +48,8 @@ var (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*counterOperationFn)(nil)).Elem())
+	register.DoFn4x0[context.Context, []byte, []byte, func([]byte, []byte)]((*counterOperationFn)(nil))
+	register.Emitter2[[]byte, []byte]()
 }
 
 type counterOperationFn struct {
@@ -57,7 +58,10 @@ type counterOperationFn struct {
 }
 
 func newCounterOperationFn(operations, numCounters int) *counterOperationFn {
-	return &counterOperationFn{operations, numCounters, nil}
+	return &counterOperationFn{
+		Operations:  operations,
+		NumCounters: numCounters,
+	}
 }
 
 func (fn *counterOperationFn) Setup() {

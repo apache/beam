@@ -18,23 +18,29 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/assets.dart';
+
+import '../../../src/assets/assets.gen.dart';
 
 enum OutputPlacement {
   right,
   left,
   bottom,
+  ;
+
+  Axis get graphDirection {
+    return this == OutputPlacement.bottom ? Axis.horizontal : Axis.vertical;
+  }
 }
 
 extension OutputPlacementToIcon on OutputPlacement {
   String get icon {
     switch (this) {
       case OutputPlacement.bottom:
-        return kOutputBottomIconAsset;
+        return Assets.outputBottom;
       case OutputPlacement.right:
-        return kOutputRightIconAsset;
+        return Assets.outputRight;
       case OutputPlacement.left:
-        return kOutputLeftIconAsset;
+        return Assets.outputLeft;
     }
   }
 }

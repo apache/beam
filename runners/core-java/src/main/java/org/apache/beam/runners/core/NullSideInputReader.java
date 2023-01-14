@@ -29,10 +29,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  */
 public class NullSideInputReader implements SideInputReader {
 
+  /** The default empty instance. */
+  private static final NullSideInputReader EMPTY_INSTANCE = of(Collections.emptySet());
+
   private Set<PCollectionView<?>> views;
 
   public static NullSideInputReader empty() {
-    return new NullSideInputReader(Collections.emptySet());
+    return EMPTY_INSTANCE;
   }
 
   public static NullSideInputReader of(Iterable<? extends PCollectionView<?>> views) {

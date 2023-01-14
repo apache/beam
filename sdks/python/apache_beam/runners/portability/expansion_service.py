@@ -63,6 +63,17 @@ class ExpansionServiceServicer(
       }
       transform = with_pipeline(
           ptransform.PTransform.from_runner_api(request.transform, context))
+      if len(request.output_coder_requests) == 1:
+        output_coder = {
+            k: context.element_type_from_coder_id(v)
+            for k,
+            v in request.output_coder_requests.items()
+        }
+        transform = transform.with_output_types(list(output_coder.values())[0])
+      elif len(request.output_coder_requests) > 1:
+        raise ValueError(
+            'type annotation for multiple outputs is not allowed yet: %s' %
+            request.output_coder_requests)
       inputs = transform._pvaluish_from_dict({
           tag:
           with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)

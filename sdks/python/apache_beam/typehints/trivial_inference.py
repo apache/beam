@@ -35,6 +35,7 @@ from apache_beam import pvalue
 from apache_beam.typehints import Any
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
+from apache_beam.utils import python_callable
 
 
 class TypeInferenceError(ValueError):
@@ -49,7 +50,7 @@ def instance_to_type(o):
   if o is None:
     return type(None)
   elif t == pvalue.Row:
-    return row_type.RowTypeConstraint([
+    return row_type.RowTypeConstraint.from_fields([
         (name, instance_to_type(value)) for name, value in o.as_dict().items()
     ])
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
@@ -314,6 +315,10 @@ def infer_return_type(c, input_types, debug=False, depth=5):
           isinstance(input_types[1], Const)):
       from apache_beam.typehints import opcodes
       return opcodes._getattr(input_types[0], input_types[1].value)
+    elif isinstance(c, python_callable.PythonCallableWithSource):
+      # TODO(BEAM-24755): This can be removed once support for
+      # inference across *args and **kwargs is implemented.
+      return infer_return_type(c._callable, input_types, debug, depth)
     else:
       return Any
   except TypeInferenceError:
@@ -376,6 +381,14 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   inst_size = 2
   opt_arg_size = 0
 
+  # Python 3.10: bpo-27129 changes jump offsets to use instruction offsets,
+  # not byte offsets. The offsets were halved (16 bits fro instructions vs 8
+  # bits for bytes), so we have to double the value of arg.
+  if (sys.version_info.major, sys.version_info.minor) == (3, 10):
+    jump_multiplier = 2
+  else:
+    jump_multiplier = 1
+
   last_pc = -1
   while pc < end:  # pylint: disable=too-many-nested-blocks
     start = pc
@@ -431,15 +444,18 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         else:
           return_type = Any
       elif opname == 'CALL_FUNCTION_KW':
-        # TODO(udim): Handle keyword arguments. Requires passing them by name
-        #   to infer_return_type.
+        # TODO(BEAM-24755): Handle keyword arguments. Requires passing them by
+        #   name to infer_return_type.
         pop_count = arg + 2
         if isinstance(state.stack[-pop_count], Const):
           from apache_beam.pvalue import Row
           if state.stack[-pop_count].value == Row:
             fields = state.stack[-1].value
-            return_type = row_type.RowTypeConstraint(
-                zip(fields, Const.unwrap_all(state.stack[-pop_count + 1:-1])))
+            return_type = row_type.RowTypeConstraint.from_fields(
+                list(
+                    zip(
+                        fields,
+                        Const.unwrap_all(state.stack[-pop_count + 1:-1]))))
           else:
             return_type = Any
         else:
@@ -451,7 +467,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         has_kwargs = arg & 1  # type: int
         pop_count = has_kwargs + 2
         if has_kwargs:
-          # TODO(udim): Unimplemented. Requires same functionality as a
+          # TODO(BEAM-24755): Unimplemented. Requires same functionality as a
           #   CALL_FUNCTION_KW implementation.
           return_type = Any
         else:
@@ -492,23 +508,23 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     elif opname == 'YIELD_VALUE':
       yields.add(state.stack[-1])
     elif opname == 'JUMP_FORWARD':
-      jmp = pc + arg
+      jmp = pc + arg * jump_multiplier
       jmp_state = state
       state = None
     elif opname == 'JUMP_ABSOLUTE':
-      jmp = arg
+      jmp = arg * jump_multiplier
       jmp_state = state
       state = None
     elif opname in ('POP_JUMP_IF_TRUE', 'POP_JUMP_IF_FALSE'):
       state.stack.pop()
-      jmp = arg
+      jmp = arg * jump_multiplier
       jmp_state = state.copy()
     elif opname in ('JUMP_IF_TRUE_OR_POP', 'JUMP_IF_FALSE_OR_POP'):
-      jmp = arg
+      jmp = arg * jump_multiplier
       jmp_state = state.copy()
       state.stack.pop()
     elif opname == 'FOR_ITER':
-      jmp = pc + arg
+      jmp = pc + arg * jump_multiplier
       jmp_state = state.copy()
       jmp_state.stack.pop()
       state.stack.append(element_type(state.stack[-1]))

@@ -388,7 +388,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     documentation for ParDo</a>
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public class ParDo {
@@ -1063,6 +1063,11 @@ public class ParDo {
           @Override
           public String dispatchSet(Coder<?> elementCoder) {
             return "SetState<" + elementCoder + ">";
+          }
+
+          @Override
+          public String dispatchMultimap(Coder<?> keyCoder, Coder<?> valueCoder) {
+            return "MultimapState<" + keyCoder + ", " + valueCoder + ">";
           }
         });
   }

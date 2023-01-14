@@ -24,6 +24,7 @@ import argparse
 import importlib
 import keyword
 import logging
+import traceback
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -201,6 +202,7 @@ class BeamSqlMagics(Magics):
           'Runner "%s" is not supported. Supported runners are %s.',
           runner,
           _SUPPORTED_RUNNERS)
+      return
     query = ' '.join(query)
 
     found = find_pcolls(query, pcoll_by_name(), verbose=verbose)
@@ -250,7 +252,7 @@ def collect_data_for_local_run(query: str, found: Dict[str, beam.PCollection]):
       _ = ib.collect(pcoll)
     except (KeyboardInterrupt, SystemExit):
       raise
-    except:
+    except:  # pylint: disable=bare-except
       _LOGGER.error(
           'Cannot collect data for PCollection %s. Please make sure the '
           'PCollections queried in the sql "%s" are all from a single '
@@ -299,8 +301,9 @@ def apply_sql(
       return output_name, output, chain
     except (KeyboardInterrupt, SystemExit):
       raise
-    except Exception as e:
-      on_error('Error when applying the Beam SQL: %s', e)
+    except:  # pylint: disable=bare-except
+      on_error('Error when applying the Beam SQL: %s', traceback.format_exc())
+      raise
   else:
     return output_name, chain.current, chain
 
@@ -451,8 +454,9 @@ def cache_output(output_name: str, output: PValue) -> None:
     output.pipeline.run().wait_until_finish()
   except (KeyboardInterrupt, SystemExit):
     raise
-  except Exception as e:
-    _LOGGER.warning(_NOT_SUPPORTED_MSG, e, output.pipeline.runner)
+  except:  # pylint: disable=bare-except
+    _LOGGER.warning(
+        _NOT_SUPPORTED_MSG, traceback.format_exc(), output.pipeline.runner)
     return
   ie.current_env().mark_pcollection_computed([output])
   visualize_computed_pcoll(

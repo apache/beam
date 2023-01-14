@@ -30,6 +30,11 @@ package main
 //     - Options
 //     - Branching
 //     - Multiple Outputs
+//   complexity: MEDIUM
+//   tags:
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"
@@ -40,6 +45,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
@@ -51,8 +57,9 @@ var (
 )
 
 func init() {
-	beam.RegisterFunction(splitFn)
-	beam.RegisterFunction(formatFn)
+	register.Function3x0(splitFn)
+	register.Function2x1(formatFn)
+	register.Emitter1[string]()
 }
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)

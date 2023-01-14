@@ -1,0 +1,45 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- title: Powerful Abstraction
+  body: The Apache Beam model offers powerful abstractions that insulate you from low-level details of distributed data processing, such as coordinating individual workers, reading from sources and writing to sinks, etc.<br/><br/> The pipeline abstraction encapsulates all the data and steps in your data processing task. You can think of your data processing tasks in terms of these abstractions.<br/><br/> The higher level abstractions neatly separate data from runtime characteristics and simplify the mechanics of large-scale distributed data processing. You focus on creating value for customers and business while the Dataflow model handles the rest.
+  icon: icons/about/abstration_icon.svg
+- title: Unified Batch and Streaming Programming Model
+  body: Apache Beam provides flexibility to express the business logic just once and execute it for both batch and streaming data pipelines, on-premises via OSS runners or in the cloud via managed services such as Google Cloud Dataflow or AWS Kinesis Data Analytics.<br/><br/> Apache Beam unifies multiple data processing engines and SDKs around its distinctive Beam model. This offers a way to easily create a large-scale common data infrastructure across different applications that consume the data.
+  icon: icons/about/model_icon.svg
+- title: Cross-language Capabilities
+  body: "You can select a programming language from a variety of language SDKs: Java, Python, Go, SQL, TypeScript, Scala (via Scio), or leverage multi-language capabilities to empower every team member to write transforms in their favorite programming language and use them together in one robust, multi-language pipeline. Apache Beam eliminates the skill set dependency and helps avoid becoming tied to a specific technology skill set and stack."
+  icon: icons/about/capabilities_icon.svg
+- title: Portability
+  body: Apache Beam provides freedom to choose between various execution engines, easily switch between a variety of runners, and remain vendor-independent. Apache Beam is built to “write once, run anywhere”, and you can write data pipelines that are portable across languages and runtime environments, both open-source (e.g. Apache Flink and Spark) and proprietary (e.g. Google Cloud Dataflow and AWS KDA).
+  icon: icons/about/portability_icon.svg
+- title: Extensibility
+  body: Apache Beam is open source and extensible. Multiple projects, such as TensorFlow Extended and Apache Hop, are built on top of Apache Beam and leverage its ability to “write once, run anywhere”.<br/><br/> New and emerging products expand the number of use cases and create additional value-adds for Apache Beam users.
+  icon: icons/about/extencibility_icon.svg
+- title: Flexibility
+  body: Apache Beam is easy to adopt and implement because it abstracts you from low-level details and provides freedom of choice between programming languages.<br/><br/> The Apache Beam data pipelines are expressed with generic transforms, thus they are understandable and maintainable, which helps accelerate Apache Beam adoption and onboarding of new team members.<br/><br/> Apache Beam users report that they experience impressive time-to-value. Most notably, they noted a reduction in the time needed to develop and deploy a pipeline, going down from several days to just a few hours.
+  icon: icons/about/flexibility_icon.svg
+- title: Ease of Adoption
+  body: Apache Beam is easy to adopt and implement because it abstracts you from low-level details and provides freedom of choice between programming languages.<br/><br/> The Apache Beam data pipelines are expressed with generic transforms, thus they are understandable and maintainable, which helps accelerate Apache Beam adoption and onboarding of new team members. Apache Beam users report that they experience impressive time-to-value.<br/><br/> Most notably, they noted a reduction in the time needed to develop and deploy a pipeline, going down from several days to just a few hours.
+  icon: icons/about/adoption_icon.svg

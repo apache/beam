@@ -79,12 +79,11 @@ import scala.Tuple2;
  * SparkExecutableStageExtractionFunction}.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class SparkExecutableStageFunction<InputT, SideInputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>, RawUnionValue> {
-
 
   // Pipeline options for initializing the FileSystems
   private final SerializablePipelineOptions pipelineOptions;
@@ -147,12 +146,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
                 executableStage, stageBundleFactory.getProcessBundleDescriptor());
         if (executableStage.getTimers().size() == 0) {
           ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
-          processElements(
-            stateRequestHandler,
-              receiverFactory,
-              null,
-              stageBundleFactory,
-              inputs);
+          processElements(stateRequestHandler, receiverFactory, null, stageBundleFactory, inputs);
           return collector.iterator();
         }
         // Used with Batch, we know that all the data is available for this key. We can't use the
@@ -179,11 +173,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
         // Process inputs.
         processElements(
-          stateRequestHandler,
-            receiverFactory,
-            timerReceiverFactory,
-            stageBundleFactory,
-            inputs);
+            stateRequestHandler, receiverFactory, timerReceiverFactory, stageBundleFactory, inputs);
 
         // Finish any pending windows by advancing the input watermark to infinity.
         timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -213,11 +203,11 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   // Processes the inputs of the executable stage. Output is returned via side effects on the
   // receiver.
   private void processElements(
-    StateRequestHandler stateRequestHandler,
-    ReceiverFactory receiverFactory,
-    TimerReceiverFactory timerReceiverFactory,
-    StageBundleFactory stageBundleFactory,
-    Iterator<WindowedValue<InputT>> inputs)
+      StateRequestHandler stateRequestHandler,
+      ReceiverFactory receiverFactory,
+      TimerReceiverFactory timerReceiverFactory,
+      StageBundleFactory stageBundleFactory,
+      Iterator<WindowedValue<InputT>> inputs)
       throws Exception {
     try (RemoteBundle bundle =
         stageBundleFactory.getBundle(

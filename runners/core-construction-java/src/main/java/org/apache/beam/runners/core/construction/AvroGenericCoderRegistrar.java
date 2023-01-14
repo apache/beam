@@ -26,7 +26,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /** Coder registrar for AvroGenericCoder. */
 @AutoService(CoderTranslatorRegistrar.class)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class AvroGenericCoderRegistrar implements CoderTranslatorRegistrar {
   public static final String AVRO_CODER_URN = "beam:coder:avro:generic:v1";

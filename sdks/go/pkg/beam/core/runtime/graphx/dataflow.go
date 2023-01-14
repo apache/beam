@@ -16,6 +16,8 @@
 package graphx
 
 import (
+	"reflect"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
@@ -48,6 +50,7 @@ const (
 	doubleType        = "kind:double"
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
+	nullableType      = "kind:nullable"
 	lengthPrefixType  = "kind:length_prefix"
 	rowType           = "kind:row"
 
@@ -117,6 +120,26 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		}
 		return &CoderRef{Type: pairType, Components: []*CoderRef{key, value}, IsPairLike: true}, nil
 
+	case coder.Nullable:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad N: %v", c)
+		}
+		innerref, err := EncodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+		return &CoderRef{Type: nullableType, Components: []*CoderRef{innerref}}, nil
+
+	case coder.Iterable:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad I: %v", c)
+		}
+		innerref, err := EncodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+		return &CoderRef{Type: streamType, Components: []*CoderRef{innerref}}, nil
+
 	case coder.CoGBK:
 		if len(c.Components) < 2 {
 			return nil, errors.Errorf("bad CoGBK: %v", c)
@@ -129,7 +152,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 
 		value := refs[1]
 		if len(c.Components) > 2 {
-			// TODO(BEAM-490): don't inject union coder for CoGBK.
+			// TODO(https://github.com/apache/beam/issues/18032): don't inject union coder for CoGBK.
 
 			union := &CoderRef{Type: cogbklistType, Components: refs[1:]}
 			value = &CoderRef{Type: lengthPrefixType, Components: []*CoderRef{union}}
@@ -152,6 +175,9 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 			return nil, err
 		}
 		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, w}, IsWrapper: true}, nil
+
+	case coder.IW:
+		return &CoderRef{Type: intervalWindowType}, nil
 
 	case coder.Bytes:
 		return &CoderRef{Type: bytesType}, nil
@@ -232,27 +258,19 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		}
 
 		elm := c.Components[1]
-		kind := coder.KV
-		root := typex.KVType
-
-		isGBK := elm.Type == streamType
-		if isGBK {
-			elm = elm.Components[0]
-			kind = coder.CoGBK
-			root = typex.CoGBKType
-
-			// TODO(BEAM-490): If CoGBK with > 1 input, handle as special GBK. We expect
+		if elm.Type == streamType {
+			// TODO(https://github.com/apache/beam/issues/18032): If CoGBK with > 1 input, handle as special GBK. We expect
 			// it to be encoded as CoGBK<K,LP<Union<V,W,..>>. Remove this handling once
 			// CoGBK has a first-class representation.
 
-			if refs, ok := isCoGBKList(elm); ok {
+			if refs, ok := isCoGBKList(elm.Components[0]); ok {
 				values, err := DecodeCoderRefs(refs)
 				if err != nil {
 					return nil, err
 				}
 
-				t := typex.New(root, append([]typex.FullType{key.T}, coder.Types(values)...)...)
-				return &coder.Coder{Kind: kind, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
+				t := typex.New(typex.CoGBKType, append([]typex.FullType{key.T}, coder.Types(values)...)...)
+				return &coder.Coder{Kind: coder.CoGBK, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
 			}
 		}
 
@@ -261,8 +279,21 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 			return nil, err
 		}
 
-		t := typex.New(root, key.T, value.T)
-		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
+		t := typex.New(typex.KVType, key.T, value.T)
+		return &coder.Coder{Kind: coder.KV, T: t, Components: []*coder.Coder{key, value}}, nil
+
+	case nullableType:
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad nullable: %+v", c)
+		}
+
+		inner, err := DecodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+
+		t := typex.New(typex.NullableType, inner.T)
+		return &coder.Coder{Kind: coder.Nullable, T: t, Components: []*coder.Coder{inner}}, nil
 
 	case lengthPrefixType:
 		if len(c.Components) != 1 {
@@ -276,6 +307,9 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		default:
 			return decodeDataflowCustomCoder(subC.Type)
 		}
+
+	case intervalWindowType:
+		return coder.NewIntervalWindowCoder(), nil
 
 	case windowedValueType:
 		if len(c.Components) != 2 {
@@ -295,7 +329,17 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: w}, nil
 
 	case streamType:
-		return nil, errors.Errorf("stream must be pair value: %+v", c)
+		if len(c.Components) != 1 {
+			return nil, errors.Errorf("bad iterable/stream: %+v", c)
+		}
+
+		inner, err := DecodeCoderRef(c.Components[0])
+		if err != nil {
+			return nil, err
+		}
+
+		t := typex.New(reflect.SliceOf(inner.T.Type()), inner.T)
+		return &coder.Coder{Kind: coder.Iterable, T: t, Components: []*coder.Coder{inner}}, nil
 
 	case rowType:
 		subC := c.Components[0]

@@ -38,8 +38,10 @@ cdef class DataflowDistributionCounter(object):
   cdef int64_t* buckets
   cdef public bint is_cythonized
   cpdef bint add_input(self, int64_t element) except -1
+  cpdef bint add_input_n(self, int64_t element, int64_t n) except -1
   cdef int64_t _fast_calculate_bucket_index(self, int64_t element)
   cpdef void translate_to_histogram(self, histogram)
   cpdef bint add_inputs_for_test(self, elements) except -1
   cpdef int64_t calculate_bucket_index(self, int64_t element)
+  cpdef tuple extract_output(self)
   cpdef merge(self, accumulators)

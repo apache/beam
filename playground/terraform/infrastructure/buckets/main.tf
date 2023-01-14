@@ -17,6 +17,7 @@
 # under the License.
 #
 
+<<<<<<<< HEAD:playground/terraform/infrastructure/buckets/main.tf
 resource "google_storage_bucket" "examples_bucket" {
   name          = var.examples_bucket_name
   location      = var.examples_bucket_location
@@ -35,4 +36,23 @@ resource "google_storage_bucket" "terraform_bucket" {
   location      = var.terraform_bucket_location
   project       = var.project_id
   storage_class = var.terraform_storage_class
+========
+
+# Redis for storing state of Playground application.
+# In this cache Playground instances stores pipeline's statuses, outputs and pipeline's graph
+resource "google_redis_instance" "cache" {
+  // TODO: remove when replica_count, etc is generally available
+  provider           = google-beta
+  project            = var.project_id
+  region             = var.region
+  name               = var.name
+  tier               = var.tier
+  memory_size_gb     = var.memory_size_gb
+  replica_count      = var.replica_count
+  authorized_network = var.network
+  read_replicas_mode = var.replicas_mode
+  redis_version      = var.redis_version
+  display_name       = var.display_name
+
+>>>>>>>> master:playground/terraform/infrastructure/memorystore/main.tf
 }

@@ -11,4 +11,7 @@
 # limitations under the License.
 
 - id: home-logos-title
-  translation: "Supported runners"
+  translation: "Write Once, Run Anywhere"
+
+- id: home-pipelines-title
+  translation: "Create Multi-language Pipelines"

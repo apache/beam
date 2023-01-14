@@ -34,7 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
  * PCollections of the Flatten with the successor instructions.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class RemoveFlattenInstructionsFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {

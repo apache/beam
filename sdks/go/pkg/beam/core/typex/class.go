@@ -120,6 +120,7 @@ func isConcrete(t reflect.Type, visited map[uintptr]bool) error {
 		t == EventTimeType ||
 		t.Implements(WindowType) ||
 		t == PaneInfoType ||
+		t == BundleFinalizationType ||
 		t == reflectx.Error ||
 		t == reflectx.Context ||
 		IsUniversal(t) {
@@ -233,7 +234,7 @@ func IsUniversal(t reflect.Type) bool {
 // Composite marker types: KV, CoGBK or WindowedValue.
 func IsComposite(t reflect.Type) bool {
 	switch t {
-	case KVType, CoGBKType, WindowedValueType:
+	case KVType, CoGBKType, WindowedValueType, TimersType:
 		return true
 	default:
 		return false

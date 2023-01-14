@@ -7,7 +7,7 @@ date:   2021-08-25 00:00:01 -0800
 categories:
 
   - blog
-
+  - release
 authors:
 
   - angoenka
@@ -46,9 +46,9 @@ For more information on changes in 2.32.0, check out the [detailed release notes
 
 ## Highlights
 * The [Beam DataFrame
-  API](https://beam.apache.org/documentation/dsls/dataframes/overview/) is no
+  API](/documentation/dsls/dataframes/overview/) is no
   longer experimental! We've spent the time since the [2.26.0 preview
-  announcement](https://beam.apache.org/blog/dataframe-api-preview-available/)
+  announcement](/blog/dataframe-api-preview-available/)
   implementing the most frequently used pandas operations
   ([BEAM-9547](https://issues.apache.org/jira/browse/BEAM-9547)), improving
   [documentation](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.html)
@@ -62,7 +62,7 @@ For more information on changes in 2.32.0, check out the [detailed release notes
   Leaving experimental just means that we now have high confidence in the API
   and recommend its use for production workloads. We will continue to improve
   the API, guided by your
-  [feedback](https://beam.apache.org/community/contact-us/).
+  [feedback](/community/contact-us/).
 
 
 ## I/Os

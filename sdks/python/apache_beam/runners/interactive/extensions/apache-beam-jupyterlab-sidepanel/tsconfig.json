@@ -25,6 +25,7 @@
   },
   "include": [
     "src/*",
+    "src/clusters/*",
     "src/common/*",
     "src/kernel/*",
     "src/inspector/*",

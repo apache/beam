@@ -67,7 +67,7 @@ import org.joda.time.Instant;
  * the {@link Pipeline} before advancing the state of the {@link TestStream}.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
   private final List<Event<T>> events;
@@ -199,7 +199,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     public Builder<T> advanceProcessingTime(Duration amount) {
       checkArgument(
           amount.getMillis() > 0,
-          "Must advance the processing time by a positive amount. Got: ",
+          "Must advance the processing time by a positive amount. Got: %s",
           amount);
       ImmutableList<Event<T>> newEvents =
           ImmutableList.<Event<T>>builder()

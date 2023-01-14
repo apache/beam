@@ -24,7 +24,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class OrFinallyStateMachine extends TriggerStateMachine {
 

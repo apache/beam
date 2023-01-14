@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
@@ -45,12 +46,14 @@ import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamBuiltinAggregations {
 
@@ -59,12 +62,14 @@ public class BeamBuiltinAggregations {
           ImmutableMap.<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>builder()
               .put("ANY_VALUE", typeName -> Sample.anyValueCombineFn())
               // Drop null elements for these aggregations.
-              .put("COUNT", typeName -> new DropNullFn(Count.combineFn()))
+              .put("COUNT", typeName -> new DropNullFnWithDefault(Count.combineFn()))
               .put("MAX", typeName -> new DropNullFn(BeamBuiltinAggregations.createMax(typeName)))
               .put("MIN", typeName -> new DropNullFn(BeamBuiltinAggregations.createMin(typeName)))
               .put("SUM", typeName -> new DropNullFn(BeamBuiltinAggregations.createSum(typeName)))
               .put(
-                  "$SUM0", typeName -> new DropNullFn(BeamBuiltinAggregations.createSum0(typeName)))
+                  "$SUM0",
+                  typeName ->
+                      new DropNullFnWithDefault(BeamBuiltinAggregations.createSum0(typeName)))
               .put("AVG", typeName -> new DropNullFn(BeamBuiltinAggregations.createAvg(typeName)))
               .put(
                   "BIT_OR",
@@ -360,7 +365,7 @@ public class BeamBuiltinAggregations {
 
   private static class DropNullFn<InputT, AccumT, OutputT>
       extends CombineFn<InputT, AccumT, OutputT> {
-    private final CombineFn<InputT, AccumT, OutputT> combineFn;
+    protected final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     DropNullFn(CombineFn<InputT, AccumT, OutputT> combineFn) {
       this.combineFn = combineFn;
@@ -368,28 +373,63 @@ public class BeamBuiltinAggregations {
 
     @Override
     public AccumT createAccumulator() {
-      return combineFn.createAccumulator();
+      return null;
     }
 
     @Override
     public AccumT addInput(AccumT accumulator, InputT input) {
-      return (input == null) ? accumulator : combineFn.addInput(accumulator, input);
+      if (input == null) {
+        return accumulator;
+      }
+
+      if (accumulator == null) {
+        accumulator = combineFn.createAccumulator();
+      }
+      return combineFn.addInput(accumulator, input);
     }
 
     @Override
     public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
+      // filter out nulls
+      accumulators = Iterables.filter(accumulators, Predicates.notNull());
+
+      // handle only nulls
+      if (!accumulators.iterator().hasNext()) {
+        return null;
+      }
+
       return combineFn.mergeAccumulators(accumulators);
     }
 
     @Override
     public OutputT extractOutput(AccumT accumulator) {
+      if (accumulator == null) {
+        return null;
+      }
       return combineFn.extractOutput(accumulator);
     }
 
     @Override
     public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
         throws CannotProvideCoderException {
-      return combineFn.getAccumulatorCoder(registry, inputCoder);
+      Coder<AccumT> coder = combineFn.getAccumulatorCoder(registry, inputCoder);
+      if (coder instanceof NullableCoder) {
+        return coder;
+      }
+      return NullableCoder.of(coder);
+    }
+  }
+
+  private static class DropNullFnWithDefault<InputT, AccumT, OutputT>
+      extends DropNullFn<InputT, AccumT, OutputT> {
+
+    DropNullFnWithDefault(CombineFn<InputT, AccumT, OutputT> combineFn) {
+      super(combineFn);
+    }
+
+    @Override
+    public AccumT createAccumulator() {
+      return combineFn.createAccumulator();
     }
   }
 

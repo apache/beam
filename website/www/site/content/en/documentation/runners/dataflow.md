@@ -26,7 +26,7 @@ The Cloud Dataflow Runner and service are suitable for large scale, continuous j
 
 * a fully managed service
 * [autoscaling](https://cloud.google.com/dataflow/service/dataflow-service-desc#autoscaling) of the number of workers throughout the lifetime of the job
-* [dynamic work rebalancing](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow)
+* [dynamic work rebalancing](https://cloud.google.com/blog/products/gcp/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow)
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the supported capabilities of the Cloud Dataflow Runner.
 
@@ -125,6 +125,7 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
 <span class="language-java">When executing your pipeline with the Cloud Dataflow Runner (Java), consider these common pipeline options.</span>
 <span class="language-py">When executing your pipeline with the Cloud Dataflow Runner (Python), consider these common pipeline options.</span>
 
+<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <th>Field</th>
@@ -205,6 +206,7 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
 
 
 </table>
+</div>
 
 See the reference documentation for the
 <span class="language-java">[DataflowPipelineOptions](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html)</span>

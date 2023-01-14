@@ -48,6 +48,8 @@ RUN \
     rm -rf /root/.cache/pip && \
     rm -rf /tmp/base_image_requirements.txt
 
+RUN pip install --upgrade pip setuptools
+
 # Install Google Cloud SDK.
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
@@ -65,7 +67,7 @@ RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=fa
 
 ####
 # Install Apache Beam SDK. Use --no-deps and pip check to verify that all
-# necessary dependencies are specified in base_image_requiremetns.txt.
+# necessary dependencies are specified in base_image_requirements.txt.
 ####
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN pip install --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
@@ -97,7 +99,7 @@ RUN rm /opt/apache/beam/third_party_licenses/golang/LICENSE
 
 COPY target/license_scripts /tmp/license_scripts/
 RUN if [ "$pull_licenses" = "true" ] ; then \
-      pip install 'pip-licenses<3.0.0' pyyaml tenacity && \
+      pip install 'pip-licenses<4.0.0' pyyaml tenacity && \
       python /tmp/license_scripts/pull_licenses_py.py ; \
     fi
 

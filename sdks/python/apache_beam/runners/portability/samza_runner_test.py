@@ -135,11 +135,11 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_metrics(self):
     # Skip until Samza portable runner supports distribution metrics.
-    raise unittest.SkipTest("BEAM-12614")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/21043")
 
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
-    # https://issues.apache.org/jira/browse/BEAM-12681
+    # https://github.com/apache/beam/issues/20984
     super().test_flattened_side_input(with_transcoding=False)
 
   def test_pack_combiners(self):
@@ -150,31 +150,31 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_pardo_timers(self):
     # Skip until Samza portable runner supports clearing timer.
-    raise unittest.SkipTest("BEAM-12774")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/21059")
 
   def test_register_finalizations(self):
     # Skip until Samza runner supports bundle finalization.
-    raise unittest.SkipTest("BEAM-12615")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/21044")
 
   def test_callbacks_with_exception(self):
     # Skip until Samza runner supports bundle finalization.
-    raise unittest.SkipTest("BEAM-12615")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/21044")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
     # Skip until Samza runner supports SDF and self-checkpoint.
-    raise unittest.SkipTest("BEAM-12616")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/21045")
 
   def test_sdf_with_sdf_initiated_checkpointing(self):
     # Skip until Samza runner supports SDF.
-    raise unittest.SkipTest("BEAM-12616")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/21045")
 
   def test_sdf_with_watermark_tracking(self):
     # Skip until Samza runner supports SDF.
-    raise unittest.SkipTest("BEAM-12616")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/21045")
 
   def test_custom_merging_window(self):
     # Skip until Samza runner supports merging window fns
-    raise unittest.SkipTest("BEAM-12617")
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/21049")
 
 
 if __name__ == '__main__':

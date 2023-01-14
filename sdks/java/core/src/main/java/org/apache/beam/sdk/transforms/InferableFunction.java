@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * SerializableFunction} is required.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class InferableFunction<InputT, OutputT>
     implements ProcessFunction<InputT, OutputT>, HasDisplayData {

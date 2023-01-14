@@ -22,7 +22,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-It’s been just over six months since Apache Beam was formally accepted into incubation with the [Apache Software Foundation](http://www.apache.org). As a community, we’ve been hard at work getting Beam off the ground.
+It’s been just over six months since Apache Beam was formally accepted into incubation with the [Apache Software Foundation](https://www.apache.org). As a community, we’ve been hard at work getting Beam off the ground.
 
 <!--more-->
 

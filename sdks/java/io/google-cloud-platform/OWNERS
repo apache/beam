@@ -1,5 +1,36 @@
 # See the OWNERS docs at https://s.apache.org/beam-owners
 
-reviewers:
+reviewers (BigTableIO) :
+  - igorbernstein2
+
+reviewers (SpannerIO) :
+  - darshan-sj
+  - nielm
+
+reviewers (SpannerIO - readChangeStream) :
+  - cl2012
+  - nancyxu123
+  - haikuo-google
+
+reviewers (BigQueryIO - Storage Read API) :
+  - kmjung
+  - vachan-shetty
+
+reviewers (FhirIO) :
+  - msbukal
+
+reviewers (DatastoreIO) :
+  - pcostell
+
+reviewers (FirestoreIO) :
+  - pcostell
+
+reviewers (PubsubLiteIO) :
+  - dpcollins-google
+
+reviewers (all GCP connectors):
   - lukecwik
   - chamikaramj
+  - pabloem
+  - ihji
+  - johnjcasey

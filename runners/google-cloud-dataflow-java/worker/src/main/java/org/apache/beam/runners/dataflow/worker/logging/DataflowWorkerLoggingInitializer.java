@@ -50,7 +50,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * directory and the default file size is 1 GB.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "ForbidDefaultCharset"
 })
 public class DataflowWorkerLoggingInitializer {

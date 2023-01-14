@@ -60,8 +60,10 @@ cdef class OperationCounters(object):
   cdef public libc.stdint.int64_t _sample_counter
   cdef public libc.stdint.int64_t _next_sample
   cdef public object output_type_constraints
+  cdef public object producer_batch_converter
 
   cpdef update_from(self, windowed_value)
+  cpdef update_from_batch(self, windowed_batch)
   cdef inline do_sample(self, windowed_value)
   cpdef update_collect(self)
   cpdef type_check(self, value)

@@ -30,6 +30,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
+import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -329,7 +330,7 @@ import org.joda.time.Duration;
  * }</pre>
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class AvroIO {
   /**
@@ -571,7 +572,8 @@ public class AvroIO {
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .setMetadata(ImmutableMap.of())
         .setWindowedWrites(false)
-        .setNoSpilling(false);
+        .setNoSpilling(false)
+        .setSyncInterval(DataFileConstants.DEFAULT_SYNC_INTERVAL);
   }
 
   @Experimental(Kind.SCHEMAS)
@@ -649,15 +651,28 @@ public class AvroIO {
     /**
      * Continuously watches for new files matching the filepattern, polling it at the given
      * interval, until the given termination condition is reached. The returned {@link PCollection}
-     * is unbounded.
+     * is unbounded. If {@code matchUpdatedFiles} is set, also watches for files with timestamp
+     * change.
      *
      * <p>This works only in runners supporting splittable {@link
      * org.apache.beam.sdk.transforms.DoFn}.
      */
     public Read<T> watchForNewFiles(
-        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
       return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /**
+     * Same as {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)} with {@code
+     * matchUpdatedFiles=false}.
+     */
+    public Read<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     /**
@@ -1236,11 +1251,20 @@ public class AvroIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
-    /** Like {@link Read#watchForNewFiles}. */
+    /** Like {@link Read#watchForNewFiles(Duration, TerminationCondition, boolean)}. */
+    public ParseAll<T> watchForNewFiles(
+        Duration pollInterval,
+        TerminationCondition<String, ?> terminationCondition,
+        boolean matchUpdatedFiles) {
+      return withMatchConfiguration(
+          getMatchConfiguration()
+              .continuously(pollInterval, terminationCondition, matchUpdatedFiles));
+    }
+
+    /** Like {@link Read#watchForNewFiles(Duration, TerminationCondition)}. */
     public ParseAll<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+      return watchForNewFiles(pollInterval, terminationCondition, false);
     }
 
     /** Specifies the coder for the result of the {@code parseFn}. */
@@ -1296,6 +1320,8 @@ public class AvroIO {
 
     abstract boolean getGenericRecords();
 
+    abstract int getSyncInterval();
+
     abstract @Nullable Schema getSchema();
 
     abstract boolean getWindowedWrites();
@@ -1339,6 +1365,8 @@ public class AvroIO {
           @Nullable String shardTemplate);
 
       abstract Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords);
+
+      abstract Builder<UserT, DestinationT, OutputT> setSyncInterval(int syncInterval);
 
       abstract Builder<UserT, DestinationT, OutputT> setSchema(Schema schema);
 
@@ -1452,8 +1480,16 @@ public class AvroIO {
     }
 
     /**
-     * Sets the the output schema. Can only be used when the output type is {@link GenericRecord}
-     * and when not using {@link #to(DynamicAvroDestinations)}.
+     * Sets the approximate number of uncompressed bytes to write in each block for the AVRO
+     * container format.
+     */
+    public TypedWrite<UserT, DestinationT, OutputT> withSyncInterval(int syncInterval) {
+      return toBuilder().setSyncInterval(syncInterval).build();
+    }
+
+    /**
+     * Sets the output schema. Can only be used when the output type is {@link GenericRecord} and
+     * when not using {@link #to(DynamicAvroDestinations)}.
      */
     public TypedWrite<UserT, DestinationT, OutputT> withSchema(Schema schema) {
       return toBuilder().setSchema(schema).build();
@@ -1577,7 +1613,7 @@ public class AvroIO {
       }
       checkArgument(
           badKeys.isEmpty(),
-          "Metadata value type must be one of String, Long, or byte[]. Found {}",
+          "Metadata value type must be one of String, Long, or byte[]. Found %s",
           badKeys);
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
@@ -1637,7 +1673,11 @@ public class AvroIO {
       }
       WriteFiles<UserT, DestinationT, OutputT> write =
           WriteFiles.to(
-              new AvroSink<>(tempDirectory, resolveDynamicDestinations(), getGenericRecords()));
+              new AvroSink<>(
+                  tempDirectory,
+                  resolveDynamicDestinations(),
+                  getGenericRecords(),
+                  getSyncInterval()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -1720,10 +1760,16 @@ public class AvroIO {
       return new Write<>(inner.to(dynamicDestinations).withFormatFunction(null));
     }
 
+    /** See {@link TypedWrite#withSyncInterval}. */
+    public Write<T> withSyncInterval(int syncInterval) {
+      return new Write<>(inner.withSyncInterval(syncInterval));
+    }
+
     /** See {@link TypedWrite#withSchema}. */
     public Write<T> withSchema(Schema schema) {
       return new Write<>(inner.withSchema(schema));
     }
+
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> withTempDirectory(ValueProvider<ResourceId> tempDirectory) {

@@ -40,7 +40,7 @@ class ReadFromPubSub(beam.PTransform):
   """An external ``PTransform`` for reading from Cloud Pub/Sub.
 
   Experimental; no backwards compatibility guarantees.  It requires special
-  preparation of the Java SDK.  See BEAM-7870.
+  preparation of the Java SDK.  See https://github.com/apache/beam/issues/19728.
   """
 
   URN = 'beam:transform:org.apache.beam:pubsub_read:v1'
@@ -124,7 +124,7 @@ class WriteToPubSub(beam.PTransform):
   """An external ``PTransform`` for writing messages to Cloud Pub/Sub.
 
   Experimental; no backwards compatibility guarantees.  It requires special
-  preparation of the Java SDK.  See BEAM-7870.
+  preparation of the Java SDK.  See https://github.com/apache/beam/issues/19728.
   """
 
   URN = 'beam:transform:org.apache.beam:pubsub_write:v1'

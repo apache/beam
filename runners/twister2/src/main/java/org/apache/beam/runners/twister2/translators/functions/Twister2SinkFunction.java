@@ -23,7 +23,7 @@ import edu.iu.dsc.tws.api.tset.fn.SinkFunc;
 
 /** Sink Function that collects results. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Twister2SinkFunction<T> implements SinkFunc<T> {
 

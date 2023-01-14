@@ -86,10 +86,10 @@ import org.slf4j.LoggerFactory;
  * @param <W> The type of windows this operates on.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness",
   "keyfor"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+}) // TODO(https://github.com/apache/beam/issues/20497)
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReduceFnRunner.class);

@@ -35,7 +35,7 @@ job('beam_Publish_Docker_Snapshots') {
       )
 
   // Runs once per day.
-  commonJobProperties.setAutoJob(delegate, 'H 10 * * *')
+  commonJobProperties.setAutoJob(delegate, '@daily')
 
   steps {
     gradle {
@@ -44,7 +44,6 @@ job('beam_Publish_Docker_Snapshots') {
       SUPPORTED_CONTAINER_TASKS.each { taskVer ->
         tasks(":sdks:python:container:${taskVer}:dockerPush")
       }
-      tasks(':sdks:go:container:dockerPush')
       tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server-container:dockerPush")
       switches("-Pdocker-repository-root=gcr.io/apache-beam-testing/beam_portability")
       switches("-Pdocker-tag=latest")

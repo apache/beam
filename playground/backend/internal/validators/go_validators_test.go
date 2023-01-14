@@ -33,6 +33,9 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 	validatorArgs := make([]interface{}, 1)
 	validatorArgs[0] = goCodePath
 
+	argsWithoutRealFile := make([]interface{}, 1)
+	argsWithoutRealFile[0] = "fileNotExists.go"
+
 	type args struct {
 		args []interface{}
 	}
@@ -43,8 +46,7 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			// Test if code is unit test code
-			name: "if unit test",
+			name: "Check that file is a go unit test",
 			args: args{
 				testValidatorArgs,
 			},
@@ -52,13 +54,18 @@ func TestCheckIsUnitTestGo(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test if code is not unit test code
-			name: "if not unit test",
+			name: "Check that file is not a go unit test",
 			args: args{
 				validatorArgs,
 			},
 			want:    false,
 			wantErr: false,
+		},
+		{
+			name:    "Error if file not exists",
+			args:    args{args: argsWithoutRealFile},
+			want:    false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

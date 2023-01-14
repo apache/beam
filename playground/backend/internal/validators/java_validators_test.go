@@ -43,7 +43,7 @@ func TestCheckIsUnitTestJava(t *testing.T) {
 	}{
 		{
 			// Test if code is unit test code
-			name: "if unit test",
+			name: "Is unit test",
 			args: args{
 				testValidatorArgs,
 			},
@@ -52,7 +52,7 @@ func TestCheckIsUnitTestJava(t *testing.T) {
 		},
 		{
 			// Test if code is not unit test code
-			name: "if not unit test",
+			name: "Is not unit test",
 			args: args{
 				validatorArgs,
 			},
@@ -88,7 +88,7 @@ func TestCheckIsKataJava(t *testing.T) {
 	}{
 		{
 			// Test if code is kata
-			name: "if kata",
+			name: "Is kata",
 			args: args{
 				testValidatorArgs,
 			},
@@ -97,7 +97,7 @@ func TestCheckIsKataJava(t *testing.T) {
 		},
 		{
 			// Test if code is not kata
-			name: "if not kata",
+			name: "Is not kata",
 			args: args{
 				validatorArgs,
 			},

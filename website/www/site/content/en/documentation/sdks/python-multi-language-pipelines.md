@@ -205,7 +205,6 @@ export NUM_WORKERS="1"
 
 gsutil rm gs://$GCS_BUCKET/javaprefix/*
 
-# --experiments=use_runner_v2 is optional for Beam 2.32.0 and later
 python addprefix.py \
     --runner DataflowRunner \
     --temp_location $TEMP_LOCATION \
@@ -213,7 +212,6 @@ python addprefix.py \
     --region $GCP_REGION \
     --job_name $JOB_NAME \
     --num_workers $NUM_WORKERS \
-    --experiments=use_runner_v2 \
     --input "gs://dataflow-samples/shakespeare/kinglear.txt" \
     --output "gs://$GCS_BUCKET/javaprefix/output"
 ```
