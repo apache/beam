@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza;
 
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 
@@ -29,4 +30,11 @@ public interface SamzaPortablePipelineOptions
   String getFsTokenPath();
 
   void setFsTokenPath(String path);
+
+  @Description(
+      "Wait if necessary for completing a remote bundle processing for at most the given time (in milliseconds). if the value of timeout is negative, wait forever until the bundle processing is completed. Used only in portable mode.")
+  @Default.Long(-1)
+  long getBundleProcessingTimeout();
+
+  void setBundleProcessingTimeout(long timeoutMs);
 }
