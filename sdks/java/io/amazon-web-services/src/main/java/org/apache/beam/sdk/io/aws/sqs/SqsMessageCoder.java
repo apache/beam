@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * Deterministic coder for an AWS Sdk SQS message.
@@ -65,7 +66,13 @@ class SqsMessageCoder extends AtomicCoder<Message> {
     Message msg = new Message();
     msg.setMessageId(STRING_CODER.decode(in));
     msg.setReceiptHandle(STRING_CODER.decode(in));
-    msg.setBody(OPT_STRING_CODER.decode(in));
+
+    // SQS library not annotated, but this coder assumes null is allowed (documentation does not
+    // specify)
+    @SuppressWarnings("nullness")
+    @NonNull
+    String body = OPT_STRING_CODER.decode(in);
+    msg.setBody(body);
 
     String sentAt = OPT_STRING_CODER.decode(in);
     if (sentAt != null) {

@@ -16,6 +16,30 @@
  * limitations under the License.
  */
 
+<<<<<<<< HEAD:playground/frontend/playground_components_dev/lib/src/finder.dart
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+extension FinderExtension on Finder {
+  // TODO(alexeyinkin): Push to Flutter or wait for them to make their own, https://github.com/flutter/flutter/issues/117675
+  Finder and(Finder another) {
+    return _AndFinder(this, another);
+  }
+}
+
+class _AndFinder extends ChainedFinder {
+  _AndFinder(super.parent, this.another);
+
+  final Finder another;
+
+  @override
+  String get description => '${parent.description} AND ${another.description}';
+
+  @override
+  Iterable<Element> filter(Iterable<Element> parentCandidates) {
+    return another.apply(parentCandidates);
+  }
+========
 import '../repositories/models/get_content_tree_response.dart';
 import 'module.dart';
 import 'node.dart';
@@ -45,4 +69,5 @@ class ContentTreeModel extends ParentNodeModel {
               .map(ModuleModel.fromResponse)
               .toList(growable: false),
         );
+>>>>>>>> 66796913c3 (Merge from oss 2.45.0):learning/tour-of-beam/frontend/lib/models/content_tree.dart
 }

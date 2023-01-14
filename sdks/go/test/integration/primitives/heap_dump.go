@@ -13,37 +13,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package textio
+package primitives
 
 import (
 	"context"
-	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
-// TestReadSdf tests that readSdf successfully reads a test text file, and
-// outputs the correct number of lines for it, even for an exceedingly long
-// line.
-func TestReadSdf(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	lines := ReadSdf(s, testFilePath)
-	passert.Count(s, lines, "NumLines", 1)
+func oomFn(ctx context.Context, elm int, emit func(int)) {
+	size := 1 << 25
+	// Simulate a slow memory leak
+	for {
+		abc := make([]int64, size)
+		log.Debugf(ctx, "abc %v", abc)
+		time.Sleep(5 * time.Second)
+		log.Debugf(ctx, "abc %v", abc)
+		if size > 1<<40 {
+			break
+		}
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
+		size = int(float64(size) * 1.2)
 	}
+	emit(elm)
 }
 
-func TestReadAllSdf(t *testing.T) {
+// OomParDo tests a DoFn that OOMs.
+func OomParDo() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
-	files := beam.Create(s, testFilePath)
-	lines := ReadAllSdf(s, files)
-	passert.Count(s, lines, "NumLines", 1)
 
-	if _, err := beam.Run(context.Background(), "direct", p); err != nil {
-		t.Fatalf("Failed to execute job: %v", err)
-	}
+	in := beam.Create(s, 1)
+	beam.ParDo(s, oomFn, in)
+
+	return p
 }

@@ -67,9 +67,10 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -93,7 +94,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link WindmillStateInternals}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class WindmillStateInternalsTest {
 
@@ -198,7 +199,7 @@ public class WindmillStateInternalsTest {
 
   private <K> ByteString protoKeyFromUserKey(@Nullable K tag, Coder<K> keyCoder)
       throws IOException {
-    ByteString.Output keyStream = ByteString.newOutput();
+    ByteStringOutputStream keyStream = new ByteStringOutputStream();
     key(NAMESPACE, "map").writeTo(keyStream);
     if (tag != null) {
       keyCoder.encode(tag, keyStream, Context.OUTER);
@@ -799,7 +800,7 @@ public class WindmillStateInternalsTest {
 
     assertEquals("hello", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
     assertEquals(1000, updates.getInserts(0).getEntries(0).getSortKey());
-    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
   }
 
   @Test
@@ -828,8 +829,8 @@ public class WindmillStateInternalsTest {
     assertEquals("world", updates.getInserts(0).getEntries(1).getValue().toStringUtf8());
     assertEquals(2000, updates.getInserts(0).getEntries(0).getSortKey());
     assertEquals(2000, updates.getInserts(0).getEntries(1).getSortKey());
-    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
-    assertEquals(IdTracker.MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -876,8 +877,8 @@ public class WindmillStateInternalsTest {
     assertEquals("world", updates.getInserts(0).getEntries(1).getValue().toStringUtf8());
     assertEquals(1000, updates.getInserts(0).getEntries(0).getSortKey());
     assertEquals(4000, updates.getInserts(0).getEntries(1).getSortKey());
-    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
-    assertEquals(IdTracker.MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.NEW_RANGE_MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
   }
 
   @Test

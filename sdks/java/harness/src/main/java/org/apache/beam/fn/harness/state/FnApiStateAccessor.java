@@ -42,6 +42,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
@@ -56,10 +57,11 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -67,8 +69,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final PipelineOptions pipelineOptions;
@@ -118,7 +120,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               checkState(
                   keyCoder != null, "Accessing state in unkeyed context, no key coder available");
 
-              ByteString.Output encodedKeyOut = ByteString.newOutput();
+              ByteStringOutputStream encodedKeyOut = new ByteStringOutputStream();
               try {
                 ((Coder) keyCoder).encode(key, encodedKeyOut, Coder.Context.NESTED);
               } catch (IOException e) {
@@ -131,7 +133,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
         memoizeFunction(
             currentWindowSupplier,
             window -> {
-              ByteString.Output encodedWindowOut = ByteString.newOutput();
+              ByteStringOutputStream encodedWindowOut = new ByteStringOutputStream();
               try {
                 windowCoder.encode(window, encodedWindowOut);
               } catch (IOException e) {
@@ -167,7 +169,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     SideInputSpec sideInputSpec = sideInputSpecMap.get(tag);
     checkArgument(sideInputSpec != null, "Attempting to access unknown side input %s.", view);
 
-    ByteString.Output encodedWindowOut = ByteString.newOutput();
+    ByteStringOutputStream encodedWindowOut = new ByteStringOutputStream();
     try {
       sideInputSpec
           .getWindowCoder()
@@ -573,6 +575,16 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                 };
               }
             });
+  }
+
+  @Override
+  public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+      String id,
+      StateSpec<MultimapState<KeyT, ValueT>> spec,
+      Coder<KeyT> keyCoder,
+      Coder<ValueT> valueCoder) {
+    // TODO(https://github.com/apache/beam/issues/23616)
+    throw new UnsupportedOperationException("Multimap is not currently supported with Fn API.");
   }
 
   @Override

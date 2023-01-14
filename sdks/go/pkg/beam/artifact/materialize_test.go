@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -313,7 +312,7 @@ func (fake *fakeRetrievalService) resolvedArtifactsWithStagingTo() []*pipepb.Art
 
 func (fake *fakeRetrievalService) fileArtifactsWithoutStagingTo() []*pipepb.ArtifactInformation {
 	var artifacts []*pipepb.ArtifactInformation
-	for name, _ := range fake.artifacts {
+	for name := range fake.artifacts {
 		payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
 			Path: filepath.Join("/tmp", name)})
 		artifacts = append(artifacts, &pipepb.ArtifactInformation{
@@ -326,7 +325,7 @@ func (fake *fakeRetrievalService) fileArtifactsWithoutStagingTo() []*pipepb.Arti
 
 func (fake *fakeRetrievalService) urlArtifactsWithoutStagingTo() []*pipepb.ArtifactInformation {
 	var artifacts []*pipepb.ArtifactInformation
-	for name, _ := range fake.artifacts {
+	for name := range fake.artifacts {
 		payload, _ := proto.Marshal(&pipepb.ArtifactUrlPayload{
 			Url: path.Join("gs://tmp", name)})
 		artifacts = append(artifacts, &pipepb.ArtifactInformation{
@@ -381,11 +380,11 @@ func (fake *fakeGetArtifactResponseStream) Recv() (*jobpb.GetArtifactResponse, e
 	return nil, io.EOF
 }
 
-func (fake *fakeGetArtifactResponseStream) RecvMsg(interface{}) error {
+func (fake *fakeGetArtifactResponseStream) RecvMsg(any) error {
 	return nil
 }
 
-func (fake *fakeGetArtifactResponseStream) SendMsg(interface{}) error {
+func (fake *fakeGetArtifactResponseStream) SendMsg(any) error {
 	return nil
 }
 
@@ -417,7 +416,7 @@ func verifySHA256(t *testing.T, filename, hash string) {
 }
 
 func makeTempDir(t *testing.T) string {
-	dir, err := ioutil.TempDir("", "artifact_test_")
+	dir, err := os.MkdirTemp("", "artifact_test_")
 	if err != nil {
 		t.Errorf("Test failure: cannot create temporary directory: %+v", err)
 	}
@@ -442,7 +441,7 @@ func makeTempFile(t *testing.T, filename string, size int) string {
 	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
 		t.Fatalf("cannot create directory for %s: %v", filename, err)
 	}
-	if err := ioutil.WriteFile(filename, data, 0644); err != nil {
+	if err := os.WriteFile(filename, data, 0644); err != nil {
 		t.Fatalf("cannot create file %s: %v", filename, err)
 	}
 

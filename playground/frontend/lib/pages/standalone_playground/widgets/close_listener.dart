@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'dart:html' as html;
 
 import 'package:provider/provider.dart';
@@ -34,9 +34,9 @@ class CloseListener extends StatefulWidget {
 class _CloseListenerState extends State<CloseListener> {
   @override
   void initState() {
-    WidgetsBinding.instance?.addPostFrameCallback((timeStamp) {
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       html.window.onBeforeUnload.listen((event) async {
-        Provider.of<PlaygroundState>(context, listen: false).cancelRun();
+        Provider.of<PlaygroundController>(context, listen: false).cancelRun();
       });
     });
     super.initState();

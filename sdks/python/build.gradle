@@ -38,9 +38,6 @@ build.dependsOn tasks.named("buildPython")
 
 // Create a Python source distribution tarball.
 def tarball = "apache-beam.tar.gz"
-
-// LI configs for python path
-def pythonEnvPath = "${envdir}/bin/python3.6"
 def sdist = tasks.register("sdist") {
   dependsOn setupVirtualenv
 
@@ -48,7 +45,7 @@ def sdist = tasks.register("sdist") {
     // Build artifact
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${pythonEnvPath} setup.py -q sdist --formats zip,gztar --dist-dir ${buildDir}"
+      args '-c', ". ${envdir}/bin/activate && python setup.py -q sdist --formats zip,gztar --dist-dir ${buildDir}"
     }
 
     def collection = fileTree(buildDir){ include "**/*${project.sdk_version}*.tar.gz" exclude 'srcs/**'}

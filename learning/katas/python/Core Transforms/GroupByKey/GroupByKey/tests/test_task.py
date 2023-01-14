@@ -7,7 +7,7 @@
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#  http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -17,32 +17,21 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "Project ID"
-}
+import unittest
 
-variable "docker_registry_address" {
-  description = "Docker registry address"
-}
+from test_helper import test_is_not_empty, get_file_output
 
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend-router"
-}
 
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
+class TestCase(unittest.TestCase):
+    def test_not_empty(self):
+        self.assertTrue(test_is_not_empty(), 'The output is empty')
 
-variable "service_name" {
-  default = "backend"
-}
+    def test_output(self):
+        output = get_file_output(path='task.py')
 
-variable "cache_type" {
-  default = "remote"
-}
+        answers = ["('a', ['apple', 'ant'])",
+                   "('b', ['ball', 'bear'])",
+                   "('c', ['car', 'cheetah'])"]
 
-variable "cache_address" {
-  default = ""
-}
+        for ans in answers:
+            self.assertIn(ans, output, "Incorrect output. Create tuples and apply GroupByKey.")

@@ -17,45 +17,43 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/output/components/output.dart';
-import 'package:playground/pages/embedded_playground/components/embedded_actions.dart';
-import 'package:playground/pages/embedded_playground/components/embedded_appbar_title.dart';
-import 'package:playground/pages/embedded_playground/components/embedded_editor.dart';
-import 'package:playground/pages/embedded_playground/components/embedded_split_view.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
-import 'package:provider/provider.dart';
+import 'package:playground_components/playground_components.dart';
 
-const kActionsWidth = 300.0;
-const kActionsHeight = 40.0;
-
-class EmbeddedPlaygroundPage extends StatelessWidget {
-  final bool isEditable;
-
-  const EmbeddedPlaygroundPage({
-    Key? key,
-    required this.isEditable,
-  }) : super(key: key);
+class Logo extends StatelessWidget {
+  const Logo();
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlaygroundState>(
-      builder: (context, state, child) => Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const EmbeddedAppBarTitle(),
-          actions: const [EmbeddedActions()],
-        ),
-        body: EmbeddedSplitView(
-          first: EmbeddedEditor(isEditable: isEditable),
-          second: Container(
-            color: Theme.of(context).backgroundColor,
-            child: Output(
-              isEmbedded: true,
-              showGraph: state.graphAvailable,
-              key: ValueKey(state.selectedExample?.path ?? state.sdk.toString())
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: const [
+        BeamLogo(),
+        _Text(),
+      ],
+    );
+  }
+}
+
+class _Text extends StatelessWidget {
+  const _Text();
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        style: Theme.of(context).textTheme.displaySmall,
+        children: [
+          TextSpan(
+            text: 'Tour of',
+            style: TextStyle(
+              color: Theme.of(context).textTheme.labelLarge?.color,
             ),
           ),
-        ),
+          TextSpan(
+            text: ' Beam',
+            style: TextStyle(color: Theme.of(context).primaryColor),
+          ),
+        ],
       ),
     );
   }

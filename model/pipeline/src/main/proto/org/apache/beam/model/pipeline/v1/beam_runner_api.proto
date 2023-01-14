@@ -29,7 +29,7 @@ option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
-import "endpoints.proto";
+import "org/apache/beam/model/pipeline/v1/endpoints.proto";
 import "google/protobuf/descriptor.proto";
 
 message BeamConstants {
@@ -362,6 +362,10 @@ message StandardPTransforms {
     // Payload: PubSubWritePayload.
     PUBSUB_WRITE = 5 [(beam_urn) = "beam:transform:pubsub_write:v1"];
 
+    // Used for pubsub dynamic destinations.
+    // Payload: PubSubWritePayload.
+    PUBSUB_WRITE_V2 = 7 [(beam_urn) = "beam:transform:pubsub_write:v2"];
+
     // Represents the GroupIntoBatches.WithShardedKey operation.
     // Payload: GroupIntoBatchesPayload
     GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];
@@ -471,7 +475,7 @@ message StandardUserStateTypes {
     // StateKey.MultimapKeysUserState or StateKey.MultimapUserState.
     MULTIMAP = 1 [(beam_urn) = "beam:user_state:multimap:v1"];
 
-    // TODO(BEAM-10650): Add protocol to support OrderedListState
+    // TODO(https://github.com/apache/beam/issues/20486): Add protocol to support OrderedListState
   }
 }
 
@@ -560,6 +564,7 @@ message StateSpec {
     MapStateSpec map_spec = 4;
     SetStateSpec set_spec = 5;
     OrderedListStateSpec ordered_list_spec = 6;
+    MultimapStateSpec multimap_spec = 8;
   }
 
   // (Required) URN of the protocol required by this state specification to present
@@ -591,6 +596,11 @@ message CombiningStateSpec {
 }
 
 message MapStateSpec {
+  string key_coder_id = 1;
+  string value_coder_id = 2;
+}
+
+message MultimapStateSpec {
   string key_coder_id = 1;
   string value_coder_id = 2;
 }
@@ -1024,11 +1034,11 @@ message StandardCoders {
     //
     // Schema types are mapped to coders as follows:
     //   AtomicType:
-    //     BYTE:      not yet a standard coder (BEAM-7996)
-    //     INT16:     not yet a standard coder (BEAM-7996)
+    //     BYTE:      not yet a standard coder (https://github.com/apache/beam/issues/19815)
+    //     INT16:     not yet a standard coder (https://github.com/apache/beam/issues/19815)
     //     INT32:     beam:coder:varint:v1
     //     INT64:     beam:coder:varint:v1
-    //     FLOAT:     not yet a standard coder (BEAM-7996)
+    //     FLOAT:     not yet a standard coder (https://github.com/apache/beam/issues/19815)
     //     DOUBLE:    beam:coder:double:v1
     //     STRING:    beam:coder:string_utf8:v1
     //     BOOLEAN:   beam:coder:bool:v1
@@ -1043,18 +1053,11 @@ message StandardCoders {
     //   - Followed by N interleaved keys and values, encoded with their
     //     corresponding coder.
     //
-    // Nullable types in container types (ArrayType, MapType) are encoded by:
-    //   - A one byte null indicator, 0x00 for null values, or 0x01 for present
-    //     values.
-    //   - For present values the null indicator is followed by the value
-    //     encoded with it's corresponding coder.
+    // Nullable types in container types (ArrayType, MapType) per the
+    // encoding described for general Nullable types below.
     //
-    // Well known logical types:
-    //   beam:logical_type:micros_instant:v1
-    //   - Representation type: ROW<seconds: INT64, micros: INT64>
-    //   - A timestamp without a timezone where seconds + micros represents the
-    //     amount of time since the epoch.
-    //
+    // Logical types understood by all SDKs should be defined in schema.proto.
+    // Example of well known logical types:
     //   beam:logical_type:schema:v1
     //   - Representation type: BYTES
     //   - A Beam Schema stored as a serialized proto.
@@ -1085,6 +1088,15 @@ message StandardCoders {
     // Components: the user key coder.
     // Experimental.
     SHARDED_KEY = 15 [(beam_urn) = "beam:coder:sharded_key:v1"];
+
+    // Wraps a coder of a potentially null value
+    // A Nullable Type is encoded by:
+    //   - A one byte null indicator, 0x00 for null values, or 0x01 for present
+    //     values.
+    //   - For present values the null indicator is followed by the value
+    //     encoded with it's corresponding coder.
+    // Components: single coder for the value
+    NULLABLE = 17 [(beam_urn) = "beam:coder:nullable:v1"];
   }
 }
 
@@ -1953,12 +1965,18 @@ message ExecutableStagePayload {
   }
 }
 
+// See https://beam.apache.org/documentation/runtime/resource-hints/ for additional documentation
+// on the behavior of StandardResourceHint.
 message StandardResourceHints {
   enum Enum {
     // Describes hardware accelerators that are desired to have in the execution environment.
+    // Payload: ASCII encoded string with the following format: "type:<type>;count:<n>;<options>" where type
+    // is an accelerator sku, count is the number of accelerators per worker, and options are
+    // related options flags.
     ACCELERATOR = 0 [(beam_urn) = "beam:resources:accelerator:v1"];
     // Describes desired minimal available RAM size in transform's execution environment.
     // SDKs should convert the size to bytes, but can allow users to specify human-friendly units (e.g. GiB).
+    // Payload: ASCII encoded string of the base 10 representation of an integer number of bytes.
     MIN_RAM_BYTES = 1 [(beam_urn) = "beam:resources:min_ram_bytes:v1"];
   }
 }

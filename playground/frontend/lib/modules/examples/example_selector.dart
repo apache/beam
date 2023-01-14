@@ -16,103 +16,67 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/components/loading_indicator/loading_indicator.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/constants/links.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/components/examples_components.dart';
-import 'package:playground/modules/examples/components/outside_click_handler.dart';
-import 'package:playground/modules/examples/models/popover_state.dart';
-import 'package:playground/modules/examples/models/selector_size_model.dart';
-import 'package:playground/pages/playground/states/example_selector_state.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
-import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 
-const int kAnimationDurationInMilliseconds = 80;
-const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
-const Offset kAnimationEndOffset = Offset(0.0, 0.0);
-const double kAdditionalDyAlignment = 50.0;
+import 'package:flutter/material.dart';
+import 'package:playground_components/playground_components.dart';
+import 'package:provider/provider.dart';
+
+import '../../constants/sizes.dart';
+import '../../pages/standalone_playground/notifiers/example_selector_state.dart';
+import '../../utils/dropdown_utils.dart';
+import 'components/outside_click_handler.dart';
+import 'examples_dropdown_content.dart';
+import 'models/popover_state.dart';
+
 const double kLgContainerHeight = 490.0;
 const double kLgContainerWidth = 400.0;
 
 class ExampleSelector extends StatefulWidget {
-  final Function changeSelectorVisibility;
   final bool isSelectorOpened;
+  final PlaygroundController playgroundController;
 
   const ExampleSelector({
-    Key? key,
-    required this.changeSelectorVisibility,
     required this.isSelectorOpened,
-  }) : super(key: key);
+    required this.playgroundController,
+  });
 
   @override
   State<ExampleSelector> createState() => _ExampleSelectorState();
 }
 
-class _ExampleSelectorState extends State<ExampleSelector>
-    with TickerProviderStateMixin {
-  final GlobalKey selectorKey = LabeledGlobalKey('ExampleSelector');
-  late OverlayEntry? examplesDropdown;
-  late AnimationController animationController;
-  late Animation<Offset> offsetAnimation;
-
-  final TextEditingController textController = TextEditingController();
-  final ScrollController scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: kAnimationDurationInMilliseconds),
-    );
-    offsetAnimation = Tween<Offset>(
-      begin: kAnimationBeginOffset,
-      end: kAnimationEndOffset,
-    ).animate(animationController);
-  }
-
-  @override
-  void dispose() {
-    animationController.dispose();
-    textController.dispose();
-    scrollController.dispose();
-    super.dispose();
-  }
+class _ExampleSelectorState extends State<ExampleSelector> {
+  final _selectorKey = LabeledGlobalKey('ExampleSelector');
+  OverlayEntry? _overlayEntry;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: kContainerHeight,
       decoration: BoxDecoration(
-        color: ThemeColors.of(context).greyColor,
+        color: Theme.of(context).dividerColor,
         borderRadius: BorderRadius.circular(kSmBorderRadius),
       ),
-      child: Consumer<PlaygroundState>(
-        builder: (context, state, child) => TextButton(
-          key: selectorKey,
+      child: ChangeNotifierProvider<PlaygroundController>.value(
+        value: widget.playgroundController,
+        builder: (context, child) => TextButton(
+          key: _selectorKey,
           onPressed: () {
             if (widget.isSelectorOpened) {
-              animationController.reverse();
-              examplesDropdown?.remove();
+              _overlayEntry?.remove();
+              widget.playgroundController.exampleCache.setSelectorOpened(false);
             } else {
-              animationController.forward();
-              examplesDropdown = createExamplesDropdown();
-              Overlay.of(context)?.insert(examplesDropdown!);
+              unawaited(_loadCatalogIfNot(widget.playgroundController));
+              _overlayEntry = _createExamplesDropdown();
+              Overlay.of(context)?.insert(_overlayEntry!);
+              widget.playgroundController.exampleCache.setSelectorOpened(true);
             }
-            widget.changeSelectorVisibility();
           },
           child: Wrap(
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Consumer<PlaygroundState>(
-                builder: (context, state, child) => Text(state.examplesTitle),
-              ),
+              Text(widget.playgroundController.examplesTitle),
               const Icon(Icons.keyboard_arrow_down),
             ],
           ),
@@ -121,50 +85,60 @@ class _ExampleSelectorState extends State<ExampleSelector>
     );
   }
 
-  OverlayEntry createExamplesDropdown() {
-    SelectorPositionModel posModel = findSelectorPositionData();
+  Future<void> _loadCatalogIfNot(PlaygroundController controller) async {
+    try {
+      await controller.exampleCache.loadAllPrecompiledObjectsIfNot();
+    } on Exception catch (ex) {
+      PlaygroundComponents.toastNotifier.addException(ex);
+    }
+  }
+
+  OverlayEntry _createExamplesDropdown() {
+    Offset dropdownOffset = findDropdownOffset(key: _selectorKey);
 
     return OverlayEntry(
       builder: (context) {
         return ChangeNotifierProvider<PopoverState>(
           create: (context) => PopoverState(false),
           builder: (context, state) {
-            return Consumer2<ExampleState, PlaygroundState>(
-              builder: (context, exampleState, playgroundState, child) => Stack(
+            return ChangeNotifierProvider<PlaygroundController>.value(
+              value: widget.playgroundController,
+              builder: (context, child) => Stack(
                 children: [
                   OutsideClickHandler(
                     onTap: () {
-                      closeDropdown(exampleState);
+                      _closeDropdown(widget.playgroundController.exampleCache);
                       // handle description dialogs
-                      Navigator.of(context, rootNavigator: true).popUntil((route) {
+                      Navigator.of(context, rootNavigator: true)
+                          .popUntil((route) {
                         return route.isFirst;
                       });
                     },
                   ),
                   ChangeNotifierProvider(
                     create: (context) => ExampleSelectorState(
-                      exampleState,
-                      playgroundState,
-                      exampleState.getCategories(playgroundState.sdk)!,
+                      widget.playgroundController,
+                      widget.playgroundController.exampleCache
+                          .getCategories(widget.playgroundController.sdk),
                     ),
                     builder: (context, _) => Positioned(
-                      left: posModel.xAlignment,
-                      top: posModel.yAlignment + kAdditionalDyAlignment,
-                      child: SlideTransition(
-                        position: offsetAnimation,
-                        child: Material(
-                          elevation: kElevation.toDouble(),
-                          child: Container(
-                            height: kLgContainerHeight,
-                            width: kLgContainerWidth,
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).backgroundColor,
-                              borderRadius: BorderRadius.circular(kMdBorderRadius),
+                      left: dropdownOffset.dx,
+                      top: dropdownOffset.dy,
+                      child: Material(
+                        elevation: kElevation,
+                        child: Container(
+                          height: kLgContainerHeight,
+                          width: kLgContainerWidth,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).backgroundColor,
+                            borderRadius:
+                                BorderRadius.circular(kMdBorderRadius),
+                          ),
+                          child: ExamplesDropdownContent(
+                            onSelected: () => _closeDropdown(
+                              widget.playgroundController.exampleCache,
                             ),
-                            child: exampleState.sdkCategories == null ||
-                                    playgroundState.selectedExample == null
-                                ? const LoadingIndicator(size: kContainerHeight)
-                                : _buildDropdownContent(context, playgroundState),
+                            playgroundController: widget.playgroundController,
                           ),
                         ),
                       ),
@@ -173,65 +147,15 @@ class _ExampleSelectorState extends State<ExampleSelector>
                 ],
               ),
             );
-          }
+          },
         );
       },
     );
   }
 
-  Widget _buildDropdownContent(
-    BuildContext context,
-    PlaygroundState playgroundState,
-  ) {
-    return Column(
-      children: [
-        SearchField(controller: textController),
-        const TypeFilter(),
-        ExampleList(
-          controller: scrollController,
-          selectedExample: playgroundState.selectedExample!,
-          animationController: animationController,
-          dropdown: examplesDropdown,
-        ),
-        Divider(
-          height: kDividerHeight,
-          color: ThemeColors.of(context).greyColor,
-          indent: kLgSpacing,
-          endIndent: kLgSpacing,
-        ),
-        SizedBox(
-          width: double.infinity,
-          child: TextButton(
-            child: Padding(
-              padding: const EdgeInsets.all(kXlSpacing),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  AppLocalizations.of(context)!.addExample,
-                  style: TextStyle(color: ThemeColors.of(context).primary),
-                ),
-              ),
-            ),
-            onPressed: () => launch(kAddExampleLink),
-          ),
-        )
-      ],
-    );
-  }
-
-  SelectorPositionModel findSelectorPositionData() {
-    RenderBox? rBox =
-        selectorKey.currentContext?.findRenderObject() as RenderBox;
-    SelectorPositionModel positionModel = SelectorPositionModel(
-      xAlignment: rBox.localToGlobal(Offset.zero).dx,
-      yAlignment: rBox.localToGlobal(Offset.zero).dy,
-    );
-    return positionModel;
-  }
-
-  void closeDropdown(ExampleState exampleState) {
-    animationController.reverse();
-    examplesDropdown?.remove();
-    exampleState.changeSelectorVisibility();
+  void _closeDropdown(ExampleCache exampleCache) {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    exampleCache.setSelectorOpened(false);
   }
 }

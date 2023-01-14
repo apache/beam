@@ -17,8 +17,11 @@ package debezium
 
 import (
 	"context"
+	"flag"
+	"log"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/debeziumio"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
@@ -26,46 +29,43 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
-	"github.com/docker/go-connections/nat"
+	"github.com/apache/beam/sdks/v2/go/test/integration/internal/containers"
 	_ "github.com/lib/pq"
-	"github.com/testcontainers/testcontainers-go"
 )
 
+const (
+	debeziumImage = "debezium/example-postgres:latest"
+	debeziumPort  = "5432/tcp"
+	maxRetries    = 5
+)
+
+var expansionAddr string // Populate with expansion address labelled "debeziumio".
+
 func checkFlags(t *testing.T) {
-	if *integration.DebeziumIoExpansionAddr == "" {
+	if expansionAddr == "" {
 		t.Skip("No DebeziumIo expansion address provided.")
 	}
 }
 
-func setupTestContainer(t *testing.T, dbname, username, password string) string {
+func setupTestContainer(ctx context.Context, t *testing.T, dbname, username, password string) string {
 	t.Helper()
 
-	var env = map[string]string{
+	env := map[string]string{
 		"POSTGRES_PASSWORD": password,
 		"POSTGRES_USER":     username,
 		"POSTGRES_DB":       dbname,
 	}
-	var port = "5432/tcp"
 
-	req := testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "debezium/example-postgres:latest",
-			ExposedPorts: []string{port},
-			Env:          env,
-		},
-		Started: true,
-	}
-	ctx := context.Background()
-	container, err := testcontainers.GenericContainer(ctx, req)
-	if err != nil {
-		t.Fatalf("failed to start container: %v", err)
-	}
+	container := containers.NewContainer(
+		ctx,
+		t,
+		debeziumImage,
+		maxRetries,
+		containers.WithEnv(env),
+		containers.WithPorts([]string{debeziumPort}),
+	)
 
-	mappedPort, err := container.MappedPort(ctx, nat.Port(port))
-	if err != nil {
-		t.Fatalf("failed to get container external port: %v", err)
-	}
-	return mappedPort.Port()
+	return containers.Port(ctx, t, container, debeziumPort)
 }
 
 // TestDebeziumIO_BasicRead tests basic read transform from Debezium.
@@ -73,10 +73,11 @@ func TestDebeziumIO_BasicRead(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
 
+	ctx := context.Background()
 	dbname := "inventory"
 	username := "debezium"
 	password := "dbz"
-	port := setupTestContainer(t, dbname, username, password)
+	port := setupTestContainer(ctx, t, dbname, username, password)
 	host := "localhost"
 	connectionProperties := []string{
 		"database.dbname=inventory",
@@ -84,10 +85,22 @@ func TestDebeziumIO_BasicRead(t *testing.T) {
 		"database.include.list=inventory",
 		"include.schema.changes=false",
 	}
-	read := ReadPipeline(*integration.DebeziumIoExpansionAddr, username, password, dbname, host, port, debeziumio.PostgreSQL, 1, connectionProperties)
+	read := ReadPipeline(expansionAddr, username, password, dbname, host, port, debeziumio.PostgreSQL, 1, connectionProperties)
 	ptest.RunAndValidate(t, read)
 }
 
 func TestMain(m *testing.M) {
-	ptest.Main(m)
+	flag.Parse()
+	beam.Init()
+
+	services := integration.NewExpansionServices()
+	defer func() { services.Shutdown() }()
+	addr, err := services.GetAddr("debeziumio")
+	if err != nil {
+		log.Printf("skipping missing expansion service: %v", err)
+	} else {
+		expansionAddr = addr
+	}
+
+	ptest.MainRet(m)
 }

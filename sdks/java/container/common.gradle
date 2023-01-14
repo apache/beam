@@ -48,6 +48,12 @@ task copyDockerfileDependencies(type: Copy) {
     from configurations.dockerDependency
     rename 'slf4j-api.*', 'slf4j-api.jar'
     rename 'slf4j-jdk14.*', 'slf4j-jdk14.jar'
+    rename 'jcl-over-slf4j.*', 'jcl-over-slf4j.jar'
+    rename 'log4j-over-slf4j.*', 'log4j-over-slf4j.jar'
+    rename 'log4j-to-slf4j.*', 'log4j-to-slf4j.jar'
+    if (imageJavaVersion == "11" || imageJavaVersion == "17") {
+        rename 'beam-sdks-java-container-agent.*.jar', 'open-module-agent.jar'
+    }
     rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
     rename 'beam-sdks-java-io-kafka.*.jar', 'beam-sdks-java-io-kafka.jar'
     rename 'kafka-clients.*.jar', 'kafka-clients.jar'
@@ -74,9 +80,28 @@ task copyGolangLicenses(type: Copy) {
     dependsOn ':release:go-licenses:java:createLicenses'
 }
 
+task copyJdkOptions(type: Copy) {
+    if (imageJavaVersion == "17" || imageJavaVersion == "11") {
+        from "option-jamm.json"
+    }
+    from "java${imageJavaVersion}-security.properties"
+    from "option-java${imageJavaVersion}-security.json"
+    into "build/target/options"
+}
+
 task skipPullLicenses(type: Exec) {
     executable "sh"
-    args "-c", "mkdir -p build/target/go-licenses build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+    args "-c", "mkdir -p build/target/go-licenses build/target/options build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+}
+
+task validateJavaHome {
+    if (imageJavaVersion == "11" || imageJavaVersion == "17") {
+        doFirst {
+            if (!project.hasProperty('java17Home') && !project.hasProperty('java11Home')) {
+                throw new GradleException('java17Home or java11Home property required. Re-run with -Pjava17Home or -Pjava11Home')
+            }
+        }
+    }
 }
 
 docker {
@@ -108,3 +133,5 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
 dockerPrepare.dependsOn copySdkHarnessLauncher
 dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn ":sdks:java:container:downloadCloudProfilerAgent"
+dockerPrepare.dependsOn copyJdkOptions
+dockerPrepare.dependsOn validateJavaHome

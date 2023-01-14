@@ -17,14 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
-
 import com.google.cloud.Timestamp;
-import io.opencensus.common.Scope;
-import io.opencensus.trace.AttributeValue;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
@@ -39,14 +35,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class is part of the process for {@link
- * org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF. It is
+ * This class is part of the process for {@link ReadChangeStreamPartitionDoFn} SDF. It is
  * responsible for processing {@link DataChangeRecord}s. The records will simply be emitted to the
  * received output receiver.
  */
 public class DataChangeRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(DataChangeRecordAction.class);
-  private static final Tracer TRACER = Tracing.getTracer();
+  private final ThroughputEstimator<DataChangeRecord> throughputEstimator;
+
+  /** @param throughputEstimator an estimator to calculate local throughput of this action. */
+  public DataChangeRecordAction(ThroughputEstimator<DataChangeRecord> throughputEstimator) {
+    this.throughputEstimator = throughputEstimator;
+  }
 
   /**
    * This is the main processing function for a {@link DataChangeRecord}. It returns an {@link
@@ -67,12 +67,10 @@ public class DataChangeRecordAction {
    *
    * @param partition the current partition being processed
    * @param record the change stream data record received
-   * @param tracker the restriction tracker of the {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
-   * @param outputReceiver the output receiver of the {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
-   * @param watermarkEstimator the watermark estimator of the {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn} SDF
+   * @param tracker the restriction tracker of the {@link ReadChangeStreamPartitionDoFn} SDF
+   * @param outputReceiver the output receiver of the {@link ReadChangeStreamPartitionDoFn} SDF
+   * @param watermarkEstimator the watermark estimator of the {@link ReadChangeStreamPartitionDoFn}
+   *     SDF
    * @return {@link Optional#empty()} if the caller can continue processing more records. A non
    *     empty {@link Optional} with {@link ProcessContinuation#stop()} if this function was unable
    *     to claim the {@link ChildPartitionsRecord} timestamp
@@ -85,29 +83,21 @@ public class DataChangeRecordAction {
       OutputReceiver<DataChangeRecord> outputReceiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
-    try (Scope scope =
-        TRACER.spanBuilder("DataChangeRecordAction").setRecordEvents(true).startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(
-              PARTITION_ID_ATTRIBUTE_LABEL,
-              AttributeValue.stringAttributeValue(partition.getPartitionToken()));
+    final String token = partition.getPartitionToken();
+    LOG.debug("[{}] Processing data record {}", token, record.getCommitTimestamp());
 
-      final String token = partition.getPartitionToken();
-      LOG.debug("[" + token + "] Processing data record " + record.getCommitTimestamp());
-
-      final Timestamp commitTimestamp = record.getCommitTimestamp();
-      final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
-      if (!tracker.tryClaim(commitTimestamp)) {
-        LOG.debug(
-            "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
-        return Optional.of(ProcessContinuation.stop());
-      }
-      outputReceiver.outputWithTimestamp(record, commitInstant);
-      watermarkEstimator.setWatermark(commitInstant);
-
-      LOG.debug("[" + token + "] Data record action completed successfully");
-      return Optional.empty();
+    final Timestamp commitTimestamp = record.getCommitTimestamp();
+    final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
+    if (!tracker.tryClaim(commitTimestamp)) {
+      LOG.debug("[{}] Could not claim queryChangeStream({}), stopping", token, commitTimestamp);
+      return Optional.of(ProcessContinuation.stop());
     }
+    outputReceiver.outputWithTimestamp(record, commitInstant);
+    watermarkEstimator.setWatermark(commitInstant);
+
+    throughputEstimator.update(Timestamp.now(), record);
+
+    LOG.debug("[{}] Data record action completed successfully", token);
+    return Optional.empty();
   }
 }

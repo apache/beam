@@ -68,6 +68,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
@@ -80,10 +81,11 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -108,8 +110,8 @@ import org.joda.time.Instant;
 
 /** Implementation of {@link StateInternals} using Windmill to manage the underlying data. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class WindmillStateInternals<K> implements StateInternals {
 
@@ -189,6 +191,15 @@ class WindmillStateInternals<K> implements StateInternals {
           }
           result.initializeForWorkItem(reader, scopedReadStateSupplier);
           return result;
+        }
+
+        @Override
+        public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
+            StateTag<MultimapState<KeyT, ValueT>> spec,
+            Coder<KeyT> keyCoder,
+            Coder<ValueT> valueCoder) {
+          throw new UnsupportedOperationException(
+              String.format("%s is not supported", MultimapState.class.getSimpleName()));
         }
 
         @Override
@@ -349,9 +360,9 @@ class WindmillStateInternals<K> implements StateInternals {
   @VisibleForTesting
   static ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     try {
-      // Use ByteString.Output rather than concatenation and String.format. We build these keys
+      // Use ByteStringOutputStream rather than concatenation and String.format. We build these keys
       // a lot, and this leads to better performance results. See associated benchmarks.
-      ByteString.Output stream = ByteString.newOutput();
+      ByteStringOutputStream stream = new ByteStringOutputStream();
       OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
 
       // stringKey starts and ends with a slash.  We separate it from the
@@ -522,7 +533,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
       ByteString encoded = null;
       if (cachedSize == -1 || modified) {
-        ByteString.Output stream = ByteString.newOutput();
+        ByteStringOutputStream stream = new ByteStringOutputStream();
         if (value != null) {
           coder.encode(value, stream, Coder.Context.OUTER);
         }
@@ -652,8 +663,11 @@ class WindmillStateInternals<K> implements StateInternals {
     static final String IDS_AVAILABLE_STR = "IdsAvailable";
     static final String DELETIONS_STR = "Deletions";
 
-    static final long MIN_ID = Long.MIN_VALUE;
-    static final long MAX_ID = Long.MAX_VALUE;
+    // Note that this previously was Long.MIN_VALUE but ids are unsigned when
+    // sending to windmill for Streaming Engine. For updated appliance
+    // pipelines with existing state, there may be negative ids.
+    static final long NEW_RANGE_MIN_ID = 0;
+    static final long NEW_RANGE_MAX_ID = Long.MAX_VALUE;
 
     // We track ids on five-minute boundaries.
     private static final Duration RESOLUTION = Duration.standardMinutes(5);
@@ -754,7 +768,9 @@ class WindmillStateInternals<K> implements StateInternals {
           availableIdsForTsRange =
               idsAvailable.computeIfAbsent(
                   currentTsRange,
-                  r -> TreeRangeSet.create(ImmutableList.of(Range.closedOpen(MIN_ID, MAX_ID))));
+                  r ->
+                      TreeRangeSet.create(
+                          ImmutableList.of(Range.closedOpen(NEW_RANGE_MIN_ID, NEW_RANGE_MAX_ID))));
           idRangeIter = availableIdsForTsRange.asRanges().iterator();
           currentIdRange = null;
           currentTsRangeDeletions = subRangeDeletions.get(currentTsRange);
@@ -1047,7 +1063,7 @@ class WindmillStateInternals<K> implements StateInternals {
               pendingAdds,
               (elem, id) -> {
                 try {
-                  ByteString.Output elementStream = ByteString.newOutput();
+                  ByteStringOutputStream elementStream = new ByteStringOutputStream();
                   elemCoder.encode(elem.getValue(), elementStream, Context.OUTER);
                   insertBuilder.addEntries(
                       SortedListEntry.newBuilder()
@@ -1249,7 +1265,7 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     private ByteString protoKeyFromUserKey(K key) throws IOException {
-      ByteString.Output keyStream = ByteString.newOutput();
+      ByteStringOutputStream keyStream = new ByteStringOutputStream();
       stateKeyPrefix.writeTo(keyStream);
       keyCoder.encode(key, keyStream, Context.OUTER);
       return keyStream.toByteString();
@@ -1275,7 +1291,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
       for (K key : localAdditions) {
         ByteString keyBytes = protoKeyFromUserKey(key);
-        ByteString.Output valueStream = ByteString.newOutput();
+        ByteStringOutputStream valueStream = new ByteStringOutputStream();
         valueCoder.encode(cachedValues.get(key), valueStream, Context.OUTER);
         ByteString valueBytes = valueStream.toByteString();
 
@@ -1290,7 +1306,7 @@ class WindmillStateInternals<K> implements StateInternals {
       localAdditions.clear();
 
       for (K key : localRemovals) {
-        ByteString.Output keyStream = ByteString.newOutput();
+        ByteStringOutputStream keyStream = new ByteStringOutputStream();
         stateKeyPrefix.writeTo(keyStream);
         keyCoder.encode(key, keyStream, Context.OUTER);
         ByteString keyBytes = keyStream.toByteString();
@@ -1304,7 +1320,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
         V cachedValue = cachedValues.remove(key);
         if (cachedValue != null) {
-          ByteString.Output valueStream = ByteString.newOutput();
+          ByteStringOutputStream valueStream = new ByteStringOutputStream();
           valueCoder.encode(cachedValues.get(key), valueStream, Context.OUTER);
         }
       }
@@ -1555,7 +1571,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
     private Future<V> getFutureForKey(K key) {
       try {
-        ByteString.Output keyStream = ByteString.newOutput();
+        ByteStringOutputStream keyStream = new ByteStringOutputStream();
         stateKeyPrefix.writeTo(keyStream);
         keyCoder.encode(key, keyStream, Context.OUTER);
         return reader.valueFuture(keyStream.toByteString(), stateFamily, valueCoder);
@@ -1703,7 +1719,7 @@ class WindmillStateInternals<K> implements StateInternals {
           bagUpdatesBuilder = commitBuilder.addBagUpdatesBuilder();
         }
         for (T value : localAdditions) {
-          ByteString.Output stream = ByteString.newOutput();
+          ByteStringOutputStream stream = new ByteStringOutputStream();
           // Encode the value
           elemCoder.encode(value, stream, Coder.Context.OUTER);
           ByteString encoded = stream.toByteString();
@@ -1786,7 +1802,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
     private boolean cleared = false;
     /**
-     * If non-{@literal null}, the known current hold value, or absent if we know the there are no
+     * If non-{@literal null}, the known current hold value, or absent if we know there are no
      * output watermark holds. If {@literal null}, the current hold value could depend on holds in
      * Windmill we do not yet know.
      */

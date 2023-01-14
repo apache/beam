@@ -29,6 +29,10 @@ package org.apache.beam.examples;
 //     - Options
 //     - Windowing
 //     - Quickstart
+//   complexity: ADVANCED
+//   tags:
+//     - windowing
+//     - strings
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
@@ -92,7 +96,7 @@ import org.joda.time.Instant;
  * --output=[YOUR_LOCAL_FILE | YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p>The input file defaults to a public data set containing the text of of King Lear, by William
+ * <p>The input file defaults to a public data set containing the text of King Lear, by William
  * Shakespeare. You can override it and choose your own input with {@code --inputFile}.
  *
  * <p>By default, the pipeline will do fixed windowing, on 10-minute windows. You can change this

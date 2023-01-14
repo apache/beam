@@ -18,65 +18,32 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/components/toggle_theme_button/toggle_theme_icon_button.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/modules/editor/components/run_button.dart';
-import 'package:playground/modules/notifications/components/notification.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
-import 'package:playground/utils/analytics_utils.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+
+import '../../../components/playground_run_or_cancel_button.dart';
+import '../../../constants/sizes.dart';
+import '../../../src/assets/assets.gen.dart';
 
 class EmbeddedAppBarTitle extends StatelessWidget {
   const EmbeddedAppBarTitle({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlaygroundState>(
-      builder: (context, state, child) => Wrap(
+    return Consumer<PlaygroundController>(
+      builder: (context, controller, child) => Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: kXlSpacing,
         children: [
-          RunButton(
-            isRunning: state.isCodeRunning,
-            cancelRun: () {
-              state.cancelRun().catchError(
-                    (_) => NotificationManager.showError(
-                      context,
-                      AppLocalizations.of(context)!.runCode,
-                      AppLocalizations.of(context)!.cancelExecution,
-                    ),
-                  );
-            },
-            runCode: () {
-              final stopwatch = Stopwatch()..start();
-              final exampleName = getAnalyticsExampleName(
-                state.selectedExample,
-                state.isExampleChanged,
-                state.sdk,
-              );
-              state.runCode(
-                onFinish: () {
-                  AnalyticsService.get(context).trackRunTimeEvent(
-                    exampleName,
-                    stopwatch.elapsedMilliseconds,
-                  );
-                },
-              );
-              AnalyticsService.get(context).trackClickRunEvent(exampleName);
-            },
-          ),
+          const PlaygroundRunOrCancelButton(),
           const ToggleThemeIconButton(),
           IconButton(
             iconSize: kIconSizeLg,
             splashRadius: kIconButtonSplashRadius,
-            icon: SvgPicture.asset(kCopyIconAsset),
+            icon: SvgPicture.asset(Assets.copy),
             onPressed: () {
-              final source =
-                  Provider.of<PlaygroundState>(context, listen: false).source;
+              final source = controller.source;
               Clipboard.setData(ClipboardData(text: source));
             },
           ),

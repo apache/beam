@@ -34,6 +34,7 @@ import org.joda.time.Instant;
 import org.joda.time.Minutes;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkServiceException;
+import software.amazon.awssdk.core.internal.retry.SdkDefaultRetrySetting;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.Datapoint;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
@@ -62,9 +63,9 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
 /** Wraps {@link KinesisClient} class providing much simpler interface and proper error handling. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class SimplifiedKinesisClient {
+class SimplifiedKinesisClient implements AutoCloseable {
 
   private static final String KINESIS_NAMESPACE = "AWS/Kinesis";
   private static final String INCOMING_RECORDS_METRIC = "IncomingBytes";
@@ -78,20 +79,17 @@ class SimplifiedKinesisClient {
   private static final Duration DESCRIBE_STREAM_SUMMARY_INITIAL_BACKOFF =
       Duration.standardSeconds(1);
 
-  private final KinesisClient kinesis;
-  private final CloudWatchClient cloudWatch;
+  private final LazyResource<KinesisClient> kinesis;
+  private final LazyResource<CloudWatchClient> cloudWatch;
   private final Integer limit;
-  private final Supplier<Instant> currentInstantSupplier;
 
   SimplifiedKinesisClient(
-      KinesisClient kinesis,
-      CloudWatchClient cloudWatch,
-      Integer limit,
-      Supplier<Instant> currentInstantSupplier) {
-    this.kinesis = checkNotNull(kinesis, "kinesis");
-    this.cloudWatch = checkNotNull(cloudWatch, "cloudWatch");
+      Supplier<KinesisClient> kinesisSupplier,
+      Supplier<CloudWatchClient> cloudWatchSupplier,
+      Integer limit) {
+    this.kinesis = new LazyResource<>(checkNotNull(kinesisSupplier, "kinesis"));
+    this.cloudWatch = new LazyResource<>(checkNotNull(cloudWatchSupplier, "cloudWatch"));
     this.limit = limit;
-    this.currentInstantSupplier = currentInstantSupplier;
   }
 
   public String getShardIterator(
@@ -104,6 +102,7 @@ class SimplifiedKinesisClient {
     return wrapExceptions(
         () ->
             kinesis
+                .get()
                 .getShardIterator(
                     GetShardIteratorRequest.builder()
                         .streamName(streamName)
@@ -150,8 +149,7 @@ class SimplifiedKinesisClient {
     Duration retentionPeriod = Duration.standardHours(streamDescription.retentionPeriodHours());
 
     Instant streamTrimHorizonTimestamp =
-        currentInstantSupplier
-            .get()
+        Instant.now()
             .minus(retentionPeriod)
             .plus(SPACING_FOR_TIMESTAMP_LIST_SHARDS_REQUEST_TO_NOT_EXCEED_TRIM_HORIZON);
     if (startingPointTimestamp.isAfter(streamTrimHorizonTimestamp)) {
@@ -183,7 +181,7 @@ class SimplifiedKinesisClient {
         DescribeStreamSummaryRequest.builder().streamName(streamName).build();
     while (true) {
       try {
-        return kinesis.describeStreamSummary(request).streamDescriptionSummary();
+        return kinesis.get().describeStreamSummary(request).streamDescriptionSummary();
       } catch (LimitExceededException exc) {
         if (!BackOffUtils.next(sleeper, backoff)) {
           throw exc;
@@ -221,7 +219,7 @@ class SimplifiedKinesisClient {
               reqBuilder.streamName(streamName);
             }
 
-            ListShardsResponse response = kinesis.listShards(reqBuilder.build());
+            ListShardsResponse response = kinesis.get().listShards(reqBuilder.build());
             shardsBuilder.addAll(response.shards());
             currentNextToken = response.nextToken();
           } while (currentNextToken != null);
@@ -255,9 +253,9 @@ class SimplifiedKinesisClient {
       throws TransientKinesisException {
     return wrapExceptions(
         () -> {
-          GetRecordsResponse response =
-              kinesis.getRecords(
-                  GetRecordsRequest.builder().shardIterator(shardIterator).limit(limit).build());
+          GetRecordsRequest request =
+              GetRecordsRequest.builder().shardIterator(shardIterator).limit(limit).build();
+          GetRecordsResponse response = kinesis.get().getRecords(request);
           List<Record> records = response.records();
           return new GetKinesisRecordsResult(
               deaggregate(records),
@@ -306,7 +304,7 @@ class SimplifiedKinesisClient {
               createMetricStatisticsRequest(streamName, countSince, countTo, period);
 
           long totalSizeInBytes = 0;
-          GetMetricStatisticsResponse response = cloudWatch.getMetricStatistics(request);
+          GetMetricStatisticsResponse response = cloudWatch.get().getMetricStatistics(request);
           for (Datapoint point : response.datapoints()) {
             totalSizeInBytes += point.sum().longValue();
           }
@@ -344,14 +342,58 @@ class SimplifiedKinesisClient {
       throw new KinesisClientThrottledException(
           "Too many requests to Kinesis. Wait some time and retry.", e);
     } catch (SdkServiceException e) {
-      throw new TransientKinesisException("Kinesis backend failed. Wait some time and retry.", e);
-    } catch (SdkClientException e) {
-      if (e.retryable()) {
-        throw new TransientKinesisException("Retryable client failure", e);
+      if (e.isThrottlingException()
+          || SdkDefaultRetrySetting.RETRYABLE_STATUS_CODES.contains(e.statusCode())) {
+        throw new TransientKinesisException("Kinesis backend failed. Wait some time and retry.", e);
       }
-      throw new RuntimeException("Not retryable client failure", e);
+      throw e; // others, such as 4xx, are not retryable
+    } catch (SdkClientException e) {
+      if (SdkDefaultRetrySetting.RETRYABLE_EXCEPTIONS.contains(e.getClass())) {
+        throw new TransientKinesisException("Retryable failure", e);
+      }
+      throw e;
     } catch (Exception e) {
       throw new RuntimeException("Unknown kinesis failure, when trying to reach kinesis", e);
+    }
+  }
+
+  @Override
+  public void close() throws Exception {
+    try (AutoCloseable c1 = kinesis;
+        AutoCloseable c2 = cloudWatch) {
+      // nothing to do
+    }
+  }
+
+  /** Memoizing supplier that closes resources appropriately. */
+  private static class LazyResource<T extends AutoCloseable> implements Supplier<T>, AutoCloseable {
+    private final Supplier<T> initializer;
+    private volatile T resource = null;
+
+    private LazyResource(Supplier<T> initializer) {
+      this.initializer = initializer;
+    }
+
+    @Override
+    public void close() throws Exception {
+      T res = resource;
+      if (res != null) {
+        res.close();
+      }
+    }
+
+    @Override
+    public T get() {
+      T res = resource;
+      if (res == null) {
+        synchronized (this) {
+          res = resource; // need to read again in synchronized
+          if (res == null) {
+            resource = res = initializer.get();
+          }
+        }
+      }
+      return res;
     }
   }
 }

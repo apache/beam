@@ -40,17 +40,26 @@ import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Decoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -64,6 +73,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
+import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MoveOptions;
@@ -117,10 +127,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -456,9 +469,16 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Please see <a href="https://cloud.google.com/bigquery/access-control">BigQuery Access Control
  * </a> for security and permission related information specific to BigQuery.
+ *
+ * <h3>Updates to the I/O connector code</h3>
+ *
+ * For any significant updates to this I/O connector, please consider involving corresponding code
+ * reviewers mentioned <a
+ * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
+ * here</a>.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20506)
 })
 public class BigQueryIO {
 
@@ -469,7 +489,7 @@ public class BigQueryIO {
    * <ul>
    *   <li>{@code TYPE} represents the BigQuery job type (e.g. extract / copy / load / query)
    *   <li>{@code JOB_ID} is the Beam job name.
-   *   <li>{@code STEP} is a UUID representing the the Dataflow step that created the BQ job.
+   *   <li>{@code STEP} is a UUID representing the Dataflow step that created the BQ job.
    *   <li>{@code RANDOM} is a random string.
    * </ul>
    *
@@ -561,6 +581,50 @@ public class BigQueryIO {
             BigQueryUtils.tableRowFromBeamRow());
   }
 
+  private static class TableSchemaFunction
+      implements Serializable, Function<@Nullable String, @Nullable TableSchema> {
+    @Override
+    public @Nullable TableSchema apply(@Nullable String input) {
+      return BigQueryHelpers.fromJsonString(input, TableSchema.class);
+    }
+  }
+
+  @VisibleForTesting
+  static class GenericDatumTransformer<T> implements DatumReader<T> {
+    private final SerializableFunction<SchemaAndRecord, T> parseFn;
+    private final Supplier<TableSchema> tableSchema;
+    private GenericDatumReader<T> reader;
+    private org.apache.avro.Schema writerSchema;
+
+    public GenericDatumTransformer(
+        SerializableFunction<SchemaAndRecord, T> parseFn,
+        String tableSchema,
+        org.apache.avro.Schema writer) {
+      this.parseFn = parseFn;
+      this.tableSchema =
+          Suppliers.memoize(
+              Suppliers.compose(new TableSchemaFunction(), Suppliers.ofInstance(tableSchema)));
+      this.writerSchema = writer;
+      this.reader = new GenericDatumReader<>(this.writerSchema);
+    }
+
+    @Override
+    public void setSchema(org.apache.avro.Schema schema) {
+      if (this.writerSchema.equals(schema)) {
+        return;
+      }
+
+      this.writerSchema = schema;
+      this.reader = new GenericDatumReader<>(this.writerSchema);
+    }
+
+    @Override
+    public T read(T reuse, Decoder in) throws IOException {
+      GenericRecord record = (GenericRecord) this.reader.read(reuse, in);
+      return parseFn.apply(new SchemaAndRecord(record, this.tableSchema.get()));
+    }
+  }
+
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
    * each row of the table or query result, parsed from the BigQuery AVRO format using the specified
@@ -586,10 +650,54 @@ public class BigQueryIO {
         .setValidate(true)
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
+        .setDatumReaderFactory(
+            (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>)
+                input -> {
+                  try {
+                    String jsonTableSchema = BigQueryIO.JSON_FACTORY.toString(input);
+                    return (AvroSource.DatumReaderFactory<T>)
+                        (writer, reader) ->
+                            new GenericDatumTransformer<>(parseFn, jsonTableSchema, writer);
+                  } catch (IOException e) {
+                    LOG.warn(
+                        String.format("Error while converting table schema %s to JSON!", input), e);
+                    return null;
+                  }
+                })
+        // TODO: Remove setParseFn once https://github.com/apache/beam/issues/21076 is fixed.
         .setParseFn(parseFn)
         .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
+        .setProjectionPushdownApplied(false)
+        .build();
+  }
+
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result. This API directly deserializes BigQuery AVRO data to the
+   * input class, based on the appropriate {@link org.apache.avro.io.DatumReader}.
+   *
+   * <pre>{@code
+   * class ClickEvent { long userId; String url; ... }
+   *
+   * p.apply(BigQueryIO.read(ClickEvent.class)).from("...")
+   * .read((AvroSource.DatumReaderFactory<ClickEvent>) (writer, reader) -> new ReflectDatumReader<>(ReflectData.get().getSchema(ClickEvent.class)));
+   * }</pre>
+   */
+  public static <T> TypedRead<T> readWithDatumReader(
+      AvroSource.DatumReaderFactory<T> readerFactory) {
+    return new AutoValue_BigQueryIO_TypedRead.Builder<T>()
+        .setValidate(true)
+        .setWithTemplateCompatibility(false)
+        .setBigQueryServices(new BigQueryServicesImpl())
+        .setDatumReaderFactory(
+            (SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>)
+                input -> readerFactory)
+        .setMethod(TypedRead.Method.DEFAULT)
+        .setUseAvroLogicalTypes(false)
+        .setFormat(DataFormat.AVRO)
+        .setProjectionPushdownApplied(false)
         .build();
   }
 
@@ -791,6 +899,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setParseFn(SerializableFunction<SchemaAndRecord, T> parseFn);
 
+      abstract Builder<T> setDatumReaderFactory(
+          SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> factoryFn);
+
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setKmsKey(String kmsKey);
@@ -805,6 +916,8 @@ public class BigQueryIO {
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
 
       abstract Builder<T> setUseAvroLogicalTypes(Boolean useAvroLogicalTypes);
+
+      abstract Builder<T> setProjectionPushdownApplied(boolean projectionPushdownApplied);
     }
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
@@ -821,7 +934,10 @@ public class BigQueryIO {
 
     abstract BigQueryServices getBigQueryServices();
 
-    abstract SerializableFunction<SchemaAndRecord, T> getParseFn();
+    abstract @Nullable SerializableFunction<SchemaAndRecord, T> getParseFn();
+
+    abstract @Nullable SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>
+        getDatumReaderFactory();
 
     abstract @Nullable QueryPriority getQueryPriority();
 
@@ -852,6 +968,8 @@ public class BigQueryIO {
     abstract @Nullable FromBeamRowFunction<T> getFromBeamRowFn();
 
     abstract Boolean getUseAvroLogicalTypes();
+
+    abstract boolean getProjectionPushdownApplied();
 
     /**
      * An enumeration type for the priority of a query.
@@ -1048,19 +1166,24 @@ public class BigQueryIO {
             getFlattenResults() != null, "flattenResults should not be null if query is set");
         checkArgument(getUseLegacySql() != null, "useLegacySql should not be null if query is set");
       }
-      checkArgument(getParseFn() != null, "A parseFn is required");
+
+      checkArgument(getDatumReaderFactory() != null, "A readerDatumFactory is required");
 
       // if both toRowFn and fromRowFn values are set, enable Beam schema support
-      boolean beamSchemaEnabled = false;
+      Pipeline p = input.getPipeline();
+      final BigQuerySourceDef sourceDef = createSourceDef();
+
+      Schema beamSchema = null;
       if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
-        beamSchemaEnabled = true;
+        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
+        beamSchema = sourceDef.getBeamSchema(bqOptions);
+        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
       }
 
-      Pipeline p = input.getPipeline();
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
       if (getMethod() == TypedRead.Method.DIRECT_READ) {
-        return expandForDirectRead(input, coder);
+        return expandForDirectRead(input, coder, beamSchema);
       }
 
       checkArgument(
@@ -1073,7 +1196,6 @@ public class BigQueryIO {
           "Invalid BigQueryIO.Read: Specifies row restriction, "
               + "which only applies when using Method.DIRECT_READ");
 
-      final BigQuerySourceDef sourceDef = createSourceDef();
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
       PCollection<T> rows;
@@ -1088,7 +1210,7 @@ public class BigQueryIO {
             p.apply(
                 org.apache.beam.sdk.io.Read.from(
                     sourceDef.toSource(
-                        staticJobUuid, coder, getParseFn(), getUseAvroLogicalTypes())));
+                        staticJobUuid, coder, getDatumReaderFactory(), getUseAvroLogicalTypes())));
       } else {
         // Create a singleton job ID token at execution time.
         jobIdTokenCollection =
@@ -1116,7 +1238,10 @@ public class BigQueryIO {
                             String jobUuid = c.element();
                             BigQuerySourceBase<T> source =
                                 sourceDef.toSource(
-                                    jobUuid, coder, getParseFn(), getUseAvroLogicalTypes());
+                                    jobUuid,
+                                    coder,
+                                    getDatumReaderFactory(),
+                                    getUseAvroLogicalTypes());
                             BigQueryOptions options =
                                 c.getPipelineOptions().as(BigQueryOptions.class);
                             ExtractResult res = source.extractFiles(options);
@@ -1149,7 +1274,10 @@ public class BigQueryIO {
                                 String jobUuid = c.sideInput(jobIdTokenView);
                                 BigQuerySourceBase<T> source =
                                     sourceDef.toSource(
-                                        jobUuid, coder, getParseFn(), getUseAvroLogicalTypes());
+                                        jobUuid,
+                                        coder,
+                                        getDatumReaderFactory(),
+                                        getUseAvroLogicalTypes());
                                 List<BoundedSource<T>> sources =
                                     source.createSources(
                                         ImmutableList.of(
@@ -1204,32 +1332,60 @@ public class BigQueryIO {
 
       rows = rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
 
-      if (beamSchemaEnabled) {
-        BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
-        Schema beamSchema = sourceDef.getBeamSchema(bqOptions);
-        SerializableFunction<T, Row> toBeamRow = getToBeamRowFn().apply(beamSchema);
-        SerializableFunction<Row, T> fromBeamRow = getFromBeamRowFn().apply(beamSchema);
-
-        rows.setSchema(beamSchema, getTypeDescriptor(), toBeamRow, fromBeamRow);
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
       }
       return rows;
     }
 
-    private PCollection<T> expandForDirectRead(PBegin input, Coder<T> outputCoder) {
+    private static Schema getFinalSchema(
+        Schema beamSchema, ValueProvider<List<String>> selectedFields) {
+      List<Schema.Field> flds =
+          beamSchema.getFields().stream()
+              .filter(
+                  field -> {
+                    if (selectedFields != null
+                        && selectedFields.isAccessible()
+                        && selectedFields.get() != null) {
+                      return selectedFields.get().contains(field.getName());
+                    } else {
+                      return true;
+                    }
+                  })
+              .collect(Collectors.toList());
+      return Schema.builder().addFields(flds).build();
+    }
+
+    private PCollection<T> expandForDirectRead(
+        PBegin input, Coder<T> outputCoder, Schema beamSchema) {
       ValueProvider<TableReference> tableProvider = getTableProvider();
       Pipeline p = input.getPipeline();
       if (tableProvider != null) {
         // No job ID is required. Read directly from BigQuery storage.
-        return p.apply(
-            org.apache.beam.sdk.io.Read.from(
-                BigQueryStorageTableSource.create(
-                    tableProvider,
-                    getFormat(),
-                    getSelectedFields(),
-                    getRowRestriction(),
-                    getParseFn(),
-                    outputCoder,
-                    getBigQueryServices())));
+        PCollection<T> rows =
+            p.apply(
+                org.apache.beam.sdk.io.Read.from(
+                    BigQueryStorageTableSource.create(
+                        tableProvider,
+                        getFormat(),
+                        getSelectedFields(),
+                        getRowRestriction(),
+                        getParseFn(),
+                        outputCoder,
+                        getBigQueryServices(),
+                        getProjectionPushdownApplied())));
+        if (beamSchema != null) {
+          rows.setSchema(
+              beamSchema,
+              getTypeDescriptor(),
+              getToBeamRowFn().apply(beamSchema),
+              getFromBeamRowFn().apply(beamSchema));
+        }
+        return rows;
       }
 
       checkArgument(
@@ -1248,7 +1404,7 @@ public class BigQueryIO {
       // table for the query to read the data and subsequently delete the table and dataset. Once
       // the storage API can handle anonymous tables, the storage source should be modified to use
       // anonymous tables and all of the code related to job ID generation and table and dataset
-      // cleanup can be removed. [BEAM-6931]
+      // cleanup can be removed. [https://github.com/apache/beam/issues/19375]
       //
 
       PCollectionView<String> jobIdTokenView;
@@ -1419,6 +1575,13 @@ public class BigQueryIO {
             }
           };
 
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
+      }
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
     }
 
@@ -1430,6 +1593,10 @@ public class BigQueryIO {
               DisplayData.item("table", BigQueryHelpers.displayTable(getTableProvider()))
                   .withLabel("Table"))
           .addIfNotNull(DisplayData.item("query", getQuery()).withLabel("Query"))
+          .addIfNotDefault(
+              DisplayData.item("projectionPushdownApplied", getProjectionPushdownApplied())
+                  .withLabel("Projection Pushdown Applied"),
+              false)
           .addIfNotNull(
               DisplayData.item("flattenResults", getFlattenResults())
                   .withLabel("Flatten Query Results"))
@@ -1438,6 +1605,13 @@ public class BigQueryIO {
                   .withLabel("Use Legacy SQL Dialect"))
           .addIfNotDefault(
               DisplayData.item("validation", getValidate()).withLabel("Validation Enabled"), true);
+
+      ValueProvider<List<String>> selectedFieldsProvider = getSelectedFields();
+      if (selectedFieldsProvider != null && selectedFieldsProvider.isAccessible()) {
+        builder.add(
+            DisplayData.item("selectedFields", String.join(", ", selectedFieldsProvider.get()))
+                .withLabel("Selected Fields"));
+      }
     }
 
     /** Ensures that methods of the from() / fromQuery() family are called at most once. */
@@ -1623,6 +1797,11 @@ public class BigQueryIO {
       return toBuilder().setUseAvroLogicalTypes(true).build();
     }
 
+    @VisibleForTesting
+    TypedRead<T> withProjectionPushdownApplied() {
+      return toBuilder().setProjectionPushdownApplied(true).build();
+    }
+
     @Override
     public boolean supportsProjectionPushdown() {
       // We can't do projection pushdown when a query is set. The query may project certain fields
@@ -1643,7 +1822,7 @@ public class BigQueryIO {
           outputFields.keySet());
       ImmutableList<String> fields =
           ImmutableList.copyOf(fieldAccessDescriptor.fieldNamesAccessed());
-      return withSelectedFields(fields);
+      return withSelectedFields(fields).withProjectionPushdownApplied();
     }
   }
 
@@ -1732,6 +1911,8 @@ public class BigQueryIO {
         .setOptimizeWrites(false)
         .setUseBeamSchema(false)
         .setAutoSharding(false)
+        .setPropagateSuccessful(true)
+        .setAutoSchemaUpdate(false)
         .setDeterministicRecordIdFn(null)
         .build();
   }
@@ -1766,7 +1947,9 @@ public class BigQueryIO {
        * of load jobs allowed per day, so be careful not to set the triggering frequency too
        * frequent. For more information, see <a
        * href="https://cloud.google.com/bigquery/docs/loading-data-cloud-storage">Loading Data from
-       * Cloud Storage</a>.
+       * Cloud Storage</a>. Note: Load jobs currently do not support BigQuery's <a
+       * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
+       * JSON data type</a>.
        */
       FILE_LOADS,
 
@@ -1804,7 +1987,7 @@ public class BigQueryIO {
 
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
-    abstract @Nullable SerializableFunction<TableSchema, org.apache.avro.Schema>
+    abstract @Nullable SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema>
         getAvroSchemaFactory();
 
     abstract boolean getUseAvroLogicalTypes();
@@ -1871,6 +2054,10 @@ public class BigQueryIO {
     @Experimental
     abstract Boolean getAutoSharding();
 
+    abstract Boolean getPropagateSuccessful();
+
+    abstract Boolean getAutoSchemaUpdate();
+
     @Experimental
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
@@ -1894,7 +2081,7 @@ public class BigQueryIO {
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
 
       abstract Builder<T> setAvroSchemaFactory(
-          SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory);
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory);
 
       abstract Builder<T> setUseAvroLogicalTypes(boolean useAvroLogicalTypes);
 
@@ -1959,6 +2146,10 @@ public class BigQueryIO {
 
       @Experimental
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
+      abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
+
+      abstract Builder<T> setAutoSchemaUpdate(Boolean autoSchemaUpdate);
 
       @Experimental
       abstract Builder<T> setDeterministicRecordIdFn(
@@ -2164,7 +2355,7 @@ public class BigQueryIO {
      * <p>If not specified, the TableSchema will automatically be converted to an avro schema.
      */
     public Write<T> withAvroSchemaFactory(
-        SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory) {
+        SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory) {
       return toBuilder().setAvroSchemaFactory(avroSchemaFactory).build();
     }
 
@@ -2466,13 +2657,33 @@ public class BigQueryIO {
     }
 
     /**
+     * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as
+     * part of the {@link WriteResult} object when using {@link Method#STREAMING_INSERTS}. By
+     * default this property is set on true. In the cases where a pipeline won't make use of the
+     * insert results this property can be set on false, which will make the pipeline let go of
+     * those inserted TableRows and reclaim worker resources.
+     */
+    public Write<T> withSuccessfulInsertsPropagation(boolean propagateSuccessful) {
+      return toBuilder().setPropagateSuccessful(propagateSuccessful).build();
+    }
+
+    /**
+     * If true, enables automatically detecting BigQuery table schema updates. Table schema updates
+     * are usually noticed within several minutes. Only supported when using one of the STORAGE_API
+     * insert methods.
+     */
+    public Write<T> withAutoSchemaUpdate(boolean autoSchemaUpdate) {
+      return toBuilder().setAutoSchemaUpdate(autoSchemaUpdate).build();
+    }
+
+    /*
      * Provides a function which can serve as a source of deterministic unique ids for each record
      * to be written, replacing the unique ids generated with the default scheme. When used with
      * {@link Method#STREAMING_INSERTS} This also elides the re-shuffle from the BigQueryIO Write by
      * using the keys on which the data is grouped at the point at which BigQueryIO Write is
      * applied, since the reshuffle is necessary only for the checkpointing of the default-generated
      * ids for determinism. This may be beneficial as a performance optimization in the case when
-     * the current sharding is already sufficient for writing to BigQuery. Thi behavior takes
+     * the current sharding is already sufficient for writing to BigQuery. This behavior takes
      * precedence over {@link #withAutoSharding}.
      */
     @Experimental
@@ -2661,6 +2872,12 @@ public class BigQueryIO {
             method);
       }
 
+      if (method != Method.STORAGE_WRITE_API && method != Method.STORAGE_API_AT_LEAST_ONCE) {
+        checkArgument(
+            !getAutoSchemaUpdate(),
+            "withAutoSchemaUpdate only supported when using storage-api writes.");
+      }
+
       if (method != Write.Method.FILE_LOADS) {
         // we only support writing avro for FILE_LOADS
         checkArgument(
@@ -2672,9 +2889,6 @@ public class BigQueryIO {
 
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
-      }
-      if (method == Write.Method.STORAGE_WRITE_API) {
-        checkArgument(!getAutoSharding(), "Auto sharding not yet available for Storage API writes");
       }
 
       if (getJsonTimePartitioning() != null) {
@@ -2783,7 +2997,7 @@ public class BigQueryIO {
               "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set,"
                   + " not both.");
 
-          SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory =
+          SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
               getAvroSchemaFactory();
           if (avroSchemaFactory == null) {
             checkArgument(
@@ -2875,6 +3089,7 @@ public class BigQueryIO {
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())
                 .withAutoSharding(getAutoSharding())
+                .withSuccessfulInsertsPropagation(getPropagateSuccessful())
                 .withDeterministicRecordIdFn(getDeterministicRecordIdFn())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
@@ -2887,6 +3102,14 @@ public class BigQueryIO {
           checkArgument(
               rowWriterFactory.getOutputType() == OutputType.AvroGenericRecord,
               "useAvroLogicalTypes can only be set with Avro output.");
+        }
+
+        // Batch load jobs currently support JSON data insertion only with CSV files
+        if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
+          JsonElement schema = JsonParser.parseString(getJsonSchema().get());
+          if (!schema.getAsJsonObject().keySet().isEmpty()) {
+            validateNoJsonTypeInSchema(schema);
+          }
         }
 
         BatchLoads<DestinationT, T> batchLoads =
@@ -2934,7 +3157,7 @@ public class BigQueryIO {
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
-          // This ensures that the Beam rows are directly translated into protos for Sorage API
+          // This ensures that the Beam rows are directly translated into protos for Storage API
           // writes, with no
           // need to round trip through JSON TableRow objects.
           storageApiDynamicDestinations =
@@ -2946,7 +3169,10 @@ public class BigQueryIO {
           // Fallback behavior: convert to JSON TableRows and convert those into Beam TableRows.
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsTableRow<>(
-                  dynamicDestinations, tableRowWriterFactory.getToRowFn(), getCreateDisposition());
+                  dynamicDestinations,
+                  tableRowWriterFactory.getToRowFn(),
+                  getCreateDisposition(),
+                  getIgnoreUnknownValues());
         }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =
@@ -2958,10 +3184,35 @@ public class BigQueryIO {
                 getStorageApiTriggeringFrequency(bqOptions),
                 getBigQueryServices(),
                 getStorageApiNumStreams(bqOptions),
-                method == Method.STORAGE_API_AT_LEAST_ONCE);
+                method == Method.STORAGE_API_AT_LEAST_ONCE,
+                getAutoSharding());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
+      }
+    }
+
+    private void validateNoJsonTypeInSchema(JsonElement schema) {
+      JsonElement fields = schema.getAsJsonObject().get("fields");
+      if (!fields.isJsonArray() || fields.getAsJsonArray().isEmpty()) {
+        return;
+      }
+
+      JsonArray fieldArray = fields.getAsJsonArray();
+
+      for (int i = 0; i < fieldArray.size(); i++) {
+        JsonObject field = fieldArray.get(i).getAsJsonObject();
+        checkArgument(
+            !field.get("type").getAsString().equals("JSON"),
+            "Found JSON type in TableSchema. JSON data insertion is currently "
+                + "not supported with 'FILE_LOADS' write method. This is supported with the "
+                + "other write methods, however. For more information, visit: "
+                + "https://cloud.google.com/bigquery/docs/reference/standard-sql/"
+                + "json-data#ingest_json_data");
+
+        if (field.get("type").getAsString().equals("STRUCT")) {
+          validateNoJsonTypeInSchema(field);
+        }
       }
     }
 
@@ -3044,8 +3295,12 @@ public class BigQueryIO {
 
   /** Clear the cached map of created tables. Used for testing. */
   @VisibleForTesting
-  static void clearCreatedTables() {
+  static void clearStaticCaches() throws ExecutionException, InterruptedException {
     CreateTables.clearCreatedTables();
+    TwoLevelMessageConverterCache.clear();
+    StorageApiDynamicDestinationsTableRow.clearSchemaCache();
+    StorageApiWriteUnshardedRecords.clearCache();
+    StorageApiWritesShardedRecords.clearCache();
   }
 
   /////////////////////////////////////////////////////////////////////////////

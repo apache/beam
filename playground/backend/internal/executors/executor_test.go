@@ -16,13 +16,18 @@
 package executors
 
 import (
-	"beam.apache.org/playground/backend/internal/preparers"
-	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
 	"reflect"
+	"sync"
 	"testing"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/preparers"
+	"beam.apache.org/playground/backend/internal/validators"
 )
+
+const pipelineOptions = "--output t.txt"
 
 func TestExecutor_Compile(t *testing.T) {
 	type fields struct {
@@ -42,13 +47,13 @@ func TestExecutor_Compile(t *testing.T) {
 					fileName:        "filePath",
 					workingDir:      "./",
 					commandName:     "testCommand",
-					commandArgs:     []string{"-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
+					commandArgs:     []string{"-d", "bin", "-parameters", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
 					pipelineOptions: []string{""},
 				},
 			},
 			want: &exec.Cmd{
 				Path:         "testCommand",
-				Args:         []string{"javac", "-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar", "filePath"},
+				Args:         []string{"javac", "-d", "bin", "-parameters", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar", "filePath"},
 				Env:          nil,
 				Dir:          "",
 				Stdin:        nil,
@@ -104,6 +109,33 @@ func TestExecutor_Run(t *testing.T) {
 				Path: "runCommand",
 				Args: []string{"java", "-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
 					"/opt/apache/beam/jars/beam-runners-direct.jar:/opt/apache/beam/jars/slf4j-jdk14.jar", "HelloWorld"},
+				Env:          nil,
+				Dir:          "",
+				Stdin:        nil,
+				Stdout:       nil,
+				Stderr:       nil,
+				ExtraFiles:   nil,
+				SysProcAttr:  nil,
+				Process:      nil,
+				ProcessState: nil,
+			},
+		},
+		{
+			name: "TestRun with pipelineOptions",
+			fields: fields{
+				runArgs: CmdConfiguration{
+					fileName:    "HelloWorld",
+					workingDir:  "./",
+					commandName: "runCommand",
+					commandArgs: []string{"-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
+						"/opt/apache/beam/jars/beam-runners-direct.jar:/opt/apache/beam/jars/slf4j-jdk14.jar"},
+					pipelineOptions: []string{pipelineOptions},
+				},
+			},
+			want: &exec.Cmd{
+				Path: "runCommand",
+				Args: []string{"java", "-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
+					"/opt/apache/beam/jars/beam-runners-direct.jar:/opt/apache/beam/jars/slf4j-jdk14.jar", "HelloWorld", pipelineOptions},
 				Env:          nil,
 				Dir:          "",
 				Stdin:        nil,
@@ -187,6 +219,149 @@ func TestExecutor_RunTest(t *testing.T) {
 			}
 			if got := ex.RunTest(tt.args.ctx); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("RunTest() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExecutor_Prepare(t *testing.T) {
+	valResult := &sync.Map{}
+	prepareParams := make(map[string]string)
+	valResult.Store(validators.UnitTestValidatorName, false)
+	valResult.Store(validators.KatasValidatorName, false)
+	preparersArray, err := preparers.GetPreparers(pb.Sdk_SDK_JAVA, "./", valResult, prepareParams)
+	if err != nil {
+		panic(err)
+	}
+	type fields struct {
+		compileArgs CmdConfiguration
+		runArgs     CmdConfiguration
+		testArgs    CmdConfiguration
+		validators  []validators.Validator
+		preparers   []preparers.Preparer
+		boolChan    chan bool
+		errorChan   chan error
+		valResult   *sync.Map
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "Test Prepare method with prepared preparers",
+			fields: fields{
+				preparers: *preparersArray,
+				boolChan:  make(chan bool),
+				errorChan: make(chan error),
+				valResult: valResult,
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name: "Test Prepare method without preparers",
+			fields: fields{
+				preparers: nil,
+				boolChan:  make(chan bool),
+				errorChan: make(chan error),
+				valResult: valResult,
+			},
+			want:    true,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ex := &Executor{
+				compileArgs: tt.fields.compileArgs,
+				runArgs:     tt.fields.runArgs,
+				testArgs:    tt.fields.testArgs,
+				validators:  tt.fields.validators,
+				preparers:   tt.fields.preparers,
+			}
+			prepareFunc := ex.Prepare()
+			go prepareFunc(tt.fields.boolChan, tt.fields.errorChan, tt.fields.valResult)
+			if tt.wantErr {
+				err := <-tt.fields.errorChan
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Prepare() error = %v, wantErr %v", err, tt.wantErr)
+				}
+			}
+			got := <-tt.fields.boolChan
+			if got != tt.want {
+				t.Errorf("Prepare() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExecutor_Validate(t *testing.T) {
+	valResult := &sync.Map{}
+	validatorsArray, err := validators.GetValidators(pb.Sdk_SDK_JAVA, "./")
+	if err != nil {
+		panic(err)
+	}
+	type fields struct {
+		compileArgs CmdConfiguration
+		runArgs     CmdConfiguration
+		testArgs    CmdConfiguration
+		validators  []validators.Validator
+		preparers   []preparers.Preparer
+		boolChan    chan bool
+		errorChan   chan error
+		valResult   *sync.Map
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "Test Validate method with prepared validators",
+			fields: fields{
+				validators: *validatorsArray,
+				boolChan:   make(chan bool),
+				errorChan:  make(chan error),
+				valResult:  valResult,
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name: "Test Validate method without validators",
+			fields: fields{
+				validators: nil,
+				boolChan:   make(chan bool),
+				errorChan:  make(chan error),
+				valResult:  valResult,
+			},
+			want:    true,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ex := &Executor{
+				compileArgs: tt.fields.compileArgs,
+				runArgs:     tt.fields.runArgs,
+				testArgs:    tt.fields.testArgs,
+				validators:  tt.fields.validators,
+				preparers:   tt.fields.preparers,
+			}
+			valFunc := ex.Validate()
+			go valFunc(tt.fields.boolChan, tt.fields.errorChan, tt.fields.valResult)
+			if tt.wantErr {
+				err := <-tt.fields.errorChan
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				}
+			}
+			got := <-tt.fields.boolChan
+			if got != tt.want {
+				t.Errorf("Validate() = %v, want %v", got, tt.want)
 			}
 		})
 	}

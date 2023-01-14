@@ -31,7 +31,9 @@ def dependOnProjects = [":runners:core-construction-java",
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.direct',
-        enableChecker: false,
+        classesTriggerCheckerBugs: [
+          'ImpulseEvaluatorFactory': 'https://github.com/typetools/checker-framework/issues/3791',
+        ],
         shadowClosure: {
           dependencies {
             dependOnProjects.each {
@@ -42,7 +44,8 @@ applyJavaNature(
           relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
           relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
           relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
-        })
+        },
+)
 
 description = "Apache Beam :: Runners :: Direct Java"
 
@@ -69,7 +72,7 @@ dependencies {
     implementation project(it)
   }
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_43_2
+  shadow library.java.vendored_grpc_1_48_1
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
@@ -90,7 +93,7 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
-  permitUnusedDeclared library.java.vendored_grpc_1_43_2
+  permitUnusedDeclared library.java.vendored_grpc_1_48_1
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
   examplesJavaIntegrationTest project(project.path)
@@ -112,6 +115,13 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
   }
 }
 
+def sickbayTests = [
+        // https://github.com/apache/beam/issues/18499
+        'org.apache.beam.sdk.testing.UsesLoopingTimer',
+        // https://github.com/apache/beam/issues/19344
+        'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
+]
+
 task needsRunnerTests(type: Test) {
   group = "Verification"
   description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
@@ -128,17 +138,22 @@ task needsRunnerTests(type: Test) {
   testClassesDirs += files(project(":runners:core-java").sourceSets.test.output.classesDirs)
   testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
+
+    filter {
+      for (String test : sickbayTests) {
+        excludeTestsMatching test
+      }
+    }
+
     includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
     // Should be run only in a properly configured SDK harness environment
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
-    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-    // https://issues.apache.org/jira/browse/BEAM-2791
-    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
   testLogging {
     outputs.upToDateWhen {false}
@@ -168,10 +183,30 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
-    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesJavaExpansionService"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
-    // https://issues.apache.org/jira/browse/BEAM-2791
+    // https://github.com/apache/beam/issues/18499
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+  }
+}
+
+tasks.register("validatesRunnerSickbay", Test) {
+  group = "Verification"
+  description "Validates Direct runner (Sickbay Tests)"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=DirectRunner",
+  ])
+
+  classpath = configurations.needsRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+
+  filter {
+    for (String test : sickbayTests) {
+      includeTestsMatching test
+    }
+
+    // https://github.com/apache/beam/issues/18826
+    includeTestsMatching 'org.apache.beam.runners.direct.WatermarkManagerTest.updateWatermarkWithDifferentWindowedValueInstances'
   }
 }
 
@@ -212,7 +247,7 @@ task examplesIntegrationTest(type: Test) {
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit {
     filter{
-      // TODO (BEAM-14019) Fix integration Tests to run with DirectRunner: Timeout error
+      // TODO (https://github.com/apache/beam/issues/21344) Fix integration Tests to run with DirectRunner: Timeout error
       excludeTestsMatching 'org.apache.beam.examples.complete.TfIdfIT'
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
     }

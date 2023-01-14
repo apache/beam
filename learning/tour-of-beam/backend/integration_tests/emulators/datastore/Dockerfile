@@ -13,18 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
-import pytest
 
-from ci_helper import CIHelper
+# Version. Can change in build progress
+ARG GCLOUD_SDK_VERSION=397.0.0-emulators
 
+# Use google cloud sdk
+FROM google/cloud-sdk:$GCLOUD_SDK_VERSION
 
-@pytest.mark.asyncio
-@mock.patch("ci_helper.CIHelper._verify_examples")
-@mock.patch("ci_helper.get_statuses")
-async def test_verify_examples(mock_get_statuses, mock_verify_examples):
-  helper = CIHelper()
-  await helper.verify_examples([])
+# Volume to persist Datastore data
+VOLUME /opt/data
 
-  mock_get_statuses.assert_called_once_with([])
-  mock_verify_examples.assert_called_once_with([])
+COPY start-datastore.sh .
+
+EXPOSE 8081
+
+ENTRYPOINT ["./start-datastore.sh"]

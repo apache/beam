@@ -37,6 +37,12 @@ chadrik:
 chamikara:
   name: Chamikara Jayalath
   email: chamikara@apache.org
+damccorm:
+  name: Danny McCormick
+  email: dannymccormick@google.com
+davidcavazos:
+  name: David Cavazos
+  email: dcavazos@google.com
 davor:
   name: Davor Bonaci
   email: davor@apache.org
@@ -79,6 +85,10 @@ jphalip:
   name: Julien Phalip
   email: jphalip@google.com
   twitter: julienphalip
+kileysok:
+  name: Kiley Sok
+  email: kileysok@apache.org
+  twitter:
 klk:
   name: Kenneth Knowles
   email: kenn@apache.org
@@ -161,6 +171,10 @@ mxm:
   name: Maximilian Michels
   email: mxm@apache.org
   twitter: stadtlegende
+ningk:
+  name: Ning Kang
+  email: ningkang0957@gmail.com
+  twitter: ningkang0957
 pedro:
   name: Pedro Galvan
   email: pedro@sg.com.mx
@@ -224,3 +238,14 @@ alexkosolapov:
 hermannb:
   name: Brittany Hermann
   email: hermannb@google.com
+iht:
+  name: Israel Herraiz
+  email: ihr@google.com
+  twitter: herraiz
+yichi:
+  name: Yichi Zhang
+  email: yichi@apache.org
+sysede:
+  name: Danielle Syse
+  email: syse@google.com
+  linkedin: desyse

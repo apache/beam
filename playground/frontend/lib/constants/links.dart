@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-const kReportIssueLink = 'https://issues.apache.org/jira/projects/BEAM/issues/';
+const kReportIssueLink = 'https://github.com/apache/beam/issues';
 const kBeamPrivacyPolicyLink = 'https://beam.apache.org/privacy_policy/';
 const kBeamPlaygroundGithubLink =
     'https://github.com/apache/beam/tree/master/playground';

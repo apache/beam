@@ -17,24 +17,24 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/shortcuts/models/shortcut.dart';
-import 'package:playground/modules/shortcuts/utils/shortcuts_display_name.dart';
+
+import '../models/shortcut.dart';
 
 class ShortcutTooltip extends StatelessWidget {
-  final Shortcut shortcut;
+  final BeamShortcut shortcut;
   final Widget child;
 
   const ShortcutTooltip({
-    Key? key,
+    super.key,
     required this.shortcut,
     required this.child,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
       excludeFromSemantics: true,
-      message: getShortcutDisplayName(shortcut),
+      message: shortcut.title,
       child: child,
     );
   }

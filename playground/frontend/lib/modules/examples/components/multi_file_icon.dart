@@ -18,48 +18,22 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/modules/output/components/output_header/output_tab.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-class OutputTabs extends StatelessWidget {
-  final TabController tabController;
-  final bool showGraph;
+import '../../../src/assets/assets.gen.dart';
 
-  const OutputTabs({
-    Key? key,
-    required this.tabController,
-    required this.showGraph,
-  }) : super(key: key);
+class MultiFileIcon extends StatelessWidget {
+  const MultiFileIcon();
 
   @override
   Widget build(BuildContext context) {
     AppLocalizations appLocale = AppLocalizations.of(context)!;
-    return Consumer<PlaygroundState>(builder: (context, state, child) {
-      return SizedBox(
-        width: 300,
-        child: TabBar(
-          controller: tabController,
-          tabs: <Widget>[
-            OutputTab(
-              name: appLocale.output,
-              isSelected: tabController.index == 0,
-              value: state.result?.output ?? '',
-            ),
-            OutputTab(
-              name: appLocale.log,
-              isSelected: tabController.index == 1,
-              value: state.result?.log ?? '',
-            ),
-            if (showGraph)
-              OutputTab(
-                name: appLocale.graph,
-                isSelected: tabController.index == 2,
-                value: state.result?.graph ?? '',
-              ),
-          ],
-        ),
-      );
-    });
+    return Semantics(
+      container: true,
+      child: Tooltip(
+        message: appLocale.exampleMultifile,
+        child: SvgPicture.asset(Assets.multifile),
+      ),
+    );
   }
 }

@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
+import org.apache.beam.sdk.io.aws2.schemas.AwsSchemaProvider;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -109,7 +110,7 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public final class SnsIO {
 
@@ -122,7 +123,7 @@ public final class SnsIO {
 
   /**
    * @deprecated Please use {@link SnsIO#write()} to avoid the risk of data loss.
-   * @see <a href="https://issues.apache.org/jira/browse/BEAM-13824">BEAM-13824</a>, <a
+   * @see <a href="https://github.com/apache/beam/issues/21366">Issue #21366</a>, <a
    *     href="https://issues.apache.org/jira/browse/BEAM-13203">BEAM-13203</a>
    */
   @Deprecated
@@ -281,22 +282,34 @@ public final class SnsIO {
     }
 
     /**
-     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * Encode the full {@link PublishResponse} object, including sdkResponseMetadata and
      * sdkHttpMetadata with the HTTP response headers.
+     *
+     * @deprecated Writes fail exceptionally in case of errors, there is no need to check headers.
      */
+    @Deprecated
     public Write<T> withFullPublishResponse() {
       return withCoder(PublishResponseCoders.fullPublishResponse());
     }
 
     /**
-     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * Encode the full {@link PublishResponse} object, including sdkResponseMetadata and
      * sdkHttpMetadata but excluding the HTTP response headers.
+     *
+     * @deprecated Writes fail exceptionally in case of errors, there is no need to check headers.
      */
+    @Deprecated
     public Write<T> withFullPublishResponseWithoutHeaders() {
       return withCoder(PublishResponseCoders.fullPublishResponseWithoutHeaders());
     }
 
-    /** Encode the {@code PublishResult} with the given coder. */
+    /**
+     * Encode the {@link PublishResponse} with the given coder.
+     *
+     * @deprecated Explicit usage of coders is deprecated. Inferred schemas provided by {@link
+     *     AwsSchemaProvider} will be used instead.
+     */
+    @Deprecated
     public Write<T> withCoder(Coder<PublishResponse> coder) {
       return builder().setCoder(coder).build();
     }
@@ -394,7 +407,7 @@ public final class SnsIO {
    * Implementation of {@link #writeAsync}.
    *
    * @deprecated Please use {@link SnsIO#write()} to avoid the risk of data loss.
-   * @see <a href="https://issues.apache.org/jira/browse/BEAM-13824">BEAM-13824</a>, <a
+   * @see <a href="https://github.com/apache/beam/issues/21366">Issue #21366</a>, <a
    *     href="https://issues.apache.org/jira/browse/BEAM-13203">BEAM-13203</a>
    */
   @Deprecated

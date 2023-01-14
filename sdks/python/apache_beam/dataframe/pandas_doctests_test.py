@@ -24,7 +24,8 @@ from apache_beam.dataframe.frames import PD_VERSION
 from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
 
-@unittest.skipIf(sys.platform == 'win32', '[BEAM-10626]')
+@unittest.skipIf(
+    sys.platform == 'win32', '[https://github.com/apache/beam/issues/20361]')
 class DoctestTest(unittest.TestCase):
   def test_ndframe_tests(self):
     # IO methods are tested in io_test.py
@@ -126,10 +127,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.copy': ['*'],
             'pandas.core.generic.NDFrame.droplevel': ['*'],
             'pandas.core.generic.NDFrame.get': ['*'],
-            'pandas.core.generic.NDFrame.rank': [
-                # Modified dataframe
-                'df'
-            ],
+            'pandas.core.generic.NDFrame.rank': ['*'],
             'pandas.core.generic.NDFrame.rename': [
                 # Seems to be an upstream bug. The actual error has a different
                 # message:
@@ -275,10 +273,6 @@ class DoctestTest(unittest.TestCase):
                 'df.round(decimals)',
             ],
 
-            # We should be able to support pivot and pivot_table for categorical
-            # columns
-            'pandas.core.frame.DataFrame.pivot': ['*'],
-
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
             # Difficult to determine proxy, need to inspect function
@@ -289,7 +283,7 @@ class DoctestTest(unittest.TestCase):
                 "df1.merge(df2, how='cross')"
             ],
 
-            # TODO(BEAM-11711)
+            # TODO(https://github.com/apache/beam/issues/20759)
             'pandas.core.frame.DataFrame.set_index': [
                 "df.set_index([s, s**2])",
             ],
@@ -298,7 +292,7 @@ class DoctestTest(unittest.TestCase):
                 "df.set_axis(range(0,2), axis='index')",
             ],
 
-            # TODO(BEAM-12495)
+            # TODO(https://github.com/apache/beam/issues/21014)
             'pandas.core.frame.DataFrame.value_counts': [
               'df.value_counts(dropna=False)'
             ],
@@ -336,8 +330,9 @@ class DoctestTest(unittest.TestCase):
                 'df.rename(index=str).index',
             ],
             'pandas.core.frame.DataFrame.set_index': [
-                # TODO(BEAM-11711): This could pass in the index as
-                # a DeferredIndex, and we should fail it as order-sensitive.
+                # TODO(https://github.com/apache/beam/issues/20759): This could
+                # pass in the index as a DeferredIndex, and we should fail it
+                # as order-sensitive.
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
             'pandas.core.frame.DataFrame.set_axis': [
@@ -367,7 +362,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.pivot_table': ['*'],
             # Expected to raise a ValueError, but we raise NotImplementedError
             'pandas.core.frame.DataFrame.pivot': [
-                "df.pivot(index='foo', columns='bar', values='baz')"
+                "df.pivot(index='foo', columns='bar', values='baz')",
+                "df.pivot(index='foo', columns='bar')['baz']",
+                "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",
+                # pylint: disable=line-too-long
+                'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',
+                # pylint: disable=line-too-long
+                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'
             ],
             'pandas.core.frame.DataFrame.append': [
                 'df',
@@ -515,10 +516,10 @@ class DoctestTest(unittest.TestCase):
             # Relies on setting values with iloc
             'pandas.core.series.Series': ['ser', 'r'],
             'pandas.core.series.Series.groupby': [
-                # TODO(BEAM-11393): This example requires aligning two series
-                # with non-unique indexes. It only works in pandas because
-                # pandas can recognize the indexes are identical and elide the
-                # alignment.
+                # TODO(https://github.com/apache/beam/issues/20643): This
+                # example requires aligning two series with non-unique indexes.
+                # It only works in pandas because pandas can recognize the
+                # indexes are identical and elide the alignment.
                 'ser.groupby(ser > 100).mean()',
             ],
             'pandas.core.series.Series.asfreq': ['*'],
@@ -640,7 +641,8 @@ class DoctestTest(unittest.TestCase):
                 'seconds_series.dt.seconds'
             ],
 
-            # TODO(BEAM-12530): Test data creation fails for these
+            # TODO(https://github.com/apache/beam/issues/21013): Test data
+            # creation fails for these
             #   s = pd.Series(pd.to_timedelta(np.arange(5), unit="d"))
             # pylint: disable=line-too-long
             'pandas.core.indexes.accessors.DatetimeProperties.to_pydatetime': [
@@ -699,14 +701,19 @@ class DoctestTest(unittest.TestCase):
     result = doctests.testmod(
         pd.core.groupby.groupby,
         use_beam=False,
+        verbose=True,
         wont_implement_ok={
+            'pandas.core.groupby.groupby.GroupBy.first': ['*'],
             'pandas.core.groupby.groupby.GroupBy.head': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.last': ['*'],
             'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': ['*'],
             'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
             'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
         },
         not_implemented_ok={
+            'pandas.core.groupby.groupby.GroupBy.first': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.last': ['*'],
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.rank': ['*'],
@@ -826,13 +833,13 @@ class DoctestTest(unittest.TestCase):
             'crosstab': ['*'],
             'cut': ['*'],
             'eval': ['*'],
+            'from_dummies': ['*'],
             'get_dummies': ['*'],
             'infer_freq': ['*'],
             'lreshape': ['*'],
             'melt': ['*'],
             'merge': ["df1.merge(df2, how='cross')"],
             'merge_asof': ['*'],
-            'pivot': ['*'],
             'pivot_table': ['*'],
             'qcut': ['*'],
             'reset_option': ['*'],
@@ -845,6 +852,7 @@ class DoctestTest(unittest.TestCase):
         },
         wont_implement_ok={
             'factorize': ['*'],
+            'pivot': ['*'],
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
             'melt': [
@@ -858,7 +866,10 @@ class DoctestTest(unittest.TestCase):
         },
         skip={
             # error formatting
-            'concat': ['pd.concat([df5, df6], verify_integrity=True)'],
+            'concat': [
+                'pd.concat([df5, df6], verify_integrity=True)',
+                'pd.concat([df7, new_row.to_frame().T], ignore_index=True)'
+            ],
             # doctest DeprecationWarning
             'melt': ['df'],
             # Order-sensitive re-indexing.
@@ -876,7 +887,15 @@ class DoctestTest(unittest.TestCase):
                 'merge_ordered(df1, df2, fill_method="ffill", left_by="group")'
             ],
             # Expected error.
-            'pivot': ["df.pivot(index='foo', columns='bar', values='baz')"],
+            'pivot': [
+                "df.pivot(index='foo', columns='bar', values='baz')",
+                "df.pivot(index='foo', columns='bar')['baz']",
+                "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",
+                # pylint: disable=line-too-long
+                'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',
+                # pylint: disable=line-too-long
+                'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'
+            ],
             # Never written.
             'to_pickle': ['os.remove("./dummy.pkl")'],
             **skip_reads

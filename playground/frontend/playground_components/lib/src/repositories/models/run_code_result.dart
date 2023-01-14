@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
+import 'package:equatable/equatable.dart';
 
 enum RunCodeStatus {
   unspecified,
@@ -42,7 +42,7 @@ const kFinishedStatuses = [
   RunCodeStatus.finished,
 ];
 
-class RunCodeResult {
+class RunCodeResult with EquatableMixin {
   final RunCodeStatus status;
   final String? pipelineUuid;
   final String? output;
@@ -50,7 +50,7 @@ class RunCodeResult {
   final String? graph;
   final String? errorMessage;
 
-  RunCodeResult({
+  const RunCodeResult({
     required this.status,
     this.pipelineUuid,
     this.output,
@@ -64,20 +64,14 @@ class RunCodeResult {
   }
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RunCodeResult &&
-          runtimeType == other.runtimeType &&
-          pipelineUuid == other.pipelineUuid &&
-          status == other.status &&
-          output == other.output &&
-          log == other.log &&
-          graph == other.graph &&
-          errorMessage == other.errorMessage;
-
-  @override
-  int get hashCode =>
-      hashValues(pipelineUuid, status, output, log, errorMessage, graph);
+  List<Object?> get props => [
+    status,
+    pipelineUuid,
+    output,
+    log,
+    graph,
+    errorMessage,
+  ];
 
   @override
   String toString() {

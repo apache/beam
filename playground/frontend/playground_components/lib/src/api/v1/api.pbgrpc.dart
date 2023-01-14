@@ -1,27 +1,9 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
 //
 // @dart = 2.12
-// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+// ignore_for_file: annotate_overrides,camel_case_types,constant_identifier_names,directives_ordering,library_prefixes,non_constant_identifier_names,prefer_final_fields,return_of_invalid_type,unnecessary_const,unnecessary_import,unnecessary_this,unused_import,unused_shown_name
 
 import 'dart:async' as $async;
 
@@ -97,6 +79,12 @@ class PlaygroundServiceClient extends $grpc.Client {
       ($0.GetPrecompiledObjectsRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetPrecompiledObjectsResponse.fromBuffer(value));
+  static final _$getPrecompiledObject = $grpc.ClientMethod<
+          $0.GetPrecompiledObjectRequest, $0.GetPrecompiledObjectResponse>(
+      '/api.v1.PlaygroundService/GetPrecompiledObject',
+      ($0.GetPrecompiledObjectRequest value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) =>
+          $0.GetPrecompiledObjectResponse.fromBuffer(value));
   static final _$getPrecompiledObjectCode = $grpc.ClientMethod<
           $0.GetPrecompiledObjectCodeRequest,
           $0.GetPrecompiledObjectCodeResponse>(
@@ -132,6 +120,18 @@ class PlaygroundServiceClient extends $grpc.Client {
       ($0.GetDefaultPrecompiledObjectRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetDefaultPrecompiledObjectResponse.fromBuffer(value));
+  static final _$saveSnippet =
+      $grpc.ClientMethod<$0.SaveSnippetRequest, $0.SaveSnippetResponse>(
+          '/api.v1.PlaygroundService/SaveSnippet',
+          ($0.SaveSnippetRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.SaveSnippetResponse.fromBuffer(value));
+  static final _$getSnippet =
+      $grpc.ClientMethod<$0.GetSnippetRequest, $0.GetSnippetResponse>(
+          '/api.v1.PlaygroundService/GetSnippet',
+          ($0.GetSnippetRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.GetSnippetResponse.fromBuffer(value));
 
   PlaygroundServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions? options,
@@ -200,6 +200,12 @@ class PlaygroundServiceClient extends $grpc.Client {
     return $createUnaryCall(_$getPrecompiledObjects, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.GetPrecompiledObjectResponse> getPrecompiledObject(
+      $0.GetPrecompiledObjectRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getPrecompiledObject, request, options: options);
+  }
+
   $grpc.ResponseFuture<$0.GetPrecompiledObjectCodeResponse>
       getPrecompiledObjectCode($0.GetPrecompiledObjectCodeRequest request,
           {$grpc.CallOptions? options}) {
@@ -233,6 +239,18 @@ class PlaygroundServiceClient extends $grpc.Client {
           {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getDefaultPrecompiledObject, request,
         options: options);
+  }
+
+  $grpc.ResponseFuture<$0.SaveSnippetResponse> saveSnippet(
+      $0.SaveSnippetRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$saveSnippet, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetSnippetResponse> getSnippet(
+      $0.GetSnippetRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getSnippet, request, options: options);
   }
 }
 
@@ -331,6 +349,15 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetPrecompiledObjectsRequest.fromBuffer(value),
         ($0.GetPrecompiledObjectsResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetPrecompiledObjectRequest,
+            $0.GetPrecompiledObjectResponse>(
+        'GetPrecompiledObject',
+        getPrecompiledObject_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetPrecompiledObjectRequest.fromBuffer(value),
+        ($0.GetPrecompiledObjectResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetPrecompiledObjectCodeRequest,
             $0.GetPrecompiledObjectCodeResponse>(
         'GetPrecompiledObjectCode',
@@ -378,6 +405,22 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
             $0.GetDefaultPrecompiledObjectRequest.fromBuffer(value),
         ($0.GetDefaultPrecompiledObjectResponse value) =>
             value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.SaveSnippetRequest, $0.SaveSnippetResponse>(
+            'SaveSnippet',
+            saveSnippet_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.SaveSnippetRequest.fromBuffer(value),
+            ($0.SaveSnippetResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetSnippetRequest, $0.GetSnippetResponse>(
+        'GetSnippet',
+        getSnippet_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetSnippetRequest.fromBuffer(value),
+        ($0.GetSnippetResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.RunCodeResponse> runCode_Pre(
@@ -440,6 +483,12 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getPrecompiledObjects(call, await request);
   }
 
+  $async.Future<$0.GetPrecompiledObjectResponse> getPrecompiledObject_Pre(
+      $grpc.ServiceCall call,
+      $async.Future<$0.GetPrecompiledObjectRequest> request) async {
+    return getPrecompiledObject(call, await request);
+  }
+
   $async.Future<$0.GetPrecompiledObjectCodeResponse>
       getPrecompiledObjectCode_Pre($grpc.ServiceCall call,
           $async.Future<$0.GetPrecompiledObjectCodeRequest> request) async {
@@ -470,6 +519,16 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getDefaultPrecompiledObject(call, await request);
   }
 
+  $async.Future<$0.SaveSnippetResponse> saveSnippet_Pre($grpc.ServiceCall call,
+      $async.Future<$0.SaveSnippetRequest> request) async {
+    return saveSnippet(call, await request);
+  }
+
+  $async.Future<$0.GetSnippetResponse> getSnippet_Pre($grpc.ServiceCall call,
+      $async.Future<$0.GetSnippetRequest> request) async {
+    return getSnippet(call, await request);
+  }
+
   $async.Future<$0.RunCodeResponse> runCode(
       $grpc.ServiceCall call, $0.RunCodeRequest request);
   $async.Future<$0.CheckStatusResponse> checkStatus(
@@ -492,6 +551,8 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
       $grpc.ServiceCall call, $0.CancelRequest request);
   $async.Future<$0.GetPrecompiledObjectsResponse> getPrecompiledObjects(
       $grpc.ServiceCall call, $0.GetPrecompiledObjectsRequest request);
+  $async.Future<$0.GetPrecompiledObjectResponse> getPrecompiledObject(
+      $grpc.ServiceCall call, $0.GetPrecompiledObjectRequest request);
   $async.Future<$0.GetPrecompiledObjectCodeResponse> getPrecompiledObjectCode(
       $grpc.ServiceCall call, $0.GetPrecompiledObjectCodeRequest request);
   $async.Future<$0.GetPrecompiledObjectOutputResponse>
@@ -504,4 +565,8 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
   $async.Future<$0.GetDefaultPrecompiledObjectResponse>
       getDefaultPrecompiledObject($grpc.ServiceCall call,
           $0.GetDefaultPrecompiledObjectRequest request);
+  $async.Future<$0.SaveSnippetResponse> saveSnippet(
+      $grpc.ServiceCall call, $0.SaveSnippetRequest request);
+  $async.Future<$0.GetSnippetResponse> getSnippet(
+      $grpc.ServiceCall call, $0.GetSnippetRequest request);
 }

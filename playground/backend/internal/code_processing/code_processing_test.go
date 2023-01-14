@@ -16,21 +16,9 @@
 package code_processing
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/cache"
-	"beam.apache.org/playground/backend/internal/cache/local"
-	"beam.apache.org/playground/backend/internal/cache/redis"
-	"beam.apache.org/playground/backend/internal/environment"
-	"beam.apache.org/playground/backend/internal/executors"
-	"beam.apache.org/playground/backend/internal/fs_tool"
-	"beam.apache.org/playground/backend/internal/utils"
-	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redismock/v8"
-	"github.com/google/uuid"
-	"go.uber.org/goleak"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -40,10 +28,25 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-redis/redismock/v8"
+	"github.com/google/uuid"
+	"go.uber.org/goleak"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/cache/redis"
+	"beam.apache.org/playground/backend/internal/db/entity"
+	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/executors"
+	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/utils"
+	"beam.apache.org/playground/backend/internal/validators"
 )
 
 const (
-	javaConfig      = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	javaConfig      = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-parameters\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
 	pythonConfig    = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"compile_args\": [],\n  \"run_args\": []\n}"
 	goConfig        = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
 	pipelinesFolder = "executable_files"
@@ -287,8 +290,10 @@ func Test_Process(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
+
+			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
 			if tt.createExecFile {
-				_ = lc.CreateSourceCodeFile(tt.code)
+				_ = lc.CreateSourceCodeFiles(sources)
 			}
 			if err = utils.SetToCache(tt.args.ctx, cacheService, tt.args.pipelineId, cache.Canceled, false); err != nil {
 				t.Fatal("error during set cancel flag to cache")
@@ -300,7 +305,7 @@ func Test_Process(t *testing.T) {
 					cacheService.SetValue(ctx, pipelineId, cache.Canceled, true)
 				}(tt.args.ctx, tt.args.pipelineId)
 			}
-			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions)
+			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions, nil, nil)
 
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if !reflect.DeepEqual(status, tt.expectedStatus) {
@@ -688,7 +693,8 @@ func prepareFiles(b *testing.B, pipelineId uuid.UUID, code string, sdk pb.Sdk) *
 	if err != nil {
 		b.Fatalf("error during prepare folders: %s", err.Error())
 	}
-	err = lc.CreateSourceCodeFile(code)
+	sources := []entity.FileEntity{{Name: "main.java", Content: code, IsMain: true}}
+	err = lc.CreateSourceCodeFiles(sources)
 	if err != nil {
 		b.Fatalf("error during prepare source code file: %s", err.Error())
 	}
@@ -721,7 +727,7 @@ func Benchmark_ProcessJava(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "", nil, nil)
 	}
 }
 
@@ -751,7 +757,7 @@ func Benchmark_ProcessPython(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, pipelineOptions)
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, pipelineOptions, nil, nil)
 	}
 }
 
@@ -781,7 +787,7 @@ func Benchmark_ProcessGo(b *testing.B) {
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "", nil, nil)
 	}
 }
 
@@ -893,7 +899,8 @@ func Test_validateStep(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
-			_ = lc.CreateSourceCodeFile(tt.code)
+			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
+			_ = lc.CreateSourceCodeFiles(sources)
 			executor := validateStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel)
 			got := syncMapLen(tt.args.validationResults)
 			if executor != nil && !reflect.DeepEqual(got, tt.want) {
@@ -981,8 +988,9 @@ func Test_prepareStep(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
-			_ = lc.CreateSourceCodeFile(tt.code)
-			prepareStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel)
+			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
+			_ = lc.CreateSourceCodeFiles(sources)
+			prepareStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel, nil)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if status != tt.expectedStatus {
 				t.Errorf("prepareStep: got status = %v, want %v", status, tt.expectedStatus)
@@ -1066,7 +1074,8 @@ func Test_compileStep(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
-			_ = lc.CreateSourceCodeFile(tt.code)
+			sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
+			_ = lc.CreateSourceCodeFiles(sources)
 			compileStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.isUnitTest, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if status != tt.expectedStatus {
@@ -1171,7 +1180,8 @@ func Test_runStep(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error during prepare folders: %s", err.Error())
 				}
-				_ = lc.CreateSourceCodeFile(tt.code)
+				sources := []entity.FileEntity{{Name: "main.java", Content: tt.code, IsMain: true}}
+				_ = lc.CreateSourceCodeFiles(sources)
 			}
 			runStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.isUnitTest, tt.args.sdkEnv, tt.args.pipelineOptions, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel)
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)

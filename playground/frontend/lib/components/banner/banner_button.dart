@@ -16,49 +16,30 @@
  * limitations under the License.
  */
 
+import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:playground/constants/fonts.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-class OutputResult extends StatefulWidget {
-  final String text;
-  final bool isSelected;
+import '../../src/assets/assets.gen.dart';
+import 'banner_description.dart';
 
-  const OutputResult({Key? key, required this.text, required this.isSelected})
-      : super(key: key);
-
-  @override
-  State<OutputResult> createState() => _OutputResultState();
-}
-
-class _OutputResultState extends State<OutputResult> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void didUpdateWidget(OutputResult oldWidget) {
-    WidgetsBinding.instance?.addPostFrameCallback((_) {
-      if (_scrollController.hasClients &&
-          !widget.isSelected &&
-          oldWidget.text != widget.text) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      }
-    });
-    super.didUpdateWidget(oldWidget);
-  }
+class BannerButton extends StatelessWidget {
+  const BannerButton({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      child: Scrollbar(
-        isAlwaysShown: true,
-        showTrackOnHover: true,
-        controller: _scrollController,
-        child: Padding(
-          padding: const EdgeInsets.all(kXlSpacing),
-          child: SelectableText(widget.text, style: getCodeFontStyle()),
-        ),
-      ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onHover: (_) {
+        showAlignedDialog(
+          context: context,
+          builder: (dialogContext) => const BannerDescription(),
+          followerAnchor: Alignment.topRight,
+          targetAnchor: Alignment.topRight,
+          barrierColor: Colors.transparent,
+        );
+      },
+      child: SvgPicture.asset(Assets.beam.path),
     );
   }
 }

@@ -25,7 +25,11 @@ files:
   - offset: 1545
     length: 431
     placeholder_text: TODO()
-- name: tests.py
+- name: __init__.py
+  visible: false
+- name: tests/__init__.py
+  visible: false
+- name: tests/test_task.py
   visible: false
 - name: generate_event.py
   visible: true

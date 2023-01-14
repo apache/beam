@@ -62,10 +62,11 @@ func defaultJoinFn(path, name string) string {
 // transforms, but with some additional configuration to behavior. By default,
 // this function performs the following steps for each cross-language transform
 // in the list of edges:
-//   1. Retrieves a list of dependencies needed from the expansion service.
-//   2. Retrieves each dependency as an artifact and stages it to a default
-//      local filepath.
-//   3. Adds the dependencies to the transform's stored environment proto.
+//  1. Retrieves a list of dependencies needed from the expansion service.
+//  2. Retrieves each dependency as an artifact and stages it to a default
+//     local filepath.
+//  3. Adds the dependencies to the transform's stored environment proto.
+//
 // The changes that can be configured are documented in ResolveConfig.
 //
 // This returns a map of "local path" to "sdk path". By default these are
@@ -131,9 +132,9 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 	return paths, nil
 }
 
-// UpdateArtifactTypeFromFileToUrl changes the type of the artifact from FILE to URL
+// UpdateArtifactTypeFromFileToURL changes the type of the artifact from FILE to URL
 // when the file path contains the suffix element ("://") of the URI scheme.
-func UpdateArtifactTypeFromFileToUrl(edges []*graph.MultiEdge) {
+func UpdateArtifactTypeFromFileToURL(edges []*graph.MultiEdge) {
 	for _, e := range edges {
 		if e.Op == graph.External && e.External != nil {
 			components, err := graphx.ExpandedComponents(e.External.Expanded)

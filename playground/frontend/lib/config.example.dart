@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+// To build and run the app, copy this file to './config.g.dart'
+// This is a temporary solution while we cannot have 'config.g.dart'
+// in the repository.
+// TODO: https://github.com/apache/beam/issues/24200
+
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
     'https://backend-router-beta-dot-apache-beam-testing.appspot.com';

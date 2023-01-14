@@ -50,7 +50,7 @@ type Combine struct {
 	// reusable invokers
 	createAccumInv, addInputInv, mergeInv, extractOutputInv *invoker
 	// cached value converter for add input.
-	aiValConvert func(interface{}) interface{}
+	aiValConvert func(any) any
 
 	states *metrics.PTransformState
 }
@@ -74,7 +74,7 @@ func (n *Combine) Up(ctx context.Context) error {
 
 	n.states = metrics.NewPTransformState(n.PID)
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil, nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil, nil, nil, nil, nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -100,14 +100,14 @@ func (n *Combine) optimizeMergeFn() {
 	}
 }
 
-func (n *Combine) mergeAccumulators(ctx context.Context, a, b interface{}) (interface{}, error) {
+func (n *Combine) mergeAccumulators(ctx context.Context, a, b any) (any, error) {
 	if n.binaryMergeFn != nil {
 		// Fast path for binary MergeAccumulatorsFn
 		return n.binaryMergeFn.Call2x1(a, b), nil
 	}
 
 	in := &MainInput{Key: FullValue{Elm: a}}
-	val, err := n.mergeInv.InvokeWithoutEventTime(ctx, in, nil, b)
+	val, err := n.mergeInv.InvokeWithoutEventTime(ctx, in, nil, nil, nil, nil, b)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking MergeAccumulators"))
 	}
@@ -213,13 +213,13 @@ func (n *Combine) Down(ctx context.Context) error {
 	}
 	n.status = Down
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil); err != nil {
+	if _, err := InvokeWithoutEventTime(ctx, n.Fn.TeardownFn(), nil, nil, nil, nil, nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
 }
 
-func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, error) {
+func (n *Combine) newAccum(ctx context.Context, key any) (any, error) {
 	fn := n.Fn.CreateAccumulatorFn()
 	if fn == nil {
 		return reflect.Zero(n.Fn.MergeAccumulatorsFn().Ret[0].T).Interface(), nil
@@ -230,14 +230,14 @@ func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, e
 		opt = &MainInput{Key: FullValue{Elm: key}}
 	}
 
-	val, err := n.createAccumInv.InvokeWithoutEventTime(ctx, opt, nil)
+	val, err := n.createAccumInv.InvokeWithoutEventTime(ctx, opt, nil, nil, nil, nil)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking CreateAccumulator"))
 	}
 	return val.Elm, nil
 }
 
-func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, timestamp typex.EventTime, first bool) (interface{}, error) {
+func (n *Combine) addInput(ctx context.Context, accum, key, value any, timestamp typex.EventTime, first bool) (any, error) {
 	// log.Printf("AddInput: %v %v into %v", key, value, accum)
 
 	fn := n.Fn.AddInputFn()
@@ -273,21 +273,21 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 	}
 	v := n.aiValConvert(value)
 
-	val, err := n.addInputInv.InvokeWithoutEventTime(ctx, opt, nil, v)
+	val, err := n.addInputInv.InvokeWithoutEventTime(ctx, opt, nil, nil, nil, nil, v)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking AddInput"))
 	}
 	return val.Elm, err
 }
 
-func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, error) {
+func (n *Combine) extract(ctx context.Context, accum any) (any, error) {
 	fn := n.Fn.ExtractOutputFn()
 	if fn == nil {
 		// Merge function only. Accumulator type is the output type.
 		return accum, nil
 	}
 
-	val, err := n.extractOutputInv.InvokeWithoutEventTime(ctx, nil, nil, accum)
+	val, err := n.extractOutputInv.InvokeWithoutEventTime(ctx, nil, nil, nil, nil, nil, accum)
 	if err != nil {
 		return nil, n.fail(errors.WithContext(err, "invoking ExtractOutput"))
 	}
@@ -337,7 +337,7 @@ func (n *LiftedCombine) Up(ctx context.Context) error {
 	if err := n.Combine.Up(ctx); err != nil {
 		return err
 	}
-	// TODO(BEAM-4468): replace with some better implementation
+	// TODO(https://github.com/apache/beam/issues/18944): replace with some better implementation
 	// once adding dependencies is easier.
 	// Arbitrary limit until a broader improvement can be demonstrated.
 	const cacheMax = 2000
@@ -380,7 +380,7 @@ func (n *LiftedCombine) processElementPerWindow(ctx context.Context, value *Full
 		return n.fail(err)
 	}
 
-	var a interface{}
+	var a any
 	if notfirst {
 		a = afv.Elm2
 	} else {

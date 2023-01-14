@@ -25,6 +25,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     gradleTask: ':sqlPreCommit',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
+      '-PdisableCheckStyle=true',
       '-PcompileAndRunTestsWithJava17',
       '-PskipCheckerFramework',
       // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
@@ -40,13 +41,8 @@ builder.build {
     recordIssues {
       tools {
         java()
-        checkStyle {
-          pattern('**/build/reports/checkstyle/*.xml')
-        }
-        configure { node ->
-          node / 'spotBugs' << 'io.jenkins.plugins.analysis.warnings.SpotBugs' {
-            pattern('**/build/reports/spotbugs/*.xml')
-          }
+        spotBugs {
+          pattern('**/build/reports/spotbugs/*.xml')
         }
       }
       enabledForFailure(true)

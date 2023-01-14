@@ -16,6 +16,14 @@
  * limitations under the License.
  */
 
+import 'package:equatable/equatable.dart';
+
+import '../enums/complexity.dart';
+import '../repositories/example_repository.dart';
+import 'dataset.dart';
+import 'example_view_options.dart';
+import 'sdk.dart';
+
 enum ExampleType {
   all,
   example,
@@ -38,65 +46,52 @@ extension ExampleTypeToString on ExampleType {
   }
 }
 
-class ExampleModel with Comparable<ExampleModel> {
-  final ExampleType type;
+/// An example's basic info that does not contain source code
+/// and other large fields.
+/// These objects are fetched as lists from [ExampleRepository].
+class ExampleBase with Comparable<ExampleBase>, EquatableMixin {
+  final Complexity? complexity;
+
+  /// Index of the line to focus, 1-based.
+  final int contextLine;
+  final List<Dataset> datasets;
+  final String description;
+  final bool isMultiFile;
+  final String? link;
   final String name;
   final String path;
-  final String description;
-  final int contextLine;
-  bool isMultiFile;
-  String? link;
-  String? source;
-  String? outputs;
-  String? logs;
-  String? pipelineOptions;
-  String? graph;
+  final String pipelineOptions;
+  final Sdk sdk;
+  final List<String> tags;
+  final ExampleType type;
+  final ExampleViewOptions viewOptions;
 
-  ExampleModel({
+  const ExampleBase({
     required this.name,
     required this.path,
-    required this.description,
+    required this.sdk,
     required this.type,
+    this.complexity,
     this.contextLine = 1,
+    this.datasets = const [],
+    this.description = '',
     this.isMultiFile = false,
     this.link,
-    this.source,
-    this.outputs,
-    this.logs,
-    this.pipelineOptions,
-    this.graph,
+    this.pipelineOptions = '',
+    this.tags = const [],
+    this.viewOptions = ExampleViewOptions.empty,
   });
 
-  setSource(String source) {
-    this.source = source;
-  }
-
-  setOutputs(String outputs) {
-    this.outputs = outputs;
-  }
-
-  setLogs(String logs) {
-    this.logs = logs;
-  }
-
-  setGraph(String graph) {
-    this.graph = graph;
-  }
-
-  bool isInfoFetched() {
-    // checking only source, because outputs/logs can be empty
-    return source?.isNotEmpty ?? false;
-  }
+  // TODO(alexeyinkin): Use all fields, https://github.com/apache/beam/issues/23979
+  @override
+  List<Object> get props => [path];
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || (other is ExampleModel && path == other.path);
-
-  @override
-  int get hashCode => path.hashCode;
-
-  @override
-  int compareTo(ExampleModel other) {
+  int compareTo(ExampleBase other) {
     return name.toLowerCase().compareTo(other.name.toLowerCase());
   }
+
+  bool get usesEmulatedData => datasets.any(
+        (dataset) => dataset.type != null,
+      );
 }

@@ -36,8 +36,10 @@ backend/
 ├── internal              # backend business logic
 │   ├── api                   # generated grpc API files
 │   ├── cache                 # logic of work with cache
-│   ├── cloud_bucket          # logic of work with cloud buckets and precompiled objects
 │   ├── code_processing       # logic of processing the received code
+│   ├── components            # logic of work for more difficult processes using several packages
+│   ├── constants             # application constants to use them anywhere in the application
+│   ├── db                    # logic of work with database, e.g. the Cloud Datastore
 │   ├── environment           # backend environments e.g. SDK of the instance
 │   ├── errors                # custom errors to send them to the client
 │   ├── executors             # logic of work with code executors
@@ -46,10 +48,14 @@ backend/
 │   ├── preparers             # logic of preparing code before execution
 │   ├── setup_tools           # logic of set up of executors and file systems by SDK requirements
 │   ├── streaming             # logic of saving execution output as a stream
+│   ├── tests                 # logic of work with unit/integration tests in the application, e.g. testing scripts to download mock data to database
 │   ├── utils                 # different useful tools
 │   └── validators            # logic of validation code before execution
-├── go.mod                # define backend go module and contain all project's dependencies
-├── logging.properties    # config file to set up log for Java code
+├── go.mod                        # define backend go module and contain all project's dependencies
+├── logging.properties            # config file to set up log for Java code
+├── properties.yaml               # property file consists of application properties required for the operation logic
+├── start_datastore_emulator.sh   # shell script to run the datastore emulator for local deployment or testing
+├── stop_datastore_emulator.sh    # shell script to stop the datastore emulator
 ...
 ```
 
@@ -118,3 +124,31 @@ enum Sdk {
     language [here](internal/code_processing/code_processing.go) (`compileStep()` method)
 12. Update a method to execute client's code according to a new
     language [here](internal/code_processing/code_processing.go) (`runStep()` method)
+
+## Adding an emulator-enabled example
+1. Develop an example with an appropriate dataset
+2. Put the dataset here in json or avro format as an array with objects: `playground/backend/datasets`
+3. Put the example to the Apache Beam repository
+4. Add a beam-playground comment to the example:
+```yaml
+ beam-playground:
+   name: { example name }
+   description: { description }
+   multifile: { true | false }
+   context_line: { the line where the code starts }
+   categories:
+     - { category }
+   complexity: { BASIC | MEDIUM | ADVANCED }
+   tags:
+     - { tag }
+   emulators:
+     kafka:
+        topic:
+          id: { topic name }
+          dataset: { dataset_1 }
+   datasets:
+     { dataset_1 }:
+          location: { local | GCS }
+          format: { json | avro }
+```
+5. Create a PR to the [Apache Beam Repository](https://github.com/apache/beam)

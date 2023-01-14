@@ -35,6 +35,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
@@ -51,35 +52,48 @@ import (
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
 
 var (
-	endpoint             = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
-	stagingLocation      = flag.String("staging_location", "", "GCS staging location (required).")
-	image                = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
-	labels               = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
-	serviceAccountEmail  = flag.String("service_account_email", "", "Service account email (optional).")
-	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
-	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
-	diskSizeGb           = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
-	diskType             = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
-	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
-	zone                 = flag.String("zone", "", "GCP zone (optional)")
-	network              = flag.String("network", "", "GCP network (optional)")
-	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
-	noUsePublicIPs       = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
-	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
-	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
-	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
-	workerJar            = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
-	workerRegion         = flag.String("worker_region", "", "Dataflow worker region (optional)")
-	workerZone           = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
+	endpoint               = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
+	stagingLocation        = flag.String("staging_location", "", "GCS staging location (required).")
+	workerHarnessImage     = flag.String("worker_harness_container_image", "", "Worker harness container image (optional). Deprecated in favor of the sdk_container_image flag.")
+	image                  = flag.String("sdk_container_image", "", "Worker harness container image (optional).")
+	labels                 = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
+	serviceAccountEmail    = flag.String("service_account_email", "", "Service account email (optional).")
+	numWorkers             = flag.Int64("num_workers", 0, "Number of workers (optional).")
+	workerHarnessThreads   = flag.Int64("number_of_worker_harness_threads", 0, "The number of threads per each worker harness process (optional).")
+	maxNumWorkers          = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
+	diskSizeGb             = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
+	diskType               = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
+	autoscalingAlgorithm   = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
+	zone                   = flag.String("zone", "", "GCP zone (optional)")
+	kmsKey                 = flag.String("dataflow_kms_key", "", "The Cloud KMS key identifier used to encrypt data at rest (optional).")
+	network                = flag.String("network", "", "GCP network (optional)")
+	subnetwork             = flag.String("subnetwork", "", "GCP subnetwork (optional)")
+	noUsePublicIPs         = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
+	tempLocation           = flag.String("temp_location", "", "Temp location (optional)")
+	machineType            = flag.String("worker_machine_type", "", "GCE machine type (optional)")
+	minCPUPlatform         = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
+	workerRegion           = flag.String("worker_region", "", "Dataflow worker region (optional)")
+	workerZone             = flag.String("worker_zone", "", "Dataflow worker zone (optional)")
+	dataflowServiceOptions = flag.String("dataflow_service_options", "", "Comma separated list of additional job modes and configurations (optional)")
+	flexRSGoal             = flag.String("flexrs_goal", "", "Which Flexible Resource Scheduling mode to run in (optional)")
+	// TODO(https://github.com/apache/beam/issues/21604) Turn this on once TO_STRING is implemented
+	// enableHotKeyLogging    = flag.Bool("enable_hot_key_logging", false, "Specifies that when a hot key is detected in the pipeline, the literal, human-readable key is printed in the user's Cloud Logging project (optional).")
 
-	executeAsync   = flag.Bool("execute_async", false, "Asynchronous execution. Submit the job and return immediately.")
-	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
-	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
+	// Streaming update flags
+	update           = flag.Bool("update", false, "Submit this job as an update to an existing Dataflow job (optional); the job name must match the existing job to update")
+	transformMapping = flag.String("transform_name_mapping", "", "JSON-formatted mapping of old transform names to new transform names for pipeline updates (optional)")
+
+	dryRun           = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
+	teardownPolicy   = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
+	templateLocation = flag.String("template_location", "", "GCS location to save the job graph. If set, the job is not submitted to Dataflow (optional.)")
 
 	// SDK options
-	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
-	sessionRecording = flag.String("session_recording", "", "Job records session transcripts")
+	cpuProfiling = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
 )
+
+func init() {
+	flag.BoolVar(jobopts.Async, "execute_async", false, "Asynchronous execution. Submit the job and return immediately. Alias of --async.")
+}
 
 // flagFilter filters flags that are already represented by the above flags
 // or in the JobOpts to prevent them from appearing duplicated
@@ -87,10 +101,12 @@ var (
 //
 // New flags that are already put into pipeline options
 // should be added to this map.
+// Don't filter temp_location since we need this included in PipelineOptions to correctly upload heap dumps.
 var flagFilter = map[string]bool{
 	"dataflow_endpoint":              true,
 	"staging_location":               true,
 	"worker_harness_container_image": true,
+	"sdk_container_image":            true,
 	"labels":                         true,
 	"service_account_email":          true,
 	"num_workers":                    true,
@@ -102,7 +118,7 @@ var flagFilter = map[string]bool{
 	"network":                        true,
 	"subnetwork":                     true,
 	"no_use_public_ips":              true,
-	"temp_location":                  true,
+	"template_location":              true,
 	"worker_machine_type":            true,
 	"min_cpu_platform":               true,
 	"dataflow_worker_jar":            true,
@@ -111,6 +127,8 @@ var flagFilter = map[string]bool{
 	"teardown_policy":                true,
 	"cpu_profiling":                  true,
 	"session_recording":              true,
+	"update":                         true,
+	"transform_name_mapping":         true,
 
 	// Job Options flags
 	"endpoint":                 true,
@@ -159,25 +177,26 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		panic("Beam has not been initialized. Call beam.Init() before pipeline construction.")
 	}
 
+	edges, nodes, err := p.Build()
+	if err != nil {
+		return nil, err
+	}
+	streaming := !graph.Bounded(nodes)
+
 	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
-	opts, err := getJobOptions(ctx)
+	opts, err := getJobOptions(ctx, streaming)
 	if err != nil {
 		return nil, err
 	}
 
 	// (1) Build and submit
-	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
+	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker".
 	id := fmt.Sprintf("go-%v-%v", atomic.AddInt32(&unique, 1), time.Now().UnixNano())
 
 	modelURL := gcsx.Join(*stagingLocation, id, "model")
 	workerURL := gcsx.Join(*stagingLocation, id, "worker")
-	jarURL := gcsx.Join(*stagingLocation, id, "dataflow-worker.jar")
 	xlangURL := gcsx.Join(*stagingLocation, id, "xlang")
 
-	edges, _, err := p.Build()
-	if err != nil {
-		return nil, err
-	}
 	artifactURLs, err := dataflowlib.ResolveXLangArtifacts(ctx, edges, opts.Project, xlangURL)
 	if err != nil {
 		return nil, errors.WithContext(err, "resolving cross-language artifacts")
@@ -187,7 +206,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, errors.WithContext(err, "creating environment for model pipeline")
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	model, err := graphx.Marshal(edges, &graphx.Options{
+		Environment:           environment,
+		PipelineResourceHints: jobopts.GetPipelineResourceHints(),
+	})
 	if err != nil {
 		return nil, errors.WithContext(err, "generating model pipeline")
 	}
@@ -200,7 +222,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		log.Info(ctx, "Dry-run: not submitting job!")
 
 		log.Info(ctx, proto.MarshalTextString(model))
-		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, jarURL, modelURL)
+		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, modelURL)
 		if err != nil {
 			return nil, err
 		}
@@ -208,17 +230,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, nil
 	}
 
-	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
+	return dataflowlib.Execute(ctx, model, opts, workerURL, modelURL, *endpoint, *jobopts.Async)
 }
 
-func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
+func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions, error) {
 	project := gcpopts.GetProjectFromFlagOrEnvironment(ctx)
 	if project == "" {
 		return nil, errors.New("no Google Cloud project specified. Use --project=<project>")
 	}
 	region := gcpopts.GetRegion(ctx)
 	if region == "" {
-		return nil, errors.New("No Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
+		return nil, errors.New("no Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
 	}
 	if *stagingLocation == "" {
 		return nil, errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
@@ -234,72 +256,123 @@ func getJobOptions(ctx context.Context) (*dataflowlib.JobOptions, error) {
 		perf.EnableProfCaptureHook("gcs_profile_writer", *cpuProfiling)
 	}
 
-	if *sessionRecording != "" {
-		// TODO(wcn): BEAM-4017
-		// It's a bit inconvenient for GCS because the whole object is written in
-		// one pass, whereas the session logs are constantly appended. We wouldn't
-		// want to hold all the logs in memory to flush at the end of the pipeline
-		// as we'd blow out memory on the worker. The implementation of the
-		// CaptureHook should create an internal buffer and write chunks out to GCS
-		// once they get to an appropriate size (50M or so?)
-	}
 	if *autoscalingAlgorithm != "" {
 		if *autoscalingAlgorithm != "NONE" && *autoscalingAlgorithm != "THROUGHPUT_BASED" {
 			return nil, errors.New("invalid autoscaling algorithm. Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")
 		}
 	}
 
+	if *flexRSGoal != "" {
+		switch *flexRSGoal {
+		case "FLEXRS_UNSPECIFIED", "FLEXRS_SPEED_OPTIMIZED", "FLEXRS_COST_OPTIMIZED":
+			// valid values
+		default:
+			return nil, errors.Errorf("invalid flex resource scheduling goal. Got %q; Use --flexrs_goal=(FLEXRS_UNSPECIFIED|FLEXRS_SPEED_OPTIMIZED|FLEXRS_COST_OPTIMIZED)", *flexRSGoal)
+		}
+	}
+	if !streaming && *transformMapping != "" {
+		return nil, errors.New("provided transform_name_mapping for a batch pipeline, did you mean to construct a streaming pipeline?")
+	}
+	if !*update && *transformMapping != "" {
+		return nil, errors.New("provided transform_name_mapping without setting the --update flag, so the pipeline would not be updated")
+	}
+	var updateTransformMapping map[string]string
+	if *transformMapping != "" {
+		if err := json.Unmarshal([]byte(*transformMapping), &updateTransformMapping); err != nil {
+			return nil, errors.Wrapf(err, "error reading --transform_name_mapping flag as JSON")
+		}
+	}
+
 	hooks.SerializeHooksToOptions()
 
 	experiments := jobopts.GetExperiments()
-	// Always use runner v2, unless set already.
-	var v2set, portaSubmission bool
+	// Ensure that we enable the same set of experiments across all SDKs
+	// for runner v2.
+	var fnApiSet, v2set, uwSet, portaSubmission, seSet, wsSet bool
 	for _, e := range experiments {
-		if strings.Contains(e, "use_runner_v2") || strings.Contains(e, "use_unified_worker") {
+		if strings.Contains(e, "beam_fn_api") {
+			fnApiSet = true
+		}
+		if strings.Contains(e, "use_runner_v2") {
 			v2set = true
+		}
+		if strings.Contains(e, "use_unified_worker") {
+			uwSet = true
 		}
 		if strings.Contains(e, "use_portable_job_submission") {
 			portaSubmission = true
 		}
+		if strings.Contains(e, "disable_runner_v2") || strings.Contains(e, "disable_runner_v2_until_2023") || strings.Contains(e, "disable_prime_runner_v2") {
+			return nil, errors.New("detected one of the following experiments: disable_runner_v2 | disable_runner_v2_until_2023 | disable_prime_runner_v2. Disabling runner v2 is no longer supported as of Beam version 2.45.0+")
+		}
 	}
-	// Enable by default unified worker, and portable job submission.
+	// Enable default experiments.
+	if !fnApiSet {
+		experiments = append(experiments, "beam_fn_api")
+	}
 	if !v2set {
+		experiments = append(experiments, "use_runner_v2")
+	}
+	if !uwSet {
 		experiments = append(experiments, "use_unified_worker")
 	}
 	if !portaSubmission {
 		experiments = append(experiments, "use_portable_job_submission")
 	}
 
+	// Ensure that streaming specific experiments are set for streaming pipelines
+	// since runner v2 only supports using streaming engine.
+	if streaming {
+		if !seSet {
+			experiments = append(experiments, "enable_streaming_engine")
+		}
+		if !wsSet {
+			experiments = append(experiments, "enable_windmill_service")
+		}
+	}
+
 	if *minCPUPlatform != "" {
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
 	}
 
+	var dfServiceOptions []string
+	if *dataflowServiceOptions != "" {
+		dfServiceOptions = strings.Split(*dataflowServiceOptions, ",")
+	}
+
 	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
 	opts := &dataflowlib.JobOptions{
-		Name:                jobopts.GetJobName(),
-		Experiments:         experiments,
-		Options:             beam.PipelineOptions.Export(),
-		Project:             project,
-		Region:              region,
-		Zone:                *zone,
-		Network:             *network,
-		Subnetwork:          *subnetwork,
-		NoUsePublicIPs:      *noUsePublicIPs,
-		NumWorkers:          *numWorkers,
-		MaxNumWorkers:       *maxNumWorkers,
-		DiskSizeGb:          *diskSizeGb,
-		DiskType:            *diskType,
-		Algorithm:           *autoscalingAlgorithm,
-		MachineType:         *machineType,
-		Labels:              jobLabels,
-		ServiceAccountEmail: *serviceAccountEmail,
-		TempLocation:        *tempLocation,
-		Worker:              *jobopts.WorkerBinary,
-		WorkerJar:           *workerJar,
-		WorkerRegion:        *workerRegion,
-		WorkerZone:          *workerZone,
-		TeardownPolicy:      *teardownPolicy,
-		ContainerImage:      getContainerImage(ctx),
+		Name:                   jobopts.GetJobName(),
+		Streaming:              streaming,
+		Experiments:            experiments,
+		DataflowServiceOptions: dfServiceOptions,
+		Options:                beam.PipelineOptions.Export(),
+		Project:                project,
+		Region:                 region,
+		Zone:                   *zone,
+		KmsKey:                 *kmsKey,
+		Network:                *network,
+		Subnetwork:             *subnetwork,
+		NoUsePublicIPs:         *noUsePublicIPs,
+		NumWorkers:             *numWorkers,
+		MaxNumWorkers:          *maxNumWorkers,
+		WorkerHarnessThreads:   *workerHarnessThreads,
+		DiskSizeGb:             *diskSizeGb,
+		DiskType:               *diskType,
+		Algorithm:              *autoscalingAlgorithm,
+		FlexRSGoal:             *flexRSGoal,
+		MachineType:            *machineType,
+		Labels:                 jobLabels,
+		ServiceAccountEmail:    *serviceAccountEmail,
+		TempLocation:           *tempLocation,
+		TemplateLocation:       *templateLocation,
+		Worker:                 *jobopts.WorkerBinary,
+		WorkerRegion:           *workerRegion,
+		WorkerZone:             *workerZone,
+		TeardownPolicy:         *teardownPolicy,
+		ContainerImage:         getContainerImage(ctx),
+		Update:                 *update,
+		TransformNameMapping:   updateTransformMapping,
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
@@ -326,6 +399,12 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 func getContainerImage(ctx context.Context) string {
 	urn := jobopts.GetEnvironmentUrn(ctx)
 	if urn == "" || urn == "beam:env:docker:v1" {
+		if *workerHarnessImage != "" {
+			if *image != "" {
+				panic("Both worker_harness_container_image and sdk_container_image cannot both be set. Prefer sdk_container_image, worker_harness_container_image is deprecated.")
+			}
+			return *workerHarnessImage
+		}
 		if *image != "" {
 			return *image
 		}

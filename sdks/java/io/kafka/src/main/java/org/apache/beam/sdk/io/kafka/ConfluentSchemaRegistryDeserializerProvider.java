@@ -26,6 +26,7 @@ import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientExcept
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -45,10 +45,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link Deserializer}s and {@link Coder} given a subject.
  */
 @Experimental(Kind.SOURCE_SINK)
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ConfluentSchemaRegistryDeserializerProvider<T> implements DeserializerProvider<T> {
   private final SerializableFunction<Void, SchemaRegistryClient> schemaRegistryClientProviderFn;
   private final String schemaRegistryUrl;
@@ -110,11 +106,15 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
       String subject,
       @Nullable Integer version,
       @Nullable Map<String, ?> schemaRegistryConfigs) {
-    return new ConfluentSchemaRegistryDeserializerProvider(
+    return new ConfluentSchemaRegistryDeserializerProvider<>(
         (SerializableFunction<Void, SchemaRegistryClient>)
-            input ->
-                new CachedSchemaRegistryClient(
-                    schemaRegistryUrl, schemaRegistryCacheCapacity, schemaRegistryConfigs),
+            input -> {
+              @SuppressWarnings("nullness") // confluent library is not annnotated
+              CachedSchemaRegistryClient client =
+                  new CachedSchemaRegistryClient(
+                      schemaRegistryUrl, schemaRegistryCacheCapacity, schemaRegistryConfigs);
+              return client;
+            },
         schemaRegistryUrl,
         subject,
         version);
@@ -122,11 +122,9 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
 
   @Override
   public Deserializer<T> getDeserializer(Map<String, ?> configs, boolean isKey) {
-    ImmutableMap<String, Object> csrConfig =
-        ImmutableMap.<String, Object>builder()
-            .putAll(configs)
-            .put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl)
-            .build();
+    @SuppressWarnings("unchecked")
+    Map<String, Object> csrConfig = new HashMap<>((Map<String, Object>) configs);
+    csrConfig.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
     Deserializer<T> deserializer =
         (Deserializer<T>)
             new ConfluentSchemaRegistryDeserializer(getSchemaRegistryClient(), getAvroSchema());
@@ -158,10 +156,6 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
   }
 }
 
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class ConfluentSchemaRegistryDeserializer extends KafkaAvroDeserializer {
   Schema readerSchema;
 

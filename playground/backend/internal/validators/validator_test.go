@@ -34,10 +34,12 @@ func TestMain(m *testing.M) {
 
 func setup() {
 	writeFile(javaUnitTestFilePath, javaUnitTestCode)
+	writeFile(javaKataFilePath, javaKataCode)
 	writeFile(javaCodePath, javaCode)
 	writeFile(goUnitTestFilePath, goUnitTestCode)
 	writeFile(goCodePath, goCode)
-	writeFile(javaKataFilePath, javaKataCode)
+	writeFile(pyUnitTestFilePath, pyUnitTestCode)
+	writeFile(pyCodeFilePath, pyTestCode)
 }
 
 func teardown() {
@@ -46,6 +48,8 @@ func teardown() {
 	removeFile(goUnitTestFilePath)
 	removeFile(goCodePath)
 	removeFile(javaKataFilePath)
+	removeFile(pyUnitTestFilePath)
+	removeFile(pyCodeFilePath)
 }
 
 func removeFile(path string) {
@@ -76,7 +80,7 @@ func TestGetValidators(t *testing.T) {
 		{
 			// Test case with calling GetValidators method with incorrect SDK.
 			// As a result, want to receive an error.
-			name: "incorrect sdk",
+			name: "Incorrect sdk",
 			args: args{
 				sdk:      playground.Sdk_SDK_UNSPECIFIED,
 				filepath: "",
@@ -87,12 +91,45 @@ func TestGetValidators(t *testing.T) {
 		{
 			// Test case with calling GetValidators method with correct SDK.
 			// As a result, want to receive an expected slice of validators.
-			name: "correct sdk",
+			name: "Correct java sdk",
 			args: args{
 				sdk:      playground.Sdk_SDK_JAVA,
 				filepath: "",
 			},
 			want:    GetJavaValidators(""),
+			wantErr: false,
+		},
+		{
+			// Test case with calling GetValidators method with correct SDK.
+			// As a result, want to receive an expected slice of validators.
+			name: "Correct python sdk",
+			args: args{
+				sdk:      playground.Sdk_SDK_PYTHON,
+				filepath: "",
+			},
+			want:    GetPyValidators(""),
+			wantErr: false,
+		},
+		{
+			// Test case with calling GetValidators method with correct SDK.
+			// As a result, want to receive an expected slice of validators.
+			name: "Correct go sdk",
+			args: args{
+				sdk:      playground.Sdk_SDK_GO,
+				filepath: "",
+			},
+			want:    GetGoValidators(""),
+			wantErr: false,
+		},
+		{
+			// Test case with calling GetValidators method with correct SDK.
+			// As a result, want to receive an expected slice of validators.
+			name: "Correct scio sdk",
+			args: args{
+				sdk:      playground.Sdk_SDK_SCIO,
+				filepath: "",
+			},
+			want:    GetScioValidators(""),
 			wantErr: false,
 		},
 	}

@@ -27,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,8 +47,6 @@ import org.apache.beam.sdk.io.aws2.MockClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.common.RetryConfiguration;
 import org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO.Write;
-import org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO.Write.WriteFn;
-import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -89,7 +86,6 @@ public class DynamoDBIOWriteTest {
   private static final String tableName = "Test";
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
-  @Rule public final ExpectedLogs writeFnLogs = ExpectedLogs.none(WriteFn.class);
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
   @Mock public DynamoDbClient client;

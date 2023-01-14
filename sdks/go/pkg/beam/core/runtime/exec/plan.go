@@ -24,17 +24,19 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
 // from a part of a pipeline. A plan can be used to process multiple bundles
 // serially.
 type Plan struct {
-	id    string // id of the bundle descriptor for this plan
-	roots []Root
-	units []Unit
-	pcols []*PCollection
-	bf    *bundleFinalizer
+	id          string // id of the bundle descriptor for this plan
+	roots       []Root
+	units       []Unit
+	pcols       []*PCollection
+	bf          *bundleFinalizer
+	checkpoints []*Checkpoint
 
 	status Status
 
@@ -65,8 +67,8 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if p, ok := u.(*PCollection); ok {
 			pcols = append(pcols, p)
 		}
-		if p, ok := u.(*ParDo); ok {
-			p.bf = &bf
+		if p, ok := u.(needsBundleFinalization); ok {
+			p.AttachFinalizer(&bf)
 		}
 	}
 	if len(roots) == 0 {
@@ -125,7 +127,11 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 		}
 	}
 	for _, root := range p.roots {
-		if err := callNoPanic(ctx, root.Process); err != nil {
+		if err := callNoPanic(ctx, func(ctx context.Context) error {
+			cps, err := root.Process(ctx)
+			p.checkpoints = cps
+			return err
+		}); err != nil {
 			p.status = Broken
 			return errors.Wrapf(err, "while executing Process for %v", p)
 		}
@@ -250,6 +256,8 @@ type SplitPoints struct {
 
 // SplitResult contains the result of performing a split on a Plan.
 type SplitResult struct {
+	Unsuccessful bool // Indicates the split was unsuccessful.
+
 	// Indices are always included, for both channel and sub-element splits.
 	PI int64 // Primary index, last element of the primary.
 	RI int64 // Residual index, first element of the residual.
@@ -260,16 +268,25 @@ type SplitResult struct {
 	RS   [][]byte // Residual splits. If an element is split, these are the encoded residuals.
 	TId  string   // Transform ID of the transform receiving the split elements.
 	InId string   // Input ID of the input the split elements are received from.
+
+	OW map[string]*timestamppb.Timestamp // Map of outputs to output watermark for the plan being split
 }
 
 // Split takes a set of potential split indexes, and if successful returns
 // the split result.
 // Returns an error when unable to split.
-func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
+func (p *Plan) Split(ctx context.Context, s SplitPoints) (SplitResult, error) {
+	// Can't split inactive plans.
+	if p.status != Active {
+		return SplitResult{Unsuccessful: true}, nil
+	}
 	// TODO: When bundles with multiple sources, are supported, perform splits
 	// on all sources.
-	if p.source != nil {
-		return p.source.Split(s.Splits, s.Frac, s.BufSize)
-	}
-	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+	return p.source.Split(ctx, s.Splits, s.Frac, s.BufSize)
+}
+
+// Checkpoint attempts to split an SDF if the DoFn self-checkpointed.
+func (p *Plan) Checkpoint() []*Checkpoint {
+	defer func() { p.checkpoints = nil }()
+	return p.checkpoints
 }

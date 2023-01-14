@@ -18,74 +18,58 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/components/dropdown_button/dropdown_button.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/modules/sdk/components/sdk_selector_row.dart';
-import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-typedef SetSdk = void Function(SDK sdk);
-typedef SetExample = void Function(ExampleModel example);
+import '../../../components/dropdown_button/dropdown_button.dart';
+import '../../../constants/sizes.dart';
+import 'sdk_selector_row.dart';
 
-const kEmptyExampleName = 'Catalog';
-
-const double kWidth = 150;
-const double kHeight = 172;
+const double _width = 150;
 
 class SDKSelector extends StatelessWidget {
-  final SDK sdk;
-  final SetSdk setSdk;
-  final SetExample setExample;
+  final ValueChanged<Sdk> onChanged;
+  final Sdk? value;
 
   const SDKSelector({
-    Key? key,
-    required this.sdk,
-    required this.setSdk,
-    required this.setExample,
-  }) : super(key: key);
+    required this.onChanged,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
+    final text = value == null
+        ? localizations.selectSdkPlaceholder
+        : 'SDK: ${value?.title}';
+
     return Semantics(
       container: true,
       button: true,
-      label: AppLocalizations.of(context)!.selectSdkDropdown,
-      child: AppDropdownButton(
-        buttonText: Text(
-          'SDK: ${sdk.displayName}',
-        ),
-        createDropdown: (close) => Column(
-          children: [
-            const SizedBox(height: kMdSpacing),
-            ...SDK.values.map((SDK value) {
-              return SizedBox(
-                width: double.infinity,
-                child: Consumer<ExampleState>(
-                  builder: (context, state, child) => SdkSelectorRow(
+      label: localizations.selectSdkDropdownSemantics,
+      child: Consumer<PlaygroundController>(
+        builder: (context, controller, child) => AppDropdownButton(
+          buttonText: Text(text),
+          createDropdown: (close) => Column(
+            children: [
+              const SizedBox(height: kMdSpacing),
+              ...Sdk.known.map((Sdk value) {
+                return SizedBox(
+                  width: double.infinity,
+                  child: SdkSelectorRow(
                     sdk: value,
                     onSelect: () {
                       close();
-                      setSdk(value);
-                      setExample(
-                        state.defaultExamplesMap[value] ??
-                            ExampleModel(
-                              name: kEmptyExampleName,
-                              path: '',
-                              description: '',
-                              type: ExampleType.example,
-                            ),
-                      );
+                      onChanged(value);
                     },
                   ),
-                ),
-              );
-            }).toList()
-          ],
+                );
+              }),
+              const SizedBox(height: kMdSpacing),
+            ],
+          ),
+          width: _width,
         ),
-        width: kWidth,
-        height: kHeight,
       ),
     );
   }

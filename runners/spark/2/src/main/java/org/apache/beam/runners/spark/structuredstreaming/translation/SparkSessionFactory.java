@@ -45,7 +45,11 @@ public class SparkSessionFactory {
   private static SparkSession.Builder sessionBuilder(
       String master, @Nullable String appName, @Nullable List<String> jars) {
     SparkConf sparkConf = new SparkConf();
-    sparkConf.setMaster(master);
+    // LI spark only
+    if (!sparkConf.contains("spark.master")) {
+      // set master if not set.
+      sparkConf.setMaster(master);
+    }
     if (appName != null) {
       sparkConf.setAppName(appName);
     }

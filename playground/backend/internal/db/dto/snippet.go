@@ -13,19 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package stringx contains utilities for working with strings. It
-// complements the standard "strings" package.
-//
-// Deprecated: the utilities in this package are unused within the code base
-// and will be removed in a future Beam release.
-package stringx
+package dto
 
-// ToBytes converts a string to a byte slice.
-func ToBytes(s string) []byte {
-	return ([]byte)(s)
+import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+)
+
+type SnippetDeleteDTO struct {
+	NumberOfFiles int `datastore:"numberOfFiles"`
 }
 
-// FromBytes converts a byte slice to a string.
-func FromBytes(b []byte) string {
-	return (string)(b)
+type DatasetDTO struct {
+	Path     string
+	Config   map[string]string
+	Emulator pb.EmulatorType
 }

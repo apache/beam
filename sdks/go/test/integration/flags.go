@@ -26,22 +26,6 @@ import (
 // Because any flags used with those commands are used for each package, every
 // integration test package must import these flags, even if they are not used.
 var (
-	// TestExpansionAddr is the endpoint for the expansion service for test-only
-	// cross-language transforms.
-	TestExpansionAddr = flag.String("test_expansion_addr", "", "Address of Expansion Service for test cross-language transforms.")
-
-	// IoExpansionAddr is the endpoint for the expansion service for
-	// cross-language IO transforms.
-	IoExpansionAddr = flag.String("io_expansion_addr", "", "Address of Expansion Service for cross-language IOs.")
-
-	// SchemaIoExpansionAddr is the endpoint for the expansion service for
-	// cross-language SchemaIO-based transforms.
-	SchemaIoExpansionAddr = flag.String("schemaio_expansion_addr", "", "Address of Expansion Service for cross-language SchemaIO-based IOs.")
-
-	// DebeziumIoExpansionAddr is the endpoint for the expansion service for
-	// cross-language DebeziumIO transforms.
-	DebeziumIoExpansionAddr = flag.String("debeziumio_expansion_addr", "", "Address of Expansion Service for cross-language Debezium IOs.")
-
 	// BootstrapServers is the address of the bootstrap servers for a Kafka
 	// cluster, used for Kafka IO tests.
 	BootstrapServers = flag.String("bootstrap_servers", "",
@@ -57,6 +41,11 @@ var (
 	KafkaJarTimeout = flag.String("kafka_jar_timeout", "10m",
 		"Sets an auto-shutdown timeout to the Kafka cluster. "+
 			"Requires the timeout command to be present in Path, unless the value is set to \"\".")
+
+	// BigQueryDataset is the name of the dataset to create tables in for
+	// BigQuery integration tests.
+	BigQueryDataset = flag.String("bq_dataset", "",
+		"Name of the dataset to create tables in for BigQuery tests.")
 
 	// ExpansionJars contains elements in the form "label:jar" describing jar
 	// filepaths for expansion services to use in integration tests, and the
@@ -115,10 +104,13 @@ func GetExpansionAddrs() map[string]string {
 // of the flag.
 //
 // Example:
-//    var myFlags stringSlice
-//    flag.Var(&myFlags, "my_flag", "A list of flags")
+//
+//	var myFlags stringSlice
+//	flag.Var(&myFlags, "my_flag", "A list of flags")
+//
 // With the example above, the slice can be set to contain ["foo", "bar"]:
-//    cmd -my_flag foo -my_flag bar
+//
+//	cmd -my_flag foo -my_flag bar
 type stringSlice []string
 
 // String implements the String method of flag.Value. This outputs the value
@@ -135,6 +127,6 @@ func (s *stringSlice) Set(value string) error {
 }
 
 // Get returns the instance itself.
-func (s stringSlice) Get() interface{} {
+func (s stringSlice) Get() any {
 	return s
 }

@@ -16,23 +16,19 @@
  * limitations under the License.
  */
 
-import 'package:playground/constants/params.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/widgets.dart';
 
-class CategoryModel with Comparable<CategoryModel> {
-  final String name;
-  final List<ExampleModel> examples;
-
-  const CategoryModel({required this.name, required this.examples});
+/// Shows a static "Error while loading" text.
+class LoadingErrorWidget extends StatelessWidget {
+  const LoadingErrorWidget({
+    super.key,
+  });
 
   @override
-  int compareTo(CategoryModel other) {
-    if (name.toLowerCase() == kQuickStartCategoryName) {
-      return -1;
-    }
-    if (other.name.toLowerCase() == kQuickStartCategoryName) {
-      return 1;
-    }
-    return name.toLowerCase().compareTo(other.name.toLowerCase());
+  Widget build(BuildContext context) {
+    return Center(
+      child: const Text('errors.loading').tr(),
+    );
   }
 }

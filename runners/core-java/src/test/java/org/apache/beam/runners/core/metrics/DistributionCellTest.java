@@ -98,7 +98,7 @@ public class DistributionCellTest {
     Assert.assertNotEquals(distributionCell, new Object());
 
     DistributionCell differentDirty = new DistributionCell(MetricName.named("namespace", "name"));
-    differentDirty.getDirty().beforeCommit();
+    differentDirty.getDirty().afterModification();
     Assert.assertNotEquals(distributionCell, differentDirty);
     Assert.assertNotEquals(distributionCell.hashCode(), differentDirty.hashCode());
 

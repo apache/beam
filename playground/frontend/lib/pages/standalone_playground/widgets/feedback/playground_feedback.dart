@@ -18,14 +18,19 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/pages/playground/components/feedback/feedback_dropdown_icon_button.dart';
-import 'package:playground/pages/playground/states/feedback_state.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../constants/font_weight.dart';
+import '../../../../modules/analytics/analytics_service.dart';
+import '../../../../src/assets/assets.gen.dart';
+import '../../notifiers/feedback_state.dart';
+import 'feedback_dropdown_icon_button.dart';
+
+/// A status bar item for feedback.
 class PlaygroundFeedback extends StatelessWidget {
+  static const thumbUpKey = Key('thumbUp');
+  static const thumbDownKey = Key('thumbDown');
+
   const PlaygroundFeedback({Key? key}) : super(key: key);
 
   @override
@@ -40,16 +45,18 @@ class PlaygroundFeedback extends StatelessWidget {
           style: const TextStyle(fontWeight: kBoldWeight),
         ),
         FeedbackDropdownIconButton(
+          key: thumbUpKey,
           label: appLocale.enjoying,
-          iconAsset: kThumbUpIconAsset,
-          filledIconAsset: kThumbUpIconAssetFilled,
+          iconAsset: Assets.thumbUp,
+          filledIconAsset: Assets.thumbUpFilled,
           onClick: _setEnjoying(context, true),
           isSelected: isEnjoying != null && isEnjoying,
         ),
         FeedbackDropdownIconButton(
+          key: thumbDownKey,
           label: appLocale.notEnjoying,
-          iconAsset: kThumbDownIconAsset,
-          filledIconAsset: kThumbDownIconAssetFilled,
+          iconAsset: Assets.thumbDown,
+          filledIconAsset: Assets.thumbDownFilled,
           onClick: _setEnjoying(context, false),
           isSelected: isEnjoying != null && !isEnjoying,
         ),
@@ -60,8 +67,7 @@ class PlaygroundFeedback extends StatelessWidget {
   _setEnjoying(BuildContext context, bool isEnjoying) {
     return () {
       _getFeedbackState(context, false).setEnjoying(isEnjoying);
-      AnalyticsService.get(context)
-          .trackClickEnjoyPlayground(isEnjoying);
+      AnalyticsService.get(context).trackClickEnjoyPlayground(isEnjoying);
     };
   }
 

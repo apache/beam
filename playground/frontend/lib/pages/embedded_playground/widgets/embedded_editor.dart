@@ -17,8 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/editor/components/editor_textarea.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 class EmbeddedEditor extends StatelessWidget {
@@ -28,14 +27,15 @@ class EmbeddedEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = Provider.of<PlaygroundState>(context);
-    return EditorTextArea(
-      key: ValueKey(state.selectedExample),
-      enabled: true,
-      sdk: state.sdk,
-      example: state.selectedExample,
-      onSourceChange: state.setSource,
-      enableScrolling: false,
+    final controller = Provider.of<PlaygroundController>(context);
+    final snippetController = controller.snippetEditingController;
+
+    if (snippetController == null || snippetController.isLoading) {
+      return const LoadingIndicator();
+    }
+
+    return SnippetEditor(
+      controller: snippetController,
       isEditable: isEditable,
     );
   }

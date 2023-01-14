@@ -68,6 +68,13 @@ dependencies {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
     exclude group: 'io.grpc', module: 'grpc-grpclb'
   }
+  // google_cloud_bigtable_client_core declares old google-cloud-bigtable for
+  // Java7 compatibility. The old google-cloud-bigtable is not compatible with
+  // newer version of GAX. Declaring newer google-cloud-bigtable so that Beam
+  // users receive newer google-cloud-bigtable. Beam doesn't directly use this
+  // artifact.
+  implementation library.java.google_cloud_bigtable
+  permitUnusedDeclared library.java.google_cloud_bigtable
   implementation library.java.google_cloud_core
   implementation(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
@@ -82,12 +89,18 @@ dependencies {
   implementation library.java.google_code_gson
   implementation library.java.google_http_client
   implementation library.java.google_http_client_jackson2
+  // bigdataoss_util declares old google_oauth_client version that does not have
+  // IdTokenVerifier.verifyPayload method. Let's declare the newer one.
+  implementation library.java.google_oauth_client
+  permitUnusedDeclared library.java.google_oauth_client
   implementation library.java.grpc_alts
   permitUnusedDeclared library.java.grpc_alts // BEAM-11761
   implementation library.java.grpc_api
   implementation library.java.grpc_auth
   implementation library.java.grpc_core
   permitUnusedDeclared library.java.grpc_core // BEAM-11761
+  implementation library.java.grpc_census
+  permitUnusedDeclared library.java.grpc_census // BEAM-11761
   implementation library.java.grpc_context
   permitUnusedDeclared library.java.grpc_context // BEAM-11761
   implementation library.java.grpc_grpclb
@@ -98,6 +111,8 @@ dependencies {
   implementation library.java.grpc_protobuf
   implementation library.java.grpc_stub
   permitUnusedDeclared library.java.grpc_stub // BEAM-11761
+  implementation library.java.grpc_xds
+  permitUnusedDeclared library.java.grpc_xds // BEAM-11761
   implementation library.java.grpc_google_cloud_pubsub_v1
   implementation library.java.grpc_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
@@ -109,6 +124,8 @@ dependencies {
   implementation library.java.http_core
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
+  implementation library.java.jackson_datatype_joda
+  implementation library.java.jackson_datatype_jsr310
   implementation library.java.joda_time
   implementation library.java.junit
   implementation library.java.netty_handler
@@ -128,13 +145,13 @@ dependencies {
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.arrow_memory_core
   implementation library.java.arrow_vector
 
+  implementation 'com.google.http-client:google-http-client-gson:1.41.2'
   implementation "org.threeten:threetenbp:1.4.4"
-  implementation "io.opencensus:opencensus-api:0.30.0"
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -149,6 +166,9 @@ dependencies {
   testImplementation library.java.joda_time
   testImplementation library.java.google_cloud_spanner_test
   testRuntimeOnly library.java.slf4j_jdk14
+  // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
+  permitUnusedDeclared library.java.everit_json_schema
+  provided library.java.everit_json_schema
 }
 
 // Don't pull in newer versions of the checker framework from dependencies.
@@ -159,7 +179,6 @@ configurations.implementation {
   }
 }
 
-
 /**
  * These are integration tests with the real Pubsub service and the DirectRunner.
  */
@@ -167,10 +186,12 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=DirectRunner",
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
+          "--firestoreDb=${firestoreDb}",
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
@@ -181,7 +202,9 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/BigQueryToTableIT.class'
+  exclude '**/BigQueryIOJsonTest.class'
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
@@ -196,11 +219,13 @@ task integrationTestKms(type: Test) {
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcpTempRoot = project.findProperty('gcpTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
   def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+  def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=DirectRunner",
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
           "--dataflowKmsKey=${dataflowKmsKey}",
+          "--firestoreDb=${firestoreDb}",
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
@@ -214,6 +239,63 @@ task integrationTestKms(type: Test) {
     includeCategories "org.apache.beam.sdk.testing.UsesKms"
   }
 }
+
+// path(s) for Cloud Spanner related classes
+def spannerIncludes = [
+        '**/org/apache/beam/sdk/io/gcp/spanner/**',
+]
+
+// exclude auto-generated classes and integration tests
+def jacocoExcludes = [
+        '**/AutoValue_*',
+        '**/*IT*',
+]
+
+task spannerCodeCoverageReport(type: JacocoReport, dependsOn: test) {
+  group = "Reporting"
+  description = "Generates code coverage report for Cloud Spanner related classes"
+  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
+            project.fileTree(
+                    dir: it,
+                    includes: spannerIncludes,
+                    excludes: jacocoExcludes)
+  }))
+  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
+  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
+  reports {
+    html.enabled true
+    html.destination file("${buildDir}/reports/jacoco/spanner/")
+  }
+}
+
+task spannerCodeCoverageVerification(type: JacocoCoverageVerification, dependsOn: spannerCodeCoverageReport) {
+  group = "Verification"
+  description = "Enforces code coverage verification for Cloud Spanner related classes"
+  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
+    project.fileTree(
+            dir: it,
+            includes: spannerIncludes,
+            excludes: jacocoExcludes)
+  }))
+  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
+  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
+  violationRules {
+    failOnViolation = true
+    rule {
+      element = 'BUNDLE'
+
+      limit {
+        value = 'COVEREDRATIO'
+        counter = 'INSTRUCTION'
+        minimum = 0.60
+      }
+    }
+  }
+}
+
+// make the check task depend on spannerCodeCoverageVerification so that the build
+// fails when the code coverage threshold is violated.
+project.check.dependsOn "spannerCodeCoverageVerification"
 
 task postCommit {
   group = "Verification"

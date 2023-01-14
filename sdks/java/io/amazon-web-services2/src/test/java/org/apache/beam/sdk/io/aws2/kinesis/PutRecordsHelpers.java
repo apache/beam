@@ -40,6 +40,8 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 public abstract class PutRecordsHelpers {
   protected static final String ERROR_CODE = "ProvisionedThroughputExceededException";
 
+  PutRecordsResponse successResponse = PutRecordsResponse.builder().build();
+
   protected PutRecordsRequest anyRequest() {
     return any();
   }
@@ -60,6 +62,12 @@ public abstract class PutRecordsHelpers {
     return req ->
         hasSize(partitions.length).matches(req)
             && transform(req.records(), r -> r.partitionKey()).containsAll(asList(partitions));
+  }
+
+  protected ArgumentMatcher<PutRecordsRequest> hasExplicitPartitions(String... partitions) {
+    return req ->
+        hasSize(partitions.length).matches(req)
+            && transform(req.records(), r -> r.explicitHashKey()).containsAll(asList(partitions));
   }
 
   protected PutRecordsResponse partialSuccessResponse(int successes, int errors) {

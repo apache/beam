@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -37,17 +36,6 @@ type Tweet struct {
 	Tweet string `json:"tweet"`
 	User  string `json:"username"`
 }
-
-const schema = `{
-	"type": "record",
-	"name": "tweet",
-	"namespace": "twitter",
-	"fields": [
-		{ "name": "timestamp", "type": "double" },
-		{ "name": "tweet", "type": "string" },
-		{ "name": "username", "type": "string" }
-	]
-}`
 
 func TestRead(t *testing.T) {
 	avroFile := "../../../../data/tweet.avro"
@@ -105,12 +93,15 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("Failed to write file %v", avroFile)
 	}
 
-	avroBytes, err := ioutil.ReadFile(avroFile)
+	avroBytes, err := os.ReadFile(avroFile)
 	if err != nil {
 		t.Fatalf("Failed to read avro file: %v", err)
 	}
 	ocf, err := goavro.NewOCFReader(bytes.NewReader(avroBytes))
-	var nativeData []interface{}
+	if err != nil {
+		t.Fatalf("Failed to make OCF Reader: %v", err)
+	}
+	var nativeData []any
 	for ocf.Scan() {
 		datum, err := ocf.Read()
 		if err != nil {
@@ -124,10 +115,10 @@ func TestWrite(t *testing.T) {
 	if got, want := len(nativeData), 1; got != want {
 		t.Fatalf("Avro data, got %v records, want %v", got, want)
 	}
-	if got, want := nativeData[0].(map[string]interface{})["username"], testUsername; got != want {
+	if got, want := nativeData[0].(map[string]any)["username"], testUsername; got != want {
 		t.Fatalf("User.User=%v, want %v", got, want)
 	}
-	if got, want := nativeData[0].(map[string]interface{})["info"], testInfo; got != want {
+	if got, want := nativeData[0].(map[string]any)["info"], testInfo; got != want {
 		t.Fatalf("User.User=%v, want %v", got, want)
 	}
 }

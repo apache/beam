@@ -27,7 +27,7 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend-java"
+  default     = "beam_playground-backend-java"
 }
 
 variable "docker_image_tag" {
@@ -48,7 +48,7 @@ variable "volume_size" {
 }
 
 variable "service_name" {
-  default = "backend"
+  default = "backend-java"
 }
 
 variable "cache_type" {
@@ -57,4 +57,43 @@ variable "cache_type" {
 
 variable "cache_address" {
   default = ""
+}
+
+variable "network_name" {
+  description = "VPC Name"
+  default     = "playground-vpc"
+}
+
+variable "subnetwork_name" {
+  description = "Vpc Name"
+  default     = "playground-vpc"
+}
+
+variable "environment" {
+  description = "prod,dev,beta"
+  default     = "dev"
+}
+
+variable "max_instance" {
+  description = "Max count instance app"
+  type        = number
+  default     = 7
+}
+
+variable "min_instance" {
+  description = "Min count instance app"
+  type        = number
+  default     = 2
+}
+
+variable "memory" {
+  description = "Memory on instance in GB, 0.9-6.9 on ONE CPU"
+  type        = number
+  default     = 16
+}
+
+variable "cpu" {
+  description = "CPU on instance, demo project quota 24 cpu on region (use 2 cpu)"
+  type        = number
+  default     = 8
 }

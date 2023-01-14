@@ -16,68 +16,10 @@
 package preparers
 
 import (
-	"beam.apache.org/playground/backend/internal/logger"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 )
-
-const (
-	correctCode   = "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hello world\")\n\n\n}\n"
-	correctFile   = "correct.go"
-	incorrectCode = "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hello world\"\n\n}\n"
-	incorrectFile = "incorrect.go"
-)
-
-func TestMain(m *testing.M) {
-	err := setupPreparedFiles()
-	if err != nil {
-		logger.Fatal(err)
-	}
-	defer teardown()
-	m.Run()
-}
-
-// setupPreparedFiles creates 2 go programs:
-// correctFile - program without errors
-// incorrectFile - program with errors
-func setupPreparedFiles() error {
-	err := createFile(correctFile, correctCode)
-	if err != nil {
-		return err
-	}
-	err = createFile(incorrectFile, incorrectCode)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//createFile create file with fileName and write text to it
-func createFile(fileName, text string) error {
-	f, err := os.Create(fileName)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.Write([]byte(text))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func teardown() {
-	err := os.Remove(correctFile)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	err = os.Remove(incorrectFile)
-	if err != nil {
-		logger.Fatal(err)
-	}
-}
 
 // getPreparedArgs returns array of received arguments
 func getPreparedArgs(args ...interface{}) []interface{} {
@@ -90,7 +32,8 @@ func getPreparedArgs(args ...interface{}) []interface{} {
 
 func TestGetGoPreparers(t *testing.T) {
 	type args struct {
-		filePath string
+		filePath      string
+		prepareParams map[string]string
 	}
 	tests := []struct {
 		name string
@@ -99,14 +42,14 @@ func TestGetGoPreparers(t *testing.T) {
 	}{
 		{
 			// getting the expected preparer
-			name: "get expected preparer",
-			args: args{filePath: ""},
+			name: "Get expected preparer",
+			args: args{filePath: "", prepareParams: make(map[string]string)},
 			want: &[]Preparer{{Prepare: formatCode, Args: nil}, {Prepare: changeGoTestFileName, Args: nil}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := NewPreparersBuilder(tt.args.filePath)
+			builder := NewPreparersBuilder(tt.args.filePath, tt.args.prepareParams)
 			GetGoPreparers(builder, true)
 			if got := builder.Build().GetPreparers(); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
 				t.Errorf("GetGoPreparers() = %v, want %v", got, tt.want)
@@ -116,8 +59,8 @@ func TestGetGoPreparers(t *testing.T) {
 }
 
 func Test_formatCode(t *testing.T) {
-	preparedArgs1 := getPreparedArgs(correctFile)
-	preparedArgs2 := getPreparedArgs(incorrectFile)
+	preparedArgs1 := getPreparedArgs(correctGoFile)
+	preparedArgs2 := getPreparedArgs(incorrectGoFile)
 	type args struct {
 		args []interface{}
 	}
@@ -128,13 +71,13 @@ func Test_formatCode(t *testing.T) {
 	}{
 		{
 			// formatting code that does not contain errors
-			name:    "file without errors",
+			name:    "File without errors",
 			args:    args{preparedArgs1},
 			wantErr: false,
 		},
 		{
 			// formatting code that contain errors
-			name:    "file with errors",
+			name:    "File with errors",
 			args:    args{preparedArgs2},
 			wantErr: true,
 		},

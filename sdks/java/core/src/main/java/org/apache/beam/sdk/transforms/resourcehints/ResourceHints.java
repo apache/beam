@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardResourceHints;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ProtocolMessageEnum;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ProtocolMessageEnum;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -259,7 +259,7 @@ public class ResourceHints {
           newHints.put(outerHint);
         }
       }
-      for (Map.Entry hint : hints.entrySet()) {
+      for (Map.Entry<String, ResourceHint> hint : hints.entrySet()) {
         if (!outer.hints.containsKey(hint.getKey())) {
           newHints.put(hint);
         }

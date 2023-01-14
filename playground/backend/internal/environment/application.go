@@ -42,7 +42,7 @@ func (serverEnvs *NetworkEnvs) Protocol() string {
 	return serverEnvs.protocol
 }
 
-//CacheEnvs contains all environment variables that needed to use cache
+// CacheEnvs contains all environment variables that needed to use cache
 type CacheEnvs struct {
 	// cacheType is type of cache (local/redis)
 	cacheType string
@@ -78,7 +78,7 @@ func NewCacheEnvs(cacheType, cacheAddress string, cacheExpirationTime time.Durat
 	}
 }
 
-//ApplicationEnvs contains all environment variables that needed to run backend processes
+// ApplicationEnvs contains all environment variables that needed to run backend processes
 type ApplicationEnvs struct {
 	// workingDir is a root working directory of application.
 	// This directory is different from the `pwd` of the application. It is a working directory passed as
@@ -100,12 +100,25 @@ type ApplicationEnvs struct {
 	// pipelinesFolder is name of folder in which the pipelines resources are stored
 	pipelinesFolder string
 
-	// bucketName is a name of the GCS's bucket with examples
-	bucketName string
+	// schemaVersion is the database schema version
+	schemaVersion string
+
+	// sdkConfigPath is a sdk configuration file
+	sdkConfigPath string
+
+	// propertyPath is the application properties path
+	propertyPath string
+
+	// cacheRequestTimeout is timeout to request data from cache
+	cacheRequestTimeout time.Duration
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
-func NewApplicationEnvs(workingDir, launchSite, projectId, pipelinesFolder string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration, bucketName string) *ApplicationEnvs {
+func NewApplicationEnvs(
+	workingDir, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath string,
+	cacheEnvs *CacheEnvs,
+	pipelineExecuteTimeout, cacheRequestTimeout time.Duration,
+) *ApplicationEnvs {
 	return &ApplicationEnvs{
 		workingDir:             workingDir,
 		cacheEnvs:              cacheEnvs,
@@ -113,7 +126,9 @@ func NewApplicationEnvs(workingDir, launchSite, projectId, pipelinesFolder strin
 		launchSite:             launchSite,
 		projectId:              projectId,
 		pipelinesFolder:        pipelinesFolder,
-		bucketName:             bucketName,
+		sdkConfigPath:          sdkConfigPath,
+		propertyPath:           propertyPath,
+		cacheRequestTimeout:    cacheRequestTimeout,
 	}
 }
 
@@ -147,7 +162,27 @@ func (ae *ApplicationEnvs) PipelinesFolder() string {
 	return ae.pipelinesFolder
 }
 
-// BucketName returns name of the GCS's bucket with examples
-func (ae *ApplicationEnvs) BucketName() string {
-	return ae.bucketName
+// SchemaVersion returns the database schema version
+func (ae *ApplicationEnvs) SchemaVersion() string {
+	return ae.schemaVersion
+}
+
+// SdkConfigPath returns sdk configuration file
+func (ae *ApplicationEnvs) SdkConfigPath() string {
+	return ae.sdkConfigPath
+}
+
+// PropertyPath returns the application properties path
+func (ae *ApplicationEnvs) PropertyPath() string {
+	return ae.propertyPath
+}
+
+// SetSchemaVersion sets the database schema version
+func (ae *ApplicationEnvs) SetSchemaVersion(schemaVersion string) {
+	ae.schemaVersion = schemaVersion
+}
+
+// CacheRequestTimeout returns timeout to request data from cache
+func (ae *ApplicationEnvs) CacheRequestTimeout() time.Duration {
+	return ae.cacheRequestTimeout
 }

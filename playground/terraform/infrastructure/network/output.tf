@@ -17,18 +17,18 @@
 # under the License.
 #
 
-<<<<<<<< HEAD:playground/terraform/infrastructure/network/output.tf
-output "network" {
+output "playground_network_id" {
+  value = google_compute_network.playground.id
+}
+
+output "playground_subnetwork_id" {
+  value = google_compute_subnetwork.playground.id
+}
+
+output "playground_network_name" {
   value = google_compute_network.playground.name
 }
 
-output "subnetwork" {
+output "playground_subnetwork_name" {
   value = google_compute_subnetwork.playground.name
 }
-========
-output "front-url" {
-  value = google_app_engine_flexible_app_version.frontend_app.service
-}
-
-
->>>>>>>> master:playground/terraform/applications/frontend/output.tf

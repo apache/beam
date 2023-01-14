@@ -20,12 +20,12 @@ limitations under the License.
 Beam Playground is an interactive environment to try out Beam transforms and examples
 without having to install Apache Beam in your environment.
 
-You can try an Apache Beam examples at
-[Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/).
+You can try the available Apache Beam examples at
+[Beam Playground](https://play.beam.apache.org/).
 
 ## Beam Playground WordCount Example
 
-{{< playground "true" "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" "" "700px">}}
+{{< playground_iframe editable="1" example="SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" code="" height="700">}}
 
 ## How To Add New Examples
 
@@ -102,9 +102,9 @@ More details on examples in Apache Beam Playground can be found
 
 ## Next Steps
 
-* Try examples in [Apache Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/).
+* Try examples in [Apache Beam Playground](https://play.beam.apache.org/).
 * Submit feedback using "Enjoying Playground?" in
-[Apache Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/) or via
+[Apache Beam Playground](https://play.beam.apache.org/) or via
 [this form](https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url).
 * Join the Beam [users@](/community/contact-us) mailing list.
 * If you're interested in contributing to the Apache Beam Playground codebase, see the [Contribution Guide](/contribute).

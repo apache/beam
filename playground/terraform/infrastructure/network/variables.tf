@@ -26,14 +26,25 @@ variable "region" {
   description = "The Google Cloud Platform (GCP) region in which to provision resources"
 }
 
+<<<<<<<< HEAD:playground/terraform/applications/backend-go/variables.tf
+variable "docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default = "beam_playground-backend-go"
+}
+
+variable "docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+========
 variable "network_name" {
   description = "Name of VPC to be created"
-  default     = "playground-vpc"
+  default     = "playground-network"
 }
 
 variable "subnetwork_name" {
   description = "Name of VPC to be created"
-  default     = "playground-vpc"
+  default     = "playground-subnetwork"
+>>>>>>>> master:playground/terraform/infrastructure/network/variables.tf
 }
 
 variable "subnetwork_cidr_range" {

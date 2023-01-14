@@ -131,6 +131,48 @@ func (t *testStateReader) OpenIterable(ctx context.Context, id StreamID, key []b
 	return nil, nil
 }
 
+func (t *testStateReader) OpenBagUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
+	tbr := testBagReader{
+		userStateID: userStateID,
+		key:         key,
+		w:           w,
+	}
+	return &tbr, nil
+}
+
+func (t *testStateReader) OpenBagUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+func (t *testStateReader) OpenBagUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+// OpenMultimapUserStateReader opens a byte stream for reading user multimap state.
+func (t *testStateReader) OpenMultimapUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+// OpenMultimapUserStateAppender opens a byte stream for appending user multimap state.
+func (t *testStateReader) OpenMultimapUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+// OpenMultimapUserStateClearer opens a byte stream for clearing user multimap state by key.
+func (t *testStateReader) OpenMultimapUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, mk []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+// OpenMultimapKeysUserStateReader opens a byte stream for reading the keys of user multimap state.
+func (t *testStateReader) OpenMultimapKeysUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+// OpenMultimapKeysUserStateClearer opens a byte stream for clearing all keys of user multimap state.
+func (t *testStateReader) OpenMultimapKeysUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	return nil, nil
+}
+
 func (t *testStateReader) GetSideInputCache() SideCache {
 	return &testSideCache{}
 }
@@ -149,9 +191,9 @@ func (t *testFaultyWindowMapper) MapWindow(w typex.Window) (typex.Window, error)
 
 func TestNewIterable(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testWindowMapper{})
 
 	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
 	if err != nil {
@@ -161,9 +203,9 @@ func TestNewIterable(t *testing.T) {
 
 func TestNewIterable_BadMapper(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testFaultyWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testFaultyWindowMapper{})
 
 	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
 	if err == nil {
@@ -173,9 +215,9 @@ func TestNewIterable_BadMapper(t *testing.T) {
 
 func TestNewKeyedIterable_BadMapper(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedKVCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testFaultyWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testFaultyWindowMapper{})
 
 	_, err := adapter.NewKeyedIterable(context.Background(), &testStateReader{}, window.GlobalWindow{}, "")
 	if err == nil {
@@ -185,9 +227,9 @@ func TestNewKeyedIterable_BadMapper(t *testing.T) {
 
 func TestNewIterable_KVType(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
-	sideId := "i0"
+	sideID := "i0"
 	c := makeWindowedKVCoder()
-	adapter := NewSideInputAdapter(sid, sideId, c, &testWindowMapper{})
+	adapter := NewSideInputAdapter(sid, sideID, c, &testWindowMapper{})
 	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
 	if err != nil {
 		t.Fatalf("NewIterable() failed when it should have succeeded, got %v", err)

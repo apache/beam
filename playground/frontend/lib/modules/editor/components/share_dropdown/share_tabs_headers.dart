@@ -17,58 +17,37 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/graph/graph_builder/painters/graph_painter.dart';
-import 'package:playground/modules/output/components/graph.dart';
-import 'package:playground/modules/output/components/output_result.dart';
-import 'package:playground/modules/output/models/output_placement.dart';
-import 'package:playground/modules/output/models/output_placement_state.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-class OutputArea extends StatelessWidget {
+const _width = 180.0;
+
+class ShareTabsHeaders extends StatelessWidget {
   final TabController tabController;
-  final bool showGraph;
 
-  const OutputArea({
-    Key? key,
+  const ShareTabsHeaders({
+    super.key,
     required this.tabController,
-    required this.showGraph,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).backgroundColor,
-      child: Consumer2<PlaygroundState, OutputPlacementState>(
-        builder: (context, playgroundState, placementState, child) {
-          return TabBarView(
-            controller: tabController,
-            physics: const NeverScrollableScrollPhysics(),
-            children: <Widget>[
-              OutputResult(
-                text: playgroundState.result?.output ?? '',
-                isSelected: tabController.index == 0,
-              ),
-              OutputResult(
-                text: playgroundState.result?.log ?? '',
-                isSelected: tabController.index == 1,
-              ),
-              if (showGraph)
-                GraphTab(
-                  graph: playgroundState.result?.graph ?? '',
-                  sdk: playgroundState.sdk,
-                  direction: _getGraphDirection(placementState.placement),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+    final appLocale = AppLocalizations.of(context)!;
 
-  GraphDirection _getGraphDirection(OutputPlacement placement) {
-    return placement == OutputPlacement.bottom
-        ? GraphDirection.horizontal
-        : GraphDirection.vertical;
+    return Consumer<PlaygroundController>(
+      builder: (context, controller, child) {
+        return SizedBox(
+          width: _width,
+          child: TabBar(
+            controller: tabController,
+            tabs: [
+              Text(appLocale.link),
+              Text(appLocale.embed),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

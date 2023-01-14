@@ -78,8 +78,20 @@ func TestCoders(t *testing.T) {
 			coder: coder.NewW(coder.NewVarInt(), coder.NewGlobalWindow()),
 			val:   &FullValue{Elm: int64(13), Windows: []typex.Window{window.GlobalWindow{}}},
 		}, {
+			coder: coder.NewW(coder.NewVarInt(), coder.NewIntervalWindow()),
+			val:   &FullValue{Elm: int64(13), Windows: []typex.Window{window.IntervalWindow{Start: 0, End: 100}, window.IntervalWindow{Start: 50, End: 150}}},
+		}, {
 			coder: coder.NewPW(coder.NewString(), coder.NewGlobalWindow()),
 			val:   &FullValue{Elm: "myString" /*Windowing info isn't encoded for PW so we can omit it here*/},
+		}, {
+			coder: coder.NewN(coder.NewBytes()),
+			val:   &FullValue{},
+		}, {
+			coder: coder.NewN(coder.NewBytes()),
+			val:   &FullValue{Elm: []byte("myBytes")},
+		}, {
+			coder: coder.NewIntervalWindowCoder(),
+			val:   &FullValue{Elm: window.IntervalWindow{Start: 0, End: 100}},
 		},
 	} {
 		t.Run(fmt.Sprintf("%v", test.coder), func(t *testing.T) {
@@ -177,26 +189,6 @@ func TestIterableCoder(t *testing.T) {
 			t.Errorf("got %d at position %d, want %d", got, i, want)
 		}
 	}
-}
-
-// TODO(BEAM-10660): Update once proper timer support is added
-func TestTimerCoder(t *testing.T) {
-	var buf bytes.Buffer
-	tCoder := coder.NewT(coder.NewVarInt(), coder.NewGlobalWindow())
-	wantVal := &FullValue{Elm: int64(13)}
-
-	enc := MakeElementEncoder(tCoder)
-	if err := enc.Encode(wantVal, &buf); err != nil {
-		t.Fatalf("Couldn't encode value: %v", err)
-	}
-
-	dec := MakeElementDecoder(tCoder)
-	result, err := dec.Decode(&buf)
-	if err != nil {
-		t.Fatalf("Couldn't decode value: %v", err)
-	}
-
-	compareFV(t, result, wantVal)
 }
 
 type namedTypeForTest struct {

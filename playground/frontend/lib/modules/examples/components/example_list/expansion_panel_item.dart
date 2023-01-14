@@ -17,43 +17,37 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
-import 'package:playground/modules/examples/components/example_list/example_item_actions.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
-import 'package:playground/pages/playground/states/examples_state.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../constants/sizes.dart';
+import '../../../analytics/analytics_service.dart';
+import 'example_item_actions.dart';
+
+/// An [example] in the example dropdown.
 class ExpansionPanelItem extends StatelessWidget {
-  final ExampleModel example;
-  final ExampleModel selectedExample;
-  final AnimationController animationController;
-  final OverlayEntry? dropdown;
+  final ExampleBase example;
+  final VoidCallback onSelected;
+  final ExampleBase? selectedExample;
 
   const ExpansionPanelItem({
     Key? key,
     required this.example,
+    required this.onSelected,
     required this.selectedExample,
-    required this.animationController,
-    required this.dropdown,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<PlaygroundState, ExampleState>(
-      builder: (context, playgroundState, exampleState, child) => MouseRegion(
+    return Consumer<PlaygroundController>(
+      builder: (context, controller, child) => MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: () async {
-            if (playgroundState.selectedExample != example) {
-              closeDropdown(exampleState);
-              final exampleWithInfo = await exampleState.loadExampleInfo(
-                example,
-                playgroundState.sdk,
-              );
-              playgroundState.setExample(exampleWithInfo);
-              AnalyticsService.get(context).trackSelectExample(exampleWithInfo);
+            if (controller.selectedExample != example) {
+              _closeDropdown(controller.exampleCache);
+              AnalyticsService.get(context).trackSelectExample(example);
+              controller.setExampleBase(example);
             }
           },
           child: Container(
@@ -68,7 +62,7 @@ class ExpansionPanelItem extends StatelessWidget {
                   // Wrapped with Row for better user interaction and positioning
                   Text(
                     example.name,
-                    style: example == selectedExample
+                    style: example.path == selectedExample?.path
                         ? const TextStyle(fontWeight: FontWeight.bold)
                         : const TextStyle(),
                   ),
@@ -82,9 +76,8 @@ class ExpansionPanelItem extends StatelessWidget {
     );
   }
 
-  void closeDropdown(ExampleState exampleState) {
-    animationController.reverse();
-    dropdown?.remove();
-    exampleState.changeSelectorVisibility();
+  void _closeDropdown(ExampleCache exampleCache) {
+    exampleCache.setSelectorOpened(false);
+    onSelected();
   }
 }

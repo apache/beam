@@ -27,10 +27,10 @@
 //
 // Concepts:
 //
-//   1. Reading data from text files
-//   2. Specifying 'inline' transforms
-//   3. Counting items in a PCollection
-//   4. Writing data to text files
+//  1. Reading data from text files
+//  2. Specifying 'inline' transforms
+//  3. Counting items in a PCollection
+//  4. Writing data to text files
 //
 // No arguments are required to run this pipeline. It will be executed with
 // the direct runner. You can see the results in the output file named
@@ -49,6 +49,11 @@ package main
 //     - Combiners
 //     - Core Transforms
 //     - Quickstart
+//   complexity: BASIC
+//   tags:
+//     - count
+//     - io
+//     - strings
 
 import (
 	"context"
@@ -79,7 +84,7 @@ func main() {
 	// Concept #1: Invoke a root transform with the pipeline; in this case,
 	// textio.Read to read a set of input text file. textio.Read returns a
 	// PCollection where each element is one line from the input text
-	// (one of of Shakespeare's texts).
+	// (one of Shakespeare's texts).
 
 	// This example reads from a public dataset containing the text
 	// of King Lear.

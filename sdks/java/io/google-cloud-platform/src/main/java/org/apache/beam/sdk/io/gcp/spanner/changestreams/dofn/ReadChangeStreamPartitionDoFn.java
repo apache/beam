@@ -17,14 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
-import static com.google.cloud.Timestamp.ofTimeSecondsAndNanos;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
-
-import io.opencensus.common.Scope;
-import io.opencensus.trace.AttributeValue;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ChildPartitionsRecordAction;
@@ -34,6 +28,9 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStream
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.BytesThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.NullThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
@@ -41,6 +38,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -66,12 +64,17 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   private static final long serialVersionUID = -7574596218085711975L;
   private static final Logger LOG = LoggerFactory.getLogger(ReadChangeStreamPartitionDoFn.class);
-  private static final Tracer TRACER = Tracing.getTracer();
+  private static final BigDecimal MAX_DOUBLE = BigDecimal.valueOf(Double.MAX_VALUE);
 
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   private final ActionFactory actionFactory;
   private final ChangeStreamMetrics metrics;
+  /**
+   * Needs to be set through the {@link
+   * ReadChangeStreamPartitionDoFn#setThroughputEstimator(BytesThroughputEstimator)} call.
+   */
+  private ThroughputEstimator<DataChangeRecord> throughputEstimator;
 
   private transient QueryChangeStreamAction queryChangeStreamAction;
 
@@ -98,6 +101,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     this.mapperFactory = mapperFactory;
     this.actionFactory = actionFactory;
     this.metrics = metrics;
+    this.throughputEstimator = new NullThroughputEstimator<>();
   }
 
   @GetInitialWatermarkEstimatorState
@@ -130,8 +134,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final com.google.cloud.Timestamp startTimestamp = partition.getStartTimestamp();
     // Range represents closed-open interval
     final com.google.cloud.Timestamp endTimestamp =
-        ofTimeSecondsAndNanos(
-            partition.getEndTimestamp().getSeconds(), partition.getEndTimestamp().getNanos() + 1);
+        TimestampUtils.next(partition.getEndTimestamp());
     final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
     final com.google.cloud.Timestamp partitionRunningAt =
         daoFactory.getPartitionMetadataDao().updateToRunning(token);
@@ -145,6 +148,23 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
     metrics.incActivePartitionReadCounter();
     return TimestampRange.of(startTimestamp, endTimestamp);
+  }
+
+  @GetSize
+  public double getSize(@Element PartitionMetadata partition, @Restriction TimestampRange range)
+      throws Exception {
+    final BigDecimal timeGapInSeconds =
+        BigDecimal.valueOf(newTracker(partition, range).getProgress().getWorkRemaining());
+    final BigDecimal throughput = BigDecimal.valueOf(this.throughputEstimator.get());
+    final double size =
+        timeGapInSeconds
+            .multiply(throughput)
+            // Cap it at Double.MAX_VALUE to avoid an overflow.
+            .min(MAX_DOUBLE)
+            .doubleValue();
+    LOG.debug(
+        "getSize() = {} ({} timeGapInSeconds * {} throughput)", size, timeGapInSeconds, throughput);
+    return size;
   }
 
   @NewTracker
@@ -166,7 +186,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final ChangeStreamRecordMapper changeStreamRecordMapper =
         mapperFactory.changeStreamRecordMapper();
     final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
-    final DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction();
+    final DataChangeRecordAction dataChangeRecordAction =
+        actionFactory.dataChangeRecordAction(throughputEstimator);
     final HeartbeatRecordAction heartbeatRecordAction =
         actionFactory.heartbeatRecordAction(metrics);
     final ChildPartitionsRecordAction childPartitionsRecordAction =
@@ -208,20 +229,21 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       BundleFinalizer bundleFinalizer) {
 
     final String token = partition.getPartitionToken();
-    try (Scope scope =
-        TRACER
-            .spanBuilder("ReadChangeStreamPartitionDoFn.processElement")
-            .setRecordEvents(true)
-            .startScopedSpan()) {
-      TRACER
-          .getCurrentSpan()
-          .putAttribute(PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(token));
 
-      LOG.debug(
-          "[" + token + "] Processing element with restriction " + tracker.currentRestriction());
+    LOG.debug("[{}] Processing element with restriction {}", token, tracker.currentRestriction());
 
-      return queryChangeStreamAction.run(
-          partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
-    }
+    return queryChangeStreamAction.run(
+        partition, tracker, receiver, watermarkEstimator, bundleFinalizer);
+  }
+
+  /**
+   * Sets the estimator to calculate the backlog of this function. Must be called after the
+   * initialization of this DoFn.
+   *
+   * @param throughputEstimator an estimator to calculate local throughput.
+   */
+  public void setThroughputEstimator(
+      BytesThroughputEstimator<DataChangeRecord> throughputEstimator) {
+    this.throughputEstimator = throughputEstimator;
   }
 }

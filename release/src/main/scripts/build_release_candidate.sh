@@ -77,6 +77,7 @@ RC_NUM=
 SIGNING_KEY=
 USER_GITHUB_ID=
 DEBUG=
+JAVA11_HOME=
 
 while [[ $# -gt 0 ]] ; do
   arg="$1"
@@ -101,6 +102,10 @@ while [[ $# -gt 0 ]] ; do
 
       --github-user)
       shift; USER_GITHUB_ID=$1; shift
+      ;;
+
+      --java11-home)
+      shift; JAVA11_HOME=$1; shift
       ;;
 
       *)
@@ -131,6 +136,12 @@ fi
 
 if [[ -z "$USER_GITHUB_ID" ]] ; then
   echo 'Please provide your github username(ID)'
+  usage
+  exit 1
+fi
+
+if [[ -z "$JAVA11_HOME" ]] ; then
+  echo 'Please provide Java 11 home. Required to build sdks/java/container/agent for Java 11+ containers.'
   usage
   exit 1
 fi
@@ -333,7 +344,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   git checkout ${RC_TAG}
 
-  ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}rc${RC_NUM} -Pjava11Home=${JAVA11_HOME} --no-daemon --no-parallel
 
   wipe_local_clone_dir
 fi
@@ -363,7 +374,7 @@ if [[ $confirmation = "y" ]]; then
   git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
-  # TODO(BEAM-9980): Don't hardcode py version in this file.
+  # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
   cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
@@ -372,7 +383,7 @@ if [[ $confirmation = "y" ]]; then
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
-  ./gradlew :sdks:java:javadoc:aggregateJavadoc
+  ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 
   echo "------------------Updating Release Docs---------------------"
@@ -384,11 +395,15 @@ if [[ $confirmation = "y" ]]; then
 
   echo "..........Copying generated javadoc into beam-site.........."
   cp -r ${GENERATE_JAVADOC} javadoc/${RELEASE}
-  cp -r ${GENERATE_JAVADOC} javadoc/current
+  # Update current symlink to point to the latest release
+  unlink javadoc/current
+  ln -s ${RELEASE} javadoc/current
 
   echo "............Copying generated pydoc into beam-site.........."
   cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
-  cp -r ${GENERATED_PYDOC} pydoc/current
+  # Update current symlink to point to the latest release
+  unlink pydoc/current
+  ln -s ${RELEASE} pydoc/current
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."

@@ -17,39 +17,28 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/output/components/output_header/output_placements.dart';
 
-import 'output_tabs.dart';
+import '../constants/sizes.dart';
 
-class OutputHeader extends StatelessWidget {
+class TabHeader extends StatelessWidget {
   final TabController tabController;
-  final bool showOutputPlacements;
-  final bool showGraph;
+  final Widget tabsWidget;
 
-  const OutputHeader({
-    Key? key,
+  const TabHeader({
+    super.key,
     required this.tabController,
-    this.showOutputPlacements = true,
-    this.showGraph = true,
-  }) : super(key: key);
+    required this.tabsWidget,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 50,
+      height: BeamSizes.tabBarHeight,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: kXlSpacing,
-          vertical: kZeroSpacing,
+          horizontal: BeamSizes.size16,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            OutputTabs(tabController: tabController, showGraph: showGraph),
-            showOutputPlacements ? const OutputPlacements() : const SizedBox(),
-          ],
-        ),
+        child: tabsWidget,
       ),
     );
   }

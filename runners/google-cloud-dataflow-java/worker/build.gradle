@@ -30,7 +30,11 @@ applyJavaNature(
   archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
   publish: false,
   exportJavadoc: false,
-  enableChecker:false,
+  classesTriggerCheckerBugs: [
+    'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
+    'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
+    'FetchAndFilterStreamingSideInputsOperation': 'https://github.com/typetools/checker-framework/issues/5436',
+  ],
   enableSpotbugs: true,
   validateShadowJar: false,
   shadowClosure: {
@@ -79,7 +83,7 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":sdks:java:fn-execution")
   implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation google_api_services_dataflow
   implementation library.java.avro
   implementation library.java.google_api_client
@@ -94,7 +98,7 @@ dependencies {
   implementation library.java.proto_google_common_protos
   shadow library.java.vendored_guava_26_0_jre
   implementation library.java.slf4j_api
-  implementation "io.opencensus:opencensus-api:0.28.0"
+  implementation "io.opencensus:opencensus-api:0.31.0"
   implementation "javax.servlet:javax.servlet-api:3.1.0"
 
   // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
@@ -119,10 +123,11 @@ dependencies {
   shadowTest library.java.jsonassert
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
+  shadowTest library.java.powermock
 }
 
-//TODO(BEAM-5657): checktyle task should be enabled in the future.
+//TODO(https://github.com/apache/beam/issues/19115): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
 checkstyleTest.enabled = false
-//TODO(BEAM-5659): javadoc task should be enabled in the future.
+//TODO(https://github.com/apache/beam/issues/19119): javadoc task should be enabled in the future.
 javadoc.enabled = false

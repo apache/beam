@@ -17,63 +17,27 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/output/components/output_area.dart';
-import 'package:playground/modules/output/components/output_header/output_header.dart';
 
-const kTabsCount = 3;
+import '../constants/sizes.dart';
 
-class Output extends StatefulWidget {
-  final bool isEmbedded;
-  final bool showGraph;
+class LoadingIndicator extends StatelessWidget {
+  final double size;
 
-  const Output({Key? key, required this.isEmbedded, required this.showGraph})
-      : super(key: key);
-
-  @override
-  State<Output> createState() => _OutputState();
-}
-
-class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
-  late final TabController tabController;
-  int selectedTab = 0;
-
-  @override
-  void initState() {
-    final tabsCount = widget.showGraph ? kTabsCount : kTabsCount - 1;
-    tabController = TabController(vsync: this, length: tabsCount);
-    tabController.addListener(onTabChange);
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    tabController.removeListener(onTabChange);
-    tabController.dispose();
-    super.dispose();
-  }
-
-  onTabChange() {
-    setState(() {
-      selectedTab = tabController.index;
-    });
-  }
+  const LoadingIndicator({
+    super.key,
+    this.size = BeamSizes.loadingIndicator,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        OutputHeader(
-          tabController: tabController,
-          showOutputPlacements: !widget.isEmbedded,
-          showGraph: widget.showGraph,
+    return Center(
+      child: SizedBox(
+        height: size,
+        width: size,
+        child: CircularProgressIndicator(
+          color: Theme.of(context).primaryColor,
         ),
-        Expanded(
-          child: OutputArea(
-            tabController: tabController,
-            showGraph: widget.showGraph,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
