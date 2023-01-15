@@ -18,10 +18,11 @@
 """
 Util/helper functions used in apache_beam.ml.inference.
 """
-
+from functools import partial
 from typing import Any
 from typing import Dict
 from typing import Iterable
+from typing import List
 from typing import Optional
 from typing import Union
 
@@ -31,8 +32,11 @@ from apache_beam.ml.inference.base import ModelMetdata
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.transforms import window
 from apache_beam.transforms import trigger
+from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+
+_START_TIME_STAMP = Timestamp.now()
 
 
 def _convert_to_result(
@@ -55,33 +59,52 @@ def _convert_to_result(
   return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
 
 
+class GetLatestFileByTimeStamp(beam.DoFn):
+  TIME_STATE = CombiningValueStateSpec(
+      'count', combine_fn=partial(max, default=_START_TIME_STAMP))
+
+  def process(
+      self, element,
+      time_state=beam.DoFn.StateParam(TIME_STATE)) -> List[ModelMetdata]:
+    _, file_metadata = element
+    new_ts = file_metadata.last_updated_in_seconds
+    old_ts = time_state.read()
+    if new_ts > old_ts:
+      time_state.clear()
+      time_state.add(new_ts)
+      return [ModelMetdata(file_metadata.path)]
+
+
 class WatchFilePattern(beam.PTransform):
   def __init__(
       self,
       file_pattern,
       interval=360,
-      start_timestamp=Timestamp.now(),
       stop_timestamp=MAX_TIMESTAMP,
       match_updated_files=False,
       has_deduplication=True):
     """
     Watch for updates using the file pattern using MatchContinuously transform.
 
+    Note: Start timestamp will be defaulted to timestamp when pipeline was run.
+      All the files matching file_pattern, that are uploaded before the
+      pipeline started will be discarded.
+
       Args:
         file_pattern: The file path to read from.
         interval: Interval at which to check for files in seconds.
         has_deduplication: Whether files already read are discarded or not.
-        start_timestamp: Timestamp for start file checking.
         stop_timestamp: Timestamp after which no more files will be checked.
         match_updated_files: (When has_deduplication is set to True) whether
           match file with timestamp changes.
     """
     self.file_pattern = file_pattern
     self.interval = interval
-    self.start_timestamp = start_timestamp
     self.stop_timestamp = stop_timestamp
     self.match_updated_files = match_updated_files
     self.has_deduplication = has_deduplication
+    self._latest_timestamp = None
+    self._key = 'key'
 
   def expand(self, pcoll) -> beam.PCollection[ModelMetdata]:
     return (
@@ -89,7 +112,6 @@ class WatchFilePattern(beam.PTransform):
         | 'MatchContinuously' >> MatchContinuously(
             file_pattern=self.file_pattern,
             interval=self.interval,
-            start_timestamp=self.start_timestamp,
             stop_timestamp=self.stop_timestamp,
             match_updated_files=self.match_updated_files,
             has_deduplication=self.has_deduplication)
@@ -98,4 +120,5 @@ class WatchFilePattern(beam.PTransform):
             trigger=trigger.Repeatedly(
                 trigger.AfterProcessingTime(self.interval)),
             accumulation_mode=trigger.AccumulationMode.DISCARDING)
-        | "GetModelPath" >> beam.Map(lambda x: ModelMetdata(model_id=x.path)))
+        | "AttachKey" >> beam.Map(lambda x: (self._key, x))
+        | "GetLatestFileMetaData" >> beam.ParDo(GetLatestFileByTimeStamp()))
