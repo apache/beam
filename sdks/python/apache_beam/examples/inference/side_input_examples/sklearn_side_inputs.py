@@ -50,44 +50,6 @@ class PostProcessor(beam.DoFn):
     yield '{},{}'.format(label, prediction)
 
 
-# # we need a side input that emits model path.
-# @experimental()
-# def get_model_path_side_input(pipeline,
-#                               file_pattern,
-#                               interval=360,
-#                               start_timestamp=Timestamp.now(),
-#                               stop_timestamp=MAX_TIMESTAMP,
-#                               match_updated_files=False,
-#                               has_deduplication=True):
-#   """Watch for updates using the file pattern.
-#
-#     Args:
-#       file_pattern: The file path to read from.
-#       interval: Interval at which to check for files in seconds.
-#       has_deduplication: Whether files already read are discarded or not.
-#       start_timestamp: Timestamp for start file checking.
-#       stop_timestamp: Timestamp after which no more files will be checked.
-#       match_updated_files: (When has_deduplication is set to True) whether match
-#         file with timestamp changes.
-#     """
-#   model_path = (
-#       pipeline
-#       | 'MatchContinuously' >> MatchContinuously(
-#     file_pattern=file_pattern,
-#     interval=interval,
-#     start_timestamp=start_timestamp,
-#     stop_timestamp=stop_timestamp,
-#     match_updated_files=match_updated_files,
-#     has_deduplication=has_deduplication
-#   )
-#       | 'ApplyGlobalWindow' >> beam.transforms.WindowInto(
-#           window.GlobalWindows(),
-#           trigger=trigger.Repeatedly(trigger.AfterProcessingTime(5)),
-#           accumulation_mode=trigger.AccumulationMode.DISCARDING)
-#       | "GetModelPath" >> beam.Map(lambda x: x.path))
-#   return beam.pvalue.AsSingleton(model_path)
-
-
 def run(argv=None, save_main_session=True, test_pipeline=None):
   """Entry point for running the pipeline."""
   known_args, pipeline_args = parse_known_args(argv)
@@ -130,8 +92,6 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
   return result
 
 
-#
-#
 def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()

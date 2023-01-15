@@ -60,6 +60,9 @@ def _convert_to_result(
 
 
 class GetLatestFileByTimeStamp(beam.DoFn):
+  """
+  Do we need state?
+  """
   TIME_STATE = CombiningValueStateSpec(
       'count', combine_fn=partial(max, default=_START_TIME_STAMP))
 
@@ -114,11 +117,11 @@ class WatchFilePattern(beam.PTransform):
             interval=self.interval,
             stop_timestamp=self.stop_timestamp,
             match_updated_files=self.match_updated_files,
-            has_deduplication=self.has_deduplication)
+            has_deduplication=self.has_deduplication,
+            apply_windowing=True)
+        | "AttachKey" >> beam.Map(lambda x: (self._key, x))
+        | "GetLatestFileMetaData" >> beam.ParDo(GetLatestFileByTimeStamp())
         | 'ApplyGlobalWindow' >> beam.transforms.WindowInto(
             window.GlobalWindows(),
-            trigger=trigger.Repeatedly(
-                trigger.AfterProcessingTime(self.interval)),
-            accumulation_mode=trigger.AccumulationMode.DISCARDING)
-        | "AttachKey" >> beam.Map(lambda x: (self._key, x))
-        | "GetLatestFileMetaData" >> beam.ParDo(GetLatestFileByTimeStamp()))
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+            accumulation_mode=trigger.AccumulationMode.DISCARDING))
