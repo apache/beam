@@ -428,10 +428,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = None
     self._metrics_namespace = metrics_namespace
     self._update_model_sleep_time = None
-    self._side_input_cache = set()
-
-  def start_bundle(self):
-    self._side_input_cache = set()
 
   def _load_model(self, side_input_model_path: str = None):
     def load():
@@ -447,48 +443,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_byte_size = memory_after - memory_before
       self._metrics_collector.cache_load_model_metrics(
           load_model_latency_ms, model_byte_size)
-
-      # A weakref to dict cannot be created. So subclass the Dict for
-      # shared cache.
-      class ModelContainer(Dict):
-        pass
-
-      model_container = ModelContainer()
-      model_container['model'] = model
-      model_container['model_id'] = side_input_model_path
-      model_container['side_input_cache'] = self._side_input_cache.copy()
-      return model_container
+      return model
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
-    start_time = time.time()
-    cached_model_container = self._shared_model_handle.acquire(load)
-    logging.info(
-        f'first call items of Cache model container: {cached_model_container}')
-    end_time = time.time()
-    logging.info(
-        f"First call of shared handle acquire time {end_time-start_time}")
-    # retrieve the side input cache
-    self._side_input_cache: set = cached_model_container['side_input_cache']
-    if (side_input_model_path is
-        not None) and side_input_model_path not in self._side_input_cache:
-      logging.info(
-          f"Side input cache: {cached_model_container['side_input_cache']}")
-      self._side_input_cache.add(side_input_model_path)
-      logging.info(
-          "Updating the model path. Previous model path"
-          " is %s and "
-          "updated model path is %s" %
-          (cached_model_container['model_id'], side_input_model_path))
-
-      start_time = time.time()
-      cached_model_container = self._shared_model_handle.acquire(
-          load, tag=side_input_model_path)
-      end_time = time.time()
-      logging.info(
-          f"Second call of shared handle acquire time {end_time-start_time}")
-
-    return cached_model_container['model']
+    return self._shared_model_handle.acquire(load, tag=side_input_model_path)
 
   def setup(self):
     metrics_namespace = (
@@ -506,7 +465,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       batch,
       inference_args,
       si_model_metadata: Optional[ModelMetdata] = None):
-    if si_model_metadata is not None:
+
+    if not isinstance(si_model_metadata, beam.pvalue.EmptySideInput):
       logging.info(f"Side Input model path: {si_model_metadata.model_id}")
       self.update_model(si_model_metadata.model_id)
     start_time = _to_microseconds(self._clock.time_ns())
