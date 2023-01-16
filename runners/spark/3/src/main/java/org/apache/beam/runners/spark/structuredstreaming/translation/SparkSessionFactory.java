@@ -134,7 +134,7 @@ public class SparkSessionFactory {
       String master, @Nullable SparkStructuredStreamingPipelineOptions options) {
 
     SparkConf sparkConf = new SparkConf().setIfMissing("spark.master", master);
-    master = sparkConf.get("spark.master"); // update to effective master
+    master = sparkConf.get("spark.master"); // use effective master in the remainder of this method
 
     if (options != null) {
       if (options.getAppName() != null) {
@@ -144,14 +144,14 @@ public class SparkSessionFactory {
       if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
         // Append the files to stage provided by the user to `spark.jars`.
         PipelineResources.prepareFilesForStaging(options);
-        String[] staged = filesToStage(options, Collections.emptyList());
-        String[] jars = sparkJars(sparkConf);
-        sparkConf.setJars(jars.length > 0 ? ArrayUtils.addAll(jars, staged) : staged);
+        String[] filesToStage = filterFilesToStage(options, Collections.emptyList());
+        String[] jars = getSparkJars(sparkConf);
+        sparkConf.setJars(jars.length > 0 ? ArrayUtils.addAll(jars, filesToStage) : filesToStage);
       } else if (!sparkConf.contains("spark.jars") && !master.startsWith("local[")) {
         // Stage classpath if `spark.jars` not set and not in local mode.
         PipelineResources.prepareFilesForStaging(options);
         // Set `spark.jars`, exclude JRE libs and jars causing conflicts using `userClassPathFirst`.
-        sparkConf.setJars(filesToStage(options, SPARK_JAR_EXCLUDES));
+        sparkConf.setJars(filterFilesToStage(options, SPARK_JAR_EXCLUDES));
         // Enable `userClassPathFirst` to prevent issues with guava, jackson and others.
         sparkConf.setIfMissing("spark.executor.userClassPathFirst", "true");
       }
@@ -181,7 +181,7 @@ public class SparkSessionFactory {
   }
 
   @SuppressWarnings({"return", "toarray.nullable.elements", "methodref.receiver"}) // safe to ignore
-  private static String[] filesToStage(
+  private static String[] filterFilesToStage(
       SparkStructuredStreamingPipelineOptions opts, Collection<String> excludes) {
     Collection<String> files = opts.getFilesToStage();
     if (files == null || files.isEmpty()) {
@@ -193,7 +193,7 @@ public class SparkSessionFactory {
     return files.toArray(EMPTY_STRING_ARRAY);
   }
 
-  private static String[] sparkJars(SparkConf conf) {
+  private static String[] getSparkJars(SparkConf conf) {
     return conf.contains("spark.jars") ? conf.get("spark.jars").split(",") : EMPTY_STRING_ARRAY;
   }
 
