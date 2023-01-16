@@ -16,10 +16,15 @@
  * limitations under the License.
  */
 
-// To build and run the app, copy this file to './config.g.dart'
-// This is a temporary solution while we cannot have 'config.g.dart'
-// in the repository.
-// TODO: https://github.com/apache/beam/issues/24200
+// This file contains the backend URLs.
+//
+// On deployment it is re-generated with the actual URLs of a deployment
+// in /playground/terraform/build.gradle.kts in "prepareConfig" task.
+//
+// In the version-controlled copy, this file contains the production backend
+// URLs so developers can run the Playground locally without any configuration.
+// Changes to these version-controlled URLs do not affect deployment.
+//
 // Generated content below
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
