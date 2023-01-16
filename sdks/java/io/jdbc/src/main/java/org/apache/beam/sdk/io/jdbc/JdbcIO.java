@@ -562,7 +562,7 @@ public class JdbcIO {
       return builder().setConnectionInitSqls(connectionInitSqls).build();
     }
 
-    /** Sets the maximum total number of connections. */
+    /** Sets the maximum total number of connections. Use a negative value for no limit. */
     public DataSourceConfiguration withMaxConnections(Integer maxConnections) {
       checkArgument(maxConnections != null, "maxConnections can not be null");
       return withMaxConnections(ValueProvider.StaticValueProvider.of(maxConnections));
