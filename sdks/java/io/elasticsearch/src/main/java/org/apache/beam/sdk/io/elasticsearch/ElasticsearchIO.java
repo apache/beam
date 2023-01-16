@@ -137,7 +137,8 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>The connection configuration also accepts optional configuration: {@code withUsername()},
- * {@code withPassword()}, {@code withApiKey()} and {@code withBearerToken()}.
+ * {@code withPassword()}, {@code withApiKey()}, {@code withBearerToken()} and
+ * {@code withDefaultHeaders()}.
  *
  * <p>You can also specify a query on the {@code read()} using {@code withQuery()}.
  *
@@ -326,6 +327,8 @@ public class ElasticsearchIO {
 
     public abstract @Nullable String getBearerToken();
 
+    public abstract @Nullable List<Header> getDefaultHeaders();
+
     public abstract @Nullable String getKeystorePath();
 
     public abstract @Nullable String getKeystorePassword();
@@ -353,6 +356,8 @@ public class ElasticsearchIO {
       abstract Builder setApiKey(String apiKey);
 
       abstract Builder setBearerToken(String bearerToken);
+
+      abstract Builder setDefaultHeaders(List<Header> defaultHeaders);
 
       abstract Builder setKeystorePath(String keystorePath);
 
@@ -502,6 +507,8 @@ public class ElasticsearchIO {
 
     /**
      * If Elasticsearch authentication is enabled, provide an API key.
+     * Be aware that you can only use one of {@Code withApiToken()}, {@code withBearerToken()} and
+     * {@code withDefaultHeaders} at the same time, as they will override eachother.
      *
      * @param apiKey the API key used to authenticate to Elasticsearch
      * @return a {@link ConnectionConfiguration} describes a connection configuration to
@@ -514,6 +521,8 @@ public class ElasticsearchIO {
 
     /**
      * If Elasticsearch authentication is enabled, provide a bearer token.
+     * Be aware that you can only use one of {@Code withApiToken()}, {@code withBearerToken()} and
+     * {@code withDefaultHeaders} at the same time, as they will override eachother.
      *
      * @param bearerToken the bearer token used to authenticate to Elasticsearch
      * @return a {@link ConnectionConfiguration} describes a connection configuration to
@@ -522,6 +531,21 @@ public class ElasticsearchIO {
     public ConnectionConfiguration withBearerToken(String bearerToken) {
       checkArgument(!Strings.isNullOrEmpty(bearerToken), "bearerToken can not be null or empty");
       return builder().setBearerToken(bearerToken).build();
+    }
+
+    /**
+     * For authentication or custom requirements, provide a set if default headers for the client.
+     * Be aware that you can only use one of {@code withApiToken()}, {@code withBearerToken()} and
+     * {@code withDefaultHeaders} at the same time, as they will override eachother.
+     *
+     * @param defaultHeaders the headers to add to outgoing requests
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withDefaultHeaders(Header [] defaultHeaders) {
+      checkArgument(defaultHeaders != null, "defaultHeaders can not be null");
+      checkArgument(defaultHeaders.length > 0, "defaultHeaders can not be empty");
+      return builder().setDefaultHeaders(Arrays.asList(defaultHeaders)).build();
     }
 
     /**
@@ -639,6 +663,9 @@ public class ElasticsearchIO {
       if (getBearerToken() != null) {
         restClientBuilder.setDefaultHeaders(
             new Header[] {new BasicHeader("Authorization", "Bearer " + getBearerToken())});
+      }
+      if (getDefaultHeaders() != null) {
+        restClientBuilder.setDefaultHeaders(getDefaultHeaders().toArray(Header[]::new));
       }
 
       restClientBuilder.setHttpClientConfigCallback(
