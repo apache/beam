@@ -296,7 +296,7 @@ tasks.register("prepareConfig") {
         val modulePath = project(":playground:frontend").projectDir.absolutePath
         var file = File("$modulePath/lib/$configFileName")
         val lines = file.readLines()
-        val endOfSlice = lines.indexOfFirst { it.contains("const String kAnalyticsUA") }
+        val endOfSlice = lines.indexOfFirst { it.contains("Generated content below") }
         if (endOfSlice != -1) {
             val oldContent = lines.slice(0 until endOfSlice)
             val flagDelete = file.delete()

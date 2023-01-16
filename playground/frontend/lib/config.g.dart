@@ -20,7 +20,7 @@
 // This is a temporary solution while we cannot have 'config.g.dart'
 // in the repository.
 // TODO: https://github.com/apache/beam/issues/24200
-
+// Generated content below
 const String kAnalyticsUA = 'UA-73650088-2';
 const String kApiClientURL =
     'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
