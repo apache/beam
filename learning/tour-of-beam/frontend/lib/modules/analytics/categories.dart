@@ -17,5 +17,7 @@
  */
 
 class TobAnalyticsCategories {
-  static const sdk = 'SDK';
+  static const unit = 'Unit';
+  static const module = 'Module';
+  static const feedback = 'Feedback';
 }

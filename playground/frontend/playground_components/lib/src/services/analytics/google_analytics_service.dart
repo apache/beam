@@ -46,6 +46,17 @@ class GoogleAnalyticsService implements AnalyticsService {
     );
   }
 
+  @override
+  Future<void> trackModifyExample(String exampleName) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: GenericAnalyticsEvents.modifySnippet,
+        category: GenericAnalyticsCategories.example,
+        label: exampleName,
+      ),
+    );
+  }
+
   Future<void> _safeSendEvent(AnalyticsEvent analyticsEvent) async {
     try {
       await _appAnalytics.sendEvent(

@@ -20,6 +20,8 @@ import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
 import '../../config.dart';
+import '../../models/module.dart';
+import '../../models/unit.dart';
 import 'categories.dart';
 import 'events.dart';
 import 'service.dart';
@@ -40,12 +42,56 @@ class TobGoogleAnalyticsService extends GoogleAnalyticsService
         );
 
   @override
-  Future<void> trackOpenUnit(Sdk? oldSdk, Sdk newSdk) async {
+  Future<void> openUnit(Sdk sdk, UnitModel unit) async {
     await _safeSendEvent(
       AnalyticsEvent(
         action: TobAnalyticsEvents.openUnit,
-        category: TobAnalyticsCategories.sdk,
-        label: '${oldSdk?.title}_${newSdk.title}',
+        category: TobAnalyticsCategories.unit,
+        label: '${sdk.title}_${unit.id}',
+      ),
+    );
+  }
+
+  @override
+  Future<void> completeUnit(Sdk sdk, UnitModel unit) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: TobAnalyticsEvents.completeUnit,
+        category: TobAnalyticsCategories.unit,
+        label: '${sdk.title}_${unit.id}',
+      ),
+    );
+  }
+
+  @override
+  Future<void> completeModule(Sdk sdk, ModuleModel module) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: TobAnalyticsEvents.completeModule,
+        category: TobAnalyticsCategories.module,
+        label: '${sdk.title}_${module.id}',
+      ),
+    );
+  }
+
+  @override
+  Future<void> positiveFeedback(String feedback) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: TobAnalyticsEvents.positiveFeedback,
+        category: TobAnalyticsCategories.feedback,
+        label: feedback,
+      ),
+    );
+  }
+
+  @override
+  Future<void> negativeFeedback(String feedback) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: TobAnalyticsEvents.negativeFeedback,
+        category: TobAnalyticsCategories.feedback,
+        label: feedback,
       ),
     );
   }

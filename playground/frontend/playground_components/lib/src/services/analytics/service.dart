@@ -28,4 +28,5 @@ abstract class AnalyticsService {
   }
 
   Future<void> trackRunExample(String exampleName);
+  Future<void> trackModifyExample(String exampleName);
 }

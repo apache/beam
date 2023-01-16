@@ -18,4 +18,6 @@
 
 class GenericAnalyticsEvents {
   static const run = 'click_run';
+  // TODO(nausharipov): rename example to snippet everywhere?
+  static const modifySnippet = 'modify_example';
 }

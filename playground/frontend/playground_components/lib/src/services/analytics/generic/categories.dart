@@ -18,4 +18,5 @@
 
 class GenericAnalyticsCategories {
   static const run = 'Run Code';
+  static const example = 'Example';
 }

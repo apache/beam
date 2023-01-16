@@ -25,7 +25,6 @@ class AnalyticsEvents {
   static const openShortcutsModal = 'open_shortcuts_modal';
   static const openLink = 'open_link';
   static const clickEnjoyPlayground = 'click_enjoy_playground';
-  static const clickRun = 'click_run';
   static const clickCancelRun = 'click_cancel_run';
   static const runTime = 'run_time';
   static const clickReportIssue = 'click_report_issue';

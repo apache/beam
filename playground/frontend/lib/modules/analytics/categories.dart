@@ -17,10 +17,11 @@
  */
 
 class AnalyticsCategories {
-  static const sdk = 'SDK';
-  static const example = 'Example';
   static const common = 'Common';
-  static const link = 'Link';
+  // TODO(nausharipov): runCode and example are duplicated in PGC
+  static const example = 'Example';
   static const feedback = 'Feedback';
+  static const link = 'Link';
   static const runCode = 'Run Code';
+  static const sdk = 'SDK';
 }

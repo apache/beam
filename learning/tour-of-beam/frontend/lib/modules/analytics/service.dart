@@ -19,10 +19,17 @@
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../models/module.dart';
+import '../../models/unit.dart';
+
 abstract class TobAnalyticsService extends AnalyticsService {
   static TobAnalyticsService get() {
     return GetIt.instance.get<TobAnalyticsService>();
   }
 
-  Future<void> trackOpenUnit(Sdk? oldSdk, Sdk newSdk);
+  Future<void> openUnit(Sdk sdk, UnitModel unit);
+  Future<void> completeUnit(Sdk sdk, UnitModel unit);
+  Future<void> completeModule(Sdk sdk, ModuleModel module);
+  Future<void> positiveFeedback(String feedback);
+  Future<void> negativeFeedback(String feedback);
 }

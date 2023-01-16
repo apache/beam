@@ -18,7 +18,6 @@
 
 class TobAnalyticsEvents {
   static const openUnit = 'open_unit'; // datetime?
-  static const modifyExample = 'modify_example';
   static const completeUnit = 'complete_unit';
   static const completeModule = 'complete_module'; // ?
   static const negativeFeedback = 'negative_feedback';
