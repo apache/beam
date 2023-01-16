@@ -1411,6 +1411,10 @@ CancelJobResponse:
   - String
   properties:
   - State
+Checkpoint:
+  properties:
+  - Reapply
+  - SR
 Class:
   methods:
   - String
@@ -1678,7 +1682,6 @@ DataSink:
   - UID
 DataSource:
   methods:
-  - Checkpoint
   - Down
   - FinishBundle
   - ID
@@ -3412,6 +3415,7 @@ LockRTracker:
   - GetRestriction
   - IsBounded
   - IsDone
+  - String
   - TryClaim
   - TrySplit
   properties:
@@ -6085,6 +6089,7 @@ Tracker:
   - GetRestriction
   - IsBounded
   - IsDone
+  - String
   - TryClaim
   - TrySplit
 Transaction:

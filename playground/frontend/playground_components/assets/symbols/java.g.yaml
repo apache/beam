@@ -6319,6 +6319,36 @@ JdbcIO:
   - withWriteResults
   - write
   - writeVoid
+JdbcReadSchemaTransformProvider: 
+  methods: 
+  - build
+  - buildTransform
+  - builder
+  - expand
+  - getConnectionInitSql
+  - getConnectionProperties
+  - getDriverClassName
+  - getFetchSize
+  - getJdbcUrl
+  - getLocation
+  - getOutputParallelization
+  - getPassword
+  - getReadQuery
+  - getUsername
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setConnectionInitSql
+  - setConnectionProperties
+  - setDriverClassName
+  - setFetchSize
+  - setJdbcUrl
+  - setLocation
+  - setOutputParallelization
+  - setPassword
+  - setReadQuery
+  - setUsername
+  - validate
 JdbcSchemaIOProvider: 
   methods: 
   - buildReader
@@ -6333,6 +6363,34 @@ JdbcSchemaIOProvider:
 JdbcWriteResult: 
   methods: 
   - create
+JdbcWriteSchemaTransformProvider: 
+  methods: 
+  - build
+  - buildTransform
+  - builder
+  - expand
+  - getAutosharding
+  - getConnectionInitSql
+  - getConnectionProperties
+  - getDriverClassName
+  - getJdbcUrl
+  - getLocation
+  - getPassword
+  - getUsername
+  - getWriteStatement
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setAutosharding
+  - setConnectionInitSql
+  - setConnectionProperties
+  - setDriverClassName
+  - setJdbcUrl
+  - setLocation
+  - setPassword
+  - setUsername
+  - setWriteStatement
+  - validate
 JmsIO: 
   methods: 
   - advance
