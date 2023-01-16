@@ -90,3 +90,69 @@ func TestSample(t *testing.T) {
 		},
 	}, trees[1])
 }
+
+// TestTemplates test that templating engine is used correctly.
+// The test itself is intended as an example of typical template usage.
+func TestTemplates(t *testing.T) {
+	goSdkExpected := "Go SDK"
+	pythonSdkExpected := "Python SDK"
+	javaSdkExpected := "Java SDK"
+	scioSdkExpected := "SCIO SDK"
+	template := fmt.Sprintf(
+		"Using "+
+			"{{if (eq .Sdk \"go\")}}%s{{end}}"+
+			"{{if (eq .Sdk \"python\")}}%s{{end}}"+
+			"{{if (eq .Sdk \"java\")}}%s{{end}}"+
+			"{{if (eq .Sdk \"scio\")}}%s{{end}}",
+		goSdkExpected, pythonSdkExpected, javaSdkExpected, scioSdkExpected)
+
+	templateAboutGoOrJava := "{{if (eq .Sdk \"go\" \"java\")}}sometext{{end}}"
+
+	for _, s := range []struct {
+		sdk      tob.Sdk
+		template string
+		expected string
+	}{
+		{
+			sdk:      tob.SDK_GO,
+			template: template,
+			expected: fmt.Sprintf("Using %s", goSdkExpected),
+		},
+		{
+			sdk:      tob.SDK_PYTHON,
+			template: template,
+			expected: fmt.Sprintf("Using %s", pythonSdkExpected),
+		},
+		{
+			sdk:      tob.SDK_JAVA,
+			template: template,
+			expected: fmt.Sprintf("Using %s", javaSdkExpected),
+		},
+		{
+			sdk:      tob.SDK_SCIO,
+			template: template,
+			expected: fmt.Sprintf("Using %s", scioSdkExpected),
+		},
+		{
+			sdk:      tob.SDK_GO,
+			template: templateAboutGoOrJava,
+			expected: "sometext",
+		},
+		{
+			sdk:      tob.SDK_JAVA,
+			template: templateAboutGoOrJava,
+			expected: "sometext",
+		},
+		{
+			sdk:      tob.SDK_SCIO,
+			template: templateAboutGoOrJava,
+			expected: "",
+		},
+	} {
+		res, err := processTemplate([]byte(s.template), s.sdk)
+		if err != nil {
+			panic(err)
+		}
+		assert.Equal(t, s.expected, string(res))
+	}
+}
