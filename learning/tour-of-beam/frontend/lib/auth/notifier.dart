@@ -16,28 +16,30 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart';
 import 'package:flutter/material.dart';
 
-class DismissibleOverlay extends StatelessWidget {
-  final void Function() close;
-  final Positioned child;
+class AuthNotifier extends ChangeNotifier {
+  AuthNotifier() {
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      notifyListeners();
+    });
+  }
 
-  const DismissibleOverlay({
-    required this.close,
-    required this.child,
-  });
+  bool get isAuthenticated => FirebaseAuth.instance.currentUser != null;
 
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: close,
-          ),
-        ),
-        child,
-      ],
-    );
+  Future<String?> getToken() async {
+    return await FirebaseAuth.instance.currentUser?.getIdToken();
+  }
+
+  Future<void> logIn(AuthProvider authProvider) async {
+    await FirebaseAuth.instance.signInWithPopup(authProvider);
+  }
+
+  Future<void> logOut() async {
+    await FirebaseAuth.instance.signOut();
   }
 }

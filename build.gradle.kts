@@ -173,6 +173,7 @@ tasks.rat {
     "learning/tour-of-beam/frontend/**/*.gen.dart",
     "learning/tour-of-beam/frontend/.metadata",
     "learning/tour-of-beam/frontend/pubspec.lock",
+    "learning/tour-of-beam/frontend/lib/firebase_options.dart",
 
     // Ignore .gitkeep file
     "**/.gitkeep",

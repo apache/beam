@@ -17,24 +17,20 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
-import 'package:provider/provider.dart';
 
-class TestScreenWrapper extends StatelessWidget {
+import '../../constants/sizes.dart';
+
+class OverlayBody extends StatelessWidget {
   final Widget child;
-  const TestScreenWrapper({required this.child});
+
+  const OverlayBody({required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return ThemeSwitchNotifierProvider(
-      child: Consumer<ThemeSwitchNotifier>(
-        builder: (context, themeSwitchNotifier, _) {
-          return MaterialApp(
-            theme: kLightTheme,
-            home: child,
-          );
-        },
-      ),
+    return Material(
+      elevation: BeamSizes.size10,
+      borderRadius: BorderRadius.circular(BeamSizes.size10),
+      child: child,
     );
   }
 }

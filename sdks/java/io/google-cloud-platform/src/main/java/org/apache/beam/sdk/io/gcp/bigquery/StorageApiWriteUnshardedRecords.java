@@ -129,7 +129,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           try {
             task.run();
           } catch (Exception e) {
-            //
+            System.err.println("Exception happened while executing async task. Ignoring: " + e);
           }
         });
   }
@@ -285,10 +285,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 tableSchema,
                 // Make sure that the client is always closed in a different thread to avoid
                 // blocking.
-                client -> runAsyncIgnoreFailure(closeWriterExecutor, client::close));
+                client ->
+                    runAsyncIgnoreFailure(
+                        closeWriterExecutor,
+                        () -> {
+                          // Remove the pin owned by the cache.
+                          client.unpin();
+                          client.close();
+                        }));
         appendClientInfo =
             appendClientInfo.createAppendClient(
                 maybeDatasetService, () -> streamName, usingMultiplexing);
+        // This pin is "owned" by the cache.
         Preconditions.checkStateNotNull(appendClientInfo.streamAppendClient).pin();
         return appendClientInfo;
       }
@@ -301,8 +309,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             synchronized (APPEND_CLIENTS) {
               if (lookupCache) {
                 newAppendClientInfo =
-                    APPEND_CLIENTS.get(
-                        getStreamAppendClientCacheEntryKey(), () -> generateClient());
+                    APPEND_CLIENTS.get(getStreamAppendClientCacheEntryKey(), this::generateClient);
               } else {
                 newAppendClientInfo = generateClient();
                 // override the clients in the cache.
@@ -312,8 +319,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             this.currentOffset = 0;
             nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
             this.appendClientInfo = newAppendClientInfo;
+            // This pin is "owned" by the current DoFn.
+            Preconditions.checkStateNotNull(this.appendClientInfo.streamAppendClient).pin();
           }
-          return appendClientInfo;
+          return Preconditions.checkStateNotNull(this.appendClientInfo);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }

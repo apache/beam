@@ -16,14 +16,30 @@
  * limitations under the License.
  */
 
-class SharedFile {
-  final String code;
-  final bool isMain;
-  final String name;
+import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
 
-  const SharedFile({
-    required this.code,
-    required this.isMain,
-    this.name = '',
+import '../../../cache/unit_progress.dart';
+import '../../../repositories/client/client.dart';
+
+class UnitController extends ChangeNotifier {
+  final String unitId;
+  final String sdkId;
+
+  UnitController({
+    required this.unitId,
+    required this.sdkId,
   });
+
+  Future<void> completeUnit() async {
+    final client = GetIt.instance.get<TobClient>();
+    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
+    try {
+      unitProgressCache.addUpdatingUnitId(unitId);
+      await client.postUnitComplete(sdkId, unitId);
+    } finally {
+      await unitProgressCache.updateCompletedUnits();
+      unitProgressCache.clearUpdatingUnitId(unitId);
+    }
+  }
 }

@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Beam Go SDK Quickstart
+# WordCount quickstart for Go
 
 This Quickstart will walk you through executing your first Beam pipeline to run [WordCount](/get-started/wordcount-example), written using Beam's [Go SDK](/documentation/sdks/go), on a [runner](/documentation#runners) of your choice.
 

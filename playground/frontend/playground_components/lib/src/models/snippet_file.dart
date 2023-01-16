@@ -16,35 +16,37 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:playground_components/playground_components.dart';
+import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-class TourProgressIndicator extends StatelessWidget {
-  // TODO(nausharipov): replace assetPath with progress enum
-  final String assetPath;
-  final bool isSelected;
+part 'snippet_file.g.dart';
 
-  const TourProgressIndicator({
-    required this.assetPath,
-    required this.isSelected,
+@JsonSerializable()
+class SnippetFile with EquatableMixin {
+  final String content;
+  final bool isMain;
+  final String name;
+
+  const SnippetFile({
+    required this.content,
+    required this.isMain,
+    this.name = '',
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
+  static const empty = SnippetFile(
+    content: '',
+    isMain: true,
+  );
 
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: BeamSizes.size4,
-        right: BeamSizes.size8,
-      ),
-      child: SvgPicture.asset(
-        assetPath,
-        color: isSelected
-            ? ext.selectedProgressColor
-            : ext.unselectedProgressColor,
-      ),
-    );
-  }
+  Map<String, dynamic> toJson() => _$SnippetFileToJson(this);
+
+  factory SnippetFile.fromJson(Map<String, dynamic> map) =>
+      _$SnippetFileFromJson(map);
+
+  @override
+  List<Object?> get props => [
+        content,
+        isMain,
+        name,
+      ];
 }

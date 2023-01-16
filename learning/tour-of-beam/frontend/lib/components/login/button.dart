@@ -20,7 +20,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import 'login_content.dart';
+import 'content.dart';
 
 class LoginButton extends StatelessWidget {
   const LoginButton();
@@ -29,26 +29,18 @@ class LoginButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: () {
-        _openOverlay(context);
+        final closeNotifier = PublicNotifier();
+        openOverlay(
+          context: context,
+          closeNotifier: closeNotifier,
+          positioned: Positioned(
+            right: BeamSizes.size10,
+            top: BeamSizes.appBarHeight,
+            child: LoginContent(onLoggedIn: closeNotifier.notifyPublic),
+          ),
+        );
       },
       child: const Text('ui.signIn').tr(),
     );
-  }
-
-  void _openOverlay(BuildContext context) {
-    OverlayEntry? overlay;
-    overlay = OverlayEntry(
-      builder: (context) => DismissibleOverlay(
-        close: () {
-          overlay?.remove();
-        },
-        child: const Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: LoginContent(),
-        ),
-      ),
-    );
-    Overlay.of(context)?.insert(overlay);
   }
 }

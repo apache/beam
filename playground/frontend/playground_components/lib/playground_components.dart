@@ -17,16 +17,13 @@
  */
 
 export 'src/cache/example_cache.dart';
-
 export 'src/constants/colors.dart';
 export 'src/constants/links.dart';
 export 'src/constants/sizes.dart';
-
 export 'src/controllers/example_loaders/examples_loader.dart';
 export 'src/controllers/playground_controller.dart';
-
+export 'src/controllers/public_notifier.dart';
 export 'src/enums/complexity.dart';
-
 export 'src/models/category_with_examples.dart';
 export 'src/models/example.dart';
 export 'src/models/example_base.dart';
@@ -44,29 +41,22 @@ export 'src/models/loading_status.dart';
 export 'src/models/outputs.dart';
 export 'src/models/sdk.dart';
 export 'src/models/shortcut.dart';
+export 'src/models/snippet_file.dart';
 export 'src/models/toast.dart';
 export 'src/models/toast_type.dart';
-
 export 'src/playground_components.dart';
-
 export 'src/repositories/code_client/grpc_code_client.dart';
 export 'src/repositories/code_repository.dart';
 export 'src/repositories/example_client/grpc_example_client.dart';
 export 'src/repositories/example_repository.dart';
-
 export 'src/router/router_delegate.dart';
-
 export 'src/services/symbols/loaders/yaml.dart';
-
 export 'src/theme/switch_notifier.dart';
 export 'src/theme/theme.dart';
-
 export 'src/util/pipeline_options.dart';
-
 export 'src/widgets/bubble.dart';
 export 'src/widgets/clickable.dart';
 export 'src/widgets/complexity.dart';
-export 'src/widgets/dismissible_overlay.dart';
 export 'src/widgets/divider.dart';
 export 'src/widgets/header_icon_button.dart';
 export 'src/widgets/loading_error.dart';
@@ -76,6 +66,9 @@ export 'src/widgets/output/output.dart';
 export 'src/widgets/output/output_area.dart';
 export 'src/widgets/output/output_tab.dart';
 export 'src/widgets/output/output_tabs.dart';
+export 'src/widgets/overlay/body.dart';
+export 'src/widgets/overlay/dismissible.dart';
+export 'src/widgets/overlay/opener.dart';
 export 'src/widgets/reset_button.dart';
 export 'src/widgets/run_or_cancel_button.dart';
 export 'src/widgets/shortcut_tooltip.dart';
