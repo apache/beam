@@ -295,7 +295,25 @@ tasks.register("prepareConfig") {
         val configFileName = "config.g.dart"
         val modulePath = project(":playground:frontend").projectDir.absolutePath
         var file = File("$modulePath/lib/$configFileName")
-
+        val lines = file.readLines()
+        val endOfSlice = lines.indexOfFirst { it.contains("const String kAnalyticsUA") }
+        if (endOfSlice != -1) {
+            val oldContent = lines.slice(0 until endOfSlice)
+            val flagDelete = file.delete()
+            if (!flagDelete) {
+                throw kotlin.RuntimeException("Deleting file failed")
+            }
+            val sb = kotlin.text.StringBuilder()
+            val lastLine = oldContent[oldContent.size - 1]
+            oldContent.forEach {
+                if (it == lastLine) {
+                    sb.append(it)
+                } else {
+                    sb.appendLine(it)
+                }
+            }
+            file.writeText(sb.toString())
+        }
         file.writeText(
             """
 const String kAnalyticsUA = 'UA-73650088-2';
