@@ -51,6 +51,10 @@ class CodeRunner extends ChangeNotifier {
   String get resultOutput => _result?.output ?? '';
   String get resultLogOutput => resultLog + resultOutput;
 
+  bool get isExampleChanged {
+    return snippetEditingController?.isChanged ?? false;
+  }
+
   void clearResult() {
     _result = null;
     notifyListeners();
@@ -74,15 +78,15 @@ class CodeRunner extends ChangeNotifier {
       return;
     }
 
-    if (!snippetEditingController!.isChanged &&
-        snippetEditingController!.selectedExample?.outputs != null) {
+    if (!isExampleChanged &&
+        snippetEditingController!.example?.outputs != null) {
       unawaited(_showPrecompiledResult());
     } else {
       final request = RunCodeRequest(
-        code: snippetEditingController!.codeController.fullText,
+        datasets: snippetEditingController?.example?.datasets ?? [],
+        files: snippetEditingController!.getFiles(),
         sdk: snippetEditingController!.sdk,
         pipelineOptions: parsedPipelineOptions,
-        datasets: snippetEditingController?.selectedExample?.datasets ?? [],
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
@@ -139,7 +143,7 @@ class CodeRunner extends ChangeNotifier {
     _result = const RunCodeResult(
       status: RunCodeStatus.preparation,
     );
-    final selectedExample = snippetEditingController!.selectedExample!;
+    final selectedExample = snippetEditingController!.example!;
 
     notifyListeners();
     // add a little delay to improve user experience

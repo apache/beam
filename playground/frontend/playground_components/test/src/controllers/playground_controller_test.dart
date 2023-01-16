@@ -80,10 +80,10 @@ Future<void> main() async {
             descriptor: emptyDescriptor,
             setCurrentSdk: true,
           );
-          expect(controller.isExampleChanged, false);
+          expect(controller.codeRunner.isExampleChanged, false);
           controller.snippetEditingController?.fileControllers.first
               .codeController.text = 'test';
-          expect(controller.isExampleChanged, true);
+          expect(controller.codeRunner.isExampleChanged, true);
         },
       );
 
@@ -95,9 +95,9 @@ Future<void> main() async {
             descriptor: emptyDescriptor,
             setCurrentSdk: true,
           );
-          expect(controller.isExampleChanged, false);
+          expect(controller.codeRunner.isExampleChanged, false);
           controller.setPipelineOptions('test options');
-          expect(controller.isExampleChanged, true);
+          expect(controller.codeRunner.isExampleChanged, true);
         },
       );
     });
