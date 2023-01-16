@@ -19,7 +19,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -36,7 +35,6 @@ import '../models/intents.dart';
 import '../models/sdk.dart';
 import '../models/shortcut.dart';
 import '../repositories/code_repository.dart';
-import '../repositories/models/shared_file.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
 import 'code_runner.dart';
@@ -103,11 +101,11 @@ class PlaygroundController with ChangeNotifier {
 
   // TODO(alexeyinkin): Return full, then shorten, https://github.com/apache/beam/issues/23250
   String get examplesTitle {
-    final name = snippetEditingController?.selectedExample?.name ?? kTitle;
+    final name = snippetEditingController?.example?.name ?? kTitle;
     return name.substring(0, min(kTitleLength, name.length));
   }
 
-  Example? get selectedExample => snippetEditingController?.selectedExample;
+  Example? get selectedExample => snippetEditingController?.example;
 
   Sdk? get sdk => _sdk;
 
@@ -124,11 +122,8 @@ class PlaygroundController with ChangeNotifier {
     return controller;
   }
 
-  String? get source => snippetEditingController?.codeController.fullText;
-
-  bool get isExampleChanged {
-    return snippetEditingController?.isChanged ?? false;
-  }
+  String? get source =>
+      snippetEditingController?.activeFileController?.codeController.fullText;
 
   // TODO(alexeyinkin): Single source of truth for whether graph is supported, https://github.com/apache/beam/issues/23251
   bool get graphAvailable =>
@@ -254,12 +249,6 @@ class PlaygroundController with ChangeNotifier {
     GetIt.instance.get<SymbolsNotifier>().addLoaderIfNot(mode, loader);
   }
 
-  // TODO(alexeyinkin): Remove, used only in tests, refactor them.
-  void setSource(String source) {
-    final controller = requireSnippetEditingController();
-    controller.setSource(source);
-  }
-
   Future<void> reset() async {
     await codeRunner.cancelRun();
     snippetEditingController?.reset();
@@ -276,54 +265,23 @@ class PlaygroundController with ChangeNotifier {
     notifyListeners();
   }
 
-  StreamController<int> _createExecutionTimeStream() {
-    StreamController<int>? streamController;
-    Timer? timer;
-    Duration timerInterval = const Duration(milliseconds: kExecutionTimeUpdate);
-    int ms = 0;
-
-    void stopTimer() {
-      timer?.cancel();
-      streamController?.close();
-    }
-
-    void tick(_) {
-      ms += kExecutionTimeUpdate;
-      streamController?.add(ms);
-    }
-
-    void startTimer() {
-      timer = Timer.periodic(timerInterval, tick);
-    }
-
-    streamController = StreamController<int>.broadcast(
-      onListen: startTimer,
-      onCancel: stopTimer,
-    );
-
-    return streamController;
-  }
-
   Future<UserSharedExampleLoadingDescriptor> saveSnippet() async {
-    final controller = requireSnippetEditingController();
-    final code = controller.codeController.fullText;
-    final name = 'examples.userSharedName'.tr();
+    final snippetController = requireSnippetEditingController();
+    final files = snippetController.getFiles();
 
     final snippetId = await exampleCache.saveSnippet(
-      files: [
-        SharedFile(code: code, isMain: true, name: name),
-      ],
-      sdk: controller.sdk,
-      pipelineOptions: controller.pipelineOptions,
+      files: files,
+      pipelineOptions: snippetController.pipelineOptions,
+      sdk: snippetController.sdk,
     );
 
     final sharedExample = Example(
-      datasets: controller.selectedExample?.datasets ?? [],
-      source: code,
-      name: name,
-      sdk: controller.sdk,
-      type: ExampleType.example,
+      datasets: snippetController.example?.datasets ?? [],
+      files: files,
+      name: files.first.name,
       path: snippetId,
+      sdk: snippetController.sdk,
+      type: ExampleType.example,
     );
 
     final descriptor = UserSharedExampleLoadingDescriptor(
@@ -331,7 +289,7 @@ class PlaygroundController with ChangeNotifier {
       snippetId: snippetId,
     );
 
-    controller.setExample(sharedExample, descriptor: descriptor);
+    snippetController.setExample(sharedExample, descriptor: descriptor);
 
     return descriptor;
   }

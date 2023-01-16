@@ -16,14 +16,22 @@
  * limitations under the License.
  */
 
-class SharedFile {
-  final String code;
-  final bool isMain;
-  final String name;
+import PrecommitJobBuilder
 
-  const SharedFile({
-    required this.code,
-    required this.isMain,
-    this.name = '',
-  });
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Python_Integration',
+    gradleTask: ':pythonPreCommitIT',
+    timeoutMins: 180,
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/python/.*$',
+      '^release/.*$',
+    ]
+    )
+builder.build {
+  // Publish all test results to Jenkins.
+  publishers {
+    archiveJunit('**/pytest*.xml')
+  }
 }
