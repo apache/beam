@@ -60,21 +60,20 @@ type learningGroupInfo struct {
 
 type learningUnitInfo struct {
 	Sdk          []string `yaml:"sdk"`
-	Id           string `yaml:"id"`
-	Name         string `yaml:"name"`
-	TaskName     string `yaml:"taskName"`
-	SolutionName string `yaml:"solutionName"`
+	Id           string   `yaml:"id"`
+	Name         string   `yaml:"name"`
+	TaskName     string   `yaml:"taskName"`
+	SolutionName string   `yaml:"solutionName"`
 }
 
 func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 	info := loadLearningUnitInfo(infopath)
 
-	sdk, err := GetSupportedSdk(info.Sdk, infopath)
+	supported, err := isSupportedSdk(info.Sdk, ctx, infopath)
 	if err != nil {
 		return nil, err
 	}
-	_, ok := sdk[ctx.sdk]
-	if !ok {
+	if !supported {
 		log.Printf("Unit %v at %v not supported in %v\n", info.Id, infopath, ctx.sdk)
 		// TODO: consider going deeper and checking if there are dangling units for this sdk
 		return nil, nil
@@ -135,17 +134,16 @@ func processTemplate(source []byte, sdk tob.Sdk) ([]byte, error) {
 
 func collectGroup(infopath string, ctx *sdkContext) (*tob.Group, error) {
 	info := loadLearningGroupInfo(infopath)
-	sdk, err := GetSupportedSdk(info.Sdk, infopath)
+
+	supported, err := isSupportedSdk(info.Sdk, ctx, infopath)
 	if err != nil {
 		return nil, err
 	}
-	_, ok := sdk[ctx.sdk]
-	if !ok {
+	if !supported {
 		log.Printf("Group %v at %v not supported in %v\n", info.Id, infopath, ctx.sdk)
-		// TODO: consider going deeper and checking if there are dangling units for this sdk
 		return nil, nil
 	}
-	
+
 	log.Printf("Found Group %v metadata at %v\n", info.Name, infopath)
 	group := tob.Group{Id: info.Id, Title: info.Name}
 	for _, item := range info.Content {
@@ -191,16 +189,16 @@ func collectNode(rootpath string, ctx *sdkContext) (*tob.Node, error) {
 func collectModule(infopath string, ctx *sdkContext) (*tob.Module, error) {
 	info := loadLearningModuleInfo(infopath)
 
-	sdk, err := GetSupportedSdk(info.Sdk, infopath)
+	supported, err := isSupportedSdk(info.Sdk, ctx, infopath)
 	if err != nil {
 		return nil, err
 	}
-	_, ok := sdk[ctx.sdk]
-	if !ok {
+	if !supported {
 		log.Printf("Module %v at %v not supported in %v\n", info.Id, infopath, ctx.sdk)
 		// TODO: consider going deeper and checking if there are dangling units for this sdk
 		return nil, nil
 	}
+
 	log.Printf("Found Module %v metadata at %v\n", info.Id, infopath)
 	ctx.idsWatcher.CheckId(info.Id)
 	module := tob.Module{Id: info.Id, Title: info.Name, Complexity: info.Complexity}
@@ -210,7 +208,7 @@ func collectModule(infopath string, ctx *sdkContext) (*tob.Module, error) {
 			return nil, err
 		}
 		if node == nil {
-			continue 
+			continue
 		}
 		module.Nodes = append(module.Nodes, *node)
 	}
@@ -221,7 +219,7 @@ func collectModule(infopath string, ctx *sdkContext) (*tob.Module, error) {
 func collectSdk(infopath string) (trees []tob.ContentTree, err error) {
 	info := loadLearningPathInfo(infopath)
 
-	sdks, err := GetSupportedSdk(info.Sdk, infopath)
+	sdks, err := getSupportedSdk(info.Sdk, infopath)
 	if err != nil {
 		return trees, err
 	}
@@ -236,7 +234,7 @@ func collectSdk(infopath string) (trees []tob.ContentTree, err error) {
 				return trees, err
 			}
 			if mod != nil {
-			tree.Modules = append(tree.Modules, *mod)
+				tree.Modules = append(tree.Modules, *mod)
 			}
 		}
 		trees = append(trees, tree)
@@ -270,7 +268,16 @@ func CollectLearningTree(rootpath string) (trees []tob.ContentTree, err error) {
 	return trees, err
 }
 
-func GetSupportedSdk(sdk []string, infopath string) (map[tob.Sdk]bool, error) {
+func isSupportedSdk(sdks []string, ctx *sdkContext, infopath string) (ok bool, err error) {
+	sdk, err := getSupportedSdk(sdks, infopath)
+	if err != nil {
+		return false, err
+	}
+	_, ok = sdk[ctx.sdk]
+	return
+}
+
+func getSupportedSdk(sdk []string, infopath string) (map[tob.Sdk]bool, error) {
 	sdks := make(map[tob.Sdk]bool)
 	for _, s := range sdk {
 		curSdk := tob.ParseSdk(s)

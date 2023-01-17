@@ -93,7 +93,7 @@ func TestSample(t *testing.T) {
 
 // TestTemplates test that templating engine is used correctly.
 // The test itself is intended as an example of typical template usage.
-func TestTemplates(t *testing.T) {
+func TestTemplateProcessing(t *testing.T) {
 	goSdkExpected := "Go SDK"
 	pythonSdkExpected := "Python SDK"
 	javaSdkExpected := "Java SDK"
@@ -106,7 +106,8 @@ func TestTemplates(t *testing.T) {
 			"{{if (eq .Sdk \"scio\")}}%s{{end}}",
 		goSdkExpected, pythonSdkExpected, javaSdkExpected, scioSdkExpected)
 
-	templateAboutGoOrJava := "{{if (eq .Sdk \"go\" \"java\")}}sometext{{end}}"
+	goOrJavaExpected := "Text for Go or Java SDK"
+	templateAboutGoOrJava := fmt.Sprintf("{{if (eq .Sdk \"go\" \"java\")}}%s{{end}}", goOrJavaExpected)
 
 	for _, s := range []struct {
 		sdk      tob.Sdk
@@ -136,12 +137,12 @@ func TestTemplates(t *testing.T) {
 		{
 			sdk:      tob.SDK_GO,
 			template: templateAboutGoOrJava,
-			expected: "sometext",
+			expected: goOrJavaExpected,
 		},
 		{
 			sdk:      tob.SDK_JAVA,
 			template: templateAboutGoOrJava,
-			expected: "sometext",
+			expected: goOrJavaExpected,
 		},
 		{
 			sdk:      tob.SDK_SCIO,
