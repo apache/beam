@@ -17,8 +17,6 @@
 # under the License.
 #
 
-id: textIO
-name: TextIO
-content:
-- local
-- gcs
+id: rest-api
+name: Rest API
+taskName: TextIO

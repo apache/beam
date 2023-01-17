@@ -17,8 +17,10 @@
 # under the License.
 #
 
-id: textIO
-name: TextIO
+id: big-query-io
+name: BigQueryIO
 content:
-- local
-- gcs
+  - read-table
+  - read-query
+  - write-table-schema
+  - write-beam-schema

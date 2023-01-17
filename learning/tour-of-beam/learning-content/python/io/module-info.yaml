@@ -17,8 +17,11 @@
 # under the License.
 #
 
-id: textIO
-name: TextIO
+id: io
+name: IO
+complexity: ADVANCED
 content:
-- local
-- gcs
+- textIO
+- kafkaIO
+- big-queryIO
+- rest-api
