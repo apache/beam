@@ -36,6 +36,7 @@
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
     <junit.version>@junit.version@</junit.version>
+    <kafka.version>@kafka.version@</kafka.version>
     <libraries-bom.version>@libraries-bom.version@</libraries-bom.version>
     <maven-compiler-plugin.version>@maven-compiler-plugin.version@</maven-compiler-plugin.version>
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
