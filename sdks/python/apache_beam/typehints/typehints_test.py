@@ -530,8 +530,8 @@ class TupleHintTestCase(TypeHintTestCase):
 
       self.assertEqual(
           'PEP 585 generic type hints like tuple[int, int] are not yet '
-          'use typing module containers instead. See equivalents listed '
-          'at https://docs.python.org/3/library/typing.html',
+          'supported, use typing module containers instead. See equivalents '
+          'listed at https://docs.python.org/3/library/typing.html',
           e.exception.args[0])
 
 
