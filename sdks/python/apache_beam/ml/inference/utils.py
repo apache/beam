@@ -123,5 +123,6 @@ class WatchFilePattern(beam.PTransform):
         | "GetLatestFileMetaData" >> beam.ParDo(GetLatestFileByTimeStamp())
         | 'ApplyGlobalWindow' >> beam.transforms.WindowInto(
             window.GlobalWindows(),
-            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+            trigger=trigger.Repeatedly(
+                trigger.AfterProcessingTime(self.interval)),
             accumulation_mode=trigger.AccumulationMode.DISCARDING))

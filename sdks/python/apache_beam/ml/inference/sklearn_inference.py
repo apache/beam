@@ -132,9 +132,14 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
-    predictions = self._model_inference_fn(model, batch, inference_args)
+    predictions = self._model_inference_fn(
+        model,
+        batch,
+        inference_args,
+    )
 
-    return utils._convert_to_result(batch, predictions)
+    return utils._convert_to_result(
+        batch, predictions, model_id=self._model_uri)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
@@ -232,7 +237,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
 
     predictions, splits = self._model_inference_fn(model, batch, inference_args)
 
-    return utils._convert_to_result(splits, predictions)
+    return utils._convert_to_result(
+        splits, predictions, model_id=self._model_uri)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
