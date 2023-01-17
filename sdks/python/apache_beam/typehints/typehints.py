@@ -1195,7 +1195,8 @@ def normalize(x, none_as_type=False):
     # generic type hints properly
     raise TypeError(
         'PEP 585 generic type hints like %s are not yet supported, '
-        'use typing module containers instead.' % x)
+        'use typing module containers instead. See equivalents listed '
+        'at https://docs.python.org/3/library/typing.html' % x)
   elif getattr(x, '__module__', None) == 'typing':
     # Avoid circular imports
     from apache_beam.typehints import native_type_compatibility

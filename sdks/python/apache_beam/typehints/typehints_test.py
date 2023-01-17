@@ -530,7 +530,8 @@ class TupleHintTestCase(TypeHintTestCase):
 
       self.assertEqual(
           'PEP 585 generic type hints like tuple[int, int] are not yet '
-          'supported, use typing module containers instead.',
+          'use typing module containers instead. See equivalents listed '
+          'at https://docs.python.org/3/library/typing.html',
           e.exception.args[0])
 
 
@@ -599,7 +600,8 @@ class ListHintTestCase(TypeHintTestCase):
 
       self.assertEqual(
           'PEP 585 generic type hints like list[int] are not yet supported, '
-          'use typing module containers instead.',
+          'use typing module containers instead. See equivalents listed '
+          'at https://docs.python.org/3/library/typing.html',
           e.exception.args[0])
 
 
@@ -744,7 +746,8 @@ class DictHintTestCase(TypeHintTestCase):
 
       self.assertEqual(
           'PEP 585 generic type hints like dict[int, str] are not yet '
-          'supported, use typing module containers instead.',
+          'supported, use typing module containers instead. See equivalents listed '
+          'at https://docs.python.org/3/library/typing.html',
           e.exception.args[0])
 
 
