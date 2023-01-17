@@ -1,4 +1,6 @@
-sdk: Java
+sdk:
+  - Java
+  - Python
 content:
   - module 1
   - module 2

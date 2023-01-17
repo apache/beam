@@ -1,4 +1,6 @@
-id: challenge21
+sdk:
+  - Python
+id: challenge1
 name: Challenge Name
 complexity: BASIC
 taskName: ChallengeTask

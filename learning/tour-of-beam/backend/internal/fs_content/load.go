@@ -38,11 +38,12 @@ const (
 )
 
 type learningPathInfo struct {
-	Sdk     string   `yaml:"sdk"`
+	Sdk     []string `yaml:"sdk"`
 	Content []string `yaml:"content"`
 }
 
 type learningModuleInfo struct {
+	Sdk        []string `yaml:"sdk"`
 	Id         string   `yaml:"id"`
 	Name       string   `yaml:"name"`
 	Complexity string   `yaml:"complexity"`
@@ -50,12 +51,14 @@ type learningModuleInfo struct {
 }
 
 type learningGroupInfo struct {
+	Sdk     []string `yaml:"sdk"`
 	Id      string   `yaml:"id"`
 	Name    string   `yaml:"name"`
 	Content []string `yaml:"content"`
 }
 
 type learningUnitInfo struct {
+	Sdk          []string `yaml:"sdk"`
 	Id           string `yaml:"id"`
 	Name         string `yaml:"name"`
 	TaskName     string `yaml:"taskName"`
@@ -64,6 +67,18 @@ type learningUnitInfo struct {
 
 func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 	info := loadLearningUnitInfo(infopath)
+
+	sdk, err := GetSupportedSdk(info.Sdk, infopath)
+	if err != nil {
+		return nil, err
+	}
+	_, ok := sdk[ctx.sdk]
+	if !ok {
+		log.Printf("Unit %v at %v not supported in %v\n", info.Id, infopath, ctx.sdk)
+		// TODO: consider going deeper and checking if there are dangling units for this sdk
+		return nil, nil
+	}
+
 	log.Printf("Found Unit %v metadata at %v\n", info.Id, infopath)
 	ctx.idsWatcher.CheckId(info.Id)
 	builder := NewUnitBuilder(info, ctx.sdk)
@@ -99,6 +114,17 @@ func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 
 func collectGroup(infopath string, ctx *sdkContext) (*tob.Group, error) {
 	info := loadLearningGroupInfo(infopath)
+	sdk, err := GetSupportedSdk(info.Sdk, infopath)
+	if err != nil {
+		return nil, err
+	}
+	_, ok := sdk[ctx.sdk]
+	if !ok {
+		log.Printf("Group %v at %v not supported in %v\n", info.Id, infopath, ctx.sdk)
+		// TODO: consider going deeper and checking if there are dangling units for this sdk
+		return nil, nil
+	}
+	
 	log.Printf("Found Group %v metadata at %v\n", info.Name, infopath)
 	group := tob.Group{Id: info.Id, Title: info.Name}
 	for _, item := range info.Content {
@@ -106,18 +132,22 @@ func collectGroup(infopath string, ctx *sdkContext) (*tob.Group, error) {
 		if err != nil {
 			return &group, err
 		}
-		group.Nodes = append(group.Nodes, node)
+		if node == nil {
+			continue
+		}
+		group.Nodes = append(group.Nodes, *node)
 	}
 
 	return &group, nil
 }
 
 // Collect node which is either a unit or a group.
-func collectNode(rootpath string, ctx *sdkContext) (node tob.Node, err error) {
+func collectNode(rootpath string, ctx *sdkContext) (*tob.Node, error) {
 	files, err := os.ReadDir(rootpath)
 	if err != nil {
-		return node, err
+		return nil, err
 	}
+	node := &tob.Node{}
 	for _, f := range files {
 		switch f.Name() {
 		case unitInfoYaml:
@@ -131,42 +161,67 @@ func collectNode(rootpath string, ctx *sdkContext) (node tob.Node, err error) {
 	if node.Type == tob.NODE_UNDEFINED {
 		return node, fmt.Errorf("node undefined at %v", rootpath)
 	}
+	if node.Group == nil && node.Unit == nil {
+		return nil, err
+	}
 	return node, err
 }
 
-func collectModule(infopath string, ctx *sdkContext) (tob.Module, error) {
+func collectModule(infopath string, ctx *sdkContext) (*tob.Module, error) {
 	info := loadLearningModuleInfo(infopath)
+
+	sdk, err := GetSupportedSdk(info.Sdk, infopath)
+	if err != nil {
+		return nil, err
+	}
+	_, ok := sdk[ctx.sdk]
+	if !ok {
+		log.Printf("Module %v at %v not supported in %v\n", info.Id, infopath, ctx.sdk)
+		// TODO: consider going deeper and checking if there are dangling units for this sdk
+		return nil, nil
+	}
 	log.Printf("Found Module %v metadata at %v\n", info.Id, infopath)
 	ctx.idsWatcher.CheckId(info.Id)
 	module := tob.Module{Id: info.Id, Title: info.Name, Complexity: info.Complexity}
 	for _, item := range info.Content {
 		node, err := collectNode(filepath.Join(infopath, "..", item), ctx)
 		if err != nil {
-			return tob.Module{}, err
+			return nil, err
 		}
-		module.Nodes = append(module.Nodes, node)
+		if node == nil {
+			continue 
+		}
+		module.Nodes = append(module.Nodes, *node)
 	}
 
-	return module, nil
+	return &module, nil
 }
 
-func collectSdk(infopath string) (tree tob.ContentTree, err error) {
+func collectSdk(infopath string) (trees []tob.ContentTree, err error) {
 	info := loadLearningPathInfo(infopath)
-	tree.Sdk = tob.ParseSdk(info.Sdk)
-	if tree.Sdk == tob.SDK_UNDEFINED {
-		return tree, fmt.Errorf("unknown SDK at %v", infopath)
+
+	sdks, err := GetSupportedSdk(info.Sdk, infopath)
+	if err != nil {
+		return trees, err
 	}
-	log.Printf("Found Sdk %v metadata at %v\n", info.Sdk, infopath)
-	ctx := newSdkContext(tree.Sdk)
-	for _, item := range info.Content {
-		mod, err := collectModule(filepath.Join(infopath, "..", item, moduleInfoYaml), ctx)
-		if err != nil {
-			return tree, err
+	for sdk := range sdks {
+		tree := tob.ContentTree{}
+		tree.Sdk = sdk
+		log.Printf("Found Sdk %v metadata at %v\n", sdk, infopath)
+		ctx := newSdkContext(tree.Sdk)
+		for _, item := range info.Content {
+			mod, err := collectModule(filepath.Join(infopath, "..", item, moduleInfoYaml), ctx)
+			if err != nil {
+				return trees, err
+			}
+			if mod != nil {
+			tree.Modules = append(tree.Modules, *mod)
+			}
 		}
-		tree.Modules = append(tree.Modules, mod)
+		trees = append(trees, tree)
 	}
 
-	return tree, nil
+	return trees, nil
 }
 
 // Build a content tree for each SDK
@@ -179,11 +234,12 @@ func CollectLearningTree(rootpath string) (trees []tob.ContentTree, err error) {
 			return err
 		}
 		if d.Name() == contentInfoYaml {
-			tree, err := collectSdk(path)
+
+			collected, err := collectSdk(path)
 			if err != nil {
 				return err
 			}
-			trees = append(trees, tree)
+			trees = append(trees, collected...)
 			// don't walk into SDK subtree (already done by collectSdk)
 			return filepath.SkipDir
 		}
@@ -191,4 +247,17 @@ func CollectLearningTree(rootpath string) (trees []tob.ContentTree, err error) {
 	})
 
 	return trees, err
+}
+
+func GetSupportedSdk(sdk []string, infopath string) (map[tob.Sdk]bool, error) {
+	sdks := make(map[tob.Sdk]bool)
+	for _, s := range sdk {
+		curSdk := tob.ParseSdk(s)
+		if curSdk == tob.SDK_UNDEFINED {
+			return sdks, fmt.Errorf("unknown SDK at %v", infopath)
+		}
+		sdks[curSdk] = true
+	}
+
+	return sdks, nil
 }

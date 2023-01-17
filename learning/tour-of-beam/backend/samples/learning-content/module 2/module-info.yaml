@@ -1,3 +1,5 @@
+sdk:
+  - Java
 id: module2
 name: Module Two
 complexity: MEDIUM
