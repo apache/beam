@@ -61,7 +61,7 @@ function openMenu(){addPlaceholder();blockScroll();}</script><div class="clearfi
 
 <span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 <span class=kn>from</span> <span class=nn>apache_beam.options.pipeline_options</span> <span class=kn>import</span> <span class=n>PipelineOptions</span>
-<span class=kn>from</span> <span class=nn>apache_beam.utils.value_provider</span> <span class=kn>import</span> <span class=n>RuntimeValueProvider</span>
+<span class=kn>from</span> <span class=nn>apache_beam.options.value_provider</span> <span class=kn>import</span> <span class=n>RuntimeValueProvider</span>
 
 <span class=k>class</span> <span class=nc>MyOptions</span><span class=p>(</span><span class=n>PipelineOptions</span><span class=p>):</span>
   <span class=nd>@classmethod</span>
