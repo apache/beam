@@ -45,7 +45,7 @@ fastavro==1.7.0
 fasteners==0.18
 flatbuffers==22.12.6
 freezegun==1.2.2
-future==0.18.2
+future==0.18.3
 gast==0.4.0
 google-api-core==2.11.0
 google-api-python-client==2.68.0
