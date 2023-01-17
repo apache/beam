@@ -242,7 +242,6 @@
   - Fatalf
   - Fatalln
   - FetchSize
-  - FieldIndexByTag
   - File
   - Flatten
   - FreeDiskSpace
@@ -349,7 +348,6 @@
   - ImpulseValue
   - InboundTagToNode
   - Include
-  - InferFieldNames
   - Info
   - Infof
   - Infoln
@@ -753,7 +751,6 @@
   - SkipK
   - SkipPtr
   - SkipW
-  - SklearnModel
   - Smallest
   - SmallestPerKey
   - Source
@@ -890,18 +887,11 @@
   - Warnf
   - Warnln
   - WindowInto
-  - WithArgs
   - WithContext
   - WithContextf
   - WithExpansionAddr
-  - WithExtraPackages
   - WithIndexes
   - WithQueryLocation
-  - WithReadBucketAuto
-  - WithReadBundleSize
-  - WithReadFilter
-  - WithWriteBatchSize
-  - WithWriteOrdered
   - Wrap
   - WrapIterable
   - WrapMethods
@@ -1759,25 +1749,6 @@ Discard:
   - Up
   properties:
   - UID
-DiscoverSchemaTransformRequest:
-  methods:
-  - Descriptor
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-DiscoverSchemaTransformResponse:
-  methods:
-  - Descriptor
-  - GetError
-  - GetSchemaTransformConfigs
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-  properties:
-  - Error
-  - SchemaTransformConfigs
 DisplayData:
   methods:
   - Descriptor
@@ -2202,7 +2173,6 @@ ExpansionResponse:
   - Transform
 ExpansionServiceClient:
   methods:
-  - DiscoverSchemaTransform
   - Expand
 ExpansionServiceRunner:
   methods:
@@ -2212,7 +2182,6 @@ ExpansionServiceRunner:
   - String
 ExpansionServiceServer:
   methods:
-  - DiscoverSchemaTransform
   - Expand
 ExternalConfigurationPayload:
   methods:
@@ -3226,7 +3195,6 @@ JobOptions:
   - Region
   - RetainDocker
   - ServiceAccountEmail
-  - Streaming
   - Subnetwork
   - TeardownPolicy
   - TempLocation
@@ -3235,6 +3203,7 @@ JobOptions:
   - Update
   - Worker
   - WorkerHarnessThreads
+  - WorkerJar
   - WorkerRegion
   - WorkerZone
   - Zone
@@ -4268,10 +4237,6 @@ PlanSnapshot:
 Port:
   properties:
   - URL
-PredictionResult:
-  properties:
-  - Example
-  - Inference
 PrepareJobRequest:
   methods:
   - Descriptor
@@ -4729,11 +4694,6 @@ ReadModifyWriteStateSpec:
   - String
   properties:
   - CoderId
-ReadOption:
-  properties:
-  - BucketAuto
-  - BundleSize
-  - Filter
 ReadOptions:
   properties:
   - IDAttribute
@@ -4987,34 +4947,6 @@ SchemaProvider:
   - BuildDecoder
   - BuildEncoder
   - FromLogicalType
-SchemaTransformConfig:
-  methods:
-  - Descriptor
-  - GetConfigSchema
-  - GetInputPcollectionNames
-  - GetOutputPcollectionNames
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-  properties:
-  - ConfigSchema
-  - InputPcollectionNames
-  - OutputPcollectionNames
-SchemaTransformPayload:
-  methods:
-  - Descriptor
-  - GetConfigurationRow
-  - GetConfigurationSchema
-  - GetIdentifier
-  - ProtoMessage
-  - ProtoReflect
-  - Reset
-  - String
-  properties:
-  - ConfigurationRow
-  - ConfigurationSchema
-  - Identifier
 Scope:
   methods:
   - ID
@@ -5221,7 +5153,6 @@ SplitResult:
   - RI
   - RS
   - TId
-  - Unsuccessful
 SplittableDoFn:
   methods:
   - CreateInitialRestrictionFn
@@ -6373,6 +6304,7 @@ TypeMismatchError:
   - Error
   properties:
   - Got
+U: {}
 UnimplementedArtifactRetrievalServiceServer:
   methods:
   - GetArtifact
@@ -6402,7 +6334,6 @@ UnimplementedBeamFnWorkerStatusServer:
   - WorkerStatus
 UnimplementedExpansionServiceServer:
   methods:
-  - DiscoverSchemaTransform
   - Expand
 UnimplementedJobServiceServer:
   methods:
@@ -6466,6 +6397,7 @@ UserFn:
 UserStateAdapter:
   methods:
   - NewStateProvider
+V: {}
 Value:
   methods:
   - Clear
@@ -6477,6 +6409,7 @@ Value:
   - Write
   properties:
   - Key
+W: {}
 WallTimeWatermarkEstimator:
   methods:
   - CurrentWatermark
@@ -6627,10 +6560,9 @@ WriteFilesPayload:
   - SideInputs
   - Sink
   - WindowedWrites
-WriteOption:
-  properties:
-  - BatchSize
-  - Ordered
 Writer:
   methods:
   - SaveData
+X: {}
+"Y": {}
+Z: {}
