@@ -450,7 +450,7 @@ Development guidelines are written with the following principles in mind:
    </tr>
    <tr>
       <td>
-         <p>Method IO&lt;T>.write()
+         <p>Method IO&lt;T&gt;.write()
       </td>
       <td>
          <p>The top-level I/O class will provide a <strong>static method</strong> to start constructing an I/O.Write transform. This returns a PTransform with a single input PCollection, and a Write.Result output.
@@ -466,7 +466,7 @@ Development guidelines are written with the following principles in mind:
    </tr>
    <tr>
       <td>
-         <p>Method IO&lt;T>.read()
+         <p>Method IO&lt;T&gt;.read()
       </td>
       <td>
          <p>The method to start constructing an I/O.Read transform. This returns a PTransform with a single output PCollection.
@@ -1059,7 +1059,7 @@ This guide complements the [Apache Beam I/O transform testing guide](https://bea
 
 I/O unit tests need to efficiently test the functionality of the code. Given that unit tests are expected to be executed many times over multiple test suites (for example, for each Python version) these tests should execute relatively fast and should not have side effects. We recommend trying to achieve 100% code coverage through unit tests.
 
-When possible, unit tests are favored over integration tests due to faster execution time and low resource usage. Additionally, unit tests can be easily included in pre-commit tests suites (for example, Jenkins beam_PreCommit_* test suites) hence has a better chance of discovering regressions early. Unit tests are also preferred for error conditions.
+When possible, unit tests are favored over integration tests due to faster execution time and low resource usage. Additionally, unit tests can be easily included in pre-commit tests suites (for example, Jenkins <strong>beam_PreCommit_*</strong> test suites) hence has a better chance of discovering regressions early. Unit tests are also preferred for error conditions.
 
 <div class="table-container-wrapper">
 <table class="table table-bordered table-io-standards">
