@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
+import static org.apache.beam.runners.samza.util.RunWithTimeout.run;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -432,7 +432,16 @@ public class SamzaDoFnRunners {
     @Override
     public void finishBundle() {
       try {
-        closeBundle();
+        run(
+            pipelineOptions.getBundleProcessingTimeout(),
+            () -> {
+              // RemoteBundle close blocks until all results are received
+              try {
+                remoteBundle.close();
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
         emitResults();
         emitMetrics();
         bundledEventsBag.clear();
@@ -441,25 +450,6 @@ public class SamzaDoFnRunners {
       } finally {
         remoteBundle = null;
         inputReceiver = null;
-      }
-    }
-
-    private void closeBundle() throws Exception {
-      long bundleProcessingTimeout = pipelineOptions.getBundleProcessingTimeout();
-      if (bundleProcessingTimeout < 0) {
-        // RemoteBundle close blocks until all results are received
-        remoteBundle.close();
-      } else {
-        CompletableFuture<Void> future =
-            CompletableFuture.runAsync(
-                () -> {
-                  try {
-                    remoteBundle.close();
-                  } catch (Exception e) {
-                    throw new RuntimeException(e);
-                  }
-                });
-        future.get(bundleProcessingTimeout, TimeUnit.MILLISECONDS);
       }
     }
 
