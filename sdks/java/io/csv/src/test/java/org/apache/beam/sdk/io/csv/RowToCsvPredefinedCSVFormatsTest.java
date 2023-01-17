@@ -37,22 +37,24 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class RowToCsvPredefinedCSVFormatsTest {
   @Test
-  public void testDefault() {
+  public void defaultFormat() {
     assertEquals(
         "false,1,10,1.0,1.0,1,1,a,1",
-        dEfault(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+        defaultFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
 
     assertEquals(
         ",,,,,",
-        dEfault(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowAllNull));
+        defaultFormat(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowAllNull));
 
     assertEquals(
         "true,,,,a,1",
-        dEfault(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowSomeNull));
+        defaultFormat(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowSomeNull));
 
     assertEquals(
         "1970-01-01T00:00:00.001Z",
-        dEfault(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
+        defaultFormat(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
   @Test
@@ -60,6 +62,18 @@ public class RowToCsvPredefinedCSVFormatsTest {
     assertEquals(
         "false,1,10,1.0,1.0,1,1,a,1",
         excel(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+
+    assertEquals(
+        ",,,,,",
+        excel(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowAllNull));
+
+    assertEquals(
+        "true,,,,a,1",
+        excel(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowSomeNull));
+
+    assertEquals(
+        "1970-01-01T00:00:00.001Z",
+        excel(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
   @Test
@@ -67,6 +81,20 @@ public class RowToCsvPredefinedCSVFormatsTest {
     assertEquals(
         "false|1|10|1.0|1.0|1|1|a|1",
         informixUnload(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+
+    assertEquals(
+        "|||||",
+        informixUnload(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowAllNull));
+
+    assertEquals(
+        "true||||a|1",
+        informixUnload(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowSomeNull));
+
+    assertEquals(
+        "1970-01-01T00:00:00.001Z",
+        informixUnload(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
   @Test
@@ -74,13 +102,39 @@ public class RowToCsvPredefinedCSVFormatsTest {
     assertEquals(
         "false,1,10,1.0,1.0,1,1,a,1",
         informixUnloadCSV(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+
+    assertEquals(
+        ",,,,,",
+        informixUnloadCSV(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowAllNull));
+
+    assertEquals(
+        "true,,,,a,1",
+        informixUnloadCSV(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowSomeNull));
+
+    assertEquals(
+        "1970-01-01T00:00:00.001Z",
+        informixUnloadCSV(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
   @Test
   public void mySql() {
     assertEquals(
         "false\t1\t10\t1.0\t1.0\t1\t1\ta\t1",
-        mysql(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+        mySql(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+
+    assertEquals(
+        "\\N\t\\N\t\\N\t\\N\t\\N\t\\N",
+        mySql(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowAllNull));
+
+    assertEquals(
+        "true\t\\N\t\\N\t\\N\ta\t1",
+        mySql(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowSomeNull));
+
+    assertEquals(
+        "1970-01-01T00:00:00.001Z",
+        mySql(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
   @Test
@@ -88,6 +142,18 @@ public class RowToCsvPredefinedCSVFormatsTest {
     assertEquals(
         "false,1,10,1.0,1.0,1,1,a,1",
         rfc4180(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+
+    assertEquals(
+        ",,,,,",
+        rfc4180(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowAllNull));
+
+    assertEquals(
+        "true,,,,a,1",
+        rfc4180(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowSomeNull));
+
+    assertEquals(
+        "1970-01-01T00:00:00.001Z",
+        rfc4180(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
   @Test
@@ -95,13 +161,39 @@ public class RowToCsvPredefinedCSVFormatsTest {
     assertEquals(
         "false,1,10,1.0,1.0,1,1,a,1",
         oracle(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+
+    assertEquals(
+        "\\N,\\N,\\N,\\N,\\N,\\N",
+        oracle(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowAllNull));
+
+    assertEquals(
+        "true,\\N,\\N,\\N,a,1",
+        oracle(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowSomeNull));
+
+    assertEquals(
+        "1970-01-01T00:00:00.001Z",
+        oracle(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
   @Test
   public void postgresqlCSV() {
     assertEquals(
         "\"false\",\"1\",\"10\",\"1.0\",\"1.0\",\"1\",\"1\",\"a\",\"1\"",
-        postgresqlCsv(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+        postgresqlCSV(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+
+    assertEquals(
+        ",,,,,",
+        postgresqlCSV(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowAllNull));
+
+    assertEquals(
+        "\"true\",,,,\"a\",\"1\"",
+        postgresqlCSV(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowSomeNull));
+
+    assertEquals(
+        "\"1970-01-01T00:00:00.001Z\"",
+        postgresqlCSV(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
   @Test
@@ -109,6 +201,20 @@ public class RowToCsvPredefinedCSVFormatsTest {
     assertEquals(
         "\"false\"\t\"1\"\t\"10\"\t\"1.0\"\t\"1.0\"\t\"1\"\t\"1\"\t\"a\"\t\"1\"",
         postgresqlText(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+
+    assertEquals(
+        "\\N\t\\N\t\\N\t\\N\t\\N\t\\N",
+        postgresqlText(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowAllNull));
+
+    assertEquals(
+        "\"true\"\t\\N\t\\N\t\\N\t\"a\"\t\"1\"",
+        postgresqlText(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .apply(DATA.nullableTypesRowSomeNull));
+
+    assertEquals(
+        "\"1970-01-01T00:00:00.001Z\"",
+        postgresqlText(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
   @Test
@@ -116,9 +222,20 @@ public class RowToCsvPredefinedCSVFormatsTest {
     assertEquals(
         "false\t1\t10\t1.0\t1.0\t1\t1\ta\t1",
         tdf(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.allPrimitiveDataTypesRow));
+
+    assertEquals(
+        "", tdf(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowAllNull));
+
+    assertEquals(
+        "true\t\t\t\ta\t1",
+        tdf(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA).apply(DATA.nullableTypesRowSomeNull));
+
+    assertEquals(
+        "1970-01-01T00:00:00.001Z",
+        tdf(TIME_CONTAINING_SCHEMA, "instant").apply(DATA.timeContainingRow));
   }
 
-  private static RowToCsv dEfault(Schema schema, String... header) {
+  private static RowToCsv defaultFormat(Schema schema, String... header) {
     return rowToCsv(CSVFormat.DEFAULT, schema, header);
   }
 
@@ -134,7 +251,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
     return rowToCsv(CSVFormat.INFORMIX_UNLOAD_CSV, schema, header);
   }
 
-  private static RowToCsv mysql(Schema schema, String... header) {
+  private static RowToCsv mySql(Schema schema, String... header) {
     return rowToCsv(CSVFormat.MYSQL, schema, header);
   }
 
@@ -146,7 +263,7 @@ public class RowToCsvPredefinedCSVFormatsTest {
     return rowToCsv(CSVFormat.ORACLE, schema, header);
   }
 
-  private static RowToCsv postgresqlCsv(Schema schema, String... header) {
+  private static RowToCsv postgresqlCSV(Schema schema, String... header) {
     return rowToCsv(CSVFormat.POSTGRESQL_CSV, schema, header);
   }
 

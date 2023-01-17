@@ -86,7 +86,12 @@ class CsvRowConversions {
 
       final RowToCsv build() {
         checkArgument(getSchema().getFieldCount() > 0, "Schema has no fields");
-        setCSVFormat(getCSVFormat().withSkipHeaderRecord());
+        setCSVFormat(
+            getCSVFormat()
+                .withSkipHeaderRecord()
+                // Delegate to TextIO.Write.withDelimiter instead.
+                .withRecordSeparator((char) 32)
+                .withHeaderComments());
         validateCSVFormat(getCSVFormat());
         validateHeaderAgainstSchema(getCSVFormat().getHeader(), getSchema());
 

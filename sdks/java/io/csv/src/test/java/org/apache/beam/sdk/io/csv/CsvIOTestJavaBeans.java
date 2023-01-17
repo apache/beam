@@ -32,7 +32,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 
-// TODO(https://github.com/apache/beam/issues/24980): replace per task description
+// TODO(https://github.com/apache/beam/issues/24980): replace with common schema-aware classes; see
+// task description.
 /** Classes and data to drive CsvIO tests. */
 class CsvIOTestJavaBeans {
 

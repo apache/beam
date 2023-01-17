@@ -47,6 +47,21 @@ class CsvIOTestData {
                   allPrimitiveDataTypes(
                       false, (byte) 1, BigDecimal.TEN, 1.0, 1.0f, (short) 1.0, 1, 1L, "a")));
 
+  final Row allPrimitiveDataTypesRowWithPadding =
+      requireNonNull(
+          allPrimitiveDataTypesToRowFn()
+              .apply(
+                  allPrimitiveDataTypes(
+                      false,
+                      (byte) 1,
+                      BigDecimal.TEN,
+                      1.0,
+                      1.0f,
+                      (short) 1.0,
+                      1,
+                      1L,
+                      "       a           ")));
+
   final List<Row> allPrimitiveDataTypeRows =
       Stream.of(
               allPrimitiveDataTypes(

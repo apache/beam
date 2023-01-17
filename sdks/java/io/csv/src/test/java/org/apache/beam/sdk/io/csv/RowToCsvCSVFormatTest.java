@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.csv;
 import static org.apache.beam.sdk.io.csv.CsvIOTestData.DATA;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.TIME_CONTAINING_SCHEMA;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -36,11 +37,82 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link org.apache.commons.csv.CSVFormat} parameters in the context of {@link
- * org.apache.beam.sdk.io.csv.CsvRowConversions.RowToCsv}.
+ * Tests {@link org.apache.commons.csv.CSVFormat} settings in the context of {@link
+ * CsvRowConversions.RowToCsv}.
  */
 @RunWith(JUnit4.class)
 public class RowToCsvCSVFormatTest {
+  @Test
+  public void invalidCSVFormatHeader() {
+    NullPointerException nullHeaderError =
+        assertThrows(
+            NullPointerException.class,
+            () ->
+                CsvRowConversions.RowToCsv.builder()
+                    .setCSVFormat(CSVFormat.DEFAULT)
+                    .setSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+                    .build());
+    assertEquals("CSVFormat withHeader is required", nullHeaderError.getMessage());
+
+    IllegalArgumentException emptyHeaderError =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                CsvRowConversions.RowToCsv.builder()
+                    .setCSVFormat(CSVFormat.DEFAULT.withHeader())
+                    .setSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+                    .build());
+
+    assertEquals(
+        "CSVFormat withHeader requires at least one column", emptyHeaderError.getMessage());
+
+    IllegalArgumentException mismatchHeaderError =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                CsvRowConversions.RowToCsv.builder()
+                    .setCSVFormat(
+                        CSVFormat.DEFAULT.withHeader("aString", "idontexist1", "idontexist2"))
+                    .setSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+                    .build());
+
+    assertEquals(
+        "columns in CSVFormat header do not exist in Schema: idontexist2,idontexist1",
+        mismatchHeaderError.getMessage());
+  }
+
+  @Test
+  public void invalidSchema() {
+    IllegalArgumentException emptySchemaError =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                CsvRowConversions.RowToCsv.builder()
+                    .setCSVFormat(CSVFormat.DEFAULT.withHeader())
+                    .setSchema(Schema.of())
+                    .build());
+
+    assertEquals("Schema has no fields", emptySchemaError.getMessage());
+
+    IllegalArgumentException invalidArrayFieldsError =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                CsvRowConversions.RowToCsv.builder()
+                    .setCSVFormat(CSVFormat.DEFAULT.withHeader("instant", "instantList"))
+                    .setSchema(TIME_CONTAINING_SCHEMA)
+                    .build());
+
+    assertEquals(
+        "columns in header match fields in Schema with invalid types: instantList. See CsvIO#VALID_FIELD_TYPE_SET for a list of valid field types.",
+        invalidArrayFieldsError.getMessage());
+
+    // Should not throw Exception when limited to valid fields.
+    CsvRowConversions.RowToCsv.builder()
+        .setCSVFormat(CSVFormat.DEFAULT.withHeader("instant"))
+        .setSchema(TIME_CONTAINING_SCHEMA)
+        .build();
+  }
 
   @Test
   public void withAllowDuplicateHeaderNamesDuplicatesRowFieldOutput() {
@@ -178,7 +250,7 @@ public class RowToCsvCSVFormatTest {
   }
 
   @Test
-  public void withNullString() {
+  public void withNullStringReplacesNullValues() {
     assertEquals(
         "🦄,🦄,🦄,🦄,🦄,🦄",
         rowToCsv(
@@ -236,19 +308,35 @@ public class RowToCsvCSVFormatTest {
   }
 
   @Test
-  public void withRecordSeparator() {}
+  public void withSystemRecordSeparatorDoesNotEffectOutput() {
+    assertEquals(
+        rowToCsv(DATA.allPrimitiveDataTypesRow, csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)),
+        rowToCsv(
+            DATA.allPrimitiveDataTypesRow,
+            csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withSystemRecordSeparator()));
+  }
 
   @Test
-  public void withSkipHeaderRecord() {}
+  public void withTrailingDelimiterAppendsToLineEnd() {
+    assertEquals(
+        "false,1,10,1.0,1.0,1,1,a,1,",
+        rowToCsv(
+            DATA.allPrimitiveDataTypesRow,
+            csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withTrailingDelimiter(true)));
+  }
 
   @Test
-  public void withSystemRecordSeparator() {}
-
-  @Test
-  public void withTrailingDelimiter() {}
-
-  @Test
-  public void withTrim() {}
+  public void withTrimRemovesCellPadding() {
+    assertEquals(
+        "false,1,10,1.0,1.0,1,1,\"       a           \",1",
+        rowToCsv(
+            DATA.allPrimitiveDataTypesRowWithPadding, csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA)));
+    assertEquals(
+        "false,1,10,1.0,1.0,1,1,a,1",
+        rowToCsv(
+            DATA.allPrimitiveDataTypesRowWithPadding,
+            csvFormat(ALL_PRIMITIVE_DATA_TYPES_SCHEMA).withTrim(true)));
+  }
 
   private static SerializableFunction<Row, String> rowToCsvFn(Schema schema, CSVFormat csvFormat) {
     return CsvRowConversions.RowToCsv.builder().setCSVFormat(csvFormat).setSchema(schema).build();

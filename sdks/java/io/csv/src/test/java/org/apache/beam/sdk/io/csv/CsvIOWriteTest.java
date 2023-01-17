@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.io.csv.CsvIOTestJavaBeans.allPrimitiveDataType
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -54,6 +55,9 @@ public class CsvIOWriteTest {
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
+  @Rule
+  public TestPipeline errorPipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Test
@@ -68,9 +72,10 @@ public class CsvIOWriteTest {
             Create.of(DATA.allPrimitiveDataTypeRows)
                 .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
     String expectedHeader = "aBoolean,aByte,aDecimal,aDouble,aFloat,aLong,aShort,aString,anInteger";
-    CSVFormat csvFormat = CSVFormat.DEFAULT.withHeaderComments("foo", "bar", "baz");
+    CSVFormat csvFormat =
+        CSVFormat.DEFAULT.withHeaderComments("foo", "bar", "baz").withCommentMarker('#');
 
-    input.apply(CsvIO.writeRowsTo(toFilenamePrefix(folder), csvFormat).withNumShards(3));
+    input.apply(CsvIO.writeRows(toFilenamePrefix(folder), csvFormat).withNumShards(3));
     writePipeline.run().waitUntilFinish();
 
     PCollection<FileIO.ReadableFile> files =
@@ -85,9 +90,9 @@ public class CsvIOWriteTest {
                 try {
                   List<String> lines = Splitter.on('\n').splitToList(file.readFullyAsUTF8String());
                   assertFalse(lines.isEmpty());
-                  assertEquals("foo", lines.get(0));
-                  assertEquals("bar", lines.get(1));
-                  assertEquals("baz", lines.get(2));
+                  assertEquals("# foo", lines.get(0));
+                  assertEquals("# bar", lines.get(1));
+                  assertEquals("# baz", lines.get(2));
                   assertEquals(expectedHeader, lines.get(3));
 
                   assertTrue(
@@ -115,7 +120,7 @@ public class CsvIOWriteTest {
     String expectedHeader = "aBoolean,aByte,aDecimal,aDouble,aFloat,aLong,aShort,aString,anInteger";
     CSVFormat csvFormat = CSVFormat.DEFAULT;
 
-    input.apply(CsvIO.writeRowsTo(toFilenamePrefix(folder), csvFormat).withNumShards(3));
+    input.apply(CsvIO.writeRows(toFilenamePrefix(folder), csvFormat).withNumShards(3));
     writePipeline.run().waitUntilFinish();
 
     PCollection<FileIO.ReadableFile> files =
@@ -205,7 +210,7 @@ public class CsvIOWriteTest {
     String expectedHeader = "aFloat,aString,aDecimal";
 
     CSVFormat csvFormat = CSVFormat.DEFAULT.withHeader("aFloat", "aString", "aDecimal");
-    input.apply(CsvIO.writeRowsTo(toFilenamePrefix(folder), csvFormat).withNumShards(1));
+    input.apply(CsvIO.writeRows(toFilenamePrefix(folder), csvFormat).withNumShards(1));
     writePipeline.run().waitUntilFinish();
 
     PAssert.that(readPipeline.apply(TextIO.read().from(toFilenamePrefix(folder) + "*")))
@@ -228,7 +233,7 @@ public class CsvIOWriteTest {
     String expectedHeader = "aBoolean,aByte,aDecimal,aDouble,aFloat,aLong,aShort,aString,anInteger";
     CSVFormat csvFormat = CSVFormat.DEFAULT;
 
-    input.apply(CsvIO.writeRowsTo(toFilenamePrefix(folder), csvFormat).withNumShards(1));
+    input.apply(CsvIO.writeRows(toFilenamePrefix(folder), csvFormat).withNumShards(1));
 
     writePipeline.run().waitUntilFinish();
 
@@ -240,6 +245,43 @@ public class CsvIOWriteTest {
             "false,3,30,3.0,3.0,3,3,c,3");
 
     readPipeline.run();
+  }
+
+  @Test
+  public void nonNullHeaderCommentsRequiresHeaderMarker() {
+    PCollection<Row> input =
+        errorPipeline.apply(
+            Create.of(DATA.allPrimitiveDataTypeRows)
+                .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
+    IllegalArgumentException nullHeaderMarker =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                input.apply(
+                    CsvIO.writeRows(
+                        "somewhere",
+                        CSVFormat.DEFAULT.withHeaderComments("some", "header", "comments"))));
+
+    assertEquals(
+        "CSVFormat withCommentMarker required when withHeaderComments",
+        nullHeaderMarker.getMessage());
+  }
+
+  @Test
+  public void withSkipHeaderRecordThrowsError() {
+    PCollection<Row> input =
+        errorPipeline.apply(
+            Create.of(DATA.allPrimitiveDataTypeRows)
+                .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
+    IllegalArgumentException skipHeaderRecord =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                input.apply(
+                    CsvIO.writeRows("somewhere", CSVFormat.DEFAULT.withSkipHeaderRecord())));
+
+    assertEquals(
+        "withSkipHeaderRecord is an illegal CSVFormat setting", skipHeaderRecord.getMessage());
   }
 
   private static String toFilenamePrefix(File folder) {
