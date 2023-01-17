@@ -992,7 +992,7 @@ packages:
       name: usage
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "4.0.2"
+    version: "4.1.0"
   vector_math:
     dependency: transitive
     description:
