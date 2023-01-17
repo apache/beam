@@ -30,11 +30,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
+/** Shared data for use in {@link CsvIO} tests and related classes. */
 class CsvIOTestData {
   static final CsvIOTestData DATA = new CsvIOTestData();
 
@@ -104,14 +103,4 @@ class CsvIOTestData {
           .apply(
               timeContaining(
                   Instant.ofEpochMilli(1L), Collections.singletonList(Instant.ofEpochMilli(1L))));
-
-  private final Schema arrayContainingSchema =
-      Schema.builder()
-          .addNullableField("array", Schema.FieldType.array(Schema.FieldType.INT32))
-          .build();
-
-  final Row arrayContainingRow =
-      Row.withSchema(arrayContainingSchema)
-          .withFieldValue("array", ImmutableList.of(1, 2, 3))
-          .build();
 }
