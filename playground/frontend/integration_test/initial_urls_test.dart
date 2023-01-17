@@ -38,7 +38,7 @@ import 'common/common.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  testWidgets('Load an example by URL', (WidgetTester wt) async {
+  testWidgets('Initial URLs', (WidgetTester wt) async {
     await init(wt);
 
     await _testEmbeddedRoot(wt);
@@ -89,7 +89,7 @@ Future<void> _testStandaloneRoot(WidgetTester wt) async {
   );
 
   await wt.navigateAndSettle(
-    Uri.parse('$_standalonePath?$_croppedViewOptions'),
+    Uri.parse(_standalonePath),
   );
   _expectSdk(wt, Sdk.java);
   _expectText(wt, visibleText);
@@ -110,7 +110,7 @@ Future<void> _testStandaloneSdkOnly(WidgetTester wt) async {
   );
 
   await wt.navigateAndSettle(
-    Uri.parse('$_standalonePath?sdk=go&$_croppedViewOptions'),
+    Uri.parse('$_standalonePath?sdk=go'),
   );
   _expectSdk(wt, Sdk.go);
   _expectText(wt, visibleText);
@@ -123,7 +123,7 @@ Future<void> _testCatalogDefaultExampleLoader(WidgetTester wt) async {
   );
 
   await wt.navigateAndSettle(
-    Uri.parse('$_standalonePath?sdk=go&default=true&$_croppedViewOptions'),
+    Uri.parse('$_standalonePath?sdk=go&default=true'),
   );
   _expectSdk(wt, Sdk.go);
   _expectText(wt, visibleText);
@@ -190,7 +190,7 @@ Future<void> _testStandardExampleLoader(WidgetTester wt) async {
 
   for (final path in _paths) {
     await wt.navigateAndSettle(
-      Uri.parse('$path?sdk=go&path=${WordCountGo.dbPath}&$_fullViewOptions'),
+      Uri.parse('$path?sdk=go&path=${WordCountGo.dbPath}'),
     );
     _expectSdk(wt, Sdk.go);
     _expectText(wt, visibleText);
@@ -276,6 +276,9 @@ void _expectText(WidgetTester wt, String visibleText) {
   expect(controller.text, visibleText);
 }
 
+/// Checks that the example contains:
+/// - at least two 'editable' substrings, and they are editable,
+/// - at least two 'readonly' substrings, and they are read-only.
 Future<void> _expectEditableAndReadOnly(WidgetTester wt) async {
   final controller = wt.findOneCodeController();
 
@@ -293,6 +296,7 @@ Future<void> _expectEditableAndReadOnly(WidgetTester wt) async {
   }
 }
 
+/// Checks that every character in the editor is read-only.
 void _expectReadOnly(WidgetTester wt) {
   final controller = wt.findOneCodeController();
   final value = controller.value;
