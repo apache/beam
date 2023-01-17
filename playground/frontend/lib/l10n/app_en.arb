@@ -191,7 +191,7 @@
   "@exampleDescription": {
     "description": "Description icon label"
   },
-  "exampleMultifile": "Multifile example info",
+  "exampleMultifile": "Multifile",
   "@exampleDescription": {
     "exampleMultifile": "Multifile icon label"
   },

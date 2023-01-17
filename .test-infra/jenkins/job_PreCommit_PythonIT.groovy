@@ -16,28 +16,22 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
+import PrecommitJobBuilder
 
-class DismissibleOverlay extends StatelessWidget {
-  final void Function() close;
-  final Positioned child;
-
-  const DismissibleOverlay({
-    required this.close,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: close,
-          ),
-        ),
-        child,
-      ],
-    );
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Python_Integration',
+    gradleTask: ':pythonPreCommitIT',
+    timeoutMins: 180,
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/python/.*$',
+      '^release/.*$',
+    ]
+    )
+builder.build {
+  // Publish all test results to Jenkins.
+  publishers {
+    archiveJunit('**/pytest*.xml')
   }
 }

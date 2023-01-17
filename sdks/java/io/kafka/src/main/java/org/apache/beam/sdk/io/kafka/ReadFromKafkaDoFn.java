@@ -32,8 +32,6 @@ import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
 import org.apache.beam.sdk.io.kafka.KafkaUnboundedReader.TimestampPolicyContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
-import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -383,6 +381,9 @@ abstract class ReadFromKafkaDoFn<K, V>
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
+          if (timestampPolicy != null) {
+            updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+          }
           return ProcessContinuation.resume();
         }
         for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
@@ -410,13 +411,9 @@ abstract class ReadFromKafkaDoFn<K, V>
           // The outputTimestamp and watermark will be computed by timestampPolicy, where the
           // WatermarkEstimator should be a manual one.
           if (timestampPolicy != null) {
-            checkState(watermarkEstimator instanceof ManualWatermarkEstimator);
             TimestampPolicyContext context =
-                new TimestampPolicyContext(
-                    (long) ((HasProgress) tracker).getProgress().getWorkRemaining(), Instant.now());
+                updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
             outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
-            ((ManualWatermarkEstimator<Instant>) watermarkEstimator)
-                .setWatermark(ensureTimestampWithinBounds(timestampPolicy.getWatermark(context)));
           } else {
             Preconditions.checkStateNotNull(this.extractOutputTimestampFn);
             outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
@@ -425,6 +422,19 @@ abstract class ReadFromKafkaDoFn<K, V>
         }
       }
     }
+  }
+
+  private TimestampPolicyContext updateWatermarkManually(
+      TimestampPolicy<K, V> timestampPolicy,
+      WatermarkEstimator<Instant> watermarkEstimator,
+      RestrictionTracker<OffsetRange, Long> tracker) {
+    checkState(watermarkEstimator instanceof ManualWatermarkEstimator);
+    TimestampPolicyContext context =
+        new TimestampPolicyContext(
+            (long) ((HasProgress) tracker).getProgress().getWorkRemaining(), Instant.now());
+    ((ManualWatermarkEstimator<Instant>) watermarkEstimator)
+        .setWatermark(ensureTimestampWithinBounds(timestampPolicy.getWatermark(context)));
+    return context;
   }
 
   @GetRestrictionCoder

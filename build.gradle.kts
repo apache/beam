@@ -173,6 +173,7 @@ tasks.rat {
     "learning/tour-of-beam/frontend/**/*.gen.dart",
     "learning/tour-of-beam/frontend/.metadata",
     "learning/tour-of-beam/frontend/pubspec.lock",
+    "learning/tour-of-beam/frontend/lib/firebase_options.dart",
 
     // Ignore .gitkeep file
     "**/.gitkeep",
@@ -420,6 +421,10 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
+}
+
+tasks.register("pythonPreCommitIT") {
+  dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }

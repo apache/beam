@@ -16,39 +16,30 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart';
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
 
-import 'login_content.dart';
-
-class LoginButton extends StatelessWidget {
-  const LoginButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () {
-        _openOverlay(context);
-      },
-      child: const Text('ui.signIn').tr(),
-    );
+class AuthNotifier extends ChangeNotifier {
+  AuthNotifier() {
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      notifyListeners();
+    });
   }
 
-  void _openOverlay(BuildContext context) {
-    OverlayEntry? overlay;
-    overlay = OverlayEntry(
-      builder: (context) => DismissibleOverlay(
-        close: () {
-          overlay?.remove();
-        },
-        child: const Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: LoginContent(),
-        ),
-      ),
-    );
-    Overlay.of(context)?.insert(overlay);
+  bool get isAuthenticated => FirebaseAuth.instance.currentUser != null;
+
+  Future<String?> getToken() async {
+    return await FirebaseAuth.instance.currentUser?.getIdToken();
+  }
+
+  Future<void> logIn(AuthProvider authProvider) async {
+    await FirebaseAuth.instance.signInWithPopup(authProvider);
+  }
+
+  Future<void> logOut() async {
+    await FirebaseAuth.instance.signOut();
   }
 }

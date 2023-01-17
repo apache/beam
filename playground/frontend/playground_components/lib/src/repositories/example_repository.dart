@@ -19,6 +19,7 @@
 import '../models/category_with_examples.dart';
 import '../models/example_base.dart';
 import '../models/sdk.dart';
+import '../models/snippet_file.dart';
 import 'example_client/example_client.dart';
 import 'models/get_default_precompiled_object_request.dart';
 import 'models/get_precompiled_object_request.dart';
@@ -48,11 +49,11 @@ class ExampleRepository {
     return result.example;
   }
 
-  Future<String> getPrecompiledObjectCode(
+  Future<List<SnippetFile>> getPrecompiledObjectCode(
     GetPrecompiledObjectRequest request,
   ) async {
     final result = await _client.getPrecompiledObjectCode(request);
-    return result.code;
+    return result.files;
   }
 
   Future<String> getPrecompiledObjectOutput(
