@@ -16,13 +16,14 @@
 package fs_content
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+	"text/template"
 
 	tob "beam.apache.org/learning/tour-of-beam/backend/internal"
 )
@@ -92,7 +93,11 @@ func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 				return filepath.SkipDir
 
 			case d.Name() == descriptionMd:
-				content, err := ioutil.ReadFile(path)
+				templateSource, err := os.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				content, err := processTemplate(templateSource, ctx.sdk)
 				if err != nil {
 					return err
 				}
@@ -100,7 +105,7 @@ func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 
 			// Here we rely on that WalkDir entries are lexically sorted
 			case regexp.MustCompile(hintMdRegexp).MatchString(d.Name()):
-				content, err := ioutil.ReadFile(path)
+				content, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}
@@ -110,6 +115,22 @@ func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 		})
 
 	return builder.Build(), err
+}
+
+func processTemplate(source []byte, sdk tob.Sdk) ([]byte, error) {
+	t := template.New("")
+	t, err := t.Parse(string(source))
+	if err != nil {
+		return nil, err
+	}
+
+	var output bytes.Buffer
+	err = t.Execute(&output, struct{ Sdk tob.Sdk }{Sdk: sdk})
+	if err != nil {
+		return nil, err
+	}
+
+	return output.Bytes(), nil
 }
 
 func collectGroup(infopath string, ctx *sdkContext) (*tob.Group, error) {
