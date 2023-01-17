@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.function.Supplier;
+import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,9 +116,23 @@ public final class DataflowOperator {
    */
   public Result waitForConditionAndFinish(Config config, Supplier<Boolean> conditionCheck)
       throws IOException {
+    return waiForConditionAndExecute(config, conditionCheck, this::drainJobAndFinish);
+  }
+
+  /** Similar to {@link #waitForConditionAndFinish} but cancels the job instead of draining. */
+  public Result waiForConditionAndCancel(Config config, Supplier<Boolean> conditionCheck)
+      throws IOException {
+    return waiForConditionAndExecute(config, conditionCheck, this::cancelJobAndFinish);
+  }
+
+  private Result waiForConditionAndExecute(
+      Config config,
+      Supplier<Boolean> conditionCheck,
+      ThrowingConsumer<IOException, Config> executable)
+      throws IOException {
     Result conditionStatus = waitForCondition(config, conditionCheck);
     if (conditionStatus != Result.JOB_FINISHED && conditionStatus != Result.JOB_FAILED) {
-      drainJobAndFinish(config);
+      executable.accept(config);
     }
     return conditionStatus;
   }
@@ -127,9 +142,15 @@ public final class DataflowOperator {
    *
    * @param config the configuration for performing operations
    * @return the result of waiting for the condition
-   * @throws IOException
+   * @throws IOException if DataflowClient fails while sending a request
    */
   public Result drainJobAndFinish(Config config) throws IOException {
+    client.drainJob(config.project(), config.region(), config.jobId());
+    return waitUntilDone(config);
+  }
+
+  /** Similar to {@link #drainJobAndFinish} but cancels the job instead of draining. */
+  public Result cancelJobAndFinish(Config config) throws IOException {
     client.drainJob(config.project(), config.region(), config.jobId());
     return waitUntilDone(config);
   }
