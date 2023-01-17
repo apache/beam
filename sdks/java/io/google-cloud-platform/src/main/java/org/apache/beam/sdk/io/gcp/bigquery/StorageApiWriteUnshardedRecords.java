@@ -318,7 +318,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 APPEND_CLIENTS.put(getStreamAppendClientCacheEntryKey(), newAppendClientInfo);
               }
               // This pin is "owned" by the current DoFn.
-              Preconditions.checkStateNotNull(this.appendClientInfo.streamAppendClient).pin();
+              Preconditions.checkStateNotNull(newAppendClientInfo.streamAppendClient).pin();
             }
             this.currentOffset = 0;
             nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
