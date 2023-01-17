@@ -415,6 +415,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
+		checkpoints := plan.Checkpoint()
 		requiresFinalization := false
 		// Move the plan back to the candidate state
 		c.mu.Lock()
@@ -447,21 +448,19 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		// Check if the underlying DoFn self-checkpointed.
-		sr, delay, checkpointed, checkErr := plan.Checkpoint()
-
 		var rRoots []*fnpb.DelayedBundleApplication
-		if checkpointed {
-			rRoots = make([]*fnpb.DelayedBundleApplication, len(sr.RS))
-			for i, r := range sr.RS {
-				rRoots[i] = &fnpb.DelayedBundleApplication{
-					Application: &fnpb.BundleApplication{
-						TransformId:      sr.TId,
-						InputId:          sr.InId,
-						Element:          r,
-						OutputWatermarks: sr.OW,
-					},
-					RequestedTimeDelay: durationpb.New(delay),
+		if len(checkpoints) > 0 {
+			for _, cp := range checkpoints {
+				for _, r := range cp.SR.RS {
+					rRoots = append(rRoots, &fnpb.DelayedBundleApplication{
+						Application: &fnpb.BundleApplication{
+							TransformId:      cp.SR.TId,
+							InputId:          cp.SR.InId,
+							Element:          r,
+							OutputWatermarks: cp.SR.OW,
+						},
+						RequestedTimeDelay: durationpb.New(cp.Reapply),
+					})
 				}
 			}
 		}
@@ -477,11 +476,6 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		if err != nil {
 			return fail(ctx, instID, "process bundle failed for instruction %v using plan %v : %v", instID, bdID, err)
 		}
-
-		if checkErr != nil {
-			return fail(ctx, instID, "process bundle failed at checkpointing for instruction %v using plan %v : %v", instID, bdID, checkErr)
-		}
-
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundle{

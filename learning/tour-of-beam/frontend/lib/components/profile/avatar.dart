@@ -16,42 +16,43 @@
  * limitations under the License.
  */
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../assets/assets.gen.dart';
-import 'profile_content.dart';
+import 'user_menu.dart';
 
 class Avatar extends StatelessWidget {
-  const Avatar();
+  final User user;
+  const Avatar({required this.user});
 
   @override
   Widget build(BuildContext context) {
+    final photoUrl = user.photoURL;
     return GestureDetector(
       onTap: () {
-        _openOverlay(context);
+        final closeNotifier = PublicNotifier();
+        openOverlay(
+          context: context,
+          closeNotifier: closeNotifier,
+          positioned: Positioned(
+            right: BeamSizes.size10,
+            top: BeamSizes.appBarHeight,
+            child: UserMenu(
+              closeOverlayCallback: closeNotifier.notifyPublic,
+              user: user,
+            ),
+          ),
+        );
       },
       child: CircleAvatar(
         backgroundColor: BeamColors.white,
-        foregroundImage: AssetImage(Assets.png.laptopLight.path),
-      ),
-    );
-  }
-
-  void _openOverlay(BuildContext context) {
-    OverlayEntry? overlay;
-    overlay = OverlayEntry(
-      builder: (context) => DismissibleOverlay(
-        close: () {
-          overlay?.remove();
-        },
-        child: const Positioned(
-          right: BeamSizes.size10,
-          top: BeamSizes.appBarHeight,
-          child: ProfileContent(),
+        foregroundImage: photoUrl == null ? null : NetworkImage(photoUrl),
+        child: const Icon(
+          Icons.person,
+          color: BeamColors.grey3,
         ),
       ),
     );
-    Overlay.of(context)?.insert(overlay);
   }
 }

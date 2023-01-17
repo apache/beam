@@ -16,35 +16,31 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
-class TourProgressIndicator extends StatelessWidget {
-  // TODO(nausharipov): replace assetPath with progress enum
-  final String assetPath;
-  final bool isSelected;
+import 'content.dart';
 
-  const TourProgressIndicator({
-    required this.assetPath,
-    required this.isSelected,
-  });
+class LoginButton extends StatelessWidget {
+  const LoginButton();
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
-
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: BeamSizes.size4,
-        right: BeamSizes.size8,
-      ),
-      child: SvgPicture.asset(
-        assetPath,
-        color: isSelected
-            ? ext.selectedProgressColor
-            : ext.unselectedProgressColor,
-      ),
+    return TextButton(
+      onPressed: () {
+        final closeNotifier = PublicNotifier();
+        openOverlay(
+          context: context,
+          closeNotifier: closeNotifier,
+          positioned: Positioned(
+            right: BeamSizes.size10,
+            top: BeamSizes.appBarHeight,
+            child: LoginContent(onLoggedIn: closeNotifier.notifyPublic),
+          ),
+        );
+      },
+      child: const Text('ui.signIn').tr(),
     );
   }
 }

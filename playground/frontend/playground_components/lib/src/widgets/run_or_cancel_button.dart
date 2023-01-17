@@ -43,7 +43,6 @@ class RunOrCancelButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return RunButton(
       playgroundController: playgroundController,
-      disabled: playgroundController.selectedExample?.isMultiFile ?? false,
       isRunning: playgroundController.isCodeRunning,
       cancelRun: () {
         beforeCancel?.call();
