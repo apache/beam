@@ -45,7 +45,6 @@ import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.SamzaPortablePipelineOptions;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.samza.util.StateUtils;
 import org.apache.beam.runners.samza.util.WindowUtils;
@@ -206,7 +205,7 @@ public class SamzaDoFnRunners {
       SideInputHandler sideInputHandler,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       SamzaTimerInternalsFactory<?> timerInternalsFactory,
-      SamzaPortablePipelineOptions pipelineOptions,
+      SamzaPipelineOptions pipelineOptions,
       DoFnRunners.OutputManager outputManager,
       StageBundleFactory stageBundleFactory,
       SamzaExecutionContext samzaExecutionContext,
@@ -256,7 +255,7 @@ public class SamzaDoFnRunners {
 
     private static final int DEFAULT_METRIC_SAMPLE_RATE = 100;
 
-    private final SamzaPortablePipelineOptions pipelineOptions;
+    private final SamzaPipelineOptions pipelineOptions;
     private final SamzaTimerInternalsFactory timerInternalsFactory;
     private final WindowingStrategy windowingStrategy;
     private final DoFnRunners.OutputManager outputManager;
@@ -272,7 +271,7 @@ public class SamzaDoFnRunners {
     private final String metricName;
 
     private SdkHarnessDoFnRunner(
-        SamzaPortablePipelineOptions pipelineOptions,
+        SamzaPipelineOptions pipelineOptions,
         String stepName,
         SamzaTimerInternalsFactory<?> timerInternalsFactory,
         WindowingStrategy windowingStrategy,
