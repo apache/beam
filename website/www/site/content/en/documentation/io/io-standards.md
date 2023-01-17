@@ -77,17 +77,17 @@ This section lays out the superset of all documentation that is expected to be m
             </li>
          </ol>
          <p>Example:
-         <p>The KafkaIO <a href="https://beam.apache.org/releases/javadoc/2.1.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">JavaDoc</a>
+         <p>The KafkaIO <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html">JavaDoc</a>
       </td>
    </tr>
    <tr>
       <td>
          <p>I/O Connectors should include a note indicating <a href="https://2022.beamsummit.org/sessions/relational-beam/">Relational Features</a> supported in their page under <strong>I/O connector guides</strong>.
-         <p>Relational Features are concepts that can help improve efficiency and can optionally be implemented by an I/O Connector. Using end user supplied pipeline configuration (SchemaIO) and user query (FieldAccessDescriptor) data, relational theory is applied to derive improvements such as faster pipeline execution, lower operation costs and less data read/written.
+         <p>Relational Features are concepts that can help improve efficiency and can optionally be implemented by an I/O Connector. Using end user supplied pipeline configuration (<a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/schemas/io/SchemaIO.html">SchemaIO</a>) and user query (<a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/schemas/FieldAccessDescriptor.html">FieldAccessDescriptor</a>) data, relational theory is applied to derive improvements such as faster pipeline execution, lower operation costs and less data read/written.
          <p>Example table:
          <p><img src="/images/io-standards/io-supported-relational-features-table.png" width="" alt="Supported Relational Features" title="Supported Relational Features"></img>
          <p>Example implementations:
-         <p>BigQueryIO <a href="https://github.com/apache/beam/blob/5bb13fa35b9bc36764895c57f23d3890f0f1b567/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.java#L1813">Column Pruning</a> via ProjectionPushdown to return only necessary columns indicated by end user query. This is achieved using BigQuery DirectRead API.
+         <p>BigQueryIO <a href="https://github.com/apache/beam/blob/5bb13fa35b9bc36764895c57f23d3890f0f1b567/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.java#L1813">Column Pruning</a> via ProjectionPushdown to return only necessary columns indicated by an end user's query. This is achieved using BigQuery DirectRead API.
       </td>
    </tr>
    <tr>
