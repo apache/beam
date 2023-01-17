@@ -46,6 +46,7 @@ ARG GRPC_VERSION=1_48_1
 ARG BEAM_VENDOR_GRPC_VERSION=0.1
 ARG KAFKA_CLIENTS_VERSION=2.3.1
 ARG SPRING_VERSION=5.3.18
+ARG AVRO_VERSION=1.8.2
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
@@ -99,6 +100,10 @@ RUN wget https://repo1.maven.org/maven2/org/springframework/spring-core/$SPRING_
 # Install Spring JCL
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-jcl/$SPRING_VERSION/spring-jcl-$SPRING_VERSION.jar &&\
     mv spring-jcl-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-jcl.jar
+# Install Avro
+RUN wget https://repo1.maven.org/maven2/org/apache/avro/avro/$AVRO_VERSION/avro-$AVRO_VERSION.jar &&\
+    mv avro-$AVRO_VERSION.jar /opt/apache/beam/jars/avro.jar
+
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\
