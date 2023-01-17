@@ -26,6 +26,7 @@ void main() {
     final descriptor = HttpExampleLoadingDescriptor(
       sdk: Sdk.go,
       uri: Uri.parse('https://example.com'),
+      viewOptions: viewOptions,
     );
 
     test('toJson -> tryParse', () {
@@ -33,13 +34,6 @@ void main() {
       final parsed = HttpExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed, descriptor);
-    });
-
-    test('parses viewOptions', () {
-      final map = descriptor.toJson()..addAll(viewOptionsMap);
-      final parsed = HttpExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed?.viewOptions, viewOptions);
     });
   });
 }

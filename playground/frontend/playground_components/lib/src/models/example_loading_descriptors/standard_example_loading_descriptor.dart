@@ -43,6 +43,7 @@ class StandardExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   Map<String, dynamic> toJson() => {
         'path': path,
         'sdk': sdk.id,
+        ...viewOptions.toShortMap(),
       };
 
   static StandardExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {

@@ -21,8 +21,9 @@ import 'package:highlight/highlight_core.dart';
 
 String foldLicenseAndImports(String text, Mode language) {
   final controller = CodeController(
-    text: text,
     language: language,
+    namedSectionParser: const BracketsStartEndNamedSectionParser(),
+    text: text,
   );
 
   controller.foldCommentAtLineZero();

@@ -40,6 +40,7 @@ void main() {
       files: [SnippetFile(content: 'abc', isMain: true)],
       name: 'name',
       sdk: Sdk.go,
+      viewOptions: viewOptions,
     );
 
     test('toJson -> tryParse', () {
@@ -47,13 +48,6 @@ void main() {
       final parsed = ContentExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed, descriptor);
-    });
-
-    test('parses viewOptions', () {
-      final map = descriptor.toJson()..addAll(viewOptionsMap);
-      final parsed = ContentExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed?.viewOptions, viewOptions);
     });
   });
 }

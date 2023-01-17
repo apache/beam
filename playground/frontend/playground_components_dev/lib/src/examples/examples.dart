@@ -16,18 +16,27 @@
  * limitations under the License.
  */
 
-export 'src/common_finders.dart';
+import 'package:highlight/highlight_core.dart';
+import 'package:http/http.dart' as http;
 
-export 'src/examples/aggregation_max.java.dart';
-export 'src/examples/aggregation_mean.python.dart';
-export 'src/examples/example.go.dart';
-export 'src/examples/examples.dart';
-export 'src/examples/minimal_word_count.go.dart';
-export 'src/examples/minimal_word_count.java.dart';
-export 'src/examples/minimal_word_count_with_metrics.python.dart';
-export 'src/examples/word_count.go.dart';
+import '../code.dart';
 
-export 'src/expect.dart';
-export 'src/finder.dart';
-export 'src/string.dart';
-export 'src/widget_tester.dart';
+class Examples {
+  static const urlPrefix = '$_schemaAndHost$_repoAndBranch';
+  static const _schemaAndHost = 'https://raw.githubusercontent.com/';
+  static const _repoAndBranch = 'akvelon/beam/issue24959_test-loading-url';
+
+  // static const _repoAndBranch = 'apache/beam/master';
+
+  static Future<String> getVisibleTextByPath(String path, Mode language) async {
+    final content = await getFullTextByPath(path);
+
+    return foldLicenseAndImports(content, language);
+  }
+
+  static Future<String> getFullTextByPath(String path) async {
+    final uri = Uri.parse('$urlPrefix$path');
+    final response = await http.get(uri);
+    return response.body;
+  }
+}

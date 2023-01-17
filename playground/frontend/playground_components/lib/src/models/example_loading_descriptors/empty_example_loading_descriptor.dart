@@ -41,7 +41,7 @@ class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   static EmptyExampleLoadingDescriptor? tryParse(
     Map<String, dynamic> map,
   ) {
-    if (map[_key] != true) {
+    if (!map.containsKey(_key)) {
       return null;
     }
 

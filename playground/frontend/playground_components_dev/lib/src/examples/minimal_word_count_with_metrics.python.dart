@@ -16,18 +16,7 @@
  * limitations under the License.
  */
 
-export 'src/common_finders.dart';
-
-export 'src/examples/aggregation_max.java.dart';
-export 'src/examples/aggregation_mean.python.dart';
-export 'src/examples/example.go.dart';
-export 'src/examples/examples.dart';
-export 'src/examples/minimal_word_count.go.dart';
-export 'src/examples/minimal_word_count.java.dart';
-export 'src/examples/minimal_word_count_with_metrics.python.dart';
-export 'src/examples/word_count.go.dart';
-
-export 'src/expect.dart';
-export 'src/finder.dart';
-export 'src/string.dart';
-export 'src/widget_tester.dart';
+class MinimalWordCountWithMetricsPython {
+  static const path =
+      '/sdks/python/apache_beam/examples/wordcount_with_metrics.py';
+}

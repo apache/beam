@@ -16,7 +16,12 @@
  * limitations under the License.
  */
 
-class ExampleNames {
-  static const aggregationMax = 'AggregationMax';
-  static const aggregationMean = 'AggregationMean';
+class AggregationMeanPython {
+  static const name = 'AggregationMean';
+
+  static const outputContains =
+      '16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]';
+
+  static const path =
+      '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py';
 }

@@ -26,6 +26,7 @@ void main() {
     const descriptor = StandardExampleLoadingDescriptor(
       sdk: Sdk.go,
       path: 'path',
+      viewOptions: viewOptions,
     );
 
     test('toJson -> tryParse', () {
@@ -33,13 +34,6 @@ void main() {
       final parsed = StandardExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed, descriptor);
-    });
-
-    test('parses viewOptions', () {
-      final map = descriptor.toJson()..addAll(viewOptionsMap);
-      final parsed = StandardExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed?.viewOptions, viewOptions);
     });
   });
 }

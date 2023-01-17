@@ -42,6 +42,7 @@ class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   Map<String, dynamic> toJson() => {
         'sdk': sdk.id,
         'url': uri.toString(),
+        ...viewOptions.toShortMap(),
       };
 
   static HttpExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {

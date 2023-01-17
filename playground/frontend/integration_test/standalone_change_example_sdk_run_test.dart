@@ -48,7 +48,7 @@ void main() {
     expect(
       wt.findOneCodeController().lastTextSpan!.toPlainText().isAsIfCutFrom(
         await Examples.getVisibleTextByPath(
-          ExamplePaths.javaMinimalWordCount,
+          MinimalWordCountJava.path,
           java,
         ),
       ),
@@ -64,13 +64,13 @@ void main() {
     await wt.tap(find.exampleSelector());
     await wt.pumpAndSettle();
 
-    await wt.tap(find.exampleItemInDropdown(ExampleNames.aggregationMax));
+    await wt.tap(find.exampleItemInDropdown(AggregationMaxJava.name));
     await wt.pumpAndSettle();
 
     expect(
       wt.findOneCodeController().lastTextSpan!.toPlainText().isAsIfCutFrom(
         await Examples.getVisibleTextByPath(
-          ExamplePaths.javaAggregationMax,
+          AggregationMaxJava.path,
           java,
         ),
       ),
@@ -80,7 +80,7 @@ void main() {
 
   Future<void> runExpectJavaAggregationMax(WidgetTester wt) async {
     await runExpectCached(wt);
-    expectOutputEndsWith(ExampleOutputs.javaAggregationMaxTail, wt);
+    expectOutputEndsWith(AggregationMaxJava.outputTail, wt);
   }
 
   Future<void> runCustomJava(WidgetTester wt) async {
@@ -112,7 +112,7 @@ public class MyClass {
     expect(
       wt.findOneCodeController().lastTextSpan!.toPlainText().isAsIfCutFrom(
             await Examples.getVisibleTextByPath(
-              ExamplePaths.pythonMinimalWordCountWithMetrics,
+              MinimalWordCountWithMetricsPython.path,
               python,
             ),
           ),
@@ -124,7 +124,7 @@ public class MyClass {
     await wt.tap(find.exampleSelector());
     await wt.pumpAndSettle();
 
-    await wt.tap(find.exampleItemInDropdown(ExampleNames.aggregationMean));
+    await wt.tap(find.exampleItemInDropdown(AggregationMeanPython.name));
     await wt.pumpAndSettle();
 
     // Cannot test this because the DB examples differ from GitHub now.
@@ -142,7 +142,7 @@ public class MyClass {
 
   Future<void> runExpectPythonAggregationMean(WidgetTester wt) async {
     await runExpectCached(wt);
-    expectOutputContains(ExampleOutputs.pythonAggregationMeanContains, wt);
+    expectOutputContains(AggregationMeanPython.outputContains, wt);
   }
 
   Future<void> runCustomPython(WidgetTester wt) async {

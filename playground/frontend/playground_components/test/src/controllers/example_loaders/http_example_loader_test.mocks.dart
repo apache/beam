@@ -4,7 +4,7 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i7;
-import 'dart:ui' as _i10;
+import 'dart:ui' as _i11;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:playground_components/src/cache/example_cache.dart' as _i4;
@@ -12,9 +12,11 @@ import 'package:playground_components/src/models/category_with_examples.dart'
     as _i6;
 import 'package:playground_components/src/models/example.dart' as _i3;
 import 'package:playground_components/src/models/example_base.dart' as _i2;
+import 'package:playground_components/src/models/example_view_options.dart'
+    as _i9;
 import 'package:playground_components/src/models/loading_status.dart' as _i8;
 import 'package:playground_components/src/models/sdk.dart' as _i5;
-import 'package:playground_components/src/models/snippet_file.dart' as _i9;
+import 'package:playground_components/src/models/snippet_file.dart' as _i10;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -111,16 +113,21 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
         returnValue: Future<_i2.ExampleBase>.value(_FakeExampleBase_0()),
       ) as _i7.Future<_i2.ExampleBase>);
   @override
-  _i7.Future<_i3.Example> loadSharedExample(String? id) => (super.noSuchMethod(
+  _i7.Future<_i3.Example> loadSharedExample(
+    String? id, {
+    _i9.ExampleViewOptions? viewOptions,
+  }) =>
+      (super.noSuchMethod(
         Invocation.method(
           #loadSharedExample,
           [id],
+          {#viewOptions: viewOptions},
         ),
         returnValue: Future<_i3.Example>.value(_FakeExample_1()),
       ) as _i7.Future<_i3.Example>);
   @override
   _i7.Future<String> saveSnippet({
-    List<_i9.SnippetFile>? files,
+    List<_i10.SnippetFile>? files,
     _i5.Sdk? sdk,
     String? pipelineOptions,
   }) =>
@@ -190,7 +197,7 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
         returnValue: Future<_i2.ExampleBase?>.value(),
       ) as _i7.Future<_i2.ExampleBase?>);
   @override
-  void addListener(_i10.VoidCallback? listener) => super.noSuchMethod(
+  void addListener(_i11.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(
           #addListener,
           [listener],
@@ -198,7 +205,7 @@ class MockExampleCache extends _i1.Mock implements _i4.ExampleCache {
         returnValueForMissingStub: null,
       );
   @override
-  void removeListener(_i10.VoidCallback? listener) => super.noSuchMethod(
+  void removeListener(_i11.VoidCallback? listener) => super.noSuchMethod(
         Invocation.method(
           #removeListener,
           [listener],

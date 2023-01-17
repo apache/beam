@@ -378,6 +378,11 @@ ArtifactRetrievalService:
   methods:
   - GetArtifact
   - ResolveArtifacts
+ArtifactRetrievalServiceServicer:
+  methods:
+  - GetArtifact
+  - ResolveArtifacts
+ArtifactRetrievalServiceStub: {}
 Artifacts:
   properties:
   - images
@@ -387,6 +392,10 @@ ArtifactStagingService:
   - register_job
   - resolved_deps
   - ReverseArtifactRetrievalService
+ArtifactStagingServiceServicer:
+  methods:
+  - ReverseArtifactRetrievalService
+ArtifactStagingServiceStub: {}
 AsDict: {}
 AsIter:
   methods:
@@ -564,11 +573,7 @@ BagInStateOutputAfterTimer:
   properties:
   - EMIT_TIMER
   - SET_STATE
-BagRuntimeState:
-  methods:
-  - add
-  - clear
-  - read
+BagRuntimeState: {}
 BagStateSpec:
   methods:
   - to_runner_api
@@ -641,6 +646,7 @@ BatchToElementDoFn:
   methods:
   - process_batch
 BeamAssertException: {}
+BeamConstants: {}
 BeamDataframeDoctestRunner:
   methods:
   - fake_pandas_module
@@ -654,24 +660,56 @@ BeamFilesystemHandler:
   methods:
   - file_reader
   - file_writer
+BeamFnControl:
+  methods:
+  - Control
+  - GetProcessBundleDescriptor
 BeamFnControlServicer:
   methods:
   - Control
+BeamFnControlStub: {}
+BeamFnData:
+  methods:
+  - Data
 BeamFnDataServicer:
   methods:
   - Data
   - get_conn_by_worker_id
+BeamFnDataStub: {}
+BeamFnExternalWorkerPool:
+  methods:
+  - StartWorker
+  - StopWorker
 BeamFnExternalWorkerPoolServicer:
   methods:
   - start
   - StartWorker
   - StopWorker
+BeamFnExternalWorkerPoolStub: {}
+BeamFnLogging:
+  methods:
+  - Logging
 BeamFnLoggingServicer:
   methods:
   - Logging
+BeamFnLoggingStub: {}
+BeamFnState:
+  methods:
+  - State
+BeamFnStateServicer:
+  methods:
+  - State
+BeamFnStateStub: {}
 BeamFnStatusServicer:
   methods:
   - WorkerStatus
+BeamFnWorkerStatus:
+  methods:
+  - WorkerStatus
+BeamFnWorkerStatusServicer:
+  methods:
+  - WorkerStatus
+BeamFnWorkerStatusStub: {}
 BeamIOError: {}
 BeamJarExpansionService: {}
 BeamJob:
@@ -899,6 +937,9 @@ BigqueryMatcher:
   methods:
   - describe_mismatch
   - describe_to
+BigQueryMetricsFetcher:
+  methods:
+  - fetch
 BigQueryMetricsPublisher:
   methods:
   - publish
@@ -1273,6 +1314,7 @@ BlobStorageIO:
   - delete_tree
   - exists
   - last_updated
+  - list_files
   - list_prefix
   - open
   - rename
@@ -2149,19 +2191,14 @@ CombiningTriggerDriver:
   methods:
   - process_elements
   - process_timer
-CombiningValueRuntimeState:
-  methods:
-  - add
-  - clear
-  - commit
-  - finalize
-  - read
+CombiningValueRuntimeState: {}
 CombiningValueStateSpec:
   methods:
   - to_runner_api
 Command:
   methods:
   - run
+CommitManifestResponse: {}
 ComparableValue:
   methods:
   - hydrate
@@ -2327,9 +2364,7 @@ ConvertToPubSubMessage:
   - process
 CopyRequest: {}
 CorruptMainSessionException: {}
-Count:
-  methods:
-  - expand
+Count: {}
 Count1:
   methods:
   - expand
@@ -2342,18 +2377,11 @@ CountAccumulator:
 CountAndLog:
   methods:
   - expand
-CountCombineFn:
-  methods:
-  - add_input
-  - add_inputs
-  - create_accumulator
-  - extract_output
-  - merge_accumulators
+CountCombineFn: {}
 Counter:
   methods:
-  - error
-  - get
-  - increment
+  - dec
+  - inc
 CounterAggregator:
   methods:
   - combine
@@ -2447,7 +2475,12 @@ CPUTime:
   - totalMs
 Create:
   methods:
-  - apply
+  - as_read
+  - expand
+  - get_output_type
+  - get_windowing
+  - infer_output_type
+  - to_runner_api_parameter
 CreateBitbucketServerConfigOperationMetadata:
   properties:
   - bitbucketServerConfig
@@ -2530,7 +2563,6 @@ CustomCoder:
   methods:
   - decode
   - encode
-  - is_deterministic
 CustomCommands:
   methods:
   - finalize_options
@@ -3561,19 +3593,10 @@ Disk:
   - mountPoint
   - sizeGb
 DisplayData:
-  properties:
-  - boolValue
-  - durationValue
-  - floatValue
-  - int64Value
-  - javaClassValue
-  - key
-  - label
-  - namespace
-  - shortStrValue
-  - strValue
-  - timestampValue
-  - url
+  methods:
+  - create_from
+  - create_from_options
+  - to_proto
 DisplayDataItem:
   methods:
   - drop_if_default
@@ -3689,12 +3712,7 @@ DoFn:
   - TimestampParam
   - WatermarkEstimatorParam
   - WindowParam
-DoFnContext:
-  methods:
-  - element
-  - set_element
-  - timestamp
-  - windows
+DoFnContext: {}
 DoFnInfo:
   methods:
   - create
@@ -3784,9 +3802,7 @@ DriverClassName:
   - MYSQL
   - ORACLE
   - POSTGRESQL
-DummyClass:
-  methods:
-  - func
+DummyClass: {}
 DummyCoder:
   methods:
   - decode
@@ -3905,24 +3921,20 @@ Entry:
   - itemCount
   - predictedLabel
 Environment:
-  properties:
-  - clusterManagerApiService
-  - dataset
-  - debugOptions
-  - experiments
-  - flexResourceSchedulingGoal
-  - internalExperiments
-  - sdkPipelineOptions
-  - serviceAccountEmail
-  - serviceKmsKeyName
-  - serviceOptions
-  - shuffleMode
-  - tempStoragePrefix
-  - userAgent
-  - version
-  - workerPools
-  - workerRegion
-  - workerZone
+  methods:
+  - artifacts
+  - capabilities
+  - from_options
+  - from_runner_api
+  - get_env_cls_from_urn
+  - register_urn
+  - register_urn
+  - register_urn
+  - register_urn
+  - register_urn
+  - resource_hints
+  - to_runner_api
+  - to_runner_api_parameter
 EOL:
   properties:
   - CRLF
@@ -4014,9 +4026,14 @@ ExpandStringsProvider:
 ExpansionAndArtifactRetrievalStub:
   methods:
   - artifact_service
+ExpansionMethods: {}
+ExpansionService:
+  methods:
+  - Expand
 ExpansionServiceServicer:
   methods:
   - Expand
+ExpansionServiceStub: {}
 ExpectedSplitOutcome:
   properties:
   - MUST_BE_CONSISTENT_IF_SUCCEEDS
@@ -4507,9 +4524,13 @@ FixedWindows:
   - from_runner_api_parameter
   - get_window_coder
   - to_runner_api_parameter
+FixedWindowsPayload: {}
 Flatten:
   methods:
-  - apply
+  - expand
+  - from_runner_api_parameter
+  - infer_output_type
+  - to_runner_api_parameter
 FlattenAndDouble:
   methods:
   - expand
@@ -4824,6 +4845,7 @@ GcsIO:
   - get_project_number
   - kms_key
   - last_updated
+  - list_files
   - list_prefix
   - open
   - rename
@@ -4987,6 +5009,16 @@ GitHubEventsConfig:
   - owner
   - pullRequest
   - push
+GitHubIssueMetaData:
+  properties:
+  - change_point
+  - change_point_timestamp
+  - issue_number
+  - issue_timestamp
+  - issue_url
+  - metric_name
+  - test_id
+  - test_name
 GitRepoSource:
   properties:
   - bitbucketServerConfig
@@ -5020,6 +5052,7 @@ GlobalWindows:
   - windowed_batch
   - windowed_value
   - windowed_value_at_end_of_window
+GlobalWindowsPayload: {}
 GoogleCloudOptions:
   methods:
   - validate
@@ -5050,7 +5083,11 @@ GroupBy:
   - force_tuple_keys
 GroupByKey:
   methods:
-  - apply
+  - expand
+  - from_runner_api_parameter
+  - infer_output_type
+  - runner_api_requires_keyed_input
+  - to_runner_api_parameter
 GroupingBuffer:
   methods:
   - append
@@ -5146,9 +5183,8 @@ HdfsUploader:
   - finish
   - put
 Histogram:
-  properties:
-  - bucketCounts
-  - firstBucketOffset
+  methods:
+  - update
 HistogramAggregator:
   methods:
   - combine
@@ -5702,6 +5738,18 @@ JobServer:
   - start
   - stop
 JobServerOptions: {}
+JobService:
+  methods:
+  - Cancel
+  - DescribePipelineOptions
+  - GetJobMetrics
+  - GetJobs
+  - GetMessageStream
+  - GetPipeline
+  - GetState
+  - GetStateStream
+  - Prepare
+  - Run
 JobServiceHandle:
   methods:
   - encode_pipeline_options
@@ -5710,6 +5758,19 @@ JobServiceHandle:
   - run
   - stage
   - submit
+JobServiceServicer:
+  methods:
+  - Cancel
+  - DescribePipelineOptions
+  - GetJobMetrics
+  - GetJobs
+  - GetMessageStream
+  - GetPipeline
+  - GetState
+  - GetStateStream
+  - Prepare
+  - Run
+JobServiceStub: {}
 JobStatistics:
   properties:
   - completionRatio
@@ -5795,13 +5856,8 @@ JoinIndex:
 JoinPersonAuctionFn:
   methods:
   - process
-JrhReadPTransformOverride:
-  methods:
-  - get_replacement_transform_for_applied_ptransform
-  - matches
 JsonCoder:
   methods:
-  - decode
   - encode
 JsonLogFormatter:
   methods:
@@ -5832,6 +5888,7 @@ JustBids:
 JustPerson:
   methods:
   - expand
+KafkaIOTestOptions: {}
 Key:
   methods:
   - from_client_key
@@ -5938,6 +5995,24 @@ LeaseWorkItemResponse:
   properties:
   - unifiedWorkerResponse
   - workItems
+LegacyArtifactRetrievalService:
+  methods:
+  - GetArtifact
+  - GetManifest
+LegacyArtifactRetrievalServiceServicer:
+  methods:
+  - GetArtifact
+  - GetManifest
+LegacyArtifactRetrievalServiceStub: {}
+LegacyArtifactStagingService:
+  methods:
+  - CommitManifest
+  - PutArtifact
+LegacyArtifactStagingServiceServicer:
+  methods:
+  - CommitManifest
+  - PutArtifact
+LegacyArtifactStagingServiceStub: {}
 LengthPrefixCoder:
   methods:
   - as_cloud_object
@@ -5978,7 +6053,13 @@ LinearRegressionBenchmarkConfig:
   - starting_point
 LineSource:
   methods:
-  - read_records
+  - default_output_coder
+  - estimate_size
+  - get_range_tracker
+  - read
+  - split
+  properties:
+  - TEST_BUNDLE_SIZE
 ListBatchConverter:
   methods:
   - combine_batches
@@ -6126,6 +6207,7 @@ LogicalTypeRegistry:
   - get_logical_type_by_language_type
   - get_logical_type_by_urn
   - get_urn_by_logial_type
+LogicalTypes: {}
 ManualWatermarkEstimator:
   methods:
   - current_watermark
@@ -6300,7 +6382,9 @@ MetricResults:
 Metrics:
   methods:
   - counter
-  - histogram
+  - distribution
+  - gauge
+  - get_namespace
 MetricsContainer:
   methods:
   - get_counter
@@ -6332,6 +6416,7 @@ MetricsPublisher:
   - publish
 MetricsReader:
   methods:
+  - get_counter_metric
   - publish_metrics
   - publish_values
 MetricStructuredName:
@@ -6478,6 +6563,9 @@ MonitorDoFn:
   - finish_bundle
   - process
   - start_bundle
+MonitoringInfo: {}
+MonitoringInfoSpecs: {}
+MonitoringInfoTypeUrns: {}
 MonitorSuffix:
   properties:
   - ELEMENT_COUNTER
@@ -6869,28 +6957,12 @@ OffsetRestrictionTracker:
   - try_split
 OldClassThatDoesNotImplementLen: {}
 Operation:
-  methods:
-  - add_receiver
-  - current_element_progress
-  - execution_time_monitoring_infos
-  - finalize_bundle
-  - finish
-  - get_batching_preference
-  - get_input_batch_converter
-  - get_output_batch_converter
-  - monitoring_infos
-  - needs_finalization
-  - output
-  - pcollection_count_monitoring_infos
-  - process
-  - process_batch
-  - reset
-  - setup
-  - start
-  - str_internal
-  - teardown
-  - try_split
-  - user_monitoring_infos
+  properties:
+  - done
+  - error
+  - metadata
+  - name
+  - response
 OperationCounters:
   methods:
   - do_sample
@@ -7097,7 +7169,18 @@ ParamWindowedValueCoderImpl:
   - get_estimated_size_and_observables
 ParDo:
   methods:
-  - apply
+  - default_type_hints
+  - display_data
+  - expand
+  - from_runner_api_parameter
+  - get_restriction_coder
+  - infer_batch_converters
+  - infer_output_type
+  - make_fn
+  - runner_api_requires_keyed_input
+  - to_runner_api_parameter
+  - with_exception_handling
+  - with_outputs
 ParDoInstruction:
   properties:
   - input
@@ -7405,9 +7488,8 @@ PipelineRenderer:
 PipelineResult:
   methods:
   - cancel
-  - metrics
-  - pipeline_state_to_runner_api_state
-  - runner_api_state_to_pipeline_state
+  - get
+  - read
   - state
   - wait_until_finish
 PipelineRunner:
@@ -7472,10 +7554,10 @@ Point:
   - value
 Policy:
   properties:
+  - auditConfigs
   - bindings
   - etag
-  - kind
-  - resourceId
+  - version
 PoolOption:
   properties:
   - name
@@ -7724,6 +7806,13 @@ ProtoPlusMessageB:
 ProtoPlusMessageWithMap:
   properties:
   - field1
+ProvisionService:
+  methods:
+  - GetProvisionInfo
+ProvisionServiceServicer:
+  methods:
+  - GetProvisionInfo
+ProvisionServiceStub: {}
 PTransform:
   methods:
   - annotations
@@ -7877,6 +7966,7 @@ PythonCallable:
   - urn
 PythonCallableWithSource:
   methods:
+  - default_label
   - get_source
   - load_from_expression
   - load_from_fully_qualified_name
@@ -8272,9 +8362,9 @@ RecommendationAIIT:
   - test_predict
 Record:
   properties:
-  - age
-  - height
-  - name
+  - order_id
+  - product_id
+  - quantity
 Recording:
   methods:
   - cancel
@@ -8321,9 +8411,7 @@ RegressionMetrics:
   - meanSquaredLogError
   - medianAbsoluteError
   - rSquared
-Reify:
-  methods:
-  - process
+Reify: {}
 ReifyWindowsFn:
   methods:
   - process
@@ -8686,6 +8774,7 @@ S3IO:
   - delete_tree
   - exists
   - last_updated
+  - list_files
   - list_prefix
   - open
   - rename
@@ -8913,17 +9002,13 @@ Sessions:
 SessionsToStringsDoFn:
   methods:
   - process
+SessionWindowsPayload: {}
 SetHint: {}
 SetIamPolicyRequest:
   properties:
   - policy
   - updateMask
-SetRuntimeState:
-  methods:
-  - add
-  - clear
-  - is_modified
-  - read
+SetRuntimeState: {}
 SetStateSpec:
   methods:
   - to_runner_api
@@ -9102,6 +9187,7 @@ SlidingWindows:
   - from_runner_api_parameter
   - get_window_coder
   - to_runner_api_parameter
+SlidingWindowsPayload: {}
 SlowCoders:
   methods:
   - test_using_slow_impl
@@ -9147,9 +9233,11 @@ SortedConcatWithCounters:
   - merge_accumulators
 Source:
   properties:
-  - repoSource
-  - storageSource
-  - storageSourceManifest
+  - baseSpecs
+  - codec
+  - doesNotNeedSplitting
+  - metadata
+  - spec
 SourceBase:
   methods:
   - is_bounded
@@ -9367,11 +9455,17 @@ StageSummary:
   - stageId
   - startTime
   - state
+StandardArtifacts: {}
+StandardCoders: {}
+StandardDisplayData: {}
+StandardEnvironments: {}
 StandardOptions:
   properties:
   - ALL_KNOWN_RUNNERS
   - DEFAULT_RUNNER
   - KNOWN_RUNNER_NAMES
+StandardProtocols: {}
+StandardPTransforms: {}
 StandardQueryParameters:
   properties:
   - access_token
@@ -9386,6 +9480,10 @@ StandardQueryParameters:
   - trace
   - upload_protocol
   - uploadType
+StandardRequirements: {}
+StandardResourceHints: {}
+StandardRunnerProtocols: {}
+StandardSideInputTypes: {}
 StandardSqlDataType:
   properties:
   - arrayElementType
@@ -9398,6 +9496,7 @@ StandardSqlField:
 StandardSqlStructType:
   properties:
   - fields
+StandardUserStateTypes: {}
 StateBackedIterableCoder:
   methods:
   - from_runner_api_parameter
@@ -10294,6 +10393,18 @@ TestBQJobNames:
   - test_matches_template
   - test_random_in_name
   - test_simple_names
+TestChangePointAnalysis:
+  methods:
+  - setUp
+  - test_alert_on_data_with_change_point
+  - test_alert_on_data_with_reported_change_point
+  - test_change_point_outside_inspection_window_is_not_a_valid_alert
+  - test_duplicate_change_point
+  - test_duplicate_change_points_are_not_valid_alerts
+  - test_edivisive_means
+  - test_is_changepoint_in_valid_window
+  - test_no_alerts_when_no_change_points
+  - test_validate_config
 TestCheckSchemaEqual:
   methods:
   - test_descriptions
@@ -10592,7 +10703,6 @@ TestIamPermissionsRequest:
   - permissions
 TestIamPermissionsResponse:
   properties:
-  - kind
   - permissions
 TestingFileSystem:
   methods:
@@ -10932,11 +11042,18 @@ TestStreamIntegrationTests:
   - test_basic_execution
   - test_multiple_outputs
   - test_multiple_outputs_with_watermark_advancement
+TestStreamService:
+  methods:
+  - Events
 TestStreamServiceController:
   methods:
   - Events
   - start
   - stop
+TestStreamServiceServicer:
+  methods:
+  - Events
+TestStreamServiceStub: {}
 TestTableReferenceParser:
   methods:
   - test_calling_with_all_arguments
@@ -11356,6 +11473,7 @@ TriggerCopyJobs:
   - display_data
   - finish_bundle
   - process
+  - process_one
   - start_bundle
   properties:
   - TRIGGER_DELETE_TEMP_TABLES
@@ -11679,9 +11797,12 @@ WatermarkEvent:
   - to_runner_api
 WatermarkManager:
   methods:
-  - get_pcoll_node
-  - get_stage_node
-  - set_pcoll_watermark
+  - extract_all_timers
+  - get_watermarks
+  - update_watermarks
+  properties:
+  - WATERMARK_NEG_INF
+  - WATERMARK_POS_INF
 WatermarkPolicy:
   methods:
   - validate_param
@@ -11846,16 +11967,28 @@ WorkerOptions:
   - validate
 WorkerPool:
   properties:
-  - annotations
-  - createTime
-  - deleteTime
-  - displayName
-  - etag
-  - name
-  - privatePoolV1Config
-  - state
-  - uid
-  - updateTime
+  - autoscalingSettings
+  - dataDisks
+  - defaultPackageSet
+  - diskSizeGb
+  - diskSourceImage
+  - diskType
+  - ipConfiguration
+  - kind
+  - machineType
+  - metadata
+  - network
+  - numThreadsPerWorker
+  - numWorkers
+  - onHostMaintenance
+  - packages
+  - poolArgs
+  - sdkHarnessContainerImages
+  - subnetwork
+  - taskrunnerSettings
+  - teardownPolicy
+  - workerHarnessContainerImage
+  - zone
 WorkerSettings:
   properties:
   - baseUrl

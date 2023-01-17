@@ -51,6 +51,15 @@ class ExampleViewOptions with EquatableMixin {
     return value.splitNotEmpty(',');
   }
 
+  Map<String, String> toShortMap() {
+    return {
+      if (readOnlySectionNames.isNotEmpty)
+        'readonly': readOnlySectionNames.join(','),
+      if (showSectionNames.isNotEmpty) 'show': showSectionNames.join(','),
+      if (unfoldSectionNames.isNotEmpty) 'unfold': unfoldSectionNames.join(','),
+    };
+  }
+
   static const empty = ExampleViewOptions(
     readOnlySectionNames: [],
     showSectionNames: [],

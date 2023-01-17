@@ -16,8 +16,12 @@
  * limitations under the License.
  */
 
+import 'package:app_state/app_state.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground/main.dart' as app;
+import 'package:playground/router/route_information_parser.dart';
+import 'package:playground_components/playground_components.dart';
 
 Future<void> init(WidgetTester wt) async {
   app.main();
@@ -36,4 +40,25 @@ void expectSimilar(double a, double b) {
       closeTo(value, value * fraction);
   Matcher onePerCentTolerance(num value) => closeToFraction(value, 0.01);
   expect(a, onePerCentTolerance(b));
+}
+
+final exampleUrls = {
+  // TODO: Replace with 'apache/beam' before PR.
+  Sdk.go:
+      'https://raw.githubusercontent.com/akvelon/beam/issue24959_test-loading-url/playground/frontend/integration_test/common/examples/example.go',
+};
+
+Uri getExampleUrl(Sdk sdk) {
+  final params = {
+    'sdk': sdk.id,
+    'url': exampleUrls[sdk],
+    'readonly': 'readonly1,readonly2',
+    'show': 'show',
+    'unfold': 'unfold1,unfold2',
+  };
+
+  return Uri(
+    path: '/',
+    queryParameters: params,
+  );
 }

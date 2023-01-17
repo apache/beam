@@ -16,18 +16,13 @@
  * limitations under the License.
  */
 
-export 'src/common_finders.dart';
+class AggregationMaxJava {
+  static const dbPath = 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax';
 
-export 'src/examples/aggregation_max.java.dart';
-export 'src/examples/aggregation_mean.python.dart';
-export 'src/examples/example.go.dart';
-export 'src/examples/examples.dart';
-export 'src/examples/minimal_word_count.go.dart';
-export 'src/examples/minimal_word_count.java.dart';
-export 'src/examples/minimal_word_count_with_metrics.python.dart';
-export 'src/examples/word_count.go.dart';
+  static const name = 'AggregationMax';
 
-export 'src/expect.dart';
-export 'src/finder.dart';
-export 'src/string.dart';
-export 'src/widget_tester.dart';
+  static const outputTail = 'INFO: 10\n';
+
+  static const path =
+      '/learning/katas/java/Common Transforms/Aggregation/Max/src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java';
+}

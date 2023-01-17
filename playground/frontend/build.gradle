@@ -187,6 +187,12 @@ tasks.register("integrationTest") {
   dependsOn("integrationTest_standalone_miscellaneous_ui")
 }
 
+tasks.register("integrationTest_initial_urls") {
+  doLast {
+    runIntegrationTest("initial_urls", "/")
+  }
+}
+
 tasks.register("integrationTest_standalone_change_example_sdk_run") {
   doLast {
     runIntegrationTest("standalone_change_example_sdk_run", "/")

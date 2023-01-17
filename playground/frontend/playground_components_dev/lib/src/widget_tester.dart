@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
+import 'package:app_state/app_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
@@ -49,5 +51,29 @@ extension WidgetTesterExtension on WidgetTester {
   PlaygroundController findPlaygroundController() {
     final context = element(find.codeField());
     return context.read<PlaygroundController>();
+  }
+
+  Future<void> navigateAndSettle(Uri url) async {
+    print(url);
+    await _navigate(url);
+    await Future.delayed(const Duration(seconds:1));
+    await pumpAndSettle();
+
+    await Future.delayed(const Duration(seconds: 1));
+    await pumpAndSettle();
+  }
+
+  Future<void> _navigate(Uri uri) async {
+    final rip = GetIt.instance.get<PageStackRouteInformationParser>();
+    final path = await rip.parsePagePath(
+      RouteInformation(location: uri.toString()),
+    );
+
+    if (path == null) {
+      fail('Cannot parse $uri into PagePath');
+    }
+
+    final pageStack = GetIt.instance.get<PageStack>();
+    await pageStack.replacePath(path, mode: PageStackMatchMode.none);
   }
 }

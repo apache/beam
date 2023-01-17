@@ -43,7 +43,7 @@ void main() async {
   // Router API specific initialization.
   final pageStack = GetIt.instance.get<PageStack>();
   final routerDelegate = BeamRouterDelegate(pageStack);
-  final routeInformationParser = PlaygroundRouteInformationParser();
+  final rip = GetIt.instance.get<PageStackRouteInformationParser>();
   final backButtonDispatcher = PageStackBackButtonDispatcher(pageStack);
 
   await findSystemLocale();
@@ -60,7 +60,7 @@ void main() async {
       child: PlaygroundApp(
         backButtonDispatcher: backButtonDispatcher,
         routerDelegate: routerDelegate,
-        routeInformationParser: routeInformationParser,
+        routeInformationParser: rip,
       ),
     ),
   );

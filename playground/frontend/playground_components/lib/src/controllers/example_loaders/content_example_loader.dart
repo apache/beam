@@ -47,5 +47,6 @@ class ContentExampleLoader extends ExampleLoader {
         path: '',
         sdk: descriptor.sdk,
         type: ExampleType.example,
+        viewOptions: descriptor.viewOptions,
       );
 }

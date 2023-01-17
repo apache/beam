@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-class ExampleOutputs {
-  static const javaAggregationMaxTail = 'INFO: 10\n';
-
-  static const pythonAggregationMeanContains =
-      '16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]';
-
-  static const pythonWordCountWithMetricsTail = 'average word length: 4\n';
+class WordCountGo {
+  static const dbPath = 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount';
+  static const path = '/sdks/go/examples/wordcount/wordcount.go';
 }

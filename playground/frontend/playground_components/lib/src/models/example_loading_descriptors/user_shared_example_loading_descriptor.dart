@@ -42,6 +42,7 @@ class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   Map<String, dynamic> toJson() => {
         'sdk': sdk.id,
         'shared': snippetId,
+        ...viewOptions.toShortMap(),
       };
 
   static UserSharedExampleLoadingDescriptor? tryParse(

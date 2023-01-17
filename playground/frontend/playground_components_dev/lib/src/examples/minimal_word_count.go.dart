@@ -16,20 +16,7 @@
  * limitations under the License.
  */
 
-import 'package:highlight/highlight_core.dart';
-import 'package:http/http.dart' as http;
-
-import 'code.dart';
-
-class Examples {
-  static const _repoAndBranch = 'apache/beam/master';
-
-  static Future<String> getVisibleTextByPath(String path, Mode language) async {
-    final uri =
-        Uri.parse('https://raw.githubusercontent.com/$_repoAndBranch$path');
-    final response = await http.get(uri);
-    final content = response.body;
-
-    return foldLicenseAndImports(content, language);
-  }
+class MinimalWordCountGo {
+  static const path =
+      '/sdks/go/examples/minimal_wordcount/minimal_wordcount.go';
 }

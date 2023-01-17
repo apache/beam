@@ -23,20 +23,16 @@ import 'common.dart';
 
 void main() {
   group('CatalogDefaultExampleLoadingDescriptor', () {
-    const descriptor = CatalogDefaultExampleLoadingDescriptor(sdk: Sdk.go);
+    const descriptor = CatalogDefaultExampleLoadingDescriptor(
+      sdk: Sdk.go,
+      viewOptions: viewOptions,
+    );
 
     test('toJson -> tryParse', () {
       final map = descriptor.toJson();
       final parsed = CatalogDefaultExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed, descriptor);
-    });
-
-    test('parses viewOptions', (){
-      final map = descriptor.toJson()..addAll(viewOptionsMap);
-      final parsed = CatalogDefaultExampleLoadingDescriptor.tryParse(map);
-
-      expect(parsed?.viewOptions, viewOptions);
     });
   });
 }
