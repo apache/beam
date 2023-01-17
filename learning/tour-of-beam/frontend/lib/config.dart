@@ -26,7 +26,8 @@ const cloudFunctionsBaseUrl = 'https://'
 
 // Copied from Playground's config.g.dart
 
-const String kAnalyticsUA = 'UA-73650088-2';
+const String kAnalyticsUA = 'G-349612187';
+
 const String kApiClientURL =
     'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
 const String kApiJavaClientURL =

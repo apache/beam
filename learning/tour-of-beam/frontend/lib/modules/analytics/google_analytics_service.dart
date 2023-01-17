@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
@@ -31,6 +32,10 @@ class TobGoogleAnalyticsService extends GoogleAnalyticsService
   static const _appName = 'beam';
   static const _appVersion = '1.0';
   final _analytics = AnalyticsHtml(kAnalyticsUA, _appName, _appVersion);
+
+  static TobGoogleAnalyticsService get() {
+    return GetIt.instance.get<TobGoogleAnalyticsService>();
+  }
 
   TobGoogleAnalyticsService()
       : super(

@@ -29,6 +29,7 @@ import '../../cache/unit_progress.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
+import '../../modules/analytics/google_analytics_service.dart';
 import '../../state.dart';
 import 'controllers/content_tree.dart';
 import 'controllers/unit.dart';
@@ -65,13 +66,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         treeIds: contentTreeController.treeIds,
       );
 
-  String? get currentUnitId => currentUnitController?.unitId;
+  String? get currentUnitId => currentUnitController?.unit.id;
   UnitContentModel? get currentUnitContent => _currentUnitContent;
 
-  void _createCurrentUnitController(String sdkId, String unitId) {
+  void _createCurrentUnitController(Sdk sdk, UnitModel unit) {
     currentUnitController = UnitController(
-      unitId: unitId,
-      sdkId: sdkId,
+      unit: unit,
+      sdk: sdk,
     );
   }
 
@@ -93,12 +94,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
       final sdk = contentTreeController.sdk;
-      final content = _unitContentCache.getUnitContent(
-        sdk.id,
-        currentNode.id,
-      );
-      _createCurrentUnitController(contentTreeController.sdkId, currentNode.id);
-      _setCurrentUnitContent(content);
+      _createCurrentUnitController(contentTreeController.sdk, currentNode);
+      _setCurrentUnitContent(currentNode, sdk: sdk);
     } else {
       _emptyPlayground();
     }
@@ -106,16 +103,24 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  Future<void> _setCurrentUnitContent(UnitContentModel? content) async {
+  Future<void> _setCurrentUnitContent(
+    UnitModel unit, {
+    required Sdk sdk,
+  }) async {
+    final content = _unitContentCache.getUnitContent(
+      sdk.id,
+      unit.id,
+    );
     if (content == _currentUnitContent) {
       return;
     }
 
     _currentUnitContent = content;
-
     if (content == null) {
       return;
     }
+
+    await TobGoogleAnalyticsService.get().openUnit(sdk, unit);
 
     final taskSnippetId = content.taskSnippetId;
     if (taskSnippetId == null) {
