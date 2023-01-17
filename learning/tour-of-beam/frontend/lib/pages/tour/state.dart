@@ -86,7 +86,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       currentUnitController!.sdkId,
       currentUnitController!.unitId,
       playgroundController.snippetEditingController!.activeFileController!
-          .codeController.rawText,
+          .codeController.fullText,
     );
   }
 

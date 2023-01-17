@@ -155,20 +155,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.1.1"
-  cloud_firestore_platform_interface:
-    dependency: transitive
-    description:
-      name: cloud_firestore_platform_interface
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "5.9.0"
-  cloud_firestore_web:
-    dependency: transitive
-    description:
-      name: cloud_firestore_web
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "3.1.0"
   code_builder:
     dependency: transitive
     description:
@@ -260,6 +246,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.2.1"
+  enum_map_gen:
+    dependency: "direct dev"
+    description:
+      name: enum_map_gen
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.2.0"
   equatable:
     dependency: "direct dev"
     description:
@@ -589,6 +582,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "6.4.1"
+  keyed_collection_widgets:
+    dependency: transitive
+    description:
+      name: keyed_collection_widgets
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.4.3"
   linked_scroll_controller:
     dependency: transitive
     description:
@@ -799,6 +799,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "3.1.0"
+  rate_limiter:
+    dependency: "direct main"
+    description:
+      name: rate_limiter
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.1"
   rxdart:
     dependency: transitive
     description:
