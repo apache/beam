@@ -118,35 +118,3 @@ Finder _getFoldToggles() {
   );
   return foldToggles;
 }
-
-// Future<void> _checkHotkeys(WidgetTester wt) async {
-//   final undoKeys = <LogicalKeyboardKey>{
-//     LogicalKeyboardKey.keyZ,
-//     LogicalKeyboardKey.meta,
-//   };
-
-//   final redoKeys = <LogicalKeyboardKey>{
-//     LogicalKeyboardKey.keyZ,
-//     LogicalKeyboardKey.meta,
-//     LogicalKeyboardKey.shift,
-//   };
-
-//   final playgroundController = wt.findPlaygroundController();
-
-//   final code = playgroundController.source;
-
-//   expect(code, isNotNull);
-
-//   await wt.enterText(find.codeField(), 'print("Hello World!");');
-//   await wt.pumpAndSettle();
-
-//   expect(playgroundController.source != code, true);
-
-//   await wt.runShortcut(undoKeys);
-
-//   expect(playgroundController.source, equals(code));
-
-//   await wt.runShortcut(redoKeys);
-
-//   expect(playgroundController.source != code, true);
-// }
