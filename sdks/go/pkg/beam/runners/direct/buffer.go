@@ -71,8 +71,23 @@ func (n *buffer) NewIterable(ctx context.Context, reader exec.StateReader, w typ
 	return &exec.FixedReStream{Buf: n.buf}, nil
 }
 
-func (n *buffer) NewKeyedIterable(ctx context.Context, reader exec.StateReader, w typex.Window, iterKey interface{}) (exec.ReStream, error) {
-	return n.NewIterable(ctx, reader, w)
+func (n *buffer) NewKeyedIterable(ctx context.Context, reader exec.StateReader, w typex.Window, iterKey any) (exec.ReStream, error) {
+	if !n.done {
+		panic(fmt.Sprintf("buffer[%v] incomplete: %v", n.uid, len(n.buf)))
+	}
+	s := &exec.FixedReStream{Buf: make([]exec.FullValue, 0)}
+	for _, v := range n.buf {
+		if v.Elm == iterKey {
+			s.Buf = append(s.Buf, exec.FullValue{
+				Elm:          v.Elm2,
+				Timestamp:    v.Timestamp,
+				Windows:      v.Windows,
+				Pane:         v.Pane,
+				Continuation: v.Continuation,
+			})
+		}
+	}
+	return s, nil
 }
 
 func (n *buffer) String() string {

@@ -14,7 +14,7 @@ packages:
       name: _flutterfire_internals
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.9"
+    version: "1.0.12"
   aligned_dialog:
     dependency: transitive
     description:
@@ -35,7 +35,7 @@ packages:
       name: app_state
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.8.1"
+    version: "0.8.4"
   archive:
     dependency: transitive
     description:
@@ -254,19 +254,12 @@ packages:
     source: hosted
     version: "0.0.2"
   enum_map:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: enum_map
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.2.1"
-  enum_map_gen:
-    dependency: "direct dev"
-    description:
-      name: enum_map_gen
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.2.0"
   equatable:
     dependency: "direct dev"
     description:
@@ -303,12 +296,12 @@ packages:
     source: hosted
     version: "4.1.4"
   firebase_auth_platform_interface:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: firebase_auth_platform_interface
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "6.11.3"
+    version: "6.11.7"
   firebase_auth_web:
     dependency: transitive
     description:
@@ -322,7 +315,7 @@ packages:
       name: firebase_core
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.3.0"
+    version: "2.4.1"
   firebase_core_platform_interface:
     dependency: transitive
     description:
@@ -336,7 +329,7 @@ packages:
       name: firebase_core_web
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.0.1"
+    version: "2.1.0"
   fixnum:
     dependency: transitive
     description:
@@ -355,7 +348,7 @@ packages:
       name: flutter_code_editor
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.1.11"
+    version: "0.2.5"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -418,6 +411,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  fluttertoast:
+    dependency: transitive
+    description:
+      name: fluttertoast
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "8.1.1"
   frontend_server_client:
     dependency: transitive
     description:
@@ -799,20 +799,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "3.1.0"
-  rate_limiter:
-    dependency: "direct main"
-    description:
-      name: rate_limiter
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.1.1"
   rxdart:
     dependency: transitive
     description:
       name: rxdart
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.27.5"
+    version: "0.27.7"
   scrollable_positioned_list:
     dependency: transitive
     description:

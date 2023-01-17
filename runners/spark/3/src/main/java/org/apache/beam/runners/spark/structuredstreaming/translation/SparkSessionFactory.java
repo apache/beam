@@ -18,10 +18,12 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -77,6 +79,7 @@ import org.apache.spark.serializer.KryoRegistrator;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.execution.datasources.v2.DataWritingSparkTaskResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -155,6 +158,12 @@ public class SparkSessionFactory {
       kryo.register(byte[][].class);
       kryo.register(HashMap.class);
       kryo.register(ArrayList.class);
+
+      // support writing noop format
+      kryo.register(DataWritingSparkTaskResult.class);
+
+      // TODO find more efficient ways
+      kryo.register(SerializablePipelineOptions.class, new JavaSerializer());
 
       // side input values (spark runner specific)
       kryo.register(SideInputValues.ByWindow.class);

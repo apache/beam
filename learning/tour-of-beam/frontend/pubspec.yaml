@@ -27,13 +27,13 @@ environment:
   flutter: '>=3.3.2'
 
 dependencies:
-  app_state: ^0.8.1
+  app_state: ^0.8.4
   collection: ^1.16.0
   easy_localization: ^3.0.1
   easy_localization_ext: ^0.1.0
   easy_localization_loader: ^1.0.0
-  enum_map: ^0.2.1
   firebase_auth: ^4.1.1
+  firebase_auth_platform_interface: ^6.11.7
   firebase_core: ^2.1.1
   flutter: { sdk: flutter }
   flutter_markdown: ^0.6.12
@@ -44,7 +44,8 @@ dependencies:
   http: ^0.13.5
   json_annotation: ^4.7.0
   markdown: ^6.0.1
-  playground_components: { path: ../../../playground/frontend/playground_components }
+  playground_components:
+    { path: ../../../playground/frontend/playground_components }
   provider: ^6.0.3
   rate_limiter: ^0.1.1
   shared_preferences: ^2.0.15

@@ -48,7 +48,7 @@ If your pipeline uses public packages from the [Python Package Index](https://py
 
 ## Custom Containers {#custom-containers}
 
-You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [Follow the instructions on how to run pipeline with Custom Container images](https://beam.apache.org/documentation/runtime/environments/#running-pipelines).
+You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [Follow the instructions on how to run pipeline with Custom Container images](/documentation/runtime/environments/#running-pipelines).
 
 1. If you are using a custom container image, we recommend that you install the dependencies from the `--requirements_file` directly into your image at build time. In this case, you do not need to pass `--requirements_file` option at runtime, which will reduce the pipeline startup time.
 

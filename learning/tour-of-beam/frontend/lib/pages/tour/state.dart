@@ -67,7 +67,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     final saveDebounce = debounce(_save, _saveDebounceDuration);
 
     playgroundController.setSdk(Sdk.parseOrCreate(_appNotifier.sdkId!));
-    playgroundController.snippetEditingController?.codeController.addListener(
+    playgroundController
+        .snippetEditingController?.activeFileController!.codeController
+        .addListener(
       () async {
         if (_authNotifier.isAuthenticated &&
             (playgroundController.snippetEditingController?.isChanged ??
@@ -83,7 +85,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     await client.postUserCode(
       currentUnitController!.sdkId,
       currentUnitController!.unitId,
-      playgroundController.snippetEditingController!.codeController.rawText,
+      playgroundController.snippetEditingController!.activeFileController!
+          .codeController.rawText,
     );
   }
 
@@ -141,8 +144,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
+      final sdk = contentTreeController.sdk;
       final content = _unitContentCache.getUnitContent(
-        contentTreeController.sdkId,
+        sdk.id,
         currentNode.id,
       );
       _createCurrentUnitController(contentTreeController.sdkId, currentNode.id);
@@ -180,13 +184,19 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       return;
     }
 
-    await playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
-        descriptors: [
-          UserSharedExampleLoadingDescriptor(snippetId: snippetId),
-        ],
-      ),
-    );
+    final selectedSdk = _appNotifier.sdk;
+    if (selectedSdk != null) {
+      await playgroundController.examplesLoader.load(
+        ExamplesLoadingDescriptor(
+          descriptors: [
+            UserSharedExampleLoadingDescriptor(
+              sdk: selectedSdk,
+              snippetId: snippetId,
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   // TODO(alexeyinkin): Hide the entire right pane instead.
@@ -219,7 +229,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
     final exampleCache = ExampleCache(
       exampleRepository: exampleRepository,
-      hasCatalog: false,
     );
 
     final playgroundController = PlaygroundController(

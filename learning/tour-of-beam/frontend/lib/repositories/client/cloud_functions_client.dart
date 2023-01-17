@@ -85,10 +85,6 @@ class CloudFunctionsTobClient extends TobClient {
       },
     );
     final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
-    print([
-      'gup',
-      map,
-    ]);
     final response = GetUserProgressResponse.fromJson(map);
     return response;
   }
@@ -96,7 +92,7 @@ class CloudFunctionsTobClient extends TobClient {
   @override
   Future<void> postUnitComplete(String sdkId, String id) async {
     final token = await GetIt.instance.get<AuthNotifier>().getToken();
-    final json = await http.post(
+    await http.post(
       Uri.parse(
         '$cloudFunctionsBaseUrl/postUnitComplete?sdk=$sdkId&id=$id',
       ),
@@ -104,7 +100,6 @@ class CloudFunctionsTobClient extends TobClient {
         HttpHeaders.authorizationHeader: 'Bearer $token',
       },
     );
-    final map = jsonDecode(utf8.decode(json.bodyBytes));
   }
 
   @override

@@ -117,7 +117,7 @@ jobs:
         working-directory: ./sdks/python
         run: pip install -r build-requirements.txt
       - name: Install tox
-        run: pip install tox
+        run: pip install tox==3.27.1
       - name: Run tests basic unix
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python

@@ -555,6 +555,7 @@
   - NewI
   - NewImpulse
   - NewIntervalWindow
+  - NewIntervalWindowCoder
   - NewJobServiceClient
   - NewKV
   - NewLegacyArtifactRetrievalServiceClient
@@ -869,6 +870,7 @@
   - UrnToType
   - UseAutomatedJavaExpansionService
   - UseAutomatedPythonExpansionService
+  - UseBatchSize
   - UseStandardSQL
   - UserLabels
   - UserStateCoderID
@@ -3580,6 +3582,19 @@ MapTypeValue:
   - String
   properties:
   - Entries
+MapWindows:
+  methods:
+  - Down
+  - FinishBundle
+  - ID
+  - ProcessElement
+  - StartBundle
+  - String
+  - Up
+  properties:
+  - Fn
+  - Out
+  - UID
 MavenPayload:
   methods:
   - Descriptor

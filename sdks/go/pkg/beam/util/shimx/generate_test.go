@@ -189,7 +189,7 @@ func TestMkparams(t *testing.T) {
 	}{
 		{format: "Foo", types: []string{}, want: ""},
 		{format: "arg%d %v", types: []string{"Bar"}, want: "arg0 Bar"},
-		{format: "a%d %v", types: []string{"Foo", "Baz", "interface{}"}, want: "a0 Foo, a1 Baz, a2 interface{}"},
+		{format: "a%d %v", types: []string{"Foo", "Baz", "any"}, want: "a0 Foo, a1 Baz, a2 any"},
 	}
 	for _, test := range tests {
 		if got := mkparams(test.format, test.types); got != test.want {

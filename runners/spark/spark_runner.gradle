@@ -61,6 +61,22 @@ def sparkTestProperties(overrides = [:]) {
   ]
 }
 
+
+def sparkTestJvmArgs() {
+  // run tests with Java 17 using -PcompileAndRunTestsWithJava17 -Pjava17Home=???
+  if (project.hasProperty("compileAndRunTestsWithJava17")) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      // add-opens below required for Kryo FieldSerializer / SparkRunnerKryoRegistratorTest
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+    ]
+  } else {
+    return []
+  }
+}
+
 def hadoopVersions = [
   "285" : "2.8.5",
   "292" : "2.9.2",
@@ -113,6 +129,7 @@ test {
   // Change log level to debug only for the package and nested packages:
   // systemProperty "org.slf4j.simpleLogger.log.org.apache.beam.runners.spark.stateful", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
+  jvmArgs += sparkTestJvmArgs()
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
@@ -230,6 +247,8 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
   // Disable gradle cache
   outputs.upToDateWhen { false }
   systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false"])
+  jvmArgs += sparkTestJvmArgs()
+  jvmArgs '-Xmx3g'
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(
@@ -247,6 +266,7 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
@@ -263,7 +283,6 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
   }
-  jvmArgs '-Xmx3g'
 }
 
 def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) {
@@ -271,6 +290,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
   // Disable gradle cache
   outputs.upToDateWhen { false }
   systemProperties sparkTestProperties(["--enableSparkMetricSinks": "true"])
+  jvmArgs += sparkTestJvmArgs()
 
   classpath = configurations.validatesRunner
   testClassesDirs += files(
@@ -330,6 +350,8 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   systemProperty 'spark.kryo.classesToRegister',
     'org.apache.beam.sdk.transforms.ViewTest$NonDeterministicStringCoder,' +
     'org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RegularImmutableList'
+  jvmArgs += sparkTestJvmArgs()
+  jvmArgs '-Xmx7g' // Increase memory heap in order to avoid OOM errors
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(
@@ -339,8 +361,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
   maxParallelForks 4
-  // Increase memory heap in order to avoid OOM errors
-  jvmArgs '-Xmx7g'
+
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     // Should be run only in a properly configured SDK harness environment
@@ -351,6 +372,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     // State and Timers
     excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
@@ -408,6 +430,8 @@ tasks.register("examplesIntegrationTest", Test) {
       "--tempRoot"    : "${tempLocation}",
       "--project"     : "${gcpProject}"
   ])
+  jvmArgs += sparkTestJvmArgs()
+  jvmArgs '-Xmx3g'
 
   include '**/*IT.class'
   maxParallelForks 4
@@ -420,7 +444,6 @@ tasks.register("examplesIntegrationTest", Test) {
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'
     }
   }
-  jvmArgs '-Xmx3g'
 }
 
 hadoopVersions.each { kv ->
@@ -429,6 +452,7 @@ hadoopVersions.each { kv ->
     description = "Runs Spark tests with Hadoop version $kv.value"
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
     systemProperties sparkTestProperties()
+    jvmArgs += sparkTestJvmArgs()
 
     include "**/*Test.class"
     maxParallelForks 4
