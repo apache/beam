@@ -83,11 +83,11 @@ This section lays out the superset of all documentation that is expected to be m
    <tr>
       <td>
          <p>I/O Connectors should include a note indicating <a href="https://2022.beamsummit.org/sessions/relational-beam/">Relational Features</a> supported in their page under <strong>I/O connector guides</strong>.
-         <p>Relational Features are efficiency concepts that can be implemented by an I/O Connector. Using end user supplied pipeline configuration (SchemaIO) and user query (FieldAccessDescriptor) data, apply relational theory to derive improvements. Results in faster pipeline execution, lower operation cost, less data read/written.
+         <p>Relational Features are concepts that can help improve efficiency and can optionally be implemented by an I/O Connector. Using end user supplied pipeline configuration (SchemaIO) and user query (FieldAccessDescriptor) data, relational theory is applied to derive improvements such as faster pipeline execution, lower operation costs and less data read/written.
          <p>Example table:
          <p><img src="/images/io-standards/io-supported-relational-features-table.png" width="" alt="Supported Relational Features" title="Supported Relational Features"></img>
          <p>Example implementations:
-         <p>BigQueryIO <a href="https://github.com/apache/beam/blob/5bb13fa35b9bc36764895c57f23d3890f0f1b567/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.java#L1813">Column Pruning</a> via ProjectionPushdown, return only necessary columns indicated by end user query. Achieved using BigQuery DirectRead API;
+         <p>BigQueryIO <a href="https://github.com/apache/beam/blob/5bb13fa35b9bc36764895c57f23d3890f0f1b567/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.java#L1813">Column Pruning</a> via ProjectionPushdown to return only necessary columns indicated by end user query. This is achieved using BigQuery DirectRead API.
       </td>
    </tr>
    <tr>
@@ -679,7 +679,7 @@ BigQueryIO.write()
       <td>
          <p>The type of the PCollection will usually be one of the following four options. For each of these option, the encoding / data is recommended to be as follows:
          <ul>
-            <li>A pre-set, basic Java type (e.g. String)
+            <li>A pre-defined, basic Java type (e.g. String)
             <ul>
                <li>This encoding should be simple, and use a simple Beam coder (e.g. Utf8StringCoder)
                </li>
@@ -690,7 +690,7 @@ BigQueryIO.write()
                </li>
             </ul>
             <li>A Beam Row with a specific schema
-            <li>A type with a schema that’s not know <em>a priori</em> (i.e. at construction time)
+            <li>A type with a schema that’s not known at construction time
             </li>
          </ul>
          <p>In all cases, asking a user to pass a coder (e.g. withCoder(...)) is <strong>discouraged</strong>.
