@@ -11,18 +11,26 @@ void main() {
 
   testWidgets('Testing editing code', (WidgetTester wt) async {
     await init(wt);
-    // await _checkHotkeys(wt);
     await _checkAutocomplete(wt);
-    // await _editingAndResettingChanges(wt);
-    // await _checkCodeHighlighting(wt);
-    // await _codeBlockFoldingTest(wt);
+    await _editingAndResettingChanges(wt);
+    await _checkCodeHighlighting(wt);
+    await _codeBlockFoldingTest(wt);
   });
 }
 
 Future<void> _checkAutocomplete(WidgetTester wt) async {
   final codeController = wt.findOneCodeController();
-  final sSuggestions = await codeController.autocompleter.getSuggestions('s');
-  expect(sSuggestions, ['short', 'static', 'strictfp', 'super', 'switch', 'synchronized']);
+  final sSuggestions = await codeController.autocompleter.getSuggestions('sdk');
+  print(sSuggestions.map((e) => "'$e'").join(', '));
+  expect(
+    sSuggestions,
+    [
+      'sdkHttpMetadata',
+      'sdkHttpMetadataWithoutHeaders',
+      'sdkHttpResponse',
+      'sdkHttpResponseWithoutHeaders'
+    ],
+  );
 }
 
 Future<void> _editingAndResettingChanges(WidgetTester wt) async {

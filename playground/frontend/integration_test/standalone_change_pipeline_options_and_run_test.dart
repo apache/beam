@@ -53,7 +53,7 @@ void main() {
       await wt.tapAndSettle(find.pipelineOptionsSaveAndCloseButton());
 
       await wt.tap(find.runOrCancelButton());
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(milliseconds: 300));
 
       await wt.tapAndSettle(find.runOrCancelButton());
 

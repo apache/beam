@@ -29,20 +29,20 @@ void main() {
     await init(wt);
 
     // Cancel unchanged example.
-    await _runAndCancelExample(wt, const Duration(milliseconds: 300));
+    await _runAndCancelExample(wt);
 
     final source = wt.findPlaygroundController().snippetEditingController?.activeFileController?.codeController.fullText ?? '';
-    await wt.enterText(find.codeField(), source + '//comment');
+    await wt.enterText(find.codeField(), '//comment\n' + source);
     await wt.pumpAndSettle();
 
     // Cancel changed example.
-    await _runAndCancelExample(wt, const Duration(seconds: 2));
+    await _runAndCancelExample(wt);
   });
 }
 
-Future<void> _runAndCancelExample(WidgetTester wt, Duration duration) async {
+Future<void> _runAndCancelExample(WidgetTester wt) async {
   await wt.tap(find.runOrCancelButton());
-  await Future.delayed(duration);
+  await Future.delayed(const Duration(milliseconds: 300));
 
   await wt.tapAndSettle(find.runOrCancelButton());
 
