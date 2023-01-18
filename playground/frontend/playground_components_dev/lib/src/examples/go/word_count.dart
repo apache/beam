@@ -23,8 +23,3 @@ const goWordCount = ExampleDescriptor(
   dbPath: 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount',
   path: '/sdks/go/examples/wordcount/wordcount.go',
 );
-
-class WordCountGo {
-  static const dbPath = 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount';
-  static const path = '/sdks/go/examples/wordcount/wordcount.go';
-}
