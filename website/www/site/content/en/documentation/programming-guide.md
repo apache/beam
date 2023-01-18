@@ -956,7 +956,8 @@ from the input collection; the Beam SDKs handle that for you. Your `process` met
 should accept an argument `element`, which is the input element, and return an
 iterable with its output values. You can accomplish this by emitting individual
 elements with `yield` statements. You can also use a `return` statement
-with an iterable, like a list or a generator.
+with an iterable, like a list or a generator. Don't mix `yield` and
+`return` statements in the same `process` method - this leads to [undefined behavior](https://github.com/apache/beam/issues/22969).
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
