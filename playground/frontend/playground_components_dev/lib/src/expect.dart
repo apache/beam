@@ -25,12 +25,14 @@ void expectOutput(String text, WidgetTester wt) {
   expect(actualText, text);
 }
 
-void expectOutputContains(String text, WidgetTester wt) {
+void expectOutputContains(String? text, WidgetTester wt) {
   final actualText = wt.findOutputText();
+  expect(text, isNotNull);
   expect(actualText, contains(text));
 }
 
-void expectOutputEndsWith(String text, WidgetTester wt) {
+void expectOutputEndsWith(String? text, WidgetTester wt) {
   final actualText = wt.findOutputText();
-  expect(actualText, endsWith(text));
+  expect(text, isNotNull);
+  expect(actualText, endsWith(text!));
 }

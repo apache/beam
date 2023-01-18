@@ -16,7 +16,10 @@
  * limitations under the License.
  */
 
-class MinimalWordCountWithMetricsPython {
-  static const path =
-      '/sdks/python/apache_beam/examples/wordcount_with_metrics.py';
-}
+import '../example_descriptor.dart';
+
+const pythonWordCountWithMetrics = ExampleDescriptor(
+  'WordCountWithMetrics',
+  dbPath: 'SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCountWithMetrics',
+  path: '/sdks/python/apache_beam/examples/wordcount_with_metrics.py',
+);

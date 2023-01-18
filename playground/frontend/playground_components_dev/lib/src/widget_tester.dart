@@ -53,7 +53,8 @@ extension WidgetTesterExtension on WidgetTester {
     return context.read<PlaygroundController>();
   }
 
-  Future<void> navigateAndSettle(Uri url) async {
+  Future<void> navigateAndSettle(String urlString) async {
+    final url = Uri.parse(urlString);
     print('Navigating: $url\n');
     await _navigate(url);
 

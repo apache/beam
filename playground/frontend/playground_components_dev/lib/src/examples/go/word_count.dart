@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-class AggregationMeanPython {
-  static const name = 'AggregationMean';
+import '../example_descriptor.dart';
 
-  static const outputContains =
-      '16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]';
+const goWordCount = ExampleDescriptor(
+  'WordCount',
+  dbPath: 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount',
+  path: '/sdks/go/examples/wordcount/wordcount.go',
+);
 
-  static const path =
-      '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py';
+class WordCountGo {
+  static const dbPath = 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount';
+  static const path = '/sdks/go/examples/wordcount/wordcount.go';
 }

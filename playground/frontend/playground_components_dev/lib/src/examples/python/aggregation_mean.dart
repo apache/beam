@@ -16,7 +16,11 @@
  * limitations under the License.
  */
 
-class WordCountGo {
-  static const dbPath = 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount';
-  static const path = '/sdks/go/examples/wordcount/wordcount.go';
-}
+import '../example_descriptor.dart';
+
+const pythonAggregationMean = ExampleDescriptor(
+  'AggregationMean',
+  dbPath: 'SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMean',
+  outputContains: '16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]',
+  path: '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py',
+);

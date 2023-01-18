@@ -75,90 +75,76 @@ final _fullViewOptions = _mapToQueryString(_fullViewOptionsMap);
 final _croppedViewOptions = _mapToQueryString(_croppedViewOptionsMap);
 
 Future<void> _testEmbeddedRoot(WidgetTester wt) async {
-  await wt.navigateAndSettle(
-    Uri.parse(_embeddedPath),
-  );
+  await wt.navigateAndSettle(_embeddedPath);
   _expectSdk(wt, Sdk.java);
   _expectText(wt, '');
 }
 
 Future<void> _testStandaloneRoot(WidgetTester wt) async {
   final visibleText = await Examples.getVisibleTextByPath(
-    MinimalWordCountJava.path,
+    javaMinimalWordCount.path,
     java,
   );
 
-  await wt.navigateAndSettle(
-    Uri.parse(_standalonePath),
-  );
+  await wt.navigateAndSettle(_standalonePath);
   _expectSdk(wt, Sdk.java);
   _expectText(wt, visibleText);
 }
 
 Future<void> _testEmbeddedSdkOnly(WidgetTester wt) async {
-  await wt.navigateAndSettle(
-    Uri.parse('$_embeddedPath?sdk=go'),
-  );
+  await wt.navigateAndSettle('$_embeddedPath?sdk=go');
   _expectSdk(wt, Sdk.go);
   _expectText(wt, '');
 }
 
 Future<void> _testStandaloneSdkOnly(WidgetTester wt) async {
   final visibleText = await Examples.getVisibleTextByPath(
-    MinimalWordCountGo.path,
+    goMinimalWordCount.path,
     go,
   );
 
-  await wt.navigateAndSettle(
-    Uri.parse('$_standalonePath?sdk=go'),
-  );
+  await wt.navigateAndSettle('$_standalonePath?sdk=go');
   _expectSdk(wt, Sdk.go);
   _expectText(wt, visibleText);
 }
 
 Future<void> _testCatalogDefaultExampleLoader(WidgetTester wt) async {
   final visibleText = await Examples.getVisibleTextByPath(
-    MinimalWordCountGo.path,
+    goMinimalWordCount.path,
     go,
   );
 
-  await wt.navigateAndSettle(
-    Uri.parse('$_standalonePath?sdk=go&default=true'),
-  );
+  await wt.navigateAndSettle('$_standalonePath?sdk=go&default=true');
   _expectSdk(wt, Sdk.go);
   _expectText(wt, visibleText);
 }
 
 Future<void> _testContentExampleLoader(WidgetTester wt) async {
-  final content = await Examples.getFullTextByPath(ExampleGo.path);
+  final content = await Examples.getFullTextByPath(goExample.path);
 
   for (final path in _paths) {
     final files = jsonEncode([
       {'content': content, 'isMain': true}
     ]);
     await wt.navigateAndSettle(
-      Uri.parse(
-        '$path?sdk=go&files=${Uri.encodeComponent(files)}&$_fullViewOptions',
-      ),
+      '$path?sdk=go&files=${Uri.encodeComponent(files)}&$_fullViewOptions',
     );
     _expectSdk(wt, Sdk.go);
-    _expectText(wt, ExampleGo.fullVisibleText);
+    _expectText(wt, goExample.fullVisibleText);
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
-      Uri.parse('$path?sdk=go&url=${ExampleGo.url}&$_croppedViewOptions'),
+      '$path?sdk=go&url=${goExample.url}&$_croppedViewOptions',
     );
     _expectSdk(wt, Sdk.go);
-    _expectText(wt, ExampleGo.croppedVisibleText);
+    _expectText(wt, goExample.croppedVisibleText);
     _expectReadOnly(wt);
   }
 }
 
 Future<void> _testEmptyExampleLoader(WidgetTester wt) async {
   for (final path in _paths) {
-    await wt.navigateAndSettle(
-      Uri.parse('$path?sdk=go&empty=true'),
-    );
+    await wt.navigateAndSettle('$path?sdk=go&empty=true');
     _expectSdk(wt, Sdk.go);
     _expectText(wt, '');
   }
@@ -167,30 +153,30 @@ Future<void> _testEmptyExampleLoader(WidgetTester wt) async {
 Future<void> _testHttpExampleLoader(WidgetTester wt) async {
   for (final path in _paths) {
     await wt.navigateAndSettle(
-      Uri.parse('$path?sdk=go&url=${ExampleGo.url}&$_fullViewOptions'),
+      '$path?sdk=go&url=${goExample.url}&$_fullViewOptions',
     );
     _expectSdk(wt, Sdk.go);
-    _expectText(wt, ExampleGo.fullVisibleText);
+    _expectText(wt, goExample.fullVisibleText);
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
-      Uri.parse('$path?sdk=go&url=${ExampleGo.url}&$_croppedViewOptions'),
+      '$path?sdk=go&url=${goExample.url}&$_croppedViewOptions',
     );
     _expectSdk(wt, Sdk.go);
-    _expectText(wt, ExampleGo.croppedVisibleText);
+    _expectText(wt, goExample.croppedVisibleText);
     _expectReadOnly(wt);
   }
 }
 
 Future<void> _testStandardExampleLoader(WidgetTester wt) async {
   final visibleText = await Examples.getVisibleTextByPath(
-    WordCountGo.path,
+    goWordCount.path,
     go,
   );
 
   for (final path in _paths) {
     await wt.navigateAndSettle(
-      Uri.parse('$path?sdk=go&path=${WordCountGo.dbPath}'),
+      '$path?sdk=go&path=${goWordCount.dbPath}',
     );
     _expectSdk(wt, Sdk.go);
     _expectText(wt, visibleText);
@@ -198,7 +184,7 @@ Future<void> _testStandardExampleLoader(WidgetTester wt) async {
 }
 
 Future<void> _testUserSharedExampleLoader(WidgetTester wt) async {
-  final template = await Examples.getFullTextByPath(ExampleGo.path);
+  final template = await Examples.getFullTextByPath(goExample.path);
   final tail = '\n//${DateTime.now().millisecondsSinceEpoch}';
   final content = '$template$tail';
 
@@ -213,46 +199,44 @@ Future<void> _testUserSharedExampleLoader(WidgetTester wt) async {
 
   for (final path in _paths) {
     await wt.navigateAndSettle(
-      Uri.parse('$path?sdk=go&shared=$snippetId&$_fullViewOptions'),
+      '$path?sdk=go&shared=$snippetId&$_fullViewOptions',
     );
     _expectSdk(wt, Sdk.go);
-    _expectText(wt, '${ExampleGo.fullVisibleText}$tail');
+    _expectText(wt, '${goExample.fullVisibleText}$tail');
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
-      Uri.parse('$path?sdk=go&url=${ExampleGo.url}&$_croppedViewOptions'),
+      '$path?sdk=go&url=${goExample.url}&$_croppedViewOptions',
     );
     _expectSdk(wt, Sdk.go);
-    _expectText(wt, ExampleGo.croppedVisibleText);
+    _expectText(wt, goExample.croppedVisibleText);
     _expectReadOnly(wt);
   }
 }
 
 Future<void> _testMultipleExamples(WidgetTester wt) async {
   final javaVisibleText = await Examples.getVisibleTextByPath(
-    AggregationMaxJava.path,
+    javaAggregationMax.path,
     java,
   );
-  const goVisibleText = ExampleGo.fullVisibleText;
+  final goVisibleText = goExample.fullVisibleText;
 
   final examplesList = [
     {
       'sdk': Sdk.java.id,
-      'path': AggregationMaxJava.dbPath,
+      'path': javaAggregationMax.dbPath,
       ..._fullViewOptionsMap,
     },
     {
       'sdk': Sdk.go.id,
-      'url': ExampleGo.url,
+      'url': goExample.url,
       ..._fullViewOptionsMap,
     },
   ];
   final examples = jsonEncode(examplesList);
 
   for (final path in _paths) {
-    await wt.navigateAndSettle(
-      Uri.parse('$path?sdk=go&examples=$examples'),
-    );
+    await wt.navigateAndSettle('$path?sdk=go&examples=$examples');
     _expectSdk(wt, Sdk.go);
     _expectText(wt, goVisibleText);
     await _expectEditableAndReadOnly(wt);
@@ -271,8 +255,9 @@ void _expectSdk(WidgetTester wt, Sdk sdk) {
   expect(controller.sdk, sdk);
 }
 
-void _expectText(WidgetTester wt, String visibleText) {
+void _expectText(WidgetTester wt, String? visibleText) {
   final controller = wt.findOneCodeController();
+  expect(visibleText, isNotNull);
   expect(controller.text, visibleText);
 }
 

@@ -16,13 +16,16 @@
  * limitations under the License.
  */
 
-class AggregationMaxJava {
-  static const dbPath = 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax';
+import '../example_descriptor.dart';
 
-  static const name = 'AggregationMax';
+const javaMinimalWordCount = ExampleDescriptor(
+  'MinimalWordCount',
+  dbPath: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+  path:
+      '/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java',
+);
 
-  static const outputTail = 'INFO: 10\n';
-
+class MinimalWordCountJava {
   static const path =
-      '/learning/katas/java/Common Transforms/Aggregation/Max/src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java';
+      '/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java';
 }

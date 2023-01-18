@@ -16,7 +16,47 @@
  * limitations under the License.
  */
 
-class MinimalWordCountGo {
-  static const path =
-      '/sdks/go/examples/minimal_wordcount/minimal_wordcount.go';
+import '../example_descriptor.dart';
+
+const goExample = ExampleDescriptor(
+  '',
+  dbPath: '',
+  croppedVisibleText: '''
+
+func Folded() {
+
+func Unfolded1() {
+  fmt.Print("editable")
+  fmt.Print("readonly")
 }
+
+func Unfolded2() {
+  fmt.Print("editable")
+  fmt.Print("readonly")
+}
+
+''',
+  fullVisibleText: '''
+/*
+
+package main
+
+func OutsideOfSections() {
+
+
+func Folded() {
+
+func Unfolded1() {
+  fmt.Print("editable")
+  fmt.Print("readonly")
+}
+
+func Unfolded2() {
+  fmt.Print("editable")
+  fmt.Print("readonly")
+}
+
+''',
+  path:
+      '/playground/frontend/playground_components_dev/lib/src/examples/go/content/example.go',
+);

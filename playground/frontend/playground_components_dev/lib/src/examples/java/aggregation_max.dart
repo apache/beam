@@ -16,49 +16,12 @@
  * limitations under the License.
  */
 
-import 'examples.dart';
+import '../example_descriptor.dart';
 
-class ExampleGo {
-  static const path =
-      '/playground/frontend/playground_components_dev/lib/src/examples/content/example.go';
-
-  static const url = '${Examples.urlPrefix}$path';
-
-  static const fullVisibleText = '''
-/*
-
-package main
-
-func OutsideOfSections() {
-
-
-func Folded() {
-
-func Unfolded1() {
-  fmt.Print("editable")
-  fmt.Print("readonly")
-}
-
-func Unfolded2() {
-  fmt.Print("editable")
-  fmt.Print("readonly")
-}
-
-''';
-
-  static const croppedVisibleText = '''
-
-func Folded() {
-
-func Unfolded1() {
-  fmt.Print("editable")
-  fmt.Print("readonly")
-}
-
-func Unfolded2() {
-  fmt.Print("editable")
-  fmt.Print("readonly")
-}
-
-''';
-}
+const javaAggregationMax = ExampleDescriptor(
+  'AggregationMax',
+  dbPath: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax',
+  outputTail: 'INFO: 10\n',
+  path:
+      '/learning/katas/java/Common Transforms/Aggregation/Max/src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java',
+);
