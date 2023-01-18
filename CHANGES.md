@@ -68,6 +68,7 @@
 * Adding override of allowed TLS algorithms (Java), now maintaining the disabled/legacy algorithms
   present in 2.43.0 (up to 1.8.0_342, 11.0.16, 17.0.2 for respective Java versions). This is accompanied
   by an explicit re-enabling of TLSv1 and TLSv1.1 for Java 8 and Java 11.
+* Add UDF metrics support for Samza portable mode.
 
 ## Breaking Changes
 
