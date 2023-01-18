@@ -61,7 +61,8 @@ def loadTestConfigurations = { mode, isStreaming ->
         iterations            : 1,
         numWorkers            : 5,
         autoscalingAlgorithm  : "NONE",
-        streaming             : isStreaming
+        streaming             : isStreaming,
+        usePublicIps          : false
       ]
     ],
     [
