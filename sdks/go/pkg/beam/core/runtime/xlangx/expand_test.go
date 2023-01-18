@@ -13,39 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-<<<<<<<< HEAD:sdks/go/pkg/beam/util/gcsx/example_test.go
-package gcsx_test
-
-import (
-	"context"
-	"time"
-
-	"cloud.google.com/go/storage"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
-)
-
-func Example() {
-	ctx := context.Background()
-	c, err := gcsx.NewClient(ctx, storage.ScopeReadOnly)
-	if err != nil {
-		// do something
-	}
-
-	buckets, object, err := gcsx.ParseObject("gs://some-bucket/some-object")
-	if err != nil {
-		// do something
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	bytes, err := gcsx.ReadObject(ctx, c, buckets, object)
-	if err != nil {
-		// do something
-	}
-
-	_ = bytes
-========
 package xlangx
 
 import (
@@ -69,5 +36,4 @@ func TestStartAutomated(t *testing.T) {
 	if err := sp(); err != nil {
 		t.Fatal("error stoping service")
 	}
->>>>>>>> master:sdks/go/pkg/beam/core/runtime/xlangx/expand_test.go
 }

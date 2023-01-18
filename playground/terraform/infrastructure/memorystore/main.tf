@@ -17,26 +17,6 @@
 # under the License.
 #
 
-<<<<<<<< HEAD:playground/terraform/infrastructure/buckets/main.tf
-resource "google_storage_bucket" "examples_bucket" {
-  name          = var.examples_bucket_name
-  location      = var.examples_bucket_location
-  project       = var.project_id
-  storage_class = var.examples_storage_class
-}
-
-resource "google_storage_bucket_access_control" "public_rule" {
-  bucket = google_storage_bucket.examples_bucket.name
-  role   = "READER"
-  entity = "allUsers"
-}
-
-resource "google_storage_bucket" "terraform_bucket" {
-  name          = var.terraform_bucket_name
-  location      = var.terraform_bucket_location
-  project       = var.project_id
-  storage_class = var.terraform_storage_class
-========
 
 # Redis for storing state of Playground application.
 # In this cache Playground instances stores pipeline's statuses, outputs and pipeline's graph
@@ -54,5 +34,4 @@ resource "google_redis_instance" "cache" {
   redis_version      = var.redis_version
   display_name       = var.display_name
 
->>>>>>>> master:playground/terraform/infrastructure/memorystore/main.tf
 }

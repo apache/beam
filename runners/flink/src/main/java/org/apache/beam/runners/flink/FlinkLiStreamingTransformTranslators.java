@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.flink.FlinkStreamingPipelineTranslator.StreamTransformTranslator;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -31,7 +32,7 @@ public class FlinkLiStreamingTransformTranslators {
 
   /** A map from a Transform URN to the translator. */
   @SuppressWarnings("rawtypes")
-  private static final Map<String, FlinkStreamingPipelineTranslator.StreamTransformTranslator>
+  private static final Map<String, StreamTransformTranslator>
       TRANSLATORS = new HashMap<>();
 
   // here you can find all the available LinkedIn translators.
@@ -44,7 +45,7 @@ public class FlinkLiStreamingTransformTranslators {
     }
   }
 
-  public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator(
+  public static @Nullable StreamTransformTranslator<?> getTranslator(
       PTransform<?, ?> transform) {
     @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
     return urn == null ? null : TRANSLATORS.get(urn);

@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,23 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-<<<<<<<< HEAD:.github/actions/setup-default-test-properties/action.yml
-name: 'Setup TestProperties'
-description: 'Setup default test properties from a Json config file'
-outputs:
-  properties:
-    description: "Test properties"
-    value: ${{ steps.test-properties-json.outputs.test-properties }}
-runs:
-  using: "composite"
-  steps:
-    - id: test-properties-json
-      shell: bash
-      run: |
-        JSON=$(cat ./.github/actions/setup-default-test-properties/test-properties.json)
-        echo "test-properties=$(echo $JSON)" >> $GITHUB_OUTPUT
-========
 variable "project_id" {
   description = "Project ID"
 }
@@ -104,4 +90,3 @@ variable "cpu" {
   type        = number
   default     = 8
 }
->>>>>>>> 66796913c3 (Merge from oss 2.45.0):playground/terraform/applications/backend/backend-python/variables.tf

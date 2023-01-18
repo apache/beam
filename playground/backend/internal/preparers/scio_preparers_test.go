@@ -13,40 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-<<<<<<<< HEAD:sdks/go/pkg/beam/util/errorx/guarded_test.go
-package errorx
-========
 package preparers
->>>>>>>> master:playground/backend/internal/preparers/scio_preparers_test.go
 
-import (
-	"errors"
-	"testing"
-)
+import "testing"
 
-<<<<<<<< HEAD:sdks/go/pkg/beam/util/errorx/guarded_test.go
-func TestTrySetError(t *testing.T) {
-	var gu GuardedError
-	setErr := errors.New("attempted error")
-	success := gu.TrySetError(setErr)
-	if !success {
-		t.Fatal("got false when trying to set error, want true")
-	}
-	if got, want := gu.Error(), setErr; got != want {
-		t.Errorf("got error %v when checking message, want %v", got, want)
-	}
-}
-
-func TestTrySetError_bad(t *testing.T) {
-	setErr := errors.New("old error")
-	gu := &GuardedError{err: setErr}
-	success := gu.TrySetError(setErr)
-	if success {
-		t.Fatal("got true when trying to set error, want false")
-	}
-	if got, want := gu.Error(), setErr; got != want {
-		t.Errorf("got error %v when checking message, want %v", got, want)
-========
 func TestGetScioPreparers(t *testing.T) {
 	type args struct {
 		filePath      string
@@ -73,6 +43,5 @@ func TestGetScioPreparers(t *testing.T) {
 				t.Errorf("GetScioPreparers() returns %v Preparers, want %v", len(*got), tt.want)
 			}
 		})
->>>>>>>> master:playground/backend/internal/preparers/scio_preparers_test.go
 	}
 }

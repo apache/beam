@@ -21,21 +21,10 @@ variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
-<<<<<<<< HEAD:playground/terraform/infrastructure/network/variables.tf
 variable "region" {
   description = "The Google Cloud Platform (GCP) region in which to provision resources"
 }
 
-<<<<<<<< HEAD:playground/terraform/applications/backend-go/variables.tf
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend-go"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-========
 variable "network_name" {
   description = "Name of VPC to be created"
   default     = "playground-network"
@@ -44,22 +33,9 @@ variable "network_name" {
 variable "subnetwork_name" {
   description = "Name of VPC to be created"
   default     = "playground-subnetwork"
->>>>>>>> master:playground/terraform/infrastructure/network/variables.tf
 }
 
 variable "subnetwork_cidr_range" {
   description = "The address range for this subnet, in CIDR notation. Use a standard private VPC network address range: for example, 10.0.0.0/9."
   default     = "10.128.0.0/20"
 }
-========
-variable "location" {
-  description = "Location of App"
-  default     = "us-central"
-}
-
-variable "create_default_service" {
-  description = "Whether or not to create a default app engine service"
-  type        = bool
-  default     = true
-}
->>>>>>>> master:playground/terraform/applications/default/variables.tf

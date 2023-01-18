@@ -23,11 +23,6 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-<<<<<<<< HEAD:runners/flink/1.11/src/test/java/org/apache/beam/runners/flink/streaming/StreamSources.java
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-========
->>>>>>>> master:runners/flink/1.14/src/test/java/org/apache/beam/runners/flink/streaming/StreamSources.java
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.RegularOperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -41,15 +36,7 @@ public class StreamSources {
       Object lockingObject,
       Output<StreamRecord<OutT>> collector)
       throws Exception {
-<<<<<<<< HEAD:runners/flink/1.11/src/test/java/org/apache/beam/runners/flink/streaming/StreamSources.java
-    streamSource.run(
-        lockingObject,
-        new TestStreamStatusMaintainer(),
-        collector,
-        createOperatorChain(streamSource));
-========
     streamSource.run(lockingObject, collector, createOperatorChain(streamSource));
->>>>>>>> master:runners/flink/1.14/src/test/java/org/apache/beam/runners/flink/streaming/StreamSources.java
   }
 
   private static OperatorChain<?, ?> createOperatorChain(AbstractStreamOperator<?> operator) {
@@ -59,31 +46,9 @@ public class StreamSources {
             operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
   }
 
-<<<<<<<< HEAD:runners/flink/1.11/src/test/java/org/apache/beam/runners/flink/streaming/StreamSources.java
-  /** StreamStatusMaintainer was removed in Flink 1.14. */
-  private static final class TestStreamStatusMaintainer implements StreamStatusMaintainer {
-    StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
-
-    @Override
-    public void toggleStreamStatus(StreamStatus streamStatus) {
-      if (!currentStreamStatus.equals(streamStatus)) {
-        currentStreamStatus = streamStatus;
-      }
-    }
-
-    @Override
-    public StreamStatus getStreamStatus() {
-      return currentStreamStatus;
-    }
-  }
-
-  /** The emitWatermarkStatus method was added in Flink 1.14, so we need to wrap Output. */
-  public interface OutputWrapper<T> extends Output<T> {}
-========
   /** The emitWatermarkStatus method was added in Flink 1.14, so we need to wrap Output. */
   public interface OutputWrapper<T> extends Output<T> {
     @Override
     default void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
   }
->>>>>>>> master:runners/flink/1.14/src/test/java/org/apache/beam/runners/flink/streaming/StreamSources.java
 }

@@ -17,10 +17,4 @@
 # under the License.
 #
 
-<<<<<<<< HEAD:playground/terraform/infrastructure/gke/output.tf
-output "gke_name" {
-  value = google_container_cluster.playground-gke.name
-}
-========
 
->>>>>>>> master:playground/terraform/infrastructure/ip_address/variables.tf
