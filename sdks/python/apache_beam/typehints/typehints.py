@@ -1190,6 +1190,13 @@ def normalize(x, none_as_type=False):
     return type(None)
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
+  elif sys.version_info >= (3, 9) and isinstance(x, types.GenericAlias):
+    # TODO(https://github.com/apache/beam/issues/23366): handle PEP 585
+    # generic type hints properly
+    raise TypeError(
+        'PEP 585 generic type hints like %s are not yet supported, '
+        'use typing module containers instead. See equivalents listed '
+        'at https://docs.python.org/3/library/typing.html' % x)
   elif getattr(x, '__module__', None) == 'typing':
     # Avoid circular imports
     from apache_beam.typehints import native_type_compatibility
