@@ -72,93 +72,180 @@ For more information on changes in 2.44.0, check out the [detailed release notes
 
 According to git shortlog, the following people contributed to the 2.44.0 release. Thank you to all contributors!
 
-Ahmed Abualsaud  
-Ahmet Altay  
-Alex Merose  
-Alexey Inkin  
-Alexey Romanenko  
-Anand Inguva  
-Andrei Gurau  
-Andrej Galad  
-Andrew Pilloud  
-Ayush Sharma  
-Benjamin Gonzalez  
-Bjorn Pedersen
-Brian Hulette  
-Bruno Volpato  
-Bulat Safiullin  
-Chamikara Jayalath  
-Chris Gavin  
-Damon Douglas  
-Danielle Syse  
-Danny McCormick  
-Darkhan Nausharipov  
-David Cavazos  
-Dmitry Repin  
-Doug Judd  
-Elias Segundo Antonio  
-Evan Galpin  
-Evgeny Antyshev  
-Heejong Lee  
-Henrik Heggelund-Berg  
-Israel Herraiz  
-Jack McCluskey  
-Jan Lukavský  
-Janek Bevendorff  
-Johanna Öjeling  
-John J. Casey  
-Jozef Vilcek  
-Kanishk Karanawat  
-Kenneth Knowles  
-Kiley Sok  
-Laksh  
-Liam Miller-Cushon  
-Luke Cwik  
-MakarkinSAkvelon  
-Minbo Bae  
-Moritz Mack  
-Nancy Xu  
-Ning Kang  
-Nivaldo Tokuda  
-Oleh Borysevych  
-Pablo Estrada  
-Philippe Moussalli  
-Pranav Bhandari  
-Rebecca Szper  
-Reuven Lax  
-Rick Smit  
-Ritesh Ghorse  
-Robert Bradshaw  
-Robert Burke  
-Ryan Thompson  
-Sam Whittle  
-Sanil Jain  
-Scott Strong  
-Shubham Krishna  
-Steven van Rossum  
-Svetak Sundhar  
-Thiago Nunes  
-Tianyang Hu  
-Trevor Gevers  
-Valentyn Tymofieiev  
-Vitaly Terentyev  
-Vladislav Chunikhin  
-Xinyu Liu  
-Yi Hu  
-Yichi Zhang  
+Ahmed Abualsaud
 
-AdalbertMemSQL  
-agvdndor  
-andremissaglia  
-arne-alex  
-bullet03  
-camphillips22  
-capthiron  
-creste  
-fab-jul  
-illoise  
-kn1kn1  
-nancyxu123  
-peridotml  
-shinannegans  
-smeet07  
+Ahmet Altay
+
+Alex Merose
+
+Alexey Inkin
+
+Alexey Romanenko
+
+Anand Inguva
+
+Andrei Gurau
+
+Andrej Galad
+
+Andrew Pilloud
+
+Ayush Sharma
+
+Benjamin Gonzalez
+
+Bjorn Pedersen
+
+Brian Hulette
+
+Bruno Volpato
+
+Bulat Safiullin
+
+Chamikara Jayalath
+
+Chris Gavin
+
+Damon Douglas
+
+Danielle Syse
+
+Danny McCormick
+
+Darkhan Nausharipov
+
+David Cavazos
+
+Dmitry Repin
+
+Doug Judd
+
+Elias Segundo Antonio
+
+Evan Galpin
+
+Evgeny Antyshev
+
+Heejong Lee
+
+Henrik Heggelund-Berg
+
+Israel Herraiz
+
+Jack McCluskey
+
+Jan Lukavský
+
+Janek Bevendorff
+
+Johanna Öjeling
+
+John J. Casey
+
+Jozef Vilcek
+
+Kanishk Karanawat
+
+Kenneth Knowles
+
+Kiley Sok
+
+Laksh
+
+Liam Miller-Cushon
+
+Luke Cwik
+
+MakarkinSAkvelon
+
+Minbo Bae
+
+Moritz Mack
+
+Nancy Xu
+
+Ning Kang
+
+Nivaldo Tokuda
+
+Oleh Borysevych
+
+Pablo Estrada
+
+Philippe Moussalli
+
+Pranav Bhandari
+
+Rebecca Szper
+
+Reuven Lax
+
+Rick Smit
+
+Ritesh Ghorse
+
+Robert Bradshaw
+
+Robert Burke
+
+Ryan Thompson
+
+Sam Whittle
+
+Sanil Jain
+
+Scott Strong
+
+Shubham Krishna
+
+Steven van Rossum
+
+Svetak Sundhar
+
+Thiago Nunes
+
+Tianyang Hu
+
+Trevor Gevers
+
+Valentyn Tymofieiev
+
+Vitaly Terentyev
+
+Vladislav Chunikhin
+
+Xinyu Liu
+
+Yi Hu
+
+Yichi Zhang
+
+AdalbertMemSQL
+
+agvdndor
+
+andremissaglia
+
+arne-alex
+
+bullet03
+
+camphillips22
+
+capthiron
+
+creste
+
+fab-jul
+
+illoise
+
+kn1kn1
+
+nancyxu123
+
+peridotml
+
+shinannegans
+
+smeet07
