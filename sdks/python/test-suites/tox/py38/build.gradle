@@ -120,7 +120,6 @@ task archiveFilesToLint(type: Zip) {
   destinationDirectory = file("$buildDir/dist")
 
   from ("$rootProject.projectDir") {
-    include "**/*.md"
     include "**/build.gradle"
     exclude "**/node_modules/*"
   }
