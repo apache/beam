@@ -1186,13 +1186,17 @@ _KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
 
 def normalize(x, none_as_type=False):
   # None is inconsistantly used for Any, unknown, or NoneType.
+
+  # Avoid circular imports
+  from apache_beam.typehints import native_type_compatibility
+
+  x = native_type_compatibility.convert_builtins_to_typing(x)
+
   if none_as_type and x is None:
     return type(None)
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
   elif getattr(x, '__module__', None) == 'typing':
-    # Avoid circular imports
-    from apache_beam.typehints import native_type_compatibility
     beam_type = native_type_compatibility.convert_to_beam_type(x)
     if beam_type != x:
       # We were able to do the conversion.

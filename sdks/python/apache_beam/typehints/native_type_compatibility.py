@@ -37,6 +37,14 @@ _LOGGER = logging.getLogger(__name__)
 _TypeMapEntry = collections.namedtuple(
     '_TypeMapEntry', ['match', 'arity', 'beam_type'])
 
+_BUILTINS_TO_TYPING = {
+    dict: typing.Dict,
+    list: typing.List,
+    tuple: typing.Tuple,
+    set: typing.Set,
+    frozenset: typing.FrozenSet,
+}
+
 
 def _get_args(typ):
   """Returns a list of arguments to the given type.
@@ -163,6 +171,21 @@ def is_forward_ref(typ):
 _type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
 
 
+def convert_builtins_to_typing(typ):
+  """Convert a given builtins to a type if it exists in _BUILTINS_TO_TYPING, otherwise it will return without changes.
+
+  Args:
+    typ (`builtins`): builtins object that exist in _BUILTINS_TO_TYPING.
+
+  Returns:
+    type: The given builtins converted to a type.
+
+  """
+  if getattr(typ, '__origin__', None) in _BUILTINS_TO_TYPING:
+    typ = _BUILTINS_TO_TYPING[typ.__origin__].copy_with(typ.__args__)
+  return typ
+
+
 def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
@@ -184,6 +207,8 @@ def convert_to_beam_type(typ):
   if (sys.version_info.major == 3 and
       sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
     typ = typing.Union[typ]
+
+  typ = convert_builtins_to_typing(typ)
 
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
