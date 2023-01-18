@@ -25,11 +25,15 @@ import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.metrics.sink.Sink;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 
 /** An in-memory {@link Sink} implementation for tests. */
 public class InMemoryMetrics implements Sink {
 
+  @SuppressWarnings("initialization.static.field.uninitialized")
   private static WithMetricsSupport extendedMetricsRegistry;
+  @SuppressWarnings("initialization.static.field.uninitialized")
   private static MetricRegistry internalMetricRegistry;
 
   // Constructor for Spark 3.1
@@ -50,7 +54,7 @@ public class InMemoryMetrics implements Sink {
   }
 
   @SuppressWarnings({"TypeParameterUnusedInFormals", "rawtypes"})
-  public static <T> T valueOf(final String name) {
+  public static <T> @Nullable T valueOf(final String name) {
     // this might fail in case we have multiple aggregators with the same suffix after
     // the last dot, but it should be good enough for tests.
     if (extendedMetricsRegistry != null) {

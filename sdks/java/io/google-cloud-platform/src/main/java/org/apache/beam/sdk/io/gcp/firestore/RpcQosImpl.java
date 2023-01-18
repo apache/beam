@@ -1041,6 +1041,9 @@ final class RpcQosImpl implements RpcQos {
     public void update(long value) {}
 
     @Override
+    public void update(long sum, long count, long min, long max) {}
+
+    @Override
     public MetricName getName() {
       return name;
     }
