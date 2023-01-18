@@ -43,6 +43,7 @@ LOCAL_PYTHON_STAGING_DIR=python_staging_dir
 LOCAL_PYTHON_VIRTUALENV=${LOCAL_PYTHON_STAGING_DIR}/venv
 LOCAL_WEBSITE_UPDATE_DIR=website_update_dir
 LOCAL_PYTHON_DOC=python_doc
+LOCAL_TYPESCRIPT_DOC=typescript_doc
 LOCAL_JAVA_DOC=java_doc
 LOCAL_WEBSITE_REPO=beam_website_repo
 
@@ -361,6 +362,7 @@ if [[ $confirmation = "y" ]]; then
   mkdir -p ${LOCAL_WEBSITE_UPDATE_DIR}
   cd ${LOCAL_WEBSITE_UPDATE_DIR}
   mkdir -p ${LOCAL_PYTHON_DOC}
+  mkdir -p ${LOCAL_TYPESCRIPT_DOC}
   mkdir -p ${LOCAL_JAVA_DOC}
   mkdir -p ${LOCAL_WEBSITE_REPO}
 
@@ -378,6 +380,13 @@ if [[ $confirmation = "y" ]]; then
   cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
+
+  echo "------------------Building Typescript Doc------------------------"
+  cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_TYPESCRIPT_DOC}
+  git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
+  cd ${BEAM_ROOT_DIR}
+  cd sdks/typescript && npm ci && npm run docs
+  GENERATED_TYPEDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_TYPESCRIPT_DOC}/${BEAM_ROOT_DIR}/sdks/typescript/docs
 
   echo "----------------------Building Java Doc----------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
@@ -404,6 +413,12 @@ if [[ $confirmation = "y" ]]; then
   # Update current symlink to point to the latest release
   unlink pydoc/current
   ln -s ${RELEASE} pydoc/current
+
+  echo "............Copying generated typedoc into beam-site.........."
+  cp -r ${GENERATED_TYPEDOC} typedoc/${RELEASE}
+  # Update current symlink to point to the latest release
+  unlink typedoc/current | true
+  ln -s ${RELEASE} typedoc/current
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."
