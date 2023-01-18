@@ -285,14 +285,14 @@ Future<void> _expectEditableAndReadOnly(WidgetTester wt) async {
   for (int i = 0; i < 2; i++) {
     controller.value = controller.value.select('editable')!;
 
-    final edited1 = controller.value.typed('');
-    controller.value = edited1;
+    final edited = controller.value.typed('');
+    controller.value = edited;
     await wt.pumpAndSettle();
-    expect(controller.value, edited1, reason: 'Cannot edit an editable line');
+    expect(controller.value, edited, reason: 'Cannot edit an editable line');
 
     controller.value = controller.value.select('readonly')!.typed('');
     await wt.pumpAndSettle();
-    expect(controller.value, edited1, reason: 'Can edit a read-only line');
+    expect(controller.value, edited, reason: 'Can edit a read-only line');
   }
 }
 

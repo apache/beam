@@ -54,18 +54,17 @@ extension WidgetTesterExtension on WidgetTester {
   }
 
   Future<void> navigateAndSettle(Uri url) async {
-    print(url);
+    print('Navigating: $url\n');
     await _navigate(url);
-    await Future.delayed(const Duration(seconds:1));
-    await pumpAndSettle();
 
-    await Future.delayed(const Duration(seconds: 1));
+    // These appears to be the minimal reliable delay.
+    await Future.delayed(const Duration(seconds: 2));
     await pumpAndSettle();
   }
 
   Future<void> _navigate(Uri uri) async {
-    final rip = GetIt.instance.get<PageStackRouteInformationParser>();
-    final path = await rip.parsePagePath(
+    final parser = GetIt.instance.get<PageStackRouteInformationParser>();
+    final path = await parser.parsePagePath(
       RouteInformation(location: uri.toString()),
     );
 
