@@ -167,6 +167,14 @@ public class Metrics {
     }
 
     @Override
+    public void update(long sum, long count, long min, long max) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getDistribution(name, percentiles).update(sum, count, min, max);
+      }
+    }
+
+    @Override
     public MetricName getName() {
       return name;
     }

@@ -214,6 +214,7 @@ public class Metrics {
       lastReportedValue = data;
     }
 
+    @SuppressWarnings("ReferenceEquality")
     @Override
     public void reset() {
       // Use faster equality check

@@ -69,6 +69,11 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
     dirty.afterModification();
   }
 
+  @Override
+  public void update(long sum, long count, long min, long max) {
+    update(DistributionData.create(sum, count, min, max));
+  }
+
   void update(DistributionData other) {
     DistributionData original;
     do {

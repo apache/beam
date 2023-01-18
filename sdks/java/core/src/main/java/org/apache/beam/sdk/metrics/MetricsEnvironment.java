@@ -60,12 +60,13 @@ public class MetricsEnvironment {
   private static final AtomicReference<@Nullable MetricsContainer> PROCESS_WIDE_METRICS_CONTAINER =
       new AtomicReference<>();
 
-  private static final AtomicReference<MetricsContainer> CONTAINER_GLOBAL =
+  private static final AtomicReference<@Nullable MetricsContainer> CONTAINER_GLOBAL =
       new AtomicReference<>(null);
 
   /** Set the global {@link MetricsContainer}. */
   public static void setGlobalContainer(@Nullable MetricsContainer container) {
     CONTAINER_GLOBAL.set(container);
+  }
 
   /** Returns the container holder for the current thread. */
   public static MetricsEnvironmentState getMetricsEnvironmentStateForCurrentThread() {

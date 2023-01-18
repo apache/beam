@@ -34,6 +34,8 @@ import org.apache.datasketches.quantiles.DoublesSketchBuilder;
 import org.apache.datasketches.quantiles.DoublesUnion;
 import org.apache.datasketches.quantiles.DoublesUnionBuilder;
 import org.apache.datasketches.quantiles.UpdateDoublesSketch;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 
 /**
  * Data describing the the distribution. This should retain enough detail that it can be combined
@@ -56,6 +58,8 @@ public class DistributionData implements Serializable {
   private long min;
   private long max;
   private transient Optional<UpdateDoublesSketch> sketch;
+
+  public static final DistributionData EMPTY = create(0, 0, Long.MAX_VALUE, Long.MIN_VALUE);
 
   /** Creates an instance of DistributionData with custom percentiles. */
   public static DistributionData withPercentiles(Set<Double> percentiles) {
@@ -91,6 +95,14 @@ public class DistributionData implements Serializable {
     final DistributionData distributionData = empty();
     distributionData.update(value);
     return distributionData;
+  }
+
+  public DistributionData combine(long value) {
+    return create(sum() + value, count() + 1, Math.min(value, min()), Math.max(value, max()));
+  }
+
+  public DistributionData combine(long sum, long count, long min, long max) {
+    return create(sum() + sum, count() + count, Math.min(min, min()), Math.max(max, max()));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,7 +198,7 @@ public class DistributionData implements Serializable {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof DistributionData) {
       DistributionData other = (DistributionData) object;
       return max == other.max()

@@ -23,9 +23,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.UUID;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.vendor.grpc.v1p43p2.io.netty.util.internal.StringUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.samza.context.ApplicationContainerContext;
 import org.apache.samza.context.ApplicationContainerContextFactory;
@@ -76,7 +76,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
     if (SamzaRunnerOverrideConfigs.isPortableMode(options)) {
       final String fsTokenPath = SamzaRunnerOverrideConfigs.getFsTokenPath(options);
       final String fsToken = UUID.randomUUID().toString(); // 128 bits
-      final boolean useToken = !StringUtil.isNullOrEmpty(fsTokenPath);
+      final boolean useToken = StringUtils.isNotEmpty(fsTokenPath);
 
       try {
         if (useToken) {
