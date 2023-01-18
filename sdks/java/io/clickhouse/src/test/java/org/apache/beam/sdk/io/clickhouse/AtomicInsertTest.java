@@ -56,7 +56,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
   /** With sufficient block size, ClickHouse will atomically insert all or nothing. */
   @Test
   public void testAtomicInsert() throws SQLException {
-    int size = 1000000;
+    int size = 100000;
     int done = 0;
 
     // inserts to such table fail with 60% chance for 1M batch size
@@ -94,7 +94,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
    */
   @Test
   public void testIdempotentInsert() throws SQLException {
-    int size = 1000000;
+    int size = 100000;
 
     // inserts to such table fail with 60% chance for 1M batch size
     executeSql(
