@@ -17,41 +17,36 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../assets/assets.gen.dart';
+import 'code_builder.dart';
 
-class CompletenessIndicator extends StatelessWidget {
-  final bool isCompleted;
-  final bool isSelected;
+class TobMarkdown extends StatelessWidget {
+  final String data;
+  final EdgeInsets padding;
+  final bool shrinkWrap;
 
-  const CompletenessIndicator({
-    required this.isCompleted,
-    required this.isSelected,
+  const TobMarkdown({
+    required this.data,
+    required this.padding,
+    this.shrinkWrap = true,
   });
+
+  static const _spaceCount = 4;
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
-    final Color color;
-    if (isCompleted) {
-      color = BeamColors.green;
-    } else if (isSelected) {
-      color = ext.selectedProgressColor;
-    } else {
-      color = ext.unselectedProgressColor;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: BeamSizes.size4,
-        right: BeamSizes.size8,
-      ),
-      child: SvgPicture.asset(
-        isCompleted ? Assets.svg.unitProgress100 : Assets.svg.unitProgress0,
-        color: color,
-      ),
+    return Markdown(
+      data: data.tabsToSpaces(_spaceCount),
+      builders: {
+        'code': MarkdownCodeBuilder(),
+      },
+      padding: padding,
+      selectable: true,
+      shrinkWrap: shrinkWrap,
+      styleSheet:
+          Theme.of(context).extension<BeamThemeExtension>()!.markdownStyle,
     );
   }
 }
