@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.samza.util;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import org.junit.Assert;
 import org.junit.Test;
 
 public class RunWithTimeoutTest {
@@ -44,5 +46,24 @@ public class RunWithTimeoutTest {
           } catch (InterruptedException ignored) {
           }
         });
+  }
+
+  @Test
+  public void testRunWithUserException() throws Exception {
+    try {
+      RunWithTimeout.run(
+          100,
+          () -> {
+            throw new UserException();
+          });
+    } catch (ExecutionException e) {
+      Assert.assertTrue(e.getCause() instanceof UserException);
+    }
+  }
+
+  private static class UserException extends RuntimeException {
+    public UserException() {
+      super();
+    }
   }
 }
