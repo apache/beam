@@ -24,9 +24,7 @@ import '../code.dart';
 class Examples {
   static const urlPrefix = '$_schemaAndHost$_repoAndBranch';
   static const _schemaAndHost = 'https://raw.githubusercontent.com/';
-  static const _repoAndBranch = 'akvelon/beam/issue24959_test-loading-url';
-
-  // static const _repoAndBranch = 'apache/beam/master';
+  static const _repoAndBranch = 'apache/beam/master';
 
   static Future<String> getVisibleTextByPath(String path, Mode language) async {
     final content = await getFullTextByPath(path);
