@@ -523,6 +523,17 @@ class TupleHintTestCase(TypeHintTestCase):
         "was received.",
         e.exception.args[0])
 
+  def test_normalize_with_builtin_tuple(self):
+    if sys.version_info >= (3, 9):
+      with self.assertRaises(TypeError) as e:
+        typehints.normalize(tuple[int, int], False)
+
+      self.assertEqual(
+          'PEP 585 generic type hints like tuple[int, int] are not yet '
+          'supported, use typing module containers instead. See equivalents '
+          'listed at https://docs.python.org/3/library/typing.html',
+          e.exception.args[0])
+
 
 class ListHintTestCase(TypeHintTestCase):
   def test_getitem_invalid_composite_type_param(self):
@@ -581,6 +592,17 @@ class ListHintTestCase(TypeHintTestCase):
         ' is incorrect. Expected an instance of type <class \'int\'>, '
         'instead received an instance of type str.',
         e.exception.args[0])
+
+  def test_normalize_with_builtin_list(self):
+    if sys.version_info >= (3, 9):
+      with self.assertRaises(TypeError) as e:
+        typehints.normalize(list[int], False)
+
+      self.assertEqual(
+          'PEP 585 generic type hints like list[int] are not yet supported, '
+          'use typing module containers instead. See equivalents listed '
+          'at https://docs.python.org/3/library/typing.html',
+          e.exception.args[0])
 
 
 class KVHintTestCase(TypeHintTestCase):
@@ -716,6 +738,17 @@ class DictHintTestCase(TypeHintTestCase):
         S: int, T: str
     },
                      hint.match_type_variables(typehints.Dict[int, str]))
+
+  def test_normalize_with_builtin_dict(self):
+    if sys.version_info >= (3, 9):
+      with self.assertRaises(TypeError) as e:
+        typehints.normalize(dict[int, str], False)
+
+      self.assertEqual(
+          'PEP 585 generic type hints like dict[int, str] are not yet '
+          'supported, use typing module containers instead. See equivalents '
+          'listed at https://docs.python.org/3/library/typing.html',
+          e.exception.args[0])
 
 
 class BaseSetHintTest:

@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
+import com.clickhouse.client.ClickHouseFormat;
+import com.clickhouse.client.ClickHouseRequest;
+import com.clickhouse.jdbc.ClickHouseConnection;
+import com.clickhouse.jdbc.ClickHouseDataSource;
+import com.clickhouse.jdbc.ClickHouseStatement;
 import com.google.auto.value.AutoValue;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -47,16 +52,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.yandex.clickhouse.ClickHouseConnection;
-import ru.yandex.clickhouse.ClickHouseDataSource;
-import ru.yandex.clickhouse.ClickHouseStatement;
-import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
 
 /**
  * An IO to write to ClickHouse.
@@ -179,8 +179,8 @@ public class ClickHouseIO {
 
       Properties properties = properties();
 
-      set(properties, ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, maxInsertBlockSize());
-      set(properties, ClickHouseQueryParam.INSERT_QUORUM, insertQuorum());
+      set(properties, "max_insert_block_size", maxInsertBlockSize());
+      set(properties, "insert_quorum", insertQuorum());
       set(properties, "insert_distributed_sync", insertDistributedSync());
       set(properties, "insert_deduplication", insertDeduplicate());
 
@@ -328,22 +328,6 @@ public class ClickHouseIO {
       public abstract Write<T> build();
     }
 
-    private static void set(Properties properties, ClickHouseQueryParam param, Object value) {
-      if (value != null) {
-        Preconditions.checkArgument(
-            param.getClazz().isInstance(value),
-            "Unexpected value '"
-                + value
-                + "' for "
-                + param.getKey()
-                + " got "
-                + value.getClass().getName()
-                + ", expected "
-                + param.getClazz().getName());
-        properties.put(param, value);
-      }
-    }
-
     private static void set(Properties properties, String param, Object value) {
       if (value != null) {
         properties.put(param, value);
@@ -398,6 +382,7 @@ public class ClickHouseIO {
 
     @Setup
     public void setup() throws SQLException {
+
       connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
 
       retryBackoff =
@@ -440,16 +425,20 @@ public class ClickHouseIO {
       }
 
       batchSize.update(buffer.size());
-
       while (true) {
         try (ClickHouseStatement statement = connection.createStatement()) {
-          statement.sendRowBinaryStream(
-              insertSql(schema(), table()),
-              stream -> {
-                for (Row row : buffer) {
-                  ClickHouseWriter.writeRow(stream, schema(), row);
-                }
-              });
+          statement
+              .unwrap(ClickHouseRequest.class)
+              .write()
+              .table(table())
+              .format(ClickHouseFormat.RowBinary)
+              .data(
+                  out -> {
+                    for (Row row : buffer) {
+                      ClickHouseWriter.writeRow(out, schema(), row);
+                    }
+                  })
+              .sendAndWait(); // query happens in a separate thread
           buffer.clear();
           break;
         } catch (SQLException e) {
