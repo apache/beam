@@ -311,7 +311,7 @@ func (w *writeFileFn) ProcessElement(ctx context.Context, _ int, lines func(*str
 func Immediate(s beam.Scope, filename string) (beam.PCollection, error) {
 	s = s.Scope("textio.Immediate")
 
-	var data []interface{}
+	var data []any
 
 	file, err := os.Open(filename)
 	if err != nil {

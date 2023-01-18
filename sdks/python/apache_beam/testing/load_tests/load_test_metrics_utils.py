@@ -38,11 +38,15 @@ from typing import Mapping
 from typing import Optional
 from typing import Union
 
+import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricResults
+from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.runners.runner import PipelineResult
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
 
@@ -204,14 +208,17 @@ class MetricsReader(object):
     """
     self._namespace = namespace
     self.publishers: List[MetricsPublisher] = []
+    # publish to console output
     self.publishers.append(ConsoleMetricsPublisher())
 
-    check = project_name and bq_table and bq_dataset and publish_to_bq
-    if check:
+    bq_check = project_name and bq_table and bq_dataset and publish_to_bq
+    if bq_check:
+      # publish to BigQuery
       bq_publisher = BigQueryMetricsPublisher(
           project_name, bq_table, bq_dataset)
       self.publishers.append(bq_publisher)
     if influxdb_options and influxdb_options.validate():
+      # publish to InfluxDB
       self.publishers.append(InfluxDBMetricsPublisher(influxdb_options))
     else:
       _LOGGER.info(
@@ -219,7 +226,27 @@ class MetricsReader(object):
           'InfluxDB')
     self.filters = filters
 
-  def publish_metrics(self, result, extra_metrics: Optional[dict] = None):
+  def get_counter_metric(self, result: PipelineResult, name: str) -> int:
+    """
+    Return the current value for a long counter, or -1 if can't be retrieved.
+    Note this uses only attempted metrics because some runners don't support
+    committed metrics.
+    """
+    filters = MetricsFilter().with_namespace(self._namespace).with_name(name)
+    counters = result.metrics().query(filters)[MetricResults.COUNTERS]
+    num_results = len(counters)
+    if num_results > 1:
+      raise ValueError(
+          f"More than one metric result matches name: {name} in namespace "\
+          f"{self._namespace}. Metric results count: {num_results}")
+    elif num_results == 0:
+      return -1
+    else:
+      return counters[0].attempted
+
+  def publish_metrics(
+      self, result: PipelineResult, extra_metrics: Optional[dict] = None):
+    """Publish metrics from pipeline result to registered publishers."""
     metric_id = uuid.uuid4().hex
     metrics = result.metrics().query(self.filters)
 
@@ -408,8 +435,10 @@ class ConsoleMetricsPublisher(MetricsPublisher):
 class BigQueryMetricsPublisher(MetricsPublisher):
   """A :class:`BigQueryMetricsPublisher` publishes collected metrics
   to BigQuery output."""
-  def __init__(self, project_name, table, dataset):
-    self.bq = BigQueryClient(project_name, table, dataset)
+  def __init__(self, project_name, table, dataset, bq_schema=None):
+    if not bq_schema:
+      bq_schema = SCHEMA
+    self.bq = BigQueryClient(project_name, table, dataset, bq_schema)
 
   def publish(self, results):
     outputs = self.bq.save(results)
@@ -424,7 +453,8 @@ class BigQueryMetricsPublisher(MetricsPublisher):
 class BigQueryClient(object):
   """A :class:`BigQueryClient` publishes collected metrics to
   BigQuery output."""
-  def __init__(self, project_name, table, dataset):
+  def __init__(self, project_name, table, dataset, bq_schema=None):
+    self.schema = bq_schema
     self._namespace = table
     self._client = bigquery.Client(project=project_name)
     self._schema_names = self._get_schema_names()
@@ -432,10 +462,10 @@ class BigQueryClient(object):
     self._get_or_create_table(schema, dataset)
 
   def _get_schema_names(self):
-    return [schema['name'] for schema in SCHEMA]
+    return [schema['name'] for schema in self.schema]
 
   def _prepare_schema(self):
-    return [SchemaField(**row) for row in SCHEMA]
+    return [SchemaField(**row) for row in self.schema]
 
   def _get_or_create_table(self, bq_schemas, dataset):
     if self._namespace == '':
@@ -620,3 +650,13 @@ class AssignTimestamps(beam.DoFn):
   def process(self, element):
     yield self.timestamp_val_fn(
         element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))
+
+
+class BigQueryMetricsFetcher:
+  def __init__(self):
+    self.client = bigquery.Client()
+
+  def fetch(self, query) -> pd.DataFrame:
+    query_job = self.client.query(query=query)
+    result = query_job.result()
+    return result.to_dataframe()

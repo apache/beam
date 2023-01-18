@@ -794,6 +794,12 @@ class BigQueryWrapper(object):
       return dataset
     except HttpError as exn:
       if exn.status_code == 404:
+        _LOGGER.info(
+            'Dataset %s:%s does not exist so we will create it as temporary '
+            'with location=%s',
+            project_id,
+            dataset_id,
+            location)
         dataset_reference = bigquery.DatasetReference(
             projectId=project_id, datasetId=dataset_id)
         dataset = bigquery.Dataset(datasetReference=dataset_reference)
@@ -873,29 +879,16 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def create_temporary_dataset(self, project_id, location, labels=None):
-    # Check if dataset exists to make sure that the temporary id is unique
-    try:
-      self.client.datasets.Get(
-          bigquery.BigqueryDatasetsGetRequest(
-              projectId=project_id, datasetId=self.temp_dataset_id))
-      if project_id is not None and not self.is_user_configured_dataset():
-        # Unittests don't pass projectIds so they can be run without error
-        # User configured datasets are allowed to pre-exist.
-        raise RuntimeError(
-            'Dataset %s:%s already exists so cannot be used as temporary.' %
-            (project_id, self.temp_dataset_id))
-    except HttpError as exn:
-      if exn.status_code == 404:
-        _LOGGER.warning(
-            'Dataset %s:%s does not exist so we will create it as temporary '
-            'with location=%s',
-            project_id,
-            self.temp_dataset_id,
-            location)
-        self.get_or_create_dataset(
-            project_id, self.temp_dataset_id, location=location, labels=labels)
-      else:
-        raise
+    self.get_or_create_dataset(
+        project_id, self.temp_dataset_id, location=location, labels=labels)
+
+    if (project_id is not None and not self.is_user_configured_dataset() and
+        not self.created_temp_dataset):
+      # Unittests don't pass projectIds so they can be run without error
+      # User configured datasets are allowed to pre-exist.
+      raise RuntimeError(
+          'Dataset %s:%s already exists so cannot be used as temporary.' %
+          (project_id, self.temp_dataset_id))
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,

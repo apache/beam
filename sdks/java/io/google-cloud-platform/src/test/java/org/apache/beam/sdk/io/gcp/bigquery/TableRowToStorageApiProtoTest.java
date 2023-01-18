@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -31,14 +32,18 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaConversionException;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaInformation;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -79,6 +84,8 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
                   .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue"))
                   .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue"))
+                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue2"))
+                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue2"))
                   .add(
                       new TableFieldSchema()
                           .setType("BYTES")
@@ -116,6 +123,8 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
                   .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue"))
                   .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue"))
+                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue2"))
+                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue2"))
                   .add(
                       new TableFieldSchema()
                           .setType("BYTES")
@@ -244,50 +253,64 @@ public class TableRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("arrayvalue")
+                  .setName("numericvalue2")
                   .setNumber(16)
+                  .setType(Type.TYPE_BYTES)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("bignumericvalue2")
+                  .setNumber(17)
+                  .setType(Type.TYPE_BYTES)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("arrayvalue")
+                  .setNumber(18)
                   .setType(Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_REPEATED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampisovalue")
-                  .setNumber(17)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluelong")
-                  .setNumber(18)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespace")
                   .setNumber(19)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacemilli")
+                  .setName("timestampvaluelong")
                   .setNumber(20)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("timestampvaluespacetrailingzero")
+                  .setName("timestampvaluespace")
                   .setNumber(21)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("datetimevaluespace")
+                  .setName("timestampvaluespacemilli")
                   .setNumber(22)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestampvaluespacetrailingzero")
+                  .setNumber(23)
+                  .setType(Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("datetimevaluespace")
+                  .setNumber(24)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -395,29 +418,43 @@ public class TableRowToStorageApiProtoTest {
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
-                  .setName("arrayvalue")
+                  .setName("numericvalue2")
                   .setNumber(15)
+                  .setType(Type.TYPE_BYTES)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("bignumericvalue2")
+                  .setNumber(16)
+                  .setType(Type.TYPE_BYTES)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("arrayvalue")
+                  .setNumber(17)
                   .setType(Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_REPEATED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampisovalue")
-                  .setNumber(17)
+                  .setNumber(18)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluelong")
-                  .setNumber(20)
+                  .setNumber(19)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluespace")
-                  .setNumber(21)
+                  .setNumber(20)
                   .setType(Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
@@ -578,6 +615,8 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("2019-08-16"),
                   new TableCell().setV("23.4"),
                   new TableCell().setV("2312345.4"),
+                  new TableCell().setV(23),
+                  new TableCell().setV(123456789012345678L),
                   new TableCell().setV(REPEATED_BYTES),
                   new TableCell().setV("1970-01-01T00:00:00.000+01:00"),
                   new TableCell().setV("1234567"),
@@ -604,6 +643,8 @@ public class TableRowToStorageApiProtoTest {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4")
           .set("bigNumericValue", "2312345.4")
+          .set("numericValue2", 23)
+          .set("bigNumericValue2", 123456789012345678L)
           .set("arrayValue", REPEATED_BYTES)
           .set("timestampISOValue", "1970-01-01T00:00:00.000+01:00")
           .set("timestampValueLong", "1234567")
@@ -634,6 +675,13 @@ public class TableRowToStorageApiProtoTest {
           .put(
               "bignumericvalue",
               BigDecimalByteStringEncoder.encodeToBigNumericByteString(new BigDecimal("2312345.4")))
+          .put(
+              "numericvalue2",
+              BigDecimalByteStringEncoder.encodeToNumericByteString(new BigDecimal("23")))
+          .put(
+              "bignumericvalue2",
+              BigDecimalByteStringEncoder.encodeToBigNumericByteString(
+                  new BigDecimal("123456789012345678")))
           .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
           .put("timestampisovalue", -3600000000L)
           .put("timestampvaluelong", 1234567000L)
@@ -663,6 +711,13 @@ public class TableRowToStorageApiProtoTest {
           .put(
               "bignumericvalue",
               BigDecimalByteStringEncoder.encodeToBigNumericByteString(new BigDecimal("2312345.4")))
+          .put(
+              "numericvalue2",
+              BigDecimalByteStringEncoder.encodeToNumericByteString(new BigDecimal("23")))
+          .put(
+              "bignumericvalue2",
+              BigDecimalByteStringEncoder.encodeToBigNumericByteString(
+                  new BigDecimal("123456789012345678")))
           .put("arrayvalue", EXPECTED_PROTO_REPEATED_BYTES)
           .put("timestampisovalue", -3600000000L)
           .put("timestampvaluelong", 1234567000L)
@@ -821,6 +876,100 @@ public class TableRowToStorageApiProtoTest {
     List<DynamicMessage> repeatednof2 =
         (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeatednof2"));
     assertTrue(repeatednof2.isEmpty());
+  }
+
+  @Test
+  public void testIntegerTypeConversion() throws DescriptorValidationException {
+    String intFieldName = "int_field";
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.<TableFieldSchema>builder()
+                    .add(
+                        new TableFieldSchema()
+                            .setType("INTEGER")
+                            .setName(intFieldName)
+                            .setMode("REQUIRED"))
+                    .build());
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema);
+    SchemaInformation fieldSchema = schemaInformation.getSchemaForField(intFieldName);
+    Descriptor schemaDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true);
+    FieldDescriptor fieldDescriptor = schemaDescriptor.findFieldByName(intFieldName);
+
+    Object[][] validIntValues =
+        new Object[][] {
+          // Source and expected converted values.
+          {"123", 123L},
+          {123L, 123L},
+          {123, 123L},
+          {new BigDecimal("123"), 123L},
+          {new BigInteger("123"), 123L}
+        };
+    for (Object[] validValue : validIntValues) {
+      Object sourceValue = validValue[0];
+      Long expectedConvertedValue = (Long) validValue[1];
+      try {
+        Object converted =
+            TableRowToStorageApiProto.singularFieldToProtoValue(
+                fieldSchema, fieldDescriptor, sourceValue, false);
+        assertEquals(expectedConvertedValue, converted);
+      } catch (SchemaConversionException e) {
+        fail(
+            "Failed to convert value "
+                + sourceValue
+                + " of type "
+                + validValue.getClass()
+                + " to INTEGER: "
+                + e);
+      }
+    }
+
+    Object[][] invalidIntValues =
+        new Object[][] {
+          // Value and expected error message
+          {
+            "12.123",
+            "Column: "
+                + intFieldName
+                + " (INT64). Value: 12.123 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"12.123\""
+          },
+          {
+            Long.toString(Long.MAX_VALUE) + '0',
+            "Column: "
+                + intFieldName
+                + " (INT64). Value: 92233720368547758070 (java.lang.String). Reason: java.lang.NumberFormatException: For input string: \"92233720368547758070\""
+          },
+          {
+            new BigDecimal("12.123"),
+            "Column: "
+                + intFieldName
+                + " (INT64). Value: 12.123 (java.math.BigDecimal). Reason: java.lang.ArithmeticException: Rounding necessary"
+          },
+          {
+            new BigInteger(String.valueOf(Long.MAX_VALUE)).add(new BigInteger("10")),
+            "Column: "
+                + intFieldName
+                + " (INT64). Value: 9223372036854775817 (java.math.BigInteger). Reason: java.lang.ArithmeticException: BigInteger out of long range"
+          }
+        };
+    for (Object[] invalidValue : invalidIntValues) {
+      Object sourceValue = invalidValue[0];
+      String expectedError = (String) invalidValue[1];
+      try {
+        TableRowToStorageApiProto.singularFieldToProtoValue(
+            fieldSchema, fieldDescriptor, sourceValue, false);
+        fail(
+            "Expected to throw an exception converting "
+                + sourceValue
+                + " of type "
+                + invalidValue.getClass()
+                + " to INTEGER");
+      } catch (SchemaConversionException e) {
+        assertEquals("Exception message", expectedError, e.getMessage());
+      }
+    }
   }
 
   @Test

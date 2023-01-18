@@ -24,6 +24,7 @@ import '../controllers/content_tree.dart';
 import 'content_tree_title.dart';
 import 'module.dart';
 
+// TODO(nausharipov): make it collapsible
 class ContentTreeWidget extends StatelessWidget {
   final ContentTreeController controller;
 

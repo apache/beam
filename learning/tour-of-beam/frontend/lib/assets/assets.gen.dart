@@ -34,6 +34,9 @@ class $AssetsSvgGen {
   /// File path: assets/svg/google-logo.svg
   String get googleLogo => 'assets/svg/google-logo.svg';
 
+  /// File path: assets/svg/hint.svg
+  String get hint => 'assets/svg/hint.svg';
+
   /// File path: assets/svg/profile-about.svg
   String get profileAbout => 'assets/svg/profile-about.svg';
 
@@ -42,6 +45,9 @@ class $AssetsSvgGen {
 
   /// File path: assets/svg/profile-logout.svg
   String get profileLogout => 'assets/svg/profile-logout.svg';
+
+  /// File path: assets/svg/solution.svg
+  String get solution => 'assets/svg/solution.svg';
 
   /// File path: assets/svg/unit-progress-0.svg
   String get unitProgress0 => 'assets/svg/unit-progress-0.svg';

@@ -33,7 +33,7 @@ const iterableSideInputKey = ""
 // encapsulates StreamID and coding as needed.
 type SideInputAdapter interface {
 	NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error)
-	NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error)
+	NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey any) (ReStream, error)
 }
 
 type sideInputAdapter struct {
@@ -104,7 +104,7 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 
 // NewKeyedIterable returns a ReStream of a multimap side input from the runner, either by getting the ReStream from
 // the side input cache or by opening a new stream and reading it in.
-func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
+func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey any) (ReStream, error) {
 	if s.kc == nil {
 		return nil, fmt.Errorf("cannot make a keyed iterable for an unkeyed side input %v", s.sideInputID)
 	}
@@ -172,7 +172,7 @@ type FixedKey struct {
 	// UID is the unit identifier.
 	UID UnitID
 	// Key is the given key
-	Key interface{}
+	Key any
 	// Out is the successor node.
 	Out Node
 }

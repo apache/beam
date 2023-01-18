@@ -50,7 +50,7 @@ ways, such as:
     This may allow the runner to avoid serializing elements; instead, the runner
     can just pass the elements in memory. This is done as part of an
     optimization that is known as
-    [fusion](https://beam.apache.org/documentation/glossary/#fusion).
+    [fusion](/documentation/glossary/#fusion).
 
 Some situations where the runner may serialize and persist elements are:
 

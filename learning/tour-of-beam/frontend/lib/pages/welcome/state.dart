@@ -18,32 +18,10 @@
 
 import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
-import 'package:get_it/get_it.dart';
-
-import '../tour/page.dart';
 import 'path.dart';
 
 class WelcomeNotifier extends ChangeNotifier with PageStateMixin<void> {
-  String? _sdkId;
-
+  // TODO(nausharipov): remove state from Welcome?
   @override
   PagePath get path => const WelcomePath();
-
-  String? get sdkId => _sdkId;
-
-  set sdkId(String? newValue) {
-    _sdkId = newValue;
-    notifyListeners();
-  }
-
-  void startTour() {
-    final sdkId = _sdkId;
-    if (sdkId == null) {
-      return;
-    }
-
-    GetIt.instance.get<PageStack>().push(
-          TourPage(sdkId: sdkId),
-        );
-  }
 }

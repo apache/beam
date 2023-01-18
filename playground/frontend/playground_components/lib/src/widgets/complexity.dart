@@ -29,7 +29,10 @@ class ComplexityWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: _dots[complexity]!);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: _dots[complexity]!,
+    );
   }
 
   static const Map<Complexity, List<Widget>> _dots = {

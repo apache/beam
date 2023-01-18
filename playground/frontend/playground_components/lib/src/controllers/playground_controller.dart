@@ -26,7 +26,11 @@ import 'package:get_it/get_it.dart';
 import '../cache/example_cache.dart';
 import '../models/example.dart';
 import '../models/example_base.dart';
+import '../models/example_loading_descriptors/empty_example_loading_descriptor.dart';
+import '../models/example_loading_descriptors/example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/examples_loading_descriptor.dart';
+import '../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
+import '../models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 import '../models/intents.dart';
 import '../models/outputs.dart';
 import '../models/sdk.dart';
@@ -34,14 +38,13 @@ import '../models/shortcut.dart';
 import '../repositories/code_repository.dart';
 import '../repositories/models/run_code_request.dart';
 import '../repositories/models/run_code_result.dart';
-import '../repositories/models/shared_file.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
 import '../util/pipeline_options.dart';
 import 'example_loaders/examples_loader.dart';
 import 'snippet_editing_controller.dart';
 
-const kTitleLength = 15;
+const kTitleLength = 25;
 const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
 const kTitle = 'Catalog';
@@ -51,6 +54,7 @@ const kPipelineOptionsParseError =
 const kCachedResultsLog =
     'The results of this example are taken from the Apache Beam Playground cache.\n';
 
+/// The main state object for the code and its running.
 class PlaygroundController with ChangeNotifier {
   final ExampleCache exampleCache;
   final ExamplesLoader examplesLoader;
@@ -87,8 +91,10 @@ class PlaygroundController with ChangeNotifier {
 
     final result = SnippetEditingController(sdk: sdk);
     _snippetEditingControllers[sdk] = result;
+    result.addListener(notifyListeners);
 
     if (loadDefaultIfNot) {
+      // TODO(alexeyinkin): Show loading indicator if loading.
       examplesLoader.loadDefaultIfAny(sdk);
     }
 
@@ -97,11 +103,11 @@ class PlaygroundController with ChangeNotifier {
 
   // TODO(alexeyinkin): Return full, then shorten, https://github.com/apache/beam/issues/23250
   String get examplesTitle {
-    final name = snippetEditingController?.selectedExample?.name ?? kTitle;
+    final name = snippetEditingController?.example?.name ?? kTitle;
     return name.substring(0, min(kTitleLength, name.length));
   }
 
-  Example? get selectedExample => snippetEditingController?.selectedExample;
+  Example? get selectedExample => snippetEditingController?.example;
 
   Sdk? get sdk => _sdk;
 
@@ -118,7 +124,8 @@ class PlaygroundController with ChangeNotifier {
     return controller;
   }
 
-  String? get source => snippetEditingController?.codeController.fullText;
+  String? get source =>
+      snippetEditingController?.activeFileController?.codeController.fullText;
 
   bool get isCodeRunning => !(result?.isFinished ?? true);
 
@@ -137,8 +144,75 @@ class PlaygroundController with ChangeNotifier {
       selectedExample?.type != ExampleType.test &&
       [Sdk.java, Sdk.python].contains(sdk);
 
+  /// If no SDK is selected, sets it to [sdk] and creates an empty state for it.
+  void setEmptyIfNoSdk(Sdk sdk) {
+    if (_sdk != null) {
+      return;
+    }
+
+    setExample(
+      Example.empty(sdk),
+      descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
+      setCurrentSdk: true,
+    );
+  }
+
+  /// If the state for [sdk] does not exists, creates an empty state for it.
+  void setEmptyIfNotExists(
+    Sdk sdk, {
+    required bool setCurrentSdk,
+  }) {
+    if (_snippetEditingControllers.containsKey(sdk)) {
+      return;
+    }
+
+    setExample(
+      Example.empty(sdk),
+      descriptor: EmptyExampleLoadingDescriptor(sdk: sdk),
+      setCurrentSdk: setCurrentSdk,
+    );
+  }
+
+  Future<void> setExampleBase(ExampleBase exampleBase) async {
+    final snippetEditingController = _getOrCreateSnippetEditingController(
+      exampleBase.sdk,
+      loadDefaultIfNot: false,
+    );
+
+    if (!snippetEditingController.lockExampleLoading()) {
+      return;
+    }
+
+    notifyListeners();
+
+    try {
+      final example = await exampleCache.loadExampleInfo(exampleBase);
+      // TODO(alexeyinkin): setCurrentSdk = false when we do
+      //  per-SDK output and run status.
+      //  Now using true to reset the output and run status.
+      //  https://github.com/apache/beam/issues/23248
+      final descriptor = StandardExampleLoadingDescriptor(
+        sdk: example.sdk,
+        path: example.path,
+      );
+
+      setExample(
+        example,
+        descriptor: descriptor,
+        setCurrentSdk: true,
+      );
+
+      // ignore: avoid_catches_without_on_clauses
+    } catch (ex) {
+      snippetEditingController.releaseExampleLoading();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   void setExample(
     Example example, {
+    required ExampleLoadingDescriptor descriptor,
     required bool setCurrentSdk,
   }) {
     if (setCurrentSdk) {
@@ -148,14 +222,14 @@ class PlaygroundController with ChangeNotifier {
         loadDefaultIfNot: false,
       );
 
-      controller.selectedExample = example;
+      controller.setExample(example, descriptor: descriptor);
       _ensureSymbolsInitialized();
     } else {
       final controller = _getOrCreateSnippetEditingController(
         example.sdk,
         loadDefaultIfNot: false,
       );
-      controller.selectedExample = example;
+      controller.setExample(example, descriptor: descriptor);
     }
 
     _result = null;
@@ -189,12 +263,6 @@ class PlaygroundController with ChangeNotifier {
     }
 
     GetIt.instance.get<SymbolsNotifier>().addLoaderIfNot(mode, loader);
-  }
-
-  // TODO(alexeyinkin): Remove, used only in tests, refactor them.
-  void setSource(String source) {
-    final controller = requireSnippetEditingController();
-    controller.setSource(source);
   }
 
   void setSelectedOutputFilterType(OutputType type) {
@@ -247,13 +315,14 @@ class PlaygroundController with ChangeNotifier {
     }
     _executionTime?.close();
     _executionTime = _createExecutionTimeStream();
-    if (!isExampleChanged && controller.selectedExample?.outputs != null) {
+    if (!isExampleChanged && controller.example?.outputs != null) {
       _showPrecompiledResult(controller);
     } else {
       final request = RunCodeRequest(
-        code: controller.codeController.fullText,
-        sdk: controller.sdk,
+        datasets: selectedExample?.datasets ?? [],
+        files: controller.getFiles(),
         pipelineOptions: parsedPipelineOptions,
+        sdk: controller.sdk,
       );
       _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
@@ -297,7 +366,7 @@ class PlaygroundController with ChangeNotifier {
     _result = const RunCodeResult(
       status: RunCodeStatus.preparation,
     );
-    final selectedExample = snippetEditingController.selectedExample!;
+    final selectedExample = snippetEditingController.example!;
 
     notifyListeners();
     // add a little delay to improve user experience
@@ -345,11 +414,12 @@ class PlaygroundController with ChangeNotifier {
   }
 
   void filterOutput(OutputType type) {
-    var output = result?.output ?? '';
-    var log = result?.log ?? '';
+    final output = result?.output ?? '';
+    final log = result?.log ?? '';
 
     switch (type) {
       case OutputType.all:
+      case OutputType.graph:
         setOutputResult(log + output);
         break;
       case OutputType.log:
@@ -358,22 +428,36 @@ class PlaygroundController with ChangeNotifier {
       case OutputType.output:
         setOutputResult(output);
         break;
-      default:
-        setOutputResult(log + output);
-        break;
     }
   }
 
-  Future<String> getSnippetId() {
-    final controller = requireSnippetEditingController();
+  Future<UserSharedExampleLoadingDescriptor> saveSnippet() async {
+    final snippetController = requireSnippetEditingController();
+    final files = snippetController.getFiles();
 
-    return exampleCache.getSnippetId(
-      files: [
-        SharedFile(code: controller.codeController.fullText, isMain: true),
-      ],
-      sdk: controller.sdk,
-      pipelineOptions: controller.pipelineOptions,
+    final snippetId = await exampleCache.saveSnippet(
+      files: files,
+      pipelineOptions: snippetController.pipelineOptions,
+      sdk: snippetController.sdk,
     );
+
+    final sharedExample = Example(
+      datasets: snippetController.example?.datasets ?? [],
+      files: files,
+      name: files.first.name,
+      path: snippetId,
+      sdk: snippetController.sdk,
+      type: ExampleType.example,
+    );
+
+    final descriptor = UserSharedExampleLoadingDescriptor(
+      sdk: sharedExample.sdk,
+      snippetId: snippetId,
+    );
+
+    snippetController.setExample(sharedExample, descriptor: descriptor);
+
+    return descriptor;
   }
 
   /// Creates an [ExamplesLoadingDescriptor] that can recover
@@ -385,6 +469,7 @@ class PlaygroundController with ChangeNotifier {
             (controller) => controller.getLoadingDescriptor(),
           )
           .toList(growable: false),
+      initialSdk: _sdk,
     );
   }
 

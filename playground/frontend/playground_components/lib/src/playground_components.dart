@@ -17,10 +17,15 @@
  */
 
 import 'package:easy_localization_ext/easy_localization_ext.dart';
+import 'package:get_it/get_it.dart';
 
 import 'locator.dart';
+import 'services/toast_notifier.dart';
 
 class PlaygroundComponents {
+  /// The name of the package.
+  ///
+  /// Used as a path component when loading assets.
   static const packageName = 'playground_components';
 
   // TODO(alexeyinkin): Make const when this is fixed: https://github.com/aissat/easy_localization_loader/issues/39
@@ -32,4 +37,7 @@ class PlaygroundComponents {
   static Future<void> ensureInitialized() async {
     await initializeServiceLocator();
   }
+
+  /// The global [ToastNotifier] instance that communicates notifications.
+  static ToastNotifier get toastNotifier => GetIt.instance.get<ToastNotifier>();
 }

@@ -284,6 +284,10 @@ class PipelineOptions(HasDisplayData):
           flags.append('--%s=%s' % (k, i))
       elif isinstance(v, dict):
         flags.append('--%s=%s' % (k, json.dumps(v)))
+      elif v is None:
+        # Don't process None type args here, they will be treated
+        # as strings when parsed by BeamArgumentParser..
+        logging.warning('Not setting flag with value None: %s', k)
       else:
         flags.append('--%s=%s' % (k, v))
 
@@ -1079,13 +1083,6 @@ class WorkerOptions(PipelineOptions):
         dest='min_cpu_platform',
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.')
-    parser.add_argument(
-        '--dataflow_worker_jar',
-        dest='dataflow_worker_jar',
-        type=str,
-        help='Dataflow worker jar file. If specified, the jar file is staged '
-        'in GCS, then gets loaded by workers. End users usually '
-        'should not use this feature.')
 
   def validate(self, validator):
     errors = []
