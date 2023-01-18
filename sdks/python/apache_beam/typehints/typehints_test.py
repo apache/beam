@@ -1644,25 +1644,31 @@ class TestPTransformAnnotations(unittest.TestCase):
 
 
 class TestBuiltinsTyping(unittest.TestCase):
-
   def _assert_equal_convert_to_beam_type(self, type_a, type_b):
-      beam_type_a = native_type_compatibility.convert_to_beam_type(type_a)
-      beam_type_b = native_type_compatibility.convert_to_beam_type(type_b)
-      self.assertEqual(beam_type_a, beam_type_b)
+    beam_type_a = native_type_compatibility.convert_to_beam_type(type_a)
+    beam_type_b = native_type_compatibility.convert_to_beam_type(type_b)
+    self.assertEqual(beam_type_a, beam_type_b)
+
   def test_convert_to_beam_type(self):
-      self._assert_equal_convert_to_beam_type(dict[str, int], typing.Dict[str, int])
+    if sys.version_info >= (3, 9):
+      self._assert_equal_convert_to_beam_type(
+          dict[str, int], typing.Dict[str, int])
       self._assert_equal_convert_to_beam_type(list[str], typing.List[str])
-      self._assert_equal_convert_to_beam_type(tuple[int, float], typing.Tuple[int, float])
+      self._assert_equal_convert_to_beam_type(
+          tuple[int, float], typing.Tuple[int, float])
       self._assert_equal_convert_to_beam_type(set[float], typing.Set[float])
-      self._assert_equal_convert_to_beam_type(frozenset[float], typing.FrozenSet[float])
+      self._assert_equal_convert_to_beam_type(
+          frozenset[float], typing.FrozenSet[float])
 
   def test_is_consistent_with(self):
+    if sys.version_info >= (3, 9):
       self.assertTrue(is_consistent_with(dict[str, int], typing.Dict[str, int]))
       self.assertTrue(is_consistent_with(list[str], typing.List[str]))
-      self.assertTrue(is_consistent_with(tuple[int, float], typing.Tuple[int, float]))
+      self.assertTrue(
+          is_consistent_with(tuple[int, float], typing.Tuple[int, float]))
       self.assertTrue(is_consistent_with(set[float], typing.Set[float]))
-      self.assertTrue(is_consistent_with(frozenset[float], typing.FrozenSet[float]))
-
+      self.assertTrue(
+          is_consistent_with(frozenset[float], typing.FrozenSet[float]))
 
 
 if __name__ == '__main__':
