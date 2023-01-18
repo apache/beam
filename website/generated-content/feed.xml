@@ -56,95 +56,95 @@ if a Slice type is used as a PCollection element or State API element. (Go)&lt;a
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.44.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud&lt;br>
-Ahmet Altay&lt;br>
-Alex Merose&lt;br>
-Alexey Inkin&lt;br>
-Alexey Romanenko&lt;br>
-Anand Inguva&lt;br>
-Andrei Gurau&lt;br>
-Andrej Galad&lt;br>
-Andrew Pilloud&lt;br>
-Ayush Sharma&lt;br>
-Benjamin Gonzalez&lt;br>
-Bjorn Pedersen
-Brian Hulette&lt;br>
-Bruno Volpato&lt;br>
-Bulat Safiullin&lt;br>
-Chamikara Jayalath&lt;br>
-Chris Gavin&lt;br>
-Damon Douglas&lt;br>
-Danielle Syse&lt;br>
-Danny McCormick&lt;br>
-Darkhan Nausharipov&lt;br>
-David Cavazos&lt;br>
-Dmitry Repin&lt;br>
-Doug Judd&lt;br>
-Elias Segundo Antonio&lt;br>
-Evan Galpin&lt;br>
-Evgeny Antyshev&lt;br>
-Heejong Lee&lt;br>
-Henrik Heggelund-Berg&lt;br>
-Israel Herraiz&lt;br>
-Jack McCluskey&lt;br>
-Jan Lukavský&lt;br>
-Janek Bevendorff&lt;br>
-Johanna Öjeling&lt;br>
-John J. Casey&lt;br>
-Jozef Vilcek&lt;br>
-Kanishk Karanawat&lt;br>
-Kenneth Knowles&lt;br>
-Kiley Sok&lt;br>
-Laksh&lt;br>
-Liam Miller-Cushon&lt;br>
-Luke Cwik&lt;br>
-MakarkinSAkvelon&lt;br>
-Minbo Bae&lt;br>
-Moritz Mack&lt;br>
-Nancy Xu&lt;br>
-Ning Kang&lt;br>
-Nivaldo Tokuda&lt;br>
-Oleh Borysevych&lt;br>
-Pablo Estrada&lt;br>
-Philippe Moussalli&lt;br>
-Pranav Bhandari&lt;br>
-Rebecca Szper&lt;br>
-Reuven Lax&lt;br>
-Rick Smit&lt;br>
-Ritesh Ghorse&lt;br>
-Robert Bradshaw&lt;br>
-Robert Burke&lt;br>
-Ryan Thompson&lt;br>
-Sam Whittle&lt;br>
-Sanil Jain&lt;br>
-Scott Strong&lt;br>
-Shubham Krishna&lt;br>
-Steven van Rossum&lt;br>
-Svetak Sundhar&lt;br>
-Thiago Nunes&lt;br>
-Tianyang Hu&lt;br>
-Trevor Gevers&lt;br>
-Valentyn Tymofieiev&lt;br>
-Vitaly Terentyev&lt;br>
-Vladislav Chunikhin&lt;br>
-Xinyu Liu&lt;br>
-Yi Hu&lt;br>
-Yichi Zhang&lt;/p>
-&lt;p>AdalbertMemSQL&lt;br>
-agvdndor&lt;br>
-andremissaglia&lt;br>
-arne-alex&lt;br>
-bullet03&lt;br>
-camphillips22&lt;br>
-capthiron&lt;br>
-creste&lt;br>
-fab-jul&lt;br>
-illoise&lt;br>
-kn1kn1&lt;br>
-nancyxu123&lt;br>
-peridotml&lt;br>
-shinannegans&lt;br>
-smeet07&lt;/p></description><link>/blog/beam-2.44.0/</link><pubDate>Tue, 17 Jan 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.44.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam Playground: An interactive environment to try transforms and examples</title><description>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Alex Merose&lt;/p>
+&lt;p>Alexey Inkin&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Anand Inguva&lt;/p>
+&lt;p>Andrei Gurau&lt;/p>
+&lt;p>Andrej Galad&lt;/p>
+&lt;p>Andrew Pilloud&lt;/p>
+&lt;p>Ayush Sharma&lt;/p>
+&lt;p>Benjamin Gonzalez&lt;/p>
+&lt;p>Bjorn Pedersen&lt;/p>
+&lt;p>Brian Hulette&lt;/p>
+&lt;p>Bruno Volpato&lt;/p>
+&lt;p>Bulat Safiullin&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Chris Gavin&lt;/p>
+&lt;p>Damon Douglas&lt;/p>
+&lt;p>Danielle Syse&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Darkhan Nausharipov&lt;/p>
+&lt;p>David Cavazos&lt;/p>
+&lt;p>Dmitry Repin&lt;/p>
+&lt;p>Doug Judd&lt;/p>
+&lt;p>Elias Segundo Antonio&lt;/p>
+&lt;p>Evan Galpin&lt;/p>
+&lt;p>Evgeny Antyshev&lt;/p>
+&lt;p>Heejong Lee&lt;/p>
+&lt;p>Henrik Heggelund-Berg&lt;/p>
+&lt;p>Israel Herraiz&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jan Lukavský&lt;/p>
+&lt;p>Janek Bevendorff&lt;/p>
+&lt;p>Johanna Öjeling&lt;/p>
+&lt;p>John J. Casey&lt;/p>
+&lt;p>Jozef Vilcek&lt;/p>
+&lt;p>Kanishk Karanawat&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Kiley Sok&lt;/p>
+&lt;p>Laksh&lt;/p>
+&lt;p>Liam Miller-Cushon&lt;/p>
+&lt;p>Luke Cwik&lt;/p>
+&lt;p>MakarkinSAkvelon&lt;/p>
+&lt;p>Minbo Bae&lt;/p>
+&lt;p>Moritz Mack&lt;/p>
+&lt;p>Nancy Xu&lt;/p>
+&lt;p>Ning Kang&lt;/p>
+&lt;p>Nivaldo Tokuda&lt;/p>
+&lt;p>Oleh Borysevych&lt;/p>
+&lt;p>Pablo Estrada&lt;/p>
+&lt;p>Philippe Moussalli&lt;/p>
+&lt;p>Pranav Bhandari&lt;/p>
+&lt;p>Rebecca Szper&lt;/p>
+&lt;p>Reuven Lax&lt;/p>
+&lt;p>Rick Smit&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Ryan Thompson&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Sanil Jain&lt;/p>
+&lt;p>Scott Strong&lt;/p>
+&lt;p>Shubham Krishna&lt;/p>
+&lt;p>Steven van Rossum&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>Thiago Nunes&lt;/p>
+&lt;p>Tianyang Hu&lt;/p>
+&lt;p>Trevor Gevers&lt;/p>
+&lt;p>Valentyn Tymofieiev&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Vladislav Chunikhin&lt;/p>
+&lt;p>Xinyu Liu&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>Yichi Zhang&lt;/p>
+&lt;p>AdalbertMemSQL&lt;/p>
+&lt;p>agvdndor&lt;/p>
+&lt;p>andremissaglia&lt;/p>
+&lt;p>arne-alex&lt;/p>
+&lt;p>bullet03&lt;/p>
+&lt;p>camphillips22&lt;/p>
+&lt;p>capthiron&lt;/p>
+&lt;p>creste&lt;/p>
+&lt;p>fab-jul&lt;/p>
+&lt;p>illoise&lt;/p>
+&lt;p>kn1kn1&lt;/p>
+&lt;p>nancyxu123&lt;/p>
+&lt;p>peridotml&lt;/p>
+&lt;p>shinannegans&lt;/p>
+&lt;p>smeet07&lt;/p></description><link>/blog/beam-2.44.0/</link><pubDate>Tue, 17 Jan 2023 09:00:00 -0700</pubDate><guid>/blog/beam-2.44.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam Playground: An interactive environment to try transforms and examples</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
