@@ -533,7 +533,8 @@ public class ElasticsearchIO {
     public ConnectionConfiguration withBearerToken(String bearerToken) {
       checkArgument(!Strings.isNullOrEmpty(bearerToken), "bearerToken can not be null or empty");
       checkArgument(getApiKey() == null, "bearerToken can not be combined with apiKey");
-      checkArgument(getDefaultHeaders() == null, "apiKey can not be combined with defaultHeaders");
+      checkArgument(
+          getDefaultHeaders() == null, "bearerToken can not be combined with defaultHeaders");
       return builder().setBearerToken(bearerToken).build();
     }
 
@@ -541,6 +542,26 @@ public class ElasticsearchIO {
      * For authentication or custom requirements, provide a set if default headers for the client.
      * Be aware that you can only use one of {@code withApiToken()}, {@code withBearerToken()} and
      * {@code withDefaultHeaders} at the same time, as they (potentially) use the same header.
+     *
+     * <p>An example of where this could be useful is if the client needs to use short-lived
+     * credentials that need to be renewed on a certain interval. To implement that, a user could
+     * implement a custom header that tracks the renewal period, for example:
+     *
+     * <pre>
+     * {@code class OAuthTokenHeader extends BasicHeader {
+     *     OAuthToken accessToken;
+     *
+     *     ...
+     *
+     *     @Override
+     *     public String getValue() {
+     *         if (accessToken.isExpired()) {
+     *             accessToken.renew();
+     *         }
+     *         return String.format("Bearer %s", accessToken.getToken());
+     *     }
+     * }}
+     * </pre>
      *
      * @param defaultHeaders the headers to add to outgoing requests
      * @return a {@link ConnectionConfiguration} describes a connection configuration to
