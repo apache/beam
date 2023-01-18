@@ -54,6 +54,7 @@ dependencies {
   runtimeOnly("ca.cutterslade.gradle:gradle-dependency-analyze:1.8.3")                                     // Enable dep analysis
   runtimeOnly("gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11")                                  // Enable dep vulnerability analysis
   runtimeOnly("org.checkerframework:checkerframework-gradle-plugin:0.6.19")                                 // Enable enhanced static checking plugin
+  runtimeOnly("org.jfrog.buildinfo:build-info-extractor-gradle:4.24.14")                                    // Enable submission to jfrog artifactory
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle

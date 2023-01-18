@@ -366,6 +366,10 @@ class BeamModulePlugin implements Plugin<Project> {
     return parseBooleanProperty(project, 'isLinkedin');
   }
 
+  def isSnapshot(Project project) {
+    return parseBooleanProperty(project, 'isSnapshot');
+  }
+
   /**
    * Parses -Pprop as true for use as a flag, and otherwise uses Groovy's toBoolean
    */
@@ -398,7 +402,7 @@ class BeamModulePlugin implements Plugin<Project> {
     if (isLinkedin(project)) {
       project.ext.mavenGroupId = 'com.linkedin.beam'
     }
-    if (!isRelease(project)) {
+    if (!isRelease(project) || isSnapshot(project)) {
       project.version += '-SNAPSHOT'
     }
 
@@ -817,26 +821,22 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.repositories = {
       maven {
-        name "testPublicationLocal"
-        url "file://${project.rootProject.projectDir}/testPublication/"
+        name "LiTestPublicationLocal"
+        url "file://${System.getProperty('user.home')}/local-repo/"
       }
       maven {
-        url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
-            ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
-            : 'https://repository.apache.org/content/repositories/snapshots')
-        name(project.properties['distMgmtServerId'] ?: isRelease(project)
-            ? 'apache.releases.https' : 'apache.snapshots.https')
+        name "linkedin.jfrog.https"
+        url "https://linkedin.jfrog.io/artifactory/beam/"
+        credentials {
+          username = System.getenv('USERNAME')
+          password = System.getenv('TOKEN')
+        }
         // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
         // has configured with the Apache release and snapshot staging credentials.
         // <settings>
         //   <servers>
         //     <server>
-        //       <id>apache.releases.https</id>
-        //       <username>USER_TOKEN</username>
-        //       <password>PASS_TOKEN</password>
-        //     </server>
-        //     <server>
-        //       <id>apache.snapshots.https</id>
+        //       <id>linkedin.jfrog.https</id>
         //       <username>USER_TOKEN</username>
         //       <password>PASS_TOKEN</password>
         //     </server>
@@ -1604,6 +1604,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if ((isRelease(project) || project.hasProperty('publishing')) &&
       configuration.publish) {
         project.apply plugin: "maven-publish"
+        project.apply plugin: 'com.jfrog.artifactory'
 
         // plugin to support repository authentication via ~/.m2/settings.xml
         // https://github.com/mark-vieira/gradle-maven-settings-plugin/
