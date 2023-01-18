@@ -1638,6 +1638,13 @@ message StandardProtocols {
     // SDKs ability to store the data in memory reducing the amount of memory
     // used overall.
     STATE_CACHING = 7 [(beam_urn) = "beam:protocol:state_caching:v1"];
+
+    // Indicates that this SDK can sample in-flight elements. These samples can
+    // then be queried using the SampleDataRequest. Samples are uniquely associated
+    // with a PCollection. Meaning, samples are taken for each PCollection
+    // during bundle processing. This is disabled by default and enabled with the
+    // `enable_data_sampling` experiment.
+    DATA_SAMPLING = 8 [(beam_urn) = "beam:protocol:data_sampling:v1"];
   }
 }
 
