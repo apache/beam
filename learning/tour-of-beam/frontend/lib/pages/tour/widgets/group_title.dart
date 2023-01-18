@@ -17,11 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../generated/assets.gen.dart';
+import '../../../cache/unit_progress.dart';
 import '../../../models/group.dart';
-import 'tour_progress_indicator.dart';
+import '../../../models/node.dart';
+import 'completeness_indicator.dart';
 
 class GroupTitleWidget extends StatelessWidget {
   final GroupModel group;
@@ -38,10 +40,7 @@ class GroupTitleWidget extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          TourProgressIndicator(
-            assetPath: Assets.svg.unitProgress0,
-            isSelected: false,
-          ),
+          _GroupProgressIndicator(group: group),
           Text(
             group.title,
             style: Theme.of(context).textTheme.headlineMedium,
@@ -49,5 +48,70 @@ class GroupTitleWidget extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _GroupProgressIndicator extends StatelessWidget {
+  final GroupModel group;
+  const _GroupProgressIndicator({required this.group});
+
+  @override
+  Widget build(BuildContext context) {
+    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
+
+    return AnimatedBuilder(
+      animation: unitProgressCache,
+      builder: (context, child) {
+        final progress = _getGroupProgress(
+          group.nodes,
+          unitProgressCache.getCompletedUnits(),
+        );
+
+        if (progress == 1) {
+          return const CompletenessIndicator(
+            isCompleted: true,
+            isSelected: false,
+          );
+        }
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: BeamSizes.size6),
+          height: BeamSizes.size8,
+          width: BeamSizes.size8,
+          child: CircularProgressIndicator(
+            strokeWidth: BeamSizes.size3,
+            color: BeamColors.green,
+            backgroundColor: Theme.of(context)
+                .extension<BeamThemeExtension>()!
+                .unselectedProgressColor,
+            value: progress,
+          ),
+        );
+      },
+    );
+  }
+
+  double _getGroupProgress(
+    List<NodeModel> groupNodes,
+    Set<String> completedUnits,
+  ) {
+    int completed = 0;
+    int total = 0;
+
+    void countNodes(List<NodeModel> nodes) {
+      for (final node in nodes) {
+        if (node is GroupModel) {
+          countNodes(node.nodes);
+        } else {
+          total += 1;
+          if (completedUnits.contains(node.id)) {
+            completed += 1;
+          }
+        }
+      }
+    }
+
+    countNodes(groupNodes);
+    return completed / total;
   }
 }

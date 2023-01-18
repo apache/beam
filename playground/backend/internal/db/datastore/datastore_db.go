@@ -212,7 +212,7 @@ func (d *Datastore) GetSDKs(ctx context.Context) ([]*entity.SDKEntity, error) {
 //GetCatalog returns all examples
 func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEntity) ([]*pb.Categories, error) {
 	//Retrieving examples
-	exampleQuery := datastore.NewQuery(constants.ExampleKind).Namespace(utils.GetNamespace(ctx))
+	exampleQuery := datastore.NewQuery(constants.ExampleKind).Namespace(utils.GetNamespace(ctx)).FilterField("origin", "=", constants.ExampleOrigin)
 	var examples []*entity.ExampleEntity
 	exampleKeys, err := d.Client.GetAll(ctx, exampleQuery, &examples)
 	if err != nil {
@@ -245,11 +245,28 @@ func (d *Datastore) GetCatalog(ctx context.Context, sdkCatalog []*entity.SDKEnti
 		return nil, err
 	}
 
+	//Retrieving datasets
+	datastoreQuery := datastore.NewQuery(constants.DatasetKind).Namespace(utils.GetNamespace(ctx))
+	var datasets []*entity.DatasetEntity
+	if _, err = d.Client.GetAll(ctx, datastoreQuery, &datasets); err != nil {
+		logger.Errorf("Datastore: GetCatalog(): error during the getting datasets, err: %s\n", err.Error())
+		return nil, err
+	}
+
+	var datasetBySnippetIDMap map[string][]*dto.DatasetDTO
+	if len(datasets) != 0 {
+		datasetBySnippetIDMap, err = d.ResponseMapper.ToDatasetBySnippetIDMap(datasets, snippets)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return d.ResponseMapper.ToArrayCategories(&dto.CatalogDTO{
-		Examples:   examples,
-		Snippets:   snippets,
-		Files:      files,
-		SdkCatalog: sdkCatalog,
+		Examples:              examples,
+		Snippets:              snippets,
+		Files:                 files,
+		SdkCatalog:            sdkCatalog,
+		DatasetBySnippetIDMap: datasetBySnippetIDMap,
 	}), nil
 }
 
@@ -273,8 +290,8 @@ func (d *Datastore) GetDefaultExamples(ctx context.Context, sdks []*entity.SDKEn
 	}
 
 	if len(examples) == 0 {
-		logger.Error("no examples")
-		return nil, fmt.Errorf("no examples")
+		logger.Error("no default example")
+		return nil, fmt.Errorf("no default example")
 	}
 
 	//Retrieving snippets
@@ -341,9 +358,33 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 		return nil, err
 	}
 
+	var dataset = new(entity.DatasetEntity)
+	if len(snippet.Datasets) != 0 {
+		datasetKey := snippet.Datasets[0].Dataset
+		if err = tx.Get(datasetKey, dataset); err != nil {
+			logger.Errorf("error during getting dataset by identifier, err: %s", err.Error())
+			return nil, err
+		}
+	}
+
 	sdkToExample := make(map[string]string)
 	for _, sdk := range sdks {
 		sdkToExample[sdk.Name] = sdk.DefaultExample
+	}
+
+	var datasetBySnippetIDMap map[string][]*dto.DatasetDTO
+	if len(snippet.Datasets) != 0 {
+		datasetBySnippetIDMap, err = d.ResponseMapper.ToDatasetBySnippetIDMap([]*entity.DatasetEntity{dataset}, []*entity.SnippetEntity{snippet})
+		if err != nil {
+			return nil, err
+		}
+	}
+	var datasetDTOs []*dto.DatasetDTO
+	if len(datasetBySnippetIDMap) != 0 {
+		datasetDTOsVal, ok := datasetBySnippetIDMap[snippet.Key.Name]
+		if ok {
+			datasetDTOs = datasetDTOsVal
+		}
 	}
 
 	return d.ResponseMapper.ToPrecompiledObj(&dto.ExampleDTO{
@@ -351,28 +392,32 @@ func (d *Datastore) GetExample(ctx context.Context, id string, sdks []*entity.SD
 		Snippet:            snippet,
 		Files:              []*entity.FileEntity{file},
 		DefaultExampleName: sdkToExample[example.Sdk.Name],
+		Datasets:           datasetDTOs,
 	}), err
 }
 
-func (d *Datastore) GetExampleCode(ctx context.Context, id string) (string, error) {
+func (d *Datastore) GetExampleCode(ctx context.Context, id string) ([]*entity.FileEntity, error) {
+	files := make([]*entity.FileEntity, 0)
 	tx, err := d.Client.NewTransaction(ctx, datastore.ReadOnly)
 	if err != nil {
 		logger.Errorf(errorMsgTemplateCreatingTx, err.Error())
-		return "", err
+		return files, err
 	}
 	defer rollback(tx)
 
-	fileKey := utils.GetFileKey(ctx, id, 0)
-	var file = new(entity.FileEntity)
-	if err = tx.Get(fileKey, file); err != nil {
-		if err == datastore.ErrNoSuchEntity {
-			logger.Warnf("error during getting example code by identifier, err: %s", err.Error())
-			return "", err
-		}
-		logger.Errorf("error during getting example code by identifier, err: %s", err.Error())
-		return "", err
+	// Get number of files
+	snpKey := utils.GetSnippetKey(ctx, id)
+	var snippet = new(entity.SnippetEntity)
+	if err = tx.Get(snpKey, snippet); err != nil {
+		logger.Errorf("error during getting snippet by identifier, err: %s", err.Error())
+		return nil, err
 	}
-	return file.Content, nil
+
+	fileKeys := make([]*datastore.Key, 0, snippet.NumberOfFiles)
+	for idx := 0; idx < snippet.NumberOfFiles; idx++ {
+		fileKeys = append(fileKeys, utils.GetFileKey(ctx, id, idx))
+	}
+	return getEntities[entity.FileEntity](tx, fileKeys)
 }
 
 func (d *Datastore) GetExampleOutput(ctx context.Context, id string) (string, error) {
@@ -476,26 +521,26 @@ func rollback(tx *datastore.Transaction) {
 	}
 }
 
-func getEntities[V entity.DatastoreEntity](tx *datastore.Transaction, keys []*datastore.Key) ([]*V, error) {
-	var examplesWithNils = make([]*V, len(keys))
-	examples := make([]*V, 0)
-	if err := tx.GetMulti(keys, examplesWithNils); err != nil {
-		if errors, ok := err.(datastore.MultiError); ok {
-			for _, errVal := range errors {
-				if errVal == datastore.ErrNoSuchEntity {
-					for _, exampleVal := range examplesWithNils {
-						if exampleVal != nil {
-							examples = append(examples, exampleVal)
-						}
-					}
+// generic wrapper around GetMulti & filtering nil elements
+func getEntities[V any](tx *datastore.Transaction, keys []*datastore.Key) ([]*V, error) {
+	entitiesWithNils := make([]*V, len(keys))
+	entitiesNotNil := make([]*V, 0)
+	if err := tx.GetMulti(keys, entitiesWithNils); err != nil {
+		if errorsVal, ok := err.(datastore.MultiError); ok {
+			for idx, errVal := range errorsVal {
+				if errVal == nil {
+					entitiesNotNil = append(entitiesNotNil, entitiesWithNils[idx])
+					continue
 				}
+
+				logger.Warnf("Key %v not found: %s\n", keys[idx], errVal)
 			}
 		} else {
 			logger.Errorf("error during the getting entities, err: %s\n", err.Error())
 			return nil, err
 		}
 	} else {
-		examples = examplesWithNils
+		entitiesNotNil = entitiesWithNils
 	}
-	return examples, nil
+	return entitiesNotNil, nil
 }

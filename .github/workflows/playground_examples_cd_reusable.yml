@@ -62,6 +62,7 @@ jobs:
       - name: Run ci_cd.py
         run: |
              python3 ci_cd.py \
+              --datastore-project $GOOGLE_CLOUD_PROJECT \
               --step $STEP \
               --sdk SDK_${SDK^^} \
               --origin $ORIGIN \

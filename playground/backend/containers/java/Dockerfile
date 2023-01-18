@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BEAM_VERSION=2.42.0
+ARG BEAM_VERSION=2.43.0
 ARG BASE_IMAGE=apache/beam_java8_sdk:${BEAM_VERSION}
 FROM golang:1.18-bullseye AS build
 
@@ -44,7 +44,8 @@ ARG HAMCREST_VERSION=1.3
 ARG JUNIT_VERSION=4.13.2
 ARG GRPC_VERSION=1_48_1
 ARG BEAM_VENDOR_GRPC_VERSION=0.1
-#ENV BEAM_VERSION=${BEAM_VERSION_ARG}
+ARG KAFKA_CLIENTS_VERSION=2.3.1
+ARG SPRING_VERSION=5.3.18
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
@@ -55,6 +56,7 @@ ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
 COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
+COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/datasets/
 
 # Install Beam DirectRunner
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
@@ -62,9 +64,14 @@ RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java
 # Install Beam SDK Core
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-core.jar
-# Imstall Beam Examples
+# Install Beam Examples
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
     mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
+# Install jars for Playground graphs
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-construction-java/$BEAM_VERSION/beam-runners-core-construction-java-$BEAM_VERSION.jar &&\
+    mv beam-runners-core-construction-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-core-construction-java-$BEAM_VERSION.jar
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-model-pipeline/$BEAM_VERSION/beam-model-pipeline-$BEAM_VERSION.jar &&\
+    mv beam-model-pipeline-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-model-pipeline-$BEAM_VERSION.jar
 # Install Beam SDK Core tests
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
@@ -77,6 +84,21 @@ RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_
 # Install Beam Vendor gRPC
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-grpc-$GRPC_VERSION/$BEAM_VENDOR_GRPC_VERSION/beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar &&\
     mv beam-vendor-grpc-$GRPC_VERSION-$BEAM_VENDOR_GRPC_VERSION.jar /opt/apache/beam/jars/beam-vendor-grpc.jar
+# Install Kafka IO
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-io-kafka/$BEAM_VERSION/beam-sdks-java-io-kafka-$BEAM_VERSION.jar &&\
+    mv beam-sdks-java-io-kafka-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-io-kafka.jar
+# Install Apache Kafka Clients
+RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/$KAFKA_CLIENTS_VERSION/kafka-clients-$KAFKA_CLIENTS_VERSION.jar &&\
+    mv kafka-clients-$KAFKA_CLIENTS_VERSION.jar /opt/apache/beam/jars/kafka-clients.jar
+# Install Spring Expression
+RUN wget https://repo1.maven.org/maven2/org/springframework/spring-expression/$SPRING_VERSION/spring-expression-$SPRING_VERSION.jar &&\
+    mv spring-expression-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-expression.jar
+# Install Spring Core
+RUN wget https://repo1.maven.org/maven2/org/springframework/spring-core/$SPRING_VERSION/spring-core-$SPRING_VERSION.jar &&\
+    mv spring-core-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-core.jar
+# Install Spring JCL
+RUN wget https://repo1.maven.org/maven2/org/springframework/spring-jcl/$SPRING_VERSION/spring-jcl-$SPRING_VERSION.jar &&\
+    mv spring-jcl-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-jcl.jar
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\

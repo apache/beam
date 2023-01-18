@@ -36,6 +36,7 @@
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
     <junit.version>@junit.version@</junit.version>
+    <kafka.version>@kafka.version@</kafka.version>
     <libraries-bom.version>@libraries-bom.version@</libraries-bom.version>
     <maven-compiler-plugin.version>@maven-compiler-plugin.version@</maven-compiler-plugin.version>
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
@@ -344,6 +345,13 @@
       <version>${beam.version}</version>
     </dependency>
 
+    <!-- Adds a dependency on the Beam Kafka IO module. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-kafka</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
+
     <!-- Dependencies below this line are specific dependencies needed by the examples code. -->
     <dependency>
       <groupId>com.google.api-client</groupId>
@@ -404,6 +412,12 @@
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
       <version>${joda.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>${kafka.version}</version>
     </dependency>
 
     <!-- Add slf4j API frontend binding with JUL backend -->

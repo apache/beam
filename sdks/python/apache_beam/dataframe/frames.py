@@ -372,7 +372,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def groupby(self, by, level, axis, as_index, group_keys, **kwargs):
-    """``as_index`` and ``group_keys`` must both be ``True``.
+    """``as_index`` must be ``True``.
 
     Aggregations grouping by a categorical column with ``observed=False`` set
     are not currently parallelizable
@@ -380,16 +380,16 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     """
     if not as_index:
       raise NotImplementedError('groupby(as_index=False)')
-    if not group_keys:
-      raise NotImplementedError('groupby(group_keys=False)')
 
     if axis in (1, 'columns'):
       return _DeferredGroupByCols(
           expressions.ComputedExpression(
               'groupbycols',
-              lambda df: df.groupby(by, axis=axis, **kwargs), [self._expr],
+              lambda df: df.groupby(
+                  by, axis=axis, group_keys=group_keys, **kwargs), [self._expr],
               requires_partition_by=partitionings.Arbitrary(),
-              preserves_partition_by=partitionings.Arbitrary()))
+              preserves_partition_by=partitionings.Arbitrary()),
+          group_keys=group_keys)
 
     if level is None and by is None:
       raise TypeError("You have to supply one of 'by' and 'level'")
@@ -559,14 +559,17 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         expressions.ComputedExpression(
             'groupbyindex',
             lambda df: df.groupby(
-                level=list(range(df.index.nlevels)), **kwargs), [to_group],
+                level=list(range(df.index.nlevels)),
+                group_keys=group_keys,
+                **kwargs), [to_group],
             requires_partition_by=partitionings.Index(),
             preserves_partition_by=partitionings.Arbitrary()),
         kwargs,
         to_group,
         to_group_with_index,
         grouping_columns=grouping_columns,
-        grouping_indexes=grouping_indexes)
+        grouping_indexes=grouping_indexes,
+        group_keys=group_keys)
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.DataFrame)
@@ -676,6 +679,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     order-sensitive. It cannot be specified.
 
     If ``limit`` is specified this operation is not parallelizable."""
+    # pylint: disable-next=c-extension-no-member
     value_compare = None if PD_VERSION < (1, 4) else lib.no_default
     if method is not None and not isinstance(to_replace,
                                              dict) and value is value_compare:
@@ -4123,6 +4127,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                ungrouped_with_index: expressions.Expression[pd.core.generic.NDFrame], # pylint: disable=line-too-long
                grouping_columns,
                grouping_indexes,
+               group_keys,
                projection=None):
     """This object represents the result of::
 
@@ -4149,6 +4154,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     self._projection = projection
     self._grouping_columns = grouping_columns
     self._grouping_indexes = grouping_indexes
+    self._group_keys = group_keys
     self._kwargs = kwargs
 
     if (self._kwargs.get('dropna', True) is False and
@@ -4170,6 +4176,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._ungrouped_with_index,
         self._grouping_columns,
         self._grouping_indexes,
+        self._group_keys,
         projection=name)
 
   def __getitem__(self, name):
@@ -4184,6 +4191,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         self._ungrouped_with_index,
         self._grouping_columns,
         self._grouping_indexes,
+        self._group_keys,
         projection=name)
 
   @frame_base.with_docs_from(DataFrameGroupBy)
@@ -4233,6 +4241,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     project = _maybe_project_func(self._projection)
     grouping_indexes = self._grouping_indexes
     grouping_columns = self._grouping_columns
+    group_keys = self._group_keys
 
     # Unfortunately pandas does not execute func to determine the right proxy.
     # We run user func on a proxy here to detect the return type and generate
@@ -4321,7 +4330,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       df = df.reset_index(grouping_columns, drop=True)
 
       gb = df.groupby(level=grouping_indexes or None,
-                      by=grouping_columns or None)
+                      by=grouping_columns or None,
+                      group_keys=group_keys)
 
       gb = project(gb)
 
@@ -4361,6 +4371,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
       fn_wrapper = fn
 
     project = _maybe_project_func(self._projection)
+    group_keys = self._group_keys
 
     # pandas cannot execute fn to determine the right proxy.
     # We run user fn on a proxy here to detect the return type and generate the
@@ -4387,10 +4398,12 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     return DeferredDataFrame(
         expressions.ComputedExpression(
             'transform',
-            lambda df: project(df.groupby(level=levels)).transform(
-                fn_wrapper,
-                *args,
-                **kwargs).droplevel(self._grouping_columns),
+            lambda df: project(
+              df.groupby(level=levels, group_keys=group_keys)
+            ).transform(
+              fn_wrapper,
+              *args,
+              **kwargs).droplevel(self._grouping_columns),
             [self._ungrouped_with_index],
             proxy=proxy,
             requires_partition_by=partitionings.Index(levels),
@@ -4551,6 +4564,7 @@ def _liftable_agg(meth, postagg_meth=None):
     is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
                                   for i in self._grouping_indexes)
     groupby_kwargs = self._kwargs
+    group_keys = self._group_keys
 
     # Don't include un-observed categorical values in the preagg
     preagg_groupby_kwargs = groupby_kwargs.copy()
@@ -4562,6 +4576,7 @@ def _liftable_agg(meth, postagg_meth=None):
         lambda df: getattr(
             project(
                 df.groupby(level=list(range(df.index.nlevels)),
+                           group_keys=group_keys,
                            **preagg_groupby_kwargs)
             ),
             agg_name)(**kwargs),
@@ -4574,6 +4589,7 @@ def _liftable_agg(meth, postagg_meth=None):
         'post_combine_' + post_agg_name,
         lambda df: getattr(
             df.groupby(level=list(range(df.index.nlevels)),
+                       group_keys=group_keys,
                        **groupby_kwargs),
             post_agg_name)(**kwargs),
         [pre_agg],
@@ -4597,6 +4613,7 @@ def _unliftable_agg(meth):
     assert isinstance(self, DeferredGroupBy)
 
     to_group = self._ungrouped.proxy().index
+    group_keys = self._group_keys
     is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
                                   for i in self._grouping_indexes)
 
@@ -4606,6 +4623,7 @@ def _unliftable_agg(meth):
         agg_name,
         lambda df: getattr(project(
             df.groupby(level=list(range(df.index.nlevels)),
+                       group_keys=group_keys,
                        **groupby_kwargs),
         ), agg_name)(**kwargs),
         [self._ungrouped],

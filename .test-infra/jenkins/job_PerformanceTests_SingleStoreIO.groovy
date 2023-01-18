@@ -36,7 +36,7 @@ void waitFor(job, Kubernetes k8s, String resource) {
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate,'H H/6 * * *')
+  common.setAutoJob(delegate,'H H/12 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java SingleStoreIO Performance Test',
@@ -80,7 +80,7 @@ job(jobName) {
       switches("--info")
       switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
       switches("-DintegrationTestRunner=dataflow")
-      tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOIT")
+      tasks(":sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOPerformanceIT")
     }
   }
 }

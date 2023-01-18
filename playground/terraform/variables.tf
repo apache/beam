@@ -40,52 +40,31 @@ variable "gke_machine_type" {
   default     = "e2-standard-4"
 }
 
-variable "gke_node_count" {
-  description = "Node pool size"
-  default     = 1
-}
-
 variable "gke_name" {
   description = "Name of GKE cluster"
   default = "playground-backend"
 }
 
-#  variable "gke_location" {
-#    description = "Location of GKE cluster"
-#  }
+variable "min_count" {
+  description = "Min cluster node count"
+  default     = 2
+}
+
+variable "max_count" {
+  description = "Max cluster node count"
+  default     = 6
+}
 
 variable "service_account" {
   description = "Service account id"
   default     = "playground-deploy@apache-beam-testing.iam.gserviceaccount.com"
 }
-
-#GCS
-
-variable "bucket_examples_name" {
-  description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-precompiled-objects"
-}
-
-variable "bucket_examples_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
-variable "bucket_examples_storage_class" {
-  description = "Examples Bucket Storage Class"
-  default     = "STANDARD"
-}
-
 # Artifact Registry
 
 variable "repository_id" {
   description = "ID of Artifact Registry"
   default     = "playground-repository"
 }
-
-# variable "repository_location" {
-#   description = "Location of Artifact Registry"
-# }
 
 #Redis
 
@@ -137,10 +116,6 @@ variable "docker_image_name" {
   default     = "beam_playground"
   description = "Base prefix for docker images"
 }
-
-# variable "application_location" {
-#   description = "Location of App"
-# }
 
 # Frontend variables
 
@@ -312,7 +287,6 @@ variable "router_cpu" {
   type        = number
   default     = 2
 }
-
 
 variable "state_bucket" {
   description = "GCP bucket that used to store terraform state"

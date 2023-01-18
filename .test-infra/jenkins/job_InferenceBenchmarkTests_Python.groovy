@@ -20,6 +20,8 @@ import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
+import static PythonTestProperties.RUN_INFERENCE_TEST_PYTHON_VERSION
+
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -35,10 +37,13 @@ def loadTestConfigurations = {
         job_name              : 'benchmark-tests-pytorch-imagenet-python' + now,
         project               : 'apache-beam-testing',
         region                : 'us-central1',
+        machine_type          : 'n1-standard-2',
+        num_workers           : 75,
+        disk_size_gb          : 50,
+        autoscaling_algorithm : 'NONE',
         staging_location      : 'gs://temp-storage-for-perf-tests/loadtests',
         temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
         requirements_file     : 'apache_beam/ml/inference/torch_tests_requirements.txt',
-        experiments           : 'no_use_multiple_sdk_containers',
         publish_to_big_query  : true,
         metrics_dataset       : 'beam_run_inference',
         metrics_table         : 'torch_inference_imagenet_results_resnet101',
@@ -47,7 +52,8 @@ def loadTestConfigurations = {
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
         pretrained_model_name : 'resnet101',
-        input_file                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
+        device                : 'CPU',
+        input_file            : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet101.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_101' + now + '.txt'
       ]
@@ -60,10 +66,13 @@ def loadTestConfigurations = {
         job_name              : 'benchmark-tests-pytorch-imagenet-python' + now,
         project               : 'apache-beam-testing',
         region                : 'us-central1',
+        machine_type          : 'n1-standard-2',
+        num_workers           : 75,
+        disk_size_gb          : 50,
+        autoscaling_algorithm : 'NONE',
         staging_location      : 'gs://temp-storage-for-perf-tests/loadtests',
         temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
         requirements_file     : 'apache_beam/ml/inference/torch_tests_requirements.txt',
-        experiments           : 'no_use_multiple_sdk_containers',
         publish_to_big_query  : true,
         metrics_dataset       : 'beam_run_inference',
         metrics_table         : 'torch_inference_imagenet_results_resnet152',
@@ -72,7 +81,8 @@ def loadTestConfigurations = {
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
         pretrained_model_name : 'resnet152',
-        input_file                 : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
+        device                : 'CPU',
+        input_file            : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
         model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet152.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_resnet152' + now + '.txt'
       ]
@@ -86,11 +96,13 @@ def loadTestConfigurations = {
         job_name              : 'benchmark-tests-pytorch-language-modeling-bert-base-uncased' + now,
         project               : 'apache-beam-testing',
         region                : 'us-central1',
+        machine_type          : 'n1-standard-2',
+        num_workers           : 250,
+        disk_size_gb          : 50,
+        autoscaling_algorithm : 'NONE',
         staging_location      : 'gs://temp-storage-for-perf-tests/loadtests',
         temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
         requirements_file     : 'apache_beam/ml/inference/torch_tests_requirements.txt',
-        pickle_library       : 'cloudpickle',
-        experiments           : 'no_use_multiple_sdk_containers',
         publish_to_big_query  : true,
         metrics_dataset       : 'beam_run_inference',
         metrics_table         : 'torch_language_modeling_bert_base_uncased',
@@ -98,7 +110,8 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_language_modeling_bert_base_uncased',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-        input_file                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
+        device                : 'CPU',
+        input_file            : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
         bert_tokenizer        : 'bert-base-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_bert_base_uncased' + now + '.txt',
@@ -112,11 +125,13 @@ def loadTestConfigurations = {
         job_name              : 'benchmark-tests-pytorch-language-modeling-bert-large-cased' + now,
         project               : 'apache-beam-testing',
         region                : 'us-central1',
+        machine_type          : 'n1-standard-2',
+        num_workers           : 250,
+        disk_size_gb          : 50,
+        autoscaling_algorithm : 'NONE',
         staging_location      : 'gs://temp-storage-for-perf-tests/loadtests',
         temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
         requirements_file     : 'apache_beam/ml/inference/torch_tests_requirements.txt',
-        pickle_library       : 'cloudpickle',
-        experiments           : 'no_use_multiple_sdk_containers',
         publish_to_big_query  : true,
         metrics_dataset       : 'beam_run_inference',
         metrics_table         : 'torch_language_modeling_bert_large_uncased',
@@ -124,10 +139,42 @@ def loadTestConfigurations = {
         influx_measurement    : 'torch_language_modeling_bert_large_uncased',
         influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-        input_file                 : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
+        device                : 'CPU',
+        input_file            : 'gs://apache-beam-ml/testing/inputs/sentences_50k.txt',
         bert_tokenizer        : 'bert-large-uncased',
         model_state_dict_path : 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-large-uncased.pth',
         output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_bert_large_uncased' + now + '.txt'
+      ]
+    ],
+    [
+      title             : 'Pytorch Imagenet Classification with Resnet 152 with Tesla T4 GPU',
+      test              : 'apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks',
+      runner            : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        job_name              : 'benchmark-tests-pytorch-imagenet-python-gpu' + now,
+        project               : 'apache-beam-testing',
+        region                : 'us-central1',
+        machine_type          : 'n1-standard-2',
+        num_workers           : 75, // this could be lower as the quota for the apache-beam-testing project is 32 T4 GPUs as of November 28th, 2022.
+        disk_size_gb          : 50,
+        autoscaling_algorithm : 'NONE',
+        staging_location      : 'gs://temp-storage-for-perf-tests/loadtests',
+        temp_location         : 'gs://temp-storage-for-perf-tests/loadtests',
+        requirements_file     : 'apache_beam/ml/inference/torch_tests_requirements.txt',
+        publish_to_big_query  : true,
+        metrics_dataset       : 'beam_run_inference',
+        metrics_table         : 'torch_inference_imagenet_results_resnet152_tesla_t4',
+        input_options         : '{}', // this option is not required for RunInference tests.
+        influx_measurement    : 'torch_inference_imagenet_resnet152_tesla_t4',
+        influx_db_name        : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influx_hostname       : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+        pretrained_model_name : 'resnet152',
+        device                : 'GPU',
+        experiments           : 'worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver',
+        sdk_container_image   : 'us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest',
+        input_file            : 'gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt',
+        model_state_dict_path : 'gs://apache-beam-ml/models/torchvision.models.resnet152.pth',
+        output                : 'gs://temp-storage-for-end-to-end-tests/torch/result_resnet152_gpu' + now + '.txt'
       ]
     ],
   ]
@@ -137,14 +184,15 @@ def loadTestJob = { scope ->
   List<Map> testScenarios = loadTestConfigurations()
   for (Map testConfig: testScenarios){
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 180)
-    loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, null, testConfig.pipelineOptions.requirements_file)
+    loadTestsBuilder.loadTest(scope, testConfig.title, testConfig.runner, CommonTestProperties.SDK.PYTHON, testConfig.pipelineOptions, testConfig.test, null,
+        testConfig.pipelineOptions.requirements_file, RUN_INFERENCE_TEST_PYTHON_VERSION)
   }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_Inference_Python_Benchmarks_Dataflow',
     'Run Inference Benchmarks',
-    'Inference benchmarks on Dataflow(\"Run Inference Benchmarks"\"")',
+    'RunInference benchmarks on Dataflow(\"Run Inference Benchmarks"\"")',
     this
     ) {
       loadTestJob(delegate)

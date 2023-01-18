@@ -49,7 +49,7 @@ type emit1[T any] struct {
 	n exec.ElementProcessor
 }
 
-func (e *emit1[T]) Value() interface{} {
+func (e *emit1[T]) Value() any {
 	return e.invoke
 }
 
@@ -68,7 +68,7 @@ type emit2[T1, T2 any] struct {
 	n exec.ElementProcessor
 }
 
-func (e *emit2[T1, T2]) Value() interface{} {
+func (e *emit2[T1, T2]) Value() any {
 	return e.invoke
 }
 
@@ -87,7 +87,7 @@ type emit1WithTimestamp[T any] struct {
 	n exec.ElementProcessor
 }
 
-func (e *emit1WithTimestamp[T]) Value() interface{} {
+func (e *emit1WithTimestamp[T]) Value() any {
 	return e.invoke
 }
 
@@ -106,7 +106,7 @@ type emit2WithTimestamp[T1, T2 any] struct {
 	n exec.ElementProcessor
 }
 
-func (e *emit2WithTimestamp[T1, T2]) Value() interface{} {
+func (e *emit2WithTimestamp[T1, T2]) Value() any {
 	return e.invoke
 }
 

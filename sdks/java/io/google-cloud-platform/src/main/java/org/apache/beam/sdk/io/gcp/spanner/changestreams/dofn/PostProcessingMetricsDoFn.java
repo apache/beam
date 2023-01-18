@@ -94,10 +94,9 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
 
     if (commitedToEmittedMillis > COMMITTED_TO_EMITTED_THRESHOLD_MS) {
       LOG.debug(
-          "Data record took "
-              + commitedToEmittedMillis
-              + "ms to be emitted: "
-              + dataChangeRecord.getMetadata());
+          "Data record took {}ms to be emitted: {}",
+          commitedToEmittedMillis,
+          dataChangeRecord.getMetadata());
     }
   }
 
@@ -111,7 +110,7 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
     final long streamMillis = streamDuration.getMillis();
 
     if (streamMillis > STREAM_THRESHOLD_MS) {
-      LOG.debug("Data record took " + streamMillis + "ms to be streamed: " + metadata);
+      LOG.debug("Data record took {}ms to be streamed: {}", streamMillis, metadata);
     }
   }
 }

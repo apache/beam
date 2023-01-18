@@ -195,13 +195,13 @@ class DataInputOperation(RunnerIOOperation):
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet.create(
-            self.counter_factory,
-            self.name_context.step_name,
-            0,
-            self.consumer,
-            self.windowed_coder,
-            self.get_output_batch_converter(),
-            self._get_runtime_performance_hints())
+            counter_factory=self.counter_factory,
+            step_name=self.name_context.step_name,
+            output_index=0,
+            consumers=self.consumer,
+            coder=self.windowed_coder,
+            producer_type_hints=self._get_runtime_performance_hints(),
+            producer_batch_converter=self.get_output_batch_converter())
     ]
 
   def start(self):
