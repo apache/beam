@@ -46,6 +46,10 @@ public class JsonWriteSchemaTransformFormatProvider
     return FileWriteSchemaTransformFormatProviders.JSON;
   }
 
+  /**
+   * Builds a {@link PTransform} that transforms a {@link Row} {@link PCollection} into result
+   * {@link PCollection} file names written using {@link TextIO.Write}.
+   */
   @Override
   public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {

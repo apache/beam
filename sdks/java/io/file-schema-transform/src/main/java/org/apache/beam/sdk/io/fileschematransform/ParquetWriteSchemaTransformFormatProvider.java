@@ -48,6 +48,10 @@ public class ParquetWriteSchemaTransformFormatProvider
     return FileWriteSchemaTransformFormatProviders.PARQUET;
   }
 
+  /**
+   * Builds a {@link PTransform} that transforms a {@link Row} {@link PCollection} into result
+   * {@link PCollection} file names written using {@link ParquetIO.Sink} and {@link FileIO.Write}.
+   */
   @Override
   public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {

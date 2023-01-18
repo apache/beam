@@ -77,12 +77,17 @@ public class FileWriteSchemaTransformProvider
     return Collections.singletonList(INPUT_TAG);
   }
 
-  /** */
+  /** The expected {@link PCollectionRowTuple} output tags. */
   @Override
   public List<String> outputCollectionNames() {
     return Collections.singletonList(OUTPUT_TAG);
   }
 
+  /**
+   * A {@link PTransform} that converts a {@link PCollectionRowTuple} of {@link
+   * #inputCollectionNames()} tagged {@link Row}s into a {@link PCollectionRowTuple} of {@link
+   * #outputCollectionNames()} tagged {@link Row}s.
+   */
   static class FileWriteSchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple>
       implements SchemaTransform {
 
@@ -126,6 +131,10 @@ public class FileWriteSchemaTransformProvider
       return this;
     }
 
+    /**
+     * A helper method to retrieve the mapped {@link FileWriteSchemaTransformFormatProvider} from a
+     * {@link FileWriteSchemaTransformConfiguration#getFormat()}.
+     */
     FileWriteSchemaTransformFormatProvider getProvider() {
       Map<String, FileWriteSchemaTransformFormatProvider> providers =
           FileWriteSchemaTransformFormatProviders.loadProviders();
@@ -143,6 +152,10 @@ public class FileWriteSchemaTransformProvider
       return provider.get();
     }
 
+    /**
+     * Validates a {@link FileWriteSchemaTransformConfiguration} for correctness depending on its
+     * {@link FileWriteSchemaTransformConfiguration#getFormat()}.
+     */
     static void validateConfiguration(FileWriteSchemaTransformConfiguration configuration) {
       String format = configuration.getFormat();
       if (configuration.getCsvConfiguration() != null && !format.equals(CSV)) {

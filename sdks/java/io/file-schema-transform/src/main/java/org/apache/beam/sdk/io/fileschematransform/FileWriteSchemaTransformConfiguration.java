@@ -136,24 +136,6 @@ public abstract class FileWriteSchemaTransformConfiguration {
   public abstract static class CsvConfiguration {
 
     /**
-     * Not to be confused with the CSV header, it is content written to the top of every sharded
-     * file prior to the header. In the example below, all the text proceeding the header
-     * 'column1,column2,column3' is the preamble.
-     *
-     * <pre>{@code
-     * Fake company, Inc.
-     * Lab experiment: abcdefg123456
-     * Experiment date: 2022-12-05
-     * Operator: John Doe
-     * column1,column2,colum3
-     * 1,2,3
-     * 4,5,6
-     * }</pre>
-     */
-    @Nullable
-    public abstract String getPreamble();
-
-    /**
      * The format of the written CSV file. See <a
      * href="https://commons.apache.org/proper/commons-csv/apidocs/org/apache/commons/csv/CSVFormat.html">org.apache.commons.csv.CSVFormat</a>
      * for allowed values. Defaults to <a
@@ -163,23 +145,6 @@ public abstract class FileWriteSchemaTransformConfiguration {
 
     @AutoValue.Builder
     public abstract static class Builder {
-
-      /**
-       * Not to be confused with the CSV header, it is content written to the top of every sharded
-       * file prior to the header. In the example below, all the text proceeding the header
-       * 'column1,column2,column3' is the preamble.
-       *
-       * <pre>{@code
-       * Fake company, Inc.
-       * Lab experiment: abcdefg123456
-       * Experiment date: 2022-12-05
-       * Operator: John Doe
-       * column1,column2,colum3
-       * 1,2,3
-       * 4,5,6
-       * }</pre>
-       */
-      public abstract Builder setPreamble(String value);
 
       /**
        * The format of the written CSV file. See <a

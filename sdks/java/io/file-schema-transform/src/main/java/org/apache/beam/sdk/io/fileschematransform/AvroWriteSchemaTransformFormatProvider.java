@@ -38,6 +38,10 @@ public class AvroWriteSchemaTransformFormatProvider
     return FileWriteSchemaTransformFormatProviders.AVRO;
   }
 
+  /**
+   * Builds a {@link PTransform} that transforms a {@link Row} {@link PCollection} into result
+   * {@link PCollection} file names written using {@link AvroIO.Write}.
+   */
   @Override
   public PTransform<PCollection<Row>, PCollection<String>> buildTransform(
       FileWriteSchemaTransformConfiguration configuration, Schema schema) {

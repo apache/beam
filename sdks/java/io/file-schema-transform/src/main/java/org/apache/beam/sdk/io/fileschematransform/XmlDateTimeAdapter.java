@@ -27,11 +27,13 @@ import org.joda.time.format.ISODateTimeFormat;
 class XmlDateTimeAdapter extends XmlAdapter<String, DateTime> implements Serializable {
   private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.dateTime();
 
+  /** Converts a String into {@link DateTime} based on {@link ISODateTimeFormat}. */
   @Override
   public DateTime unmarshal(String v) throws Exception {
     return DateTime.parse(v, FORMATTER);
   }
 
+  /** Converts a {@link DateTime} into String based on {@link ISODateTimeFormat}. */
   @Override
   public String marshal(DateTime v) throws Exception {
     return v.toString(FORMATTER);
