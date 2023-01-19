@@ -235,7 +235,7 @@ class _CoGBKImpl(PTransform):
       self._check_pcollection(pcoll)
       if self.pipeline:
         assert pcoll.pipeline == self.pipeline, (
-        'mismatched pipelines, input PCollections must all belong to the same pipeline')
+        'All input PCollections must belong to the same pipeline.')
 
     tags = list(pcolls.keys())
 
