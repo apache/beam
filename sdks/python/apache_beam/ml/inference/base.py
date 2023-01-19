@@ -30,6 +30,7 @@ collection, sharing model between threads, and batching elements.
 import logging
 import pickle
 import sys
+import threading
 import time
 from typing import Any
 from typing import Dict
@@ -62,11 +63,13 @@ _INPUT_TYPE = TypeVar('_INPUT_TYPE')
 _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
 
-PredictionResult = NamedTuple(
-    'PredictionResult', [
-        ('example', _INPUT_TYPE),
-        ('inference', _OUTPUT_TYPE),
-    ])
+
+class PredictionResult(NamedTuple):
+  example: _INPUT_TYPE
+  inference: _OUTPUT_TYPE
+  model_id: Optional[str] = None
+
+
 PredictionResult.__doc__ = """A NamedTuple containing both input and output
   from the inference."""
 PredictionResult.example.__doc__ = """The input example."""
@@ -145,6 +148,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
           'inference_args were provided, but should be None because this '
           'framework does not expect extra arguments on inferences.')
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    """Update the model paths produced by side inputs."""
+    raise NotImplementedError
+
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                         ModelHandler[Tuple[KeyT, ExampleT],
@@ -191,6 +198,9 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     return self._unkeyed.validate_inference_args(inference_args)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._unkeyed.update_model_path(model_path=model_path)
 
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
@@ -265,6 +275,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
     return self._unkeyed.validate_inference_args(inference_args)
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._unkeyed.update_model_path(model_path=model_path)
+
 
 class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                                    beam.PCollection[PredictionT]]):
@@ -273,7 +286,9 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock=time,
       inference_args: Optional[Dict[str, Any]] = None,
-      metrics_namespace: Optional[str] = None):
+      metrics_namespace: Optional[str] = None,
+      *,
+      update_model_pcoll: beam.PCollection[str] = None):
     """A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
     those examples in a PCollection of PredictionResults that contains the input
@@ -291,11 +306,14 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
+        update_model_pcoll: PCollection that emits model path
+          that is used as a side input to the _RunInferenceDoFn.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
     self._metrics_namespace = metrics_namespace
+    self._update_model_pcoll = update_model_pcoll
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -319,16 +337,20 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       self, pcoll: beam.PCollection[ExampleT]) -> beam.PCollection[PredictionT]:
     self._model_handler.validate_inference_args(self._inference_args)
     resource_hints = self._model_handler.get_resource_hints()
-    return (
+    batched_elements_pcoll = (
         pcoll
         # TODO(https://github.com/apache/beam/issues/21440): Hook into the
         # batching DoFn APIs.
-        | beam.BatchElements(**self._model_handler.batch_elements_kwargs())
+        | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
+    return (
+        batched_elements_pcoll
         | 'BeamML_RunInference' >> (
             beam.ParDo(
                 _RunInferenceDoFn(
                     self._model_handler, self._clock, self._metrics_namespace),
-                self._inference_args).with_resource_hints(**resource_hints)))
+                self._inference_args,
+                self._update_model_pcoll if self._update_model_pcoll else
+                None).with_resource_hints(**resource_hints)))
 
 
 class _MetricsCollector:
@@ -400,12 +422,16 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
+    self._update_model_sleep_time = None
+    self._lock = threading.Lock()
 
-  def _load_model(self):
+  def _load_model(self, model_path=None):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
+      # this will be a breaking change.
+      self._model_handler.update_model_path(model_path)
       model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
@@ -413,34 +439,66 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_byte_size = memory_after - memory_before
       self._metrics_collector.cache_load_model_metrics(
           load_model_latency_ms, model_byte_size)
-      return model
+
+      # A weakref to dict cannot be created. So subclass the Dict for
+      # shared cache.
+      class ModelContainer(Dict):
+        pass
+
+      model_container = ModelContainer()
+      model_container['model'] = model
+      model_container['model_id'] = model_path
+      return model_container
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
-    return self._shared_model_handle.acquire(load)
+    cached_model_container = self._shared_model_handle.acquire(load)
+    if cached_model_container['model_id'] != model_path:
+      # # TODO: Specify a unique tags for each model path.
+      # if self._update_model_sleep_time:
+      #   logging.info("Sleeping for %s seconds." %
+      #   self._update_model_sleep_time)
+      #   time.sleep(self._update_model_sleep_time)
+      logging.info(
+          "Updating the model path. Previous model path"
+          " is %s and "
+          "updated model path is %s" %
+          (cached_model_container['model_id'], model_path))
+      cached_model_container = self._shared_model_handle.acquire(
+          load, tag=model_path)
+    return cached_model_container['model']
 
   def setup(self):
     metrics_namespace = (
         self._metrics_namespace) if self._metrics_namespace else (
             self._model_handler.get_metrics_namespace())
     self._metrics_collector = _MetricsCollector(metrics_namespace)
+
     self._model = self._load_model()
 
-  def process(self, batch, inference_args):
-    start_time = _to_microseconds(self._clock.time_ns())
-    try:
-      result_generator = self._model_handler.run_inference(
-          batch, self._model, inference_args)
-    except BaseException as e:
-      self._metrics_collector.failed_batches_counter.inc()
-      raise e
-    predictions = list(result_generator)
+  def update_model(self, model_path):
+    self._model = self._load_model(model_path=model_path)
 
-    end_time = _to_microseconds(self._clock.time_ns())
-    inference_latency = end_time - start_time
-    num_bytes = self._model_handler.get_num_bytes(batch)
-    num_elements = len(batch)
-    self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+  def process(self, batch, inference_args, side_input_model_path=None):
+    with self._lock:
+      logging.info(side_input_model_path)
+      print(f'Side input model path {side_input_model_path}')
+      self.update_model(model_path=side_input_model_path)
+      start_time = _to_microseconds(self._clock.time_ns())
+      try:
+        result_generator = self._model_handler.run_inference(
+            batch, self._model, inference_args)
+      except BaseException as e:
+        self._metrics_collector.failed_batches_counter.inc()
+        raise e
+      predictions = list(result_generator)
+
+      end_time = _to_microseconds(self._clock.time_ns())
+      inference_latency = end_time - start_time
+      num_bytes = self._model_handler.get_num_bytes(batch)
+      num_elements = len(batch)
+      self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+      self._update_model_sleep_time = inference_latency * 1e-06
 
     return predictions
 

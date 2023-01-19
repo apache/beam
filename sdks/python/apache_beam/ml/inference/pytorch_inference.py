@@ -208,6 +208,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     self._device = device
     return model
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._state_dict_path = model_path if model_path else self._state_dict_path
+
   def run_inference(
       self,
       batch: Sequence[torch.Tensor],
@@ -379,6 +382,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         **self._model_params)
     self._device = device
     return model
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._state_dict_path = model_path if model_path else self._state_dict_path
 
   def run_inference(
       self,
