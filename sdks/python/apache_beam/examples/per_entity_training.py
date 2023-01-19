@@ -29,21 +29,21 @@ import argparse
 import logging
 import os
 
-import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from joblib import dump
 import pandas as pd
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
+
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 class CreateKey(beam.DoFn):
-
   def process(self, element, *args, **kwargs):
     # 3rd column of the dataset is Education
     idx = 3
@@ -62,7 +62,6 @@ def custom_filter(element):
 
 class PrepareDataforTraining(beam.DoFn):
   """Preprocess data in a format suitable for training."""
-
   def process(self, element, *args, **kwargs):
     key, values = element
     #Convert to dataframe
@@ -83,7 +82,6 @@ class TrainModel(beam.DoFn):
   normalizes numerical columns and then
   fits a decision tree classifier.
   """
-
   def process(self, element, *args, **kwargs):
     X, y, cat_ix, num_ix, key = element
     steps = [('c', OneHotEncoder(handle_unknown='ignore'), cat_ix),
@@ -98,7 +96,6 @@ class TrainModel(beam.DoFn):
 
 class SaveModel(beam.DoFn):
   """Saves the trained model to specified location."""
-
   def process(self, element, path, *args, **kwargs):
     key, trained_model = element
     dump(trained_model, os.path.join(path, f"{key}_model.joblib"))
