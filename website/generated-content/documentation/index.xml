@@ -5886,7 +5886,8 @@ from the input collection; the Beam SDKs handle that for you. Your &lt;code>proc
 should accept an argument &lt;code>element&lt;/code>, which is the input element, and return an
 iterable with its output values. You can accomplish this by emitting individual
 elements with &lt;code>yield&lt;/code> statements. You can also use a &lt;code>return&lt;/code> statement
-with an iterable, like a list or a generator.&lt;/p>
+with an iterable, like a list or a generator. Don&amp;rsquo;t mix &lt;code>yield&lt;/code> and
+&lt;code>return&lt;/code> statements in the same &lt;code>process&lt;/code> method - this leads to &lt;a href="https://github.com/apache/beam/issues/22969">undefined behavior&lt;/a>.&lt;/p>
 &lt;p class="language-go">For your &lt;code>DoFn&lt;/code> type, you&amp;rsquo;ll write a method &lt;code>ProcessElement&lt;/code> where you provide
 the actual processing logic. You don&amp;rsquo;t need to manually extract the elements
 from the input collection; the Beam SDKs handle that for you. Your &lt;code>ProcessElement&lt;/code> method
