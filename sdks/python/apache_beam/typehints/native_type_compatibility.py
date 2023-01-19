@@ -171,18 +171,19 @@ def is_forward_ref(typ):
 _type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
 
 
-def convert_builtins_to_typing(typ):
-  """Convert a given builtins to a type if it exists in _BUILTINS_TO_TYPING, otherwise it will return without changes.
+def convert_builtin_to_typing(typ):
+  """Convert recursively a given builtin to a typing object.
 
   Args:
-    typ (`builtins`): builtins object that exist in _BUILTINS_TO_TYPING.
+    typ (`builtins`): builtin object that exist in _BUILTINS_TO_TYPING.
 
   Returns:
     type: The given builtins converted to a type.
 
   """
   if getattr(typ, '__origin__', None) in _BUILTINS_TO_TYPING:
-    typ = _BUILTINS_TO_TYPING[typ.__origin__].copy_with(typ.__args__)
+    args = map(convert_builtin_to_typing, typ.__args__)
+    typ = _BUILTINS_TO_TYPING[typ.__origin__].copy_with(tuple(args))
   return typ
 
 
@@ -208,7 +209,8 @@ def convert_to_beam_type(typ):
       sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
     typ = typing.Union[typ]
 
-  typ = convert_builtins_to_typing(typ)
+  if isinstance(typ, types.GenericAlias):
+    typ = convert_builtin_to_typing(typ)
 
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
