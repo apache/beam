@@ -30,6 +30,7 @@ import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
@@ -490,7 +491,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               }
 
               LOG.warn(
-                  "Append to stream {} by client #{} failed with error, operations will be retried. Details: {}",
+                  "Append to stream {} by client #{} failed with error, operations will be retried.\n{}",
                   streamName,
                   clientNumber,
                   retrieveErrorDetails(contexts));
@@ -510,8 +511,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return StreamSupport.stream(failedContext.spliterator(), false)
             .<@Nullable Throwable>map(AppendRowsContext::getError)
             .filter(err -> err != null)
-            .flatMap(thrw -> Arrays.stream(Preconditions.checkStateNotNull(thrw).getStackTrace()))
-            .map(StackTraceElement::toString)
+            .map(
+                thrw -> {
+                  String errorDesc = "Description: ";
+                  if (thrw instanceof StatusRuntimeException) {
+                    errorDesc += ((StatusRuntimeException) thrw).getStatus().getDescription();
+                  }
+                  return errorDesc
+                      + "\n"
+                      + Arrays.stream(Preconditions.checkStateNotNull(thrw).getStackTrace())
+                          .map(StackTraceElement::toString)
+                          .collect(Collectors.joining("\n"));
+                })
             .collect(Collectors.joining("\n"));
       }
     }
