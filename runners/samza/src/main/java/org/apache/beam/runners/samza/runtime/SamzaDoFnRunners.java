@@ -17,14 +17,16 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import static org.apache.beam.runners.samza.util.RunWithTimeout.run;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -251,7 +253,7 @@ public class SamzaDoFnRunners {
         : underlyingRunner;
   }
 
-  private static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
+  static class SdkHarnessDoFnRunner<InT, FnOutT> implements DoFnRunner<InT, FnOutT> {
 
     private static final int DEFAULT_METRIC_SAMPLE_RATE = 100;
 
@@ -432,7 +434,7 @@ public class SamzaDoFnRunners {
     @Override
     public void finishBundle() {
       try {
-        run(
+        runWithTimeout(
             pipelineOptions.getBundleProcessingTimeout(),
             () -> {
               // RemoteBundle close blocks until all results are received
@@ -450,6 +452,22 @@ public class SamzaDoFnRunners {
       } finally {
         remoteBundle = null;
         inputReceiver = null;
+      }
+    }
+
+    /**
+     * Run a function and wait for at most the given time (in milliseconds).
+     *
+     * @param timeoutInMs the time to wait for completing the function call. If the value of timeout
+     *     is negative, wait forever until the function call is completed
+     * @param runnable the main function
+     */
+    static void runWithTimeout(long timeoutInMs, Runnable runnable)
+        throws ExecutionException, InterruptedException, TimeoutException {
+      if (timeoutInMs < 0) {
+        runnable.run();
+      } else {
+        CompletableFuture.runAsync(runnable).get(timeoutInMs, TimeUnit.MILLISECONDS);
       }
     }
 

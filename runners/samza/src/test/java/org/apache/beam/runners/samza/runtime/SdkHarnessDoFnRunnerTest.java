@@ -15,28 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.util;
+package org.apache.beam.runners.samza.runtime;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.junit.Test;
 
-public class RunWithTimeout {
+public class SdkHarnessDoFnRunnerTest {
 
-  /**
-   * Run a function and wait for at most the given time (in milliseconds).
-   *
-   * @param timeoutInMs the time to wait for completing the function call. If the value of timeout
-   *     is negative, wait forever until the function call is completed
-   * @param runnable the main function
-   */
-  public static void run(long timeoutInMs, Runnable runnable)
-      throws ExecutionException, InterruptedException, TimeoutException {
-    if (timeoutInMs < 0) {
-      runnable.run();
-    } else {
-      CompletableFuture.runAsync(runnable).get(timeoutInMs, TimeUnit.MILLISECONDS);
-    }
+  @Test(expected = TimeoutException.class)
+  public void testRunWithTimeoutOccurred() throws Exception {
+    SamzaDoFnRunners.SdkHarnessDoFnRunner.runWithTimeout(
+        100,
+        () -> {
+          try {
+            Thread.sleep(500);
+          } catch (InterruptedException ignored) {
+          }
+        });
+  }
+
+  @Test
+  public void testRunWithTimeoutDisabled() throws Exception {
+    SamzaDoFnRunners.SdkHarnessDoFnRunner.runWithTimeout(
+        -1,
+        () -> {
+          try {
+            Thread.sleep(500);
+          } catch (InterruptedException ignored) {
+          }
+        });
   }
 }
