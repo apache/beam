@@ -22,6 +22,7 @@ import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ComputeEngineCredentials;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.storage.Storage;
@@ -210,6 +211,11 @@ public abstract class TemplateTestBase {
     return null;
   }
 
+  /**
+   * Create the Maven command line used to stage the specific template using the Templates Plugin.
+   * It identifies whether the template is v1 (Classic) or v2 (Flex) to setup the Maven reactor
+   * accordingly.
+   */
   private String[] buildMavenStageCommand(String prefix, File pom, String bucketName) {
     String pomPath = pom.getAbsolutePath();
     String moduleBuild;
@@ -272,25 +278,56 @@ public abstract class TemplateTestBase {
     }
   }
 
+  /**
+   * Launch the template job with the given options. By default, it will setup the hooks to avoid
+   * jobs getting leaked.
+   */
   protected JobInfo launchTemplate(LaunchConfig.Builder options) throws IOException {
+    return this.launchTemplate(options, true);
+  }
+
+  /**
+   * Launch the template with the given options and configuration for hook.
+   *
+   * @param options Options to use for launch.
+   * @param setupShutdownHook Whether should setup a hook to cancel the job upon VM termination.
+   *     This is useful to teardown resources if the VM/test terminates unexpectedly.
+   * @return Job details.
+   * @throws IOException Thrown when {@link DataflowClient#launch(String, String, LaunchConfig)}
+   *     fails.
+   */
+  protected JobInfo launchTemplate(LaunchConfig.Builder options, boolean setupShutdownHook)
+      throws IOException {
 
     // Property allows testing with Runner v2 / Unified Worker
     if (System.getProperty("unifiedWorker") != null) {
       options.addEnvironment("experiments", "use_runner_v2");
     }
 
-    return getDataflowClient().launch(PROJECT, REGION, options.build());
+    DataflowClient dataflowClient = getDataflowClient();
+    JobInfo jobInfo = dataflowClient.launch(PROJECT, REGION, options.build());
+
+    // if the launch succeeded and setupShutdownHook is enabled, setup a thread to cancel job
+    if (setupShutdownHook && jobInfo.jobId() != null && !jobInfo.jobId().isEmpty()) {
+      Runtime.getRuntime()
+          .addShutdownHook(new Thread(new CancelJobShutdownHook(dataflowClient, jobInfo)));
+    }
+
+    return jobInfo;
   }
 
+  /** Get the Cloud Storage base path for this test suite. */
   protected String getGcsBasePath() {
     return getFullGcsPath(artifactBucketName, getClass().getSimpleName(), artifactClient.runId());
   }
 
+  /** Get the Cloud Storage base path for a specific testing method. */
   protected String getGcsPath(String testMethod) {
     return getFullGcsPath(
         artifactBucketName, getClass().getSimpleName(), artifactClient.runId(), testMethod);
   }
 
+  /** Create the default configuration {@link DataflowOperator.Config} for a specific job info. */
   protected DataflowOperator.Config createConfig(JobInfo info) {
     return DataflowOperator.Config.builder()
         .setJobId(info.jobId())
@@ -299,12 +336,30 @@ public abstract class TemplateTestBase {
         .build();
   }
 
-  public static Credentials buildCredentialsFromEnv() throws IOException {
+  /**
+   * Infers the {@link Credentials} to use with Google services from the current environment
+   * settings.
+   *
+   * <p>First, checks if {@link ServiceAccountCredentials#getApplicationDefault()} returns Compute
+   * Engine credentials, which means that it is running from a GCE instance and can use the Service
+   * Account configured for that VM. Will use that
+   *
+   * <p>Secondly, it will try to get the environment variable
+   * <strong>GOOGLE_APPLICATION_CREDENTIALS</strong>, and use that Service Account if configured to
+   * doing so. The method {@link #getCredentialsStream()} will make sure to search for the specific
+   * file using both the file system and classpath.
+   *
+   * <p>If <strong>GOOGLE_APPLICATION_CREDENTIALS</strong> is not configured, it will return the
+   * application default, which is often setup through <strong>gcloud auth application-default
+   * login</strong>.
+   */
+  protected static Credentials buildCredentialsFromEnv() throws IOException {
 
     // if on Compute Engine, return default credentials.
+    GoogleCredentials applicationDefault = ServiceAccountCredentials.getApplicationDefault();
     try {
-      if (ServiceAccountCredentials.getApplicationDefault() instanceof ComputeEngineCredentials) {
-        return ServiceAccountCredentials.getApplicationDefault();
+      if (applicationDefault instanceof ComputeEngineCredentials) {
+        return applicationDefault;
       }
     } catch (Exception e) {
       // no problem
@@ -312,12 +367,12 @@ public abstract class TemplateTestBase {
 
     InputStream credentialsStream = getCredentialsStream();
     if (credentialsStream == null) {
-      return ServiceAccountCredentials.getApplicationDefault();
+      return applicationDefault;
     }
     return ServiceAccountCredentials.fromStream(credentialsStream);
   }
 
-  public static InputStream getCredentialsStream() throws FileNotFoundException {
+  protected static InputStream getCredentialsStream() throws FileNotFoundException {
     String credentialFile = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
 
     if (credentialFile == null || credentialFile.isEmpty()) {
@@ -361,5 +416,33 @@ public abstract class TemplateTestBase {
         table.getProject() != null ? table.getProject() : PROJECT,
         table.getDataset(),
         table.getTable());
+  }
+
+  /**
+   * This {@link Runnable} class calls {@link DataflowClient#cancelJob(String, String, String)} for
+   * a specific instance of client and given job information, which is useful to enforcing resource
+   * termination using {@link Runtime#addShutdownHook(Thread)}.
+   */
+  static class CancelJobShutdownHook implements Runnable {
+
+    private final DataflowClient dataflowClient;
+    private final JobInfo jobInfo;
+
+    public CancelJobShutdownHook(DataflowClient dataflowClient, JobInfo jobInfo) {
+      this.dataflowClient = dataflowClient;
+      this.jobInfo = jobInfo;
+    }
+
+    @Override
+    public void run() {
+      try {
+        dataflowClient.cancelJob(jobInfo.projectId(), jobInfo.region(), jobInfo.jobId());
+      } catch (Exception e) {
+        LOG.info(
+            "[CancelJobShutdownHook] Error shutting down job {}: {}",
+            jobInfo.jobId(),
+            e.getMessage());
+      }
+    }
   }
 }

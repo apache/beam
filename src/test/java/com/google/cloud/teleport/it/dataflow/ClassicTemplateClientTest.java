@@ -88,6 +88,8 @@ public final class ClassicTemplateClientTest {
     Job getJob =
         new Job()
             .setId(JOB_ID)
+            .setProjectId(PROJECT)
+            .setLocation(REGION)
             .setCurrentState(JobState.RUNNING.toString())
             .setCreateTime("")
             .setJobMetadata(
@@ -95,7 +97,7 @@ public final class ClassicTemplateClientTest {
                     .setSdkVersion(
                         new SdkVersion()
                             .setVersionDisplayName("Apache Beam Java")
-                            .setVersion("2.42")))
+                            .setVersion("2.42.0")))
             .setType("JOB_TYPE_BATCH");
 
     LaunchConfig options =
@@ -133,10 +135,12 @@ public final class ClassicTemplateClientTest {
     JobInfo expected =
         JobInfo.builder()
             .setJobId(JOB_ID)
+            .setProjectId(PROJECT)
+            .setRegion(REGION)
             .setState(JobState.RUNNING)
             .setCreateTime("")
             .setSdk("Apache Beam Java")
-            .setVersion("2.42")
+            .setVersion("2.42.0")
             .setJobType("JOB_TYPE_BATCH")
             .setRunner("Dataflow")
             .setParameters(ImmutableMap.of(PARAM_KEY, PARAM_VALUE))

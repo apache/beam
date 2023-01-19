@@ -164,9 +164,9 @@ public interface DataflowClient {
     /** Builder for the {@link LaunchConfig}. */
     public static final class Builder {
       private final String jobName;
-      private Map<String, String> parameters;
+      private final String specPath;
       private final Map<String, String> environment;
-      private String specPath;
+      private Map<String, String> parameters;
       private Sdk sdk;
       private String executable;
       private String mainClassname;
@@ -253,6 +253,10 @@ public interface DataflowClient {
   abstract class JobInfo {
     public abstract String jobId();
 
+    public abstract String projectId();
+
+    public abstract String region();
+
     public abstract JobState state();
 
     public abstract String createTime();
@@ -283,7 +287,11 @@ public interface DataflowClient {
     /** Builder for {@link JobInfo}. */
     @AutoValue.Builder
     public abstract static class Builder {
+      public abstract Builder setProjectId(String value);
+
       public abstract Builder setJobId(String value);
+
+      public abstract Builder setRegion(String value);
 
       public abstract Builder setState(JobState value);
 

@@ -26,11 +26,11 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.teleport.it.logging.LogStrings;
 import com.google.common.base.Strings;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -193,7 +193,9 @@ abstract class AbstractDataflowClient implements DataflowClient {
     Map<String, String> labels = job.getLabels();
     JobInfo.Builder builder =
         JobInfo.builder()
+            .setProjectId(job.getProjectId())
             .setJobId(job.getId())
+            .setRegion(job.getLocation())
             .setCreateTime(job.getCreateTime())
             .setSdk(job.getJobMetadata().getSdkVersion().getVersionDisplayName())
             .setVersion(job.getJobMetadata().getSdkVersion().getVersion())
@@ -219,7 +221,7 @@ abstract class AbstractDataflowClient implements DataflowClient {
     while (PENDING_STATES.contains(state)) {
       LOG.info("Job still pending. Will check again in 15 seconds");
       try {
-        Thread.sleep(Duration.ofSeconds(15).toMillis());
+        TimeUnit.SECONDS.sleep(15);
       } catch (InterruptedException e) {
         LOG.warn("Wait interrupted. Checking now.");
       }
