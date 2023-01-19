@@ -75,8 +75,11 @@ public class SamzaMetricsBundleProgressHandlerTest {
             .build();
     BeamFnApi.ProcessBundleResponse response =
         BeamFnApi.ProcessBundleResponse.newBuilder().addMonitoringInfos(monitoringInfo).build();
+
+    // Execute
     samzaMetricsBundleProgressHandler.onCompleted(response);
 
+    // Verify
     MetricName metricName = MetricName.named(EXPECTED_NAMESPACE, EXPECTED_COUNTER_NAME);
     CounterCell counter =
         (CounterCell) samzaMetricsContainer.getContainer(stepName).getCounter(metricName);
@@ -86,7 +89,7 @@ public class SamzaMetricsBundleProgressHandlerTest {
 
   @Test
   public void testGauge() {
-    // TimeStamp, Value = 123
+    // TimeStamp = 0, Value = 123
     byte[] payload = "\000\173".getBytes(Charset.defaultCharset());
 
     MetricsApi.MonitoringInfo monitoringInfo =
@@ -98,13 +101,15 @@ public class SamzaMetricsBundleProgressHandlerTest {
             .build();
     BeamFnApi.ProcessBundleResponse response =
         BeamFnApi.ProcessBundleResponse.newBuilder().addMonitoringInfos(monitoringInfo).build();
+
+    // Execute
     samzaMetricsBundleProgressHandler.onCompleted(response);
 
+    // Verify
     MetricName metricName = MetricName.named(EXPECTED_NAMESPACE, EXPECTED_COUNTER_NAME);
     GaugeCell gauge = (GaugeCell) samzaMetricsContainer.getContainer(stepName).getGauge(metricName);
 
     assertEquals(123L, gauge.getCumulative().value());
-    // TODO:
     assertTrue(
         gauge.getCumulative().timestamp().isBefore(Instant.now().plus(Duration.millis(500))));
     assertTrue(
@@ -113,7 +118,7 @@ public class SamzaMetricsBundleProgressHandlerTest {
 
   @Test
   public void testDistribution() {
-    // Count, sum, min, max
+    // Count = 123, sum = 124, min = 125, max = 126
     byte[] payload = "\173\174\175\176".getBytes(Charset.defaultCharset());
 
     MetricsApi.MonitoringInfo monitoringInfo =
@@ -125,8 +130,11 @@ public class SamzaMetricsBundleProgressHandlerTest {
             .build();
     BeamFnApi.ProcessBundleResponse response =
         BeamFnApi.ProcessBundleResponse.newBuilder().addMonitoringInfos(monitoringInfo).build();
+
+    // Execute
     samzaMetricsBundleProgressHandler.onCompleted(response);
 
+    // Verify
     MetricName metricName = MetricName.named(EXPECTED_NAMESPACE, EXPECTED_COUNTER_NAME);
     DistributionCell gauge =
         (DistributionCell) samzaMetricsContainer.getContainer(stepName).getDistribution(metricName);
