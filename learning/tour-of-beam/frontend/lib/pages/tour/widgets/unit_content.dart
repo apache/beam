@@ -17,66 +17,214 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:markdown/markdown.dart' as md;
 import 'package:playground_components/playground_components.dart';
 
+import '../../../constants/sizes.dart';
 import '../../../models/unit_content.dart';
+import '../state.dart';
+import 'complete_unit_button.dart';
+import 'hints.dart';
+import 'markdown/tob_markdown.dart';
+import 'solution_button.dart';
 
 class UnitContentWidget extends StatelessWidget {
-  final UnitContentModel unitContent;
+  final TourNotifier tourNotifier;
 
-  const UnitContentWidget({
+  const UnitContentWidget(this.tourNotifier);
+
+  @override
+  Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+
+    return Container(
+      // TODO(nausharipov): look for a better way to constrain the height
+      height: MediaQuery.of(context).size.height -
+          BeamSizes.appBarHeight -
+          TobSizes.footerHeight,
+      decoration: BoxDecoration(
+        color: themeData.backgroundColor,
+        border: Border(
+          left: BorderSide(color: themeData.dividerColor),
+        ),
+      ),
+      child: AnimatedBuilder(
+        animation: tourNotifier,
+        builder: (context, child) {
+          final currentUnitContent = tourNotifier.currentUnitContent;
+
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: _Content(
+                  tourNotifier: tourNotifier,
+                  unitContent: currentUnitContent,
+                ),
+              ),
+              _ContentFooter(tourNotifier),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Content extends StatelessWidget {
+  final TourNotifier tourNotifier;
+  final UnitContentModel? unitContent;
+
+  const _Content({
+    required this.tourNotifier,
     required this.unitContent,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Markdown(
-      selectable: true,
-      data: unitContent.description,
-      builders: {
-        'code': CodeBuilder(),
-      },
-      styleSheet:
-          Theme.of(context).extension<BeamThemeExtension>()!.markdownStyle,
+    final content = unitContent;
+
+    if (content == null) {
+      return Container();
+    }
+    if (content.isChallenge) {
+      return _ChallengeContent(
+        tourNotifier: tourNotifier,
+        unitContent: content,
+      );
+    }
+    return ListView(
+      children: [
+        _Title(title: content.title),
+        TobMarkdown(
+          padding: const EdgeInsets.all(
+            BeamSizes.size12,
+          ),
+          data: content.description,
+        ),
+      ],
     );
   }
 }
 
-class CodeBuilder extends MarkdownElementBuilder {
-  @override
-  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
-    final String textContent = element.textContent;
-    final bool isCodeBlock = textContent.contains('\n');
-    if (isCodeBlock) {
-      /// codeblockDecoration is applied
-      return null;
-    }
-    return _InlineCode(text: textContent);
-  }
-}
+class _Title extends StatelessWidget {
+  final String title;
 
-class _InlineCode extends StatelessWidget {
-  final String text;
-  const _InlineCode({required this.text});
+  const _Title({
+    required this.title,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: BeamSizes.size3,
-        vertical: BeamSizes.size1,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context)
-            .extension<BeamThemeExtension>()!
-            .codeBackgroundColor,
-        borderRadius: BorderRadius.circular(BeamSizes.size3),
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: BeamSizes.size12,
+        left: BeamSizes.size12,
+        right: BeamSizes.size12,
       ),
       child: Text(
-        text,
-        style: TextStyle(color: Theme.of(context).primaryColor),
+        title,
+        style: Theme.of(context).textTheme.headlineLarge,
+        textAlign: TextAlign.start,
+      ),
+    );
+  }
+}
+
+class _ChallengeContent extends StatelessWidget {
+  final TourNotifier tourNotifier;
+  final UnitContentModel unitContent;
+
+  const _ChallengeContent({
+    required this.unitContent,
+    required this.tourNotifier,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Title(title: unitContent.title),
+            _ChallengeButtons(
+              unitContent: unitContent,
+              tourNotifier: tourNotifier,
+            ),
+          ],
+        ),
+        TobMarkdown(
+          padding: const EdgeInsets.all(BeamSizes.size12),
+          data: unitContent.description,
+        ),
+      ],
+    );
+  }
+}
+
+class _ChallengeButtons extends StatelessWidget {
+  final TourNotifier tourNotifier;
+  final UnitContentModel unitContent;
+
+  const _ChallengeButtons({
+    required this.tourNotifier,
+    required this.unitContent,
+  });
+
+  static const _buttonPadding = EdgeInsets.only(
+    top: BeamSizes.size10,
+    right: BeamSizes.size10,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final hints = unitContent.hints;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (unitContent.isChallenge)
+          Padding(
+            padding: _buttonPadding,
+            child: HintsWidget(
+              hints: hints,
+            ),
+          ),
+        if (tourNotifier.doesCurrentUnitHaveSolution)
+          Padding(
+            padding: _buttonPadding,
+            child: SolutionButton(tourNotifier: tourNotifier),
+          ),
+      ],
+    );
+  }
+}
+
+class _ContentFooter extends StatelessWidget {
+  final TourNotifier tourNotifier;
+  const _ContentFooter(this.tourNotifier);
+
+  @override
+  Widget build(BuildContext context) {
+    final themeData = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: themeData.dividerColor),
+        ),
+        color:
+            themeData.extension<BeamThemeExtension>()?.secondaryBackgroundColor,
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(BeamSizes.size20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          CompleteUnitButton(tourNotifier),
+        ],
       ),
     );
   }

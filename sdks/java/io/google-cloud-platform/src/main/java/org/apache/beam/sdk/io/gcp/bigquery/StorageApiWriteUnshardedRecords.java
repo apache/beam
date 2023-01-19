@@ -290,8 +290,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         closeWriterExecutor,
                         () -> {
                           // Remove the pin owned by the cache.
-                          client.unpin();
-                          client.close();
+                          synchronized (APPEND_CLIENTS) {
+                            client.unpin();
+                            client.close();
+                          }
                         }));
         appendClientInfo =
             appendClientInfo.createAppendClient(
@@ -315,12 +317,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 // override the clients in the cache.
                 APPEND_CLIENTS.put(getStreamAppendClientCacheEntryKey(), newAppendClientInfo);
               }
+              // This pin is "owned" by the current DoFn.
+              Preconditions.checkStateNotNull(newAppendClientInfo.streamAppendClient).pin();
             }
             this.currentOffset = 0;
             nextCacheTickle = Instant.now().plus(java.time.Duration.ofMinutes(1));
             this.appendClientInfo = newAppendClientInfo;
-            // This pin is "owned" by the current DoFn.
-            Preconditions.checkStateNotNull(this.appendClientInfo.streamAppendClient).pin();
           }
           return Preconditions.checkStateNotNull(this.appendClientInfo);
         } catch (Exception e) {
