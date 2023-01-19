@@ -175,6 +175,9 @@ func collectNode(rootpath string, ctx *sdkContext) (*tob.Node, error) {
 			node.Type = tob.NODE_GROUP
 			node.Group, err = collectGroup(filepath.Join(rootpath, groupInfoYaml), ctx)
 		}
+		if err != nil {
+			return nil, err
+		}
 	}
 	if node.Type == tob.NODE_UNDEFINED {
 		return node, fmt.Errorf("node undefined at %v", rootpath)
