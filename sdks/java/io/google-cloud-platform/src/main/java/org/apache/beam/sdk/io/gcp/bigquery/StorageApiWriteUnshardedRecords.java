@@ -490,7 +490,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               }
 
               LOG.warn(
-                  "Append to stream {} by client #{} failed with error, operations will be retried. Details: {}",
+                  "Append to stream {} by client #{} failed with error, operations will be retried.\n{}",
                   streamName,
                   clientNumber,
                   retrieveErrorDetails(contexts));
@@ -510,8 +510,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return StreamSupport.stream(failedContext.spliterator(), false)
             .<@Nullable Throwable>map(AppendRowsContext::getError)
             .filter(err -> err != null)
-            .flatMap(thrw -> Arrays.stream(Preconditions.checkStateNotNull(thrw).getStackTrace()))
-            .map(StackTraceElement::toString)
+            .map(
+                thrw ->
+                    Preconditions.checkStateNotNull(thrw).toString()
+                        + "\n"
+                        + Arrays.stream(Preconditions.checkStateNotNull(thrw).getStackTrace())
+                            .map(StackTraceElement::toString)
+                            .collect(Collectors.joining("\n")))
             .collect(Collectors.joining("\n"));
       }
     }
