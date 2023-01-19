@@ -41,7 +41,7 @@ __all__ = [
 TensorInferenceFn = Callable[[
     Sequence[torch.Tensor],
     torch.nn.Module,
-    str,
+    torch.device,
     Optional[Dict[str, Any]],
     Optional[str]
 ],
@@ -50,7 +50,7 @@ TensorInferenceFn = Callable[[
 KeyedTensorInferenceFn = Callable[[
     Sequence[Dict[str, torch.Tensor]],
     torch.nn.Module,
-    str,
+    torch.device,
     Optional[Dict[str, Any]],
     Optional[str]
 ],
@@ -229,7 +229,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     inference_args = {} if not inference_args else inference_args
 
-    return self._inference_fn(batch, model, self._device, inference_args)
+    return self._inference_fn(
+        batch, model, self._device, inference_args, self._state_dict_path)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -406,7 +407,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     """
     inference_args = {} if not inference_args else inference_args
 
-    return self._inference_fn(batch, model, self._device, inference_args)
+    return self._inference_fn(
+        batch, model, self._device, inference_args, self._state_dict_path)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
