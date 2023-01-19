@@ -427,14 +427,13 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
-    self._update_model_sleep_time = None
-    self._side_input_cache = set()
 
-  def _load_model(self):
+  def _load_model(self, side_input_model_path: Optional[str] = None):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
+      self._model_handler.update_model_path(side_input_model_path)
       model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
@@ -446,16 +445,39 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
-    return self._shared_model_handle.acquire(load)
+    model = self._shared_model_handle.acquire(load, tag=side_input_model_path)
+    # since shared_model_handle is shared across threads, the model path
+    # might not get updated in the model handler
+    # because we directly get cached weak ref model from shared cache, instead
+    # of calling load(). For sanity check, call update_model_path again.
+    self._model_handler.update_model_path(side_input_model_path)
+    return model
 
   def setup(self):
     metrics_namespace = (
         self._metrics_namespace) if self._metrics_namespace else (
             self._model_handler.get_metrics_namespace())
     self._metrics_collector = _MetricsCollector(metrics_namespace)
+
+    # seems like setup method is called when there is a change to the
+    # side input
+    logging.info(
+        "I am in the setup call. Let's check if I am getting called"
+        "when there is change to the side input.")
     self._model = self._load_model()
 
-  def process(self, batch, inference_args):
+  def update_model(self, side_input_model_path):
+    self._load_model(side_input_model_path=side_input_model_path)
+
+  def process(
+      self,
+      batch,
+      inference_args,
+      si_model_metadata: Optional[ModelMetdata] = None):
+
+    if not isinstance(si_model_metadata, beam.pvalue.EmptySideInput):
+      logging.info(f"Side Input model path: {si_model_metadata.model_id}")
+      self.update_model(si_model_metadata.model_id)
     start_time = _to_microseconds(self._clock.time_ns())
     try:
       result_generator = self._model_handler.run_inference(
@@ -470,7 +492,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     num_bytes = self._model_handler.get_num_bytes(batch)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
-    self._update_model_sleep_time = inference_latency * 1e-06
 
     return predictions
 
