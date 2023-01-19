@@ -209,7 +209,7 @@ def convert_to_beam_type(typ):
       sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
     typ = typing.Union[typ]
 
-  if sys.version_info >= (3, 9) and isinstance(type, types.GenericAlias):
+  if sys.version_info >= (3, 9) and isinstance(typ, types.GenericAlias):
     typ = convert_builtin_to_typing(typ)
 
   if isinstance(typ, typing.TypeVar):
