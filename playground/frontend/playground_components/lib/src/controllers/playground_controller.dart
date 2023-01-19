@@ -74,7 +74,7 @@ class PlaygroundController with ChangeNotifier {
 
     codeRunner = CodeRunner(
       codeRepository: codeRepository,
-      snippetEditingController: () => snippetEditingController!,
+      snippetEditingControllerGetter: requireSnippetEditingController,
     )..addListener(notifyListeners);
   }
 

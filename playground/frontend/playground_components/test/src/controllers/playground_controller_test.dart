@@ -58,7 +58,6 @@ Future<void> main() async {
     });
 
     test('Initial value of pipelineOptions should be empty string', () {
-      expect(controller.codeRunner.pipelineOptions, null);
       controller.setSdk(Sdk.go);
       expect(controller.codeRunner.pipelineOptions, '');
     });

@@ -31,17 +31,19 @@ class CodeRunner extends ChangeNotifier {
   SnippetEditingController? snippetEditingController;
 
   CodeRunner({
-    required ValueGetter<SnippetEditingController> snippetEditingController,
+    required ValueGetter<SnippetEditingController>
+        snippetEditingControllerGetter,
     CodeRepository? codeRepository,
   })  : _codeRepository = codeRepository,
-        _snippetEditingControllerGetter = snippetEditingController;
+        _snippetEditingControllerGetter = snippetEditingControllerGetter;
 
   RunCodeResult? _result;
   StreamSubscription<RunCodeResult>? _runSubscription;
   DateTime? _runStartDate;
   DateTime? _runStopDate;
 
-  String? get pipelineOptions => snippetEditingController?.pipelineOptions;
+  String? get pipelineOptions =>
+      _snippetEditingControllerGetter().pipelineOptions;
   RunCodeResult? get result => _result;
   DateTime? get runStartDate => _runStartDate;
   DateTime? get runStopDate => _runStopDate;
@@ -52,7 +54,7 @@ class CodeRunner extends ChangeNotifier {
   String get resultLogOutput => resultLog + resultOutput;
 
   bool get isExampleChanged {
-    return snippetEditingController?.isChanged ?? false;
+    return _snippetEditingControllerGetter().isChanged;
   }
 
   void clearResult() {
