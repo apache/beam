@@ -33,6 +33,9 @@ class EmptyExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   List<Object> get props => [sdk.id];
 
   @override
+  EmptyExampleLoadingDescriptor copyWithoutViewOptions() => this;
+
+  @override
   Map<String, dynamic> toJson() => {
         _key: true,
         'sdk': sdk.id,

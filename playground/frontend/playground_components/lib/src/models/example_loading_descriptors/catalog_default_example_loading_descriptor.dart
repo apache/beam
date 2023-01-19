@@ -38,6 +38,12 @@ class CatalogDefaultExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       ];
 
   @override
+  CatalogDefaultExampleLoadingDescriptor copyWithoutViewOptions() =>
+      CatalogDefaultExampleLoadingDescriptor(
+        sdk: sdk,
+      );
+
+  @override
   Map<String, dynamic> toJson() => {
         'sdk': sdk.id,
         _key: true,

@@ -35,5 +35,15 @@ void main() {
 
       expect(parsed, descriptor);
     });
+
+    test('copyWithoutViewOptions', () {
+      expect(
+        descriptor.copyWithoutViewOptions(),
+        UserSharedExampleLoadingDescriptor(
+          sdk: descriptor.sdk,
+          snippetId: descriptor.snippetId,
+        ),
+      );
+    });
   });
 }

@@ -39,6 +39,13 @@ class UserSharedExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       ];
 
   @override
+  UserSharedExampleLoadingDescriptor copyWithoutViewOptions() =>
+      UserSharedExampleLoadingDescriptor(
+        sdk: sdk,
+        snippetId: snippetId,
+      );
+
+  @override
   Map<String, dynamic> toJson() => {
         'sdk': sdk.id,
         'shared': snippetId,

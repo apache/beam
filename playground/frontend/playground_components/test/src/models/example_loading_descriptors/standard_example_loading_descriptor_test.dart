@@ -24,8 +24,8 @@ import 'common.dart';
 void main() {
   group('StandardExampleLoadingDescriptor', () {
     const descriptor = StandardExampleLoadingDescriptor(
-      sdk: Sdk.go,
       path: 'path',
+      sdk: Sdk.go,
       viewOptions: viewOptions,
     );
 
@@ -34,6 +34,16 @@ void main() {
       final parsed = StandardExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed, descriptor);
+    });
+
+    test('copyWithoutViewOptions', () {
+      expect(
+        descriptor.copyWithoutViewOptions(),
+        StandardExampleLoadingDescriptor(
+          path: descriptor.path,
+          sdk: descriptor.sdk,
+        ),
+      );
     });
   });
 }

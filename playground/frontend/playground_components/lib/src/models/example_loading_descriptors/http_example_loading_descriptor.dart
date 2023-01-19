@@ -39,6 +39,13 @@ class HttpExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       ];
 
   @override
+  HttpExampleLoadingDescriptor copyWithoutViewOptions() =>
+      HttpExampleLoadingDescriptor(
+        sdk: sdk,
+        uri: uri,
+      );
+
+  @override
   Map<String, dynamic> toJson() => {
         'sdk': sdk.id,
         'url': uri.toString(),

@@ -92,6 +92,15 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       ];
 
   @override
+  ContentExampleLoadingDescriptor copyWithoutViewOptions() =>
+      ContentExampleLoadingDescriptor(
+        complexity: complexity,
+        files: files,
+        name: name,
+        sdk: sdk,
+      );
+
+  @override
   Map<String, dynamic> toJson() => {
         'complexity': complexity?.name,
         'files': files.map((e) => e.toJson()).toList(growable: false),

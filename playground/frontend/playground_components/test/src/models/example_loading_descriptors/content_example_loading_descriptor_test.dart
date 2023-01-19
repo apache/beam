@@ -49,5 +49,17 @@ void main() {
 
       expect(parsed, descriptor);
     });
+
+    test('copyWithoutViewOptions', () {
+      expect(
+        descriptor.copyWithoutViewOptions(),
+        ContentExampleLoadingDescriptor(
+          complexity: descriptor.complexity,
+          files: descriptor.files,
+          name: descriptor.name,
+          sdk: descriptor.sdk,
+        ),
+      );
+    });
   });
 }

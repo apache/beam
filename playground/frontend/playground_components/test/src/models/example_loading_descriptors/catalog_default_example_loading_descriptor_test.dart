@@ -34,5 +34,14 @@ void main() {
 
       expect(parsed, descriptor);
     });
+
+    test('copyWithoutViewOptions', () {
+      expect(
+        descriptor.copyWithoutViewOptions(),
+        CatalogDefaultExampleLoadingDescriptor(
+          sdk: descriptor.sdk,
+        ),
+      );
+    });
   });
 }
