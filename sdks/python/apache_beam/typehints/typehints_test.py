@@ -104,6 +104,15 @@ class SubClass(SuperClass):
   pass
 
 
+T = typing.TypeVar('T')
+
+
+class NonBuiltInGeneric(typing.NamedTuple('Entry', [('Field1', T),
+                                                    ('Field2', T)]),
+                        typing.Generic[T]):
+  pass
+
+
 class TypeHintTestCase(unittest.TestCase):
   def assertCompatible(self, base, sub):  # pylint: disable=invalid-name
     base, sub = native_type_compatibility.convert_to_beam_types([base, sub])
@@ -1641,6 +1650,13 @@ class TestPTransformAnnotations(unittest.TestCase):
       self.assertEqual(
           native_type_compatibility.convert_to_beam_type(type_a),
           native_type_compatibility.convert_to_beam_type(type_b))
+
+
+class TestNonBuiltInGenerics(unittest.TestCase):
+  def test_no_error_thrown(self):
+    input = NonBuiltInGeneric[str]
+    output = typehints.normalize(input)
+    self.assertEqual(input, output)
 
 
 if __name__ == '__main__':
