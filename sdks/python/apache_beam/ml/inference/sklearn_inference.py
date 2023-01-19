@@ -155,7 +155,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
       The number of bytes of data for a batch.
     """
-    return sum(element.nbytes for element in batch)
+    return sum(sys.getsizeof(element) for element in batch)
 
   def get_metrics_namespace(self) -> str:
     """
