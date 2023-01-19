@@ -23,4 +23,5 @@ sdk:
   - Go
 id: setting-pipeline
 name: Configuring pipeline options
+complexity: BASIC
 taskName: setting-pipeline

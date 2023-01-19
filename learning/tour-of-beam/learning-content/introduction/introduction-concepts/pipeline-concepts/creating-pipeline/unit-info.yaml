@@ -23,4 +23,5 @@ sdk:
   - Go
 id: creating-pipeline
 name: Creating pipelines
+complexity: BASIC
 taskName: creating-pipeline

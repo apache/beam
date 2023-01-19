@@ -22,4 +22,5 @@ sdk:
   - Go
 id: from-text
 name: Creating PCollections from text files
+complexity: BASIC
 taskName: TextIO

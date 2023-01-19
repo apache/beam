@@ -26,9 +26,9 @@ The Direct Runner executes pipelines on your machine and is designed to validate
 Using the Direct Runner for testing and development helps ensure that pipelines are robust across different Beam runners. In addition, debugging failed runs can be a non-trivial task when a pipeline executes on a remote cluster. Instead, it is often faster and simpler to perform local unit testing on your pipeline code. Unit testing your pipeline locally also allows you to use your preferred local debugging tools.
 
 {{if (eq .Sdk "go")}}
-In the SDK Go, the default is runner **DirectRunner**.
+In the GO SDK, the default is runner **DirectRunner**.
 
-Additionally, you can read [here](https://beam.apache.org/documentation/runners/direct/)
+Additionally, you can read more about the Direct Runner [here](https://beam.apache.org/documentation/runners/direct/)
 
 #### Run example
 
@@ -61,9 +61,9 @@ In java, you need to set runner to `args` when you start the program.
 {{end}}
 
 {{if (eq .Sdk "python")}}
-In the SDK Python, the default is runner **DirectRunner**.
+In the Python SDK , the default is runner **DirectRunner**.
 
-Additionally, you can read [here](https://beam.apache.org/documentation/runners/direct/)
+Additionally, you can read more about the Direct Runner [here](https://beam.apache.org/documentation/runners/direct/)
 
 #### Run example
 
@@ -79,7 +79,7 @@ The Google Cloud Dataflow uses the Cloud Dataflow managed service. When you run 
 * autoscaling of the number of workers throughout the lifetime of the job
 * dynamic work rebalancing
 
-Additionally, you can read [here](https://beam.apache.org/documentation/runners/dataflow/)
+Additionally, you can read more about the Dataflow Runner [here](https://beam.apache.org/documentation/runners/dataflow/)
 
 #### Run example
 {{if (eq .Sdk "go")}}
@@ -161,7 +161,7 @@ The Apache Flink Runner can be used to execute Beam pipelines using Apache Flink
 * Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
 * Integration with YARN and other components of the Apache Hadoop ecosystem
 
-Additionally, you can read [here](https://beam.apache.org/documentation/runners/flink/)
+Additionally, you can read more about the Apache Flink Runner [here](https://beam.apache.org/documentation/runners/flink/)
 
 #### Run example
 {{end}}
@@ -242,7 +242,7 @@ The Spark Runner executes Beam pipelines on top of Apache Spark, providing:
 * Built-in metrics reporting using Spark’s metrics system, which reports Beam Aggregators as well.
 * Native support for Beam side-inputs via spark’s Broadcast variables.
 
-Additionally, you can read [here](https://beam.apache.org/documentation/runners/spark/)
+Additionally, you can read more about the Apache Spark Runner [here](https://beam.apache.org/documentation/runners/spark/)
 
 #### Run example
 
@@ -360,7 +360,7 @@ The Samza Runner and Samza are suitable for large scale, stateful streaming jobs
 * Flexible deployment model for running the applications in any hosting environment with Zookeeper.
 * Features like canaries, upgrades and rollbacks that support extremely large deployments with minimal downtime.
 
-Additionally, you can read [here](https://beam.apache.org/documentation/runners/samza/)
+Additionally, you can read more about the Samza Runner [here](https://beam.apache.org/documentation/runners/samza/)
 
 #### Run example
 
@@ -429,7 +429,7 @@ The Nemo Runner executes Beam pipelines on top of Apache Nemo, providing:
 * Integration with YARN and other components of the Apache Hadoop ecosystem
 * Support for the various optimizations provided by the Nemo optimizer
 
-Additionally, you can read [here](https://beam.apache.org/documentation/runners/nemo/)
+Additionally, you can read more about the Nemo Runner [here](https://beam.apache.org/documentation/runners/nemo/)
 
 #### Run example
 
@@ -518,7 +518,7 @@ It’s important to note that the Jet Runner is currently in an EXPERIMENTAL sta
 * Jet has full Fault Tolerance support, the Jet Runner does not; if a job fails it must be restarted
 * Internal performance of Jet is extremely high. The Runner can’t match it as of now because Beam pipeline optimization/surgery has not been fully implemented.
 
-Additionally, you can read [here](https://beam.apache.org/documentation/runners/jet/)
+Additionally, you can read more about the Hazelcast Jet Runner [here](https://beam.apache.org/documentation/runners/jet/)
 
 #### Run example
 

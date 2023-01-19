@@ -23,4 +23,5 @@ sdk:
   - Go
 id: from-csv
 name: Creating PCollections from csv files
+complexity: BASIC
 taskName: CSV

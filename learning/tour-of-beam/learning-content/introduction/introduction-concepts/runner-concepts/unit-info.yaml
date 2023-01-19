@@ -23,3 +23,4 @@ sdk:
   - Go
 id: runner-concepts
 name: Runners
+complexity: BASIC

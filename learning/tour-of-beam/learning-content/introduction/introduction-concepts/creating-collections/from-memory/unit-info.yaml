@@ -23,4 +23,5 @@ sdk:
   - Go
 id: from-memory
 name: Creating in-memory PCollections
+complexity: BASIC
 taskName: ParDo
