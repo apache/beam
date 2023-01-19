@@ -427,6 +427,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
+    self._tag = None
 
   def _load_model(self, side_input_model_path: Optional[str] = None):
     def load():
@@ -450,6 +451,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # might not get updated in the model handler
     # because we directly get cached weak ref model from shared cache, instead
     # of calling load(). For sanity check, call update_model_path again.
+    self._tag = side_input_model_path
     self._model_handler.update_model_path(side_input_model_path)
     return model
 
@@ -464,7 +466,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     logging.info(
         "I am in the setup call. Let's check if I am getting called"
         "when there is change to the side input.")
-    self._model = self._load_model()
+    self._model = self._load_model(side_input_model_path=self._tag)
 
   def update_model(self, side_input_model_path):
     self._load_model(side_input_model_path=side_input_model_path)
