@@ -1184,13 +1184,20 @@ WindowedValue = WindowedTypeConstraint
 _KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
 
 
+def _is_builtin_parameterized_generic(typ):
+  if sys.version_info >= (3, 9):
+    return isinstance(typ, types.GenericAlias) and (
+        getattr(typ, '__module__', None) == 'builtins')
+  return False
+
+
 def normalize(x, none_as_type=False):
   # None is inconsistantly used for Any, unknown, or NoneType.
   if none_as_type and x is None:
     return type(None)
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
-  elif sys.version_info >= (3, 9) and isinstance(x, types.GenericAlias):
+  elif _is_builtin_parameterized_generic(x):
     # TODO(https://github.com/apache/beam/issues/23366): handle PEP 585
     # generic type hints properly
     raise TypeError(
