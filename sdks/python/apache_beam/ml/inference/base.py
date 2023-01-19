@@ -28,6 +28,7 @@ collection, sharing model between threads, and batching elements.
 """
 # pylint: skip-file
 
+import threading
 import logging
 import pickle
 import sys
@@ -427,14 +428,12 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
-    self._update_model_sleep_time = None
 
-  def _load_model(self, side_input_model_path: str = None):
+  def _load_model(self, side_input_model_path: Optional[str] = None):
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
       start_time = _to_milliseconds(self._clock.time_ns())
-      # this will be a breaking change.
       self._model_handler.update_model_path(side_input_model_path)
       model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
@@ -447,7 +446,21 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
-    return self._shared_model_handle.acquire(load, tag=side_input_model_path)
+    # A weakref to dict cannot be created. So subclass the Dict for
+    # shared cache.
+    #   class ModelContainer(Dict):
+    #     pass
+    #   model_container = ModelContainer()
+    #   model_container['model'] = model
+    #   model_container['model_id'] = side_input_model_path
+    #   return model_container
+    #
+    # # check if the cached model is the model is right model we need.
+    # cached_model_container = self._shared_model_handle.acquire(load)
+    #
+    # if cached_model_container['model_id'] != side_input_model_path:
+    #   cached_model_container = self._shared_model_handle.acquire(load, tag=side_input_model_path)
+    # return cached_model_container['model']
 
   def setup(self):
     metrics_namespace = (
@@ -458,7 +471,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = self._load_model()
 
   def update_model(self, side_input_model_path):
-    self._model = self._load_model(side_input_model_path)
+    self._load_model(side_input_model_path=side_input_model_path)
 
   def process(
       self,
@@ -483,7 +496,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     num_bytes = self._model_handler.get_num_bytes(batch)
     num_elements = len(batch)
     self._metrics_collector.update(num_elements, num_bytes, inference_latency)
-    self._update_model_sleep_time = inference_latency * 1e-06
 
     return predictions
 
