@@ -692,6 +692,12 @@ public class BigQueryUtils {
       if (JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
         return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply(jsonBQString);
       } else if (fieldType.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
+        // Handle if datetime value is in micros
+        try {
+          Long value = Long.parseLong(jsonBQString);
+          return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(value);
+        } catch (NumberFormatException e) {
+        }
         return LocalDateTime.parse(jsonBQString, BIGQUERY_DATETIME_FORMATTER);
       } else if (fieldType.isLogicalType(SqlTypes.DATE.getIdentifier())) {
         return LocalDate.parse(jsonBQString);
