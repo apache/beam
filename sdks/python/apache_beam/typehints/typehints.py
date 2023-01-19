@@ -1190,7 +1190,7 @@ def normalize(x, none_as_type=False):
   # Avoid circular imports
   from apache_beam.typehints import native_type_compatibility
 
-  if isinstance(x, types.GenericAlias):
+  if sys.version_info >= (3, 9) and isinstance(type, types.GenericAlias):
     x = native_type_compatibility.convert_builtin_to_typing(x)
 
   if none_as_type and x is None:
