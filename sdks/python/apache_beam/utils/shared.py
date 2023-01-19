@@ -90,6 +90,8 @@ constructor::
                    RainbowTableLookupFn(), reverse_hash_table))
 
 """
+# pylint: skip-file
+import logging
 import threading
 import uuid
 import weakref
@@ -135,7 +137,9 @@ class _SharedControlBlock(object):
       # self._ref is None if this is a new control block.
       # self._ref() is None if the weak reference was GCed.
       # self._tag != tag if user specifies a new identifier
-      if self._ref is None or self._ref() is None or (tag and self._tag != tag):
+      logging.info(f"ref: {self._ref}, self.tag: {self._tag} ,tag: {tag}")
+      if self._ref is None or self._ref() is None or self._tag != tag:
+        logging.info("Calling the model loading method")
         result = constructor_fn()
         if result is None:
           return None
