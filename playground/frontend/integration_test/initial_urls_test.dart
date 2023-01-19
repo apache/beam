@@ -134,7 +134,7 @@ Future<void> _testContentExampleLoader(WidgetTester wt) async {
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
-      '$path?sdk=go&url=${goExample.url}&$_croppedViewOptions',
+      '$path?sdk=go&files=${Uri.encodeComponent(files)}&$_croppedViewOptions',
     );
     _expectSdk(wt, Sdk.go);
     _expectText(wt, goExample.croppedVisibleText);
