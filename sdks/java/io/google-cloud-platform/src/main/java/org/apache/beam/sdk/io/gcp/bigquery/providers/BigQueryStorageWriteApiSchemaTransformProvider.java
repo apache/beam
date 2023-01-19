@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -47,11 +48,8 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -74,7 +72,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
   private static final Duration DEFAULT_TRIGGERING_FREQUENCY = Duration.standardSeconds(5);
   private static final String INPUT_ROWS_TAG = "input";
-  private static final String OUTPUT_ERRORS_TAG = "errors";
+  private static final String FAILED_ROWS_TAG = "failed_rows";
+  private static final String FAILED_ROWS_WITH_ERRORS_TAG = "failed_rows_with_errors";
 
   @Override
   protected Class<BigQueryStorageWriteApiSchemaTransformConfiguration> configurationClass() {
@@ -99,7 +98,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.singletonList(OUTPUT_ERRORS_TAG);
+    return Arrays.asList(FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG);
   }
 
   /** Configuration for writing to BigQuery with Storage Write API. */
@@ -229,7 +228,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       PCollection<Row> inputRows = input.get(INPUT_ROWS_TAG);
 
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform();
-
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         write =
@@ -240,30 +238,45 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                         ? DEFAULT_TRIGGERING_FREQUENCY
                         : Duration.standardSeconds(triggeringFrequency));
       }
-
       WriteResult result = inputRows.apply(write);
 
+      Schema rowSchema = inputRows.getSchema();
       Schema errorSchema =
           Schema.of(
-              Field.of("failed_row", FieldType.STRING),
+              Field.of("failed_row", FieldType.row(rowSchema)),
               Field.of("error_message", FieldType.STRING));
 
-      // Errors consisting of failed rows along with their error message
-      PCollection<Row> errorRows =
+      // Failed rows
+      PCollection<Row> failedRows =
           result
               .getFailedStorageApiInserts()
               .apply(
-                  "Extract Errors",
-                  MapElements.into(TypeDescriptor.of(Row.class))
+                  "Construct Failed Rows",
+                  MapElements.into(TypeDescriptors.rows())
+                      .via(
+                          (storageError) ->
+                              BigQueryUtils.toBeamRow(rowSchema, storageError.getRow())))
+              .setRowSchema(rowSchema);
+
+      // Failed rows along with their corresponding error messages
+      PCollection<Row> failedRowsWithErrors =
+          result
+              .getFailedStorageApiInserts()
+              .apply(
+                  "Construct Failed Rows and Errors",
+                  MapElements.into(TypeDescriptors.rows())
                       .via(
                           (storageError) ->
                               Row.withSchema(errorSchema)
                                   .withFieldValue("error_message", storageError.getErrorMessage())
-                                  .withFieldValue("failed_row", storageError.getRow().toString())
+                                  .withFieldValue(
+                                      "failed_row",
+                                      BigQueryUtils.toBeamRow(rowSchema, storageError.getRow()))
                                   .build()))
               .setRowSchema(errorSchema);
 
-      return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorRows);
+      return PCollectionRowTuple.of(FAILED_ROWS_TAG, failedRows)
+          .and(FAILED_ROWS_WITH_ERRORS_TAG, failedRowsWithErrors);
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform() {

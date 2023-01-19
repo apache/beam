@@ -17,13 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 
+import com.google.api.services.bigquery.model.TableRow;
+import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiPCollectionRowTupleTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
@@ -70,12 +73,12 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
           Row.withSchema(SCHEMA)
               .withFieldValue("name", "b")
               .withFieldValue("number", 2L)
-              .withFieldValue("dt", LocalDateTime.parse("2000-01-02T00:00:00"))
+              .withFieldValue("dt", LocalDateTime.parse("2000-01-02T00:00:00.123"))
               .build(),
           Row.withSchema(SCHEMA)
               .withFieldValue("name", "c")
               .withFieldValue("number", 3L)
-              .withFieldValue("dt", LocalDateTime.parse("2000-01-03T00:00:00"))
+              .withFieldValue("dt", LocalDateTime.parse("2000-01-03T00:00:00.123456"))
               .build());
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
@@ -107,7 +110,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   }
 
   public PCollectionRowTuple runWithConfig(
-      BigQueryStorageWriteApiSchemaTransformConfiguration config) {
+      BigQueryStorageWriteApiSchemaTransformConfiguration config, List<Row> rows) {
     BigQueryStorageWriteApiSchemaTransformProvider provider =
         new BigQueryStorageWriteApiSchemaTransformProvider();
 
@@ -118,12 +121,30 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     writeRowTupleTransform.setBigQueryServices(fakeBigQueryServices);
     String tag = provider.inputCollectionNames().get(0);
 
-    PCollection<Row> rows = p.apply(Create.of(ROWS).withRowSchema(SCHEMA));
+    PCollection<Row> rowPc = p.apply(Create.of(rows).withRowSchema(SCHEMA));
 
-    PCollectionRowTuple input = PCollectionRowTuple.of(tag, rows);
+    PCollectionRowTuple input = PCollectionRowTuple.of(tag, rowPc);
     PCollectionRowTuple result = input.apply(writeRowTupleTransform);
 
     return result;
+  }
+
+  public Boolean rowsEquals(List<Row> expectedRows, List<TableRow> actualRows) {
+    if (expectedRows.size() != actualRows.size()) {
+      return false;
+    }
+    for (int i = 0; i < expectedRows.size(); i++) {
+      TableRow actualRow = actualRows.get(i);
+      Row expectedRow = expectedRows.get(Integer.parseInt(actualRow.get("number").toString()) - 1);
+
+      if (!expectedRow.getValue("name").equals(actualRow.get("name"))
+          || !expectedRow
+              .getValue("number")
+              .equals(Long.parseLong(actualRow.get("number").toString()))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Test
@@ -132,11 +153,50 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     BigQueryStorageWriteApiSchemaTransformConfiguration config =
         BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(tableSpec).build();
 
-    runWithConfig(config);
+    runWithConfig(config, ROWS);
     p.run().waitUntilFinish();
 
     assertNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(tableSpec)));
-    assertEquals(
-        ROWS.size(), fakeDatasetService.getAllRows("project", "dataset", "simple_write").size());
+    assertTrue(
+        rowsEquals(ROWS, fakeDatasetService.getAllRows("project", "dataset", "simple_write")));
+  }
+
+  @Test
+  public void testFailedRows() throws Exception {
+    String tableSpec = "project:dataset.write_with_fail";
+    BigQueryStorageWriteApiSchemaTransformConfiguration config =
+        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(tableSpec).build();
+
+    String failValue = "fail_me";
+
+    List<Row> expectedSuccessfulRows = new ArrayList<>(ROWS);
+    List<Row> expectedFailedRows = new ArrayList<>();
+    for (long l = 1L; l <= 3L; l++) {
+      expectedFailedRows.add(
+          Row.withSchema(SCHEMA)
+              .withFieldValue("name", failValue)
+              .withFieldValue("number", l)
+              .withFieldValue("dt", LocalDateTime.parse("2020-01-01T00:00:00.09"))
+              .build());
+    }
+
+    List<Row> totalRows = new ArrayList<>(expectedSuccessfulRows);
+    totalRows.addAll(expectedFailedRows);
+
+    Function<TableRow, Boolean> shouldFailRow =
+        (Function<TableRow, Boolean> & Serializable) tr -> tr.get("name").equals(failValue);
+    fakeDatasetService.setShouldFailRow(shouldFailRow);
+
+    PCollectionRowTuple result = runWithConfig(config, totalRows);
+    PCollection<Row> failedRows = result.get("failed_rows");
+
+    PAssert.that(failedRows).containsInAnyOrder(expectedFailedRows);
+    p.run().waitUntilFinish();
+
+    assertNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(tableSpec)));
+    assertTrue(
+        rowsEquals(
+            expectedSuccessfulRows,
+            fakeDatasetService.getAllRows("project", "dataset", "write_with_fail")));
   }
 }
