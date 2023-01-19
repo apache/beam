@@ -30,7 +30,6 @@ import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
@@ -512,17 +511,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             .<@Nullable Throwable>map(AppendRowsContext::getError)
             .filter(err -> err != null)
             .map(
-                thrw -> {
-                  String errorDesc = "Description: ";
-                  if (thrw instanceof StatusRuntimeException) {
-                    errorDesc += ((StatusRuntimeException) thrw).getStatus().getDescription();
-                  }
-                  return errorDesc
-                      + "\n"
-                      + Arrays.stream(Preconditions.checkStateNotNull(thrw).getStackTrace())
-                          .map(StackTraceElement::toString)
-                          .collect(Collectors.joining("\n"));
-                })
+                thrw ->
+                    Preconditions.checkStateNotNull(thrw).toString()
+                        + "\n"
+                        + Arrays.stream(Preconditions.checkStateNotNull(thrw).getStackTrace())
+                            .map(StackTraceElement::toString)
+                            .collect(Collectors.joining("\n")))
             .collect(Collectors.joining("\n"));
       }
     }
