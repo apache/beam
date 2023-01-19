@@ -150,12 +150,12 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
     return _convert_to_result(batch, predictions)
 
-  def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
+  def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
     """
     Returns:
       The number of bytes of data for a batch.
     """
-    return sum(sys.getsizeof(element) for element in batch)
+    return sum(element.nbytes for element in batch)
 
   def get_metrics_namespace(self) -> str:
     """
