@@ -75,7 +75,6 @@ func collectUnit(infopath string, ctx *sdkContext) (unit *tob.Unit, err error) {
 	}
 	if !supported {
 		log.Printf("Unit %v at %v not supported in %v\n", info.Id, infopath, ctx.sdk)
-		// TODO: consider going deeper and checking if there are dangling units for this sdk
 		return nil, nil
 	}
 
@@ -195,7 +194,6 @@ func collectModule(infopath string, ctx *sdkContext) (*tob.Module, error) {
 	}
 	if !supported {
 		log.Printf("Module %v at %v not supported in %v\n", info.Id, infopath, ctx.sdk)
-		// TODO: consider going deeper and checking if there are dangling units for this sdk
 		return nil, nil
 	}
 

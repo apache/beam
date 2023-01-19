@@ -46,7 +46,8 @@ func getExampleNode(id string, sdk tob.Sdk) tob.Node {
 }
 
 func TestSample(t *testing.T) {
-	trees, err := CollectLearningTree(filepath.Join("..", "..", "samples", "learning-content"))
+	//trees, err := CollectLearningTree(filepath.Join("..", "..", "samples", "learning-content"))
+	trees, err := CollectLearningTree(filepath.Join("..","..", "..","learning-content"))
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(trees))
 	assert.Equal(t, tob.ContentTree{
