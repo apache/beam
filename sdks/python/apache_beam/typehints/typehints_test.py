@@ -530,8 +530,9 @@ class TupleHintTestCase(TypeHintTestCase):
       self.assertEqual(converted_beam_type, expected_beam_type)
 
   def test_builtin_and_type_compatibility(self):
-    self.assertCompatible(tuple, typing.Tuple)
-    self.assertCompatible(tuple[int, int], typing.Tuple[int, int])
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(tuple, typing.Tuple)
+      self.assertCompatible(tuple[int, int], typing.Tuple[int, int])
 
 
 class ListHintTestCase(TypeHintTestCase):
@@ -599,8 +600,9 @@ class ListHintTestCase(TypeHintTestCase):
       self.assertEqual(converted_beam_type, expected_beam_type)
 
   def test_builtin_and_type_compatibility(self):
-    self.assertCompatible(list, typing.List)
-    self.assertCompatible(list[int], typing.List[int])
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(list, typing.List)
+      self.assertCompatible(list[int], typing.List[int])
 
 
 class KVHintTestCase(TypeHintTestCase):
@@ -744,10 +746,11 @@ class DictHintTestCase(TypeHintTestCase):
       self.assertEqual(converted_beam_type, expected_beam_type)
 
   def test_builtin_and_type_compatibility(self):
-    self.assertCompatible(dict, typing.Dict)
-    self.assertCompatible(dict[str, int], typing.Dict[str, int])
-    self.assertCompatible(
-        dict[str, list[int]], typing.Dict[str, typing.List[int]])
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(dict, typing.Dict)
+      self.assertCompatible(dict[str, int], typing.Dict[str, int])
+      self.assertCompatible(
+          dict[str, list[int]], typing.Dict[str, typing.List[int]])
 
 
 class BaseSetHintTest:
