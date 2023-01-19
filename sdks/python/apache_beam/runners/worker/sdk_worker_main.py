@@ -138,6 +138,7 @@ def create_harness(environment, dry_run=False):
 
   experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
   enable_heap_dump = 'enable_heap_dump' in experiments
+  enable_data_sampling = 'enable_data_sampling' in experiments
 
   beam_plugins = sdk_pipeline_options.view_as(SetupOptions).beam_plugins or []
   _import_beam_plugins(beam_plugins)
@@ -152,7 +153,9 @@ def create_harness(environment, dry_run=False):
       data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(experiments),
       profiler_factory=profiler.Profile.factory_from_options(
           sdk_pipeline_options.view_as(ProfilingOptions)),
-      enable_heap_dump=enable_heap_dump)
+      enable_heap_dump=enable_heap_dump,
+      enable_data_sampling=enable_data_sampling,
+  )
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 

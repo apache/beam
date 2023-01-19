@@ -74,6 +74,7 @@ from apache_beam.transforms import window
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
@@ -82,6 +83,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.sdf_utils import SplitResultPrimary
   from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker import data_plane
+  from apache_beam.runners.worker import data_sampler
   from apache_beam.runners.worker import sdk_worker
   from apache_beam.transforms.core import Windowing
   from apache_beam.transforms.window import BoundedWindow
@@ -105,6 +107,7 @@ FnApiUserRuntimeStateTypes = Union['ReadModifyWriteRuntimeState',
 
 DATA_INPUT_URN = 'beam:runner:source:v1'
 DATA_OUTPUT_URN = 'beam:runner:sink:v1'
+SYNTHETIC_DATA_SAMPLING_URN = 'synthetic:sampling:v1'
 IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
@@ -851,7 +854,8 @@ class BundleProcessor(object):
   def __init__(self,
                process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                state_handler,  # type: sdk_worker.CachingStateHandler
-               data_channel_factory  # type: data_plane.DataChannelFactory
+               data_channel_factory,  # type: data_plane.DataChannelFactory
+               data_sampler,  # type: data_sampler.DataSampler
               ):
     # type: (...) -> None
 
@@ -866,6 +870,7 @@ class BundleProcessor(object):
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
+    self.data_sampler = data_sampler
     self.current_instruction_id = None  # type: Optional[str]
 
     _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
@@ -891,6 +896,22 @@ class BundleProcessor(object):
     self.state_sampler = statesampler.StateSampler(
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
+
+    if self.data_sampler:
+      pbd: beam_fn_api_pb2.ProcessBundleDescriptor = process_bundle_descriptor
+      for pcoll_id in pbd.pcollections:
+        transform_id = 'synthetic-data-sampling-transform-{}'.format(pcoll_id)
+        transform_proto: beam_runner_api_pb2.PTransform = pbd.transforms[
+            transform_id
+        ]
+        transform_proto.unique_name = transform_id
+        transform_proto.spec.urn = SYNTHETIC_DATA_SAMPLING_URN
+
+        coder_id = pbd.pcollections[pcoll_id].coder_id
+        transform_proto.spec.payload = bytes(pcoll_id + ',' + coder_id, 'utf-8')
+
+        transform_proto.inputs['None'] = pcoll_id
+
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
     for op in reversed(self.ops.values()):
       op.setup()
@@ -906,7 +927,8 @@ class BundleProcessor(object):
         self.data_channel_factory,
         self.counter_factory,
         self.state_sampler,
-        self.state_handler)
+        self.state_handler,
+        self.data_sampler)
 
     self.timers_info = transform_factory.extract_timers_info()
 
@@ -1182,7 +1204,8 @@ class BeamTransformFactory(object):
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,  # type: counters.CounterFactory
                state_sampler,  # type: statesampler.StateSampler
-               state_handler  # type: sdk_worker.CachingStateHandler
+               state_handler,  # type: sdk_worker.CachingStateHandler
+               data_sampler,  # type: data_sampler.DataSampler
               ):
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
@@ -1197,6 +1220,7 @@ class BeamTransformFactory(object):
             beam_fn_api_pb2.StateKey(
                 runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
             element_coder_impl))
+    self.data_sampler = data_sampler
 
   _known_urns = {
   }  # type: Dict[str, Tuple[ConstructorFn, Union[Type[message.Message], Type[bytes], None]]]
@@ -1950,3 +1974,64 @@ def create_to_string_fn(
 
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers, ToString())
+
+
+class DataSamplingOperation(operations.Operation):
+
+  def __init__(
+      self,
+      transform_id,  # type: str
+      name_context,  # type: common.NameContext
+      counter_factory,  # type: counters.CounterFactory
+      state_sampler,  # type: statesampler.StateSampler
+      consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
+      pcoll_id,  # type: str
+      sample_coder,  # type: coders.Coder
+      data_sampler,  # type: data_sampler.DataSampler
+      descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
+  ):
+    # type: (...) -> None
+    super().__init__(name_context, None, counter_factory, state_sampler)
+    self._coder = sample_coder
+    self._descriptor = descriptor
+    self._pcoll_id = pcoll_id
+
+    self._sampler = data_sampler.sample_output(
+        descriptor.id, self._pcoll_id, sample_coder.get_impl()
+    )
+
+    # transform_id represents the consumer for the bytes in the data plane for a
+    # DataInputOperation or a producer of these bytes for a DataOutputOperation.
+    for _, consumer_ops in consumers.items():
+      for consumer in consumer_ops:
+        self.add_receiver(consumer, 0)
+
+  def process(self, windowed_value):
+    # type: (windowed_value.WindowedValue) -> None
+    self._sampler.sample(windowed_value)
+
+  def finish(self):
+    # type: () -> None
+    super().finish()
+
+
+@BeamTransformFactory.register_urn(SYNTHETIC_DATA_SAMPLING_URN, (bytes))
+def create_data_sampling_op(
+    factory,  # type: BeamTransformFactory
+    transform_id,  # type: str
+    transform_proto,  # type: beam_runner_api_pb2.PTransform
+    pcoll_and_coder_id,  # type: Tuple[str, str]
+    consumers,  # type: Dict[str, List[operations.Operation]]
+):
+  pcoll_id, coder_id = str(pcoll_and_coder_id, 'utf-8').split(',')
+  return DataSamplingOperation(
+      transform_id,
+      common.NameContext(transform_proto.unique_name, transform_id),
+      factory.counter_factory,
+      factory.state_sampler,
+      consumers,
+      pcoll_id,
+      factory.get_coder(coder_id),
+      factory.data_sampler,
+      factory.descriptor,
+  )
