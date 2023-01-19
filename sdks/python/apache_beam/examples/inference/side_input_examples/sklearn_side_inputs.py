@@ -73,7 +73,7 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
       pipeline
       | "ReadFromPubSub" >> beam.io.ReadFromPubSub(known_args.topic)
       | "ApplyMainInputWindow" >> beam.WindowInto(
-          beam.transforms.window.FixedWindows(1))
+          beam.transforms.window.FixedWindows(interval))
       | "Decode" >> beam.Map(lambda x: x.decode('utf-8'))
       | "PreProcessInputs" >> beam.Map(process_input))
 

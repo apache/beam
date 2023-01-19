@@ -26,9 +26,16 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import Optional
+from typing import Union
+
 import apache_beam as beam
 from apache_beam.io.fileio import MatchContinuously
 from apache_beam.ml.inference.base import ModelMetdata
+from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.transforms import window
 from apache_beam.transforms import trigger
 from apache_beam.transforms.userstate import CombiningValueStateSpec
@@ -77,6 +84,26 @@ class GetLatestFileByTimeStamp(beam.DoFn):
       return [ModelMetdata(file_metadata.path)]
 
 
+def _convert_to_result(
+    batch: Iterable,
+    predictions: Union[Iterable, Dict[Any, Iterable]],
+    model_id: Optional[str] = None,
+) -> Iterable[PredictionResult]:
+  if isinstance(predictions, dict):
+    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
+    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
+    # length batch_size, to a list of dictionaries:
+    # [{key_type1: value_type1, key_type2: value_type2}]
+    predictions_per_tensor = [
+        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
+    ]
+    return [
+        PredictionResult(x, y, model_id) for x,
+        y in zip(batch, predictions_per_tensor)
+    ]
+  return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
+
+
 class WatchFilePattern(beam.PTransform):
   def __init__(
       self,
@@ -116,11 +143,11 @@ class WatchFilePattern(beam.PTransform):
             interval=self.interval,
             stop_timestamp=self.stop_timestamp,
             match_updated_files=self.match_updated_files,
-            has_deduplication=self.has_deduplication,
-            apply_windowing=True)
+            has_deduplication=self.has_deduplication)
         | "AttachKey" >> beam.Map(lambda x: (self._key, x))
         | "GetLatestFileMetaData" >> beam.ParDo(GetLatestFileByTimeStamp())
         | 'ApplyGlobalWindow' >> beam.transforms.WindowInto(
             window.GlobalWindows(),
-            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+            trigger=trigger.Repeatedly(
+                trigger.AfterProcessingTime(self.interval)),
             accumulation_mode=trigger.AccumulationMode.DISCARDING))

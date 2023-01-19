@@ -25,10 +25,10 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import torch
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils.annotations import experimental
@@ -38,15 +38,21 @@ __all__ = [
     'PytorchModelHandlerKeyedTensor',
 ]
 
-TensorInferenceFn = Callable[
-    [Sequence[torch.Tensor], torch.nn.Module, str, Optional[Dict[str, Any]]],
-    Iterable[PredictionResult]]
+TensorInferenceFn = Callable[[
+    Sequence[torch.Tensor],
+    torch.nn.Module,
+    torch.device,
+    Optional[Dict[str, Any]],
+    Optional[str]
+],
+                             Iterable[PredictionResult]]
 
 KeyedTensorInferenceFn = Callable[[
     Sequence[Dict[str, torch.Tensor]],
     torch.nn.Module,
-    str,
-    Optional[Dict[str, Any]]
+    torch.device,
+    Optional[Dict[str, Any]],
+    Optional[str]
 ],
                                   Iterable[PredictionResult]]
 
@@ -80,7 +86,7 @@ def _load_model(
   model.to(device)
   model.eval()
   logging.info("Finished loading PyTorch model.")
-  return (model, device)
+  return model, device
 
 
 def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
@@ -95,23 +101,6 @@ def _convert_to_device(examples: torch.Tensor, device) -> torch.Tensor:
   return examples
 
 
-def _convert_to_result(
-    batch: Iterable, predictions: Union[Iterable, Dict[Any, Iterable]]
-) -> Iterable[PredictionResult]:
-  if isinstance(predictions, dict):
-    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
-    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
-    # length batch_size, to a list of dictionaries:
-    # [{key_type1: value_type1, key_type2: value_type2}]
-    predictions_per_tensor = [
-        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
-    ]
-    return [
-        PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)
-    ]
-  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
-
-
 def default_tensor_inference_fn(
     batch: Sequence[torch.Tensor],
     model: torch.nn.Module,
@@ -124,7 +113,7 @@ def default_tensor_inference_fn(
     batched_tensors = torch.stack(batch)
     batched_tensors = _convert_to_device(batched_tensors, device)
     predictions = model(batched_tensors, **inference_args)
-    return _convert_to_result(batch, predictions)
+    return utils._convert_to_result(batch, predictions)
 
 
 def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
@@ -140,14 +129,15 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
       device: str,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[Dict[str, Any]] = None,
+      model_id: Optional[str] = None,
   ) -> Iterable[PredictionResult]:
     with torch.no_grad():
       batched_tensors = torch.stack(batch)
       batched_tensors = _convert_to_device(batched_tensors, device)
       pred_fn = getattr(model, model_fn)
       predictions = pred_fn(batched_tensors, **inference_args)
-      return _convert_to_result(batch, predictions)
+      return utils._convert_to_result(batch, predictions, model_id)
 
   return attr_fn
 
@@ -239,7 +229,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     inference_args = {} if not inference_args else inference_args
 
-    return self._inference_fn(batch, model, self._device, inference_args)
+    return self._inference_fn(
+        batch, model, self._device, inference_args, self._state_dict_path)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
@@ -263,8 +254,9 @@ def default_keyed_tensor_inference_fn(
     batch: Sequence[Dict[str, torch.Tensor]],
     model: torch.nn.Module,
     device: str,
-    inference_args: Optional[Dict[str,
-                                  Any]] = None) -> Iterable[PredictionResult]:
+    inference_args: Optional[Dict[str, Any]] = None,
+    model_id: Optional[str] = None,
+) -> Iterable[PredictionResult]:
   # If elements in `batch` are provided as a dictionaries from key to Tensors,
   # then iterate through the batch list, and group Tensors to the same key
   key_to_tensor_list = defaultdict(list)
@@ -282,7 +274,7 @@ def default_keyed_tensor_inference_fn(
       key_to_batched_tensors[key] = batched_tensors
     predictions = model(**key_to_batched_tensors, **inference_args)
 
-    return _convert_to_result(batch, predictions)
+    return utils._convert_to_result(batch, predictions, model_id)
 
 
 def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
@@ -295,10 +287,11 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
       getattr(model, model_fn)
   """
   def attr_fn(
-      batch: Sequence[torch.Tensor],
+      batch: Sequence[Dict[str, torch.Tensor]],
       model: torch.nn.Module,
       device: str,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[Dict[str, Any]] = None,
+      model_id: Optional[str] = None,
   ) -> Iterable[PredictionResult]:
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
     # then iterate through the batch list, and group Tensors to the same key
@@ -317,7 +310,7 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
         key_to_batched_tensors[key] = batched_tensors
         pred_fn = getattr(model, model_fn)
       predictions = pred_fn(**key_to_batched_tensors, **inference_args)
-    return _convert_to_result(batch, predictions)
+    return utils._convert_to_result(batch, predictions, model_id)
 
   return attr_fn
 
@@ -414,7 +407,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     """
     inference_args = {} if not inference_args else inference_args
 
-    return self._inference_fn(batch, model, self._device, inference_args)
+    return self._inference_fn(
+        batch, model, self._device, inference_args, self._state_dict_path)
 
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
