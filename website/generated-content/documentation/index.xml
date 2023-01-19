@@ -14269,6 +14269,37 @@ batch typehint – but Beam supports typehints from other libraries as well.&lt;
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;h4 id="pyarrowhttpsgithubcomapachebeamblobmastersdkspythonapache_beamtypehintsarrow_type_compatibilitypy">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/arrow_type_compatibility.py">pyarrow&lt;/a>&lt;/h4>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Element Typehint&lt;/th>
+&lt;th>Batch Typehint&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Numeric types (&lt;code>int&lt;/code>, &lt;code>np.int32&lt;/code>, &lt;code>bool&lt;/code>, &amp;hellip;)&lt;/td>
+&lt;td>&lt;code>pd.Series&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>Any&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>List&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>Mapping&lt;/code>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="#schemas">Beam Schema Types&lt;/a>&lt;/td>
+&lt;td>&lt;code>pa.Table&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
 &lt;h4 id="other-types">Other types?&lt;/h4>
 &lt;p>If there are other batch types you would like to use with Batched DoFns, please
 &lt;a href="https://github.com/apache/beam/issues/new/choose">file an issue&lt;/a>.&lt;/p>

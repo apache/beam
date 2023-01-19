@@ -399,10 +399,7 @@ limitations under the License.
 &lt;h1 id="case-study">Case Study&lt;/h1>
 &lt;p>Your company uses Apache Beam? There are several options to highlight it and make your company stand out!&lt;/p>
 &lt;h2 id="share-your-story">Share your story&lt;/h2>
-&lt;p>Sharing your story and making a Case Study out of it might have a significant impact on helping users with adopting
-Apache Beam. And, of course, gaining interest for your company.
-&lt;a href="mailto:dev@beam.apache.org?subject=Beam Website Add New Case Stud">Contact the community&lt;/a> to get Case Study
-started!&lt;/p>
+&lt;p>Sharing your story and making a Case Study out of it might have a significant impact on helping users with adopting Apache Beam. And, of course, gaining interest for your company. Please see &lt;a href="https://github.com/apache/beam/blob/master/website/ADD_CASE_STUDY.md">how to add a new case study&lt;/a> for the next steps, templates and helpful tips. If you have any questions about adding a case study, please &lt;a href="mailto:dev@beam.apache.org?subject=Beam%20Website%20Add%20New%20Case%20Study">contact the community&lt;/a>.&lt;/p>
 &lt;h2 id="add-your-logo">Add your logo&lt;/h2>
 &lt;p>Want to tell the world you are using Apache Beam? Just walk
 through &lt;a href="https://github.com/apache/beam/tree/master/website/ADD_LOGO.md">this instruction&lt;/a> and make it happen!&lt;/p>
