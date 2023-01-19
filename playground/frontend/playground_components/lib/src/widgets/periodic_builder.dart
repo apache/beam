@@ -16,36 +16,46 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
-import 'dart:html' as html;
 
-import 'package:provider/provider.dart';
+class PeriodicBuilderWidget extends StatefulWidget {
+  final Duration interval;
+  final ValueGetter<Widget> builder;
 
-class CloseListener extends StatefulWidget {
-  final Widget child;
-
-  const CloseListener({Key? key, required this.child}) : super(key: key);
+  const PeriodicBuilderWidget({
+    super.key,
+    required this.interval,
+    required this.builder,
+  });
 
   @override
-  State<CloseListener> createState() => _CloseListenerState();
+  State<PeriodicBuilderWidget> createState() => _PeriodicBuilderWidgetState();
 }
 
-class _CloseListenerState extends State<CloseListener> {
+class _PeriodicBuilderWidgetState extends State<PeriodicBuilderWidget> {
+  late Timer _timer;
+
   @override
   void initState() {
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      html.window.onBeforeUnload.listen((event) async {
-        Provider.of<PlaygroundController>(context, listen: false)
-            .codeRunner
-            .cancelRun();
-      });
-    });
     super.initState();
+    _timer = Timer.periodic(
+      widget.interval,
+      (_) {
+        setState(() {});
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _timer.cancel();
   }
 
   @override
   Widget build(BuildContext context) {
-    return widget.child;
+    return widget.builder();
   }
 }

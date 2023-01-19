@@ -17,35 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground_components/playground_components.dart';
-import 'dart:html' as html;
 
-import 'package:provider/provider.dart';
+import '../../playground_components.dart';
 
-class CloseListener extends StatefulWidget {
-  final Widget child;
+class OutputFilterTypeController extends ChangeNotifier {
+  OutputType outputFilterType = OutputType.all;
 
-  const CloseListener({Key? key, required this.child}) : super(key: key);
-
-  @override
-  State<CloseListener> createState() => _CloseListenerState();
-}
-
-class _CloseListenerState extends State<CloseListener> {
-  @override
-  void initState() {
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      html.window.onBeforeUnload.listen((event) async {
-        Provider.of<PlaygroundController>(context, listen: false)
-            .codeRunner
-            .cancelRun();
-      });
-    });
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return widget.child;
+  void setOutputFilterType(OutputType type) {
+    outputFilterType = type;
+    notifyListeners();
   }
 }
