@@ -28,7 +28,6 @@ collection, sharing model between threads, and batching elements.
 """
 # pylint: skip-file
 
-import threading
 import logging
 import pickle
 import sys
@@ -446,21 +445,13 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
 
     # TODO(https://github.com/apache/beam/issues/21443): Investigate releasing
     # model.
-    # A weakref to dict cannot be created. So subclass the Dict for
-    # shared cache.
-    #   class ModelContainer(Dict):
-    #     pass
-    #   model_container = ModelContainer()
-    #   model_container['model'] = model
-    #   model_container['model_id'] = side_input_model_path
-    #   return model_container
-    #
-    # # check if the cached model is the model is right model we need.
-    # cached_model_container = self._shared_model_handle.acquire(load)
-    #
-    # if cached_model_container['model_id'] != side_input_model_path:
-    #   cached_model_container = self._shared_model_handle.acquire(load, tag=side_input_model_path)
-    # return cached_model_container['model']
+    model = self._shared_model_handle.acquire(load, tag=side_input_model_path)
+    # since shared_model_handle is shared across threads, the model path
+    # might not get updated in the model handler
+    # because we directly get cached weak ref model from shared cache, instead
+    # of calling load(). For sanity check, call update_model_path again.
+    self._model_handler.update_model_path(side_input_model_path)
+    return model
 
   def setup(self):
     metrics_namespace = (
@@ -468,6 +459,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
             self._model_handler.get_metrics_namespace())
     self._metrics_collector = _MetricsCollector(metrics_namespace)
 
+    # seems like setup method is called when there is a change to the
+    # side input
+    logging.info(
+        "I am in the setup call. Let's check if I am getting called"
+        "when there is change to the side input.")
     self._model = self._load_model()
 
   def update_model(self, side_input_model_path):
