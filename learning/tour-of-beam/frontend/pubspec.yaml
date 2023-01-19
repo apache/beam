@@ -27,7 +27,7 @@ environment:
   flutter: '>=3.3.2'
 
 dependencies:
-  app_state: ^0.8.4
+  app_state: ^0.9.0
   collection: ^1.16.0
   easy_localization: ^3.0.1
   easy_localization_ext: ^0.1.0
