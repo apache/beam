@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../../cache/units_progress.dart';
 import '../../../constants/sizes.dart';
 import '../../../models/unit_content.dart';
 import '../state.dart';
@@ -81,22 +84,25 @@ class _Content extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = unitContent;
-
     if (content == null) {
       return Container();
-    } else if (content.hints != null) {
-      return _ChallengeContent(
-        tourNotifier: tourNotifier,
-        unitContent: content,
-      );
     }
+
     return ListView(
       children: [
-        _Title(title: content.title),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Title(title: content.title),
+            _Buttons(
+              unitContent: content,
+              tourNotifier: tourNotifier,
+            ),
+          ],
+        ),
         TobMarkdown(
-          padding: const EdgeInsets.all(
-            BeamSizes.size12,
-          ),
+          padding: const EdgeInsets.all(BeamSizes.size12),
           data: content.description,
         ),
       ],
@@ -128,45 +134,11 @@ class _Title extends StatelessWidget {
   }
 }
 
-class _ChallengeContent extends StatelessWidget {
+class _Buttons extends StatelessWidget {
   final TourNotifier tourNotifier;
   final UnitContentModel unitContent;
 
-  const _ChallengeContent({
-    required this.unitContent,
-    required this.tourNotifier,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Title(title: unitContent.title),
-            _ChallengeButtons(
-              unitContent: unitContent,
-              tourNotifier: tourNotifier,
-            ),
-          ],
-        ),
-        TobMarkdown(
-          padding: const EdgeInsets.all(BeamSizes.size12),
-          data: unitContent.description,
-        ),
-      ],
-    );
-  }
-}
-
-class _ChallengeButtons extends StatelessWidget {
-  final TourNotifier tourNotifier;
-  final UnitContentModel unitContent;
-
-  const _ChallengeButtons({
+  const _Buttons({
     required this.unitContent,
     required this.tourNotifier,
   });
@@ -179,10 +151,20 @@ class _ChallengeButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hints = unitContent.hints;
+    final unitsProgressCache = GetIt.instance.get<UnitsProgressCache>();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
+        AnimatedBuilder(
+          animation: unitsProgressCache,
+          builder: (context, child) => tourNotifier.isCurrentUnitCodeSaved
+              ? Padding(
+                  padding: _buttonPadding,
+                  child: _ResetCodeButton(tourNotifier: tourNotifier),
+                )
+              : Container(),
+        ),
         if (hints != null)
           Padding(
             padding: _buttonPadding,
@@ -196,6 +178,23 @@ class _ChallengeButtons extends StatelessWidget {
             child: SolutionButton(tourNotifier: tourNotifier),
           ),
       ],
+    );
+  }
+}
+
+class _ResetCodeButton extends StatelessWidget {
+  final TourNotifier tourNotifier;
+  const _ResetCodeButton({required this.tourNotifier});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: tourNotifier.toggleReset,
+      child: Text(
+        tourNotifier.resetSnippet
+            ? 'pages.tour.myCode'
+            : 'pages.tour.resetCode',
+      ).tr(),
     );
   }
 }

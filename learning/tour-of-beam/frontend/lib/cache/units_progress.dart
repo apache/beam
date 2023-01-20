@@ -27,8 +27,8 @@ import '../repositories/models/get_user_progress_response.dart';
 import '../state.dart';
 import 'cache.dart';
 
-class UnitProgressCache extends Cache {
-  UnitProgressCache({required super.client});
+class UnitsProgressCache extends Cache {
+  UnitsProgressCache({required super.client});
 
   var _unitsProgress = <UnitProgressModel>[];
   Future<GetUserProgressResponse?>? _future;
