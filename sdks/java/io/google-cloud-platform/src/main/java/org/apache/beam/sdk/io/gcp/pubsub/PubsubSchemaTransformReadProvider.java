@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
 
-import com.google.auto.service.AutoService;
 import com.google.api.client.util.Clock;
+import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
