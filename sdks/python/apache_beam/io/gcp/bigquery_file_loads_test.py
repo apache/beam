@@ -738,8 +738,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Insert.return_value = result_job
     bq_client.tables.Delete.return_value = None
 
-    mock_call_process
-
     with TestPipeline('DirectRunner') as p:
       _ = (
           p
