@@ -17,13 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/font_weight.dart';
-import 'package:playground/constants/sizes.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../../../constants/font_weight.dart';
+import '../../../../constants/sizes.dart';
+import '../../../../src/assets/assets.gen.dart';
 
 const kDescriptionWidth = 300.0;
 
@@ -66,7 +67,7 @@ class DescriptionPopover extends StatelessWidget {
   Widget getViewOnGithub(BuildContext context) {
     AppLocalizations appLocale = AppLocalizations.of(context)!;
     return TextButton.icon(
-      icon: SvgPicture.asset(kGithubIconAsset),
+      icon: SvgPicture.asset(Assets.github),
       onPressed: () {
         launchUrl(Uri.parse(example.link ?? ''));
       },

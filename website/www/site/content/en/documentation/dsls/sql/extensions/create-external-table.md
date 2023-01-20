@@ -113,7 +113,7 @@ When reading using `EXPORT` method the following pipeline options should be set:
 When reading using `DIRECT_READ` method, an optimizer will attempt to perform
 project and predicate push-down, potentially reducing the time requited to read the data from BigQuery.
 
-More information about the BigQuery Storage API can be found [here](https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api).
+More information about the BigQuery Storage API can be found [here](/documentation/io/built-in/google-bigquery/#storage-api).
 
 ### Write Mode
 
@@ -606,6 +606,7 @@ TBLPROPERTIES '{"format: "Excel"}'
         the field delimeter, quote character, record separator, and other properties.
         See the following table:
 
+<div class="table-container-wrapper">
 {{< table class="table-bordered" >}}
 | Value for `format` | Field delimiter | Quote | Record separator | Ignore empty lines? | Allow missing column names? |
 |--------------------|-----------------|-------|------------------|---------------------|-----------------------------|
@@ -615,6 +616,7 @@ TBLPROPERTIES '{"format: "Excel"}'
 | `tdf`              | `\t`            | `"`   | `\r\n`           | Yes                 | No                          |
 | `mysql`            | `\t`            | none  | `\n`             | No                  | No                          |
 {{< /table >}}
+</div>
 
 ### Read Mode
 

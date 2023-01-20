@@ -29,7 +29,6 @@ from math import ceil
 from typing import Callable
 from typing import Generic
 from typing import Iterator
-from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Sequence

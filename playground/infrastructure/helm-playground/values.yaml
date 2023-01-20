@@ -25,8 +25,9 @@ service:
    type: NodePort
    targetPort: 8080
    port: 443
-autoscaling:
-   enabled: false
-   minReplicas: 1
-   maxReplicas: 4
-   targetCPUUtilizationPercentage: 80
+healthcheck:
+   port: 8080
+   livInitialDelaySeconds: 30
+   livPeriodSeconds: 30
+   readInitialDelaySeconds: 30
+   readPeriodSeconds: 30    

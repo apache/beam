@@ -14,12 +14,11 @@
 # limitations under the License.
 
 name: pr-bot-pr-updates
-
 on:
   pull_request_target:
     types: ["synchronize"] # Synchronize is the action that runs after pushes to the user branch
   issue_comment:
-
+permissions: read-all
 jobs:
   process-pr-update:
     # Give GITHUB_TOKEN permissions to write pull request comments and to the state branch, and read PR related info
@@ -32,16 +31,20 @@ jobs:
 
     # Don't run on forks
     if: github.repository == 'apache/beam'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
 
     steps:
       # Pin to master so users can't do anything malicious on their own branch and run it here.
       - uses: actions/checkout@v3
         with:
           ref: 'master'
-      - run: npm ci
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Install pr-bot npm dependencies
+        run: npm ci
         working-directory: 'scripts/ci/pr-bot'
-
       # Runs a set of commands using the runners shell
       - run: npm run processPrUpdate
         env:

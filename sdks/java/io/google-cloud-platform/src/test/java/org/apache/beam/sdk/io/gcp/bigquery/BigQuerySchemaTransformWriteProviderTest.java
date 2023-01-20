@@ -56,8 +56,11 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test for {@link BigQuerySchemaTransformWriteProvider}. */
+@RunWith(JUnit4.class)
 public class BigQuerySchemaTransformWriteProviderTest {
 
   private static final String PROJECT = "fakeproject";

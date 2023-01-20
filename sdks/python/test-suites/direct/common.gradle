@@ -188,6 +188,15 @@ tasks.register("hdfsIntegrationTest") {
   }
 }
 
+tasks.register("azureIntegrationTest") {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${rootDir}/sdks/python/apache_beam/io/azure/integration_test/azure_integration_test.sh python:${pythonContainerVersion}"
+    }
+  }
+}
+
 // Pytorch RunInference IT tests
 task torchInferenceTest {
   dependsOn 'installGcpTest'
@@ -220,6 +229,14 @@ task torchInferenceTest {
 task sklearnInferenceTest {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
+  // TODO(https://github.com/apache/beam/issues/24787)
+  // Scikit learn tests fails from version 1.2.0
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install 'scikit-learn<1.2.0'"
+      }
+    }
   doLast {
       def testOpts = basicTestOpts
       def argMap = [

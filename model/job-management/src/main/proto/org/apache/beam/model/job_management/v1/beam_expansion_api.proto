@@ -30,6 +30,7 @@ option java_package = "org.apache.beam.model.expansion.v1";
 option java_outer_classname = "ExpansionApi";
 
 import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/schema.proto";
 
 message ExpansionRequest {
   // Set of components needed to interpret the transform, or which
@@ -72,7 +73,34 @@ message ExpansionResponse {
   string error = 10;
 }
 
+message DiscoverSchemaTransformRequest  {
+}
+
+message SchemaTransformConfig {
+  // Config schema of the SchemaTransform
+  org.apache.beam.model.pipeline.v1.Schema config_schema = 1;
+
+  // Names of input PCollections
+  repeated string input_pcollection_names = 2;
+
+  // Names of output PCollections
+  repeated string output_pcollection_names = 3;
+}
+
+message DiscoverSchemaTransformResponse {
+  // A mapping from SchemaTransform ID to schema transform config of discovered
+  // SchemaTransforms
+  map <string, SchemaTransformConfig> schema_transform_configs = 1;
+
+  // If list of identifies are empty, this may contain an error.
+  string error = 2;
+}
+
 // Job Service for constructing pipelines
 service ExpansionService {
   rpc Expand (ExpansionRequest) returns (ExpansionResponse);
+
+  //A RPC to discover already registered SchemaTransformProviders.
+  // See https://s.apache.org/easy-multi-language for more details.
+  rpc DiscoverSchemaTransform (DiscoverSchemaTransformRequest) returns (DiscoverSchemaTransformResponse);
 }

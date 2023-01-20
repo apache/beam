@@ -16,10 +16,10 @@ Creates an embedded Playground with given examples.
 Embedding example:
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="java" example="SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationCount" >}}
-{{< playground_snippet language="py" example="SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_KATA/AggregationCount" >}}
-{{< playground_snippet language="go" example="SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" >}}
-{{< playground_snippet language="scio" example="SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" >}}
+{{< playground_snippet language="java" path="SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationCount" >}}
+{{< playground_snippet language="py" url="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
+{{< playground_snippet language="go" path="SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" >}}
+{{< playground_snippet language="scio" path="SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount" >}}
 {{< /playground >}}
 
 */}}
@@ -32,8 +32,25 @@ Embedding example:
 
     {{ range $divMatches }}
         {{ $sdk := replaceRE "(.|\\s)*data-sdk=\"(\\w+)\"(.|\\s)*" "$2" . }}
-        {{ $example := replaceRE "(.|\\s)*example=\"([^\"]+)\"(.|\\s)*" "$2" . }}
-        {{ $dict := dict "sdk" $sdk "example" $example }}
+        {{ $dict := dict "sdk" $sdk }}
+
+        {{ $pathRegex := "(.|\\s)*path=\"([^\"]+)\"(.|\\s)*" }}
+        {{ if findRE $pathRegex . }}
+            {{ $path := replaceRE $pathRegex "$2" . }}
+            {{ $dict = merge $dict (dict "path" $path) }}
+        {{ end }}
+
+        {{ $sharedRegex := "(.|\\s)*shared=\"([_a-zA-Z0-9]+)\"(.|\\s)*" }}
+        {{ if findRE $sharedRegex . }}
+            {{ $shared := replaceRE $sharedRegex "$2" . }}
+            {{ $dict = merge $dict (dict "shared" $shared) }}
+        {{ end }}
+
+        {{ $urlRegex := "(.|\\s)*url=\"([^\"]+)\"(.|\\s)*" }}
+        {{ if findRE $urlRegex . }}
+            {{ $url := replaceRE $urlRegex "$2" . }}
+            {{ $dict = merge $dict (dict "url" $url) }}
+        {{ end }}
 
         {{ $readonlyRegex := "(.|\\s)*readonly=\"([_,a-zA-Z0-9]+)\"(.|\\s)*" }}
         {{ if findRE $readonlyRegex . }}

@@ -291,14 +291,16 @@ func getCatalog() []*pb.Categories {
 
 func saveExample(name, sdk string) {
 	_, _ = datastoreDb.Client.Put(ctx, utils.GetExampleKey(ctx, sdk, name), &entity.ExampleEntity{
-		Name:   name,
-		Sdk:    utils.GetSdkKey(ctx, sdk),
-		Descr:  "MOCK_DESCR",
-		Cats:   []string{"MOCK_CATEGORY"},
-		Path:   "MOCK_PATH",
-		Type:   pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
-		Origin: constants.ExampleOrigin,
-		SchVer: utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
+		Name:        name,
+		Sdk:         utils.GetSdkKey(ctx, sdk),
+		Descr:       "MOCK_DESCR",
+		Cats:        []string{"MOCK_CATEGORY"},
+		Path:        "MOCK_PATH",
+		UrlVCS:      "MOCK_URL_VCS",
+		UrlNotebook: "MOCK_URL_NOTEBOOK",
+		Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE.String(),
+		Origin:      constants.ExampleOrigin,
+		SchVer:      utils.GetSchemaVerKey(ctx, "MOCK_VERSION"),
 	})
 }
 

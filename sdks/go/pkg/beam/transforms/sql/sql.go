@@ -59,9 +59,9 @@ func Input(name string, in beam.PCollection) Option {
 //
 // There is currently no default output type, so users must set this option.
 // In the future, Row, once implemented, may become the default output type.
-func OutputType(t reflect.Type) Option {
+func OutputType(t reflect.Type, components ...typex.FullType) Option {
 	return func(o sqlx.Options) {
-		o.(*options).outType = typex.New(t)
+		o.(*options).outType = typex.New(t, components...)
 	}
 }
 
@@ -89,11 +89,11 @@ func ExpansionAddr(addr string) Option {
 //
 // Example:
 //
-//  in := beam.Create(s, 1, 2, 3)
-//  out := sql.Transform(s, "SELECT COUNT(*) FROM t",
-//      sql.Input("t", in),
-//      sql.OutputType(reflect.TypeOf(int64(0))))
-//  // `out` is a PCollection<int64> with a single element 3.
+//	in := beam.Create(s, 1, 2, 3)
+//	out := sql.Transform(s, "SELECT COUNT(*) FROM t",
+//	    sql.Input("t", in),
+//	    sql.OutputType(reflect.TypeOf(int64(0))))
+//	// `out` is a PCollection<int64> with a single element 3.
 //
 // If an expansion service address is not provided as an option, one will be
 // automatically started for the transform.

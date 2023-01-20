@@ -17,22 +17,21 @@ name: Build And Deploy Playground Backend Application
 
 on:
   push:
-    tags: 'v*'
+    tags: ['v*']
     branches: ['master', 'release-*']
   pull_request:
     paths: ['playground/backend/**']
     branches: ['playground-staging']
   workflow_dispatch:
-
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
-
+  
 jobs:
   build_playground_backend_docker_image:
     name: Build Playground Backend App
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     env:
       GO_VERSION: 1.19.3
       BEAM_VERSION: 2.40.0
@@ -42,17 +41,25 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
-      - uses: actions/setup-java@v3.6.0
+      - name: Set up Java
+        uses: actions/setup-java@v3.8.0
         with:
-            distribution: 'zulu'
-            java-version: '8'
+          distribution: 'zulu'
+          java-version: '8'
       - uses: actions/setup-go@v3
         with:
-            go-version: '${{ env.GO_VERSION }}'
+          go-version: '${{ env.GO_VERSION }}'
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install libsnmp-dev -y
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
-
+      - name: Install sbt for running SCIO tests
+        run: |
+              echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list &&\
+              echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | sudo tee /etc/apt/sources.list.d/sbt_old.list &&\
+              curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add
+              sudo apt-get update && sudo apt-get install -y sbt
       - name: Set up Cloud SDK and its components
         uses: google-github-actions/setup-gcloud@v0
         with:

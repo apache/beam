@@ -136,6 +136,7 @@ class MergeContactsTest(unittest.TestCase):
     return '\n'.join(sorted(lines_out)) + '\n'
 
   @pytest.mark.examples_postcommit
+  @pytest.mark.sickbay_flink
   def test_mergecontacts(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 

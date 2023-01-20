@@ -16,14 +16,15 @@
 package executors
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/preparers"
-	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
 	"reflect"
 	"sync"
 	"testing"
+
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/preparers"
+	"beam.apache.org/playground/backend/internal/validators"
 )
 
 const pipelineOptions = "--output t.txt"
@@ -46,13 +47,13 @@ func TestExecutor_Compile(t *testing.T) {
 					fileName:        "filePath",
 					workingDir:      "./",
 					commandName:     "testCommand",
-					commandArgs:     []string{"-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
+					commandArgs:     []string{"-d", "bin", "-parameters", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
 					pipelineOptions: []string{""},
 				},
 			},
 			want: &exec.Cmd{
 				Path:         "testCommand",
-				Args:         []string{"javac", "-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar", "filePath"},
+				Args:         []string{"javac", "-d", "bin", "-parameters", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar", "filePath"},
 				Env:          nil,
 				Dir:          "",
 				Stdin:        nil,
@@ -225,9 +226,10 @@ func TestExecutor_RunTest(t *testing.T) {
 
 func TestExecutor_Prepare(t *testing.T) {
 	valResult := &sync.Map{}
+	prepareParams := make(map[string]string)
 	valResult.Store(validators.UnitTestValidatorName, false)
 	valResult.Store(validators.KatasValidatorName, false)
-	preparersArray, err := preparers.GetPreparers(pb.Sdk_SDK_JAVA, "./", valResult)
+	preparersArray, err := preparers.GetPreparers(pb.Sdk_SDK_JAVA, "./", valResult, prepareParams)
 	if err != nil {
 		panic(err)
 	}

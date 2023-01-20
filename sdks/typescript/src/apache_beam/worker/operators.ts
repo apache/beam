@@ -115,7 +115,7 @@ export class OperatorContext {
     public loggingStageInfo: LoggingStageInfo,
     public metricsContainer: MetricsContainer
   ) {
-    this.pipelineContext = new PipelineContext(descriptor);
+    this.pipelineContext = new PipelineContext(descriptor, "");
   }
 }
 
@@ -270,7 +270,6 @@ export class DataSourceOperator implements IOperator {
       this.lastToProcessElement < Infinity
         ? this.lastToProcessElement
         : Number(desiredSplit.estimatedInputElements) - 1;
-    console.log(this.lastToProcessElement, this.lastProcessedElement, end);
     if (this.lastProcessedElement >= end) {
       return undefined;
     }
