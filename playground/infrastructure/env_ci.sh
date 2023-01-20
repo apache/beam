@@ -26,7 +26,7 @@ apt-get update > /dev/null
 apt update > /dev/null
 export DEBIAN_FRONTEND=noninteractive
 
-# To add some comments
+# Env configuration
 apt-get install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null && apt update > /dev/null
 apt install -y python3.8 python3.8-distutils python3-pip > /dev/null
