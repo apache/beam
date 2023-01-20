@@ -158,7 +158,7 @@ This section lays out the superset of all documentation that is expected to be m
    </tr>
 </table>
 </div>
-{{< /highlight >}} 
+{{< /highlight >}}
          </p>
          <p>Example implementations:
          <p>BigQueryIO <a href="https://github.com/apache/beam/blob/5bb13fa35b9bc36764895c57f23d3890f0f1b567/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.java#L1813">Column Pruning</a> via ProjectionPushdown to return only necessary columns indicated by an end user's query. This is achieved using BigQuery DirectRead API.
@@ -634,7 +634,7 @@ The I/O Connector development guidelines are written with the following principl
          </ul>
          <p>Example:
          <p><a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.DataSourceConfiguration.html">JdbcIO.DataSourceConfiguration</a>, <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerConfig.html">SpannerConfig</a>, <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.ReadSourceDescriptors.html#withConsumerConfigUpdates-java.util.Map-">KafkaIO.Read.withConsumerConfigUpdates</a>
-         <p> 
+         <p>
 {{< highlight >}}
 BigQueryIO.write()
   .withWriteConfig(FileLoadsConfig.withAvro()
@@ -643,7 +643,7 @@ BigQueryIO.write()
 BigQueryIO.write()
   .withWriteConfig(StreamingInsertsConfig.withDetailedError()
                                   .withExactlyOnce().etc..)
-{{< /highlight >}} 
+{{< /highlight >}}
          </p>
       </td>
    </tr>
