@@ -110,7 +110,7 @@ class DataflowRunner(PipelineRunner):
 
   # These overrides should be applied before the proto representation of the
   # graph is created.
-    _PTRANSFORM_OVERRIDES = [
+  _PTRANSFORM_OVERRIDES = [
       NativeReadPTransformOverride(),
   ]  # type: List[PTransformOverride]
 
