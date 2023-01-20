@@ -86,6 +86,8 @@ $defs:
       - $ref: '#/$defs/compositeTransform'
 
   provider:
+    # TODO(robertwb): Consider enumerating the provider types along with
+    # the arguments they accept/expect (possibly in a separate schema file).
     type: object
     properties:
       type: { type: string }
