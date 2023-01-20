@@ -1186,20 +1186,18 @@ _KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
 
 def normalize(x, none_as_type=False):
   # None is inconsistantly used for Any, unknown, or NoneType.
+
+  # Avoid circular imports
+  from apache_beam.typehints import native_type_compatibility
+
+  if sys.version_info >= (3, 9) and isinstance(x, types.GenericAlias):
+    x = native_type_compatibility.convert_builtin_to_typing(x)
+
   if none_as_type and x is None:
     return type(None)
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
-  elif sys.version_info >= (3, 9) and isinstance(x, types.GenericAlias):
-    # TODO(https://github.com/apache/beam/issues/23366): handle PEP 585
-    # generic type hints properly
-    raise TypeError(
-        'PEP 585 generic type hints like %s are not yet supported, '
-        'use typing module containers instead. See equivalents listed '
-        'at https://docs.python.org/3/library/typing.html' % x)
   elif getattr(x, '__module__', None) == 'typing':
-    # Avoid circular imports
-    from apache_beam.typehints import native_type_compatibility
     beam_type = native_type_compatibility.convert_to_beam_type(x)
     if beam_type != x:
       # We were able to do the conversion.

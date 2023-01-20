@@ -36,14 +36,14 @@ class ResultFilterBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSelected = type == playgroundController.selectedOutputFilterType;
+    final isSelected =
+        type == playgroundController.outputTypeController.outputFilterType;
 
     return BubbleWidget(
       isSelected: isSelected,
       onTap: () {
         if (!isSelected) {
-          playgroundController.setSelectedOutputFilterType(type);
-          playgroundController.filterOutput(type);
+          playgroundController.outputTypeController.setOutputFilterType(type);
         }
       },
       title: name,
