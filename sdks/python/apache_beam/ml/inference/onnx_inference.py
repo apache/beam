@@ -70,7 +70,7 @@ def default_numpy_inference_fn(
     batch: Sequence[numpy.ndarray],
     inference_args: Optional[Dict[str, Any]] = None) -> Any:
   ort_inputs = {inference_session.get_inputs()[0].name: numpy.stack(batch, axis=0)}
-  ort_outs = inference_session.run(None, ort_inputs, inference_args)
+  ort_outs = inference_session.run(None, {**ort_inputs, **inference_args})
   return ort_outs
 
 
