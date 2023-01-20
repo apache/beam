@@ -35,7 +35,7 @@ Usage of this code requires:
 
 # Usage
 
-Each folder self contains all the code to achieve a category of
+Each folder contains all the code to achieve a category of
 provisioning. For example, the [networking](networking) folder contains
 all the necessary code to provision Google Cloud related networking resources.
 
