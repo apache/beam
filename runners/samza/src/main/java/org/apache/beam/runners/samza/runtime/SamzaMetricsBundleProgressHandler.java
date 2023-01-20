@@ -86,6 +86,16 @@ class SamzaMetricsBundleProgressHandler implements BundleProgressHandler {
   /**
    * {@inheritDoc} Handles the bundle's completion report. Parses the monitoringInfos in the
    * response, then updates the MetricsRegistry.
+   */
+  public void onCompleted(BeamFnApi.ProcessBundleResponse response) {
+    response.getMonitoringInfosList().stream()
+        .filter(monitoringInfo -> !monitoringInfo.getPayload().isEmpty())
+        .forEach(this::parseAndUpdateMetric);
+  }
+
+  /**
+   * Parses the metric contained in monitoringInfo, then publishes the metric to the
+   * metricContainer.
    *
    * <p>We attempt to construct a classic mode metricName
    * ({transformUniqueName}:{className}:{metricName}). All the info should be in the labels, but we
@@ -104,47 +114,41 @@ class SamzaMetricsBundleProgressHandler implements BundleProgressHandler {
    * @see
    *     org.apache.beam.runners.core.metrics.MonitoringInfoMetricName#of(MetricsApi.MonitoringInfo)
    */
-  public void onCompleted(BeamFnApi.ProcessBundleResponse response) {
-    for (MetricsApi.MonitoringInfo monitoringInfo : response.getMonitoringInfosList()) {
-      if (monitoringInfo.getPayload().isEmpty()) {
-        return;
-      }
+  private void parseAndUpdateMetric(MetricsApi.MonitoringInfo monitoringInfo) {
+    String pTransformId =
+        monitoringInfo.getLabelsOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, stepName);
+    String transformUniqueName = transformIdToUniqueName.getOrDefault(pTransformId, pTransformId);
+    String className =
+        monitoringInfo.getLabelsOrDefault(
+            MonitoringInfoConstants.Labels.NAMESPACE, monitoringInfo.getUrn());
+    String userMetricName =
+        monitoringInfo.getLabelsOrDefault(
+            MonitoringInfoConstants.Labels.NAME, monitoringInfo.getLabelsMap().toString());
 
-      String pTransformId =
-          monitoringInfo.getLabelsOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, stepName);
-      String transformUniqueName = transformIdToUniqueName.getOrDefault(pTransformId, pTransformId);
-      String className =
-          monitoringInfo.getLabelsOrDefault(
-              MonitoringInfoConstants.Labels.NAMESPACE, monitoringInfo.getUrn());
-      String userMetricName =
-          monitoringInfo.getLabelsOrDefault(
-              MonitoringInfoConstants.Labels.NAME, monitoringInfo.getLabelsMap().toString());
+    MetricsContainer metricsContainer = samzaMetricsContainer.getContainer(transformUniqueName);
+    MetricName metricName = MetricName.named(className, userMetricName);
 
-      MetricsContainer metricsContainer = samzaMetricsContainer.getContainer(transformUniqueName);
-      MetricName metricName = MetricName.named(className, userMetricName);
+    switch (monitoringInfo.getType()) {
+      case SUM_INT64_TYPE:
+        Counter counter = metricsContainer.getCounter(metricName);
+        counter.inc(decodeInt64Counter(monitoringInfo.getPayload()));
+        break;
 
-      switch (monitoringInfo.getType()) {
-        case SUM_INT64_TYPE:
-          Counter counter = metricsContainer.getCounter(metricName);
-          counter.inc(decodeInt64Counter(monitoringInfo.getPayload()));
-          break;
+      case DISTRIBUTION_INT64_TYPE:
+        Distribution distribution = metricsContainer.getDistribution(metricName);
+        DistributionData data = decodeInt64Distribution(monitoringInfo.getPayload());
+        distribution.update(data.sum(), data.count(), data.min(), data.max());
+        break;
 
-        case DISTRIBUTION_INT64_TYPE:
-          Distribution distribution = metricsContainer.getDistribution(metricName);
-          DistributionData data = decodeInt64Distribution(monitoringInfo.getPayload());
-          distribution.update(data.sum(), data.count(), data.min(), data.max());
-          break;
+      case LATEST_INT64_TYPE:
+        Gauge gauge = metricsContainer.getGauge(metricName);
+        // Gauge doesn't expose update as public. This will reset the timestamp.
 
-        case LATEST_INT64_TYPE:
-          Gauge gauge = metricsContainer.getGauge(metricName);
-          // Gauge doesn't expose update as public. This will reset the timestamp.
+        gauge.set(decodeInt64Gauge(monitoringInfo.getPayload()).value());
+        break;
 
-          gauge.set(decodeInt64Gauge(monitoringInfo.getPayload()).value());
-          break;
-
-        default:
-          LOG.warn("Unsupported metric type {}", monitoringInfo.getType());
-      }
+      default:
+        LOG.warn("Unsupported metric type {}", monitoringInfo.getType());
     }
   }
 }
