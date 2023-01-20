@@ -1093,7 +1093,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 load_job_project_id=self.load_job_project_id),
             schema_mod_job_name_pcv))
 
-    if self.create_disposition == 'WRITE_TRUNCATE':
+    if self.write_disposition == 'WRITE_TRUNCATE':
       # All loads going to the same table must be processed together so that
       # the truncation happens only once. See BEAM-24535.
       finished_temp_tables_load_job_ids_list_pc = (
