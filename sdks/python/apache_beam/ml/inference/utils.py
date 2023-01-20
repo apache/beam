@@ -18,12 +18,14 @@
 """
 Util/helper functions used in apache_beam.ml.inference.
 """
+import os.path
 from functools import partial
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 from typing import Any
@@ -65,23 +67,61 @@ def _convert_to_result(
   return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
 
 
-class GetLatestFileByTimeStamp(beam.DoFn):
+class _CoverIterToSingleton(beam.DoFn):
+  """
+  Internal only; No backwards compatibility.
+
+  In the MatchContinuously transform, it returns all the files(files with old
+  timestamps relative to the pipeline startup time) present in the given
+  directory. This could create an Iterable instead of Singleton.
+
+  This class will only return the file path when it is first seen.
+  This path will be cached as part of side input caching mechanism.
+  If the path has been seen again, it won't return anything. In that way,
+  we make sure the output of this transform can be wrapped with
+  beam.pvalue.AsSingleton().
+  """
+  COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
+
+  def process(self, element, count_state=beam.DoFn.StateParam(COUNT_STATE)):
+    counter = count_state.read()
+    if counter == 0:
+      count_state.add(1)
+      yield element[1]
+
+
+class _GetLatestFileByTimeStamp(beam.DoFn):
   """
   Do we need state?
   """
   TIME_STATE = CombiningValueStateSpec(
       'count', combine_fn=partial(max, default=_START_TIME_STAMP))
 
+  def __init__(self, default_value):
+    self.default_value = default_value
+
   def process(
-      self, element,
-      time_state=beam.DoFn.StateParam(TIME_STATE)) -> List[ModelMetdata]:
+      self, element, time_state=beam.DoFn.StateParam(TIME_STATE)
+  ) -> List[Tuple[Any, ModelMetdata]]:
     _, file_metadata = element
     new_ts = file_metadata.last_updated_in_seconds
     old_ts = time_state.read()
     if new_ts > old_ts:
       time_state.clear()
       time_state.add(new_ts)
-      return [ModelMetdata(file_metadata.path)]
+      return [(
+          file_metadata.path,
+          ModelMetdata(
+              model_id=file_metadata.path,
+              model_name=os.path.splitext(os.path.basename(
+                  file_metadata.path))[0]))]
+    else:
+      return [(
+          self.default_value,
+          ModelMetdata(
+              model_id=self.default_value,
+              model_name=os.path.splitext(
+                  os.path.basename(self.default_value.path))[0]))]
 
 
 def _convert_to_result(
@@ -111,7 +151,9 @@ class WatchFilePattern(beam.PTransform):
       interval=360,
       stop_timestamp=MAX_TIMESTAMP,
       match_updated_files=False,
-      has_deduplication=True):
+      has_deduplication=True,
+      default_value='path',
+  ):
     """
     Watch for updates using the file pattern using MatchContinuously transform.
 
@@ -134,18 +176,23 @@ class WatchFilePattern(beam.PTransform):
     self.has_deduplication = has_deduplication
     self._latest_timestamp = None
     self._key = 'key'
+    self._default_value = default_value
 
   def expand(self, pcoll) -> beam.PCollection[ModelMetdata]:
+
+    match_con_pcoll = pcoll | 'MatchContinuously' >> MatchContinuously(
+        file_pattern=self.file_pattern,
+        interval=self.interval,
+        stop_timestamp=self.stop_timestamp,
+        match_updated_files=self.match_updated_files,
+        has_deduplication=self.has_deduplication)
+
     return (
-        pcoll
-        | 'MatchContinuously' >> MatchContinuously(
-            file_pattern=self.file_pattern,
-            interval=self.interval,
-            stop_timestamp=self.stop_timestamp,
-            match_updated_files=self.match_updated_files,
-            has_deduplication=self.has_deduplication)
+        match_con_pcoll
         | "AttachKey" >> beam.Map(lambda x: (self._key, x))
-        | "GetLatestFileMetaData" >> beam.ParDo(GetLatestFileByTimeStamp())
+        | "GetLatestFileMetaData" >> beam.ParDo(
+            _GetLatestFileByTimeStamp(default_value=self._default_value))
+        | "AcceptNewSideInputOnly" >> beam.ParDo(_CoverIterToSingleton())
         | 'ApplyGlobalWindow' >> beam.transforms.WindowInto(
             window.GlobalWindows(),
             trigger=trigger.Repeatedly(
