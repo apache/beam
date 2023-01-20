@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -22,10 +22,11 @@ def run(argv=None):
     pipeline_options.view_as(SetupOptions).save_main_session = True
 
     with beam.Pipeline(options=pipeline_options) as p:
-        lines = p | 'ReadFromBigQuery' >> beam.io.Read(beam.io.BigQuerySource(
-            query='SELECT * FROM dataset.table'))
-
-        lines | 'Log words' >> beam.Map(print)
+        max_temperatures = (
+            pipeline
+            | 'ReadTable' >> beam.io.ReadFromBigQuery(table=table_spec)
+            # Each row is a dictionary where the keys are the BigQuery columns
+            | beam.Map(lambda elem: elem['max_temperature']))
 
 if __name__ == '__main__':
     run()
