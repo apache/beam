@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.singlestore.schematransform;
 
+import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.singlestore.SingleStoreIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * An implementation of {@link TypedSchemaTransformProvider} for SingleStoreDB write jobs configured
  * using {@link SingleStoreSchemaTransformWriteConfiguration}.
  */
+@AutoService(SchemaTransformProvider.class)
 public class SingleStoreSchemaTransformWriteProvider
     extends TypedSchemaTransformProvider<SingleStoreSchemaTransformWriteConfiguration> {
 

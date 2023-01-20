@@ -31,6 +31,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
+import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -83,6 +84,7 @@ import org.joda.time.Instant;
 })
 @Internal
 @Experimental(Kind.SCHEMAS)
+@AutoService(SchemaTransformProvider.class)
 public class PubsubWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<PubsubWriteSchemaTransformConfiguration> {
   private static final String IDENTIFIER = "beam:schematransform:org.apache.beam:pubsub_write:v1";
