@@ -144,4 +144,44 @@ public class SamzaMetricsBundleProgressHandlerTest {
     assertEquals(125L, gauge.getCumulative().min());
     assertEquals(126L, gauge.getCumulative().max());
   }
+
+  @Test
+  public void testEmptyPayload() {
+
+    byte[] emptyPayload = "".getBytes(Charset.defaultCharset());
+
+    MetricsApi.MonitoringInfo emptyMonitoringInfo =
+        MetricsApi.MonitoringInfo.newBuilder()
+            .setType(SUM_INT64_TYPE)
+            .setPayload(ByteString.copyFrom(emptyPayload))
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, EXPECTED_NAMESPACE)
+            .putLabels(MonitoringInfoConstants.Labels.NAME, EXPECTED_COUNTER_NAME)
+            .build();
+    // Hex for 123
+    byte[] payload = "\173".getBytes(Charset.defaultCharset());
+
+    MetricsApi.MonitoringInfo monitoringInfo =
+        MetricsApi.MonitoringInfo.newBuilder()
+            .setType(SUM_INT64_TYPE)
+            .setPayload(ByteString.copyFrom(payload))
+            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, EXPECTED_NAMESPACE)
+            .putLabels(MonitoringInfoConstants.Labels.NAME, EXPECTED_COUNTER_NAME)
+            .build();
+    BeamFnApi.ProcessBundleResponse response =
+        BeamFnApi.ProcessBundleResponse.newBuilder()
+            .addMonitoringInfos(emptyMonitoringInfo)
+            .addMonitoringInfos(monitoringInfo)
+            .addMonitoringInfos(emptyMonitoringInfo)
+            .build();
+
+    // Execute
+    samzaMetricsBundleProgressHandler.onCompleted(response);
+
+    // Verify
+    MetricName metricName = MetricName.named(EXPECTED_NAMESPACE, EXPECTED_COUNTER_NAME);
+    CounterCell counter =
+        (CounterCell) samzaMetricsContainer.getContainer(stepName).getCounter(metricName);
+
+    assertEquals(counter.getCumulative(), (Long) 123L);
+  }
 }
