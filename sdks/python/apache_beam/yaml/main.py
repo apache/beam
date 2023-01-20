@@ -24,22 +24,30 @@ from apache_beam.yaml import yaml_transform
 
 
 def run(argv=None):
-  # Do imports here to avoid main session issues.
   parser = argparse.ArgumentParser()
-  parser.add_argument('--pipeline_spec')
-  parser.add_argument('--pipeline_spec_file')
+  parser.add_argument(
+      '--pipeline_spec',
+      description='A yaml description of the pipeline to run.')
+  parser.add_argument(
+      '--pipeline_spec_file',
+      description='A file containing a yaml description of the pipeline to run.'
+  )
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  if known_args.pipeline_spec_file:
+  if known_args.pipeline_spec_file and known_args.pipeline_spec:
+    raise ValueError(
+        "Exactly one of pipeline_spec or pipeline_spec_file must be set.")
+  elif known_args.pipeline_spec_file:
     with open(known_args.pipeline_spec_file) as fin:
-      known_args.pipeline_spec = fin.read()
-
-  if known_args.pipeline_spec:
-    pipeline_spec = yaml.load(
-        known_args.pipeline_spec, Loader=yaml_transform.SafeLineLoader)
+      pipeline_yaml = fin.read()
+  elif known_args.pipeline_spec:
+    pipeline_yaml = known_args.pipeline_spec
   else:
     raise ValueError(
         "Exactly one of pipeline_spec or pipeline_spec_file must be set.")
+
+  pipeline_spec = yaml.load(
+      known_args.pipeline_spec, Loader=yaml_transform.SafeLineLoader)
 
   yaml_transform._LOGGER.setLevel('INFO')
 

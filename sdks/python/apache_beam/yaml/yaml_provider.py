@@ -29,6 +29,10 @@ import uuid
 import yaml
 from yaml.loader import SafeLoader
 
+from typing import Any
+from typing import Mapping
+from typing import Iterable
+
 import apache_beam as beam
 import apache_beam.dataframe.io
 import apache_beam.io
@@ -44,14 +48,19 @@ from apache_beam.version import __version__ as beam_version
 
 
 class Provider:
-  """Maps transform types to concrete PTransform instances."""
-  def available(self):
+  """Maps transform types names and args to concrete PTransform instances."""
+  def available(self) -> bool:
+    """Returns whether this provider is available to use in this environment."""
     raise NotImplementedError(type(self))
 
-  def provided_transforms(self):
+  def provided_transforms(self) -> Iterable[str]:
+    """Returns a list of transform type names this provider can handle."""
     raise NotImplementedError(type(self))
 
-  def create_transform(self, typ, args):
+  def create_transform(
+      self, typ: str, args: Mapping[str, Any]) -> beam.PTransform:
+    """Creates a PTransform instance for the given transform type and arguments.
+    """
     raise NotImplementedError(type(self))
 
 
@@ -175,7 +184,7 @@ class ExternalPythonProvider(ExternalProvider):
 
 
 # This is needed because type inference can't handle *args, **kwargs fowarding.
-# TODO: Fix Beam itself.
+# TODO(BEAM-24755): Add support for type inference of through kwargs calls.
 def fix_pycallable():
   from apache_beam.transforms.ptransform import label_from_callable
 

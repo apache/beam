@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 import collections
 import logging
 import re
@@ -231,8 +233,7 @@ def expand_transform(spec, scope):
   if type == 'composite':
     return expand_composite_transform(spec, scope)
   elif type == 'chain':
-    # TODO: Consistency.
-    return expand_composite_transform(chain_as_composite(spec), scope)
+    return expand_chain_transform(spec, scope)
   else:
     return expand_leaf_transform(spec, scope)
 
@@ -311,6 +312,10 @@ def expand_composite_transform(spec, scope):
         for key,
         value in spec['input'].items()
     } or scope.root) | scope.unique_name(spec, None) >> CompositePTransform()
+
+
+def expand_chain_transform(spec, scope):
+  return expand_composite_transform(chain_as_composite(spec), scope)
 
 
 def chain_as_composite(spec):

@@ -29,6 +29,7 @@ class YamlTransformTest(unittest.TestCase):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       elements = p | beam.Create([1, 2, 3])
+      # TODO(robertwb): Consider making the input implicit (and below).
       result = elements | YamlTransform(
           '''
           type: composite
