@@ -46,8 +46,7 @@ def run(argv=None):
     raise ValueError(
         "Exactly one of pipeline_spec or pipeline_spec_file must be set.")
 
-  pipeline_spec = yaml.load(
-      known_args.pipeline_spec, Loader=yaml_transform.SafeLineLoader)
+  pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
   yaml_transform._LOGGER.setLevel('INFO')
 
