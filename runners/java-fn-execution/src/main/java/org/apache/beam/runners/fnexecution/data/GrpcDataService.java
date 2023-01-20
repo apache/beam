@@ -23,17 +23,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
-import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
-import org.apache.beam.sdk.fn.data.BeamFnDataOutboundObserver;
+import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer2;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -64,7 +60,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     return new GrpcDataService(options, executor, outboundObserverFactory);
   }
 
-  private final SettableFuture<BeamFnDataGrpcMultiplexer> connectedClient;
+  private final SettableFuture<BeamFnDataGrpcMultiplexer2> connectedClient;
   /**
    * A collection of multiplexers which are not used to send data. A handle to these multiplexers is
    * maintained in order to perform an orderly shutdown.
@@ -72,7 +68,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
    * <p>TODO: (BEAM-3811) Replace with some cancellable collection, to ensure that new clients of a
    * closed {@link GrpcDataService} are closed with that {@link GrpcDataService}.
    */
-  private final Queue<BeamFnDataGrpcMultiplexer> additionalMultiplexers;
+  private final Queue<BeamFnDataGrpcMultiplexer2> additionalMultiplexers;
 
   private final PipelineOptions options;
   private final ExecutorService executor;
@@ -103,8 +99,8 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   public StreamObserver<BeamFnApi.Elements> data(
       final StreamObserver<BeamFnApi.Elements> outboundElementObserver) {
     LOG.info("Beam Fn Data client connected.");
-    BeamFnDataGrpcMultiplexer multiplexer =
-        new BeamFnDataGrpcMultiplexer(
+    BeamFnDataGrpcMultiplexer2 multiplexer =
+        new BeamFnDataGrpcMultiplexer2(
             null, outboundObserverFactory, inbound -> outboundElementObserver);
     // First client that connects completes this future.
     if (!connectedClient.set(multiplexer)) {
@@ -125,7 +121,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     // Multiplexer, but if there isn't any multiplexer it prevents callers blocking forever.
     connectedClient.cancel(true);
     // Close any other open connections
-    for (BeamFnDataGrpcMultiplexer additional : additionalMultiplexers) {
+    for (BeamFnDataGrpcMultiplexer2 additional : additionalMultiplexers) {
       try {
         additional.close();
       } catch (Exception ignored) {
@@ -139,18 +135,11 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
 
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
-  public <T> InboundDataClient receive(
-      final LogicalEndpoint inputLocation, Coder<T> coder, FnDataReceiver<T> listener) {
-    LOG.debug(
-        "Registering receiver for instruction {} and transform {}",
-        inputLocation.getInstructionId(),
-        inputLocation.getTransformId());
-    final BeamFnDataInboundObserver observer =
-        BeamFnDataInboundObserver.forConsumer(
-            inputLocation, new DecodingFnDataReceiver<T>(coder, listener));
+  public void registerReceiver(String instructionId, CloseableFnDataReceiver<Elements> observer) {
+    LOG.debug("Registering observer for instruction {}", instructionId);
     if (connectedClient.isDone()) {
       try {
-        connectedClient.get().registerConsumer(inputLocation, observer);
+        connectedClient.get().registerConsumer(instructionId, observer);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
@@ -161,7 +150,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
       executor.submit(
           () -> {
             try {
-              connectedClient.get().registerConsumer(inputLocation, observer);
+              connectedClient.get().registerConsumer(instructionId, observer);
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
               throw new RuntimeException(e);
@@ -170,21 +159,29 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
             }
           });
     }
-    return observer;
   }
 
   @Override
-  public <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder) {
-    LOG.debug(
-        "Creating sender for instruction {} and transform {}",
-        outputLocation.getInstructionId(),
-        outputLocation.getTransformId());
+  public void unregisterReceiver(String instructionId) {
     try {
-      return new BeamFnDataOutboundObserver<>(
-          outputLocation,
-          coder,
+      connectedClient.get().unregisterConsumer(instructionId);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e.getCause());
+    }
+  }
+
+  @Override
+  public BeamFnDataOutboundAggregator createOutboundAggregator(
+      Supplier<String> processBundleRequestIdSupplier, boolean collectElementsIfNoFlushes) {
+    try {
+      return new BeamFnDataOutboundAggregator(
+          options,
+          processBundleRequestIdSupplier,
           connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver(),
-          options);
+          collectElementsIfNoFlushes);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
