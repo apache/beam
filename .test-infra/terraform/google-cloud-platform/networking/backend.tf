@@ -21,9 +21,9 @@
 // The Google Cloud storage bucket name must be hard coded.
 // See https://developer.hashicorp.com/terraform/language/settings/backends/configuration
 // for details.
-#terraform {
-#  backend "gcs" {
-#    bucket = "b507e468-52e9-4e72-83e5-ecbf563eda12"
-#    prefix = "terraform/projects/apache-beam-testing/networking"
-#  }
-#}
+terraform {
+  backend "gcs" {
+    bucket = "b507e468-52e9-4e72-83e5-ecbf563eda12"
+    prefix = "terraform/projects/apache-beam-testing/networking"
+  }
+}
