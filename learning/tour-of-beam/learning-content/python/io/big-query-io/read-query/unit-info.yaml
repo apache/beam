@@ -17,9 +17,6 @@
 # under the License.
 #
 
-id: io
-name: IO
-complexity: ADVANCED
-content:
-- textIO
-- big-queryIO
+id: read-query
+name: BigQueryIO read query
+taskName: read-query

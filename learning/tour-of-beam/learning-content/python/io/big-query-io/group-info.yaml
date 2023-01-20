@@ -17,7 +17,7 @@
 # under the License.
 #
 
-id: big-query-io
+id: big-queryIO
 name: BigQueryIO
 content:
   - read-table

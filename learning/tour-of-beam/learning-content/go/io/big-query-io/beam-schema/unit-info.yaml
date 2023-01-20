@@ -17,9 +17,6 @@
 # under the License.
 #
 
-id: io
-name: IO
-complexity: ADVANCED
-content:
-- textIO
-- big-queryIO
+id: write-beam-schema
+name: BigQueryIO write beam-schema
+taskName: write-beam-schema

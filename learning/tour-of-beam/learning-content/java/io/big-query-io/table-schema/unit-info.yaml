@@ -17,6 +17,6 @@
 # under the License.
 #
 
-id: rest-api
-name: Rest API
-taskName: TextIO
+id: write-table-schema
+name: BigQueryIO write table-schema
+taskName: write-table-schema

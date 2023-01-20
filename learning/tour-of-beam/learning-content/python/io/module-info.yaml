@@ -22,6 +22,4 @@ name: IO
 complexity: ADVANCED
 content:
 - textIO
-- kafkaIO
 - big-queryIO
-- rest-api

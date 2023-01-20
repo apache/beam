@@ -17,6 +17,6 @@
 # under the License.
 #
 
-id: kafka-io
-name: Kafka IO
-taskName: kafka-io
+id: read-table
+name: BigQueryIO read table
+taskName: read-table
