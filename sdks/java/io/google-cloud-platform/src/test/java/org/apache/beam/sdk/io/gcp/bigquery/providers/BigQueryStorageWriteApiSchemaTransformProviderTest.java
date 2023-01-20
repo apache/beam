@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotNull;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.Serializable;

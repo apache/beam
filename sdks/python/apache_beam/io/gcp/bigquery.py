@@ -2312,26 +2312,30 @@ def _default_io_expansion_service(append_args=None):
 class StorageWriteToBigQuery(PTransform):
   """Writes data to BigQuery using Storage API.
 
-  Receives a PCollection of beam.Row() elements with an 'input' tag and
-  writes the elements to BigQuery. Returns a dead-letter queue of errors
-  and failed rows represented as a PColection with an 'errors' tag.
+  Receives a PCollection of beam.Row() elements and writes the elements
+  to BigQuery. Returns a dead-letter queue of errors and failed rows
+  represented as a dictionary of PCollections.
 
-  Note: Nullable arguments are not supported.
-
-  Example:
+  Example::
     with beam.Pipeline() as p:
       items = []
       for i in range(10):
         items.append(beam.Row(id=i))
 
-      input_rows = p | beam.Create(items)
+      result = (p
+            | 'Create items' >> beam.Create(items)
+            | 'Write data' >> StorageWriteToBigQuery(
+                table="google.com:clouddfe:ahmedabualsaud_test.xlang_table",
+                create_disposition="",
+                write_disposition="",
+                triggering_frequency=0,
+                use_at_least_once=False))
 
-      {'input': input_rows} | StorageWriteToBigQuery(
-        table="google.com:clouddfe:ahmedabualsaud_test.xlang_table",
-        create_disposition="",
-        write_disposition="",
-        triggering_frequency=0,
-        use_at_least_once=False))
+      _ = (result['failed_rows_with_errors']
+           | 'Format errors' >> beam.Map(
+                                lambda e: "failed row id: %s, error: %s" %
+                                (e.failed_row.id, e.error_message))
+           | 'Write errors' >> beam.io.WriteToText(<output>)))
   """
   URN = "beam:schematransform:org.apache.beam:bigquery_storage_write:v1"
 
@@ -2350,15 +2354,15 @@ class StorageWriteToBigQuery(PTransform):
       :param create_disposition (str): a string specifying the strategy to
         take when the table doesn't exist. Possible values are:
 
-        * :attr:`'CREATE_IF_NEEDED'`: create if does not exist.
-        * :attr:`'CREATE_NEVER'`: fail the write if does not exist.
+        * ``'CREATE_IF_NEEDED'``: create if does not exist.
+        * ``'CREATE_NEVER'``: fail the write if does not exist.
 
       :param write_disposition (str): a string specifying the strategy to take
         when the table already contains data. Possible values are:
 
-        * :attr:`'WRITE_TRUNCATE'`: delete existing rows.
-        * :attr:`'WRITE_APPEND'`: add to existing rows.
-        * :attr:`'WRITE_EMPTY'`: fail the write if table not empty.
+        * ``'WRITE_TRUNCATE'``: delete existing rows.
+        * ``'WRITE_APPEND'``: add to existing rows.
+        * ``'WRITE_EMPTY'``: fail the write if table not empty.
 
       :param triggering_frequency (int): the time in seconds between write
         commits. Should only be specified for streaming pipelines. Defaults
@@ -2388,6 +2392,7 @@ class StorageWriteToBigQuery(PTransform):
         writeDisposition=self._write_disposition)
 
     input_tag = self.schematransform_config.inputs[0]
+
     return {input_tag: input} | external_storage_write
 
 
