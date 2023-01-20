@@ -64,7 +64,9 @@ def run(argv=None, save_main_session=True, test_pipeline=None):
     pipeline = beam.Pipeline(options=pipeline_options)
 
   si_pcoll = pipeline | WatchFilePattern(
-      file_pattern=file_pattern, interval=interval)
+      file_pattern=file_pattern,
+      interval=interval,
+      default_value=known_args.model_path)
 
   model_handler = KeyedModelHandler(
       SklearnModelHandlerNumpy(model_uri=known_args.model_path))
