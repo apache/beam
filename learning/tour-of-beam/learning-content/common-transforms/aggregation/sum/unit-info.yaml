@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - common-transforms
-  
+id: sum
+name: Sum example
+complexity: BASIC
+taskName: Sum

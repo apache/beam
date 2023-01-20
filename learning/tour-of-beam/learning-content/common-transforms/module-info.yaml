@@ -21,7 +21,11 @@ sdk:
   - Java
   - Python
   - Go
+id: common-transforms
+name: Common Transforms
+complexity: BASIC
 content:
-  - introduction
-  - common-transforms
-  
+- filter
+- aggregation
+- with-keys
+- motivating-challenge
