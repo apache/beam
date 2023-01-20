@@ -25,7 +25,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Examples_Dataflow',
 
       description('Runs the Python Examples with DataflowRunner')
 
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
       // Publish all test results to Jenkins
       publishers {

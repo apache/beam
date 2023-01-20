@@ -7977,6 +7977,16 @@ batch typehint &ndash; but Beam supports typehints from other libraries as well.
 | `Any` | |
 | [Beam Schema Types](#schemas) | `pd.DataFrame` |
 
+#### [pyarrow](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/typehints/arrow_type_compatibility.py)
+
+| Element Typehint | Batch Typehint |
+| ---------------- | -------------- |
+| Numeric types (`int`, `np.int32`, `bool`, ...) | `pd.Series` |
+| `Any` | |
+| `List` | |
+| `Mapping` | |
+| [Beam Schema Types](#schemas) | `pa.Table` |
+
 #### Other types?
 If there are other batch types you would like to use with Batched DoFns, please
 [file an issue](https://github.com/apache/beam/issues/new/choose).
