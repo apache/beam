@@ -347,7 +347,7 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
         pcoll | RunInference(model_handler)
 
 
-@pytest.mark.uses_tensorflow
+@pytest.mark.uses_onnx
 class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
   def exportModelToOnnx(self, model, path):
     spec = (tf.TensorSpec((None, 2), tf.float32, name="input"),)
