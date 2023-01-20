@@ -178,7 +178,7 @@ This section lays out the superset of all documentation that is expected to be m
          <p><img src="/images/io-standards/io-supported-via-screenshot.png" width="" alt="alt_text" title="image_tooltip">
       </td>
    </tr>
-   <tr id="#before-you-start">
+   <tr id="before-you-start">
       <td>
          <p>Provide setup steps to use the I/O, under a <strong>Before you start</strong> header.
          <p>Example:
