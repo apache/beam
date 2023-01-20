@@ -14,5 +14,6 @@ UnitContentModel _$UnitContentModelFromJson(Map<String, dynamic> json) =>
       taskSnippetId: json['taskSnippetId'] as String?,
       solutionSnippetId: json['solutionSnippetId'] as String?,
       hints:
-          (json['hints'] as List<dynamic>?)?.map((e) => e as String).toList(),
+          (json['hints'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+              [],
     );

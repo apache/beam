@@ -23,7 +23,8 @@ import 'package:playground_components/playground_components.dart';
 import '../../../cache/units_progress.dart';
 import '../../../models/group.dart';
 import '../../../models/node.dart';
-import 'completeness_indicator.dart';
+import 'binary_progress.dart';
+import 'fraction_progress.dart';
 
 class GroupTitleWidget extends StatelessWidget {
   final GroupModel group;
@@ -71,28 +72,13 @@ class _GroupProgressIndicator extends StatelessWidget {
         );
 
         if (progress == 1) {
-          return const CompletenessIndicator(
+          return const BinaryProgressIndicator(
             isCompleted: true,
             isSelected: false,
           );
         }
 
-        return Container(
-          margin: const EdgeInsets.only(
-            left: BeamSizes.size7,
-            right: BeamSizes.size10,
-          ),
-          height: _diameter,
-          width: _diameter,
-          child: CircularProgressIndicator(
-            strokeWidth: _thickness,
-            color: BeamColors.green,
-            backgroundColor: Theme.of(context)
-                .extension<BeamThemeExtension>()!
-                .unselectedProgressColor,
-            value: progress,
-          ),
-        );
+        return FractionProgressIndicator(progress: progress);
       },
     );
   }

@@ -899,6 +899,9 @@ BigqueryMatcher:
   methods:
   - describe_mismatch
   - describe_to
+BigQueryMetricsFetcher:
+  methods:
+  - fetch
 BigQueryMetricsPublisher:
   methods:
   - publish
@@ -1273,6 +1276,7 @@ BlobStorageIO:
   - delete_tree
   - exists
   - last_updated
+  - list_files
   - list_prefix
   - open
   - rename
@@ -4824,6 +4828,7 @@ GcsIO:
   - get_project_number
   - kms_key
   - last_updated
+  - list_files
   - list_prefix
   - open
   - rename
@@ -4987,6 +4992,16 @@ GitHubEventsConfig:
   - owner
   - pullRequest
   - push
+GitHubIssueMetaData:
+  properties:
+  - change_point
+  - change_point_timestamp
+  - issue_number
+  - issue_timestamp
+  - issue_url
+  - metric_name
+  - test_id
+  - test_name
 GitRepoSource:
   properties:
   - bitbucketServerConfig
@@ -5795,10 +5810,6 @@ JoinIndex:
 JoinPersonAuctionFn:
   methods:
   - process
-JrhReadPTransformOverride:
-  methods:
-  - get_replacement_transform_for_applied_ptransform
-  - matches
 JsonCoder:
   methods:
   - decode
@@ -5832,6 +5843,7 @@ JustBids:
 JustPerson:
   methods:
   - expand
+KafkaIOTestOptions: {}
 Key:
   methods:
   - from_client_key
@@ -6332,6 +6344,7 @@ MetricsPublisher:
   - publish
 MetricsReader:
   methods:
+  - get_counter_metric
   - publish_metrics
   - publish_values
 MetricStructuredName:
@@ -7877,6 +7890,7 @@ PythonCallable:
   - urn
 PythonCallableWithSource:
   methods:
+  - default_label
   - get_source
   - load_from_expression
   - load_from_fully_qualified_name
@@ -8686,6 +8700,7 @@ S3IO:
   - delete_tree
   - exists
   - last_updated
+  - list_files
   - list_prefix
   - open
   - rename
@@ -10294,6 +10309,18 @@ TestBQJobNames:
   - test_matches_template
   - test_random_in_name
   - test_simple_names
+TestChangePointAnalysis:
+  methods:
+  - setUp
+  - test_alert_on_data_with_change_point
+  - test_alert_on_data_with_reported_change_point
+  - test_change_point_outside_inspection_window_is_not_a_valid_alert
+  - test_duplicate_change_point
+  - test_duplicate_change_points_are_not_valid_alerts
+  - test_edivisive_means
+  - test_is_changepoint_in_valid_window
+  - test_no_alerts_when_no_change_points
+  - test_validate_config
 TestCheckSchemaEqual:
   methods:
   - test_descriptions
@@ -11356,6 +11383,7 @@ TriggerCopyJobs:
   - display_data
   - finish_bundle
   - process
+  - process_one
   - start_bundle
   properties:
   - TRIGGER_DELETE_TEMP_TABLES

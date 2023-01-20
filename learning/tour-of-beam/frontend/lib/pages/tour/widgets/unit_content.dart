@@ -18,10 +18,8 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../cache/units_progress.dart';
 import '../../../constants/sizes.dart';
 import '../../../models/unit_content.dart';
 import '../state.dart';
@@ -40,6 +38,7 @@ class UnitContentWidget extends StatelessWidget {
     final themeData = Theme.of(context);
 
     return Container(
+      // TODO(nausharipov): look for a better way to constrain the height
       height: MediaQuery.of(context).size.height -
           BeamSizes.appBarHeight -
           TobSizes.footerHeight,
@@ -172,7 +171,7 @@ class _Buttons extends StatelessWidget {
               hints: hints,
             ),
           ),
-        if (tourNotifier.currentUnitHasSolution)
+        if (tourNotifier.doesCurrentUnitHaveSolution)
           Padding(
             padding: _buttonPadding,
             child: SolutionButton(tourNotifier: tourNotifier),

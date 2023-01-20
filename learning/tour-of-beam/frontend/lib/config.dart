@@ -19,14 +19,14 @@
 // TODO(alexeyinkin): Generate this file on deployment.
 
 const _cloudFunctionsProjectRegion = 'us-east1';
-const _cloudFunctionsProjectId = 'astst-369706';
+const _cloudFunctionsProjectId = 'focused-mote-373713';
 const cloudFunctionsBaseUrl = 'https://'
     '$_cloudFunctionsProjectRegion-$_cloudFunctionsProjectId'
     '.cloudfunctions.net';
 // Copied from Playground's config.g.dart
 const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL = 'https://router.dev-playground.online/';
-const String kApiJavaClientURL = 'https://java.dev-playground.online/';
-const String kApiGoClientURL = 'https://go.dev-playground.online/';
-const String kApiPythonClientURL = 'https://python.dev-playground.online/';
-const String kApiScioClientURL = 'https://scio.dev-playground.online/';
+const String kApiClientURL = 'https://router.dev.dev-playground.online/';
+const String kApiJavaClientURL = 'https://java.dev.dev-playground.online/';
+const String kApiGoClientURL = 'https://go.dev.dev-playground.online/';
+const String kApiPythonClientURL = 'https://python.dev.dev-playground.online/';
+const String kApiScioClientURL = 'https://scio.dev.dev-playground.online/';

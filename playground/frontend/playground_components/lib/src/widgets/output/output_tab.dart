@@ -27,7 +27,9 @@ class OutputTab extends StatefulWidget {
   final PlaygroundController playgroundController;
   final String name;
   final bool isSelected;
-  final String value;
+
+  /// Used to check if an update marker should be added on the tab
+  final String maxPossibleContent;
   final bool hasFilter;
 
   const OutputTab({
@@ -35,7 +37,7 @@ class OutputTab extends StatefulWidget {
     required this.playgroundController,
     required this.name,
     required this.isSelected,
-    required this.value,
+    required this.maxPossibleContent,
     this.hasFilter = false,
   });
 
@@ -53,8 +55,8 @@ class _OutputTabState extends State<OutputTab> {
         hasNewContent = false;
       });
     } else if (!widget.isSelected &&
-        widget.value.isNotEmpty &&
-        oldWidget.value != widget.value) {
+        widget.maxPossibleContent.isNotEmpty &&
+        oldWidget.maxPossibleContent != widget.maxPossibleContent) {
       setState(() {
         hasNewContent = true;
       });

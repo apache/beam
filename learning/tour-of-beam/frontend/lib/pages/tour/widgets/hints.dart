@@ -40,6 +40,7 @@ class HintsWidget extends StatelessWidget {
           showDialog(
             context: context,
             builder: (context) => Dialog(
+              backgroundColor: Colors.transparent,
               child: _Popup(hint: hints.first),
             ),
           );

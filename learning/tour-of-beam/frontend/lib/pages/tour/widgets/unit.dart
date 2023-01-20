@@ -23,7 +23,7 @@ import 'package:playground_components/playground_components.dart';
 import '../../../cache/units_progress.dart';
 import '../../../models/unit.dart';
 import '../controllers/content_tree.dart';
-import 'completeness_indicator.dart';
+import 'binary_progress.dart';
 
 class UnitWidget extends StatelessWidget {
   final UnitModel unit;
@@ -55,7 +55,7 @@ class UnitWidget extends StatelessWidget {
               children: [
                 AnimatedBuilder(
                   animation: unitsProgressCache,
-                  builder: (context, child) => CompletenessIndicator(
+                  builder: (context, child) => BinaryProgressIndicator(
                     isCompleted: unitsProgressCache.isUnitCompleted(unit.id),
                     isSelected: isSelected,
                   ),

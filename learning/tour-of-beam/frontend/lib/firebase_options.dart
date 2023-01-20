@@ -53,11 +53,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBtAreurqJ5D4IK6cNisZh5dnDRKljbJAw',
-    authDomain: 'astest-369409.firebaseapp.com',
-    projectId: 'astest-369409',
-    storageBucket: 'astest-369409.appspot.com',
-    messagingSenderId: '534850967604',
-    appId: '1:534850967604:web:55c6af8da7940df1ddd261',
+    apiKey: "AIzaSyBnmtXax6V5U7rYlIs6K8HaesQyPZEjuNU",
+    authDomain: "focused-mote-373713.firebaseapp.com",
+    projectId: "focused-mote-373713",
+    storageBucket: "focused-mote-373713.appspot.com",
+    messagingSenderId: "288319275211",
+    appId: "1:288319275211:web:03abebbf3555f5aba4db4e",
+    measurementId: "G-X3GPY2WLJ2",
   );
 }

@@ -37,10 +37,12 @@ class SolutionButton extends StatelessWidget {
       builder: (context, child) => TextButton.icon(
         style: ButtonStyle(
           backgroundColor: MaterialStateProperty.all(
-            tourNotifier.showSolution ? Theme.of(context).splashColor : null,
+            tourNotifier.isShowingSolution
+                ? Theme.of(context).splashColor
+                : null,
           ),
         ),
-        onPressed: tourNotifier.toggleShowSolution,
+        onPressed: tourNotifier.toggleShowingSolution,
         icon: SvgPicture.asset(Assets.svg.solution),
         label: const Text('ui.solution').tr(),
       ),
