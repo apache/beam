@@ -30,7 +30,7 @@ import logging
 import os
 
 import pandas as pd
-from joblib import dump
+import pickle
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
@@ -39,6 +39,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
 
 import apache_beam as beam
+from apache_beam.io import fileio
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
@@ -93,12 +94,17 @@ class TrainModel(beam.DoFn):
     pipeline.fit(X, y)
     yield (key, pipeline)
 
+class ModelSink(fileio.FileSink):
+  def open(self, fh):
+    self._fh = fh
 
-class SaveModel(beam.DoFn):
-  """Saves the trained model to specified location."""
-  def process(self, element, path, *args, **kwargs):
-    key, trained_model = element
-    dump(trained_model, os.path.join(path, f"{key}_model.joblib"))
+  def write(self, record):
+    key, trained_model = record
+    pickled_model = pickle.dumps(trained_model)
+    self._fh.write(pickled_model)
+
+  def flush(self):
+    self._fh.flush()
 
 
 def parse_known_args(argv):
@@ -137,7 +143,9 @@ def run(
         | "Group by education" >> beam.GroupByKey()
         | "Prepare Data" >> beam.ParDo(PrepareDataforTraining())
         | "Train Model" >> beam.ParDo(TrainModel())
-        | "Save Model" >> beam.ParDo(SaveModel(), known_args.output))
+        | "Save" >> fileio.WriteToFiles(path=known_args.output,
+                                        sink=ModelSink())
+        )
 
 
 if __name__ == "__main__":
