@@ -27,7 +27,6 @@ trains Decision Trees for each group and finally saves them.
 
 import argparse
 import logging
-import os
 
 import pandas as pd
 import pickle
@@ -45,6 +44,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 
 class CreateKey(beam.DoFn):
+
   def process(self, element, *args, **kwargs):
     # 3rd column of the dataset is Education
     idx = 3
@@ -63,6 +63,7 @@ def custom_filter(element):
 
 class PrepareDataforTraining(beam.DoFn):
   """Preprocess data in a format suitable for training."""
+
   def process(self, element, *args, **kwargs):
     key, values = element
     #Convert to dataframe
@@ -83,6 +84,7 @@ class TrainModel(beam.DoFn):
   normalizes numerical columns and then
   fits a decision tree classifier.
   """
+
   def process(self, element, *args, **kwargs):
     X, y, cat_ix, num_ix, key = element
     steps = [('c', OneHotEncoder(handle_unknown='ignore'), cat_ix),
@@ -94,12 +96,14 @@ class TrainModel(beam.DoFn):
     pipeline.fit(X, y)
     yield (key, pipeline)
 
+
 class ModelSink(fileio.FileSink):
+
   def open(self, fh):
     self._fh = fh
 
   def write(self, record):
-    key, trained_model = record
+    _, trained_model = record
     pickled_model = pickle.dumps(trained_model)
     self._fh.write(pickled_model)
 
@@ -143,9 +147,8 @@ def run(
         | "Group by education" >> beam.GroupByKey()
         | "Prepare Data" >> beam.ParDo(PrepareDataforTraining())
         | "Train Model" >> beam.ParDo(TrainModel())
-        | "Save" >> fileio.WriteToFiles(path=known_args.output,
-                                        sink=ModelSink())
-        )
+        |
+        "Save" >> fileio.WriteToFiles(path=known_args.output, sink=ModelSink()))
 
 
 if __name__ == "__main__":

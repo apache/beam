@@ -1,5 +1,5 @@
 ---
-title: "Per Entity Training in Beam"
+title: "Per Entity Training"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,13 +51,14 @@ The following code snippet contains the detailed steps:
 
 {{< highlight >}}
     with beam.Pipeline(options=pipeline_options) as pipeline:
-    _ = (
-        pipeline | "Read Data" >> beam.io.ReadFromText(known_args.input)
-        | "Split data to make List" >> beam.Map(lambda x: x.split(','))
-        | "Filter rows" >> beam.Filter(custom_filter)
-        | "Create Key" >> beam.ParDo(CreateKey())
-        | "Group by education" >> beam.GroupByKey()
-        | "Prepare Data" >> beam.ParDo(PrepareDataforTraining())
-        | "Train Model" >> beam.ParDo(TrainModel())
-        | "Save Model" >> beam.ParDo(SaveModel(), known_args.output))
+        _ = (
+            pipeline | "Read Data" >> beam.io.ReadFromText(known_args.input)
+            | "Split data to make List" >> beam.Map(lambda x: x.split(','))
+            | "Filter rows" >> beam.Filter(custom_filter)
+            | "Create Key" >> beam.ParDo(CreateKey())
+            | "Group by education" >> beam.GroupByKey()
+            | "Prepare Data" >> beam.ParDo(PrepareDataforTraining())
+            | "Train Model" >> beam.ParDo(TrainModel())
+            |
+            "Save" >> fileio.WriteToFiles(path=known_args.output, sink=ModelSink()))
 {{< /highlight >}}
