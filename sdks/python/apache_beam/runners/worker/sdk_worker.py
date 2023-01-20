@@ -171,7 +171,7 @@ class SdkHarness(object):
       status_address=None,  # type: Optional[str]
       # Heap dump through status api is disabled by default
       enable_heap_dump=False,  # type: bool
-      enable_data_sampling=False,  # type: bool
+      data_sampler=None,  # type: Optional[data_sampler.DataSampler]
   ):
     # type: (...) -> None
     self._alive = True
@@ -198,10 +198,7 @@ class SdkHarness(object):
     self._state_handler_factory = GrpcStateHandlerFactory(
         self._state_cache, credentials)
     self._profiler_factory = profiler_factory
-    self.data_sampler = None
-
-    if enable_data_sampling:
-      self.data_sampler = data_sampler.DataSampler()
+    self.data_sampler = data_sampler
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -374,23 +371,21 @@ class SdkHarness(object):
   def _request_sample(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
 
-    start = time.time()
-
     def get_samples(request):
-      samples = {}
+      samples: Dict[str, List[bytes]] = {}
       if self.data_sampler:
-        samples = self.data_sampler.samples()
+        samples = self.data_sampler.samples(
+            request.sample.process_bundle_descriptor_ids,
+            request.sample.pcollection_ids)
 
-      resp = beam_fn_api_pb2.SampleResponse()
-      for descriptor_id in samples:
-        for pcoll_id in samples[descriptor_id]:
-          resp.samples[descriptor_id].samples[pcoll_id].elements.extend(
-              samples[descriptor_id][pcoll_id]
-          )
+      sample_response = beam_fn_api_pb2.SampleDataResponse()
+      for pcoll_id in samples:
+        sample_response.element_samples[pcoll_id].elements.extend(
+            beam_fn_api_pb2.SampledElement(element=s)
+            for s in samples[pcoll_id])
 
       return beam_fn_api_pb2.InstructionResponse(
-          instruction_id=request.instruction_id, sample=resp
-      )
+          instruction_id=request.instruction_id, sample=sample_response)
 
     self._execute(lambda: get_samples(request), request)
 
@@ -427,7 +422,7 @@ class BundleProcessorCache(object):
       state_handler_factory,  # type: StateHandlerFactory
       data_channel_factory,  # type: data_plane.DataChannelFactory
       fns,  # type: MutableMapping[str, beam_fn_api_pb2.ProcessBundleDescriptor]
-      data_sampler,  # type: data_sampler.DataSampler
+      data_sampler=None,  # type: Optional[data_sampler.DataSampler]
   ):
     # type: (...) -> None
     self.fns = fns

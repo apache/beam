@@ -15,74 +15,56 @@
 # limitations under the License.
 #
 
-"""Class that allows for sampling of elements on a particular Operation."""
+"""Functionaliry for sampling elements during bundle execution."""
 
 # pytype: skip-file
-# mypy: disallow-untyped-defs
 
 import collections
-import logging
 import threading
-import time
+from typing import Any
+from typing import DefaultDict
+from typing import Deque
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
+from apache_beam.coders.coders import Coder
+from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.coders.coder_impl import WindowedValueCoderImpl
 from apache_beam.utils.windowed_value import WindowedValue
 
-_LOGGER = logging.getLogger(__name__)
-
-
-class DataSampler:
-  """"""
-
-  def __init__(self):
-    self._samplers = {}
-    self._samplers_lock = threading.Lock()
-
-  def sample_output(self, descriptor_id, pcoll_id, coder):
-    with self._samplers_lock:
-      key = (descriptor_id, pcoll_id)
-      if key in self._samplers:
-        sampler = self._samplers[key]
-      else:
-        sampler = OutputSampler(coder)
-        self._samplers[key] = sampler
-      return sampler
-
-  def samples(self, descriptor_id=None, pcollections=None):
-    ret = collections.defaultdict(lambda: {})
-
-    with self._samplers_lock:
-      samplers = self._samplers.copy()
-
-    for sampler_id in samplers:
-      sampler_descriptor_id, pcoll_id = sampler_id
-      if descriptor_id and sampler_descriptor_id != descriptor_id:
-        continue
-
-      if pcollections and pcoll_id not in pcollections:
-        continue
-
-      samples = samplers[sampler_id].flush()
-      if samples:
-        ret[sampler_descriptor_id][pcoll_id] = samples
-
-    return dict(ret)
-
 
 class OutputSampler:
+  """Represents a way to sample an output of a PTransform.
 
-  def __init__(self, coder, max_samples=10, sample_every_n=1000):
-    self._samples = collections.deque(maxlen=max_samples)
-    self._coder_impl = coder.get_impl()
-    self._sample_count = 0
-    self._sample_every_n = sample_every_n
+  This is configurable to only keep max_samples (see constructor) sampled
+  elements in memory. The first 10 elements are always sampled, then each
+  subsequent sample_every_n (see constructor).
+  """
+  def __init__(
+      self,
+      coder: Coder,
+      max_samples: int = 10,
+      sample_every_n: int = 1000) -> None:
+    self._samples: Deque[Any] = collections.deque(maxlen=max_samples)
+    self._coder_impl: CoderImpl = coder.get_impl()
+    self._sample_count: int = 0
+    self._sample_every_n: int = sample_every_n
 
-  def remove_windowed_value(self, el):
+  def remove_windowed_value(self, el: Union[WindowedValue, Any]) -> Any:
+    """Retrieves the value from the WindowedValue.
+
+    The Python SDK passes elements as WindowedValues, which may not match the
+    coder for that particular PCollection.
+    """
     if isinstance(el, WindowedValue):
       return self.remove_windowed_value(el.value)
     return el
 
-  def flush(self):
+  def flush(self) -> List[bytes]:
+    """Returns all samples and clears buffer."""
     if isinstance(self._coder_impl, WindowedValueCoderImpl):
       samples = [s for s in self._samples]
     else:
@@ -91,11 +73,70 @@ class OutputSampler:
     self._samples.clear()
     return [self._coder_impl.encode(s) for s in samples]
 
+  def sample(self, element: Any) -> None:
+    """Samples the given element to an internal buffer.
 
-  def sample(self, element):
+    Samples are only taken for the first 10 elements then every
+    `self._sample_every_n` after.
+    """
     self._sample_count += 1
 
     if (self._sample_count <= 10 or
         self._sample_count % self._sample_every_n == 0):
       self._samples.append(element)
 
+
+class DataSampler:
+  """A class for querying any samples generated during execution.
+
+  This class is meant to be a singleton with regard to a particular
+  `sdk_worker.SdkHarness`. When creating the operators, individual
+  `OutputSampler`s are created from `DataSampler.sample_output`. This allows for
+  multi-threaded sampling of a PCollection across the SdkHarness.
+
+  Samples generated during execution can then be sampled with the `samples`
+  method. This can filter to samples from a descriptor id and pcollection id.
+  """
+  def __init__(self) -> None:
+    # Key is a tuple of (ProcessBundleDescriptor id, PCollection id). Is guarded
+    # by the _samplers_lock.
+    self._samplers: Dict[Tuple[str, str], OutputSampler] = {}
+    # Bundles are processed in parallel, so new samplers may be added when the
+    # runner queries for samples.
+    self._samplers_lock: threading.Lock = threading.Lock()
+
+  def sample_output(
+      self, descriptor_id: str, pcoll_id: str, coder: Coder) -> OutputSampler:
+    """Create or get an OutputSampler for a (descriptor_id, pcoll_id) pair."""
+    key = (descriptor_id, pcoll_id)
+    with self._samplers_lock:
+      if key in self._samplers:
+        sampler = self._samplers[key]
+      else:
+        sampler = OutputSampler(coder)
+        self._samplers[key] = sampler
+      return sampler
+
+  def samples(
+      self,
+      descriptor_ids: Optional[List[str]] = None,
+      pcollection_ids: Optional[List[str]] = None) -> Dict[str, List[bytes]]:
+    """Returns all samples filtered by descriptor ids and pcollection ids."""
+    ret: DefaultDict[str, List[bytes]] = collections.defaultdict(lambda: [])
+
+    with self._samplers_lock:
+      samplers = self._samplers.copy()
+
+    for sampler_id in samplers:
+      descriptor_id, pcoll_id = sampler_id
+      if descriptor_ids and descriptor_id not in descriptor_ids:
+        continue
+
+      if pcollection_ids and pcoll_id not in pcollection_ids:
+        continue
+
+      samples = samplers[sampler_id].flush()
+      if samples:
+        ret[pcoll_id].extend(samples)
+
+    return dict(ret)
