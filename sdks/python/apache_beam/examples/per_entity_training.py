@@ -29,8 +29,8 @@ import argparse
 import logging
 import os
 
-from joblib import dump
 import pandas as pd
+from joblib import dump
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
@@ -52,8 +52,8 @@ class CreateKey(beam.DoFn):
 
 
 def custom_filter(element):
-  """Discard data point if contains ?, and
-  doesn't have all features, and
+  """Discard data point if contains ?,
+  doesn't have all features, or
   doesn't have Bachelors, Masters or a Doctorate Degree"""
   return len(element) == 15 and '?' not in element \
       and ' Bachelors' in element or ' Masters' in element \
