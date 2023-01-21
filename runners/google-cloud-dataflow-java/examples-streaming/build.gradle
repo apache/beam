@@ -23,7 +23,7 @@ applyJavaNature( publish: false, exportJavadoc: false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.
 evaluationDependsOn(":examples:java")
-evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 
 configurations { dataflowStreamingRunnerPreCommit }
 
@@ -36,8 +36,8 @@ def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
 task windmillPreCommit(type: Test) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   // Set workerHarnessContainerImage to empty to make Dataflow pick up the
   // non-versioned container image, which handles a staged worker jar.
@@ -59,8 +59,8 @@ task windmillPreCommit(type: Test) {
 }
 
 task appliancePreCommit(type: Test) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
   // Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container
   // image, which handles a staged worker jar.

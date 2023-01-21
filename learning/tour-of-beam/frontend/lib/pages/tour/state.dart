@@ -16,22 +16,32 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
+import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
+import '../../cache/unit_progress.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
+import '../../state.dart';
 import 'controllers/content_tree.dart';
+import 'controllers/unit.dart';
 import 'path.dart';
 
 class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final ContentTreeController contentTreeController;
   final PlaygroundController playgroundController;
+  UnitController? currentUnitController;
+  final _appNotifier = GetIt.instance.get<AppNotifier>();
+  final _authNotifier = GetIt.instance.get<AuthNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
+  final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
 
   TourNotifier({
@@ -42,9 +52,11 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
           initialTreeIds: initialTreeIds,
         ),
         playgroundController = _createPlaygroundController(initialSdkId) {
-    contentTreeController.addListener(_onChanged);
-    _unitContentCache.addListener(_onChanged);
-    _onChanged();
+    contentTreeController.addListener(_onUnitChanged);
+    _unitContentCache.addListener(_onUnitChanged);
+    _appNotifier.addListener(_onAppNotifierChanged);
+    _authNotifier.addListener(_onUnitProgressChanged);
+    _onUnitChanged();
   }
 
   @override
@@ -53,7 +65,50 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         treeIds: contentTreeController.treeIds,
       );
 
-  void _onChanged() {
+  String? get currentUnitId => currentUnitController?.unitId;
+  UnitContentModel? get currentUnitContent => _currentUnitContent;
+  bool get doesCurrentUnitHaveSolution =>
+      currentUnitContent?.solutionSnippetId != null;
+  bool _isShowingSolution = false;
+  bool get isShowingSolution => _isShowingSolution;
+
+  void toggleShowingSolution() {
+    if (doesCurrentUnitHaveSolution) {
+      _isShowingSolution = !_isShowingSolution;
+
+      final snippetId = _isShowingSolution
+          ? _currentUnitContent?.solutionSnippetId
+          : _currentUnitContent?.taskSnippetId;
+      if (snippetId != null) {
+        // TODO(nausharipov): store/recover
+        unawaited(_setPlaygroundSnippet(snippetId));
+      }
+
+      notifyListeners();
+    }
+  }
+
+  void _createCurrentUnitController(String sdkId, String unitId) {
+    currentUnitController = UnitController(
+      unitId: unitId,
+      sdkId: sdkId,
+    );
+  }
+
+  Future<void> _onUnitProgressChanged() async {
+    await _unitProgressCache.updateCompletedUnits();
+  }
+
+  void _onAppNotifierChanged() {
+    final sdkId = _appNotifier.sdkId;
+    if (sdkId != null) {
+      playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
+      contentTreeController.sdkId = sdkId;
+      _onUnitProgressChanged();
+    }
+  }
+
+  void _onUnitChanged() {
     emitPathChanged();
     final currentNode = contentTreeController.currentNode;
     if (currentNode is UnitModel) {
@@ -62,8 +117,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         sdk.id,
         currentNode.id,
       );
-
-      _setCurrentUnitContent(content, sdk: sdk);
+      _createCurrentUnitController(contentTreeController.sdkId, currentNode.id);
+      _setCurrentUnitContent(content);
     } else {
       _emptyPlayground();
     }
@@ -71,12 +126,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     notifyListeners();
   }
 
-  UnitContentModel? get currentUnitContent => _currentUnitContent;
-
-  void _setCurrentUnitContent(
-    UnitContentModel? content, {
-    required Sdk sdk,
-  }) {
+  Future<void> _setCurrentUnitContent(UnitContentModel? content) async {
     if (content == _currentUnitContent) {
       return;
     }
@@ -86,28 +136,35 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (content == null) {
       return;
     }
-
     final taskSnippetId = content.taskSnippetId;
-    if (taskSnippetId == null) {
-      _emptyPlayground();
+    await _setPlaygroundSnippet(taskSnippetId);
+    _isShowingSolution = false;
+  }
+
+  Future<void> _setPlaygroundSnippet(String? snippetId) async {
+    if (snippetId == null) {
+      await _emptyPlayground();
       return;
     }
 
-    playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
-        descriptors: [
-          UserSharedExampleLoadingDescriptor(
-            sdk: sdk,
-            snippetId: taskSnippetId,
-          ),
-        ],
-      ),
-    );
+    final selectedSdk = _appNotifier.sdk;
+    if (selectedSdk != null) {
+      await playgroundController.examplesLoader.load(
+        ExamplesLoadingDescriptor(
+          descriptors: [
+            UserSharedExampleLoadingDescriptor(
+              sdk: selectedSdk,
+              snippetId: snippetId,
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   // TODO(alexeyinkin): Hide the entire right pane instead.
-  void _emptyPlayground() {
-    playgroundController.examplesLoader.load(
+  Future<void> _emptyPlayground() async {
+    await playgroundController.examplesLoader.load(
       ExamplesLoadingDescriptor(
         descriptors: [
           EmptyExampleLoadingDescriptor(sdk: contentTreeController.sdk),
@@ -143,11 +200,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       examplesLoader: ExamplesLoader(),
     );
 
-    playgroundController.examplesLoader.load(
-      ExamplesLoadingDescriptor(
-        descriptors: [
-          EmptyExampleLoadingDescriptor(sdk: Sdk.parseOrCreate(initialSdkId)),
-        ],
+    unawaited(
+      playgroundController.examplesLoader.load(
+        ExamplesLoadingDescriptor(
+          descriptors: [
+            EmptyExampleLoadingDescriptor(sdk: Sdk.parseOrCreate(initialSdkId)),
+          ],
+        ),
       ),
     );
 
@@ -156,8 +215,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   @override
   void dispose() {
-    _unitContentCache.removeListener(_onChanged);
-    contentTreeController.removeListener(_onChanged);
+    _unitContentCache.removeListener(_onUnitChanged);
+    contentTreeController.removeListener(_onUnitChanged);
+    _appNotifier.removeListener(_onAppNotifierChanged);
+    _authNotifier.removeListener(_onUnitProgressChanged);
     super.dispose();
   }
 }

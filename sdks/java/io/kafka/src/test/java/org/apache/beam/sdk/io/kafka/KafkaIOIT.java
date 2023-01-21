@@ -75,7 +75,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
@@ -198,7 +197,6 @@ public class KafkaIOIT {
     // Use batch pipeline to write records.
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
-        .apply("Avoid fusion", Reshuffle.viaRandomKey())
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
         .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
@@ -212,14 +210,16 @@ public class KafkaIOIT {
 
     PipelineResult writeResult = writePipeline.run();
     PipelineResult.State writeState = writeResult.waitUntilFinish();
+    // Fail the test if pipeline failed.
+    assertNotEquals(PipelineResult.State.FAILED, writeState);
 
     PipelineResult readResult = readPipeline.run();
     PipelineResult.State readState =
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
 
-    cancelIfTimeouted(readResult, readState);
-    // Delete the kafka topic after test pipeline run.
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
     tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
 
     long actualRecords = readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME);
     assertTrue(
@@ -232,8 +232,6 @@ public class KafkaIOIT {
       Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
       IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
     }
-    // Fail the test if pipeline failed.
-    assertNotEquals(PipelineResult.State.FAILED, writeState);
     assertNotEquals(PipelineResult.State.FAILED, readState);
   }
 
@@ -247,7 +245,6 @@ public class KafkaIOIT {
     expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
-        .apply("Avoid fusion", Reshuffle.viaRandomKey())
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
         .apply("Write to Kafka", writeToKafka().withTopic(options.getKafkaTopic()));
 
@@ -270,9 +267,9 @@ public class KafkaIOIT {
     PipelineResult.State readState =
         readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
 
-    cancelIfTimeouted(readResult, readState);
-    // Delete the kafka topic after test pipeline run.
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
     tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
 
     // Fail the test if pipeline failed.
     assertEquals(PipelineResult.State.DONE, readState);

@@ -285,43 +285,34 @@ public abstract class TableSchema implements Serializable {
      * <p>E.g., "CREATE TABLE hits(id Int32, count Int32 DEFAULT &lt;str&gt;)"
      *
      * @param columnType type of ClickHouse expression
-     * @param str ClickHouse expression
+     * @param value ClickHouse expression
      * @return value of ClickHouse expression
      */
-    public static Object parseDefaultExpression(ColumnType columnType, String str) {
-      try {
-        String value =
-            new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
-                    new StringReader(str))
-                .parseDefaultExpression();
-
-        switch (columnType.typeName()) {
-          case INT8:
-            return Byte.valueOf(value);
-          case INT16:
-            return Short.valueOf(value);
-          case INT32:
-            return Integer.valueOf(value);
-          case INT64:
-            return Long.valueOf(value);
-          case ENUM16:
-          case ENUM8:
-          case FIXEDSTRING:
-          case STRING:
-            return value;
-          case UINT8:
-            return Short.valueOf(value);
-          case UINT16:
-            return Integer.valueOf(value);
-          case UINT32:
-            return Long.valueOf(value);
-          case UINT64:
-            return Long.valueOf(value);
-          default:
-            throw new UnsupportedOperationException("Unsupported type: " + columnType);
-        }
-      } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
-        throw new IllegalArgumentException("failed to parse", e);
+    public static Object parseDefaultExpression(ColumnType columnType, String value) {
+      switch (columnType.typeName()) {
+        case INT8:
+          return Byte.valueOf(value);
+        case INT16:
+          return Short.valueOf(value);
+        case INT32:
+          return Integer.valueOf(value);
+        case INT64:
+          return Long.valueOf(value);
+        case ENUM16:
+        case ENUM8:
+        case FIXEDSTRING:
+        case STRING:
+          return value;
+        case UINT8:
+          return Short.valueOf(value);
+        case UINT16:
+          return Integer.valueOf(value);
+        case UINT32:
+          return Long.valueOf(value);
+        case UINT64:
+          return Long.valueOf(value);
+        default:
+          throw new UnsupportedOperationException("Unsupported type: " + columnType);
       }
     }
 

@@ -20,6 +20,7 @@
 
 import datetime
 import decimal
+import gc
 import json
 import logging
 import os
@@ -302,6 +303,13 @@ class TestReadFromBigQuery(unittest.TestCase):
   def tearDown(self):
     # Reset runtime options to avoid side-effects caused by other tests.
     RuntimeValueProvider.set_runtime_options(None)
+
+  @classmethod
+  def tearDownClass(cls):
+    # Unset the option added in setupClass to avoid interfere with other tests.
+    # Force a gc so PipelineOptions.__subclass__() no longer contains it.
+    del cls.UserDefinedOptions
+    gc.collect()
 
   def test_get_destination_uri_empty_runtime_vp(self):
     with self.assertRaisesRegex(ValueError,

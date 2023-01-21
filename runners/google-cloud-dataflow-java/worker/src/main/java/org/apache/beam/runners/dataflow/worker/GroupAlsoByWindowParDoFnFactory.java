@@ -33,8 +33,6 @@ import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
-import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
@@ -60,8 +58,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A {@link ParDoFnFactory} to create GroupAlsoByWindowsDoFn instances according to specifications
@@ -72,8 +68,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
-
-  private static final Logger LOG = LoggerFactory.getLogger(GroupAlsoByWindowParDoFnFactory.class);
 
   @Override
   public ParDoFn create(
@@ -98,20 +92,7 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
         entry.getValue());
 
     byte[] encodedWindowingStrategy = getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN);
-    WindowingStrategy windowingStrategy;
-    try {
-      windowingStrategy = deserializeWindowingStrategy(encodedWindowingStrategy);
-    } catch (Exception e) {
-      // Temporarily choose default windowing strategy if fn API is enabled.
-      // TODO: Catch block disappears, becoming an error once Python SDK is compliant.
-      if (DataflowRunner.hasExperiment(
-          options.as(DataflowPipelineDebugOptions.class), "beam_fn_api")) {
-        LOG.info("FnAPI: Unable to deserialize windowing strategy, assuming default", e);
-        windowingStrategy = WindowingStrategy.globalDefault();
-      } else {
-        throw e;
-      }
-    }
+    WindowingStrategy windowingStrategy = deserializeWindowingStrategy(encodedWindowingStrategy);
 
     byte[] serializedCombineFn = getBytes(cloudUserFn, WorkerPropertyNames.COMBINE_FN, null);
     AppliedCombineFn<?, ?, ?, ?> combineFn = null;
