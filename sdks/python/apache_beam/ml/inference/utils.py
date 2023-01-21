@@ -18,7 +18,8 @@
 """
 Util/helper functions used in apache_beam.ml.inference.
 """
-import os.path
+
+import os
 from functools import partial
 from typing import Any
 from typing import Dict
@@ -71,15 +72,14 @@ class _CoverIterToSingleton(beam.DoFn):
   """
   Internal only; No backwards compatibility.
 
-  In the MatchContinuously transform, it returns all the files(files with old
-  timestamps relative to the pipeline startup time) present in the given
-  directory. This could create an Iterable instead of Singleton.
-
-  This class will only return the file path when it is first seen.
-  This path will be cached as part of side input caching mechanism.
-  If the path has been seen again, it won't return anything. In that way,
-  we make sure the output of this transform can be wrapped with
-  beam.pvalue.AsSingleton().
+  The MatchContinuously transform examines all files present in a given
+  directory and returns those that have timestamps older than the
+  pipeline's start time. This can produce an Iterable rather than a
+  Singleton. This class only returns the file path when it is first
+  encountered, and it is cached as part of the side input caching mechanism.
+  If the path is seen again, it will not return anything.
+  By doing this, we can ensure that the output of this transform can be wrapped
+  with beam.pvalue.AsSingleton().
   """
   COUNT_STATE = CombiningValueStateSpec('count', combine_fn=sum)
 
@@ -92,36 +92,43 @@ class _CoverIterToSingleton(beam.DoFn):
 
 class _GetLatestFileByTimeStamp(beam.DoFn):
   """
-  Do we need state?
+  Internal only; No backwards compatibility.
+
+  This DoFn checks the timestamps of files against the time that the pipeline
+  began running. It returns the files that were modified after the pipeline
+  started. If no such files are found, it returns a default file as fallback.
+
   """
   TIME_STATE = CombiningValueStateSpec(
       'count', combine_fn=partial(max, default=_START_TIME_STAMP))
 
   def __init__(self, default_value):
-    self.default_value = default_value
+    self._default_value = default_value
 
   def process(
       self, element, time_state=beam.DoFn.StateParam(TIME_STATE)
-  ) -> List[Tuple[Any, ModelMetdata]]:
-    _, file_metadata = element
+  ) -> List[Tuple[str, ModelMetdata]]:
+    path, file_metadata = element
     new_ts = file_metadata.last_updated_in_seconds
     old_ts = time_state.read()
     if new_ts > old_ts:
       time_state.clear()
       time_state.add(new_ts)
       return [(
-          file_metadata.path,
+          path,
           ModelMetdata(
               model_id=file_metadata.path,
               model_name=os.path.splitext(os.path.basename(
                   file_metadata.path))[0]))]
     else:
+      path_short_name = None
+      if self._default_value:
+        path_short_name = os.path.splitext(
+            os.path.basename(self._default_value))[0]
       return [(
-          self.default_value,
+          self._default_value,
           ModelMetdata(
-              model_id=self.default_value,
-              model_name=os.path.splitext(
-                  os.path.basename(self.default_value.path))[0]))]
+              model_id=self._default_value, model_name=path_short_name))]
 
 
 def _convert_to_result(
@@ -150,9 +157,7 @@ class WatchFilePattern(beam.PTransform):
       file_pattern,
       interval=360,
       stop_timestamp=MAX_TIMESTAMP,
-      match_updated_files=False,
-      has_deduplication=True,
-      default_value='path',
+      default_value=None,
   ):
     """
     Watch for updates using the file pattern using MatchContinuously transform.
@@ -164,32 +169,22 @@ class WatchFilePattern(beam.PTransform):
       Args:
         file_pattern: The file path to read from.
         interval: Interval at which to check for files in seconds.
-        has_deduplication: Whether files already read are discarded or not.
         stop_timestamp: Timestamp after which no more files will be checked.
-        match_updated_files: (When has_deduplication is set to True) whether
-          match file with timestamp changes.
     """
     self.file_pattern = file_pattern
     self.interval = interval
     self.stop_timestamp = stop_timestamp
-    self.match_updated_files = match_updated_files
-    self.has_deduplication = has_deduplication
     self._latest_timestamp = None
-    self._key = 'key'
     self._default_value = default_value
 
   def expand(self, pcoll) -> beam.PCollection[ModelMetdata]:
-
-    match_con_pcoll = pcoll | 'MatchContinuously' >> MatchContinuously(
-        file_pattern=self.file_pattern,
-        interval=self.interval,
-        stop_timestamp=self.stop_timestamp,
-        match_updated_files=self.match_updated_files,
-        has_deduplication=self.has_deduplication)
-
     return (
-        match_con_pcoll
-        | "AttachKey" >> beam.Map(lambda x: (self._key, x))
+        pcoll
+        | 'MatchContinuously' >> MatchContinuously(
+            file_pattern=self.file_pattern,
+            interval=self.interval,
+            stop_timestamp=self.stop_timestamp)
+        | "AttachKey" >> beam.Map(lambda x: (x.path, x))
         | "GetLatestFileMetaData" >> beam.ParDo(
             _GetLatestFileByTimeStamp(default_value=self._default_value))
         | "AcceptNewSideInputOnly" >> beam.ParDo(_CoverIterToSingleton())
