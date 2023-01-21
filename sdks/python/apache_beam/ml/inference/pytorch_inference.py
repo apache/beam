@@ -105,15 +105,16 @@ def default_tensor_inference_fn(
     batch: Sequence[torch.Tensor],
     model: torch.nn.Module,
     device: str,
-    inference_args: Optional[Dict[str,
-                                  Any]] = None) -> Iterable[PredictionResult]:
+    inference_args: Optional[Dict[str, Any]] = None,
+    model_id: Optional[str] = None,
+) -> Iterable[PredictionResult]:
   # torch.no_grad() mitigates GPU memory issues
   # https://github.com/apache/beam/issues/22811
   with torch.no_grad():
     batched_tensors = torch.stack(batch)
     batched_tensors = _convert_to_device(batched_tensors, device)
     predictions = model(batched_tensors, **inference_args)
-    return utils._convert_to_result(batch, predictions)
+    return utils._convert_to_result(batch, predictions, model_id)
 
 
 def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
