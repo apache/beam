@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +28,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -39,7 +41,7 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -246,7 +248,8 @@ public class SamzaDoFnRunners {
             idToTupleTagMap,
             bundledEventsBag,
             stateRequestHandler,
-            samzaExecutionContext);
+            samzaExecutionContext,
+            executableStage.getTransforms());
     return pipelineOptions.getEnableMetrics()
         ? DoFnRunnerWithMetrics.wrap(
             underlyingRunner, executionContext.getMetricsContainer(), transformFullName)
@@ -270,7 +273,8 @@ public class SamzaDoFnRunners {
     private final StateRequestHandler stateRequestHandler;
     private final SamzaExecutionContext samzaExecutionContext;
     private long startBundleTime;
-    private final String metricName;
+    private final String stepName;
+    private final Collection<PipelineNode.PTransformNode> pTransformNodes;
 
     private SdkHarnessDoFnRunner(
         SamzaPipelineOptions pipelineOptions,
@@ -282,7 +286,8 @@ public class SamzaDoFnRunners {
         Map<String, TupleTag<?>> idToTupleTagMap,
         BagState<WindowedValue<InT>> bundledEventsBag,
         StateRequestHandler stateRequestHandler,
-        SamzaExecutionContext samzaExecutionContext) {
+        SamzaExecutionContext samzaExecutionContext,
+        Collection<PipelineNode.PTransformNode> pTransformNodes) {
       this.pipelineOptions = pipelineOptions;
       this.timerInternalsFactory = timerInternalsFactory;
       this.windowingStrategy = windowingStrategy;
@@ -292,7 +297,8 @@ public class SamzaDoFnRunners {
       this.bundledEventsBag = bundledEventsBag;
       this.stateRequestHandler = stateRequestHandler;
       this.samzaExecutionContext = samzaExecutionContext;
-      this.metricName = "ExecutableStage-" + stepName + "-process-ns";
+      this.stepName = stepName;
+      this.pTransformNodes = pTransformNodes;
     }
 
     @SuppressWarnings("unchecked")
@@ -324,12 +330,25 @@ public class SamzaDoFnRunners {
         final TimerReceiverFactory timerReceiverFactory =
             new TimerReceiverFactory(stageBundleFactory, this::timerDataConsumer, windowCoder);
 
+        Map<String, String> transformFullNameToUniqueName =
+            pTransformNodes.stream()
+                .collect(
+                    Collectors.toMap(
+                        pTransformNode -> pTransformNode.getId(),
+                        pTransformNode -> pTransformNode.getTransform().getUniqueName()));
+
+        SamzaMetricsBundleProgressHandler samzaMetricsBundleProgressHandler =
+            new SamzaMetricsBundleProgressHandler(
+                stepName,
+                samzaExecutionContext.getMetricsContainer(),
+                transformFullNameToUniqueName);
+
         remoteBundle =
             stageBundleFactory.getBundle(
                 receiverFactory,
                 timerReceiverFactory,
                 stateRequestHandler,
-                BundleProgressHandler.ignored());
+                samzaMetricsBundleProgressHandler);
 
         startBundleTime = getStartBundleTime();
 
@@ -396,6 +415,7 @@ public class SamzaDoFnRunners {
       final long finishBundleTime = System.nanoTime();
       final long averageProcessTime = (finishBundleTime - startBundleTime) / count;
 
+      String metricName = "ExecutableStage-" + stepName + "-process-ns";
       samzaExecutionContext
           .getMetricsContainer()
           .updateExecutableStageBundleMetric(metricName, averageProcessTime);
