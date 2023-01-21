@@ -20,7 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
-import '../../../constants/sizes.dart';
 import '../../../modules/output/components/output_header/output_placements.dart';
 import '../../../modules/output/models/output_placement.dart';
 import '../../../modules/output/models/output_placement_state.dart';
@@ -32,11 +31,21 @@ class PlaygroundPageBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer2<OutputPlacementState, PlaygroundController>(
-        builder: (context, outputState, playgroundState, child) {
+        builder: (context, outputState, controller, child) {
+      final snippetController = controller.snippetEditingController;
+
+      if (snippetController == null || snippetController.isLoading) {
+        return const LoadingIndicator();
+      }
+
       final output = OutputWidget(
         graphDirection: outputState.placement.graphDirection,
-        playgroundController: playgroundState,
+        playgroundController: controller,
         trailing: const OutputPlacements(),
+      );
+
+      final codeTextArea = CodeTextAreaWrapper(
+        playgroundController: controller,
       );
 
       switch (outputState.placement) {
@@ -63,16 +72,4 @@ class PlaygroundPageBody extends StatelessWidget {
       }
     });
   }
-
-  Widget get codeTextArea => const CodeTextAreaWrapper();
-
-  Widget getVerticalSeparator(BuildContext context) => Container(
-        width: kMdSpacing,
-        color: Theme.of(context).dividerColor,
-      );
-
-  Widget getHorizontalSeparator(BuildContext context) => Container(
-        height: kMdSpacing,
-        color: Theme.of(context).dividerColor,
-      );
 }

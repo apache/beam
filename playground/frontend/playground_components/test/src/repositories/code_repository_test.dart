@@ -20,6 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:playground_components/src/models/sdk.dart';
+import 'package:playground_components/src/models/snippet_file.dart';
 import 'package:playground_components/src/repositories/code_client/code_client.dart';
 import 'package:playground_components/src/repositories/code_repository.dart';
 import 'package:playground_components/src/repositories/models/check_status_response.dart';
@@ -31,9 +32,10 @@ import 'package:playground_components/src/repositories/models/run_code_result.da
 import 'code_repository_test.mocks.dart';
 
 const kRequestMock = RunCodeRequest(
-  code: 'code',
+  files: [SnippetFile(content: 'code', isMain: true)],
   sdk: Sdk.java,
   pipelineOptions: {},
+  datasets: [],
 );
 
 const kPipelineUuid = '1234';

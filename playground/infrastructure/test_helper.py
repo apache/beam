@@ -568,6 +568,33 @@ def test_get_tag_multifile():
         },
     )
 
+@mock.patch(
+    "builtins.open",
+    mock_open(
+        read_data="""
+
+// beam-playground:
+//   name: MultifileExample
+//   description: Test example with imports
+//   multifile: true
+//   context_line: 55
+//   categories:
+//     - Filtering
+//     - Options
+//     - Quickstart
+//   complexity: MEDIUM
+//   tags:
+//     - filter
+//     - strings
+//     - emulator
+
+"""
+    ),
+)
+
+def test_get_tag_multifile_incomplete():
+    tag = get_tag("../../examples/MOCK_EXAMPLE/main.java")
+    assert tag is None
 
 @mock.patch("os.path.isfile", return_value=True)
 def test_dataset_path_ok(mock_file_check, create_test_example):

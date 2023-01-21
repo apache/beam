@@ -19,12 +19,27 @@ package containers
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
+	"gopkg.in/retry.v1"
 )
 
 type ContainerOptionFn func(*testcontainers.ContainerRequest)
+
+func WithEnv(env map[string]string) ContainerOptionFn {
+	return func(option *testcontainers.ContainerRequest) {
+		option.Env = env
+	}
+}
+
+func WithHostname(hostname string) ContainerOptionFn {
+	return func(option *testcontainers.ContainerRequest) {
+		option.Hostname = hostname
+	}
+}
 
 func WithPorts(ports []string) ContainerOptionFn {
 	return func(option *testcontainers.ContainerRequest) {
@@ -32,10 +47,17 @@ func WithPorts(ports []string) ContainerOptionFn {
 	}
 }
 
+func WithWaitStrategy(waitStrategy wait.Strategy) ContainerOptionFn {
+	return func(option *testcontainers.ContainerRequest) {
+		option.WaitingFor = waitStrategy
+	}
+}
+
 func NewContainer(
 	ctx context.Context,
 	t *testing.T,
 	image string,
+	maxRetries int,
 	opts ...ContainerOptionFn,
 ) testcontainers.Container {
 	t.Helper()
@@ -51,9 +73,26 @@ func NewContainer(
 		Started:          true,
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, genericRequest)
-	if err != nil {
-		t.Fatalf("error creating container: %v", err)
+	strategy := retry.LimitCount(
+		maxRetries,
+		retry.Exponential{
+			Initial: time.Second,
+			Factor:  2,
+		},
+	)
+
+	var container testcontainers.Container
+	var err error
+
+	for attempt := retry.Start(strategy, nil); attempt.Next(); {
+		container, err = testcontainers.GenericContainer(ctx, genericRequest)
+		if err == nil {
+			break
+		}
+
+		if attempt.Count() == maxRetries {
+			t.Fatalf("failed to start container with %v retries: %v", maxRetries, err)
+		}
 	}
 
 	t.Cleanup(func() {

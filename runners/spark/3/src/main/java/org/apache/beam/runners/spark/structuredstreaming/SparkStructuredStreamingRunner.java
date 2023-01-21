@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
-import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.concurrent.ExecutorService;
@@ -28,6 +27,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.core.metrics.NoOpMetricsSink;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.structuredstreaming.translation.EvaluationContext;
@@ -44,7 +44,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.spark.SparkContext;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.sql.SparkSession;
@@ -139,6 +138,7 @@ public final class SparkStructuredStreamingRunner
   @Override
   public SparkStructuredStreamingPipelineResult run(final Pipeline pipeline) {
     MetricsEnvironment.setMetricsSupported(true);
+    MetricsAccumulator.clear();
 
     LOG.info(
         "*** SparkStructuredStreamingRunner is based on spark structured streaming framework and is no more \n"
@@ -150,23 +150,21 @@ public final class SparkStructuredStreamingRunner
     checkArgument(!options.isStreaming(), "Streaming is not supported.");
 
     final SparkSession sparkSession = SparkSessionFactory.getOrCreateSession(options);
-    initMetrics(sparkSession.sparkContext());
+    final MetricsAccumulator metrics = MetricsAccumulator.getInstance(sparkSession);
 
     final Future<?> submissionFuture =
         runAsync(() -> translatePipeline(sparkSession, pipeline).evaluate());
 
     final SparkStructuredStreamingPipelineResult result =
         new SparkStructuredStreamingPipelineResult(
-            submissionFuture, stopSparkSession(sparkSession, options.getUseActiveSparkSession()));
+            submissionFuture,
+            metrics,
+            sparkStopFn(sparkSession, options.getUseActiveSparkSession()));
 
     if (options.getEnableSparkMetricSinks()) {
-      registerMetricsSource(options.getAppName());
+      registerMetricsSource(options.getAppName(), metrics);
     }
-
-    MetricsPusher metricsPusher =
-        new MetricsPusher(
-            MetricsAccumulator.getInstance().value(), options.as(MetricsOptions.class), result);
-    metricsPusher.start();
+    startMetricsPusher(result, metrics);
 
     if (options.getTestMode()) {
       result.waitUntilFinish();
@@ -189,25 +187,28 @@ public final class SparkStructuredStreamingRunner
     }
 
     PipelineTranslator.replaceTransforms(pipeline, options);
-    prepareFilesToStage(options);
 
     PipelineTranslator pipelineTranslator = new PipelineTranslatorBatch();
     return pipelineTranslator.translate(pipeline, sparkSession, options);
   }
 
-  private void registerMetricsSource(String appName) {
+  private void registerMetricsSource(String appName, MetricsAccumulator metrics) {
     final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
-    final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(appName + ".Beam");
+    final SparkBeamMetricSource metricsSource =
+        new SparkBeamMetricSource(appName + ".Beam", metrics);
     // re-register the metrics in case of context re-use
     metricsSystem.removeSource(metricsSource);
     metricsSystem.registerSource(metricsSource);
   }
 
-  /** Init Metrics/Aggregators accumulators. This method is idempotent. */
-  private static void initMetrics(SparkContext sparkContext) {
-    // Clear and init metrics accumulators
-    MetricsAccumulator.clear();
-    MetricsAccumulator.init(sparkContext);
+  /** Start {@link MetricsPusher} if sink is set. */
+  private void startMetricsPusher(
+      SparkStructuredStreamingPipelineResult result, MetricsAccumulator metrics) {
+    MetricsOptions metricsOpts = options.as(MetricsOptions.class);
+    Class<?> metricsSink = metricsOpts.getMetricsSink();
+    if (metricsSink != null && !metricsSink.equals(NoOpMetricsSink.class)) {
+      new MetricsPusher(metrics.value(), metricsOpts, result).start();
+    }
   }
 
   private static Future<?> runAsync(Runnable task) {
@@ -222,7 +223,7 @@ public final class SparkStructuredStreamingRunner
     return future;
   }
 
-  private static @Nullable Runnable stopSparkSession(SparkSession session, boolean isProvided) {
+  private static @Nullable Runnable sparkStopFn(SparkSession session, boolean isProvided) {
     return !isProvided ? () -> session.stop() : null;
   }
 }

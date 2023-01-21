@@ -46,31 +46,36 @@ void main() {
         await repo.getPrecompiledObjects(kGetPrecompiledObjectsRequest),
         kGetPrecompiledObjectsResponse.categories,
       );
-      verify(client.getPrecompiledObjects(kGetPrecompiledObjectsRequest)).called(1);
+      verify(client.getPrecompiledObjects(kGetPrecompiledObjectsRequest))
+          .called(1);
     },
   );
 
   test(
     'Example repository getDefaultExample should return defaultExample for chosen Sdk',
     () async {
-      when(client.getDefaultPrecompiledObject(kGetDefaultPrecompiledObjectRequest))
+      when(client
+              .getDefaultPrecompiledObject(kGetDefaultPrecompiledObjectRequest))
           .thenAnswer((_) async => kGetDefaultPrecompiledObjectResponse);
       expect(
-        await repo.getDefaultPrecompiledObject(kGetDefaultPrecompiledObjectRequest),
+        await repo
+            .getDefaultPrecompiledObject(kGetDefaultPrecompiledObjectRequest),
         kGetDefaultPrecompiledObjectResponse.example,
       );
-      verify(client.getDefaultPrecompiledObject(kGetDefaultPrecompiledObjectRequest)).called(1);
+      verify(client
+              .getDefaultPrecompiledObject(kGetDefaultPrecompiledObjectRequest))
+          .called(1);
     },
   );
 
   test(
-    'Example repository getExampleSource should return source code for example',
+    'Example repository getExampleSource should return files for example',
     () async {
       when(client.getPrecompiledObjectCode(kRequestForExampleInfo))
           .thenAnswer((_) async => kGetPrecompiledObjectCodeResponse);
       expect(
         await repo.getPrecompiledObjectCode(kRequestForExampleInfo),
-        kGetPrecompiledObjectCodeResponse.code,
+        kGetPrecompiledObjectCodeResponse.files,
       );
       verify(client.getPrecompiledObjectCode(kRequestForExampleInfo)).called(1);
     },
@@ -85,7 +90,8 @@ void main() {
         await repo.getPrecompiledObjectOutput(kRequestForExampleInfo),
         kOutputResponse.output,
       );
-      verify(client.getPrecompiledObjectOutput(kRequestForExampleInfo)).called(1);
+      verify(client.getPrecompiledObjectOutput(kRequestForExampleInfo))
+          .called(1);
     },
   );
 
@@ -111,13 +117,14 @@ void main() {
         await repo.getPrecompiledObjectGraph(kRequestForExampleInfo),
         kOutputResponse.output,
       );
-      verify(client.getPrecompiledObjectGraph(kRequestForExampleInfo)).called(1);
+      verify(client.getPrecompiledObjectGraph(kRequestForExampleInfo))
+          .called(1);
     },
   );
 
   test(
     'Example repository getExample should return ExampleModel',
-        () async {
+    () async {
       when(client.getPrecompiledObject(kRequestForExampleInfo))
           .thenAnswer((_) async => kGetDefaultPrecompiledObjectResponse);
       expect(

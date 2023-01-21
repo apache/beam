@@ -20,7 +20,7 @@ import 'package:playground_components/playground_components.dart';
 
 String getAnalyticsExampleName(PlaygroundController controller) {
   final customCodeName = 'Custom code, sdk ${controller.sdk?.title}';
-  if (controller.isExampleChanged) {
+  if (controller.codeRunner.isExampleChanged) {
     return customCodeName;
   }
   return controller.selectedExample?.path ?? customCodeName;

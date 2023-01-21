@@ -210,7 +210,9 @@ func (fn *bucketAutoFn) getBuckets(ctx context.Context, count int32) ([]bucket, 
 		},
 	}}}
 
-	cursor, err := fn.collection.Aggregate(ctx, pipeline)
+	opts := options.Aggregate().SetAllowDiskUse(true)
+
+	cursor, err := fn.collection.Aggregate(ctx, pipeline, opts)
 	if err != nil {
 		return nil, fmt.Errorf("error executing bucketAuto aggregation: %w", err)
 	}
@@ -470,7 +472,7 @@ func (fn *readFn) findDocuments(
 	projection bson.D,
 	filter bson.M,
 ) (*mongo.Cursor, error) {
-	opts := options.Find().SetProjection(projection).SetAllowDiskUse(true)
+	opts := options.Find().SetProjection(projection)
 
 	cursor, err := fn.collection.Find(ctx, filter, opts)
 	if err != nil {

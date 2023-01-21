@@ -26,11 +26,13 @@ applyJavaNature(
   ],
   shadowClosure: {
     dependencies {
-      include(dependency("org.apache.commons:.*"))
+      include(dependency(library.java.commons_compress))
+      include(dependency(library.java.commons_lang3))
       include(dependency(library.java.antlr_runtime))
     }
     relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
-    relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
+    relocate "org.apache.commons.compress", getJavaRelocatedPath("org.apache.commons.compress")
+    relocate "org.apache.commons.lang3", getJavaRelocatedPath("org.apache.commons.lang3")
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
   },
 )
@@ -114,6 +116,9 @@ dependencies {
   shadowTest library.java.quickcheck_generators
   shadowTest library.java.avro_tests
   shadowTest library.java.zstd_jni
+  shadowTest library.java.commons_logging
+  shadowTest library.java.log4j
+  shadowTest library.java.log4j2_api
   shadowTest library.java.jamm
   testRuntimeOnly library.java.slf4j_jdk14
 }

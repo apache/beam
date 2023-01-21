@@ -95,14 +95,33 @@ public class FakeDatasetService implements DatasetService, Serializable {
     final Type type;
     long nextFlushPosition;
     boolean finalized;
+    TableSchema currentSchema;
+    @Nullable TableSchema updatedSchema = null;
 
     Stream(String streamName, TableContainer tableContainer, Type type) {
       this.streamName = streamName;
       this.stream = Lists.newArrayList();
       this.tableContainer = tableContainer;
+      this.currentSchema = tableContainer.getTable().getSchema();
       this.type = type;
       this.finalized = false;
       this.nextFlushPosition = 0;
+    }
+
+    void setUpdatedSchema(TableSchema tableSchema) {
+      this.updatedSchema = tableSchema;
+    }
+
+    TableSchema getUpdatedSchema() {
+      return this.updatedSchema;
+    }
+
+    WriteStream toWriteStream() {
+      return WriteStream.newBuilder()
+          .setName(streamName)
+          .setType(type)
+          .setTableSchema(TableRowToStorageApiProto.schemaToProtoTableSchema(currentSchema))
+          .build();
     }
 
     long finalizeStream() {
@@ -324,6 +343,12 @@ public class FakeDatasetService implements DatasetService, Serializable {
       }
       // TODO: Only allow "legal" schema changes.
       tableContainer.table.setSchema(tableSchema);
+
+      for (Stream stream : writeStreams.values()) {
+        if (stream.tableContainer == tableContainer) {
+          stream.setUpdatedSchema(tableSchema);
+        }
+      }
     }
   }
 
@@ -495,9 +520,22 @@ public class FakeDatasetService implements DatasetService, Serializable {
               tableReference.getDatasetId(),
               tableReference.getTableId());
       String streamName = UUID.randomUUID().toString();
-      writeStreams.put(streamName, new Stream(streamName, tableContainer, type));
-      return WriteStream.newBuilder().setName(streamName).build();
+      Stream stream = new Stream(streamName, tableContainer, type);
+      writeStreams.put(streamName, stream);
+      return stream.toWriteStream();
     }
+  }
+
+  @Override
+  @Nullable
+  public WriteStream getWriteStream(String streamName) {
+    synchronized (FakeDatasetService.class) {
+      @Nullable Stream stream = writeStreams.get(streamName);
+      if (stream != null) {
+        return stream.toWriteStream();
+      }
+    }
+    return null;
   }
 
   @Override
@@ -505,9 +543,15 @@ public class FakeDatasetService implements DatasetService, Serializable {
       String streamName, Descriptor descriptor, boolean useConnectionPool) {
     return new StreamAppendClient() {
       private Descriptor protoDescriptor;
+      private TableSchema currentSchema;
+      private @Nullable com.google.cloud.bigquery.storage.v1.TableSchema updatedSchema;
 
       {
         this.protoDescriptor = descriptor;
+        synchronized (FakeDatasetService.class) {
+          Stream stream = writeStreams.get(streamName);
+          currentSchema = stream.tableContainer.getTable().getSchema();
+        }
       }
 
       @Override
@@ -545,8 +589,23 @@ public class FakeDatasetService implements DatasetService, Serializable {
                     rowIndexToErrorMessage));
           }
           stream.appendRows(offset, tableRows);
+          if (stream.getUpdatedSchema() != null) {
+            com.google.cloud.bigquery.storage.v1.TableSchema newSchema =
+                TableRowToStorageApiProto.schemaToProtoTableSchema(stream.getUpdatedSchema());
+            responseBuilder.setUpdatedSchema(newSchema);
+            if (this.updatedSchema == null) {
+              this.updatedSchema = newSchema;
+            }
+          }
         }
         return ApiFutures.immediateFuture(responseBuilder.build());
+      }
+
+      @Override
+      public com.google.cloud.bigquery.storage.v1.@org.checkerframework.checker.nullness.qual
+              .Nullable
+          TableSchema getUpdatedSchema() {
+        return this.updatedSchema;
       }
 
       @Override

@@ -65,6 +65,7 @@ excluded_patterns=(
     'apache_beam/runners/test/'
     'apache_beam/runners/worker/'
     'apache_beam/testing/benchmarks/chicago_taxi/'
+    'apache_beam/testing/benchmarks/cloudml/'
     'apache_beam/testing/benchmarks/inference/'
     'apache_beam/testing/benchmarks/data/'
     'apache_beam/testing/benchmarks/load_tests/'
@@ -141,7 +142,6 @@ import apache_beam as beam
 intersphinx_mapping = {
   'python': ('https://docs.python.org/{}'.format(sys.version_info.major), None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
-  'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
   'numpy': ('https://numpy.org/doc/stable', None),
   'pandas': ('http://pandas.pydata.org/pandas-docs/dev', None),
 }

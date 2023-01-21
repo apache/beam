@@ -87,7 +87,7 @@ closed.
 > it implicitly calls `pipeline.run()` which triggers the computation to happen.
 
 The pipeline is then sent to your
-[runner of choice](https://beam.apache.org/documentation/runners/capability-matrix/)
+[runner of choice](/documentation/runners/capability-matrix/)
 and it processes the data.
 
 > ℹ️ The pipeline can run locally with the _DirectRunner_,

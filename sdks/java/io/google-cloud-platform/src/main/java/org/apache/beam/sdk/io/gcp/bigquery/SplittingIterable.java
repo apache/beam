@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import javax.annotation.Nullable;
 
 /**
  * Takes in an iterable and batches the results into multiple ProtoRows objects. The splitSize
@@ -28,12 +32,35 @@ import java.util.NoSuchElementException;
  * the next one.
  */
 class SplittingIterable implements Iterable<ProtoRows> {
+  interface ConvertUnknownFields {
+    ByteString convert(TableRow tableRow, boolean ignoreUnknownValues)
+        throws TableRowToStorageApiProto.SchemaConversionException;
+  }
+
   private final Iterable<StorageApiWritePayload> underlying;
   private final long splitSize;
 
-  public SplittingIterable(Iterable<StorageApiWritePayload> underlying, long splitSize) {
+  private final ConvertUnknownFields unknownFieldsToMessage;
+  private final Function<ByteString, TableRow> protoToTableRow;
+  private final BiConsumer<TableRow, String> failedRowsConsumer;
+  private final boolean autoUpdateSchema;
+  private final boolean ignoreUnknownValues;
+
+  public SplittingIterable(
+      Iterable<StorageApiWritePayload> underlying,
+      long splitSize,
+      ConvertUnknownFields unknownFieldsToMessage,
+      Function<ByteString, TableRow> protoToTableRow,
+      BiConsumer<TableRow, String> failedRowsConsumer,
+      boolean autoUpdateSchema,
+      boolean ignoreUnknownValues) {
     this.underlying = underlying;
     this.splitSize = splitSize;
+    this.unknownFieldsToMessage = unknownFieldsToMessage;
+    this.protoToTableRow = protoToTableRow;
+    this.failedRowsConsumer = failedRowsConsumer;
+    this.autoUpdateSchema = autoUpdateSchema;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   @Override
@@ -57,7 +84,37 @@ class SplittingIterable implements Iterable<ProtoRows> {
         while (underlyingIterator.hasNext()) {
           StorageApiWritePayload payload = underlyingIterator.next();
           ByteString byteString = ByteString.copyFrom(payload.getPayload());
-
+          if (autoUpdateSchema) {
+            try {
+              @Nullable TableRow unknownFields = payload.getUnknownFields();
+              if (unknownFields != null) {
+                // Protocol buffer serialization format supports concatenation. We serialize any new
+                // "known" fields
+                // into a proto and concatenate to the existing proto.
+                try {
+                  byteString =
+                      byteString.concat(
+                          unknownFieldsToMessage.convert(unknownFields, ignoreUnknownValues));
+                } catch (TableRowToStorageApiProto.SchemaConversionException e) {
+                  // This generally implies that ignoreUnknownValues=false and there were still
+                  // unknown values here.
+                  // Reconstitute the TableRow and send it to the failed-rows consumer.
+                  TableRow tableRow = protoToTableRow.apply(byteString);
+                  // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we
+                  // only execute this
+                  // codepath when ignoreUnknownFields==true, so we should never hit this codepath.
+                  // However once
+                  // 24926 is fixed, we need to merge the unknownFields back into the main row
+                  // before outputting to the
+                  // failed-rows consumer.
+                  failedRowsConsumer.accept(tableRow, e.toString());
+                  continue;
+                }
+              }
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          }
           inserts.addSerializedRows(byteString);
           bytesSize += byteString.size();
           if (bytesSize > splitSize) {
