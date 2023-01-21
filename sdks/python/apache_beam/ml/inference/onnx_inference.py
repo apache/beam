@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-import pickle
-import sys
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -26,22 +24,12 @@ from typing import Sequence
 from typing import Union
 
 import numpy
-import pandas
-import onnx
 import onnxruntime as ort
 
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 
-try:
-  import joblib
-except ImportError:
-  # joblib is an optional dependency.
-  pass
-
-__all__ = [
-    'OnnxModelHandlerNumpy'
-]
+__all__ = ['OnnxModelHandlerNumpy']
 
 NumpyInferenceFn = Callable[
     [Sequence[numpy.ndarray], ort.InferenceSession, Optional[Dict[str, Any]]],
@@ -69,7 +57,9 @@ def default_numpy_inference_fn(
     inference_session: ort.InferenceSession,
     batch: Sequence[numpy.ndarray],
     inference_args: Optional[Dict[str, Any]] = None) -> Any:
-  ort_inputs = {inference_session.get_inputs()[0].name: numpy.stack(batch, axis=0)}
+  ort_inputs = {
+      inference_session.get_inputs()[0].name: numpy.stack(batch, axis=0)
+  }
   if inference_args:
     ort_inputs = {**ort_inputs, **inference_args}
   ort_outs = inference_session.run(None, ort_inputs)
@@ -77,14 +67,14 @@ def default_numpy_inference_fn(
 
 
 class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
-                                    PredictionResult,
-                                    ort.InferenceSession]):
-  def __init__(
+                                         PredictionResult,
+                                         ort.InferenceSession]):
+  def __init__( #pylint: disable=dangerous-default-value
       self,
       model_uri: str,
-      session_options = None,
-      providers =['CUDAExecutionProvider', 'CPUExecutionProvider'],
-      provider_options = None,
+      session_options=None,
+      providers=['CUDAExecutionProvider', 'CPUExecutionProvider'],
+      provider_options=None,
       *,
       inference_fn: NumpyInferenceFn = default_numpy_inference_fn):
     """ Implementation of the ModelHandler interface for onnx
@@ -108,9 +98,13 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
   def load_model(self) -> ort.InferenceSession:
     """Loads and initializes an onnx inference session for processing."""
-    ort_session = ort.InferenceSession(self._model_uri, sess_options=self._session_options, providers=self._providers, provider_options = self._provider_options)
+    ort_session = ort.InferenceSession(
+        self._model_uri,
+        sess_options=self._session_options,
+        providers=self._providers,
+        provider_options=self._provider_options)
     return ort_session
-  
+
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
@@ -122,13 +116,15 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Args:
       batch: A sequence of examples as numpy arrays. They should
         be single examples.
-      inference_session: An onnx inference session. Must be runnable with input x where x is sequence of numpy array
+      inference_session: An onnx inference session.
+        Must be runnable with input x where x is sequence of numpy array
       inference_args: Any additional arguments for an inference.
 
     Returns:
       An Iterable of type PredictionResult.
     """
-    predictions = self._model_inference_fn(inference_session, batch, inference_args)[0]
+    predictions = self._model_inference_fn(
+        inference_session, batch, inference_args)[0]
 
     return _convert_to_result(batch, predictions)
 
