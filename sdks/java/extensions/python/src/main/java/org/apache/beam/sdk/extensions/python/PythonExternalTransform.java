@@ -65,10 +65,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Wrapper for invoking external Python transforms. */
 public class PythonExternalTransform<InputT extends PInput, OutputT extends POutput>
     extends PTransform<InputT, OutputT> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(PythonExternalTransform.class);
 
   private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
   private String fullyQualifiedName;
@@ -468,7 +472,13 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
                     "apache_beam.runners.portability.expansion_service_main", args.build())
                 .withExtraPackages(extraPackages);
         try (AutoCloseable p = service.start()) {
-          PythonService.waitForPort("localhost", port, 15000);
+          // allow more time for service with extra packages to response.
+          int timeoutSeconds = extraPackages.isEmpty() ? 15 : 30;
+          LOG.info(
+              "Expanding Python external transform {} using default transient expansion service with timeout {}s.",
+              fullyQualifiedName,
+              timeoutSeconds);
+          PythonService.waitForPort("localhost", port, timeoutSeconds * 1000);
           return apply(input, String.format("localhost:%s", port), payload);
         }
       }
