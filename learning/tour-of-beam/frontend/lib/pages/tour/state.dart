@@ -108,8 +108,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _saveUserCode(String sdkId, String unitId, String code) async {
-    final client = GetIt.instance.get<TobClient>();
-    await client.postUserCode(sdkId, unitId, code);
+    try {
+      final client = GetIt.instance.get<TobClient>();
+      await client.postUserCode(sdkId, unitId, code);
+    } on Exception catch (e) {
+      // TODO(nausharipov): how to handle?
+      print(['Could not save code: ', e]);
+    }
   }
 
   @override
@@ -229,7 +234,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     final selectedSdk = _appNotifier.sdk;
     if (selectedSdk != null) {
       // TODO(nausharipov): review
-      // doesn't update code after setResetFalse
+      // Does the reset button need to be shown right after editing?
+      // If so, how to smoothly load the new snippet?
       await playgroundController.examplesLoader.load(
         ExamplesLoadingDescriptor(
           descriptors: [
