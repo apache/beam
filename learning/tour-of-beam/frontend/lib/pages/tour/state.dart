@@ -158,6 +158,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> toggleReset() async {
+    _isShowingSolution = false;
     _resetSnippet = !_resetSnippet;
     await _unitsProgressCache.updateUnitsProgress();
     notifyListeners();
