@@ -482,6 +482,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
           return apply(input, String.format("localhost:%s", port), payload);
         }
       }
+    } catch (RuntimeException exn) {
+      throw exn;
     } catch (Exception exn) {
       throw new RuntimeException(exn);
     }
