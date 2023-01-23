@@ -106,26 +106,16 @@ func (b *CompileBuilder) WithArgs(compileArgs []string) *CompileBuilder {
 	return b
 }
 
-// WithFileName adds file name to executor
-func (b *CompileBuilder) WithFileName(fileName string) *CompileBuilder {
-	return b.WithFileNames([]string{fileName})
-}
-
 // WithFileNames adds file names to executor
-func (b *CompileBuilder) WithFileNames(fileNames []string) *CompileBuilder {
+func (b *CompileBuilder) WithFileNames(fileNames ...string) *CompileBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
 		e.compileArgs.fileNames = fileNames
 	})
 	return b
 }
 
-// WithExecutableFileName adds file name to executor
-func (b *RunBuilder) WithExecutableFileName(name string) *RunBuilder {
-	return b.WithExecutableFileNames([]string{name})
-}
-
 // WithExecutableFileNames adds file name to executor
-func (b *RunBuilder) WithExecutableFileNames(names []string) *RunBuilder {
+func (b *RunBuilder) WithExecutableFileNames(names ...string) *RunBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
 		e.runArgs.fileNames = names
 	})

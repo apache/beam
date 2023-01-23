@@ -78,17 +78,17 @@ func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *exec
 	case pb.Sdk_SDK_JAVA:
 		builder = builder.
 			WithCompiler().
-			WithFileNames(GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)).
+			WithFileNames(GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)...).
 			ExecutorBuilder
 	case pb.Sdk_SDK_GO:
 		builder = builder.
 			WithCompiler().
-			WithFileNames(GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)).
+			WithFileNames(GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)...).
 			ExecutorBuilder
 	default:
 		builder = builder.
 			WithCompiler().
-			WithFileName(paths.AbsoluteSourceFilePath).
+			WithFileNames(paths.AbsoluteSourceFilePath).
 			ExecutorBuilder
 	}
 	return &builder
@@ -119,7 +119,7 @@ func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *envir
 		builder = builder.
 			WithRunner().
 			WithArgs(args).
-			WithExecutableFileName(className).
+			WithExecutableFileNames(className).
 			WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 			ExecutorBuilder
 	case pb.Sdk_SDK_GO: //go run command is executable file itself
@@ -131,7 +131,7 @@ func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *envir
 	case pb.Sdk_SDK_PYTHON:
 		builder = builder.
 			WithRunner().
-			WithExecutableFileName(paths.AbsoluteExecutableFilePath).
+			WithExecutableFileNames(paths.AbsoluteExecutableFilePath).
 			WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 			ExecutorBuilder
 	case pb.Sdk_SDK_SCIO:
