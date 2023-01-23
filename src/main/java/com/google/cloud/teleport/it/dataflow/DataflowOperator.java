@@ -120,7 +120,7 @@ public final class DataflowOperator {
   }
 
   /** Similar to {@link #waitForConditionAndFinish} but cancels the job instead of draining. */
-  public Result waiForConditionAndCancel(Config config, Supplier<Boolean> conditionCheck)
+  public Result waitForConditionAndCancel(Config config, Supplier<Boolean> conditionCheck)
       throws IOException {
     return waiForConditionAndExecute(config, conditionCheck, this::cancelJobAndFinish);
   }
