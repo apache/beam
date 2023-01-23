@@ -17,6 +17,9 @@
  */
 
 import 'dart:async';
+// TODO(nausharipov): review
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html';
 
 import 'package:app_state/app_state.dart';
 import 'package:flutter/widgets.dart';
@@ -59,6 +62,15 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onUnitProgressChanged);
     _onUnitChanged();
+    window.onBeforeUnload.listen((_) async {
+      if (currentUnitController != null) {
+        await TobGoogleAnalyticsService.get().closeUnit(
+          currentUnitController!.sdk,
+          currentUnitController!.unit.id,
+          DateTime.now().difference(_currentUnitOpenedAt!),
+        );
+      }
+    });
   }
 
   @override
