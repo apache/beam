@@ -26,7 +26,7 @@ import 'package:rate_limiter/rate_limiter.dart';
 
 import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
-import '../../cache/units_progress.dart';
+import '../../cache/unit_progress.dart';
 import '../../config.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
@@ -45,7 +45,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final _appNotifier = GetIt.instance.get<AppNotifier>();
   final _authNotifier = GetIt.instance.get<AuthNotifier>();
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
-  final _unitsProgressCache = GetIt.instance.get<UnitsProgressCache>();
+  final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
 
   TourNotifier({
@@ -114,7 +114,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       final client = GetIt.instance.get<TobClient>();
       await client.postUserCode(sdkId, unitId, code);
       if (!isCurrentUnitCodeSaved) {
-        await _unitsProgressCache.updateUnitsProgress();
+        await _unitProgressCache.updateUnitProgress();
         notifyListeners();
       }
     } on Exception catch (e) {
@@ -136,7 +136,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   bool _isShowingSolution = false;
   bool get isShowingSolution => _isShowingSolution;
   bool get isCurrentUnitCodeSaved =>
-      _unitsProgressCache.getUnitSnippets()[currentUnitId] != null;
+      _unitProgressCache.getUnitSnippets()[currentUnitId] != null;
   bool _resetSnippet = false;
   bool get resetSnippet => _resetSnippet;
 
@@ -176,7 +176,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _onAuthChanged() async {
-    await _unitsProgressCache.updateUnitsProgress();
+    await _unitProgressCache.updateUnitProgress();
     await _setCurrentSnippet();
     notifyListeners();
   }
@@ -228,9 +228,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       if (_resetSnippet) {
         snippetId = unit.taskSnippetId;
       } else {
-        await _unitsProgressCache.updateUnitsProgress();
-        snippetId = _unitsProgressCache.getUnitSnippets()[unit.id] ??
-            unit.taskSnippetId;
+        await _unitProgressCache.updateUnitProgress();
+        snippetId =
+            _unitProgressCache.getUnitSnippets()[unit.id] ?? unit.taskSnippetId;
       }
       await _setPlaygroundSnippet(snippetId);
       _isShowingSolution = false;

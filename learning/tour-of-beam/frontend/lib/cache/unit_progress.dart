@@ -27,10 +27,10 @@ import '../repositories/models/get_user_progress_response.dart';
 import '../state.dart';
 import 'cache.dart';
 
-class UnitsProgressCache extends Cache {
-  UnitsProgressCache({required super.client});
+class UnitProgressCache extends Cache {
+  UnitProgressCache({required super.client});
 
-  var _unitsProgress = <UnitProgressModel>[];
+  var _unitProgress = <UnitProgressModel>[];
   Future<GetUserProgressResponse?>? _future;
 
   final _completedUnitIds = <String>{};
@@ -38,29 +38,29 @@ class UnitsProgressCache extends Cache {
 
   final _unitSnippets = <String, String?>{};
 
-  Future<void> updateUnitsProgress() async {
+  Future<void> updateUnitProgress() async {
     final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
     if (sdkId != null) {
-      await _loadUnitsProgress(sdkId);
+      await _loadUnitProgress(sdkId);
     }
   }
 
-  List<UnitProgressModel> getUnitsProgress() {
+  List<UnitProgressModel> getUnitProgress() {
     if (_future == null) {
-      unawaited(updateUnitsProgress());
+      unawaited(updateUnitProgress());
     }
 
-    return _unitsProgress;
+    return _unitProgress;
   }
 
-  Future<void> _loadUnitsProgress(String sdkId) async {
+  Future<void> _loadUnitProgress(String sdkId) async {
     _future = client.getUserProgress(sdkId);
     final result = await _future;
 
     if (result != null) {
-      _unitsProgress = result.units;
+      _unitProgress = result.units;
     } else {
-      _unitsProgress = [];
+      _unitProgress = [];
     }
     notifyListeners();
   }
@@ -71,7 +71,7 @@ class UnitsProgressCache extends Cache {
 
   Set<String> getCompletedUnits() {
     _completedUnitIds.clear();
-    for (final unitProgress in getUnitsProgress()) {
+    for (final unitProgress in getUnitProgress()) {
       if (unitProgress.isCompleted) {
         _completedUnitIds.add(unitProgress.id);
       }
@@ -118,7 +118,7 @@ class UnitsProgressCache extends Cache {
 
   Map<String, String?> getUnitSnippets() {
     _unitSnippets.clear();
-    for (final unitProgress in getUnitsProgress()) {
+    for (final unitProgress in getUnitProgress()) {
       _unitSnippets[unitProgress.id] = unitProgress.userSnippetId;
     }
     return _unitSnippets;

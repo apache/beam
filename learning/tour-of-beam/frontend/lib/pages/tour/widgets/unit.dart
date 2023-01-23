@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../cache/units_progress.dart';
+import '../../../cache/unit_progress.dart';
 import '../../../models/unit.dart';
 import '../controllers/content_tree.dart';
 import 'binary_progress.dart';
@@ -36,7 +36,7 @@ class UnitWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unitsProgressCache = GetIt.instance.get<UnitsProgressCache>();
+    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
 
     return AnimatedBuilder(
       animation: contentTreeController,
@@ -54,9 +54,9 @@ class UnitWidget extends StatelessWidget {
             child: Row(
               children: [
                 AnimatedBuilder(
-                  animation: unitsProgressCache,
+                  animation: unitProgressCache,
                   builder: (context, child) => BinaryProgressIndicator(
-                    isCompleted: unitsProgressCache.isUnitCompleted(unit.id),
+                    isCompleted: unitProgressCache.isUnitCompleted(unit.id),
                     isSelected: isSelected,
                   ),
                 ),

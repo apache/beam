@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../../../cache/units_progress.dart';
+import '../../../cache/unit_progress.dart';
 import '../../../models/group.dart';
 import '../../../models/node.dart';
 import 'binary_progress.dart';
@@ -61,14 +61,14 @@ class _GroupProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unitsProgressCache = GetIt.instance.get<UnitsProgressCache>();
+    final unitProgressCache = GetIt.instance.get<UnitProgressCache>();
 
     return AnimatedBuilder(
-      animation: unitsProgressCache,
+      animation: unitProgressCache,
       builder: (context, child) {
         final progress = _getGroupProgress(
           group.nodes,
-          unitsProgressCache.getCompletedUnits(),
+          unitProgressCache.getCompletedUnits(),
         );
 
         if (progress == 1) {
