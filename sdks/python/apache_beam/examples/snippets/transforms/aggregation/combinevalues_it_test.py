@@ -19,9 +19,14 @@ import logging
 import pytest
 import unittest
 
+from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.core import CombineValues
+from apache_beam.transforms.core import Create
+from apache_beam.transforms.core import GroupByKey
+from apache_beam.transforms.core import MapTuple
 
 
 class CombineValuesIT(unittest.TestCase):
@@ -35,11 +40,11 @@ class CombineValuesIT(unittest.TestCase):
 
     pcoll = \
         self.test_pipeline \
-        | beam.Create([("key1", "foo"), ("key2", "bar"), ("key1", "foo")],
+        | Create([("key1", "foo"), ("key2", "bar"), ("key1", "foo")],
                       reshuffle=False) \
-        | beam.GroupByKey() \
-        | beam.CombineValues(merge) \
-        | beam.MapTuple(lambda k, v: '{}: {}'.format(k, v))
+        | GroupByKey() \
+        | CombineValues(merge) \
+        | MapTuple(lambda k, v: '{}: {}'.format(k, v))
 
     assert_that(pcoll, equal_to(['key1: foofoo', 'key2: bar']))
 
