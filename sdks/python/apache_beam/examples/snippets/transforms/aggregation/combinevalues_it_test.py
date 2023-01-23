@@ -40,9 +40,9 @@ class CombineValuesIT(unittest.TestCase):
     
     pcoll = \
         self.test_pipeline \
-        | beam.Create([("key1", "foo"), ("key2", "bar"), ("key1", "foo")], reshuffle=False)
-        | beam.GroupByKey()
-        | beam.CombineValues(merge)
+        | beam.Create([("key1", "foo"), ("key2", "bar"), ("key1", "foo")], reshuffle=False) \
+        | beam.GroupByKey() \
+        | beam.CombineValues(merge) \
         | beam.MapTuple(lambda k, v: '{}: {}'.format(k, v))
 
     result = self.test_pipeline.run()
