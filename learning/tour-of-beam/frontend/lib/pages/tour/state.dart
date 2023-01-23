@@ -231,9 +231,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
     final selectedSdk = _appNotifier.sdk;
     if (selectedSdk != null) {
-      // TODO(nausharipov): review
-      // Does the reset button need to be shown right after editing?
-      // If so, how to smoothly load the new snippet?
       await playgroundController.examplesLoader.load(
         ExamplesLoadingDescriptor(
           descriptors: [
