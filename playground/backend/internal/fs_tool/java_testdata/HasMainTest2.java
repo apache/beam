@@ -19,10 +19,11 @@ class Bar {
     public static void bar() {
         System.out.println("Hello");
     }
-}
-
-public class Foo {
     public static void main(java.lang.String[] args) {
         Bar.bar();
     }
+}
+
+class HasMainTest1 {
+
 }

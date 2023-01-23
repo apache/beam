@@ -96,7 +96,7 @@ func executableName(executableFileFolderPath string) (string, error) {
 
 	}
 
-	return utils.TrimExtension(dirEntries[len(dirEntries)-1].Name()), nil
+	return "", errors.New("cannot find file with main() method")
 }
 
 func isMainClass(classPath string, className string) (bool, error) {

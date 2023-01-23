@@ -16,14 +16,14 @@
 package fs_tool
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
-
-	"beam.apache.org/playground/backend/internal/utils"
 )
 
 func Test_newJavaLifeCycle(t *testing.T) {
@@ -95,6 +95,17 @@ func Test_executableName(t *testing.T) {
 			t.Errorf("Failed to cleanup %s, error = %v", workDir, err)
 		}
 	}()
+
+	compileJavaFiles := func(sourceFiles ...string) error {
+		compiledDir := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
+
+		args := append([]string{"-d", compiledDir}, sourceFiles...)
+		err := exec.Command("javac", args...).Run()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 
 	cleanupFunc := func() error {
 		compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
@@ -200,20 +211,11 @@ func Test_executableName(t *testing.T) {
 			name: "Multiple Java class files where one of them contains main",
 			prepare: func() error {
 				testdataPath := "java_testdata"
-				dirEntries, err := os.ReadDir(testdataPath)
+				sourceFile := filepath.Join(testdataPath, "HasMainTest1.java")
+
+				err := compileJavaFiles(sourceFile)
 				if err != nil {
 					return err
-				}
-
-				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
-
-				for _, entry := range dirEntries {
-					src := filepath.Join(testdataPath, entry.Name())
-					dst := filepath.Join(compiled, entry.Name())
-					err = os.Link(src, dst)
-					if err != nil {
-						return err
-					}
 				}
 
 				return nil
@@ -222,8 +224,77 @@ func Test_executableName(t *testing.T) {
 			args: args{
 				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
-			want:    "Foo",
+			want:    "HasMainTest1",
 			wantErr: false,
+		},
+		{
+			// Test case with calling sourceFileName method with multiple files where one of them is a .class file
+			// with main() method
+			// As a result, want to receive a name that should be executed
+			name: "Multiple Java class files where one of them contains main",
+			prepare: func() error {
+				testdataPath := "java_testdata"
+				sourceFile := filepath.Join(testdataPath, "HasMainTest2.java")
+
+				err := compileJavaFiles(sourceFile)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "Bar",
+			wantErr: false,
+		},
+		{
+			// Test case with calling sourceFileName method with multiple files where one of them is a .class file
+			// with main() method
+			// As a result, want to receive a name that should be executed
+			name: "Multiple Java class files where one of them contains main() with incorrect signature",
+			prepare: func() error {
+				testdataPath := "java_testdata"
+				sourceFile := filepath.Join(testdataPath, "HasIncorrectMain.java")
+
+				err := compileJavaFiles(sourceFile)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			// Test case with calling sourceFileName method with multiple files where one of them is a .class file
+			// with main() method
+			// As a result, want to receive a name that should be executed
+			name: "Multiple Java class files where none of them contain main()",
+			prepare: func() error {
+				testdataPath := "java_testdata"
+				sourceFile := filepath.Join(testdataPath, "HasNoMain.java")
+
+				err := compileJavaFiles(sourceFile)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			},
+			cleanup: cleanupFunc,
+			args: args{
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
+			},
+			want:    "",
+			wantErr: true,
 		},
 		{
 			// Test case with calling sourceFileName method with file which has multiple dots in its name
