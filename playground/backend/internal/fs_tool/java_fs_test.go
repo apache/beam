@@ -87,12 +87,12 @@ func Test_executableName(t *testing.T) {
 	lc := newJavaLifeCycle(pipelineId, preparedPipelinesFolder)
 	err := lc.CreateFolders()
 	if err != nil {
-		panic(err)
+		t.Errorf("Failed to create folders %s, error = %v", workDir, err)
 	}
 	defer func() {
 		err := os.RemoveAll(workDir)
 		if err != nil {
-			panic(err)
+			t.Errorf("Failed to cleanup %s, error = %v", workDir, err)
 		}
 	}()
 
