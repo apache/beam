@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io.jms;
 
 import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-import static org.apache.beam.sdk.io.jms.JmsIOProducer.CONNECTION_ERRORS_METRIC_NAME;
-import static org.apache.beam.sdk.io.jms.JmsIOProducer.JMS_IO_PRODUCER_METRIC_NAME;
-import static org.apache.beam.sdk.io.jms.JmsIOProducer.PUBLICATION_RETRIES_METRIC_NAME;
+import static org.apache.beam.sdk.io.jms.JmsIO.JmsIOProducer.CONNECTION_ERRORS_METRIC_NAME;
+import static org.apache.beam.sdk.io.jms.JmsIO.JmsIOProducer.JMS_IO_PRODUCER_METRIC_NAME;
+import static org.apache.beam.sdk.io.jms.JmsIO.JmsIOProducer.PUBLICATION_RETRIES_METRIC_NAME;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -129,6 +129,9 @@ public class JmsIOTest {
   private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+  private final RetryConfiguration retryConfiguration =
+      RetryConfiguration.create(1, Duration.standardSeconds(1), null);
 
   @Before
   public void startBroker() throws Exception {
@@ -278,6 +281,7 @@ public class JmsIOTest {
             JmsIO.<String>write()
                 .withConnectionFactory(connectionFactory)
                 .withValueMapper(new TextMessageMapper())
+                .withRetryConfiguration(retryConfiguration)
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD));
@@ -309,6 +313,7 @@ public class JmsIOTest {
                 JmsIO.<String>write()
                     .withConnectionFactory(connectionFactory)
                     .withValueMapper(new TextMessageMapperWithError())
+                    .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
                     .withUsername(USERNAME)
                     .withPassword(PASSWORD));
@@ -349,6 +354,7 @@ public class JmsIOTest {
                 .withConnectionFactory(connectionFactory)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
+                .withRetryConfiguration(retryConfiguration)
                 .withTopicNameMapper(e -> e.getTopicName())
                 .withValueMapper(
                     (e, s) -> {
@@ -691,19 +697,19 @@ public class JmsIOTest {
   }
 
   @Test
-  public void testPublisherWithRetryPolicy() {
-    PublicationRetryPolicy retryPolicy =
-        PublicationRetryPolicy.create(5, Duration.standardSeconds(15));
+  public void testPublisherWithRetryConfiguration() {
+    RetryConfiguration retryPolicy =
+        RetryConfiguration.create(5, Duration.standardSeconds(15), null);
     JmsIO.Write<String> publisher =
         JmsIO.<String>write()
             .withConnectionFactory(connectionFactory)
-            .withPublicationRetryPolicy(retryPolicy)
+            .withRetryConfiguration(retryPolicy)
             .withQueue(QUEUE)
             .withUsername(USERNAME)
             .withPassword(PASSWORD);
     assertEquals(
-        publisher.getRetryPublicationPolicy(),
-        PublicationRetryPolicy.create(5, Duration.standardSeconds(15)));
+        publisher.getRetryConfiguration(),
+        RetryConfiguration.create(5, Duration.standardSeconds(15), null));
   }
 
   @Test
@@ -714,8 +720,9 @@ public class JmsIOTest {
     Instant now = Instant.now();
     String messageText = now.toString();
     ArrayList<String> data = new ArrayList<>(Collections.singleton(messageText));
-    PublicationRetryPolicy retryPolicy =
-        PublicationRetryPolicy.create(3, Duration.standardSeconds(waitingSeconds));
+    RetryConfiguration retryPolicy =
+        RetryConfiguration.create(
+            3, Duration.standardSeconds(waitingSeconds), Duration.standardDays(10));
 
     WriteJmsResult<String> output =
         pipeline
@@ -724,7 +731,7 @@ public class JmsIOTest {
                 JmsIO.<String>write()
                     .withConnectionFactory(connectionFactory)
                     .withValueMapper(new TextMessageMapperWithErrorCounter())
-                    .withPublicationRetryPolicy(retryPolicy)
+                    .withRetryConfiguration(retryPolicy)
                     .withQueue(QUEUE)
                     .withUsername(USERNAME)
                     .withPassword(PASSWORD));
@@ -776,6 +783,7 @@ public class JmsIOTest {
                 .withConnectionFactory(mockedConnectionFactory)
                 .withConnectionFailedPredicate(mockedOnFailedConnectionPredicate)
                 .withValueMapper(new TextMessageMapper())
+                .withRetryConfiguration(retryConfiguration)
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD));
@@ -812,10 +820,10 @@ public class JmsIOTest {
   @Test
   public void testWriteMessageWithRetryPolicyReachesLimit() throws Exception {
     String messageText = "text";
-    int maxPublicationAttempts = 5;
+    int maxPublicationAttempts = 2;
     ArrayList<String> data = new ArrayList<>(Collections.singleton(messageText));
-    PublicationRetryPolicy retryPolicy =
-        PublicationRetryPolicy.create(maxPublicationAttempts, Duration.standardSeconds(1));
+    RetryConfiguration retryConfiguration =
+        RetryConfiguration.create(maxPublicationAttempts, null, null);
 
     WriteJmsResult<String> output =
         pipeline
@@ -828,7 +836,7 @@ public class JmsIOTest {
                             (s, session) -> {
                               throw new IllegalArgumentException("Error!!");
                             })
-                    .withPublicationRetryPolicy(retryPolicy)
+                    .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
                     .withUsername(USERNAME)
                     .withPassword(PASSWORD));

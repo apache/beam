@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
@@ -33,8 +34,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.Destination;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
+import javax.jms.MessageProducer;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -45,14 +49,26 @@ import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -699,7 +715,7 @@ public class JmsIO {
 
     abstract @Nullable SerializableFunction<EventT, String> getTopicNameMapper();
 
-    abstract @Nullable PublicationRetryPolicy getRetryPublicationPolicy();
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
     abstract @Nullable SerializableFunction<Exception, Boolean> getConnectionFailedPredicate();
 
@@ -723,8 +739,7 @@ public class JmsIO {
       abstract Builder<EventT> setTopicNameMapper(
           SerializableFunction<EventT, String> topicNameMapper);
 
-      abstract Builder<EventT> setRetryPublicationPolicy(
-          PublicationRetryPolicy publicationRetryPolicy);
+      abstract Builder<EventT> setRetryConfiguration(RetryConfiguration retryConfiguration);
 
       abstract Builder<EventT> setConnectionFailedPredicate(
           SerializableFunction<Exception, Boolean> predicate);
@@ -870,30 +885,45 @@ public class JmsIO {
     }
 
     /**
-     * Specify the JMS retry policy. The {@link JmsIO.Write} acts as a publisher on the topic.
+     * Specify the JMS retry configuration. The {@link JmsIO.Write} acts as a publisher on the
+     * topic.
      *
      * <p>Allows a retry for failed published messages, the user should specify the maximum number
-     * of retries and a duration for retrying. By default, the duration used by JmsIO is 15s {@link
-     * PublicationRetryPolicy}
+     * of retries, a duration for retrying and a maximum cumulative retries. By default, the
+     * duration for retrying used is 15s and the maximum cumulative is 1000 days {@link
+     * RetryConfiguration}
      *
      * <p>For example:
      *
      * <pre>{@code
-     * PublicationRetryPolicy publicationRetryPolicy =
-     *   PublicationRetryPolicy.create(5, Duration.standardSeconds(30));
+     * RetryConfiguration retryConfiguration = RetryConfiguration.create(5);
+     * }</pre>
+     *
+     * or
+     *
+     * <pre>{@code
+     * RetryConfiguration retryConfiguration =
+     *   RetryConfiguration.create(5, Duration.standardSeconds(30), null);
+     * }</pre>
+     *
+     * or
+     *
+     * <pre>{@code
+     * RetryConfiguration retryConfiguration =
+     *   RetryConfiguration.create(5, Duration.standardSeconds(30), Duration.standardDays(15));
      * }</pre>
      *
      * <pre>{@code
      * .apply(JmsIO.write().withPublicationRetryPolicy(publicationRetryPolicy)
      * }</pre>
      *
-     * @param publicationRetryPolicy The retry policy that should be used in case of failed
+     * @param retryConfiguration The retry configuration that should be used in case of failed
      *     publications.
      * @return The corresponding {@link JmsIO.Write}.
      */
-    public Write<EventT> withPublicationRetryPolicy(PublicationRetryPolicy publicationRetryPolicy) {
-      checkArgument(publicationRetryPolicy != null, "publicationRetryPolicy can not be null");
-      return builder().setRetryPublicationPolicy(publicationRetryPolicy).build();
+    public Write<EventT> withRetryConfiguration(RetryConfiguration retryConfiguration) {
+      checkArgument(retryConfiguration != null, "retryConfiguration can not be null");
+      return builder().setRetryConfiguration(retryConfiguration).build();
     }
 
     /**
@@ -945,6 +975,171 @@ public class JmsIO {
                   .count()
               == 1;
       return exclusiveTopicQueue;
+    }
+  }
+
+  public static class JmsIOProducer<T> extends PTransform<PCollection<T>, WriteJmsResult<T>> {
+
+    public static final String CONNECTION_ERRORS_METRIC_NAME = "connectionErrors";
+    public static final String PUBLICATION_RETRIES_METRIC_NAME = "publicationRetries";
+    public static final String JMS_IO_PRODUCER_METRIC_NAME = JmsIOProducer.class.getCanonicalName();
+
+    private static final Logger LOG = LoggerFactory.getLogger(JmsIOProducer.class);
+    private static final String PUBLISH_TO_JMS_STEP_NAME = "Publish to JMS";
+
+    private final JmsIO.Write<T> spec;
+    private final TupleTag<T> messagesTag;
+    private final TupleTag<T> failedMessagesTag;
+
+    JmsIOProducer(JmsIO.Write<T> spec) {
+      this.spec = spec;
+      this.messagesTag = new TupleTag<>();
+      this.failedMessagesTag = new TupleTag<>();
+    }
+
+    @Override
+    public WriteJmsResult<T> expand(PCollection<T> input) {
+      PCollectionTuple failedPublishedMessages =
+          input.apply(
+              PUBLISH_TO_JMS_STEP_NAME,
+              ParDo.of(new JmsIOProducerFn())
+                  .withOutputTags(messagesTag, TupleTagList.of(failedMessagesTag)));
+      PCollection<T> failedMessages =
+          failedPublishedMessages.get(failedMessagesTag).setCoder(input.getCoder());
+      failedPublishedMessages.get(messagesTag).setCoder(input.getCoder());
+      return WriteJmsResult.in(input.getPipeline(), failedMessagesTag, failedMessages);
+    }
+
+    private class JmsIOProducerFn extends DoFn<T, T> {
+
+      private transient @Initialized FluentBackoff retryBackOff;
+
+      private transient @Initialized Session session;
+      private transient @Initialized Connection connection;
+      private transient @Initialized Destination destination;
+      private transient @Initialized MessageProducer producer;
+
+      private final Counter connectionErrors =
+          Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, CONNECTION_ERRORS_METRIC_NAME);
+      private final Counter publicationRetries =
+          Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME);
+
+      @Setup
+      public void setup() {
+        RetryConfiguration retryConfiguration = checkStateNotNull(spec.getRetryConfiguration());
+
+        retryBackOff =
+            FluentBackoff.DEFAULT
+                .withInitialBackoff(checkStateNotNull(retryConfiguration.getInitialDuration()))
+                .withMaxCumulativeBackoff(checkStateNotNull(retryConfiguration.getMaxDuration()))
+                .withMaxRetries(retryConfiguration.getMaxAttempts());
+      }
+
+      @StartBundle
+      public void start() throws JMSException {
+        if (producer == null) {
+          ConnectionFactory connectionFactory = spec.getConnectionFactory();
+          if (spec.getUsername() != null) {
+            this.connection =
+                connectionFactory.createConnection(spec.getUsername(), spec.getPassword());
+          } else {
+            this.connection = connectionFactory.createConnection();
+          }
+          this.connection.setExceptionListener(
+              exception -> {
+                if (spec.getConnectionFailedPredicate() != null
+                    && spec.getConnectionFailedPredicate().apply(exception)) {
+                  LOG.error("Jms connection encountered the following exception:", exception);
+                  connectionErrors.inc();
+                  try {
+                    restartJmsConnection();
+                  } catch (JMSException e) {
+                    LOG.error("An error occurred while reconnecting:", e);
+                  }
+                }
+              });
+          this.connection.start();
+          // false means we don't use JMS transaction.
+          this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+          if (spec.getQueue() != null) {
+            this.destination = session.createQueue(spec.getQueue());
+          } else if (spec.getTopic() != null) {
+            this.destination = session.createTopic(spec.getTopic());
+          }
+          this.producer = this.session.createProducer(this.destination);
+        }
+      }
+
+      @ProcessElement
+      public void processElement(@Element T input, ProcessContext context) {
+        try {
+          publishMessage(input, context);
+        } catch (IOException | InterruptedException exception) {
+          LOG.error("Error while publishing the message", exception);
+          context.output(failedMessagesTag, input);
+          Thread.currentThread().interrupt();
+        }
+      }
+
+      private void publishMessage(T input, ProcessContext context)
+          throws IOException, InterruptedException {
+        Sleeper sleeper = Sleeper.DEFAULT;
+        Destination destinationToSendTo = destination;
+        BackOff backoff = checkStateNotNull(retryBackOff).backoff();
+        int publicationAttempt = 0;
+        while (publicationAttempt >= 0) {
+          publicationAttempt++;
+          try {
+            Message message = spec.getValueMapper().apply(input, session);
+            if (spec.getTopicNameMapper() != null) {
+              destinationToSendTo = session.createTopic(spec.getTopicNameMapper().apply(input));
+            }
+            producer.send(destinationToSendTo, message);
+            publicationAttempt = -1;
+          } catch (Exception exception) {
+            if (!BackOffUtils.next(sleeper, backoff)) {
+              LOG.error("The message wasn't published to topic {}", destinationToSendTo, exception);
+              context.output(failedMessagesTag, input);
+              publicationAttempt = -1;
+            } else {
+              publicationRetries.inc();
+              LOG.warn(
+                  "Error sending message on topic {}, retry attempt {}",
+                  destinationToSendTo,
+                  publicationAttempt,
+                  exception);
+            }
+          }
+        }
+      }
+
+      private void restartJmsConnection() throws JMSException {
+        teardown();
+        start();
+      }
+
+      @Teardown
+      public void teardown() throws JMSException {
+        if (producer != null) {
+          producer.close();
+          producer = null;
+        }
+        if (session != null) {
+          session.close();
+          session = null;
+        }
+        if (connection != null) {
+          try {
+            // If the connection failed, stopping the connection will throw a JMSException
+            connection.stop();
+          } catch (JMSException exception) {
+            LOG.warn("The connection couldn't be closed", exception);
+          }
+          connection.close();
+          connection = null;
+        }
+      }
     }
   }
 }
