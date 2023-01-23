@@ -178,6 +178,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   Future<void> _onAuthChanged() async {
     await _unitsProgressCache.updateUnitsProgress();
     await _setCurrentSnippet();
+    notifyListeners();
   }
 
   void _onAppNotifierChanged() {
