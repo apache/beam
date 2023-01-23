@@ -66,7 +66,7 @@ BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
-# Get Difference from body.files
+# Get changed files from Webhook result (body.files)
 diff=$(echo $changed_files | sed 's/[][]//g;s/"//g;s/,/\n/g')
 echo "Changed files:"
 echo "${diff}"
