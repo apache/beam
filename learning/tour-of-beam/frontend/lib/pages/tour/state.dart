@@ -62,15 +62,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onUnitProgressChanged);
     _onUnitChanged();
-    window.onBeforeUnload.listen((_) async {
-      if (currentUnitController != null) {
-        await TobGoogleAnalyticsService.get().closeUnit(
-          currentUnitController!.sdk,
-          currentUnitController!.unit.id,
-          DateTime.now().difference(_currentUnitOpenedAt!),
-        );
-      }
-    });
+    window.onBeforeUnload.listen(_onTabClosed);
   }
 
   @override
@@ -114,6 +106,16 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
 
     notifyListeners();
+  }
+
+  Future<void> _onTabClosed(_) async {
+    if (currentUnitController != null) {
+      await TobGoogleAnalyticsService.get().closeUnit(
+        currentUnitController!.sdk,
+        currentUnitController!.unit.id,
+        DateTime.now().difference(_currentUnitOpenedAt!),
+      );
+    }
   }
 
   Future<void> _setCurrentUnitContent(
