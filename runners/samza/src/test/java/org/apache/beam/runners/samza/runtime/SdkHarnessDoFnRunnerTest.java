@@ -15,11 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.worker;
+package org.apache.beam.runners.samza.runtime;
 
-/** Temporary redirect for org.apache.beam.runners.dataflow.worker.DataflowRunnerHarness. */
-public class DataflowRunnerHarness {
-  public static void main(String[] args) throws Exception {
-    org.apache.beam.runners.dataflow.worker.DataflowRunnerHarness.main(args);
+import java.util.concurrent.TimeoutException;
+import org.junit.Test;
+
+public class SdkHarnessDoFnRunnerTest {
+
+  @Test(expected = TimeoutException.class)
+  public void testRunWithTimeoutOccurred() throws Exception {
+    SamzaDoFnRunners.SdkHarnessDoFnRunner.runWithTimeout(
+        100,
+        () -> {
+          try {
+            Thread.sleep(500);
+          } catch (InterruptedException ignored) {
+          }
+        });
+  }
+
+  @Test
+  public void testRunWithTimeoutDisabled() throws Exception {
+    SamzaDoFnRunners.SdkHarnessDoFnRunner.runWithTimeout(
+        -1,
+        () -> {
+          try {
+            Thread.sleep(500);
+          } catch (InterruptedException ignored) {
+          }
+        });
   }
 }
