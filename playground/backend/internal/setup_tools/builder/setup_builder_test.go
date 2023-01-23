@@ -307,26 +307,36 @@ func TestPreparer(t *testing.T) {
 }
 
 func TestCompiler(t *testing.T) {
+	javaSources, err := GetFilesFromFolder(javaPaths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)
+	if err != nil {
+		t.Errorf("Failed to get Java source files, error = %v", err)
+	}
+
 	wantJavaExecutor := executors.NewExecutorBuilder().
 		WithCompiler().
 		WithCommand(javaSdkEnv.ExecutorConfig.CompileCmd).
 		WithWorkingDir(javaPaths.AbsoluteBaseFolderPath).
 		WithArgs(javaSdkEnv.ExecutorConfig.CompileArgs).
-		WithFileNames(GetFilesFromFolder(javaPaths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension))
+		WithFileNames(javaSources...)
+
+	goSources, err := GetFilesFromFolder(goPaths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)
+	if err != nil {
+		t.Errorf("Failed to get Go source files, error = %v", err)
+	}
 
 	wantGoExecutor := executors.NewExecutorBuilder().
 		WithCompiler().
 		WithCommand(goSdkEnv.ExecutorConfig.CompileCmd).
 		WithWorkingDir(goPaths.AbsoluteBaseFolderPath).
 		WithArgs(goSdkEnv.ExecutorConfig.CompileArgs).
-		WithFileNames(GetFilesFromFolder(goPaths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension))
+		WithFileNames(goSources...)
 
 	wantScioExecutor := executors.NewExecutorBuilder().
 		WithCompiler().
 		WithCommand(scioSdkEnv.ExecutorConfig.CompileCmd).
 		WithWorkingDir(scioPaths.AbsoluteBaseFolderPath).
 		WithArgs(scioSdkEnv.ExecutorConfig.CompileArgs).
-		WithFileName(scioPaths.AbsoluteSourceFilePath)
+		WithFileNames(scioPaths.AbsoluteSourceFilePath)
 
 	type args struct {
 		paths  *fs_tool.LifeCyclePaths
@@ -366,7 +376,10 @@ func TestCompiler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Compiler(tt.args.paths, tt.args.sdkEnv)
+			got, err := Compiler(tt.args.paths, tt.args.sdkEnv)
+			if err != nil {
+				t.Errorf("Compiler() error = %v", err)
+			}
 			if !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
 				t.Errorf("Compiler() = %v, want %v", got.Build(), tt.want.Build())
 			}
@@ -381,7 +394,7 @@ func TestRunnerBuilder(t *testing.T) {
 
 	wantPythonExecutor := executors.NewExecutorBuilder().
 		WithRunner().
-		WithExecutableFileName(pythonPaths.AbsoluteExecutableFilePath).
+		WithExecutableFileNames(pythonPaths.AbsoluteExecutableFilePath).
 		WithWorkingDir(pythonPaths.AbsoluteBaseFolderPath).
 		WithCommand(pythonSdkEnv.ExecutorConfig.RunCmd).
 		WithArgs(pythonSdkEnv.ExecutorConfig.RunArgs).
@@ -394,7 +407,7 @@ func TestRunnerBuilder(t *testing.T) {
 	}
 	wantJavaExecutor := executors.NewExecutorBuilder().
 		WithRunner().
-		WithExecutableFileName(javaClassName).
+		WithExecutableFileNames(javaClassName).
 		WithWorkingDir(javaPaths.AbsoluteBaseFolderPath).
 		WithCommand(javaSdkEnv.ExecutorConfig.RunCmd).
 		WithArgs(arg).
@@ -404,7 +417,7 @@ func TestRunnerBuilder(t *testing.T) {
 		WithRunner().
 		WithWorkingDir(goPaths.AbsoluteBaseFolderPath).
 		WithCommand(goPaths.AbsoluteExecutableFilePath).
-		WithExecutableFileName("").
+		WithExecutableFileNames("").
 		WithArgs(goSdkEnv.ExecutorConfig.RunArgs).
 		WithPipelineOptions(strings.Split("", " "))
 

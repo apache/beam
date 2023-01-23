@@ -64,7 +64,7 @@ func Preparer(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs, valRe
 }
 
 // Compiler return executor with set args for compiler
-func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *executors.ExecutorBuilder {
+func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
@@ -76,14 +76,22 @@ func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *exec
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
+		javaSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)
+		if err != nil {
+			return nil, err
+		}
 		builder = builder.
 			WithCompiler().
-			WithFileNames(GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.JavaSourceFileExtension)...).
+			WithFileNames(javaSources...).
 			ExecutorBuilder
 	case pb.Sdk_SDK_GO:
+		goSources, err := GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)
+		if err != nil {
+			return nil, err
+		}
 		builder = builder.
 			WithCompiler().
-			WithFileNames(GetFilesFromFolder(paths.AbsoluteSourceFileFolderPath, fs_tool.GoSourceFileExtension)...).
+			WithFileNames(goSources...).
 			ExecutorBuilder
 	default:
 		builder = builder.
@@ -91,7 +99,7 @@ func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *exec
 			WithFileNames(paths.AbsoluteSourceFilePath).
 			ExecutorBuilder
 	}
-	return &builder
+	return &builder, nil
 }
 
 // Runner return executor with set args for runner
@@ -196,7 +204,6 @@ func replaceLogPlaceholder(paths *fs_tool.LifeCyclePaths, executorConfig *enviro
 }
 
 // GetFirstFileFromFolder return a name of the first file in a specified folder
-func GetFilesFromFolder(folderAbsolutePath string, extension string) []string {
-	files, _ := filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
-	return files
+func GetFilesFromFolder(folderAbsolutePath string, extension string) ([]string, error) {
+	return filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
 }
