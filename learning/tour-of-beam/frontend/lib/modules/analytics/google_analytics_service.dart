@@ -58,6 +58,17 @@ class TobGoogleAnalyticsService extends GoogleAnalyticsService
   }
 
   @override
+  Future<void> closeUnit(Sdk sdk, String unitId, Duration timeSpent) async {
+    await _safeSendEvent(
+      AnalyticsEvent(
+        action: TobAnalyticsEvents.closeUnit,
+        category: TobAnalyticsCategories.unit,
+        label: '${sdk.title}_${unitId}_${timeSpent.inSeconds}s',
+      ),
+    );
+  }
+
+  @override
   Future<void> completeUnit(Sdk sdk, UnitModel unit) async {
     await _safeSendEvent(
       AnalyticsEvent(

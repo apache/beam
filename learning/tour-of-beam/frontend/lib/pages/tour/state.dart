@@ -44,6 +44,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   final _unitContentCache = GetIt.instance.get<UnitContentCache>();
   final _unitProgressCache = GetIt.instance.get<UnitProgressCache>();
   UnitContentModel? _currentUnitContent;
+  DateTime? _currentUnitOpenedAt;
 
   TourNotifier({
     required String initialSdkId,
@@ -115,11 +116,23 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       return;
     }
 
+    if (_currentUnitOpenedAt != null && _currentUnitContent != null) {
+      await TobGoogleAnalyticsService.get().closeUnit(
+        sdk,
+        // TODO(nausharipov): review
+        // If unit object is needed, tracking can be
+        // moved into _createCurrentUnitController
+        _currentUnitContent!.id,
+        DateTime.now().difference(_currentUnitOpenedAt!),
+      );
+    }
+
     _currentUnitContent = content;
     if (content == null) {
       return;
     }
 
+    _currentUnitOpenedAt = DateTime.now();
     await TobGoogleAnalyticsService.get().openUnit(sdk, unit);
 
     final taskSnippetId = content.taskSnippetId;
