@@ -16,6 +16,7 @@
 # limitations under the License.
 
 # Curl command to create commit status
+# Some comment
 curl \
 -X POST \
 -H "Accept: application/vnd.github+json" \
