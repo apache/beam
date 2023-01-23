@@ -53,8 +53,11 @@ class ExamplesLoader {
   /// Loads examples from [descriptor]'s immediate list.
   ///
   /// Sets empty editor for SDKs of failed examples.
-  Future<void> load(ExamplesLoadingDescriptor descriptor) async {
-    if (_descriptor == descriptor) {
+  Future<void> load(
+    ExamplesLoadingDescriptor descriptor, {
+    bool doCheckDescriptor = true,
+  }) async {
+    if (doCheckDescriptor && _descriptor == descriptor) {
       return;
     }
 

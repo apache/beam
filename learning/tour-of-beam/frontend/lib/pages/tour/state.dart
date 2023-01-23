@@ -60,7 +60,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _unitContentCache.addListener(_onUnitChanged);
     _appNotifier.addListener(_onAppNotifierChanged);
     _authNotifier.addListener(_onAuthChanged);
-    _unitsProgressCache.addListener(_setCurrentSnippet);
     _setSaveCodeListener();
     _onUnitChanged();
   }
@@ -93,6 +92,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
                 isCodeChanged &&
                 currentUnit != null &&
                 code != null;
+            if (isCodeChanged) {
+              _setResetSnippetFalse();
+            }
 
             if (doSave) {
               saveCodeDebounced.call([
@@ -111,6 +113,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     try {
       final client = GetIt.instance.get<TobClient>();
       await client.postUserCode(sdkId, unitId, code);
+      if (!isCurrentUnitCodeSaved) {
+        await _unitsProgressCache.updateUnitsProgress();
+        notifyListeners();
+      }
     } on Exception catch (e) {
       // TODO(nausharipov): how to handle?
       print(['Could not save code: ', e]);
@@ -157,15 +163,21 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     );
   }
 
+  void _setResetSnippetFalse() {
+    _resetSnippet = false;
+    notifyListeners();
+  }
+
   Future<void> toggleReset() async {
     _isShowingSolution = false;
     _resetSnippet = !_resetSnippet;
-    await _unitsProgressCache.updateUnitsProgress();
+    await _setCurrentSnippet();
     notifyListeners();
   }
 
   Future<void> _onAuthChanged() async {
     await _unitsProgressCache.updateUnitsProgress();
+    await _setCurrentSnippet();
   }
 
   void _onAppNotifierChanged() {
@@ -205,7 +217,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (content == null) {
       return;
     }
-    await _unitsProgressCache.updateUnitsProgress();
+    await _setCurrentSnippet();
   }
 
   Future<void> _setCurrentSnippet() async {
@@ -215,6 +227,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       if (_resetSnippet) {
         snippetId = unit.taskSnippetId;
       } else {
+        await _unitsProgressCache.updateUnitsProgress();
         snippetId = _unitsProgressCache.getUnitSnippets()[unit.id] ??
             unit.taskSnippetId;
       }
@@ -240,6 +253,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
             ),
           ],
         ),
+        doCheckDescriptor: false,
       );
     }
   }
@@ -301,7 +315,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     contentTreeController.removeListener(_onUnitChanged);
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onAuthChanged);
-    _unitsProgressCache.removeListener(_setCurrentSnippet);
     super.dispose();
   }
 }

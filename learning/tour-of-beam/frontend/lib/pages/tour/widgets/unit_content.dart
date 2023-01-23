@@ -152,13 +152,12 @@ class _Buttons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hints = unitContent.hints;
-    final unitsProgressCache = GetIt.instance.get<UnitsProgressCache>();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         AnimatedBuilder(
-          animation: unitsProgressCache,
+          animation: tourNotifier,
           builder: (context, child) => tourNotifier.isCurrentUnitCodeSaved
               ? Padding(
                   padding: _buttonPadding,
