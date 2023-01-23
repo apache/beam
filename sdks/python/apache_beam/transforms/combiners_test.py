@@ -875,7 +875,7 @@ class LatestCombineFnTest(unittest.TestCase):
 
 @pytest.mark.it_validatesrunner
 class CombineValuesTest(unittest.TestCase):
-  def test_combinevalues(self):
+  def test_gbk_immediately_followed_by_combine(self):
     def merge(vals):
       return "".join(vals)
 
