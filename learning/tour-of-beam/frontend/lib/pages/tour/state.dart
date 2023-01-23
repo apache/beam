@@ -206,10 +206,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       return;
     }
     await _unitsProgressCache.updateUnitsProgress();
-    // TODO(nausharipov): test with challenges
-    // final taskSnippetId = content.taskSnippetId;
-    // await _setPlaygroundSnippet(taskSnippetId);
-    // _isShowingSolution = false;
   }
 
   Future<void> _setCurrentSnippet() async {
@@ -223,6 +219,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
             unit.taskSnippetId;
       }
       await _setPlaygroundSnippet(snippetId);
+      _isShowingSolution = false;
     }
   }
 
