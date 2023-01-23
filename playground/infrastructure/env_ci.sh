@@ -68,7 +68,7 @@ sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
 # Get changed files from Webhook result (body.files)
-diff=$(echo $changed_files | sed -e 's/[][]//g' -e 's/"//g' -e "s/'//g" -e 's/,/\n/g')
+diff=$(echo $changed_files | sed -e 's/[][]//g' -e 's/"//g' -e 's/,/\n/g' -e "s/'//g")
 echo "Changed files:"
 echo "${diff}"
 

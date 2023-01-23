@@ -22,5 +22,5 @@ curl \
 -H "Accept: application/vnd.github+json" \
 -H "Authorization: Bearer ${PAT}" \
 -H "X-GitHub-Api-Version: 2022-11-28" \
-https://api.github.com/repos/akvelon/beam/statuses/${commit_sha} \
+https://api.github.com/repos/apache/beam/statuses/${commit_sha} \
 -d '{"state":"success","target_url":"https://console.cloud.google.com/cloud-build/builds;region='${LOCATION}'/'${BUILD_ID}'?authuser=3&project='${PROJECT_ID}'","description":"Successful Examples validation (CI) for current branch","context":"Cloud Build CI/CD"}'
