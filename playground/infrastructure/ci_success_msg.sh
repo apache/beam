@@ -17,7 +17,6 @@
 
 # Curl command to create commit status
 # Adding comments
-# Adding some staff
 curl \
 -X POST \
 -H "Accept: application/vnd.github+json" \
