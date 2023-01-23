@@ -16,6 +16,7 @@
 # limitations under the License.
 
 # Added set -x to show output into cloud build console
+# etc
 set -x
 
 export GRADLE_VERSION=7.5.1
@@ -67,7 +68,7 @@ sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
 # Get changed files from Webhook result (body.files)
-diff=$(echo $changed_files | sed 's/[][]//g;s/"//g;s/,/\n/g')
+diff=$(echo $changed_files | sed -e 's/[][]//g' -e 's/"//g' -e "s/'//g" -e 's/,/\n/g')
 echo "Changed files:"
 echo "${diff}"
 
