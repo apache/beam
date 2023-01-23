@@ -17,6 +17,7 @@ package builder
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -38,7 +39,10 @@ const emptyFolder = "emptyFolder"
 
 var pythonPaths *fs_tool.LifeCyclePaths
 var pythonSdkEnv *environment.BeamEnvs
+var pythonLC *fs_tool.LifeCycle
 var javaLC *fs_tool.LifeCycle
+var goLC *fs_tool.LifeCycle
+var scioLC *fs_tool.LifeCycle
 var javaPaths *fs_tool.LifeCyclePaths
 var javaSdkEnv *environment.BeamEnvs
 var goPaths *fs_tool.LifeCyclePaths
@@ -47,30 +51,80 @@ var scioPaths *fs_tool.LifeCyclePaths
 var scioSdkEnv *environment.BeamEnvs
 
 func TestMain(m *testing.M) {
-	setup()
-	defer teardown()
+	err := setup()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		err = teardown()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 	m.Run()
 }
 
-func setup() {
-	os.Mkdir(emptyFolder, 0666)
+func setup() error {
+	err := os.Mkdir(emptyFolder, 0666)
+	if err != nil {
+		return err
+	}
 
-	pipelineId := uuid.New()
-
-	pythonLC, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_PYTHON, pipelineId, "")
+	pythonPipelineId := uuid.New()
+	pythonLC, err = fs_tool.NewLifeCycle(pb.Sdk_SDK_PYTHON, pythonPipelineId, "")
+	if err != nil {
+		return err
+	}
+	err = pythonLC.CreateFolders()
+	if err != nil {
+		return err
+	}
 	pythonPaths = &pythonLC.Paths
 
-	javaLC, _ = fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, "")
+	javaPipelineId := uuid.New()
+	javaLC, err = fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, javaPipelineId, "")
+	if err != nil {
+		return err
+	}
 	javaPaths = &javaLC.Paths
-	javaLC.CreateFolders()
-	os.Create(filepath.Join(javaPaths.AbsoluteExecutableFilePath))
-	os.Create(filepath.Join(javaPaths.AbsoluteSourceFilePath))
+	err = javaLC.CreateFolders()
+	if err != nil {
+		return err
+	}
+	_, err = os.Create(filepath.Join(javaPaths.AbsoluteExecutableFilePath))
+	if err != nil {
+		return err
+	}
+	_, err = os.Create(filepath.Join(javaPaths.AbsoluteSourceFilePath))
+	if err != nil {
+		return err
+	}
 
-	goLC, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_GO, pipelineId, "")
+	goPipelineId := uuid.New()
+	goLC, err = fs_tool.NewLifeCycle(pb.Sdk_SDK_GO, goPipelineId, "")
+	if err != nil {
+		return err
+	}
+	err = goLC.CreateFolders()
+	if err != nil {
+		return err
+	}
 	goPaths = &goLC.Paths
 
-	scioLC, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_SCIO, pipelineId, "")
+	scioPipelineId := uuid.New()
+	scioLC, err = fs_tool.NewLifeCycle(pb.Sdk_SDK_SCIO, scioPipelineId, "")
+	if err != nil {
+		return err
+	}
+	err = scioLC.CreateFolders()
+	if err != nil {
+		return err
+	}
 	scioPaths = &scioLC.Paths
+	_, err = os.Create(filepath.Join(scioPaths.AbsoluteSourceFilePath))
+	if err != nil {
+		return err
+	}
 
 	executorConfig := &environment.ExecutorConfig{
 		CompileCmd:  "MOCK_COMPILE_CMD",
@@ -81,11 +135,32 @@ func setup() {
 	javaSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, executorConfig, "", 0)
 	goSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_GO, executorConfig, "", 0)
 	scioSdkEnv = environment.NewBeamEnvs(pb.Sdk_SDK_SCIO, executorConfig, "", 0)
+
+	return nil
 }
 
-func teardown() {
-	os.Remove(emptyFolder)
-	javaLC.DeleteFolders()
+func teardown() error {
+	err := os.Remove(emptyFolder)
+	if err != nil {
+		return err
+	}
+	err = pythonLC.DeleteFolders()
+	if err != nil {
+		return err
+	}
+	err = javaLC.DeleteFolders()
+	if err != nil {
+		return err
+	}
+	err = goLC.DeleteFolders()
+	if err != nil {
+		return err
+	}
+	err = scioLC.DeleteFolders()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func TestValidator(t *testing.T) {
@@ -403,7 +478,7 @@ func TestRunnerBuilder(t *testing.T) {
 	arg := replaceLogPlaceholder(javaPaths, javaSdkEnv.ExecutorConfig)
 	javaClassName, err := javaPaths.ExecutableName(javaPaths.AbsoluteExecutableFileFolderPath)
 	if err != nil {
-		panic(err)
+		t.Errorf("Cannot get executable name for Java, error = %v", err)
 	}
 	wantJavaExecutor := executors.NewExecutorBuilder().
 		WithRunner().
@@ -421,9 +496,9 @@ func TestRunnerBuilder(t *testing.T) {
 		WithArgs(goSdkEnv.ExecutorConfig.RunArgs).
 		WithPipelineOptions(strings.Split("", " "))
 
-	scioClassName, err := scioPaths.ExecutableName(scioPaths.AbsoluteBaseFolderPath)
+	scioClassName, err := scioPaths.ExecutableName(scioPaths.AbsoluteSourceFileFolderPath)
 	if err != nil {
-		panic(err)
+		t.Errorf("Cannot get executable name for SCIO, error = %v", err)
 	}
 	stringArg := fmt.Sprintf("%s %s %s", scioSdkEnv.ExecutorConfig.RunArgs[0], scioClassName, "")
 	wantScioExecutor := executors.NewExecutorBuilder().
