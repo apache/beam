@@ -872,6 +872,22 @@ class LatestCombineFnTest(unittest.TestCase):
         pc = p | Create(l_3_tuple)
         _ = pc | beam.CombineGlobally(self.fn)
 
+@pytest.mark.it_validatesrunner
+class CombineValuesTest(unittest.TestCase):
+  def test_combinevalues(self):
+    def merge(vals):
+      return "".join(vals)
+
+    with TestPipeline() as p:
+      result = (
+          p \
+          | Create([("key1", "foo"), ("key2", "bar"), ("key1", "foo")],
+                    reshuffle=False) \
+          | beam.GroupByKey() \
+          | beam.CombineValues(merge) \
+          | beam.MapTuple(lambda k, v: '{}: {}'.format(k, v)))
+
+      assert_that(result, equal_to(['key1: foofoo', 'key2: bar']))
 
 #
 # Test cases for streaming.
