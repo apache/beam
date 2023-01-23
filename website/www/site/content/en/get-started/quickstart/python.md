@@ -38,23 +38,29 @@ On this page:
 
 ### Check your Python version
 
-The Beam SDK requires Python users to use Python version 3.6 or higher. Check
-your version by running:
+Apache Beam aims to work on released
+[Python versions](https://devguide.python.org/versions/) that have not yet
+reached end of life, but it may take a few releases until Apache Beam fully
+supports the most recently released Python minor version.
+
+The minimum required Python version is listed in the **Meta** section of the
+[apache-beam](https://pypi.org/project/apache-beam/) project page under
+**Requires**. The list of all supported Python versions is listed in the
+**Classifiers** section at the bottom of the page, under **Programming
+Language**.
+
+Check your Python version by running:
 
 {{< highlight >}}
 python3 --version
 {{< /highlight >}}
 
-### Install `virtualenv`
+If you don't have a Python interpreter, you can download and install it from
+the [Python downloads](https://devguide.python.org/versions/) page.
 
-Install [virtualenv](https://pypi.org/project/virtualenv/). For Debian and
-Ubuntu distributions, install the
-[python3-venv](https://packages.debian.org/stable/python3-venv) package:
-
-{{< highlight >}}
-sudo apt update
-sudo apt install python3 python3-dev python3-venv
-{{< /highlight >}}
+If you need to install a different version of Python in addition to the version
+that you already have, you can find some recommendations in our
+[Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
 
 ## Clone the GitHub repository
 
@@ -70,7 +76,9 @@ cd beam-starter-python
 ## Create and activate a virtual environment
 
 A virtual environment is a directory tree containing its own Python
-distribution. Run the following command:
+distribution. We recommend using a virtual environment so that all dependencies
+of your project are installed in an isolated and self-contained environment. To
+set up a virtual environment, run the following commands:
 
 {{< highlight >}}
 # Create a new Python virtual environment.
@@ -107,7 +115,7 @@ Greetings
 
 The lines might appear in a different order.
 
-Optionally, run the following command to deactivate the virtual environment:
+Run the following command to deactivate the virtual environment:
 
 {{< highlight >}}
 deactivate
