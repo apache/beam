@@ -872,6 +872,7 @@ class LatestCombineFnTest(unittest.TestCase):
         pc = p | Create(l_3_tuple)
         _ = pc | beam.CombineGlobally(self.fn)
 
+
 @pytest.mark.it_validatesrunner
 class CombineValuesTest(unittest.TestCase):
   def test_combinevalues(self):
@@ -888,6 +889,7 @@ class CombineValuesTest(unittest.TestCase):
           | beam.MapTuple(lambda k, v: '{}: {}'.format(k, v)))
 
       assert_that(result, equal_to(['key1: foofoo', 'key2: bar']))
+
 
 #
 # Test cases for streaming.
