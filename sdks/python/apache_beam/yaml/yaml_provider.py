@@ -26,12 +26,12 @@ import os
 import subprocess
 import sys
 import uuid
-import yaml
-from yaml.loader import SafeLoader
-
 from typing import Any
 from typing import Mapping
 from typing import Iterable
+
+import yaml
+from yaml.loader import SafeLoader
 
 import apache_beam as beam
 import apache_beam.dataframe.io
@@ -234,6 +234,9 @@ class InlineProvider(Provider):
   def create_transform(self, type, args):
     return self._transform_factories[type](**args)
 
+  def to_json(self):
+    return {'type': "InlineProvider"}
+
 
 PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
     py_type.__name__: schema_type
@@ -290,6 +293,9 @@ def create_builtin_provider():
       return constructor >> FullyQualifiedNamedTransform(
           constructor, args, kwargs)
 
+  # This intermediate is needed because there is no way to specify a tuple of
+  # exactly zero or one PCollection in yaml (as they would be interpreted as
+  # PBegin and the PCollection itself respectively).
   class Flatten(beam.PTransform):
     def expand(self, pcolls):
       if isinstance(pcolls, beam.PCollection):
@@ -407,6 +413,8 @@ def parse_providers(provider_specs):
     provider = ExternalProvider.provider_from_spec(provider_spec)
     for transform_type in provider.provided_transforms():
       providers[transform_type].append(provider)
+      # TODO: Do this better.
+      provider.to_json = lambda result=provider_spec: result
   return providers
 
 

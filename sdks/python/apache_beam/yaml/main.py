@@ -16,6 +16,7 @@
 #
 
 import argparse
+
 import yaml
 
 import apache_beam as beam

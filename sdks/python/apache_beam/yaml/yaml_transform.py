@@ -18,12 +18,14 @@
 # This module is experimental. No backwards-compatibility guarantees.
 
 import collections
+import json
 import logging
 import re
 import uuid
-import yaml
 from typing import Iterable
 from typing import Mapping
+
+import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
@@ -194,10 +196,19 @@ class Scope(object):
           for (key, value) in spec.items()
           if key not in ('type', 'name', 'input', 'output')
       }
+    real_args = SafeLineLoader.strip_metadata(args)
     try:
       # pylint: disable=undefined-loop-variable
-      return provider.create_transform(
-          spec['type'], SafeLineLoader.strip_metadata(args))
+      ptransform = provider.create_transform(spec['type'], real_args)
+      # TODO(robertwb): Should we have a better API for adding annotations
+      # than this?
+      annotations = dict(
+          yaml_type=spec['type'],
+          yaml_args=json.dumps(real_args),
+          yaml_provider=json.dumps(provider.to_json()),
+          **ptransform.annotations())
+      ptransform.annotations = lambda: annotations
+      return ptransform
     except Exception as exn:
       if isinstance(exn, TypeError):
         # Create a slightly more generic error message for argument errors.
