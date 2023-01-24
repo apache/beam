@@ -36,8 +36,6 @@ On this page:
 
 ## Set up your development environment
 
-### Check your Python version
-
 Apache Beam aims to work on released
 [Python versions](https://devguide.python.org/versions/) that have not yet
 reached end of life, but it may take a few releases until Apache Beam fully
@@ -87,6 +85,10 @@ python3 -m venv env
 # Activate the virtual environment.
 source env/bin/activate
 {{< /highlight >}}
+
+If these commands do not work on your platform, see the
+[`venv`](https://docs.python.org/3/library/venv.html#how-venvs-work)
+documentation.
 
 ## Install the project dependences
 
