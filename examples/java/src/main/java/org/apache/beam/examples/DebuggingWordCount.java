@@ -98,7 +98,7 @@ public class DebuggingWordCount {
      * <p>Note that this is entirely standard SLF4J usage. Some runners may provide a default SLF4J
      * configuration that is most appropriate for their logging integration.
      */
-    private static final Logger LOG = LoggerFactory.getLogger(FilterTextFn.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FilterTextFn.class) as;
 
     private final Pattern filter;
 
