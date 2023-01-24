@@ -27,8 +27,8 @@ import subprocess
 import sys
 import uuid
 from typing import Any
-from typing import Mapping
 from typing import Iterable
+from typing import Mapping
 
 import yaml
 from yaml.loader import SafeLoader
