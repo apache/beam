@@ -37,6 +37,7 @@ public class DefaultExpansionServiceClientFactory implements ExpansionServiceCli
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> expansionChannelFactory,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> artifactChannelFactory) {
     this.expansionServiceMap = new ConcurrentHashMap<>();
+    this.artifactServiceMap = new ConcurrentHashMap<>();
     this.expansionChannelFactory = expansionChannelFactory;
     this.artifactChannelFactory = artifactChannelFactory;
   }
@@ -85,7 +86,7 @@ public class DefaultExpansionServiceClientFactory implements ExpansionServiceCli
   }
 
   @Override
-  public ExpansionServiceClient getArtifServiceClient(Endpoints.ApiServiceDescriptor endpoint) {
+  public ArtifactServiceClient getArtifactServiceClient(Endpoints.ApiServiceDescriptor endpoint) {
     return artifactServiceMap.computeIfAbsent(
         endpoint,
         e ->
