@@ -116,9 +116,6 @@ jobs:
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: pip install -r build-requirements.txt
-#      - name: Generate protos
-#        working-directory: ./sdks/python
-#        run: python gen_protos.py
       - name: Install tox
         run: pip install tox
       - name: Run tests basic unix

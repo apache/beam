@@ -82,6 +82,11 @@ PROJECT_ROOT = clean_path(os.path.join(PYTHON_SDK_ROOT, '..', '..'))
 PYTHON_OUTPUT_PATH = os.path.join(
     PYTHON_SDK_ROOT, 'apache_beam', 'portability', 'api')
 
+# logging.info(f"Python SDK ROOT : {PYTHON_SDK_ROOT}")
+# logging.info(f"Python SDK ROOT: {os.listdir(PYTHON_SDK_ROOT)}")
+# logging.info(f"Python output Path: {PYTHON_OUTPUT_PATH}")
+# logging.info(f"Python output Path ls: {os.listdir(PYTHON_OUTPUT_PATH)}" )
+
 MODEL_RESOURCES = [
     os.path.normpath((
         'model/fn-execution/src/main/resources/org/'
