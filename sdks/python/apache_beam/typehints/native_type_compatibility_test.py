@@ -114,20 +114,20 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
 
   def test_convert_to_beam_type_with_builtin_types(self):
     if sys.version_info >= (3, 9):
-      test_cases = [
-          ('builtin dict', dict[str, int], typehints.Dict[str, int]),
-          ('builtin list', list[str], typehints.List[str]),
-          ('builtin tuple', tuple[str], typehints.Tuple[str]),
-          ('builtin set', set[str], typehints.Set[str]),
-          (
-              'nested builtin',
-              dict[str, list[tuple[float]]],
-              typehints.Dict[str, typehints.List[typehints.Tuple[float]]]),
-          (
-              'builtin nested tuple',
-              tuple[str, list],
-              typehints.Tuple[str, typehints.List[typehints.Any]],)
-      ]
+      test_cases = [('builtin dict', dict[str, int], typehints.Dict[str, int]),
+                    ('builtin list', list[str], typehints.List[str]),
+                    ('builtin tuple', tuple[str], typehints.Tuple[str]),
+                    ('builtin set', set[str], typehints.Set[str]),
+                    (
+                        'nested builtin',
+                        dict[str, list[tuple[float]]],
+                        typehints.Dict[str,
+                                       typehints.List[typehints.Tuple[float]]]),
+                    (
+                        'builtin nested tuple',
+                        tuple[str, list],
+                        typehints.Tuple[str, typehints.List[typehints.Any]],
+                    )]
 
       for test_case in test_cases:
         description = test_case[0]
