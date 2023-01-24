@@ -49,7 +49,7 @@ from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.options.pipeline_options import PipelineOptions
 
 
-def run(input_path, output_path, expansion_service_port, pipeline_args):
+def rund(input_path, output_path, expansion_service_port, pipeline_args):
   pipeline_options = PipelineOptions(pipeline_args)
 
   with beam.Pipeline(options=pipeline_options) as p:
