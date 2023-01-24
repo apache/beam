@@ -53,12 +53,16 @@ public final class Caches {
    */
   @VisibleForTesting static final int WEIGHT_RATIO = 6;
 
+  /** Objects which change in this amount should always update the cache. */
+  private static final long CACHE_SIZE_CHANGE_LIMIT_BYTES = 1 << 16;
+
   private static final MemoryMeter MEMORY_METER =
       MemoryMeter.builder().withGuessing(Guess.BEST).build();
 
   /** The size of a reference. */
   public static final long REFERENCE_SIZE = 8;
 
+  /** Returns the amount of memory in bytes the provided object consumes. */
   public static long weigh(Object o) {
     if (o == null) {
       return REFERENCE_SIZE;
@@ -71,6 +75,25 @@ public final class Caches {
       LOG.warn("JVM prevents jamm from accessing subgraph - cache sizes may be underestimated", e);
       return MEMORY_METER.measure(o);
     }
+  }
+
+  /**
+   * Returns whether the cache should be updated in the case where the objects size has changed.
+   *
+   * <p>Note that this should only be used in the case where the cache is being updated very often
+   * in a tight loop and is not a good fit for cases where the object being cached is the result of
+   * an expensive operation like a disk read or remote service call.
+   */
+  public static boolean shouldUpdateOnSizeChange(long oldSize, long newSize) {
+    /*
+    Our strategy is three fold:
+    - tiny objects (<= 2^WEIGHT_RATIO) don't change the amount being weighed
+    - large changes (>= CACHE_SIZE_CHANGE_LIMIT_BYTES) should always update the size
+    - all others if the size changed by a factor of 2
+    */
+    return (oldSize > 1 << WEIGHT_RATIO || newSize > 1 << WEIGHT_RATIO)
+        && ((newSize - oldSize >= CACHE_SIZE_CHANGE_LIMIT_BYTES)
+            || Long.highestOneBit(oldSize) != Long.highestOneBit(newSize));
   }
 
   /** An eviction listener that reduces the size of entries that are {@link Shrinkable}. */
@@ -184,8 +207,15 @@ public final class Caches {
                     // which is why we set the concurrency level to 1. See
                     // https://github.com/google/guava/issues/3462 for further details.
                     //
-                    // The ProcessBundleBenchmark#testStateWithCaching shows no noticeable change
-                    // when this parameter is left at the default.
+                    // The PrecombineGroupingTable showed contention here since it was working in
+                    // a tight loop. We were able to resolve the contention by reducing the
+                    // frequency of updates. Reconsider this value if we could solve the maximum
+                    // entry size issue. Note that using Runtime.getRuntime().availableProcessors()
+                    // is subject to docker CPU shares issues
+                    // (https://bugs.openjdk.org/browse/JDK-8281181).
+                    //
+                    // We could revisit the caffeine cache library based upon reinvestigating
+                    // recursive computeIfAbsent calls since it doesn't have this limit.
                     .concurrencyLevel(1)
                     .recordStats(),
                 weightInBytes)
