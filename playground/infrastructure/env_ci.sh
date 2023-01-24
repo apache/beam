@@ -139,5 +139,3 @@ do
             echo "Nothing has changed in Examples. CI check is skipped"
       fi
 done
-
-# Comment
