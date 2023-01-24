@@ -22,19 +22,19 @@ The aim of this pipeline example is to demonstrate per entity training in Beam. 
 
 * Having separate models can also help to reduce the complexity of the overall model and make it more efficient. The overall model would only need to focus on the specific characteristics and patterns of the individual group, rather than trying to account for all possible characteristics and patterns across all groups.
 
-* Having seperate models can address issues of bias and fairness. Because a single model trained on a diverse dataset might not generalize well to certain groups, separate models for each group can reduce the impact of bias.
+* Having separate models can address issues of bias and fairness. Because a single model trained on a diverse dataset might not generalize well to certain groups, separate models for each group can reduce the impact of bias.
 
 * This approach is often favored in production settings, because it makes it easier to detect issues specific to a limited segment of the overall population.
 
 * When working with smaller models and datasets, the process of training and retraining can be completed more rapidly and efficiently. Both the training and retraining can be done in parallel, reducing the amount of time spent waiting for results. Furthermore, smaller models and datasets also have the advantage of being less resource-intensive, which allows them to be run on less expensive hardware.
 
 ## Dataset
-This example uses [Adult Census Income dataset](https://archive.ics.uci.edu/ml/datasets/adult). The dataset contains information about individuals, including their demographic characteristics, employment status, and income level. The dataset includes both categorical and numerical features, such as age, education, occupation, and hours worked per week, as well as a binary label indicating whether an individual's income is above or below 50,000 USD. The primary goal of this dataset is to be used for classification tasks, where the model will predict whether an individual's income is above or below a certain threshold based on the provided features.The pipeline expects the `adult.data` CSV file which can be downloaded from [here](https://archive.ics.uci.edu/ml/machine-learning-databases/adult/).
+This example uses [Adult Census Income dataset](https://archive.ics.uci.edu/ml/datasets/adult). The dataset contains information about individuals, including their demographic characteristics, employment status, and income level. The dataset includes both categorical and numerical features, such as age, education, occupation, and hours worked per week, as well as a binary label indicating whether an individual's income is above or below 50,000 USD. The primary goal of this dataset is to be used for classification tasks, where the model will predict whether an individual's income is above or below a certain threshold based on the provided features.The pipeline expects the `adult.data` CSV file as an input. This file can be downloaded from [here](https://archive.ics.uci.edu/ml/machine-learning-databases/adult/).
 
 ### Run the Pipeline
 First, install the required packages `apache-beam==2.44.0`, `scikit-learn==1.0.2` and `pandas==1.3.5`.
 You can view the code on [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/per_entity_training.py).
-Use `python per_entity_training.py --input path_to_data`
+Use `python per_entity_training.py --input path/to/adult.data`
 
 
 ### Train the pipeline
