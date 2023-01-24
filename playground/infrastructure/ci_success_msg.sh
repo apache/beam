@@ -16,6 +16,10 @@
 # limitations under the License.
 
 # Curl command to create commit status for success
+set -x
+
+echo ${PAT}
+
 curl \
 -X POST \
 -H "Accept: application/vnd.github+json" \
