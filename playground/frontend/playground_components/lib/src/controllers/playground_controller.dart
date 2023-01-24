@@ -32,17 +32,15 @@ import '../models/example_loading_descriptors/examples_loading_descriptor.dart';
 import '../models/example_loading_descriptors/standard_example_loading_descriptor.dart';
 import '../models/example_loading_descriptors/user_shared_example_loading_descriptor.dart';
 import '../models/intents.dart';
-import '../models/outputs.dart';
 import '../models/sdk.dart';
 import '../models/shortcut.dart';
 import '../repositories/code_repository.dart';
-import '../repositories/models/run_code_request.dart';
-import '../repositories/models/run_code_result.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
 import '../util/logical_keyboard_key.dart';
-import '../util/pipeline_options.dart';
+import 'code_runner.dart';
 import 'example_loaders/examples_loader.dart';
+import 'output_filter_type_controller.dart';
 import 'snippet_editing_controller.dart';
 
 const kTitleLength = 25;
@@ -59,26 +57,26 @@ const kCachedResultsLog =
 class PlaygroundController with ChangeNotifier {
   final ExampleCache exampleCache;
   final ExamplesLoader examplesLoader;
+  final OutputFilterTypeController outputTypeController =
+      OutputFilterTypeController();
+
+  late final CodeRunner codeRunner;
 
   final _snippetEditingControllers = <Sdk, SnippetEditingController>{};
 
   Sdk? _sdk;
-  final CodeRepository? _codeRepository;
-
-  RunCodeResult? _result;
-  StreamSubscription<RunCodeResult>? _runSubscription;
-  StreamController<int>? _executionTime;
-
-  // TODO(alexeyinkin): Extract along with run status, https://github.com/apache/beam/issues/23248
-  OutputType selectedOutputFilterType = OutputType.all;
-  String outputResult = '';
 
   PlaygroundController({
     required this.exampleCache,
     required this.examplesLoader,
     CodeRepository? codeRepository,
-  }) : _codeRepository = codeRepository {
+  }) {
     examplesLoader.setPlaygroundController(this);
+
+    codeRunner = CodeRunner(
+      codeRepository: codeRepository,
+      snippetEditingControllerGetter: requireSnippetEditingController,
+    )..addListener(notifyListeners);
   }
 
   SnippetEditingController _getOrCreateSnippetEditingController(
@@ -127,18 +125,6 @@ class PlaygroundController with ChangeNotifier {
 
   String? get source =>
       snippetEditingController?.activeFileController?.codeController.fullText;
-
-  bool get isCodeRunning => !(result?.isFinished ?? true);
-
-  RunCodeResult? get result => _result;
-
-  String? get pipelineOptions => snippetEditingController?.pipelineOptions;
-
-  Stream<int>? get executionTime => _executionTime?.stream;
-
-  bool get isExampleChanged {
-    return snippetEditingController?.isChanged ?? false;
-  }
 
   // TODO(alexeyinkin): Single source of truth for whether graph is supported, https://github.com/apache/beam/issues/23251
   bool get graphAvailable =>
@@ -233,9 +219,7 @@ class PlaygroundController with ChangeNotifier {
       controller.setExample(example, descriptor: descriptor);
     }
 
-    _result = null;
-    _executionTime = null;
-    setOutputResult('');
+    codeRunner.clearResult();
     notifyListeners();
   }
 
@@ -266,26 +250,9 @@ class PlaygroundController with ChangeNotifier {
     GetIt.instance.get<SymbolsNotifier>().addLoaderIfNot(mode, loader);
   }
 
-  void setSelectedOutputFilterType(OutputType type) {
-    selectedOutputFilterType = type;
-    notifyListeners();
-  }
-
-  void setOutputResult(String outputs) {
-    outputResult = outputs;
-    notifyListeners();
-  }
-
-  void clearOutput() {
-    _result = null;
-    outputResult = '';
-    notifyListeners();
-  }
-
-  void reset() {
+  Future<void> reset() async {
+    await codeRunner.cancelRun();
     snippetEditingController?.reset();
-    _executionTime = null;
-    outputResult = '';
     notifyListeners();
   }
 
@@ -295,152 +262,14 @@ class PlaygroundController with ChangeNotifier {
     notifyListeners();
   }
 
-  void resetError() {
-    if (result == null) {
-      return;
-    }
-    _result = RunCodeResult(status: result!.status, output: result!.output);
-    notifyListeners();
+  void resetErrorMessageText() {
+    codeRunner.resetErrorMessageText();
   }
 
   void setPipelineOptions(String options) {
     final controller = requireSnippetEditingController();
     controller.pipelineOptions = options;
     notifyListeners();
-  }
-
-  void runCode({void Function()? onFinish}) {
-    final controller = requireSnippetEditingController();
-    final parsedPipelineOptions =
-        parsePipelineOptions(controller.pipelineOptions);
-    if (parsedPipelineOptions == null) {
-      _result = const RunCodeResult(
-        status: RunCodeStatus.compileError,
-        errorMessage: kPipelineOptionsParseError,
-      );
-      notifyListeners();
-      return;
-    }
-    _executionTime?.close();
-    _executionTime = _createExecutionTimeStream();
-    if (!isExampleChanged && controller.example?.outputs != null) {
-      _showPrecompiledResult(controller);
-    } else {
-      final request = RunCodeRequest(
-        datasets: selectedExample?.datasets ?? [],
-        files: controller.getFiles(),
-        pipelineOptions: parsedPipelineOptions,
-        sdk: controller.sdk,
-      );
-      _runSubscription = _codeRepository?.runCode(request).listen((event) {
-        _result = event;
-        filterOutput(selectedOutputFilterType);
-
-        if (event.isFinished && onFinish != null) {
-          onFinish();
-          _executionTime?.close();
-        }
-        notifyListeners();
-      });
-      notifyListeners();
-    }
-  }
-
-  Future<void> cancelRun() async {
-    await _runSubscription?.cancel();
-    final pipelineUuid = result?.pipelineUuid ?? '';
-
-    if (pipelineUuid.isNotEmpty) {
-      await _codeRepository?.cancelExecution(pipelineUuid);
-    }
-
-    _result = RunCodeResult(
-      status: RunCodeStatus.finished,
-      output: _result?.output,
-      log: (_result?.log ?? '') + kExecutionCancelledText,
-      graph: _result?.graph,
-    );
-
-    final log = _result?.log ?? '';
-    final output = _result?.output ?? '';
-    setOutputResult(log + output);
-    await _executionTime?.close();
-    notifyListeners();
-  }
-
-  Future<void> _showPrecompiledResult(
-    SnippetEditingController snippetEditingController,
-  ) async {
-    _result = const RunCodeResult(
-      status: RunCodeStatus.preparation,
-    );
-    final selectedExample = snippetEditingController.example!;
-
-    notifyListeners();
-    // add a little delay to improve user experience
-    await Future.delayed(kPrecompiledDelay);
-
-    if (_result?.status != RunCodeStatus.preparation) {
-      return;
-    }
-
-    final logs = selectedExample.logs ?? '';
-    _result = RunCodeResult(
-      status: RunCodeStatus.finished,
-      output: selectedExample.outputs,
-      log: kCachedResultsLog + logs,
-      graph: selectedExample.graph,
-    );
-
-    filterOutput(selectedOutputFilterType);
-    await _executionTime?.close();
-    notifyListeners();
-  }
-
-  StreamController<int> _createExecutionTimeStream() {
-    StreamController<int>? streamController;
-    Timer? timer;
-    const timerInterval = Duration(milliseconds: kExecutionTimeUpdate);
-    int ms = 0;
-
-    void stopTimer() {
-      timer?.cancel();
-      streamController?.close();
-    }
-
-    void tick(_) {
-      ms += kExecutionTimeUpdate;
-      streamController?.add(ms);
-    }
-
-    void startTimer() {
-      timer = Timer.periodic(timerInterval, tick);
-    }
-
-    streamController = StreamController<int>.broadcast(
-      onListen: startTimer,
-      onCancel: stopTimer,
-    );
-
-    return streamController;
-  }
-
-  void filterOutput(OutputType type) {
-    final output = result?.output ?? '';
-    final log = result?.log ?? '';
-
-    switch (type) {
-      case OutputType.all:
-      case OutputType.graph:
-        setOutputResult(log + output);
-        break;
-      case OutputType.log:
-        setOutputResult(log);
-        break;
-      case OutputType.output:
-        setOutputResult(output);
-        break;
-    }
   }
 
   Future<UserSharedExampleLoadingDescriptor> saveSnippet() async {
@@ -492,7 +321,7 @@ class PlaygroundController with ChangeNotifier {
     ),
     actionIntent: const RunIntent(),
     createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => runCode(),
+      onInvoke: (_) => codeRunner.runCode(),
     ),
   );
 
@@ -525,4 +354,10 @@ class PlaygroundController with ChangeNotifier {
         resetShortcut,
         showAutocompleterShortcut,
       ];
+
+  @override
+  void dispose() {
+    super.dispose();
+    codeRunner.removeListener(notifyListeners);
+  }
 }

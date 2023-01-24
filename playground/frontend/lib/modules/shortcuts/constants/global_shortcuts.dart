@@ -40,7 +40,7 @@ final kClearOutputShortcut = BeamShortcut(
     onInvoke: (_) => Provider.of<PlaygroundController>(
       context,
       listen: false,
-    ).clearOutput(),
+    ).codeRunner.clearResult(),
   ),
 );
 

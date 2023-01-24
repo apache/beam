@@ -498,8 +498,11 @@ func encodeType(t reflect.Type) (*v1pb.Type, error) {
 		}
 		return &v1pb.Type{Kind: v1pb.Type_PTR, Element: elm}, nil
 
+	case reflect.Map, reflect.Array:
+		return nil, errors.Errorf("unencodable type '%v', try to wrap the type as a field in a struct, see https://github.com/apache/beam/issues/23101 for details", t.Kind())
+
 	default:
-		return nil, errors.Errorf("unencodable type %v", t)
+		return nil, errors.Errorf("unencodable type '%v'", t.Kind())
 	}
 }
 

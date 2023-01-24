@@ -59,8 +59,14 @@ void main() {
       await wt.tapAndSettle(find.runOrCancelButton());
 
       final playgroundController = wt.findPlaygroundController();
-      expect(playgroundController.outputResult, contains('--some test'));
-      expect(playgroundController.outputResult, contains('Pipeline cancelled'));
+      expect(
+        playgroundController.codeRunner.resultLogOutput,
+        contains('--some test'),
+      );
+      expect(
+        playgroundController.codeRunner.resultLogOutput,
+        contains('Pipeline cancelled'),
+      );
     },
   );
 }

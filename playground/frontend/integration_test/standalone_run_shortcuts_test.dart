@@ -48,35 +48,34 @@ Future<void> _checkResetShortcut(
   final startSource = controller.source;
   await wt.enterText(find.codeField(), 'print("Hello World!');
 
-  expect(startSource != controller.source, true);
+  expect(controller.source, isNot(startSource));
 
   await wt.runShortcut(controller.resetShortcut.shortcuts.keys);
   await wt.pumpAndSettle();
 
-  expect(startSource == controller.source, true);
+  expect(startSource, controller.source);
 }
 
 Future<void> _checkRunShortcut(
   WidgetTester wt,
   PlaygroundController controller,
 ) async {
-  final output = controller.outputResult;
+  final output = controller.codeRunner.resultLogOutput;
   await wt.runShortcut(controller.runShortcut.shortcuts.keys);
   await wt.pumpAndSettle();
 
-  expect(output != controller.outputResult, true);
+  expect(output, isNot(controller.codeRunner.resultLogOutput));
 }
 
 Future<void> _checkClearOutputShortcut(
   WidgetTester wt,
   PlaygroundController controller,
 ) async {
-  expect(controller.outputResult, isNotEmpty);
-  expect(controller.result, isNotNull);
+  expect(controller.codeRunner.resultLogOutput, isNotEmpty);
+  expect(controller.codeRunner.resultLogOutput, isNotNull);
 
   await wt.runShortcut(kClearOutputShortcut.shortcuts.keys);
   await wt.pumpAndSettle();
 
-  expect(controller.outputResult, isEmpty);
-  expect(controller.result, isNull);
+  expect(controller.codeRunner.resultLogOutput, isEmpty);
 }

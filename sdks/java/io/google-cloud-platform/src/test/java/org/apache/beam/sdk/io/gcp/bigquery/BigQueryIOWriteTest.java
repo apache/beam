@@ -66,9 +66,11 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -81,6 +83,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -98,6 +101,10 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -112,6 +119,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -1849,6 +1857,214 @@ public class BigQueryIOWriteTest implements Serializable {
             .withTestServices(fakeBqServices)
             .withoutValidation());
     p.run();
+  }
+
+  @Test
+  public void testUpdateTableSchemaUseSet() throws Exception {
+    updateTableSchemaTest(true);
+  }
+
+  @Test
+  public void testUpdateTableSchemaUseSetF() throws Exception {
+    updateTableSchemaTest(false);
+  }
+
+  @Test
+  public void testUpdateTableSchemaNoUnknownValues() throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApi);
+    thrown.expect(IllegalArgumentException.class);
+    p.apply("create", Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(BigQueryHelpers.parseTableSpec("project-id:dataset-id.table"))
+                .withMethod(Method.STORAGE_WRITE_API)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+                .withAutoSchemaUpdate(true)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    p.run();
+  }
+
+  @SuppressWarnings({"unused"})
+  static class UpdateTableSchemaDoFn extends DoFn<KV<String, TableRow>, TableRow> {
+    @TimerId("updateTimer")
+    private final TimerSpec updateTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    private final Duration timerOffset;
+    private final String updatedSchema;
+    private final FakeDatasetService fakeDatasetService;
+
+    UpdateTableSchemaDoFn(
+        Duration timerOffset, TableSchema updatedSchema, FakeDatasetService fakeDatasetService) {
+      this.timerOffset = timerOffset;
+      this.updatedSchema = BigQueryHelpers.toJsonString(updatedSchema);
+      this.fakeDatasetService = fakeDatasetService;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<String, TableRow> element,
+        @TimerId("updateTimer") Timer updateTimer,
+        OutputReceiver<TableRow> o)
+        throws IOException {
+      updateTimer.offset(timerOffset).setRelative();
+      o.output(element.getValue());
+    }
+
+    @OnTimer("updateTimer")
+    public void onTimer(@Key String tableSpec) throws IOException {
+      fakeDatasetService.updateTableSchema(
+          BigQueryHelpers.parseTableSpec(tableSpec),
+          BigQueryHelpers.fromJsonString(updatedSchema, TableSchema.class));
+    }
+  }
+
+  public void updateTableSchemaTest(boolean useSet) throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApi);
+
+    // Make sure that GroupIntoBatches does not buffer data.
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
+    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(1);
+
+    BigQueryIO.Write.Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    p.enableAbandonedNodeEnforcement(false);
+
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset-id.table");
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("req").setType("STRING").setMode("REQUIRED")));
+    TableSchema tableSchemaUpdated =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("req").setType("STRING"),
+                    new TableFieldSchema().setName("double_number").setType("INTEGER")));
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
+
+    LongFunction<TableRow> getRowSet =
+        (LongFunction<TableRow> & Serializable)
+            (long i) -> {
+              TableRow row =
+                  new TableRow()
+                      .set("name", "name" + i)
+                      .set("number", Long.toString(i))
+                      .set("double_number", Long.toString(i * 2));
+              if (i <= 5) {
+                row = row.set("req", "foo");
+              }
+              return row;
+            };
+
+    LongFunction<TableRow> getRowSetF =
+        (LongFunction<TableRow> & Serializable)
+            (long i) ->
+                new TableRow()
+                    .setF(
+                        ImmutableList.of(
+                            new TableCell().setV("name" + i),
+                            new TableCell().setV(Long.toString(i)),
+                            new TableCell().setV(i > 5 ? null : "foo"),
+                            new TableCell().setV(Long.toString(i * 2))));
+
+    LongFunction<TableRow> getRow = useSet ? getRowSet : getRowSetF;
+
+    TestStream.Builder<Long> testStream =
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
+    // These rows contain unknown fields, which should be dropped.
+    for (long i = 0; i < 5; i++) {
+      testStream = testStream.addElements(i);
+    }
+    // Expire the timer, which should update the schema.
+    testStream = testStream.advanceProcessingTime(Duration.standardSeconds(10));
+    // Add one element to trigger discovery of new schema.
+    testStream = testStream.addElements(5L);
+    testStream = testStream.advanceProcessingTime(Duration.standardSeconds(10));
+
+    // Now all fields should be known.
+    for (long i = 6; i < 10; i++) {
+      testStream = testStream.addElements(i);
+    }
+
+    PCollection<TableRow> tableRows =
+        p.apply(testStream.advanceWatermarkToInfinity())
+            .apply("getRow", MapElements.into(TypeDescriptor.of(TableRow.class)).via(getRow::apply))
+            .apply("add key", WithKeys.of("project-id:dataset-id.table"))
+            .apply(
+                "update schema",
+                ParDo.of(
+                    new UpdateTableSchemaDoFn(
+                        Duration.standardSeconds(5), tableSchemaUpdated, fakeDatasetService)))
+            .setCoder(TableRowJsonCoder.of());
+
+    tableRows.apply(
+        BigQueryIO.writeTableRows()
+            .to(tableRef)
+            .withMethod(method)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .ignoreUnknownValues()
+            .withAutoSchemaUpdate(true)
+            .withTestServices(fakeBqServices)
+            .withoutValidation());
+
+    p.run();
+
+    Iterable<TableRow> expectedDroppedValues =
+        LongStream.range(0, 6)
+            .mapToObj(getRowSet)
+            .map(tr -> filterUnknownValues(tr, tableSchema.getFields()))
+            .collect(Collectors.toList());
+    Iterable<TableRow> expectedFullValues =
+        LongStream.range(6, 10).mapToObj(getRowSet).collect(Collectors.toList());
+    assertThat(
+        fakeDatasetService.getAllRows(
+            tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+        containsInAnyOrder(
+            Iterables.toArray(
+                Iterables.concat(expectedDroppedValues, expectedFullValues), TableRow.class)));
+  }
+
+  TableRow filterUnknownValues(TableRow row, List<TableFieldSchema> tableSchemaFields) {
+    Map<String, String> schemaTypes =
+        tableSchemaFields.stream()
+            .collect(Collectors.toMap(TableFieldSchema::getName, TableFieldSchema::getType));
+    Map<String, List<TableFieldSchema>> schemaFields =
+        tableSchemaFields.stream()
+            .filter(tf -> tf.getFields() != null && !tf.getFields().isEmpty())
+            .collect(Collectors.toMap(TableFieldSchema::getName, TableFieldSchema::getFields));
+    TableRow filtered = new TableRow();
+    if (row.getF() != null) {
+      List<TableCell> values = Lists.newArrayList();
+      for (int i = 0; i < tableSchemaFields.size(); ++i) {
+        String fieldType = tableSchemaFields.get(i).getType();
+        Object value = row.getF().get(i).getV();
+        if (fieldType.equals("STRUCT") || fieldType.equals("RECORD")) {
+          value = filterUnknownValues((TableRow) value, tableSchemaFields.get(i).getFields());
+        }
+        values.add(new TableCell().setV(value));
+      }
+      filtered = filtered.setF(values);
+    } else {
+      for (Map.Entry<String, Object> entry : row.entrySet()) {
+        Object value = entry.getValue();
+        @Nullable String fieldType = schemaTypes.get(entry.getKey());
+        if (fieldType != null) {
+          if (fieldType.equals("STRUCT") || fieldType.equals("RECORD")) {
+            value = filterUnknownValues((TableRow) value, schemaFields.get(entry.getKey()));
+          }
+          filtered = filtered.set(entry.getKey(), value);
+        }
+      }
+    }
+    return filtered;
   }
 
   @Test

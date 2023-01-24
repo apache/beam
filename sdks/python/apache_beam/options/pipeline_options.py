@@ -284,6 +284,10 @@ class PipelineOptions(HasDisplayData):
           flags.append('--%s=%s' % (k, i))
       elif isinstance(v, dict):
         flags.append('--%s=%s' % (k, json.dumps(v)))
+      elif v is None:
+        # Don't process None type args here, they will be treated
+        # as strings when parsed by BeamArgumentParser..
+        logging.warning('Not setting flag with value None: %s', k)
       else:
         flags.append('--%s=%s' % (k, v))
 

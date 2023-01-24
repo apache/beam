@@ -28,13 +28,9 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Descriptors.FieldDescriptor;
-import com.google.protobuf.Descriptors.FieldDescriptor.Type;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -74,7 +70,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
@@ -1035,29 +1030,5 @@ public class BigQueryUtils {
    */
   public static ServiceCallMetric writeCallMetric(TableReference tableReference) {
     return callMetricForMethod(tableReference, "BigQueryBatchWrite");
-  }
-
-  /**
-   * Hashes a schema descriptor using a deterministic hash function.
-   *
-   * <p>Warning! These hashes are encoded into messages, so changing this function will cause
-   * pipelines to get stuck on update!
-   */
-  public static long hashSchemaDescriptorDeterministic(Descriptor descriptor) {
-    long hashCode = 0;
-    for (FieldDescriptor fieldDescriptor : descriptor.getFields()) {
-      hashCode +=
-          Hashing.murmur3_32()
-              .hashString(fieldDescriptor.getName(), StandardCharsets.UTF_8)
-              .asInt();
-      hashCode += Hashing.murmur3_32().hashInt(fieldDescriptor.isRepeated() ? 1 : 0).asInt();
-      hashCode += Hashing.murmur3_32().hashInt(fieldDescriptor.isRequired() ? 1 : 0).asInt();
-      Type type = fieldDescriptor.getType();
-      hashCode += Hashing.murmur3_32().hashInt(type.ordinal()).asInt();
-      if (type.equals(Type.MESSAGE)) {
-        hashCode += hashSchemaDescriptorDeterministic(fieldDescriptor.getMessageType());
-      }
-    }
-    return hashCode;
   }
 }
