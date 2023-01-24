@@ -459,7 +459,10 @@ def generate_proto_files(force=False):
   ]
 
   out_files = list(find_by_ext(PYTHON_OUTPUT_PATH, '_pb2.py'))
-
+  print("****************************************")
+  logging.info("out_files : %s" % out_files )
+  logging.info("proto_files : %s" % proto_files)
+  print("****************************************")
   if out_files and not proto_files and not force:
     # We have out_files but no protos; assume they're up-to-date.
     # This is actually the common case (e.g. installation from an sdist).
