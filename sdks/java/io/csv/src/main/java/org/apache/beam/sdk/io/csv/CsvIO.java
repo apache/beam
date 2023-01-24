@@ -416,11 +416,7 @@ public class CsvIO {
       return csv.apply("Write CSV", write.withOutputFilenames());
     }
 
-    /**
-     * Sets {@link CSVFormat#withHeader} from {@link Schema#sorted()} {@link Schema#getFieldNames}
-     * if {@link CSVFormat#getHeader} is null.
-     */
-    CSVFormat buildHeaderFromSchemaIfNeeded(CSVFormat csvFormat, Schema schema) {
+    private static CSVFormat buildHeaderFromSchemaIfNeeded(CSVFormat csvFormat, Schema schema) {
       if (csvFormat.getHeader() == null) {
         csvFormat = csvFormat.withHeader(schema.sorted().getFieldNames().toArray(new String[0]));
       }
