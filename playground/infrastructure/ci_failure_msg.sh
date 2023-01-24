@@ -16,7 +16,6 @@
 # limitations under the License.
 
 # Curl command to create commit status for fail
-set -x
 
 curl \
 -X POST \
