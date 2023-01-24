@@ -36,7 +36,6 @@ cloudpickle==2.2.0
 crcmod==1.7
 cryptography==38.0.4
 Cython==0.29.32
-datatable==1.0.0
 deprecation==2.1.0
 dill==0.3.1.1
 docker==6.0.1
@@ -162,6 +161,5 @@ urllib3==1.26.13
 websocket-client==1.4.2
 Werkzeug==2.2.2
 wrapt==1.14.1
-xgboost==1.7.1
 zipp==3.11.0
 zstandard==0.19.0

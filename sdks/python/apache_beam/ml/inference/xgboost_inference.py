@@ -31,25 +31,95 @@ import pandas
 import scipy
 import xgboost
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ExampleT
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import PredictionT
 
+__all__ = [
+    'XGBoostModelHandler',
+    'XGBoostModelHandlerNumpy',
+    'XGBoostModelHandlerPandas',
+    'XGBoostModelHandlerSciPy',
+    'XGBoostModelHandlerDatatable'
+]
+
+XGBoostInferenceFn = Callable[[
+    Sequence[object],
+    Union[xgboost.Booster, xgboost.XGBModel],
+    Optional[Dict[str, Any]]
+],
+                              Iterable[PredictionResult]]
+
+
+def default_xgboost_inference_fn(
+    batch: Sequence[object],
+    model: Union[xgboost.Booster, xgboost.XGBModel],
+    inference_args: Optional[Dict[str, Any]] = None):
+  inference_args = {} if not inference_args else inference_args
+
+  if type(model) == xgboost.Booster:
+    batch = (xgboost.DMatrix(array) for array in batch)
+  predictions = [model.predict(el, **inference_args) for el in batch]
+
+  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
 
 class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
+
   def __init__(
       self,
       model_class: Union[Callable[..., xgboost.Booster],
                          Callable[..., xgboost.XGBModel]],
-      model_state: str):
-    self.model_class = model_class
-    self.model_state = model_state
+      model_state: str,
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
+    """Implementation of the ModelHandler interface for XGBoost.
+
+    Example Usage::
+
+        pcoll | RunInference(
+                    XGBoostModelHandler(
+                        model_class="XGBoost Model Class",
+                        model_state="my_model_state.json")))
+
+    See https://xgboost.readthedocs.io/en/stable/tutorials/saving_model.html
+    for details
+
+    Args:
+    model_class: class of the XGBoost model that defines the model
+      structure.
+    model_state: path to a json file that contains the model's
+      configuration.
+    inference_fn: the inference function to use during RunInference.
+      default=default_xgboost_inference_fn
+
+    **Supported Versions:** RunInference APIs in Apache Beam have been tested
+    with PyTorch 1.6.0 and 1.7.0
+
+    XGBoost 1.0.0 introduced support for using JSON to save and load
+    XGBoost models. XGBoost 1.6.0, additional support for Universal Binary JSON.
+    It is recommended to use a model trained in XGBoost 1.6.0 or higher.
+    While you should be able to load models created in older versions, there
+    are no guarantees this will work as expected.
+
+    This class is the superclass of all the various XGBoostModelhandlers
+    and should not be instantiated directly. (See instead
+    XGBoostModelHandlerNumpy, XGBoostModelHandlerPandas, etc.)
+    """
+    self._model_class = model_class
+    self._model_state = model_state
+    self._inference_fn = inference_fn
 
   def load_model(self) -> Union[xgboost.Booster, xgboost.XGBModel]:
-    model = self.model_class()
-    model.load_model(self.model_state)
+    model = self._model_class()
+    model_state_file_handler = FileSystems.open(self._model_state, 'rb')
+    model_state_bytes = model_state_file_handler.read()
+    # Convert into a bytearray so that the
+    # model state can be loaded in XGBoost
+    model_state_bytearray = bytearray(model_state_bytes)
+    model.load_model(model_state_bytearray)
     return model
 
   def get_metrics_namespace(self) -> str:
@@ -60,6 +130,34 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
                                                    PredictionResult,
                                                    Union[xgboost.Booster,
                                                          xgboost.XGBModel]]):
+
+  def __init__(
+      self,
+      model_class: Union[Callable[..., xgboost.Booster],
+                         Callable[..., xgboost.XGBModel]],
+      model_state: str,
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
+    """ Implementation of the ModelHandler interface for XGBoost
+      using numpy arrays as input.
+
+      Example Usage::
+
+        pcoll | RunInference(
+                    XGBoostModelHandlerNumpy(
+                        model_class="XGBoost Model Class",
+                        model_state="my_model_state.json")))
+
+      Args:
+      model_class: class of the XGBoost model that defines the model
+        structure.
+      model_state: path to a json file that contains the model's
+        configuration.
+      inference_fn: the inference function to use during RunInference.
+        default=default_xgboost_inference_fn
+      """
+    # pylint: disable=useless-parent-delegation
+    super().__init__(model_class, model_state, inference_fn)
+
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
@@ -79,13 +177,7 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
         Returns:
           An Iterable of type PredictionResult.
         """
-    inference_args = {} if not inference_args else inference_args
-
-    if type(model) == xgboost.Booster:
-      batch = (xgboost.DMatrix(array) for array in batch)
-    predictions = [model.predict(el, **inference_args) for el in batch]
-
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return self._inference_fn(batch, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
     """
@@ -99,6 +191,34 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
                                                     PredictionResult,
                                                     Union[xgboost.Booster,
                                                           xgboost.XGBModel]]):
+
+  def __init__(
+      self,
+      model_class: Union[Callable[..., xgboost.Booster],
+                         Callable[..., xgboost.XGBModel]],
+      model_state: str,
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
+    """ Implementation of the ModelHandler interface for XGBoost
+      using pandas dataframes as input.
+
+      Example Usage::
+
+        pcoll | RunInference(
+                    XGBoostModelHandlerPandas(
+                        model_class="XGBoost Model Class",
+                        model_state="my_model_state.json")))
+
+      Args:
+      model_class: class of the XGBoost model that defines the model
+        structure.
+      model_state: path to a json file that contains the model's
+        configuration.
+      inference_fn: the inference function to use during RunInference.
+        default=default_xgboost_inference_fn
+      """
+    # pylint: disable=useless-parent-delegation
+    super().__init__(model_class, model_state, inference_fn)
+
   def run_inference(
       self,
       batch: Sequence[pandas.DataFrame],
@@ -118,13 +238,7 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
         Returns:
           An Iterable of type PredictionResult.
         """
-    inference_args = {} if not inference_args else inference_args
-
-    if type(model) == xgboost.Booster:
-      batch = [xgboost.DMatrix(dataframe) for dataframe in batch]
-    predictions = [model.predict(el, **inference_args) for el in batch]
-
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return self._inference_fn(batch, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """
@@ -138,6 +252,34 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
                                                    PredictionResult,
                                                    Union[xgboost.Booster,
                                                          xgboost.XGBModel]]):
+
+  def __init__(
+      self,
+      model_class: Union[Callable[..., xgboost.Booster],
+                         Callable[..., xgboost.XGBModel]],
+      model_state: str,
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
+    """ Implementation of the ModelHandler interface for XGBoost
+      using scipy matrices as input.
+
+      Example Usage::
+
+        pcoll | RunInference(
+                    XGBoostModelHandlerSciPy(
+                        model_class="XGBoost Model Class",
+                        model_state="my_model_state.json")))
+
+      Args:
+      model_class: class of the XGBoost model that defines the model
+        structure.
+      model_state: path to a json file that contains the model's
+        configuration.
+      inference_fn: the inference function to use during RunInference.
+        default=default_xgboost_inference_fn
+      """
+    # pylint: disable=useless-parent-delegation
+    super().__init__(model_class, model_state, inference_fn)
+
   def run_inference(
       self,
       batch: Sequence[scipy.sparse.csr_matrix],
@@ -156,13 +298,7 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
         Returns:
           An Iterable of type PredictionResult.
         """
-    inference_args = {} if not inference_args else inference_args
-
-    if type(model) == xgboost.Booster:
-      batch = [xgboost.DMatrix(sparse_matrix) for sparse_matrix in batch]
-    predictions = [model.predict(el, **inference_args) for el in batch]
-
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return self._inference_fn(batch, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[scipy.sparse.csr_matrix]) -> int:
     """
@@ -177,6 +313,34 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
                                                        Union[xgboost.Booster,
                                                              xgboost.XGBModel]]
                                    ):
+
+  def __init__(
+      self,
+      model_class: Union[Callable[..., xgboost.Booster],
+                         Callable[..., xgboost.XGBModel]],
+      model_state: str,
+      inference_fn: XGBoostInferenceFn = default_xgboost_inference_fn):
+    """ Implementation of the ModelHandler interface for XGBoost
+      using datatable dataframes as input.
+
+      Example Usage::
+
+        pcoll | RunInference(
+                    XGBoostModelHandlerDatatable(
+                        model_class="XGBoost Model Class",
+                        model_state="my_model_state.json")))
+
+      Args:
+      model_class: class of the XGBoost model that defines the model
+        structure.
+      model_state: path to a json file that contains the model's
+        configuration.
+      inference_fn: the inference function to use during RunInference.
+        default=default_xgboost_inference_fn
+      """
+    # pylint: disable=useless-parent-delegation
+    super().__init__(model_class, model_state, inference_fn)
+
   def run_inference(
       self,
       batch: Sequence[datatable.Frame],
@@ -196,13 +360,7 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
         Returns:
           An Iterable of type PredictionResult.
         """
-    inference_args = {} if not inference_args else inference_args
-
-    if type(model) == xgboost.Booster:
-      batch = [xgboost.DMatrix(frame) for frame in batch]
-    predictions = [model.predict(el, **inference_args) for el in batch]
-
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return self._inference_fn(batch, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[datatable.Frame]) -> int:
     """

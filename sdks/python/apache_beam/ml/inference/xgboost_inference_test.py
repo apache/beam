@@ -93,7 +93,9 @@ def build_monkeypatched_xgboost_classifier() -> xgboost.XGBClassifier:
   return model
 
 
+@pytest.mark.uses_xgboost
 class XGBoostRunInferenceTest(unittest.TestCase):
+
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
 

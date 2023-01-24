@@ -60,6 +60,7 @@ class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns a comma separated string with true label and predicted label.
   """
+
   def process(self, element: Tuple[int, PredictionResult]) -> Iterable[str]:
     label, prediction_result = element
     prediction = prediction_result.inference
@@ -70,27 +71,24 @@ def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--input-type',
+      '--input_type',
       dest='input_type',
       required=True,
       choices=['numpy', 'pandas', 'scipy', 'datatable'],
-      help=
-      'Datatype of the input data.'
-  )
+      help='Datatype of the input data.')
   parser.add_argument(
       '--output',
       dest='output',
       required=True,
       help='Path to save output predictions.')
   parser.add_argument(
-      '--model-state',
+      '--model_state',
       dest='model_state',
       required=True,
-      help='Path to the state of the XGBoost model loaded for Inference.'
-  )
+      help='Path to the state of the XGBoost model loaded for Inference.')
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument('--split', action='store_true', dest='split')
-  group.add_argument('--no-split', action='store_false', dest='split')
+  group.add_argument('--no_split', action='store_false', dest='split')
   return parser.parse_known_args(argv)
 
 

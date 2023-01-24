@@ -374,3 +374,42 @@ True Price 31000000.0, Predicted Price 25654277.256461
 ...
 ```
 
+## Iris Classification
+
+[`xgboost_iris_classification.py.py`](./xgboost_iris_classification.py.py) contains an implementation for a RunInference pipeline that performs classification on tabular data from the [Iris Dataset](https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html).
+
+The pipeline reads rows that contain the features of a given iris. The features are Sepal Length, Sepal Width, Petal Length and Petal Width. The pipeline passes those features to the XGBoost implementation of RunInference which writes the iris type predictions to a text file.
+
+### Dataset and model for language modeling
+
+To use this transform, you need to have sklearn installed. The dataset is loaded from using sklearn. The `_train_model` function can be used to train a simple classifier. The function outputs it's configuration in a file that can be loaded by the `XGBoostModelHandler`.
+
+#### Running the Pipeline
+To run locally, use the following command:
+
+```
+python -m apache_beam.examples.inference.xgboost_iris_classification.py \
+  --input_type INPUT_TYPE \
+  --output OUTPUT_FILE \
+  -- model_state MODEL_STATE_JSON \
+  [--no_split|--split]
+```
+
+For example:
+
+```
+python -m apache_beam.examples.inference.xgboost_iris_classification.py \
+  --input_type numpy \
+  --output predictions.txt \
+  --model_state model_state.json \
+  --split
+```
+
+This writes the output to the `predictions.txt` with contents like:
+```
+0,[1]
+1,[2]
+2,[1]
+3,[0]
+...
+```
