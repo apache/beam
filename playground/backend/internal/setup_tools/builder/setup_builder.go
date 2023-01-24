@@ -170,7 +170,7 @@ func TestRunner(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*e
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA: // Executable name for java class is known after compilation
-		className, err := paths.ExecutableName(paths.AbsoluteExecutableFileFolderPath)
+		className, err := paths.TestExecutableName(paths.AbsoluteExecutableFileFolderPath)
 		if err != nil {
 			return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s", paths.AbsoluteExecutableFileFolderPath)
 		}
