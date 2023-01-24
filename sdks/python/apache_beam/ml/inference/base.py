@@ -515,7 +515,6 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self._metrics_collector.failed_batches_counter.inc()
       raise e
     predictions = list(result_generator)
-    logging.info(f'Prediction result: {predictions}')
     end_time = _to_microseconds(self._clock.time_ns())
     inference_latency = end_time - start_time
     num_bytes = self._model_handler.get_num_bytes(batch)
