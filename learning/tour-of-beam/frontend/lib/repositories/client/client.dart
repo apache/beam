@@ -32,5 +32,9 @@ abstract class TobClient {
 
   Future<void> postUnitComplete(String sdkId, String id);
 
-  Future<void> postUserCode(String sdkId, String unitId, String code);
+  Future<void> postUserCode({
+    required String code,
+    required String sdkId,
+    required String unitId,
+  });
 }

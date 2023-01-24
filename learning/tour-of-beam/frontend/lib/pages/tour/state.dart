@@ -137,8 +137,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   bool get isShowingSolution => _isShowingSolution;
   bool get isCurrentUnitCodeSaved =>
       _unitProgressCache.getUnitSnippets()[currentUnitId] != null;
-  bool _resetSnippet = false;
-  bool get resetSnippet => _resetSnippet;
+  bool _isSnippetReset = false;
+  bool get isSnippetReset => _isSnippetReset;
 
   void toggleShowingSolution() {
     if (doesCurrentUnitHaveSolution) {
@@ -164,13 +164,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   void _setResetSnippetFalse() {
-    _resetSnippet = false;
+    _isSnippetReset = false;
     notifyListeners();
   }
 
-  Future<void> toggleReset() async {
+  Future<void> toggleIsSnippetReset() async {
     _isShowingSolution = false;
-    _resetSnippet = !_resetSnippet;
+    _isSnippetReset = !_isSnippetReset;
     await _setCurrentSnippet();
     notifyListeners();
   }
@@ -223,18 +223,20 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   Future<void> _setCurrentSnippet() async {
     final unit = _currentUnitContent;
-    if (unit != null) {
-      final String? snippetId;
-      if (_resetSnippet) {
-        snippetId = unit.taskSnippetId;
-      } else {
-        await _unitProgressCache.updateUnitProgress();
-        snippetId =
-            _unitProgressCache.getUnitSnippets()[unit.id] ?? unit.taskSnippetId;
-      }
-      await _setPlaygroundSnippet(snippetId);
-      _isShowingSolution = false;
+    if (unit == null) {
+      return;
     }
+
+    final String? snippetId;
+    if (_isSnippetReset) {
+      snippetId = unit.taskSnippetId;
+    } else {
+      await _unitProgressCache.updateUnitProgress();
+      snippetId =
+          _unitProgressCache.getUnitSnippets()[unit.id] ?? unit.taskSnippetId;
+    }
+    await _setPlaygroundSnippet(snippetId);
+    _isShowingSolution = false;
   }
 
   Future<void> _setPlaygroundSnippet(String? snippetId) async {
@@ -254,14 +256,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
             ),
           ],
         ),
-        doCheckDescriptor: false,
       );
     }
   }
 
   // TODO(alexeyinkin): Hide the entire right pane instead.
   Future<void> _emptyPlayground() async {
-    await playgroundController.examplesLoader.load(
+    await playgroundController.examplesLoader.loadIfNew(
       ExamplesLoadingDescriptor(
         descriptors: [
           EmptyExampleLoadingDescriptor(sdk: contentTreeController.sdk),
@@ -298,7 +299,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     );
 
     unawaited(
-      playgroundController.examplesLoader.load(
+      playgroundController.examplesLoader.loadIfNew(
         ExamplesLoadingDescriptor(
           descriptors: [
             EmptyExampleLoadingDescriptor(sdk: Sdk.parseOrCreate(initialSdkId)),

@@ -103,13 +103,17 @@ class CloudFunctionsTobClient extends TobClient {
   }
 
   @override
-  Future<void> postUserCode(String sdkId, String unitId, String code) async {
+  Future<void> postUserCode({
+    required String code,
+    required String sdkId,
+    required String unitId,
+  }) async {
     final token = await GetIt.instance.get<AuthNotifier>().getToken();
     if (token == null) {
       return;
     }
 
-    final json = await http.post(
+    await http.post(
       Uri.parse(
         '$cloudFunctionsBaseUrl/postUserCode?sdk=$sdkId&id=$unitId',
       ),
@@ -121,12 +125,11 @@ class CloudFunctionsTobClient extends TobClient {
           {
             'content': code,
             'isMain': true,
-            'name': 'Does this name matter?',
+            'name': '',
           },
         ],
         'pipelineOptions': '',
       }),
     );
-    final map = jsonDecode(utf8.decode(json.bodyBytes));
   }
 }

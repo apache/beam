@@ -56,9 +56,6 @@ class _GroupProgressIndicator extends StatelessWidget {
   final GroupModel group;
   const _GroupProgressIndicator({required this.group});
 
-  static const _diameter = 8.5;
-  static const _thickness = 3.8;
-
   @override
   Widget build(BuildContext context) {
     final unitProgressCache = GetIt.instance.get<UnitProgressCache>();

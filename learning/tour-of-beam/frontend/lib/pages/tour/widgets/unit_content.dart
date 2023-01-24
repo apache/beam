@@ -78,8 +78,8 @@ class _Content extends StatelessWidget {
   final UnitContentModel? unitContent;
 
   const _Content({
-    required this.unitContent,
     required this.tourNotifier,
+    required this.unitContent,
   });
 
   @override
@@ -140,8 +140,8 @@ class _Buttons extends StatelessWidget {
   final UnitContentModel unitContent;
 
   const _Buttons({
-    required this.unitContent,
     required this.tourNotifier,
+    required this.unitContent,
   });
 
   static const _buttonPadding = EdgeInsets.only(
@@ -189,9 +189,9 @@ class _ResetCodeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextButton(
-      onPressed: tourNotifier.toggleReset,
+      onPressed: tourNotifier.toggleIsSnippetReset,
       child: Text(
-        tourNotifier.resetSnippet
+        tourNotifier.isSnippetReset
             ? 'pages.tour.myCode'
             : 'pages.tour.resetCode',
       ).tr(),
