@@ -94,7 +94,7 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  *
  * <p>The resulting CSV files will look like the following where the header is repeated for every
- * shard file, whereas by default, {@link CsvIO.Write} will write all fields in <b>sorted order</b>
+ * file, whereas by default, {@link CsvIO.Write} will write all fields in <b>sorted order</b>
  * of the field names.
  *
  * <pre>{@code
