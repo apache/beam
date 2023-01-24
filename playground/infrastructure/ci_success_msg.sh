@@ -22,4 +22,4 @@ curl \
 -H "Authorization: Bearer ${PAT}" \
 -H "X-GitHub-Api-Version: 2022-11-28" \
 https://api.github.com/repos/apache/beam/statuses/${commit_sha} \
--d '{"state":"success","target_url":"https://console.cloud.google.com/cloud-build/builds;region='${LOCATION}'/'${BUILD_ID}'?authuser=3&project='${PROJECT_ID}'","description":"Success: Examples validation (CI) for current commit successfully passed","context":"Cloud Build CI/CD"}'
+-d '{"state":"success","target_url":"https://console.cloud.google.com/cloud-build/builds;region='${LOCATION}'/'${BUILD_ID}'?authuser=3&project='${PROJECT_ID}'","description":"Success: Examples validation (CI) for current commit successfully passed","context":"GCP Cloud Build CI/CD"}'
