@@ -123,6 +123,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
               'nested builtin',
               dict[str, list[tuple[float]]],
               typehints.Dict[str, typehints.List[typehints.Tuple[float]]]),
+          (
+              'builtin nested tuple',
+              tuple[str, list],
+              typehints.Tuple[str, typehints.List[typehints.Any]],)
       ]
 
       for test_case in test_cases:

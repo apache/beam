@@ -379,9 +379,10 @@ class TupleHintTestCase(TypeHintTestCase):
       typehints.Tuple[5, [1, 3]]
     self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
 
-    with self.assertRaises(TypeError) as e:
-      typehints.Tuple[list, dict]
-    self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
+    if sys.version_info < (3, 9):
+      with self.assertRaises(TypeError) as e:
+        typehints.Tuple[list, dict]
+      self.assertTrue(e.exception.args[0].startswith(expected_error_prefix))
 
   def test_compatibility_arbitrary_length(self):
     self.assertNotCompatible(
@@ -665,8 +666,9 @@ class DictHintTestCase(TypeHintTestCase):
         e.exception.args[0])
 
   def test_key_type_must_be_valid_composite_param(self):
-    with self.assertRaises(TypeError):
-      typehints.Dict[list, int]
+    if sys.version_info < (3, 9):
+      with self.assertRaises(TypeError):
+        typehints.Dict[list, int]
 
   def test_value_type_must_be_valid_composite_param(self):
     with self.assertRaises(TypeError):
@@ -765,13 +767,14 @@ class DictHintTestCase(TypeHintTestCase):
 class BaseSetHintTest:
   class CommonTests(TypeHintTestCase):
     def test_getitem_invalid_composite_type_param(self):
-      with self.assertRaises(TypeError) as e:
-        self.beam_type[list]
-      self.assertEqual(
-          "Parameter to a {} hint must be a non-sequence, a "
-          "type, or a TypeConstraint. {} is an instance of "
-          "type.".format(self.string_type, list),
-          e.exception.args[0])
+      if sys.version_info < (3, 9):
+        with self.assertRaises(TypeError) as e:
+          self.beam_type[list]
+        self.assertEqual(
+            "Parameter to a {} hint must be a non-sequence, a "
+            "type, or a TypeConstraint. {} is an instance of "
+            "type.".format(self.string_type, list),
+            e.exception.args[0])
 
     def test_compatibility(self):
       hint1 = self.beam_type[typehints.List[str]]
