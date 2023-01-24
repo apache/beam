@@ -19,4 +19,5 @@ intents:
   playground:
     clearOutput: 'Clear Output'
     newExample: 'New Example'
+    showAutocompleter: 'Show Autocompleter'
     usesEmulatedData: 'This examples uses emulated data'
