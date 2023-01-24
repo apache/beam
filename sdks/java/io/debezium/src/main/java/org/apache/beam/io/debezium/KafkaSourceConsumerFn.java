@@ -17,6 +17,8 @@
  */
 package org.apache.beam.io.debezium;
 
+import static org.apache.beam.io.debezium.KafkaConnectUtils.debeziumRecordInstant;
+
 import io.debezium.document.Document;
 import io.debezium.document.DocumentReader;
 import io.debezium.document.DocumentWriter;
@@ -39,6 +41,9 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.kafka.connect.source.SourceConnector;
@@ -49,6 +54,7 @@ import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -175,14 +181,37 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     restrictionTrackers.remove(this.getHashCode());
   }
 
+  @GetInitialWatermarkEstimatorState
+  public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+    return currentElementTimestamp;
+  }
+
+  @NewWatermarkEstimator
+  public WatermarkEstimator<Instant> newWatermarkEstimator(
+      @WatermarkEstimatorState Instant watermarkEstimatorState) {
+    return new WatermarkEstimators.MonotonicallyIncreasing(
+        ensureTimestampWithinBounds(watermarkEstimatorState));
+  }
+
+  private static Instant ensureTimestampWithinBounds(Instant timestamp) {
+    if (timestamp.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+      timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    } else if (timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    }
+    return timestamp;
+  }
+
   /**
-   * Process the retrieved element. Currently it just logs the retrieved record as JSON.
+   * Process the retrieved element and format it for output. Update all pending
    *
-   * @param element Record retrieved
+   * @param element A descriptor for the configuration of the {@link SourceConnector} and {@link
+   *     SourceTask} instances.
    * @param tracker Restriction Tracker
    * @param receiver Output Receiver
-   * @return
-   * @throws Exception
+   * @return {@link org.apache.beam.sdk.transforms.DoFn.ProcessContinuation} in most cases, to
+   *     continue processing after 1 second. Otherwise, if we've reached a limit of elements, to
+   *     stop processing.
    */
   @DoFn.ProcessElement
   public ProcessContinuation process(
@@ -230,7 +259,8 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
           T json = this.fn.mapSourceRecord(record);
           LOG.debug("****************** RECEIVED SOURCE AS JSON: {}", json);
 
-          receiver.output(json);
+          Instant recordInstant = debeziumRecordInstant(record);
+          receiver.outputWithTimestamp(json, recordInstant);
         }
         task.commit();
         records = task.poll();

@@ -19,39 +19,51 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 
+import java.util.Collections;
 import java.util.Date;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.RequiresStableInputIT;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.testing.CrashingRunner;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.FilePatternMatchingShardedFile;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.junit.AfterClass;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -60,50 +72,20 @@ public class FlinkRequiresStableInputTest {
 
   @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
-  private static CountDownLatch latch;
-
   private static final String VALUE = "value";
   // SHA-1 hash of string "value"
   private static final String VALUE_CHECKSUM = "f32b67c7e26342af42efabc674d441dca0a281c5";
 
-  private static transient MiniCluster flinkCluster;
+  private static ListeningExecutorService flinkJobExecutor;
+  private static final int PARALLELISM = 1;
+  private static final long CHECKPOINT_INTERVAL = 2000L;
+  private static final long FINISH_SOURCE_INTERVAL = 3 * CHECKPOINT_INTERVAL;
 
   @BeforeClass
-  public static void beforeClass() throws Exception {
-    final int parallelism = 1;
-
-    Configuration config = new Configuration();
-    // Avoid port collision in parallel tests
-    config.setInteger(RestOptions.PORT, 0);
-    config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
-    // It is necessary to configure the checkpoint directory for the state backend,
-    // even though we only create savepoints in this test.
-    config.setString(
-        CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-        "file://" + tempFolder.getRoot().getAbsolutePath());
-    // Checkpoints will go into a subdirectory of this directory
-    config.setString(
-        CheckpointingOptions.SAVEPOINT_DIRECTORY,
-        "file://" + tempFolder.getRoot().getAbsolutePath());
-
-    MiniClusterConfiguration clusterConfig =
-        new MiniClusterConfiguration.Builder()
-            .setConfiguration(config)
-            .setNumTaskManagers(1)
-            .setNumSlotsPerTaskManager(1)
-            .build();
-
-    flinkCluster = new MiniCluster(clusterConfig);
-    flinkCluster.start();
-
-    TestStreamEnvironment.setAsContext(flinkCluster, parallelism);
-  }
-
-  @AfterClass
-  public static void afterClass() throws Exception {
-    TestStreamEnvironment.unsetAsContext();
-    flinkCluster.close();
-    flinkCluster = null;
+  public static void setup() {
+    // Restrict this to only one thread to avoid multiple Flink clusters up at the same time
+    // which is not suitable for memory-constraint environments, i.e. Jenkins.
+    flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
   }
 
   /**
@@ -121,15 +103,41 @@ public class FlinkRequiresStableInputTest {
    * restore the savepoint to check if we produce impotent results.
    */
   @Test(timeout = 30_000)
-  @Ignore("https://github.com/apache/beam/issues/21333")
   public void testParDoRequiresStableInput() throws Exception {
-    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
-    options.setParallelism(1);
-    // We only want to trigger external savepoints but we require
-    // checkpointing to be enabled for @RequiresStableInput
-    options.setCheckpointingInterval(Long.MAX_VALUE);
-    options.setRunner(FlinkRunner.class);
-    options.setStreaming(true);
+    runTest(false);
+  }
+
+  @Test(timeout = 30_000)
+  public void testParDoRequiresStableInputPortable() throws Exception {
+    runTest(true);
+  }
+
+  @Test(timeout = 30_000)
+  public void testParDoRequiresStableInputStateful() throws Exception {
+    testParDoRequiresStableInputStateful(false);
+  }
+
+  @Test(timeout = 30_000)
+  public void testParDoRequiresStableInputStatefulPortable() throws Exception {
+    testParDoRequiresStableInputStateful(true);
+  }
+
+  private void testParDoRequiresStableInputStateful(boolean portable) throws Exception {
+    FlinkPipelineOptions opts = getFlinkOptions(portable);
+    opts.as(FlinkPipelineOptions.class).setShutdownSourcesAfterIdleMs(FINISH_SOURCE_INTERVAL);
+    opts.as(FlinkPipelineOptions.class).setNumberOfExecutionRetries(0);
+    Pipeline pipeline = Pipeline.create(opts);
+    PCollection<Integer> result =
+        pipeline
+            .apply(Create.of(1, 2, 3, 4))
+            .apply(WithKeys.of((Void) null))
+            .apply(ParDo.of(new StableDoFn()));
+    PAssert.that(result).containsInAnyOrder(1, 2, 3, 4);
+    executePipeline(pipeline, portable);
+  }
+
+  private void runTest(boolean portable) throws Exception {
+    FlinkPipelineOptions options = getFlinkOptions(portable);
 
     ResourceId outputDir =
         FileSystems.matchNewResource(tempFolder.getRoot().getAbsolutePath(), true)
@@ -149,21 +157,7 @@ public class FlinkRequiresStableInputTest {
 
     Pipeline p = createPipeline(options, singleOutputPrefix, multiOutputPrefix);
 
-    // a latch used by the transforms to signal completion
-    latch = new CountDownLatch(2);
-    JobID jobID = executePipeline(p);
-    String savepointDir;
-    do {
-      // Take a savepoint (checkpoint) which will trigger releasing the buffered elements
-      // and trigger the latch
-      savepointDir = takeSavepoint(jobID);
-    } while (!latch.await(100, TimeUnit.MILLISECONDS));
-    flinkCluster.cancelJob(jobID).get();
-
-    options.setShutdownSourcesAfterIdleMs(0L);
-    restoreFromSavepoint(p, savepointDir);
-    waitUntilJobIsDone();
-
+    executePipeline(p, portable);
     assertThat(
         new FilePatternMatchingShardedFile(singleOutputPrefix + "*"),
         fileContentsHaveChecksum(VALUE_CHECKSUM));
@@ -172,78 +166,127 @@ public class FlinkRequiresStableInputTest {
         fileContentsHaveChecksum(VALUE_CHECKSUM));
   }
 
-  private JobGraph getJobGraph(Pipeline pipeline) {
-    FlinkRunner flinkRunner = FlinkRunner.fromOptions(pipeline.getOptions());
-    return flinkRunner.getJobGraph(pipeline);
-  }
+  private void executePipeline(Pipeline pipeline, boolean portable) throws Exception {
+    if (portable) {
+      RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
+      FlinkPipelineOptions flinkOpts = pipeline.getOptions().as(FlinkPipelineOptions.class);
+      // execute the pipeline
+      JobInvocation jobInvocation =
+          FlinkJobInvoker.create(null)
+              .createJobInvocation(
+                  "fakeId",
+                  "fakeRetrievalToken",
+                  flinkJobExecutor,
+                  pipelineProto,
+                  flinkOpts,
+                  new FlinkPipelineRunner(flinkOpts, null, Collections.emptyList()));
+      jobInvocation.start();
+      while (jobInvocation.getState() != JobApi.JobState.Enum.DONE
+          && jobInvocation.getState() != JobApi.JobState.Enum.FAILED) {
 
-  private JobID executePipeline(Pipeline pipeline) throws Exception {
-    JobGraph jobGraph = getJobGraph(pipeline);
-    flinkCluster.submitJob(jobGraph).get();
-    return jobGraph.getJobID();
-  }
-
-  private String takeSavepoint(JobID jobID) throws Exception {
-    Exception exception = null;
-    // try multiple times because the job might not be ready yet
-    for (int i = 0; i < 10; i++) {
-      try {
-        return MiniClusterCompat.triggerSavepoint(flinkCluster, jobID, null, false).get();
-      } catch (Exception e) {
-        exception = e;
-        Thread.sleep(100);
+        Thread.sleep(1000);
       }
+      assertThat(jobInvocation.getState(), equalTo(JobApi.JobState.Enum.DONE));
+    } else {
+      executePipelineLegacy(pipeline);
     }
-    throw exception;
   }
 
-  private JobID restoreFromSavepoint(Pipeline pipeline, String savepointDir)
-      throws ExecutionException, InterruptedException {
-    JobGraph jobGraph = getJobGraph(pipeline);
-    SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.forPath(savepointDir);
-    jobGraph.setSavepointRestoreSettings(savepointSettings);
-    return flinkCluster.submitJob(jobGraph).get().getJobID();
-  }
-
-  private void waitUntilJobIsDone() throws InterruptedException, ExecutionException {
-    while (flinkCluster.listJobs().get().stream()
-        .anyMatch(message -> message.getJobState().name().equals("RUNNING"))) {
-      Thread.sleep(100);
-    }
+  private void executePipelineLegacy(Pipeline pipeline) {
+    FlinkRunner flinkRunner = FlinkRunner.fromOptions(pipeline.getOptions());
+    PipelineResult.State state = flinkRunner.run(pipeline).waitUntilFinish();
+    assertThat(state, equalTo(PipelineResult.State.DONE));
   }
 
   private static Pipeline createPipeline(
       PipelineOptions options, String singleOutputPrefix, String multiOutputPrefix) {
     Pipeline p = Pipeline.create(options);
-
-    SerializableFunction<Void, Void> firstTime =
-        (SerializableFunction<Void, Void>)
-            value -> {
-              latch.countDown();
-              return null;
-            };
-
+    SerializableFunction<Void, Void> sideEffect =
+        ign -> {
+          throw new IllegalStateException("Failing job to test @RequiresStableInput");
+        };
     PCollection<String> impulse = p.apply("CreatePCollectionOfOneValue", Create.of(VALUE));
     impulse
         .apply(
             "Single-PairWithRandomKey",
             MapElements.via(new RequiresStableInputIT.PairWithRandomKeyFn()))
+        // need Reshuffle due to https://github.com/apache/beam/issues/24655
+        // can be removed once fixed
+        .apply(Reshuffle.of())
         .apply(
             "Single-MakeSideEffectAndThenFail",
             ParDo.of(
                 new RequiresStableInputIT.MakeSideEffectAndThenFailFn(
-                    singleOutputPrefix, firstTime)));
+                    singleOutputPrefix, sideEffect)));
     impulse
         .apply(
             "Multi-PairWithRandomKey",
             MapElements.via(new RequiresStableInputIT.PairWithRandomKeyFn()))
+        // need Reshuffle due to https://github.com/apache/beam/issues/24655
+        // can be removed once fixed
+        .apply(Reshuffle.of())
         .apply(
             "Multi-MakeSideEffectAndThenFail",
             ParDo.of(
                     new RequiresStableInputIT.MakeSideEffectAndThenFailFn(
-                        multiOutputPrefix, firstTime))
+                        multiOutputPrefix, sideEffect))
                 .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     return p;
+  }
+
+  private FlinkPipelineOptions getFlinkOptions(boolean portable) {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setParallelism(PARALLELISM);
+    options.setCheckpointingInterval(CHECKPOINT_INTERVAL);
+    options.setShutdownSourcesAfterIdleMs(FINISH_SOURCE_INTERVAL);
+    options.setFinishBundleBeforeCheckpointing(true);
+    options.setMaxBundleTimeMills(100L);
+    options.setStreaming(true);
+    if (portable) {
+      options.setRunner(CrashingRunner.class);
+      options
+          .as(PortablePipelineOptions.class)
+          .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
+    } else {
+      options.setRunner(FlinkRunner.class);
+    }
+    return options;
+  }
+
+  private static class StableDoFn extends DoFn<KV<Void, Integer>, Integer> {
+
+    @StateId("state")
+    final StateSpec<BagState<Integer>> stateSpec = StateSpecs.bag();
+
+    @TimerId("flush")
+    final TimerSpec flushSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @ProcessElement
+    @RequiresStableInput
+    public void process(
+        @Element KV<Void, Integer> input,
+        @StateId("state") BagState<Integer> buffer,
+        @TimerId("flush") Timer flush,
+        OutputReceiver<Integer> output) {
+
+      // Timers do not to work with stateful stable dofn,
+      // see https://github.com/apache/beam/issues/24662
+      // Once this is resolved, flush the buffer on timer
+      // flush.set(GlobalWindow.INSTANCE.maxTimestamp());
+      // buffer.add(input.getValue());
+      output.output(input.getValue());
+    }
+
+    @OnTimer("flush")
+    public void flush(
+        @Timestamp Instant ts,
+        @StateId("state") BagState<Integer> buffer,
+        OutputReceiver<Integer> output) {
+
+      Optional.ofNullable(buffer.read())
+          .ifPresent(b -> b.forEach(e -> output.outputWithTimestamp(e, ts)));
+      buffer.clear();
+    }
   }
 }
