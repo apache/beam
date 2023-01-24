@@ -82,7 +82,7 @@ public class External {
 
   private static final ExpansionServiceClientFactory DEFAULT =
       DefaultExpansionServiceClientFactory.create(
-          endPoint -> ManagedChannelBuilder.forTarget(endPoint.getUrl()).usePlaintext().build());
+          endPoint -> ManagedChannelBuilder.forTarget(endPoint.getUrl()).usePlaintext().maxInboundMessageSize(Integer.MAX_VALUE).build());
 
   private static int getFreshNamespaceIndex() {
     return namespaceCounter.getAndIncrement();
@@ -346,48 +346,38 @@ public class External {
       if (environments.size() == 0) {
         return environments;
       }
-      ManagedChannel channel =
-          ManagedChannelBuilder.forTarget(endpoint.getUrl())
-              .usePlaintext()
-              .maxInboundMessageSize(Integer.MAX_VALUE)
-              .build();
-      try {
-        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub =
-            ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
-        return environments.entrySet().stream()
-            .collect(
-                Collectors.toMap(
-                    Map.Entry::getKey,
-                    kv -> {
-                      try {
-                        return resolveArtifacts(retrievalStub, kv.getValue());
-                      } catch (IOException e) {
-                        throw new RuntimeException(e);
-                      }
-                    }));
-      } finally {
-        channel.shutdown();
-      }
+
+      return environments.entrySet().stream()
+              .collect(
+                  Collectors.toMap(
+                      Map.Entry::getKey,
+                      kv -> {
+                        try {
+                          return resolveArtifacts(clientFactory.getArtifactServiceClient(endpoint), kv.getValue());
+                        } catch (IOException e) {
+                          throw new RuntimeException(e);
+                        }
+                      }));
     }
 
     private RunnerApi.Environment resolveArtifacts(
-        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
+        ArtifactServiceClient artifactServiceClient,
         RunnerApi.Environment environment)
         throws IOException {
       return environment
           .toBuilder()
           .clearDependencies()
-          .addAllDependencies(resolveArtifacts(retrievalStub, environment.getDependenciesList()))
+          .addAllDependencies(resolveArtifacts(artifactServiceClient, environment.getDependenciesList()))
           .build();
     }
 
     private List<RunnerApi.ArtifactInformation> resolveArtifacts(
-        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
+            ArtifactServiceClient artifactServiceClient,
         List<RunnerApi.ArtifactInformation> artifacts)
         throws IOException {
       List<RunnerApi.ArtifactInformation> resolved = new ArrayList<>();
       for (RunnerApi.ArtifactInformation artifact :
-          retrievalStub
+              artifactServiceClient
               .resolveArtifacts(
                   ArtifactApi.ResolveArtifactsRequest.newBuilder()
                       .addAllArtifacts(artifacts)
@@ -396,7 +386,7 @@ public class External {
         Path path = Files.createTempFile("beam-artifact", "");
         try (FileOutputStream fout = new FileOutputStream(path.toFile())) {
           for (Iterator<ArtifactApi.GetArtifactResponse> it =
-                  retrievalStub.getArtifact(
+               artifactServiceClient.getArtifact(
                       ArtifactApi.GetArtifactRequest.newBuilder().setArtifact(artifact).build());
               it.hasNext(); ) {
             it.next().getData().writeTo(fout);

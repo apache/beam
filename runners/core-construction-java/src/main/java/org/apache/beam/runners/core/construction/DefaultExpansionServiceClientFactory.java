@@ -28,22 +28,36 @@ import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ManagedChannel;
 /** Default factory for ExpansionServiceClient used by External transform. */
 public class DefaultExpansionServiceClientFactory implements ExpansionServiceClientFactory {
   private Map<Endpoints.ApiServiceDescriptor, ExpansionServiceClient> expansionServiceMap;
-  private Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
+  private Map<Endpoints.ApiServiceDescriptor, ArtifactServiceClient> artifactServiceMap;
+  private Function<Endpoints.ApiServiceDescriptor, ManagedChannel> expansionChannelFactory;
+  private Function<Endpoints.ApiServiceDescriptor, ManagedChannel> artifactChannelFactory;
+
 
   private DefaultExpansionServiceClientFactory(
-      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
+      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> expansionChannelFactory,
+      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> artifactChannelFactory) {
     this.expansionServiceMap = new ConcurrentHashMap<>();
-    this.channelFactory = channelFactory;
+    this.expansionChannelFactory = expansionChannelFactory;
+    this.artifactChannelFactory = artifactChannelFactory;
   }
 
   public static DefaultExpansionServiceClientFactory create(
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
-    return new DefaultExpansionServiceClientFactory(channelFactory);
+    return new DefaultExpansionServiceClientFactory(channelFactory, channelFactory);
   }
+
+  public static DefaultExpansionServiceClientFactory create(
+    Function<Endpoints.ApiServiceDescriptor, ManagedChannel> expansionChannelFactory,
+    Function<Endpoints.ApiServiceDescriptor, ManagedChannel> artifactChannelFactory) {
+  return new DefaultExpansionServiceClientFactory(expansionChannelFactory, artifactChannelFactory);
+}
 
   @Override
   public void close() throws Exception {
     for (ExpansionServiceClient client : expansionServiceMap.values()) {
+      try (AutoCloseable closer = client) {}
+    }
+    for (ArtifactServiceClient client : artifactServiceMap.values()) {
       try (AutoCloseable closer = client) {}
     }
   }
@@ -54,13 +68,40 @@ public class DefaultExpansionServiceClientFactory implements ExpansionServiceCli
         endpoint,
         e ->
             new ExpansionServiceClient() {
-              private final ManagedChannel channel = channelFactory.apply(endpoint);
+              private final ManagedChannel channel = expansionChannelFactory.apply(endpoint);
               private final ExpansionServiceGrpc.ExpansionServiceBlockingStub service =
                   ExpansionServiceGrpc.newBlockingStub(channel);
 
               @Override
               public ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request) {
                 return service.expand(request);
+              }
+
+              @Override
+              public void close() throws Exception {
+                channel.shutdown();
+              }
+            });
+  }
+
+  @Override
+  public ExpansionServiceClient getArtifServiceClient(Endpoints.ApiServiceDescriptor endpoint) {
+    return artifactServiceMap.computeIfAbsent(
+        endpoint,
+        e ->
+            new ArtifactServiceClient() {
+              private final ManagedChannel channel = artifactChannelFactory.apply(endpoint);
+              private final ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub service =
+              ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
+
+              @Override
+              ArtifactApi.ResolveArtifactsResponse resolveArtifacts(ArtifactApi.ResolveArtifactsRequest request) {
+                return service.resolveArtifacts(request);
+              }
+
+              @Override
+              Iterator<ArtifactApi.GetArtifactResponse> getArtifact(ArtifactApi.GetArtifactRequest request) {
+                return service.getArtifact(request);
               }
 
               @Override

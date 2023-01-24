@@ -25,4 +25,6 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
  */
 public interface ExpansionServiceClientFactory extends AutoCloseable {
   ExpansionServiceClient getExpansionServiceClient(Endpoints.ApiServiceDescriptor endpoint);
+
+  ArtifactServiceClient getArtifactServiceClient(Endpoints.ApiServiceDescriptor endpoint);
 }
