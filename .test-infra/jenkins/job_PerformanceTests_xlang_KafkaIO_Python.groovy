@@ -90,14 +90,14 @@ private void createKafkaIOTestJob(testJob) {
       }
     }
     k8s.apply(kafkaDir)
-    (0..2).each { k8s.loadBalancerIP("outside-$it", "KAFKA_BROKER_$it") }
+    k8s.nodeIPAddress("NODE_IP")
+    (0..2).each { k8s.nodePort("outside-$it", "NODE_PORT_$it") }
     k8s.waitForJob(kafkaTopicJob,"40m")
 
     additionalPipelineArgs = [
       influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
       influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
-      bootstrap_servers: "\$KAFKA_BROKER_0:\$KAFKA_SERVICE_PORT_0,\$KAFKA_BROKER_1:\$KAFKA_SERVICE_PORT_1," +
-      "\$KAFKA_BROKER_2:\$KAFKA_SERVICE_PORT_2", //KAFKA_BROKER_ represents IP and KAFKA_SERVICE_ port of outside services
+      bootstrap_servers: "\$NODE_IP:\$NODE_PORT_0,\$NODE_IP:\$NODE_PORT_1,\$NODE_IP:\$NODE_PORT_2",
     ]
     testJob.pipelineOptions.putAll(additionalPipelineArgs)
 
@@ -106,6 +106,7 @@ private void createKafkaIOTestJob(testJob) {
       project         : 'apache-beam-testing',
       region          : 'us-central1',
       temp_location   : 'gs://temp-storage-for-perf-tests/',
+      usePublicIPs    : false,
       filename_prefix : "gs://temp-storage-for-perf-tests/${testJob.name}/\${BUILD_ID}/",
       sdk_harness_container_image_overrides: '.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest'
     ]

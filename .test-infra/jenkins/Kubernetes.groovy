@@ -117,6 +117,39 @@ class Kubernetes {
   }
 
   /**
+   * Specifies steps that will save specified address node ip address
+   * as an environment variable that can be used in later steps if needed.
+   *
+   * @param referenceName - name of the environment variable
+   */
+  void nodeIPAddress(String referenceName) {
+    jobs.steps {
+      String command = "${KUBERNETES_SCRIPT} nodeIPAddress"
+      shell("set -eo pipefail; eval ${command} | sed 's/^/${referenceName}=/' > job.properties")
+      environmentVariables {
+        propertiesFile('job.properties')
+      }
+    }
+  }
+
+  /**
+   * Specifies steps that will save the NodePort of the specified service
+   * as an environment variable that can be used in later steps if needed.
+   *
+   * @param serviceName - name of the load balancer Kubernetes service
+   * @param referenceName - name of the environment variable
+   */
+  void nodePort(String serviceName, String referenceName) {
+    job.steps {
+      String command = "${KUBERNETES_SCRIPT} nodePort ${serviceName}"
+      shell("set -eo pipefail; eval ${command} | sed 's/^/${referenceName}=/' > job.properties")
+      environmentVariables {
+        propertiesFile('job.properties')
+      }
+    }
+  }
+
+  /**
    * Specifies steps that will save specified load balancer serivce address
    * as an environment variable that can be used in later steps if needed.
    *

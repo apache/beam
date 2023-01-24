@@ -80,6 +80,22 @@ function deleteNamespace() {
   eval "kubectl --kubeconfig=${KUBECONFIG} delete namespace $1"
 }
 
+# Gets Node IP address of cluster
+# Usage: ./kubernetes.sh nodeIPAddress
+function nodeIPAddress() {
+  local command="$KUBECTL get node -ojsonpath='{.items[*].status.addresses[?(@.type==\"InternalIP\")].address}'"
+}
+
+# Gets NodePort of service
+# Blocks and retries until the IP is present or retry limit is exceeded.
+#
+# Usage: ./kubernetes.sh nodePort <name of the kubernetes service>
+function nodePort() {
+  local name=$1
+  local command="$KUBECTL get svc $name -ojsonpath='{.status.ports[0].nodePort}'"
+  retry "${command}" 36 10
+}
+
 # Gets Load Balancer Ingress IP address.
 # Blocks and retries until the IP is present or retry limit is exceeded.
 #

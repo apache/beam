@@ -26,4 +26,4 @@ spec:
     targetPort: 9094
     port: 32402
     nodePort: 32402
-  type: LoadBalancer
+  type: NodePort

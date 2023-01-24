@@ -38,14 +38,8 @@ data:
         SEDS+=("s/#init#broker.rack=#init#/broker.rack=$ZONE/")
         LABELS="$LABELS kafka-broker-rack=$ZONE"
       fi
-      OUTSIDE_HOST=""
-      while [ -z $OUTSIDE_HOST ]; do
-        echo "Waiting for end point..."
-        OUTSIDE_HOST=$(kubectl get svc outside-${KAFKA_BROKER_ID} --template="{{range .status.loadBalancer.ingress}}{{.ip}}{{end}}")
-        [ -z "$OUTSIDE_HOST" ] && sleep 10
-      done
-      # OUTSIDE_HOST=$(kubectl get node "$NODE_NAME" -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
-      OUTSIDE_PORT=$(kubectl get svc outside-${KAFKA_BROKER_ID} --template="{{range .spec.ports}}{{.port}}{{end}}")
+      OUTSIDE_HOST=$(kubectl get node "$NODE_NAME" -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
+      OUTSIDE_PORT=$(kubectl get svc outside-${KAFKA_BROKER_ID} -o jsonpath='{.spec.ports[0].nodePort}')
       SEDS+=("s|#init#advertised.listeners=OUTSIDE://#init#|advertised.listeners=OUTSIDE://${OUTSIDE_HOST}:${OUTSIDE_PORT}|")
       ANNOTATIONS="$ANNOTATIONS kafka-listener-outside-host=$OUTSIDE_HOST kafka-listener-outside-port=$OUTSIDE_PORT"
 
