@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
-import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.concurrent.ExecutorService;
@@ -188,7 +187,6 @@ public final class SparkStructuredStreamingRunner
     }
 
     PipelineTranslator.replaceTransforms(pipeline, options);
-    prepareFilesToStage(options);
 
     PipelineTranslator pipelineTranslator = new PipelineTranslatorBatch();
     return pipelineTranslator.translate(pipeline, sparkSession, options);
