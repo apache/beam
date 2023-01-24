@@ -23,10 +23,11 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -52,7 +53,7 @@ class CsvRowConversions {
     /** The {@link CSVFormat} of the converted {@link Row} input. */
     abstract CSVFormat getCSVFormat();
 
-    /** Converts a {@link Row} to a CSV string formatted using {@link #getCSVFormat()}. */
+    /** Converts a {@link Row} to a CSV string formatted using {@link #getCSVFormat}. */
     @Override
     public String apply(Row input) {
       Row safeInput = checkNotNull(input);
@@ -88,6 +89,10 @@ class CsvRowConversions {
         checkArgument(getSchema().getFieldCount() > 0, "Schema has no fields");
         setCSVFormat(
             getCSVFormat()
+                // CSVFormat was designed to write to a single file.
+                // Therefore, we need to apply withSkipHeaderRecord to prevent CSVFormat to apply
+                // its header
+                // to each converted Row in the context of RowToCsv.
                 .withSkipHeaderRecord()
                 // Delegate to TextIO.Write.withDelimiter instead.
                 .withRecordSeparator(' ')

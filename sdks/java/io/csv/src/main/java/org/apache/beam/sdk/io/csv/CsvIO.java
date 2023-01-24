@@ -41,7 +41,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 
@@ -56,16 +55,17 @@ import org.apache.commons.csv.CSVFormat;
  * <h2>Writing CSV files</h2>
  *
  * <p>To write a {@link PCollection} to one or more CSV files, use {@link CsvIO.Write}, using {@link
- * CsvIO#writeRows(String, CSVFormat)} or {@link CsvIO#write(String, CSVFormat)}. {@link
- * CsvIO.Write} supports writing {@link Row} or custom Java types using an inferred {@link Schema}.
- * Examples below show both scenarios. See the Beam Programming Guide on <a
+ * CsvIO#writeRows} or {@link CsvIO#write}. {@link CsvIO.Write} supports writing {@link Row} or
+ * custom Java types using an inferred {@link Schema}. Examples below show both scenarios. See the
+ * Beam Programming Guide on <a
  * href="https://beam.apache.org/documentation/programming-guide/#inferring-schemas">inferring
  * schemas</a> for more information on how to enable Beam to infer a {@link Schema} from a custom
  * Java type.
  *
- * <p>{@link CsvIO.Write} only supports writing the parts of {@link Schema} aware types that do not contain any
- * nested {@link FieldType}s such a {@link org.apache.beam.sdk.schemas.Schema.TypeName#ROW} or
- * repeated {@link org.apache.beam.sdk.schemas.Schema.TypeName#ARRAY} types. See {@link
+ * <p>{@link CsvIO.Write} only supports writing the parts of {@link Schema} aware types that do not
+ * contain any nested {@link FieldType}s such a {@link
+ * org.apache.beam.sdk.schemas.Schema.TypeName#ROW} or repeated {@link
+ * org.apache.beam.sdk.schemas.Schema.TypeName#ARRAY} types. See {@link
  * CsvIO.Write#VALID_FIELD_TYPE_SET} for valid {@link FieldType}s.
  *
  * <h3>Example usage:</h3>
@@ -94,8 +94,8 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  *
  * <p>The resulting CSV files will look like the following where the header is repeated for every
- * file, whereas by default, {@link CsvIO.Write} will write all fields in <b>sorted order</b>
- * of the field names.
+ * file, whereas by default, {@link CsvIO.Write} will write all fields in <b>sorted order</b> of the
+ * field names.
  *
  * <pre>{@code
  * bank,purchaseAmount,transactionId
@@ -105,7 +105,7 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  *
  * <p>To control the order and subset of fields that {@link CsvIO.Write} writes, use {@link
- * CSVFormat#withHeader(String...)}. Note, however, the following constraints:
+ * CSVFormat#withHeader}. Note, however, the following constraints:
  *
  * <ol>
  *   <li>Each header column must match a field name in the {@link Schema}; matching is case
@@ -113,11 +113,11 @@ import org.apache.commons.csv.CSVFormat;
  *   <li>Matching header columns must match {@link Schema} fields that are valid {@link FieldType}s;
  *       see {@link #VALID_FIELD_TYPE_SET}.
  *   <li>{@link CSVFormat} only allows repeated header columns when {@link
- *       CSVFormat#withAllowDuplicateHeaderNames()}
+ *       CSVFormat#withAllowDuplicateHeaderNames}
  * </ol>
  *
- * <p>The following example shows the use of {@link CSVFormat#withHeader(String...)} to control the
- * order and subset of <code>Transaction</code> fields.
+ * <p>The following example shows the use of {@link CSVFormat#withHeader} to control the order and
+ * subset of <code>Transaction</code> fields.
  *
  * <pre>{@code
  * PCollection<Transaction> transactions ...
@@ -138,15 +138,17 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  *
  * <p>In addition to header customization, {@link CsvIO.Write} supports {@link
- * CSVFormat#withHeaderComments(Object...)} as shown below. Note that {@link
- * CSVFormat#withCommentMarker(char)} is required when specifying header comments.
+ * CSVFormat#withHeaderComments} as shown below. Note that {@link CSVFormat#withCommentMarker} is
+ * required when specifying header comments.
  *
  * <pre>{@code
  * PCollection<Transaction> transactions = ...
  * transactions
  *    .apply(
  *        CsvIO.<Transaction>write("path/to/folder/prefix",
- *        CSVFormat.DEFAULT.withCommentMarker('#').withHeaderComments("Bank Report", "1970-01-01", "Operator: John Doe")
+ *        CSVFormat.DEFAULT
+ *          .withCommentMarker('#')
+ *          .withHeaderComments("Bank Report", "1970-01-01", "Operator: John Doe")
  *    );
  * }</pre>
  *
@@ -164,12 +166,12 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  *
  * <p>A {@link PCollection} of {@link Row}s works just like custom Java types illustrated above,
- * except we use {@link CsvIO#writeRows(String, CSVFormat)} as shown below for the same {@code
- * Transaction} class. We derive {@code Transaction}'s {@link Schema} using a {@link
+ * except we use {@link CsvIO#writeRows} as shown below for the same {@code Transaction} class. We
+ * derive {@code Transaction}'s {@link Schema} using a {@link
  * org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider}. Note that
  * hard-coding the {@link Row}s below is for illustration purposes. Developers are instead
  * encouraged to take advantage of {@link
- * org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider#toRowFunction(TypeDescriptor)}.
+ * org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider#toRowFunction}.
  *
  * <pre>{@code
  * DefaultSchemaProvider defaultSchemaProvider = new DefaultSchemaProvider();
@@ -280,13 +282,14 @@ public class CsvIO {
       return toBuilder().setTextIOWrite(getTextIOWrite().withCompression(compression)).build();
     }
 
+    /** Specifies all data written without spilling, simplifying the pipeline. */
     public Write<T> withNoSpilling() {
       return toBuilder().setTextIOWrite(getTextIOWrite().withNoSpilling()).build();
     }
 
     /**
      * Specifies to use a given fixed number of shards per window. See {@link
-     * TextIO.Write#withNumShards(int)}.
+     * TextIO.Write#withNumShards}.
      */
     public Write<T> withNumShards(Integer numShards) {
       return toBuilder().setTextIOWrite(getTextIOWrite().withNumShards(numShards)).build();
@@ -294,7 +297,7 @@ public class CsvIO {
 
     /**
      * Forces a single file as output and empty shard name template. See {@link
-     * TextIO.Write#withoutSharding()}.
+     * TextIO.Write#withoutSharding}.
      */
     public Write<T> withoutSharding() {
       return toBuilder().setTextIOWrite(getTextIOWrite().withoutSharding()).build();
@@ -302,7 +305,7 @@ public class CsvIO {
 
     /**
      * Uses the given {@link ShardNameTemplate} for naming output files. See {@link
-     * TextIO.Write#withShardNameTemplate(String)}.
+     * TextIO.Write#withShardNameTemplate}.
      */
     public Write<T> withShardTemplate(String shardTemplate) {
       return toBuilder()
@@ -310,17 +313,14 @@ public class CsvIO {
           .build();
     }
 
-    /**
-     * Configures the filename suffix for written files. See {@link
-     * TextIO.Write#withSuffix(String)}.
-     */
+    /** Configures the filename suffix for written files. See {@link TextIO.Write#withSuffix}. */
     public Write<T> withSuffix(String suffix) {
       return toBuilder().setTextIOWrite(getTextIOWrite().withSuffix(suffix)).build();
     }
 
     /**
      * Set the base directory used to generate temporary files. See {@link
-     * TextIO.Write#withTempDirectory(ResourceId)}.
+     * TextIO.Write#withTempDirectory}.
      */
     public Write<T> withTempDirectory(ResourceId tempDirectory) {
       return toBuilder().setTextIOWrite(getTextIOWrite().withTempDirectory(tempDirectory)).build();
@@ -328,7 +328,7 @@ public class CsvIO {
 
     /**
      * Preserves windowing of input elements and writes them to files based on the element's window.
-     * See {@link TextIO.Write#withWindowedWrites()}.
+     * See {@link TextIO.Write#withWindowedWrites}.
      */
     public Write<T> withWindowedWrites() {
       return toBuilder().setTextIOWrite(getTextIOWrite().withWindowedWrites()).build();
@@ -337,8 +337,7 @@ public class CsvIO {
     /**
      * Returns a transform for writing to text files like this one but that has the given {@link
      * FileBasedSink.WritableByteChannelFactory} to be used by the {@link FileBasedSink} during
-     * output. See {@link
-     * TextIO.Write#withWritableByteChannelFactory(FileBasedSink.WritableByteChannelFactory)}.
+     * output. See {@link TextIO.Write#withWritableByteChannelFactory}.
      */
     public Write<T> withWritableByteChannelFactory(
         FileBasedSink.WritableByteChannelFactory writableByteChannelFactory) {
@@ -372,9 +371,13 @@ public class CsvIO {
       abstract Write<T> autoBuild();
 
       final Write<T> build() {
+
+        // We need to throw an error to communicate to the user that we are always writing the
+        // header. However, see writeWithCSVFormatHeaderAndComments for why we need to set
+        // withSkipHeaderRecord in that method's context.
         checkArgument(
             !getCSVFormat().getSkipHeaderRecord(),
-            "withSkipHeaderRecord is an illegal CSVFormat setting");
+            "withSkipHeaderRecord is an illegal CSVFormat setting; CsvIO.Write always writes the header");
 
         if (getCSVFormat().getHeaderComments() != null) {
           checkArgument(
@@ -403,9 +406,11 @@ public class CsvIO {
               .apply("To Rows", MapElements.into(rows()).via(input.getToRowFunction()))
               .setCoder(rowCoder);
 
-      CSVFormat csvFormat = applyRequiredCSVFormatSettings(schema);
+      CSVFormat csvFormat = buildHeaderFromSchemaIfNeeded(schema);
 
-      String header = formatHeader(csvFormat);
+      TextIO.Write write = getTextIOWrite();
+
+      write = writeWithCSVFormatHeaderAndComments(csvFormat, write);
 
       SerializableFunction<Row, String> toCsvFn =
           CsvRowConversions.RowToCsv.builder()
@@ -415,31 +420,42 @@ public class CsvIO {
 
       PCollection<String> csv = rows.apply("To CSV", MapElements.into(strings()).via(toCsvFn));
 
-      return csv.apply("Write CSV", getTextIOWrite().withHeader(header).withOutputFilenames());
+      return csv.apply("Write CSV", write.withOutputFilenames());
     }
 
-    CSVFormat applyRequiredCSVFormatSettings(Schema schema) {
+    CSVFormat buildHeaderFromSchemaIfNeeded(Schema schema) {
       CSVFormat csvFormat = getCSVFormat();
-      if (!csvFormat.getSkipHeaderRecord() && csvFormat.getHeader() == null) {
-        return csvFormat.withSkipHeaderRecord().withHeader(schema.sorted().getFieldNames().toArray(new String[0]));
+
+      if (csvFormat.getHeader() == null) {
+        csvFormat = csvFormat.withHeader(schema.sorted().getFieldNames().toArray(new String[0]));
       }
+
       return csvFormat;
     }
 
-    private static @Nullable String formatHeader(CSVFormat csvFormat) {
+    private static TextIO.Write writeWithCSVFormatHeaderAndComments(
+        CSVFormat csvFormat, TextIO.Write write) {
+
       String[] header = requireNonNull(csvFormat.getHeader());
-      if (header == null) {
-        return null;
-      }
       List<String> result = new ArrayList<>();
       if (csvFormat.getHeaderComments() != null) {
         for (String comment : csvFormat.getHeaderComments()) {
           result.add(csvFormat.getCommentMarker() + " " + comment);
         }
       }
+
       CSVFormat withoutHeaderComments = csvFormat.withHeaderComments();
-      result.add(withoutHeaderComments.format((Object[]) header));
-      return String.join("\n", result);
+
+      result.add(
+          withoutHeaderComments
+              // CSVFormat was designed to write to a single file.
+              // We use its format method to instead create the header line.
+              // The withSkipHeaderRecord parameter prevents CSVFormat from outputting two copies of
+              // the header.
+              .withSkipHeaderRecord()
+              .format((Object[]) header));
+
+      return write.withHeader(String.join("\n", result));
     }
   }
 

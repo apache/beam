@@ -280,7 +280,8 @@ public class CsvIOWriteTest {
                     CsvIO.writeRows("somewhere", CSVFormat.DEFAULT.withSkipHeaderRecord())));
 
     assertEquals(
-        "withSkipHeaderRecord is an illegal CSVFormat setting", skipHeaderRecord.getMessage());
+        "withSkipHeaderRecord is an illegal CSVFormat setting; CsvIO.Write always writes the header",
+        skipHeaderRecord.getMessage());
   }
 
   private static String toFilenamePrefix(File folder) {
