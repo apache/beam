@@ -360,8 +360,9 @@ public interface DataflowClient {
    * @param region the region that the job was launched in
    * @param jobId the id of the job to cancel
    * @throws IOException if there is an issue sending the request
+   * @return Updated job instance
    */
-  void cancelJob(String project, String region, String jobId) throws IOException;
+  Job cancelJob(String project, String region, String jobId) throws IOException;
 
   /**
    * Drains the given job.
@@ -370,8 +371,9 @@ public interface DataflowClient {
    * @param region the region that the job was launched in
    * @param jobId the id of the job to drain
    * @throws IOException if there is an issue sending the request
+   * @return Updated job instance
    */
-  void drainJob(String project, String region, String jobId) throws IOException;
+  Job drainJob(String project, String region, String jobId) throws IOException;
 
   /**
    * Get the specified metric of the given job.

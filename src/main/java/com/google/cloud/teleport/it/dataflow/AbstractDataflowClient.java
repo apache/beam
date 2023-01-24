@@ -70,19 +70,19 @@ abstract class AbstractDataflowClient implements DataflowClient {
   }
 
   @Override
-  public void cancelJob(String project, String region, String jobId) throws IOException {
+  public Job cancelJob(String project, String region, String jobId) throws IOException {
     LOG.info("Cancelling {} under {}", jobId, project);
     Job job = new Job().setRequestedState(JobState.CANCELLED.toString());
     LOG.info("Sending job to update {}:\n{}", jobId, LogStrings.formatForLogging(job));
-    client.projects().locations().jobs().update(project, region, jobId, job).execute();
+    return client.projects().locations().jobs().update(project, region, jobId, job).execute();
   }
 
   @Override
-  public void drainJob(String project, String region, String jobId) throws IOException {
+  public Job drainJob(String project, String region, String jobId) throws IOException {
     LOG.info("Draining {} under {}", jobId, project);
     Job job = new Job().setRequestedState(JobState.DRAINED.toString());
     LOG.info("Sending job to update {}:\n{}", jobId, LogStrings.formatForLogging(job));
-    client.projects().locations().jobs().update(project, region, jobId, job).execute();
+    return client.projects().locations().jobs().update(project, region, jobId, job).execute();
   }
 
   @Override

@@ -20,6 +20,7 @@ import static com.google.cloud.teleport.it.artifacts.ArtifactUtils.getFullGcsPat
 
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.services.dataflow.model.Job;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -436,12 +437,12 @@ public abstract class TemplateTestBase {
     @Override
     public void run() {
       try {
-        dataflowClient.cancelJob(jobInfo.projectId(), jobInfo.region(), jobInfo.jobId());
+        Job cancelled =
+            dataflowClient.cancelJob(jobInfo.projectId(), jobInfo.region(), jobInfo.jobId());
+        LOG.warn("Job {} was shutdown by the hook to prevent resources leak.", cancelled.getId());
       } catch (Exception e) {
-        LOG.info(
-            "[CancelJobShutdownHook] Error shutting down job {}: {}",
-            jobInfo.jobId(),
-            e.getMessage());
+        // expected that the cancel fails if the test works as intended, so logging as debug only.
+        LOG.debug("Error shutting down job {}: {}", jobInfo.jobId(), e.getMessage());
       }
     }
   }
