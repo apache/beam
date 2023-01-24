@@ -18,11 +18,17 @@
 package org.apache.beam.sdk.extensions.sql.expansion;
 
 import avro.shaded.com.google.common.collect.ImmutableList;
+import avro.shaded.com.google.common.collect.ImmutableMap;
 import com.google.auto.service.AutoService;
 import java.util.*;
+import java.util.stream.Collectors;
+
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -36,6 +42,12 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 @AutoService(SchemaTransformProvider.class)
 public class SqlTransformSchemaTransformProvider implements SchemaTransformProvider {
 
+  private static final Map<String,Class<? extends QueryPlanner>> QUERY_PLANNERS = ImmutableMap.of(
+          "zetasql",org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner.class,
+          "calcite",org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.class
+  );
+  private static final EnumerationType QUERY_ENUMERATION = EnumerationType.create(QUERY_PLANNERS.keySet().stream().collect(Collectors.toList()));
+
   private static final OneOfType QUERY_PARAMETER =
       OneOfType.create(
           Schema.Field.nullable("string", Schema.FieldType.STRING),
@@ -43,7 +55,9 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
           Schema.Field.nullable("int", Schema.FieldType.INT32),
           Schema.Field.nullable("long", Schema.FieldType.INT64),
           Schema.Field.nullable("float", Schema.FieldType.FLOAT),
-          Schema.Field.nullable("double", Schema.FieldType.DOUBLE));
+          Schema.Field.nullable("double", Schema.FieldType.DOUBLE),
+              Schema.Field.nullable("datetime",Schema.FieldType.DATETIME)
+      );
 
   @Override
   public @UnknownKeyFor @NonNull @Initialized String identifier() {
@@ -52,11 +66,21 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
 
   @Override
   public @UnknownKeyFor @NonNull @Initialized Schema configurationSchema() {
+    List<String> providers = new ArrayList<>();
+    ServiceLoader.load(TableProvider.class)
+            .forEach(
+                    (provider) -> {
+                      providers.add(provider.getTableType());
+                    });
+    EnumerationType providerEnum = EnumerationType.create(providers);
+
+
     return Schema.of(
         Schema.Field.of("query", Schema.FieldType.STRING),
-        Schema.Field.nullable("dialect", Schema.FieldType.STRING),
+        Schema.Field.nullable( "ddl", Schema.FieldType.STRING), // TODO: Underlying builder seems more capable?
+        Schema.Field.nullable("dialect", Schema.FieldType.logicalType(QUERY_ENUMERATION)),
         Schema.Field.nullable("autoload", Schema.FieldType.BOOLEAN),
-        Schema.Field.nullable("tableproviders", Schema.FieldType.array(Schema.FieldType.STRING)),
+        Schema.Field.nullable("tableproviders", Schema.FieldType.array(Schema.FieldType.logicalType(providerEnum))),
         Schema.Field.nullable(
             "parameters",
             Schema.FieldType.logicalType(
@@ -103,6 +127,7 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
         @Override
         public PCollectionRowTuple expand(PCollectionRowTuple input) {
 
+
           // Start with the query. In theory the exception can't be thrown, but all this nullness
           // stuff
           // isn't actually smart enough to know that. Could just cop and suppress that warning, but
@@ -113,11 +138,19 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
           }
           SqlTransform transform = SqlTransform.query(queryString);
 
-          String dialect = config.getString("dialect");
-          // We default to the Calcite implementation as it has better support (for some value of
-          // better)
-          if (dialect == null) {
-            dialect = "calcite";
+          // Allow setting the query planner class via the dialect name.
+          EnumerationType.Value dialect = config.getLogicalTypeValue("dialect",EnumerationType.Value.class);
+          if (dialect != null) {
+            Class<? extends QueryPlanner> queryPlannerClass = QUERY_PLANNERS.get(QUERY_ENUMERATION.toString(dialect));
+            if(queryPlannerClass != null) {
+              transform = transform.withQueryPlannerClass(queryPlannerClass);
+            }
+          }
+
+          // Add any DDL strings
+          String ddl = config.getString("ddl");
+          if(ddl != null) {
+            transform = transform.withDdlString(ddl);
           }
 
           // Check to see if we autoload or not
@@ -127,7 +160,7 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
           } else {
             transform = transform.withAutoLoading(false);
 
-            // Add any user specified table providers
+            // Add any user specified table providers from the set of available tableproviders.
             Map<String, TableProvider> tableProviders = new HashMap<>();
             ServiceLoader.load(TableProvider.class)
                 .forEach(
@@ -139,13 +172,15 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
               for (Object nameObj : tableproviderList) {
                 if (nameObj != null) { // This actually could in theory be null...
                   TableProvider p = tableProviders.get(nameObj);
-                  if (p != null) {
+                  if (p != null) { //TODO: We ignore tableproviders that don't exist, we could change that.
                     transform = transform.withTableProvider(p.getTableType(), p);
                   }
                 }
               }
             }
           }
+
+
 
           return PCollectionRowTuple.of("output", input.apply(transform));
         }
