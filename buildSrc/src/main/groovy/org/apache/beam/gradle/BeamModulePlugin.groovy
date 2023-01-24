@@ -390,7 +390,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.45.0'
+    project.version = '2.46.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -500,7 +500,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark2_version = "2.4.8"
     def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.16.3"
+    def testcontainers_version = "1.17.3"
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
 
@@ -1917,9 +1917,9 @@ class BeamModulePlugin implements Plugin<Project> {
                 "--region=${dataflowRegion}"
               ])
             } else {
-              project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+              project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
               def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+                  project.project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
               allOptionsList.addAll([
                 // Keep as legacy flag to ensure via test this flag works for
                 // legacy pipeline.
@@ -1967,7 +1967,7 @@ class BeamModulePlugin implements Plugin<Project> {
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
           testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntimeMigration")
-          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
+          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
