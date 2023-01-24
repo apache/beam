@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Curl command to create commit status
+# Curl command to create commit status for fail
 curl \
 -X POST \
 -H "Accept: application/vnd.github+json" \
