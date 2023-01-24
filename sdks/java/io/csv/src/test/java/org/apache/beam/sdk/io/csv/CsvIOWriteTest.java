@@ -97,7 +97,6 @@ public class CsvIOWriteTest {
 
                   assertTrue(
                       lines.subList(4, lines.size()).stream().noneMatch(expectedHeader::equals));
-
                 } catch (IOException e) {
                   fail(e.getMessage());
                 }

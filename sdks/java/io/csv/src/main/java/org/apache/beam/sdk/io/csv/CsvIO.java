@@ -63,7 +63,7 @@ import org.apache.commons.csv.CSVFormat;
  * schemas</a> for more information on how to enable Beam to infer a {@link Schema} from a custom
  * Java type.
  *
- * <p>{@link CsvIO.Write} only supports writing {@link Schema} aware types that do not contain any
+ * <p>{@link CsvIO.Write} only supports writing the parts of {@link Schema} aware types that do not contain any
  * nested {@link FieldType}s such a {@link org.apache.beam.sdk.schemas.Schema.TypeName#ROW} or
  * repeated {@link org.apache.beam.sdk.schemas.Schema.TypeName#ARRAY} types. See {@link
  * CsvIO.Write#VALID_FIELD_TYPE_SET} for valid {@link FieldType}s.
@@ -128,7 +128,7 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  *
  * <p>The resulting CSV files will look like the following where the header is repeated for every
- * shard file, but only including the subset of fields in their listed order.
+ * file, but will only include the subset of fields in their listed order.
  *
  * <pre>{@code
  * transactionId,purchaseAmount
@@ -419,15 +419,18 @@ public class CsvIO {
     }
 
     CSVFormat applyRequiredCSVFormatSettings(Schema schema) {
-      CSVFormat csvFormat = getCSVFormat().withSkipHeaderRecord();
-      if (csvFormat.getHeader() == null) {
-        csvFormat = csvFormat.withHeader(schema.sorted().getFieldNames().toArray(new String[0]));
+      CSVFormat csvFormat = getCSVFormat();
+      if (!csvFormat.getSkipHeaderRecord() && csvFormat.getHeader() == null) {
+        return csvFormat.withSkipHeaderRecord().withHeader(schema.sorted().getFieldNames().toArray(new String[0]));
       }
       return csvFormat;
     }
 
-    private static String formatHeader(CSVFormat csvFormat) {
+    private static @Nullable String formatHeader(CSVFormat csvFormat) {
       String[] header = requireNonNull(csvFormat.getHeader());
+      if (header == null) {
+        return null;
+      }
       List<String> result = new ArrayList<>();
       if (csvFormat.getHeaderComments() != null) {
         for (String comment : csvFormat.getHeaderComments()) {

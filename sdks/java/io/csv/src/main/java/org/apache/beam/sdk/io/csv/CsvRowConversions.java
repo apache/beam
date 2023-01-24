@@ -90,7 +90,7 @@ class CsvRowConversions {
             getCSVFormat()
                 .withSkipHeaderRecord()
                 // Delegate to TextIO.Write.withDelimiter instead.
-                .withRecordSeparator((char) 32)
+                .withRecordSeparator(' ')
                 .withHeaderComments());
         validateCSVFormat(getCSVFormat());
         validateHeaderAgainstSchema(getCSVFormat().getHeader(), getSchema());
@@ -120,7 +120,7 @@ class CsvRowConversions {
   }
 
   private static void validateHeaderAgainstSchema(String[] csvHeader, Schema schema) {
-    Set<String> distinctColumns = Stream.of(csvHeader).collect(Collectors.toSet());
+    Set<String> distinctColumns = new HashSet<>(Arrays.asList(csvHeader));
     List<String> mismatchColumns = new ArrayList<>();
     List<String> invalidTypes = new ArrayList<>();
     Set<TypeName> validTypeNames =
