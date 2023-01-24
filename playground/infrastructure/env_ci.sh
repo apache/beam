@@ -53,6 +53,7 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/n
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
 apt update > /dev/null && apt install -y docker-ce > /dev/null
 
+# Assigning required values for CI_CD.py script
 export \
 ORIGIN=PG_EXAMPLES \
 STEP=CI \
