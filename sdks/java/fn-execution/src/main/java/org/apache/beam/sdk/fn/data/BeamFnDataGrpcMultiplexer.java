@@ -47,8 +47,8 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: Add support for multiplexing over multiple outbound observers by stickying the output
  * location with a specific outbound observer.
  */
-public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer2.class);
+public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
   private final Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor;
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
@@ -57,7 +57,7 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
       receivers;
   private final ConcurrentMap<String, Boolean> erroredInstructionIds;
 
-  public BeamFnDataGrpcMultiplexer2(
+  public BeamFnDataGrpcMultiplexer(
       Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor,
       OutboundObserverFactory outboundObserverFactory,
       OutboundObserverFactory.BasicFactory<BeamFnApi.Elements, BeamFnApi.Elements>
@@ -95,7 +95,7 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
   /**
    * Registers a consumer for the specified intruction id.
    *
-   * <p>The {@link BeamFnDataGrpcMultiplexer2} partitions {@link BeamFnApi.Elements} with multiple
+   * <p>The {@link BeamFnDataGrpcMultiplexer} partitions {@link BeamFnApi.Elements} with multiple
    * instruction ids ensuring that the receiver will only see {@link BeamFnApi.Elements} with a
    * single instruction id.
    *
