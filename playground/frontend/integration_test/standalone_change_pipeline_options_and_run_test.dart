@@ -22,6 +22,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_body.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_input.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_text_field.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
@@ -65,7 +66,7 @@ void main() {
       );
       expect(
         playgroundController.codeRunner.resultLogOutput,
-        contains('Pipeline cancelled'),
+        contains(kExecutionCancelledText),
       );
     },
   );

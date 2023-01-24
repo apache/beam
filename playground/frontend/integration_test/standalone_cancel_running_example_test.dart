@@ -18,6 +18,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
@@ -62,6 +63,6 @@ Future<void> _runAndCancelExample(WidgetTester wt, Duration duration) async {
   final playgroundController = wt.findPlaygroundController();
   expect(
     playgroundController.codeRunner.resultLogOutput,
-    contains('Pipeline cancelled'),
+    contains(kExecutionCancelledText),
   );
 }
