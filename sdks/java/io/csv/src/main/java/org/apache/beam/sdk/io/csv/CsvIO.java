@@ -215,11 +215,11 @@ import org.apache.commons.csv.CSVFormat;
  * {@link IllegalArgumentException}.
  *
  * <ul>
- *   <li>{@link CSVFormat#withSkipHeaderRecord()}
- *   <li>{@link CSVFormat#withAllowMissingColumnNames()} ()}
- *   <li>{@link CSVFormat#withAutoFlush(boolean)}
- *   <li>{@link CSVFormat#withIgnoreHeaderCase()}
- *   <li>{@link CSVFormat#withIgnoreSurroundingSpaces()}
+ *   <li>{@link CSVFormat#withSkipHeaderRecord}
+ *   <li>{@link CSVFormat#withAllowMissingColumnNames}
+ *   <li>{@link CSVFormat#withAutoFlush}
+ *   <li>{@link CSVFormat#withIgnoreHeaderCase}
+ *   <li>{@link CSVFormat#withIgnoreSurroundingSpaces}
  * </ul>
  */
 public class CsvIO {
