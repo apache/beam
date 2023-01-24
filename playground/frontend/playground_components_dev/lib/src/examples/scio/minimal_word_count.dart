@@ -19,13 +19,16 @@
 import 'package:playground_components/playground_components.dart';
 
 import '../example_descriptor.dart';
+import 'common.dart';
 
-const pythonAggregationMean = ExampleDescriptor(
+const scioMinimalWordCount = ExampleDescriptor(
   //
-  'AggregationMean',
-  dbPath: 'SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMean',
-  path: '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py',
-  sdk: Sdk.python,
+  'MinimalWordCount',
+  dbPath: 'SDK_SCIO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
+  path:
+      '/scio-examples/src/main/scala/com/spotify/scio/examples/MinimalWordCount.scala',
+  repositoryAndRef: 'spotify/scio/$spotifyScioRef',
+  sdk: Sdk.scio,
 
-  outputContains: ['16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]'],
+  outputContains: ['Finalizing 5 file results'],
 );

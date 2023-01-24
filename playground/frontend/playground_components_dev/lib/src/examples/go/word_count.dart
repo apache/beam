@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/playground_components.dart';
+
 import '../example_descriptor.dart';
 
 const goWordCount = ExampleDescriptor(
   'WordCount',
   dbPath: 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount',
   path: '/sdks/go/examples/wordcount/wordcount.go',
+  sdk: Sdk.go,
 );

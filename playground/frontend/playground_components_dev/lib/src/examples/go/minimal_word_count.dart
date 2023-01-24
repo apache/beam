@@ -16,10 +16,64 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/playground_components.dart';
+
 import '../example_descriptor.dart';
 
 const goMinimalWordCount = ExampleDescriptor(
+  //
   'MinimalWordCount',
+  contextLine1Based: 69,
   dbPath: 'SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
   path: '/sdks/go/examples/minimal_wordcount/minimal_wordcount.go',
+  sdk: Sdk.go,
+
+  outputContains: [
+    'Reading from gs://apache-beam-samples/shakespeare/kinglear.txt',
+    'Writing to wordcounts.txt',
+    '''
+Nodes: {1: []uint8/bytes GLO}
+{2: string/string GLO}
+{3: string/string GLO}
+{4: KV<string,int64>/KV<string,varint> GLO}
+{5: string/string GLO}
+{6: string/string GLO}
+{7: KV<string,int>/KV<string,int[varintz]> GLO}
+{8: CoGBK<string,int>/CoGBK<string,int[varintz]> GLO}
+{9: KV<string,int>/KV<string,int[varintz]> GLO}
+{10: string/string GLO}
+{11: KV<int,string>/KV<int[varintz],string> GLO}
+{12: CoGBK<int,string>/CoGBK<int[varintz],string> GLO}
+Edges: 1: Impulse [] -> [Out: []uint8 -> {1: []uint8/bytes GLO}]
+2: ParDo [In(Main): []uint8 <- {1: []uint8/bytes GLO}] -> [Out: T -> {2: string/string GLO}]
+3: ParDo [In(Main): string <- {2: string/string GLO}] -> [Out: string -> {3: string/string GLO}]
+4: ParDo [In(Main): string <- {3: string/string GLO}] -> [Out: KV<string,int64> -> {4: KV<string,int64>/KV<string,varint> GLO}]
+5: ParDo [In(Main): KV<string,int64> <- {4: KV<string,int64>/KV<string,varint> GLO}] -> [Out: string -> {5: string/string GLO}]
+6: ParDo [In(Main): string <- {5: string/string GLO}] -> [Out: string -> {6: string/string GLO}]
+7: ParDo [In(Main): T <- {6: string/string GLO}] -> [Out: KV<T,int> -> {7: KV<string,int>/KV<string,int[varintz]> GLO}]
+8: CoGBK [In(Main): KV<string,int> <- {7: KV<string,int>/KV<string,int[varintz]> GLO}] -> [Out: CoGBK<string,int> -> {8: CoGBK<string,int>/CoGBK<string,int[varintz]> GLO}]
+9: Combine [In(Main): int <- {8: CoGBK<string,int>/CoGBK<string,int[varintz]> GLO}] -> [Out: KV<string,int> -> {9: KV<string,int>/KV<string,int[varintz]> GLO}]
+10: ParDo [In(Main): KV<string,int> <- {9: KV<string,int>/KV<string,int[varintz]> GLO}] -> [Out: string -> {10: string/string GLO}]
+11: ParDo [In(Main): T <- {10: string/string GLO}] -> [Out: KV<int,T> -> {11: KV<int,string>/KV<int[varintz],string> GLO}]
+12: CoGBK [In(Main): KV<int,string> <- {11: KV<int,string>/KV<int[varintz],string> GLO}] -> [Out: CoGBK<int,string> -> {12: CoGBK<int,string>/CoGBK<int[varintz],string> GLO}]
+13: ParDo [In(Main): CoGBK<int,string> <- {12: CoGBK<int,string>/CoGBK<int[varintz],string> GLO}] -> []
+''',
+    '''
+Plan[plan]:
+15: Impulse[0]
+1: ParDo[textio.writeFileFn] Out:[]
+2: CoGBK. Out:1
+3: Inject[0]. Out:2
+4: ParDo[beam.addFixedKeyFn] Out:[3]
+5: ParDo[main.main.func2] Out:[4]
+6: Combine[stats.sumIntFn] Keyed:false Out:5
+7: CoGBK. Out:6
+8: Inject[0]. Out:7
+9: ParDo[stats.keyedCountFn] Out:[8]
+10: ParDo[main.main.func1] Out:[9]
+11: SDF.SdfFallback[textio.readFn] UID:11 Out:[10]
+12: ParDo[textio.sizeFn] Out:[11]
+13: ParDo[textio.expandFn] Out:[12]
+14: ParDo[beam.createFn] Out:[13]
+'''],
 );

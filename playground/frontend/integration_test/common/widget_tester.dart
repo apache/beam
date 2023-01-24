@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
+import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
 
-import '../example_descriptor.dart';
+import 'common_finders.dart';
 
-const pythonAggregationMean = ExampleDescriptor(
-  //
-  'AggregationMean',
-  dbPath: 'SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMean',
-  path: '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py',
-  sdk: Sdk.python,
+extension WidgetTesterExtension on WidgetTester {
+  Future<void> changeSdk(Sdk sdk) async {
+    await tap(find.sdkSelector());
+    await pumpAndSettle();
 
-  outputContains: ['16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]'],
-);
+    await tap(find.sdkItemInDropdown(sdk));
+    await pumpAndSettle();
+  }
+}

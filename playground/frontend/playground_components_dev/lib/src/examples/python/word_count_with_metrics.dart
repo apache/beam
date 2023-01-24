@@ -16,10 +16,17 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/playground_components.dart';
+
 import '../example_descriptor.dart';
 
 const pythonWordCountWithMetrics = ExampleDescriptor(
+  //
   'WordCountWithMetrics',
+  contextLine1Based: 48,
   dbPath: 'SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCountWithMetrics',
   path: '/sdks/python/apache_beam/examples/wordcount_with_metrics.py',
+  sdk: Sdk.python,
+
+  outputContains: ['average word length: 4'],
 );

@@ -21,8 +21,6 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:highlight/languages/go.dart';
-import 'package:highlight/languages/java.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
@@ -76,51 +74,42 @@ final _croppedViewOptions = _mapToQueryString(_croppedViewOptionsMap);
 
 Future<void> _testEmbeddedRoot(WidgetTester wt) async {
   await wt.navigateAndSettle(_embeddedPath);
-  _expectSdk(wt, Sdk.java);
-  _expectText(wt, '');
+  expectSdk(Sdk.java, wt);
+  expectVisibleText('', wt);
 }
 
 Future<void> _testStandaloneRoot(WidgetTester wt) async {
-  final visibleText = await Examples.getVisibleTextByPath(
-    javaMinimalWordCount.path,
-    java,
-  );
-
+  final visibleText = await javaMinimalWordCount.getVisibleText();
   await wt.navigateAndSettle(_standalonePath);
-  _expectSdk(wt, Sdk.java);
-  _expectText(wt, visibleText);
+
+  expectSdk(Sdk.java, wt);
+  expectVisibleText(visibleText, wt);
 }
 
 Future<void> _testEmbeddedSdkOnly(WidgetTester wt) async {
   await wt.navigateAndSettle('$_embeddedPath?sdk=go');
-  _expectSdk(wt, Sdk.go);
-  _expectText(wt, '');
+  expectSdk(Sdk.go, wt);
+  expectVisibleText('', wt);
 }
 
 Future<void> _testStandaloneSdkOnly(WidgetTester wt) async {
-  final visibleText = await Examples.getVisibleTextByPath(
-    goMinimalWordCount.path,
-    go,
-  );
-
+  final visibleText = await goMinimalWordCount.getVisibleText();
   await wt.navigateAndSettle('$_standalonePath?sdk=go');
-  _expectSdk(wt, Sdk.go);
-  _expectText(wt, visibleText);
+
+  expectSdk(Sdk.go, wt);
+  expectVisibleText(visibleText, wt);
 }
 
 Future<void> _testCatalogDefaultExampleLoader(WidgetTester wt) async {
-  final visibleText = await Examples.getVisibleTextByPath(
-    goMinimalWordCount.path,
-    go,
-  );
-
+  final visibleText = await goMinimalWordCount.getVisibleText();
   await wt.navigateAndSettle('$_standalonePath?sdk=go&default=true');
-  _expectSdk(wt, Sdk.go);
-  _expectText(wt, visibleText);
+
+  expectSdk(Sdk.go, wt);
+  expectVisibleText(visibleText, wt);
 }
 
 Future<void> _testContentExampleLoader(WidgetTester wt) async {
-  final content = await Examples.getFullTextByPath(goExample.path);
+  final content = await goExample.getFullText();
 
   for (final path in _paths) {
     final files = jsonEncode([
@@ -129,15 +118,15 @@ Future<void> _testContentExampleLoader(WidgetTester wt) async {
     await wt.navigateAndSettle(
       '$path?sdk=go&files=${Uri.encodeComponent(files)}&$_fullViewOptions',
     );
-    _expectSdk(wt, Sdk.go);
-    _expectText(wt, goExample.fullVisibleText);
+    expectSdk(Sdk.go, wt);
+    expectVisibleText(goExample.foldedVisibleText, wt);
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
       '$path?sdk=go&files=${Uri.encodeComponent(files)}&$_croppedViewOptions',
     );
-    _expectSdk(wt, Sdk.go);
-    _expectText(wt, goExample.croppedVisibleText);
+    expectSdk(Sdk.go, wt);
+    expectVisibleText(goExample.croppedFoldedVisibleText, wt);
     _expectReadOnly(wt);
   }
 }
@@ -145,8 +134,8 @@ Future<void> _testContentExampleLoader(WidgetTester wt) async {
 Future<void> _testEmptyExampleLoader(WidgetTester wt) async {
   for (final path in _paths) {
     await wt.navigateAndSettle('$path?sdk=go&empty=true');
-    _expectSdk(wt, Sdk.go);
-    _expectText(wt, '');
+    expectSdk(Sdk.go, wt);
+    expectVisibleText('', wt);
   }
 }
 
@@ -155,36 +144,33 @@ Future<void> _testHttpExampleLoader(WidgetTester wt) async {
     await wt.navigateAndSettle(
       '$path?sdk=go&url=${goExample.url}&$_fullViewOptions',
     );
-    _expectSdk(wt, Sdk.go);
-    _expectText(wt, goExample.fullVisibleText);
+    expectSdk(Sdk.go, wt);
+    expectVisibleText(goExample.foldedVisibleText, wt);
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
       '$path?sdk=go&url=${goExample.url}&$_croppedViewOptions',
     );
-    _expectSdk(wt, Sdk.go);
-    _expectText(wt, goExample.croppedVisibleText);
+    expectSdk(Sdk.go, wt);
+    expectVisibleText(goExample.croppedFoldedVisibleText, wt);
     _expectReadOnly(wt);
   }
 }
 
 Future<void> _testStandardExampleLoader(WidgetTester wt) async {
-  final visibleText = await Examples.getVisibleTextByPath(
-    goWordCount.path,
-    go,
-  );
+  final visibleText = await goWordCount.getVisibleText();
 
   for (final path in _paths) {
     await wt.navigateAndSettle(
       '$path?sdk=go&path=${goWordCount.dbPath}',
     );
-    _expectSdk(wt, Sdk.go);
-    _expectText(wt, visibleText);
+    expectSdk(Sdk.go, wt);
+    expectVisibleText(visibleText, wt);
   }
 }
 
 Future<void> _testUserSharedExampleLoader(WidgetTester wt) async {
-  final template = await Examples.getFullTextByPath(goExample.path);
+  final template = await goExample.getFullText();
   final tail = '\n//${DateTime.now().millisecondsSinceEpoch}';
   final content = '$template$tail';
 
@@ -201,25 +187,22 @@ Future<void> _testUserSharedExampleLoader(WidgetTester wt) async {
     await wt.navigateAndSettle(
       '$path?sdk=go&shared=$snippetId&$_fullViewOptions',
     );
-    _expectSdk(wt, Sdk.go);
-    _expectText(wt, '${goExample.fullVisibleText}$tail');
+    expectSdk(Sdk.go, wt);
+    expectVisibleText('${goExample.foldedVisibleText}$tail', wt);
     await _expectEditableAndReadOnly(wt);
 
     await wt.navigateAndSettle(
       '$path?sdk=go&url=${goExample.url}&$_croppedViewOptions',
     );
-    _expectSdk(wt, Sdk.go);
-    _expectText(wt, goExample.croppedVisibleText);
+    expectSdk(Sdk.go, wt);
+    expectVisibleText(goExample.croppedFoldedVisibleText, wt);
     _expectReadOnly(wt);
   }
 }
 
 Future<void> _testMultipleExamples(WidgetTester wt) async {
-  final javaVisibleText = await Examples.getVisibleTextByPath(
-    javaAggregationMax.path,
-    java,
-  );
-  final goVisibleText = goExample.fullVisibleText;
+  final javaVisibleText = await javaAggregationMax.getVisibleText();
+  final goVisibleText = goExample.foldedVisibleText;
 
   final examplesList = [
     {
@@ -237,28 +220,17 @@ Future<void> _testMultipleExamples(WidgetTester wt) async {
 
   for (final path in _paths) {
     await wt.navigateAndSettle('$path?sdk=go&examples=$examples');
-    _expectSdk(wt, Sdk.go);
-    _expectText(wt, goVisibleText);
+    expectSdk(Sdk.go, wt);
+    expectVisibleText(goVisibleText, wt);
     await _expectEditableAndReadOnly(wt);
 
     final playgroundController = wt.findPlaygroundController();
     playgroundController.setSdk(Sdk.java);
     await wt.pumpAndSettle();
 
-    _expectSdk(wt, Sdk.java);
-    _expectText(wt, javaVisibleText);
+    expectSdk(Sdk.java, wt);
+    expectVisibleText(javaVisibleText, wt);
   }
-}
-
-void _expectSdk(WidgetTester wt, Sdk sdk) {
-  final controller = wt.findPlaygroundController();
-  expect(controller.sdk, sdk);
-}
-
-void _expectText(WidgetTester wt, String? visibleText) {
-  final controller = wt.findOneCodeController();
-  expect(visibleText, isNotNull);
-  expect(controller.text, visibleText);
 }
 
 /// Checks that the example contains:

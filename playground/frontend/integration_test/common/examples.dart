@@ -16,25 +16,12 @@
  * limitations under the License.
  */
 
-import 'package:highlight/highlight_core.dart';
-import 'package:http/http.dart' as http;
+import 'package:playground_components/playground_components.dart';
+import 'package:playground_components_dev/playground_components_dev.dart';
 
-import '../code.dart';
-
-class Examples {
-  static const urlPrefix = '$_schemaAndHost$_repoAndBranch';
-  static const _schemaAndHost = 'https://raw.githubusercontent.com/';
-  static const _repoAndBranch = 'apache/beam/master';
-
-  static Future<String> getVisibleTextByPath(String path, Mode language) async {
-    final content = await getFullTextByPath(path);
-
-    return foldLicenseAndImports(content, language);
-  }
-
-  static Future<String> getFullTextByPath(String path) async {
-    final uri = Uri.parse('$urlPrefix$path');
-    final response = await http.get(uri);
-    return response.body;
-  }
-}
+final defaultExamples = {
+  Sdk.java: javaMinimalWordCount,
+  Sdk.go: goMinimalWordCount,
+  Sdk.python: pythonWordCountWithMetrics,
+  // Sdk.scio: scioMinimalWordCount,
+};

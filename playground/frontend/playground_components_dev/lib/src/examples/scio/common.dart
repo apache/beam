@@ -16,16 +16,6 @@
  * limitations under the License.
  */
 
-import 'package:playground_components/playground_components.dart';
-
-import '../example_descriptor.dart';
-
-const pythonAggregationMean = ExampleDescriptor(
-  //
-  'AggregationMean',
-  dbPath: 'SDK_PYTHON/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMean',
-  path: '/learning/katas/python/Common Transforms/Aggregation/Mean/task.py',
-  sdk: Sdk.python,
-
-  outputContains: ['16 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]'],
-);
+/// Commit in spotify/scio at which deployed examples match GitHub.
+/// Must be hardcoded because we do not control the Spotify repository.
+const spotifyScioRef = '72423169818a25b0cf9321dc24660a1252890a54';

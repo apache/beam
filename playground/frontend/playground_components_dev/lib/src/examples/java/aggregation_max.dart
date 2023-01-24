@@ -16,12 +16,17 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/playground_components.dart';
+
 import '../example_descriptor.dart';
 
 const javaAggregationMax = ExampleDescriptor(
+  //
   'AggregationMax',
   dbPath: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_KATA/AggregationMax',
-  outputTail: 'INFO: 10\n',
   path:
       '/learning/katas/java/Common Transforms/Aggregation/Max/src/org/apache/beam/learning/katas/commontransforms/aggregation/max/Task.java',
+  sdk: Sdk.java,
+
+  outputTail: 'INFO: 10\n',
 );

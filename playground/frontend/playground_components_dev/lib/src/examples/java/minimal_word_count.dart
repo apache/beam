@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/playground_components.dart';
+
 import '../example_descriptor.dart';
 
 const javaMinimalWordCount = ExampleDescriptor(
+  //
   'MinimalWordCount',
+  contextLine1Based: 71,
   dbPath: 'SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount',
   path:
       '/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java',
-);
+  sdk: Sdk.java,
 
-class MinimalWordCountJava {
-  static const path =
-      '/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java';
-}
+  outputContains: ['Finalizing for destination'],
+);

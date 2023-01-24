@@ -18,7 +18,7 @@
 
 export 'src/common_finders.dart';
 
-export 'src/examples/examples.dart';
+export 'src/examples/example_descriptor.dart';
 
 export 'src/examples/go/example.dart';
 export 'src/examples/go/minimal_word_count.dart';
@@ -29,6 +29,8 @@ export 'src/examples/java/minimal_word_count.dart';
 
 export 'src/examples/python/aggregation_mean.dart';
 export 'src/examples/python/word_count_with_metrics.dart';
+
+export 'src/examples/scio/minimal_word_count.dart';
 
 export 'src/expect.dart';
 export 'src/finder.dart';
