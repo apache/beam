@@ -88,11 +88,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -177,15 +177,15 @@ public class DoFnOperator<InputT, OutputT>
 
   protected final String stepName;
 
-  private final Coder<WindowedValue<InputT>> windowedInputCoder;
+  final Coder<WindowedValue<InputT>> windowedInputCoder;
 
-  private final Map<TupleTag<?>, Coder<?>> outputCoders;
+  final Map<TupleTag<?>, Coder<?>> outputCoders;
 
-  protected final Coder<?> keyCoder;
+  final Coder<?> keyCoder;
 
   final KeySelector<WindowedValue<InputT>, ?> keySelector;
 
-  private final TimerInternals.TimerDataCoderV2 timerCoder;
+  final TimerInternals.TimerDataCoderV2 timerCoder;
 
   /** Max number of elements to include in a bundle. */
   private final long maxBundleSize;
@@ -197,7 +197,9 @@ public class DoFnOperator<InputT, OutputT>
   private final Map<String, PCollectionView<?>> sideInputMapping;
 
   /** If true, we must process elements only after a checkpoint is finished. */
-  private final boolean requiresStableInput;
+  final boolean requiresStableInput;
+
+  final int numConcurrentCheckpoints;
 
   private final boolean usesOnWindowExpiration;
 
@@ -301,10 +303,8 @@ public class DoFnOperator<InputT, OutputT>
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
 
-    this.requiresStableInput =
-        // WindowDoFnOperator does not use a DoFn
-        doFn != null
-            && DoFnSignatures.getSignature(doFn.getClass()).processElement().requiresStableInput();
+    this.requiresStableInput = isRequiresStableInput(doFn);
+
     this.usesOnWindowExpiration =
         doFn != null && DoFnSignatures.getSignature(doFn.getClass()).onWindowExpiration() != null;
 
@@ -323,7 +323,20 @@ public class DoFnOperator<InputT, OutputT>
               + Math.max(0, flinkOptions.getMinPauseBetweenCheckpoints()));
     }
 
+    this.numConcurrentCheckpoints = flinkOptions.getNumConcurrentCheckpoints();
+
     this.finishBundleBeforeCheckpointing = flinkOptions.getFinishBundleBeforeCheckpointing();
+  }
+
+  private boolean isRequiresStableInput(DoFn<InputT, OutputT> doFn) {
+    // WindowDoFnOperator does not use a DoFn
+    return doFn != null
+        && DoFnSignatures.getSignature(doFn.getClass()).processElement().requiresStableInput();
+  }
+
+  @VisibleForTesting
+  boolean getRequiresStableInput() {
+    return requiresStableInput;
   }
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
@@ -490,21 +503,8 @@ public class DoFnOperator<InputT, OutputT>
             doFnSchemaInformation,
             sideInputMapping);
 
-    if (requiresStableInput) {
-      // put this in front of the root FnRunner before any additional wrappers
-      doFnRunner =
-          bufferingDoFnRunner =
-              BufferingDoFnRunner.create(
-                  doFnRunner,
-                  "stable-input-buffer",
-                  windowedInputCoder,
-                  windowingStrategy.getWindowFn().windowCoder(),
-                  getOperatorStateBackend(),
-                  getKeyedStateBackend(),
-                  options.getNumConcurrentCheckpoints(),
-                  serializedOptions);
-    }
-    doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
+    doFnRunner =
+        createBufferingDoFnRunnerIfNeeded(createWrappingDoFnRunner(doFnRunner, stepContext));
     earlyBindStateIfNeeded();
 
     if (!options.getDisableMetrics()) {
@@ -543,6 +543,36 @@ public class DoFnOperator<InputT, OutputT>
 
     bundleFinalizer = new InMemoryBundleFinalizer();
     pendingFinalizations = new LinkedHashMap<>();
+  }
+
+  DoFnRunner<InputT, OutputT> createBufferingDoFnRunnerIfNeeded(
+      DoFnRunner<InputT, OutputT> wrappedRunner) throws Exception {
+
+    if (requiresStableInput) {
+      // put this in front of the root FnRunner before any additional wrappers
+      return this.bufferingDoFnRunner =
+          BufferingDoFnRunner.create(
+              wrappedRunner,
+              "stable-input-buffer",
+              windowedInputCoder,
+              windowingStrategy.getWindowFn().windowCoder(),
+              getOperatorStateBackend(),
+              getBufferingKeyedStateBackend(),
+              numConcurrentCheckpoints,
+              serializedOptions);
+    }
+    return wrappedRunner;
+  }
+
+  /**
+   * Retrieve a keyed state backend that should be used to buffer elements for {@link @{code @}
+   * RequiresStableInput} functionality. By default this is the default keyed backend, but can be
+   * override in @{link ExecutableStageDoFnOperator}.
+   *
+   * @return the keyed backend to use for element buffering
+   */
+  <K> @Nullable KeyedStateBackend<K> getBufferingKeyedStateBackend() {
+    return getKeyedStateBackend();
   }
 
   private void earlyBindStateIfNeeded() throws IllegalArgumentException, IllegalAccessException {
@@ -598,7 +628,9 @@ public class DoFnOperator<InputT, OutputT>
     }
     if (currentOutputWatermark < Long.MAX_VALUE) {
       throw new RuntimeException(
-          "There are still watermark holds. Watermark held at " + currentOutputWatermark);
+          String.format(
+              "There are still watermark holds left when terminating operator %s Watermark held %d",
+              getOperatorName(), currentOutputWatermark));
     }
 
     // sanity check: these should have been flushed out by +Inf watermarks
@@ -617,7 +649,12 @@ public class DoFnOperator<InputT, OutputT>
 
   public long getEffectiveInputWatermark() {
     // hold back by the pushed back values waiting for side inputs
-    return Math.min(pushedBackWatermark, currentInputWatermark);
+    long combinedPushedBackWatermark = pushedBackWatermark;
+    if (requiresStableInput) {
+      combinedPushedBackWatermark =
+          Math.min(combinedPushedBackWatermark, bufferingDoFnRunner.getOutputWatermarkHold());
+    }
+    return Math.min(combinedPushedBackWatermark, currentInputWatermark);
   }
 
   public long getCurrentOutputWatermark() {
@@ -760,8 +797,8 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   /**
-   * Allows to apply a hold to the output watermark before it is send out. By default, just passes
-   * the potential output watermark through which will make it the new output watermark.
+   * Allows to apply a hold to the output watermark before it is sent out. Used to apply hold on
+   * output watermark for delayed (asynchronous or buffered) processing.
    *
    * @param currentOutputWatermark the current output watermark
    * @param potentialOutputWatermark The potential new output watermark which can be adjusted, if
@@ -797,7 +834,7 @@ public class DoFnOperator<InputT, OutputT>
         return;
       }
 
-      LOG.debug("Emitting watermark {}", watermark);
+      LOG.debug("Emitting watermark {} from {}", watermark, getOperatorName());
       currentOutputWatermark = watermark;
       output.emitWatermark(new Watermark(watermark));
 
@@ -902,7 +939,7 @@ public class DoFnOperator<InputT, OutputT>
     timeService.registerTimer(timeService.getCurrentProcessingTime(), callback);
   }
 
-  private void updateOutputWatermark() {
+  void updateOutputWatermark() {
     try {
       processInputWatermark(false);
     } catch (Exception ex) {
@@ -1005,6 +1042,7 @@ public class DoFnOperator<InputT, OutputT>
       // We can now release all buffered data which was held back for
       // @RequiresStableInput guarantees.
       bufferingDoFnRunner.checkpointCompleted(checkpointId);
+      updateOutputWatermark();
     }
 
     List<InMemoryBundleFinalizer.Finalization> finalizations =

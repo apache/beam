@@ -30,7 +30,7 @@ class ContentTreeCache extends Cache {
   final _futuresBySdkId = <String, Future<ContentTreeModel>>{};
 
   ContentTreeModel? getContentTree(String sdkId) {
-    if (_futuresBySdkId.containsKey(sdkId)) {
+    if (!_futuresBySdkId.containsKey(sdkId)) {
       unawaited(_loadContentTree(sdkId));
     }
 

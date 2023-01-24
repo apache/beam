@@ -32,6 +32,7 @@ dependencies:
   easy_localization: ^3.0.1
   easy_localization_ext: ^0.1.0
   easy_localization_loader: ^1.0.0
+  equatable: ^2.0.5
   firebase_auth: ^4.1.1
   firebase_auth_platform_interface: ^6.11.7
   firebase_core: ^2.1.1
@@ -52,7 +53,6 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.2.0
-  equatable: ^2.0.5
   flutter_gen_runner: ^4.3.0
   flutter_test: { sdk: flutter }
   integration_test: { sdk: flutter }
