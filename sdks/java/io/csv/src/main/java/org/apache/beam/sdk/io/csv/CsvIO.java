@@ -217,7 +217,6 @@ import org.apache.commons.csv.CSVFormat;
  * {@link IllegalArgumentException}.
  *
  * <ul>
- *   <li>{@link CSVFormat#withSkipHeaderRecord}
  *   <li>{@link CSVFormat#withAllowMissingColumnNames}
  *   <li>{@link CSVFormat#withAutoFlush}
  *   <li>{@link CSVFormat#withIgnoreHeaderCase}
@@ -372,18 +371,12 @@ public class CsvIO {
 
       final Write<T> build() {
 
-        // We need to throw an error to communicate to the user that we are always writing the
-        // header. However, see writeWithCSVFormatHeaderAndComments for why we need to set
-        // withSkipHeaderRecord in that method's context.
-        checkArgument(
-            !getCSVFormat().getSkipHeaderRecord(),
-            "withSkipHeaderRecord is an illegal CSVFormat setting; CsvIO.Write always writes the header");
-
         if (getCSVFormat().getHeaderComments() != null) {
           checkArgument(
               getCSVFormat().isCommentMarkerSet(),
               "CSVFormat withCommentMarker required when withHeaderComments");
         }
+
         return autoBuild();
       }
     }
@@ -436,6 +429,10 @@ public class CsvIO {
     private static TextIO.Write writeWithCSVFormatHeaderAndComments(
         CSVFormat csvFormat, TextIO.Write write) {
 
+      if (csvFormat.getSkipHeaderRecord()) {
+        return write;
+      }
+
       String[] header = requireNonNull(csvFormat.getHeader());
       List<String> result = new ArrayList<>();
       if (csvFormat.getHeaderComments() != null) {
@@ -448,8 +445,6 @@ public class CsvIO {
 
       result.add(
           withoutHeaderComments
-              // CSVFormat was designed to write to a single file.
-              // We use its format method to instead create the header line.
               // The withSkipHeaderRecord parameter prevents CSVFormat from outputting two copies of
               // the header.
               .withSkipHeaderRecord()

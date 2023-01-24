@@ -219,6 +219,33 @@ public class CsvIOWriteTest {
   }
 
   @Test
+  public void withSkipHeaderRecordOnlyWritesRows() {
+    File folder =
+        createFolder(
+            AllPrimitiveDataTypes.class.getSimpleName(),
+            "withSkipHeaderRecordWritesCsvFilesWithoutHeaders");
+
+    CSVFormat csvFormat = CSVFormat.DEFAULT.withSkipHeaderRecord();
+
+    PCollection<Row> input =
+        writePipeline.apply(
+            Create.of(DATA.allPrimitiveDataTypeRows)
+                .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
+
+    input.apply(CsvIO.writeRows(toFilenamePrefix(folder), csvFormat).withNumShards(1));
+
+    writePipeline.run().waitUntilFinish();
+
+    PAssert.that(readPipeline.apply(TextIO.read().from(toFilenamePrefix(folder) + "*")))
+        .containsInAnyOrder(
+            "false,1,10,1.0,1.0,1,1,a,1",
+            "false,2,20,2.0,2.0,2,2,b,2",
+            "false,3,30,3.0,3.0,3,3,c,3");
+
+    readPipeline.run();
+  }
+
+  @Test
   public void nullCSVFormatHeaderWritesAllSchemaFields() {
     File folder =
         createFolder(
@@ -264,24 +291,6 @@ public class CsvIOWriteTest {
     assertEquals(
         "CSVFormat withCommentMarker required when withHeaderComments",
         nullHeaderMarker.getMessage());
-  }
-
-  @Test
-  public void withSkipHeaderRecordThrowsError() {
-    PCollection<Row> input =
-        errorPipeline.apply(
-            Create.of(DATA.allPrimitiveDataTypeRows)
-                .withRowSchema(ALL_PRIMITIVE_DATA_TYPES_SCHEMA));
-    IllegalArgumentException skipHeaderRecord =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                input.apply(
-                    CsvIO.writeRows("somewhere", CSVFormat.DEFAULT.withSkipHeaderRecord())));
-
-    assertEquals(
-        "withSkipHeaderRecord is an illegal CSVFormat setting; CsvIO.Write always writes the header",
-        skipHeaderRecord.getMessage());
   }
 
   private static String toFilenamePrefix(File folder) {
