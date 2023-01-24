@@ -399,7 +399,7 @@ public class CsvIO {
               .apply("To Rows", MapElements.into(rows()).via(input.getToRowFunction()))
               .setCoder(rowCoder);
 
-      CSVFormat csvFormat = buildHeaderFromSchemaIfNeeded(schema);
+      CSVFormat csvFormat = buildHeaderFromSchemaIfNeeded(getCSVFormat(), schema);
 
       TextIO.Write write = getTextIOWrite();
 
@@ -416,9 +416,11 @@ public class CsvIO {
       return csv.apply("Write CSV", write.withOutputFilenames());
     }
 
-    CSVFormat buildHeaderFromSchemaIfNeeded(Schema schema) {
-      CSVFormat csvFormat = getCSVFormat();
-
+    /**
+     * Sets {@link CSVFormat#withHeader} from {@link Schema#sorted()} {@link Schema#getFieldNames}
+     * if {@link CSVFormat#getHeader} is null.
+     */
+    CSVFormat buildHeaderFromSchemaIfNeeded(CSVFormat csvFormat, Schema schema) {
       if (csvFormat.getHeader() == null) {
         csvFormat = csvFormat.withHeader(schema.sorted().getFieldNames().toArray(new String[0]));
       }
