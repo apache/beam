@@ -41,8 +41,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Tests for {@link BeamFnDataGrpcMultiplexer2}. */
-public class BeamFnDataGrpcMultiplexer2Test {
+/** Tests for {@link BeamFnDataGrpcMultiplexer}. */
+public class BeamFnDataGrpcMultiplexerTest {
 
   private static final Endpoints.ApiServiceDescriptor DESCRIPTOR =
       Endpoints.ApiServiceDescriptor.newBuilder().setUrl("test").build();
@@ -83,8 +83,8 @@ public class BeamFnDataGrpcMultiplexer2Test {
   @Test
   public void testOutboundObserver() {
     Collection<BeamFnApi.Elements> values = new ArrayList<>();
-    BeamFnDataGrpcMultiplexer2 multiplexer =
-        new BeamFnDataGrpcMultiplexer2(
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(values::add).build());
@@ -97,8 +97,8 @@ public class BeamFnDataGrpcMultiplexer2Test {
     Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
     Collection<BeamFnApi.Elements> dataInboundValues = new ArrayList<>();
     Collection<BeamFnApi.Elements> timerInboundValues = new ArrayList<>();
-    BeamFnDataGrpcMultiplexer2 multiplexer =
-        new BeamFnDataGrpcMultiplexer2(
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
@@ -176,8 +176,8 @@ public class BeamFnDataGrpcMultiplexer2Test {
     Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
     Collection<BeamFnApi.Elements> dataInboundValues = new ArrayList<>();
     Collection<BeamFnApi.Elements> timerInboundValues = new ArrayList<>();
-    BeamFnDataGrpcMultiplexer2 multiplexer =
-        new BeamFnDataGrpcMultiplexer2(
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
@@ -238,8 +238,8 @@ public class BeamFnDataGrpcMultiplexer2Test {
   public void testElementsWithOnlySingleInstructionIdUsingHotPath() throws Exception {
     Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
     Collection<BeamFnApi.Elements> dataInboundValues = new ArrayList<>();
-    BeamFnDataGrpcMultiplexer2 multiplexer =
-        new BeamFnDataGrpcMultiplexer2(
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
@@ -274,8 +274,8 @@ public class BeamFnDataGrpcMultiplexer2Test {
   public void testFailedProcessingCausesAdditionalInboundDataToBeIgnored() throws Exception {
     Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
     Collection<BeamFnApi.Elements> dataInboundValues = new ArrayList<>();
-    BeamFnDataGrpcMultiplexer2 multiplexer =
-        new BeamFnDataGrpcMultiplexer2(
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
@@ -326,8 +326,8 @@ public class BeamFnDataGrpcMultiplexer2Test {
     Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
     Collection<Throwable> errorWasReturned = new ArrayList<>();
     AtomicBoolean wasClosed = new AtomicBoolean();
-    final BeamFnDataGrpcMultiplexer2 multiplexer =
-        new BeamFnDataGrpcMultiplexer2(
+    final BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver ->

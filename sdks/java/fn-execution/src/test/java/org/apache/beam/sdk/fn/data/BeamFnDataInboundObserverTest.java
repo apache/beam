@@ -42,9 +42,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link BeamFnDataInboundObserver2}. */
+/** Tests for {@link BeamFnDataInboundObserver}. */
 @RunWith(JUnit4.class)
-public class BeamFnDataInboundObserver2Test {
+public class BeamFnDataInboundObserverTest {
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final String TRANSFORM_ID = "transformId";
@@ -58,8 +58,8 @@ public class BeamFnDataInboundObserver2Test {
     Thread thread = Thread.currentThread();
     Collection<WindowedValue<String>> values = new ArrayList<>();
     Collection<WindowedValue<String>> timers = new ArrayList<>();
-    BeamFnDataInboundObserver2 observer =
-        BeamFnDataInboundObserver2.forConsumers(
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
             Arrays.asList(
                 DataEndpoint.create(
                     TRANSFORM_ID,
@@ -102,8 +102,8 @@ public class BeamFnDataInboundObserver2Test {
   @Test
   public void testAwaitCompletionFailureVisibleToAwaitCompletionCallerAndProducer()
       throws Exception {
-    BeamFnDataInboundObserver2 observer =
-        BeamFnDataInboundObserver2.forConsumers(
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
             Arrays.asList(
                 DataEndpoint.create(
                     TRANSFORM_ID,
@@ -137,8 +137,8 @@ public class BeamFnDataInboundObserver2Test {
 
   @Test
   public void testCloseVisibleToAwaitCompletionCallerAndProducer() throws Exception {
-    BeamFnDataInboundObserver2 observer =
-        BeamFnDataInboundObserver2.forConsumers(
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
             Arrays.asList(DataEndpoint.create(TRANSFORM_ID, CODER, (value) -> {})),
             Collections.emptyList());
 
@@ -147,7 +147,7 @@ public class BeamFnDataInboundObserver2Test {
             () -> {
               observer.accept(dataWith("ABC"));
               assertThrows(
-                  BeamFnDataInboundObserver2.CloseException.class,
+                  BeamFnDataInboundObserver.CloseException.class,
                   () -> {
                     while (true) {
                       // keep trying to send messages since the queue buffers messages and the
@@ -165,7 +165,7 @@ public class BeamFnDataInboundObserver2Test {
               return null;
             });
 
-    assertThrows(BeamFnDataInboundObserver2.CloseException.class, () -> observer.awaitCompletion());
+    assertThrows(BeamFnDataInboundObserver.CloseException.class, () -> observer.awaitCompletion());
     future.get();
     future2.get();
   }
@@ -173,8 +173,8 @@ public class BeamFnDataInboundObserver2Test {
   @Test
   public void testBadProducerDataFailureVisibleToAwaitCompletionCallerAndProducer()
       throws Exception {
-    BeamFnDataInboundObserver2 observer =
-        BeamFnDataInboundObserver2.forConsumers(
+    BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumers(
             Arrays.asList(DataEndpoint.create(TRANSFORM_ID, CODER, (value) -> {})),
             Collections.emptyList());
     Future<?> future =

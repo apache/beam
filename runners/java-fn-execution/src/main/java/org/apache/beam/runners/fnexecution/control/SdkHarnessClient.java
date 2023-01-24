@@ -51,7 +51,7 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
-import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
@@ -268,7 +268,7 @@ public class SdkHarnessClient implements AutoCloseable {
 
       CompletionStage<BeamFnApi.ProcessBundleResponse> specificResponse =
           genericResponse.thenApply(InstructionResponse::getProcessBundle);
-      Optional<BeamFnDataInboundObserver2> beamFnDataInboundObserver;
+      Optional<BeamFnDataInboundObserver> beamFnDataInboundObserver;
       if (outputReceivers.isEmpty() && timerReceivers.isEmpty()) {
         beamFnDataInboundObserver = Optional.empty();
       } else {
@@ -291,7 +291,7 @@ public class SdkHarnessClient implements AutoCloseable {
                   timerReceiver.getValue().getReceiver()));
         }
         beamFnDataInboundObserver =
-            Optional.of(BeamFnDataInboundObserver2.forConsumers(dataEndpoints, timerEndpoints));
+            Optional.of(BeamFnDataInboundObserver.forConsumers(dataEndpoints, timerEndpoints));
         fnApiDataService.registerReceiver(bundleId, beamFnDataInboundObserver.get());
       }
 
@@ -339,7 +339,7 @@ public class SdkHarnessClient implements AutoCloseable {
       private final CompletionStage<BeamFnApi.ProcessBundleResponse> response;
       private final BeamFnDataOutboundAggregator beamFnDataOutboundAggregator;
       private final Map<LogicalEndpoint, FnDataReceiver<?>> inputReceivers;
-      private final Optional<BeamFnDataInboundObserver2> beamFnDataInboundObserver;
+      private final Optional<BeamFnDataInboundObserver> beamFnDataInboundObserver;
       private final StateDelegator.Registration stateRegistration;
       private final BundleProgressHandler progressHandler;
       private final BundleSplitHandler splitHandler;
@@ -354,7 +354,7 @@ public class SdkHarnessClient implements AutoCloseable {
           CompletionStage<ProcessBundleResponse> response,
           BeamFnDataOutboundAggregator beamFnDataOutboundAggregator,
           Map<LogicalEndpoint, FnDataReceiver<?>> inputReceivers,
-          Optional<BeamFnDataInboundObserver2> beamFnDataInboundObserver,
+          Optional<BeamFnDataInboundObserver> beamFnDataInboundObserver,
           StateDelegator.Registration stateRegistration,
           BundleProgressHandler progressHandler,
           BundleSplitHandler splitHandler,
