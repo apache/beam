@@ -29,21 +29,34 @@ void main() {
     await init(wt);
 
     // Cancel unchanged example.
-    await _runAndCancelExample(wt);
+    await _runAndCancelExample(wt, const Duration(milliseconds: 300));
 
-    final source = wt.findPlaygroundController().snippetEditingController?.activeFileController?.codeController.fullText ?? '';
+    final source = wt
+            .findPlaygroundController()
+            .snippetEditingController
+            ?.activeFileController
+            ?.codeController
+            .fullText ??
+        '';
     await wt.enterText(find.codeField(), '//comment\n' + source);
     await wt.pumpAndSettle();
 
     // Cancel changed example.
-    await _runAndCancelExample(wt);
+    await _runAndCancelExample(wt, const Duration(milliseconds: 5000));
   });
 }
 
-Future<void> _runAndCancelExample(WidgetTester wt) async {
+Future<void> _runAndCancelExample(WidgetTester wt, Duration duration) async {
   await wt.tap(find.runOrCancelButton());
-  await Future.delayed(const Duration(milliseconds: 300));
-
+  try {
+    await wt.pumpAndSettle(
+      const Duration(milliseconds: 100),
+      EnginePhase.sendSemanticsUpdate,
+      duration,
+    );
+  } catch (e) {
+    //ignore
+  }
   await wt.tapAndSettle(find.runOrCancelButton());
 
   final playgroundController = wt.findPlaygroundController();

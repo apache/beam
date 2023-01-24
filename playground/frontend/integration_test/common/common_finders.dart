@@ -18,8 +18,8 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:playground/components/dropdown_button/dropdown_button.dart';
 import 'package:playground/modules/actions/components/reset_action.dart';
+import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_body.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
@@ -37,10 +37,7 @@ import 'package:playground_components_dev/playground_components_dev.dart';
 
 extension CommonFindersExtension on CommonFinders {
   Finder appDropdownButtonWithText(String text) {
-    return find.descendant(
-      of: byType(AppDropdownButton),
-      matching: find.text(text),
-    );
+    return find.byType(PipelineOptionsDropdown);
   }
 
   Finder codeTextAreaWrapper() {
@@ -95,7 +92,7 @@ extension CommonFindersExtension on CommonFinders {
     return byType(MoreActions);
   }
 
-  Finder pipelineOptionsOptionsTab() {
+  Finder pipelineOptionsListTab() {
     return find.byKey(PipelineOptionsDropdownBody.optionsTabKey);
   }
 

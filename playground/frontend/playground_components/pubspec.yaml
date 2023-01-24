@@ -46,6 +46,7 @@ dependencies:
   json_annotation: ^4.7.0
   keyed_collection_widgets: ^0.4.3
   meta: ^1.7.0
+  os_detect: ^2.0.1
   protobuf: ^2.1.0
   provider: ^6.0.3
   rxdart: ^0.27.7

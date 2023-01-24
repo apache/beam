@@ -29,29 +29,31 @@ void main() {
 
   testWidgets('Testing editing code', (WidgetTester wt) async {
     await init(wt);
+    await _checkResetDefaultCode(wt);
+    await _checkResetEditedCode(wt);
     await _checkAutocomplete(wt);
-    await _editingAndResettingChanges(wt);
-    await _checkCodeHighlighting(wt);
-    await _codeBlockFoldingTest(wt);
+    await _checkCodeHighlightedMultipleColors(wt);
+    await _checkCodeBlockFolding(wt);
   });
 }
 
 Future<void> _checkAutocomplete(WidgetTester wt) async {
-  final codeController = wt.findOneCodeController();
-  final sSuggestions = await codeController.autocompleter.getSuggestions('sdk');
-  print(sSuggestions.map((e) => "'$e'").join(', '));
-  expect(
-    sSuggestions,
-    [
-      'sdkHttpMetadata',
-      'sdkHttpMetadataWithoutHeaders',
-      'sdkHttpResponse',
-      'sdkHttpResponseWithoutHeaders'
-    ],
-  );
+  await wt.enterText(find.codeField(), '\n\n\n\n\nsdk');
+
+  final playgroundController = wt.findPlaygroundController();
+  await wt.runShortcut(
+      playgroundController.showAutocompleterShortcut.shortcuts.keys);
+  await wt.pumpAndSettle();
+
+  expect(find.text('sdkHttpMetadata'), findsOneWidget);
+  expect(find.text('sdkHttpMetadataWithoutHeaders'), findsOneWidget);
+  expect(find.text('sdkHttpResponse'), findsOneWidget);
+  expect(find.text('sdkHttpResponseWithoutHeaders'), findsOneWidget);
+
+  await wt.tapAndSettle(find.resetButton());
 }
 
-Future<void> _editingAndResettingChanges(WidgetTester wt) async {
+Future<void> _checkResetDefaultCode(WidgetTester wt) async {
   final playgroundController = wt.findPlaygroundController();
 
   final code = playgroundController.source;
@@ -60,19 +62,24 @@ Future<void> _editingAndResettingChanges(WidgetTester wt) async {
 
   await wt.tapAndSettle(find.resetButton());
 
-  expect(playgroundController.source == code, true);
+  expect(playgroundController.source, code);
+}
+
+Future<void> _checkResetEditedCode(WidgetTester wt) async {
+  final playgroundController = wt.findPlaygroundController();
+  final code = playgroundController.source;
 
   await wt.enterText(find.codeField(), 'print("Hello World!');
   await wt.pumpAndSettle();
 
-  expect(playgroundController.source != code, true);
+  expect(playgroundController.source, isNot(code));
 
   await wt.tapAndSettle(find.resetButton());
 
-  expect(playgroundController.source, equals(code));
+  expect(playgroundController.source, code);
 }
 
-Future<void> _checkCodeHighlighting(WidgetTester wt) async {
+Future<void> _checkCodeHighlightedMultipleColors(WidgetTester wt) async {
   final codeController = wt.findOneCodeController();
   final colors = <Color>{};
   var textSpan = codeController.lastTextSpan;
@@ -94,7 +101,7 @@ void _collectTextSpanTreeTextColors(InlineSpan? span, Set<Color> colors) {
   }
 }
 
-Future<void> _codeBlockFoldingTest(WidgetTester wt) async {
+Future<void> _checkCodeBlockFolding(WidgetTester wt) async {
   const code = '''
 public class MyClass {
   public static void main(String[] args) {
@@ -112,11 +119,11 @@ public class MyClass {
 public class MyClass {
 ''';
 
-  expect(wt.findOneCodeController().text, equals(foldedCode));
+  expect(wt.findOneCodeController().text, foldedCode);
 
   await wt.tapAndSettle(_getFoldToggles());
 
-  expect(wt.findOneCodeController().text, equals(code));
+  expect(wt.findOneCodeController().text, code);
 }
 
 Finder _getTopToggle(WidgetTester wt) {

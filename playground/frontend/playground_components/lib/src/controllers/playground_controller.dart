@@ -40,6 +40,7 @@ import '../repositories/models/run_code_request.dart';
 import '../repositories/models/run_code_result.dart';
 import '../services/symbols/loaders/map.dart';
 import '../services/symbols/symbols_notifier.dart';
+import '../util/logical_keyboard_key.dart';
 import '../util/pipeline_options.dart';
 import 'example_loaders/examples_loader.dart';
 import 'snippet_editing_controller.dart';
@@ -288,6 +289,12 @@ class PlaygroundController with ChangeNotifier {
     notifyListeners();
   }
 
+  void showAutocompleter() {
+    snippetEditingController?.activeFileController?.codeController
+        .generateSuggestions();
+    notifyListeners();
+  }
+
   void resetError() {
     if (result == null) {
       return;
@@ -480,7 +487,7 @@ class PlaygroundController with ChangeNotifier {
 
   late BeamShortcut runShortcut = BeamShortcut(
     shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
+      LogicalKeyboardKeyExtension.metaOrControl,
       LogicalKeyboardKey.enter,
     ),
     actionIntent: const RunIntent(),
@@ -491,7 +498,7 @@ class PlaygroundController with ChangeNotifier {
 
   late BeamShortcut resetShortcut = BeamShortcut(
     shortcuts: LogicalKeySet(
-      LogicalKeyboardKey.meta,
+      LogicalKeyboardKeyExtension.metaOrControl,
       LogicalKeyboardKey.shift,
       LogicalKeyboardKey.keyE,
     ),
@@ -501,8 +508,21 @@ class PlaygroundController with ChangeNotifier {
     ),
   );
 
+  late BeamShortcut showAutocompleterShortcut = BeamShortcut(
+    shortcuts: LogicalKeySet(
+      LogicalKeyboardKeyExtension.metaOrControl,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.keyS,
+    ),
+    actionIntent: const ShowAutocompleterIntent(),
+    createAction: (BuildContext context) => CallbackAction(
+      onInvoke: (_) => showAutocompleter(),
+    ),
+  );
+
   List<BeamShortcut> get shortcuts => [
         runShortcut,
         resetShortcut,
+        showAutocompleterShortcut,
       ];
 }

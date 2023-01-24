@@ -32,18 +32,28 @@ const kTimeoutErrorText =
 const kUnknownErrorText =
     'Something went wrong. Please try again later or create a GitHub issue';
 const kProcessingStartedText = 'The processing has started\n';
+const kProcessingStartedOptionsText =
+    'The processing has started with pipeline options: ';
 
 // TODO(alexeyinkin): Rename. This is not a repository but a higher level client.
 class CodeRepository {
   final CodeClient _client;
 
-  CodeRepository({required CodeClient client,}): _client = client;
+  CodeRepository({
+    required CodeClient client,
+  }) : _client = client;
 
   Stream<RunCodeResult> runCode(RunCodeRequest request) async* {
     try {
-      const initResult = RunCodeResult(
+      final log = request.pipelineOptions.isEmpty
+          ? kProcessingStartedText
+          : kProcessingStartedOptionsText +
+              request.pipelineOptions.entries
+                  .map((e) => '--${e.key} ${e.value}')
+                  .join(' ');
+      final initResult = RunCodeResult(
         status: RunCodeStatus.preparation,
-        log: kProcessingStartedText,
+        log: log,
       );
       yield initResult;
 
@@ -139,8 +149,7 @@ class CodeRepository {
         );
 
       case RunCodeStatus.validationError:
-        final output =
-            await _client.getValidationErrorOutput(pipelineUuid);
+        final output = await _client.getValidationErrorOutput(pipelineUuid);
         return RunCodeResult(
           status: status,
           output: output.output,
@@ -149,8 +158,7 @@ class CodeRepository {
         );
 
       case RunCodeStatus.preparationError:
-        final output =
-            await _client.getPreparationErrorOutput(pipelineUuid);
+        final output = await _client.getPreparationErrorOutput(pipelineUuid);
         return RunCodeResult(
           status: status,
           output: output.output,
