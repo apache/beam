@@ -91,8 +91,7 @@ class CsvRowConversions {
             getCSVFormat()
                 // CSVFormat was designed to write to a single file.
                 // Therefore, we need to apply withSkipHeaderRecord to prevent CSVFormat to apply
-                // its header
-                // to each converted Row in the context of RowToCsv.
+                // its header to each converted Row in the context of RowToCsv.
                 .withSkipHeaderRecord()
                 // Delegate to TextIO.Write.withDelimiter instead.
                 .withRecordSeparator(' ')
