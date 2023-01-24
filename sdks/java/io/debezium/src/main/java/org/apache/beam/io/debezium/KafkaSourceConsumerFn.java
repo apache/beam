@@ -34,9 +34,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -207,13 +209,14 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     return timestamp;
   }
 
-  private static final Cache<String, SourceTask> CONNECTOR_CACHE =
+  private static final Cache<Map<String, String>, SourceTask> CONNECTOR_CACHE =
       CacheBuilder.newBuilder()
           .expireAfterAccess(java.time.Duration.ofSeconds(60))
           .removalListener(
-              new RemovalListener<String, SourceTask>() {
+              new RemovalListener<Map<String, String>, SourceTask>() {
                 @Override
-                public void onRemoval(RemovalNotification<String, SourceTask> removalNotification) {
+                public void onRemoval(
+                    RemovalNotification<Map<String, String>, SourceTask> removalNotification) {
                   LOG.debug(
                       "Task for key [[{}]] is being removed. Cause: {}",
                       removalNotification.getKey(),
@@ -223,6 +226,45 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
               })
           .maximumSize(10)
           .build();
+
+  SourceTask getDebeziumSourceTask(
+      Map<String, String> element, RestrictionTracker<OffsetHolder, Map<String, Object>> tracker) {
+    final KafkaSourceConsumerFn<T> dofnInstance = this;
+    try {
+      return CONNECTOR_CACHE.get(
+          element,
+          new Callable<SourceTask>() {
+            @Override
+            public SourceTask call() throws Exception {
+              SourceConnector connector = null;
+              SourceTask innerTask;
+              Map<String, String> configuration = new HashMap<>(element);
+              configuration.put(BEAM_INSTANCE_PROPERTY, dofnInstance.getHashCode());
+              try {
+                connector = connectorClass.getDeclaredConstructor().newInstance();
+                connector.start(configuration);
+                innerTask =
+                    (SourceTask) connector.taskClass().getDeclaredConstructor().newInstance();
+              } catch (InstantiationException
+                  | IllegalAccessException
+                  | InvocationTargetException
+                  | NoSuchMethodException e) {
+                throw new RuntimeException(
+                    "Unable to initialize connector instance for Debezium", e);
+              }
+              Map<String, ?> consumerOffset = tracker.currentRestriction().offset;
+              LOG.debug("--------- Created new Debezium task with offset: {}", consumerOffset);
+
+              innerTask.initialize(new BeamSourceTaskContext(tracker.currentRestriction().offset));
+              innerTask.start(connector.taskConfigs(1).get(0));
+              return innerTask;
+            }
+          });
+    } catch (ExecutionException e) {
+      throw new RuntimeException(
+          String.format("Unable to compute the debezium SourceTask for element %s", element), e);
+    }
+  }
 
   /**
    * Process the retrieved element and format it for output. Update all pending
@@ -242,39 +284,11 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       OutputReceiver<T> receiver) {
     // Adding the current restriction to the class object to be found by the database history
     register(tracker);
-    Map<String, String> configuration = new HashMap<>(element);
-    String cacheKey =
-        configuration.entrySet().stream()
-            .map(entry -> String.format("(%s,%s)", entry.getKey(), entry.getValue()))
-            .sorted()
-            .collect(Collectors.joining(","));
-    configuration.put(BEAM_INSTANCE_PROPERTY, this.getHashCode());
-    SourceTask task;
 
-    if (CONNECTOR_CACHE.getIfPresent(cacheKey) == null) {
-      SourceConnector connector = null;
-      try {
-        connector = connectorClass.getDeclaredConstructor().newInstance();
-        connector.start(configuration);
-        task = (SourceTask) connector.taskClass().getDeclaredConstructor().newInstance();
-      } catch (InstantiationException
-          | IllegalAccessException
-          | InvocationTargetException
-          | NoSuchMethodException e) {
-        throw new RuntimeException("Unable to initialize connector instance for Debezium", e);
-      }
-      Map<String, ?> consumerOffset = tracker.currentRestriction().offset;
-      LOG.debug("--------- Created new Debezium task with offset: {}", consumerOffset);
-
-      task.initialize(new BeamSourceTaskContext(tracker.currentRestriction().offset));
-      task.start(connector.taskConfigs(1).get(0));
-      CONNECTOR_CACHE.put(cacheKey, task);
-    } else {
-      task = CONNECTOR_CACHE.getIfPresent(cacheKey);
-      LOG.debug(
-          "--------- Get Debezium task from cache with offset: {}",
-          tracker.currentRestriction().offset);
-    }
+    SourceTask task = getDebeziumSourceTask(element, tracker);
+    LOG.debug(
+        "--------- Get Debezium task from cache with offset: {}",
+        Objects.requireNonNull(tracker.currentRestriction()).offset);
 
     try {
       List<SourceRecord> records = task.poll();
@@ -293,7 +307,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
           if (offset == null || !tracker.tryClaim(offset)) {
             LOG.debug("-------- Offset null or could not be claimed");
-            CONNECTOR_CACHE.invalidate(cacheKey);
+            CONNECTOR_CACHE.invalidate(element);
             return ProcessContinuation.stop();
           }
 
@@ -314,7 +328,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
     long elapsedTime = System.currentTimeMillis() - KafkaSourceConsumerFn.startTime.getMillis();
     if (milisecondsToRun != null && milisecondsToRun > 0 && elapsedTime >= milisecondsToRun) {
-      CONNECTOR_CACHE.invalidate(cacheKey);
+      CONNECTOR_CACHE.invalidate(element);
       return ProcessContinuation.stop();
     } else {
       return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));

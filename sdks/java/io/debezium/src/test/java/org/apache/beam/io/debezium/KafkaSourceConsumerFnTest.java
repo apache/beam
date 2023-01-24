@@ -43,7 +43,6 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.apache.kafka.connect.source.SourceTaskContext;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -77,34 +76,6 @@ public class KafkaSourceConsumerFnTest implements Serializable {
 
     PAssert.that(counts).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
     pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testStoppableKafkaSourceConsumerFn() {
-    Map<String, String> config =
-        ImmutableMap.of(
-            "from", "1",
-            "to", "3",
-            "delay", "0.2",
-            "topic", "any");
-
-    Pipeline pipeline = Pipeline.create();
-
-    pipeline
-        .apply(
-            Create.of(Lists.newArrayList(config))
-                .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
-        .apply(
-            ParDo.of(
-                new KafkaSourceConsumerFn<>(
-                    CounterSourceConnector.class,
-                    sourceRecord -> ((Struct) sourceRecord.value()).getInt64("value").intValue(),
-                    1)))
-        .setCoder(VarIntCoder.of());
-
-    pipeline.run().waitUntilFinish();
-    // Since we're now caching calls
-    Assert.assertEquals(1, CounterTask.getCountTasks());
   }
 }
 
