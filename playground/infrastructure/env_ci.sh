@@ -41,7 +41,7 @@ pip install -r playground/infrastructure/requirements.txt > /dev/null
 apt-get install openjdk-8-jdk -y > /dev/null
 curl -L https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o gradle-${GRADLE_VERSION}-bin.zip > /dev/null
 unzip gradle-${GRADLE_VERSION}-bin.zip > /dev/null
-export PATH=$PATH:gradle-${GRADLE_VERSION}/bin
+export PATH=$PATH:gradle-${GRADLE_VERSION}/bin > /dev/null
 
 # Install go
 curl -OL https://golang.org/dl/go$GO_VERSION.linux-amd64.tar.gz > /dev/null
