@@ -65,13 +65,15 @@ job(jobName) {
     }
   }
   k8s.apply(kafkaDir)
-  (0..2).each { k8s.loadBalancerIP("outside-$it", "KAFKA_BROKER_$it") }
+  k8s.nodeIPAddress("NODE_IP")
+  (0..2).each { k8s.nodePort("outside-$it", "NODE_PORT_$it") }
   k8s.waitForJob(kafkaTopicJob,"40m")
 
   Map pipelineOptions = [
     tempRoot                     : 'gs://temp-storage-for-perf-tests',
     project                      : 'apache-beam-testing',
     runner                       : 'DataflowRunner',
+    usePublicIPs                 : false, // See .test-infra/terraform/google-cloud-platform/networking
     sourceOptions                : """
                                      {
                                        "numRecords": "100000000",
@@ -84,8 +86,7 @@ job(jobName) {
     influxMeasurement            : 'kafkaioit_results',
     influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:\$KAFKA_SERVICE_PORT_0,\$KAFKA_BROKER_1:\$KAFKA_SERVICE_PORT_1," +
-    "\$KAFKA_BROKER_2:\$KAFKA_SERVICE_PORT_2", //KAFKA_BROKER_ represents IP and KAFKA_SERVICE_ port of outside services
+    kafkaBootstrapServerAddresses: "\$NODE_IP:\$NODE_PORT_0,\$NODE_IP:\$NODE_PORT_1,\$NODE_IP:\$NODE_PORT_2",
     kafkaTopic                   : 'beam-batch',
     readTimeout                  : '1800',
     numWorkers                   : '5',
