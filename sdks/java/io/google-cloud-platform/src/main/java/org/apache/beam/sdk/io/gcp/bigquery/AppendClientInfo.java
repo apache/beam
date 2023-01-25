@@ -47,6 +47,8 @@ abstract class AppendClientInfo {
 
   abstract TableRowToStorageApiProto.SchemaInformation getSchemaInformation();
 
+  abstract @Nullable String getStreamName();
+
   abstract Descriptors.Descriptor getDescriptor();
 
   @AutoValue.Builder
@@ -62,6 +64,8 @@ abstract class AppendClientInfo {
     abstract Builder setSchemaInformation(TableRowToStorageApiProto.SchemaInformation value);
 
     abstract Builder setDescriptor(Descriptors.Descriptor value);
+
+    abstract Builder setStreamName(@Nullable String name);
 
     abstract AppendClientInfo build();
   };
@@ -93,10 +97,11 @@ abstract class AppendClientInfo {
     if (getStreamAppendClient() != null) {
       return this;
     } else {
+      String streamName = getStreamName.get();
       return toBuilder()
+          .setStreamName(streamName)
           .setStreamAppendClient(
-              datasetService.getStreamAppendClient(
-                  getStreamName.get(), getDescriptor(), useConnectionPool))
+              datasetService.getStreamAppendClient(streamName, getDescriptor(), useConnectionPool))
           .build();
     }
   }
