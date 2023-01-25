@@ -717,8 +717,6 @@ public class JmsIO {
 
     abstract @Nullable RetryConfiguration getRetryConfiguration();
 
-    abstract @Nullable SerializableFunction<Exception, Boolean> getConnectionFailedPredicate();
-
     abstract Builder<EventT> builder();
 
     @AutoValue.Builder
@@ -740,9 +738,6 @@ public class JmsIO {
           SerializableFunction<EventT, String> topicNameMapper);
 
       abstract Builder<EventT> setRetryConfiguration(RetryConfiguration retryConfiguration);
-
-      abstract Builder<EventT> setConnectionFailedPredicate(
-          SerializableFunction<Exception, Boolean> predicate);
 
       abstract Write<EventT> build();
     }
@@ -926,33 +921,6 @@ public class JmsIO {
       return builder().setRetryConfiguration(retryConfiguration).build();
     }
 
-    /**
-     * Specify the predicate function to check whether to retry to reconnect or not. The {@link
-     * JmsIO.Write} acts as a publisher on the topic.
-     *
-     * <p>Allows you to choose depending on the given exception if to reconnect or not.
-     *
-     * <p>For example:
-     *
-     * <pre>{@code
-     * SerializableFunction<Exception, Boolean> reconnectOnFailedExceptionPredicate =
-     *   (exception -> exception.getClass() == JmsException.class);
-     * }</pre>
-     *
-     * <pre>{@code
-     * .apply(JmsIO.write().withConnectionFailedPredicate(reconnectOnFailedExceptionPredicate)
-     * }</pre>
-     *
-     * @param connectionFailedPredicate The predicate function to be used to check if JmsIO should
-     *     reconnect or not.
-     * @return The corresponding {@link JmsIO.Write}.
-     */
-    public Write<EventT> withConnectionFailedPredicate(
-        SerializableFunction<Exception, Boolean> connectionFailedPredicate) {
-      checkArgument(connectionFailedPredicate != null, "connectionFailedPredicate can not be null");
-      return builder().setConnectionFailedPredicate(connectionFailedPredicate).build();
-    }
-
     @Override
     public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
@@ -1037,38 +1005,28 @@ public class JmsIO {
 
       @StartBundle
       public void start() throws JMSException {
-        if (producer == null) {
-          ConnectionFactory connectionFactory = spec.getConnectionFactory();
-          if (spec.getUsername() != null) {
-            this.connection =
-                connectionFactory.createConnection(spec.getUsername(), spec.getPassword());
-          } else {
-            this.connection = connectionFactory.createConnection();
-          }
-          this.connection.setExceptionListener(
-              exception -> {
-                if (spec.getConnectionFailedPredicate() != null
-                    && spec.getConnectionFailedPredicate().apply(exception)) {
-                  LOG.error("Jms connection encountered the following exception:", exception);
-                  connectionErrors.inc();
-                  try {
-                    restartJmsConnection();
-                  } catch (JMSException e) {
-                    LOG.error("An error occurred while reconnecting:", e);
-                  }
-                }
-              });
-          this.connection.start();
-          // false means we don't use JMS transaction.
-          this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-
-          if (spec.getQueue() != null) {
-            this.destination = session.createQueue(spec.getQueue());
-          } else if (spec.getTopic() != null) {
-            this.destination = session.createTopic(spec.getTopic());
-          }
-          this.producer = this.session.createProducer(this.destination);
+        ConnectionFactory connectionFactory = spec.getConnectionFactory();
+        if (spec.getUsername() != null) {
+          this.connection =
+              connectionFactory.createConnection(spec.getUsername(), spec.getPassword());
+        } else {
+          this.connection = connectionFactory.createConnection();
         }
+        this.connection.setExceptionListener(
+            exception -> {
+              connectionErrors.inc();
+              throw new JmsIOException("An error occurred with JMS connection", exception);
+            });
+        this.connection.start();
+        // false means we don't use JMS transaction.
+        this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        if (spec.getQueue() != null) {
+          this.destination = session.createQueue(spec.getQueue());
+        } else if (spec.getTopic() != null) {
+          this.destination = session.createTopic(spec.getTopic());
+        }
+        this.producer = this.session.createProducer(this.destination);
       }
 
       @ProcessElement
@@ -1114,12 +1072,7 @@ public class JmsIO {
         }
       }
 
-      private void restartJmsConnection() throws JMSException {
-        teardown();
-        start();
-      }
-
-      @Teardown
+      @FinishBundle
       public void teardown() throws JMSException {
         if (producer != null) {
           producer.close();

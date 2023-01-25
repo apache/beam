@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.jms;
 
 import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-import static org.apache.beam.sdk.io.jms.JmsIO.JmsIOProducer.CONNECTION_ERRORS_METRIC_NAME;
 import static org.apache.beam.sdk.io.jms.JmsIO.JmsIOProducer.JMS_IO_PRODUCER_METRIC_NAME;
 import static org.apache.beam.sdk.io.jms.JmsIO.JmsIOProducer.PUBLICATION_RETRIES_METRIC_NAME;
 import static org.hamcrest.CoreMatchers.allOf;
@@ -39,7 +38,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -54,9 +52,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -71,7 +67,6 @@ import javax.jms.QueueBrowser;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.activemq.ConnectionFailedException;
 import org.apache.activemq.broker.BrokerPlugin;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.command.ActiveMQMessage;
@@ -94,7 +89,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.joda.time.Duration;
@@ -106,9 +100,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.mockito.internal.invocation.InterceptedInvocation;
-import org.mockito.listeners.InvocationListener;
-import org.mockito.listeners.MethodInvocationReport;
 
 /** Tests of {@link JmsIO}. */
 @RunWith(JUnit4.class)
@@ -755,69 +746,6 @@ public class JmsIOTest {
   }
 
   @Test
-  public void testWriteMessagesWithOnConnectionFailedPredicate() throws JMSException {
-    String messageText = "message";
-    ExceptionInvocationListener invocationListener = new ExceptionInvocationListener();
-
-    ArrayList<String> data = new ArrayList<>(Collections.singleton(messageText));
-    SerializableFunction<Exception, Boolean> mockedOnFailedConnectionPredicate =
-        Mockito.mock(
-            FailedConnectionPredicate.class,
-            Mockito.withSettings()
-                .serializable()
-                .invocationListeners(invocationListener)
-                .defaultAnswer(Mockito.CALLS_REAL_METHODS));
-
-    ConnectionFactory mockedConnectionFactory =
-        Mockito.mock(ConnectionFactory.class, Mockito.withSettings().serializable());
-    Connection mockedConnection =
-        Mockito.mock(
-            FakeConnection.class,
-            Mockito.withSettings().serializable().defaultAnswer(Mockito.CALLS_REAL_METHODS));
-    doReturn(mockedConnection).when(mockedConnectionFactory).createConnection(USERNAME, PASSWORD);
-
-    pipeline
-        .apply(Create.of(data))
-        .apply(
-            JmsIO.<String>write()
-                .withConnectionFactory(mockedConnectionFactory)
-                .withConnectionFailedPredicate(mockedOnFailedConnectionPredicate)
-                .withValueMapper(new TextMessageMapper())
-                .withRetryConfiguration(retryConfiguration)
-                .withQueue(QUEUE)
-                .withUsername(USERNAME)
-                .withPassword(PASSWORD));
-    PipelineResult pipelineResult = pipeline.run();
-    MetricQueryResults metricQueryResults =
-        pipelineResult
-            .metrics()
-            .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(
-                            JMS_IO_PRODUCER_METRIC_NAME, CONNECTION_ERRORS_METRIC_NAME))
-                    .build());
-    assertThat(
-        metricQueryResults.getCounters(),
-        contains(
-            allOf(
-                hasProperty("attempted", is((long) 1)),
-                hasProperty(
-                    "key",
-                    hasToString(
-                        containsString(
-                            String.format(
-                                "%s:%s",
-                                JMS_IO_PRODUCER_METRIC_NAME, CONNECTION_ERRORS_METRIC_NAME)))))));
-    Map<Exception, Boolean> invocationCounter = invocationListener.getInvocationCounters();
-    invocationCounter.forEach(
-        (exception, isPredicated) -> {
-          assertEquals(exception.getClass() == ConnectionFailedException.class, isPredicated);
-        });
-    assertEquals(2, invocationCounter.size());
-  }
-
-  @Test
   public void testWriteMessageWithRetryPolicyReachesLimit() throws Exception {
     String messageText = "text";
     int maxPublicationAttempts = 2;
@@ -1017,32 +945,6 @@ public class JmsIOTest {
       } catch (JMSException e) {
         throw new JmsIOException("Error creating TextMessage", e);
       }
-    }
-  }
-
-  private static class FailedConnectionPredicate
-      implements SerializableFunction<Exception, Boolean> {
-    FailedConnectionPredicate() {}
-
-    @Override
-    public Boolean apply(Exception exception) {
-      return exception.getClass() == ConnectionFailedException.class;
-    }
-  }
-
-  private static class ExceptionInvocationListener implements InvocationListener, Serializable {
-
-    private static final Map<Exception, Boolean> invocationCounters = new HashMap<>();
-
-    public Map<Exception, Boolean> getInvocationCounters() {
-      return invocationCounters;
-    }
-
-    @Override
-    public void reportInvocation(MethodInvocationReport methodInvocationReport) {
-      invocationCounters.put(
-          ((InterceptedInvocation) methodInvocationReport.getInvocation()).getArgument(0),
-          (boolean) methodInvocationReport.getReturnedValue());
     }
   }
 }
