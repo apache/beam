@@ -18,16 +18,59 @@ version: "2"
 services:
   redis:
     image: redis:7.0.4-alpine
-    ports:
-      - "6379:6379"
+    expose:
+      - 6379
+    networks:
+      - internal
 
   datastore:
     build: "./backend/containers/router/datastore"
     environment:
       DATASTORE_PROJECT_ID: test
       DATASTORE_LISTEN_ADDRESS: 0.0.0.0:8081
+    expose:
+      - 8081
+    networks:
+      - internal
+
+  mitmproxy:
+    build: "./infrastructure/proxy"
+    expose:
+      - 8080
     ports:
-      - "8081:8081"
+      - "8082:8082"
+      - "8084:8084"
+      - "8086:8086"
+      - "8088:8088"
+      - "8090:8090"
+      - "1234:1234"
+    volumes:
+      - mitmproxy_certificates:/home/mitmproxy/.mitmproxy
+    command: ["reverseproxy"]
+    networks:
+      - internal
+      - external
+
+  mitmproxy_certificate_to_keystore:
+    image: openjdk:8-jre-slim
+    depends_on:
+      - mitmproxy
+    volumes:
+      - mitmproxy_certificates:/home/mitmproxy/certificates
+      - java_security:/usr/local/openjdk-8/lib/security
+    working_dir: /usr/local/openjdk-8/lib/security
+    entrypoint: [ "keytool" ]
+    command:
+      - -importcert
+      - -storepass
+      - changeit
+      - -alias
+      - mitmproxy
+      - -file
+      - /home/mitmproxy/certificates/mitmproxy-ca-cert.pem
+      - -noprompt
+    networks:
+      - internal
 
   router:
     image: apache/beam_playground-backend-router
@@ -38,11 +81,13 @@ services:
       CACHE_ADDRESS: redis:6379
       SDK_CONFIG: /opt/playground/backend/sdks-emulator.yaml
       SERVER_PORT: 8082
-    ports:
-      - "8082:8082"
+    expose:
+      - 8082
     depends_on:
       - redis
       - datastore
+    networks:
+      - internal
 
   go_runner:
     image: apache/beam_playground-backend-go
@@ -51,10 +96,17 @@ services:
       CACHE_TYPE: remote
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8084
-    ports:
-      - "8084:8084"
+      http_proxy: mitmproxy:8080
+      https_proxy: mitmproxy:8080
+    volumes:
+      - mitmproxy_certificates:/home/appuser/.mitmproxy
+    expose:
+      - 8084
     depends_on:
       - redis
+      - mitmproxy
+    networks:
+      - internal
 
   java_runner:
     image: apache/beam_playground-backend-java
@@ -63,10 +115,20 @@ services:
       CACHE_TYPE: remote
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8086
-    ports:
-      - "8086:8086"
+      http_proxy: mitmproxy:8080
+      https_proxy: mitmproxy:8080
+      JAVA_FLAGS: "-Dhttp.proxyHost=mitmproxy -Dhttp.proxyPort:8080 -Dhttps.proxyHost=mitmproxy -Dhttps.proxyPort=8080"
+    volumes:
+      - mitmproxy_certificates:/home/appuser/.mitmproxy
+      - java_security:/usr/local/openjdk-8/lib/security
+    expose:
+      - 8086
     depends_on:
       - redis
+      - mitmproxy
+      - mitmproxy_certificate_to_keystore
+    networks:
+      - internal
 
   python_runner:
     image: apache/beam_playground-backend-python
@@ -75,10 +137,17 @@ services:
       CACHE_TYPE: remote
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8088
-    ports:
-      - "8088:8088"
+      http_proxy: mitmproxy:8080
+      https_proxy: mitmproxy:8080
+    volumes:
+      - mitmproxy_certificates:/home/appuser/.mitmproxy
+    expose:
+      - 8088
     depends_on:
       - redis
+      - mitmproxy
+    networks:
+      - internal
 
   scio_runner:
     image: apache/beam_playground-backend-scio
@@ -87,14 +156,35 @@ services:
       CACHE_TYPE: remote
       CACHE_ADDRESS: redis:6379
       SERVER_PORT: 8090
-    ports:
-      - "8090:8090"
+      HTTP_PROXY: mitmproxy:8080
+      HTTPS_PROXY: mitmproxy:8080
+      JAVA_FLAGS: "-Dhttp.proxyHost=mitmproxy -Dhttp.proxyPort:8080 -Dhttps.proxyHost=mitmproxy -Dhttps.proxyPort=8080"
+    volumes:
+      - mitmproxy_certificates:/home/appuser/.mitmproxy
+      - java_security:/usr/local/openjdk-8/lib/security
+    expose:
+      - 8090
     depends_on:
       - redis
+      - mitmproxy
+      - mitmproxy_certificate_to_keystore
+    networks:
+      - internal
 
   frontend:
     image: apache/beam_playground-frontend
-    ports:
-      - "1234:8080"
+    expose:
+      - 8080
     depends_on:
       - router
+    networks:
+      - internal
+
+volumes:
+  mitmproxy_certificates: {}
+  java_security: {}
+
+networks:
+  internal:
+    internal: true
+  external:

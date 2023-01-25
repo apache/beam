@@ -52,16 +52,7 @@ COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/con
 # Install Python Katas Utils
 ENV PYTHONPATH="$PYTHONPATH:/go/src/katas"
 
-# Install mitmpoxy
-RUN mkdir /opt/mitmproxy &&\
-    cd /opt/mitmproxy &&\
-    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
-    tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
-    mkdir /usr/local/share/ca-certificates/extra
-COPY allow_list_proxy.py /opt/mitmproxy/
-COPY allow_list.py /opt/mitmproxy/
-ENV HTTP_PROXY="http://127.0.0.1:8081"
-ENV HTTPS_PROXY="http://127.0.0.1:8081"
+RUN mkdir /usr/local/share/ca-certificates/extra
 
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
@@ -74,10 +65,6 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
-  && chmod 777 /usr/local/lib/python3.7/site-packages/certifi/cacert.pem \
-  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
-
-# Switch to appuser
-USER appuser
+  && chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
