@@ -31,6 +31,7 @@ collection, sharing model between threads, and batching elements.
 import logging
 import pickle
 import sys
+import threading
 import time
 from typing import Any
 from typing import Dict
@@ -452,6 +453,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model = None
     self._metrics_namespace = metrics_namespace
     self._enable_side_input_loading = enable_side_input_loading
+    self._side_input_path = None
 
   def _load_model(self, side_input_model_path: Optional[str] = None):
     def load():
@@ -497,6 +499,24 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def update_model(self, side_input_model_path):
     self._model = self._load_model(side_input_model_path=side_input_model_path)
 
+  def _run_inference(self, batch, inference_args):
+    start_time = _to_microseconds(self._clock.time_ns())
+    try:
+      result_generator = self._model_handler.run_inference(
+          batch, self._model, inference_args)
+    except BaseException as e:
+      self._metrics_collector.failed_batches_counter.inc()
+      raise e
+    predictions = list(result_generator)
+
+    end_time = _to_microseconds(self._clock.time_ns())
+    inference_latency = end_time - start_time
+    num_bytes = self._model_handler.get_num_bytes(batch)
+    num_elements = len(batch)
+    self._metrics_collector.update(num_elements, num_bytes, inference_latency)
+
+    return predictions
+
   def process(
       self,
       batch,
@@ -506,22 +526,18 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       logging.info(f"Side Input model path: {si_model_metadata.model_id}")
       self._metrics_collector = self.get_metrics_collector(
           prefix=si_model_metadata.model_name)
-      self.update_model(si_model_metadata.model_id)
-    start_time = _to_microseconds(self._clock.time_ns())
-    try:
-      result_generator = self._model_handler.run_inference(
-          batch, self._model, inference_args)
-    except BaseException as e:
-      self._metrics_collector.failed_batches_counter.inc()
-      raise e
-    predictions = list(result_generator)
-    end_time = _to_microseconds(self._clock.time_ns())
-    inference_latency = end_time - start_time
-    num_bytes = self._model_handler.get_num_bytes(batch)
-    num_elements = len(batch)
-    self._metrics_collector.update(num_elements, num_bytes, inference_latency)
-
-    return predictions
+      side_input_model_id = si_model_metadata.model_id
+      # when a side input gets refreshed, new instance of DoFn would
+      # be invoked. Then self._side_input_path and side_input_model_id
+      # would be different values.
+      if self._side_input_path != side_input_model_id:
+        self._side_input_path = side_input_model_id
+        with threading.Lock():
+          self.update_model(side_input_model_id)
+          return self._run_inference(batch, inference_args)
+      else:
+        self.update_model(side_input_model_id)
+    return self._run_inference(batch, inference_args)
 
   def finish_bundle(self):
     # TODO(https://github.com/apache/beam/issues/21435): Figure out why there
