@@ -52,7 +52,6 @@ COMMENTS_TO_ADD = [
     "Run Go Samza ValidatesRunner",
     "Run Go Spark ValidatesRunner",
     "Run GoPortable PreCommit",
-    "Run Java 11 Examples on Dataflow Runner V2",
     "Run Java 17 Examples on Dataflow Runner V2",
     "Run Java Dataflow V2 ValidatesRunner Streaming",
     "Run Java Dataflow V2 ValidatesRunner",
