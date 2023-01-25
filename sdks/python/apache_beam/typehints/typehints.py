@@ -389,6 +389,8 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   if sys.version_info.major == 3 and sys.version_info.minor >= 10:
     if isinstance(type_param, types.UnionType):
       is_not_type_constraint = False
+  # Pre-Python 3.9 compositve type-hinting with built-in types was not
+  # supported, the typing module equivalents should be used instead.
   if sys.version_info.major == 3 and sys.version_info.minor < 9:
     is_not_type_constraint = is_not_type_constraint or (
         isinstance(type_param, type) and
