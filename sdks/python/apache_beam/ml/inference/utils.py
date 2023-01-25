@@ -29,12 +29,6 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
-from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Optional
-from typing import Union
-
 import apache_beam as beam
 from apache_beam.io.fileio import MatchContinuously
 from apache_beam.ml.inference.base import ModelMetdata
@@ -131,26 +125,6 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
               model_id=self._default_value, model_name=path_short_name))]
 
 
-def _convert_to_result(
-    batch: Iterable,
-    predictions: Union[Iterable, Dict[Any, Iterable]],
-    model_id: Optional[str] = None,
-) -> Iterable[PredictionResult]:
-  if isinstance(predictions, dict):
-    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
-    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
-    # length batch_size, to a list of dictionaries:
-    # [{key_type1: value_type1, key_type2: value_type2}]
-    predictions_per_tensor = [
-        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
-    ]
-    return [
-        PredictionResult(x, y, model_id) for x,
-        y in zip(batch, predictions_per_tensor)
-    ]
-  return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
-
-
 class WatchFilePattern(beam.PTransform):
   def __init__(
       self,
@@ -190,6 +164,5 @@ class WatchFilePattern(beam.PTransform):
         | "AcceptNewSideInputOnly" >> beam.ParDo(_CoverIterToSingleton())
         | 'ApplyGlobalWindow' >> beam.transforms.WindowInto(
             window.GlobalWindows(),
-            trigger=trigger.Repeatedly(
-                trigger.AfterProcessingTime(self.interval)),
+            trigger=trigger.AfterProcessingTime(1),
             accumulation_mode=trigger.AccumulationMode.DISCARDING))
