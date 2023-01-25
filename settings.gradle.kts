@@ -74,6 +74,9 @@ include(":playground:backend:containers:python")
 include(":playground:backend:containers:router")
 include(":playground:backend:containers:scio")
 include(":playground:terraform")
+
+include(":learning:tour-of-beam:frontend")
+
 include(":runners:core-construction-java")
 include(":runners:core-java")
 include(":runners:direct-java")
