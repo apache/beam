@@ -77,6 +77,7 @@ import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -102,7 +103,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1720,13 +1720,15 @@ public class JdbcIO {
               ParDo.of(
                   new DoFn<T, Iterable<T>>() {
                     @Nullable List<T> outputList;
+                    transient BoundedWindow window = GlobalWindow.INSTANCE;
 
                     @ProcessElement
-                    public void process(ProcessContext c) {
+                    public void process(ProcessContext c, BoundedWindow w) {
                       if (outputList == null) {
                         outputList = new ArrayList<>();
                       }
                       outputList.add(c.element());
+                      window = w;
                       if (outputList.size() > batchSize) {
                         c.output(outputList);
                         outputList = null;
@@ -1736,7 +1738,7 @@ public class JdbcIO {
                     @FinishBundle
                     public void finish(FinishBundleContext c) {
                       if (outputList != null && outputList.size() > 0) {
-                        c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
+                        c.output(outputList, window.maxTimestamp(), window);
                       }
                       outputList = null;
                     }
