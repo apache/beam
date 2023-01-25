@@ -125,6 +125,9 @@ Config = typing.NamedTuple(
         ('fetch_size', typing.Optional[int]),
         ('output_parallelization', typing.Optional[bool]),
         ('autosharding', typing.Optional[bool]),
+        ('partitionColumn', typing.Optional[str]),
+        ('tableName', typing.Optional([str])),
+        ('partitions', typing.Optional[bool])
     ],
 )
 
@@ -273,6 +276,8 @@ class ReadFromJdbc(ExternalTransform):
       query=None,
       output_parallelization=None,
       fetch_size=None,
+      partition_column=None,
+      partitions=None,
       connection_properties=None,
       connection_init_sqls=None,
       expansion_service=None,
@@ -324,6 +329,8 @@ class ReadFromJdbc(ExternalTransform):
                             fetch_size=fetch_size,
                             output_parallelization=output_parallelization,
                             autosharding=None,
+                            partition_column=partition_column,
+                            partitions=partitions
                         ))),
         ),
         expansion_service or default_io_expansion_service(classpath),
