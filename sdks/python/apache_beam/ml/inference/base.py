@@ -523,14 +523,17 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       inference_args,
       si_model_metadata: Optional[ModelMetdata] = None):
     if self._enable_side_input_loading:
-      logging.info(f"Side Input model path: {si_model_metadata.model_id}")
-      self._metrics_collector = self.get_metrics_collector(
-          prefix=si_model_metadata.model_name)
-      side_input_model_id = si_model_metadata.model_id
+      # self._metrics_collector = self.get_metrics_collector()
+      logging.info(f"Side Input model path: {si_model_metadata}")
+      side_input_model_id = None
       # when a side input gets refreshed, new instance of DoFn would
       # be invoked. Then self._side_input_path and side_input_model_id
       # would be different values.
-      if self._side_input_path != side_input_model_id:
+      if ((not isinstance(si_model_metadata, beam.pvalue.EmptySideInput)) and
+          (self._side_input_path != si_model_metadata.model_id)):
+        self._metrics_collector = self.get_metrics_collector(
+            prefix=si_model_metadata.model_name)
+        side_input_model_id = si_model_metadata.model_id
         self._side_input_path = side_input_model_id
         with threading.Lock():
           self.update_model(side_input_model_id)
