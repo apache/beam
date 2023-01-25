@@ -448,7 +448,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         PythonService.waitForPort(
             Iterables.get(Splitter.on(':').split(expansionService), 0),
             Integer.parseInt(Iterables.get(Splitter.on(':').split(expansionService), 1)),
-            15000);
+            60000);
         return apply(input, expansionService, payload);
       } else {
         int port = PythonService.findAvailablePort();
