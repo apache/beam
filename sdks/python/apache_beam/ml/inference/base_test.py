@@ -17,7 +17,9 @@
 
 """Tests for apache_beam.ml.base."""
 
+import math
 import pickle
+import time
 import unittest
 from typing import Any
 from typing import Dict
@@ -32,6 +34,9 @@ from apache_beam.ml.inference import base
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms import window
 
 
 class FakeModel:
@@ -60,6 +65,26 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
 
   def update_model_path(self, model_path: Optional[str] = None):
     pass
+
+
+class FakeModelHandlerReturnsPredictionResult(FakeModelHandler):
+  def __init__(self, clock=None, model_id='fake_model_id_default'):
+    self.model_id = model_id
+    self._fake_clock = clock
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None) -> Iterable[base.PredictionResult]:
+    for example in batch:
+      yield base.PredictionResult(
+          model_id=self.model_id,
+          example=example,
+          inference=model.predict(example))
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    self.model_id = model_path if model_path else self.model_id
 
 
 class FakeClock:
@@ -341,6 +366,78 @@ class RunInferenceBaseTest(unittest.TestCase):
     third_party_model_handler.get_resource_hints()
     third_party_model_handler.batch_elements_kwargs()
     third_party_model_handler.validate_inference_args({})
+
+  def test_run_inference_prediction_result_with_model_id(self):
+    examples = [1, 5, 3, 10]
+    expected = [
+        base.PredictionResult(
+            example=example,
+            inference=example + 1,
+            model_id='fake_model_id_default') for example in examples
+    ]
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandlerReturnsPredictionResult())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_prediction_result_with_side_input(self):
+    test_pipeline = TestPipeline()
+
+    first_ts = math.floor(time.time()) - 30
+    interval = 5
+    main_input_windowing_interval = 7
+
+    # aligning timestamp to get persistent results
+    first_ts = first_ts - (
+        first_ts % (interval * main_input_windowing_interval))
+    last_ts = first_ts + 45
+
+    sample_main_input_elements = ([first_ts - 2, # no output due to no SI
+                                   first_ts + 8,  # first window
+                                   first_ts + 22,  # second window
+                                   ])
+
+    sample_side_input_elements = [
+        base.ModelMetdata(
+            model_id='fake_model_id_1', model_name='fake_model_id_1')
+    ]
+
+    class EmitSideInput(beam.DoFn):
+      def process(self, element):
+        for e in element:
+          yield e
+
+    model_handler = FakeModelHandlerReturnsPredictionResult()
+
+    side_input = (
+        test_pipeline
+        |
+        "PeriodicImpulse" >> PeriodicImpulse(first_ts, last_ts, interval, True)
+        | beam.Map(lambda x: sample_side_input_elements)
+        | beam.ParDo(EmitSideInput()))
+
+    result = (
+        test_pipeline
+        | beam.Create(sample_main_input_elements)
+        | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x))
+        | "ApplyWindow" >> beam.WindowInto(
+            window.FixedWindows(main_input_windowing_interval))
+        | "RunInference" >> base.RunInference(
+            model_handler, model_path_pcoll=side_input))
+    test_pipeline.run()
+
+    expected_model_id_order = [
+        'fake_model_id_default', 'fake_model_id_1', 'fake_model_id_1'
+    ]
+    expected_result = [
+        base.PredictionResult(
+            example=sample_main_input_elements[i],
+            inference=sample_main_input_elements[i] + 1,
+            model_id=expected_model_id_order[i]) for i in range(3)
+    ]
+
+    assert_that(result, equal_to(expected_result))
 
 
 if __name__ == '__main__':
