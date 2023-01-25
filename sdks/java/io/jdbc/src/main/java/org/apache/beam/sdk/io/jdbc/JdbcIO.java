@@ -77,8 +77,6 @@ import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -1716,33 +1714,10 @@ public class JdbcIO {
               .apply(Values.create());
     } else {
       iterables =
-          input.apply(
-              ParDo.of(
-                  new DoFn<T, Iterable<T>>() {
-                    @Nullable List<T> outputList;
-                    transient BoundedWindow window = GlobalWindow.INSTANCE;
-
-                    @ProcessElement
-                    public void process(ProcessContext c, BoundedWindow w) {
-                      if (outputList == null) {
-                        outputList = new ArrayList<>();
-                      }
-                      outputList.add(c.element());
-                      window = w;
-                      if (outputList.size() > batchSize) {
-                        c.output(outputList);
-                        outputList = null;
-                      }
-                    }
-
-                    @FinishBundle
-                    public void finish(FinishBundleContext c) {
-                      if (outputList != null && outputList.size() > 0) {
-                        c.output(outputList, window.maxTimestamp(), window);
-                      }
-                      outputList = null;
-                    }
-                  }));
+          input
+              .apply(WithKeys.<String, T>of(""))
+              .apply(GroupIntoBatches.<String, T>ofSize(batchSize).withShardedKey())
+              .apply(Values.create());
     }
     return iterables;
   }
