@@ -120,11 +120,12 @@ class Kubernetes {
    * Specifies steps that will save specified address node ip address
    * as an environment variable that can be used in later steps if needed.
    *
+   * @param nodeIndex - index of node
    * @param referenceName - name of the environment variable
    */
-  void nodeIPAddress(String referenceName) {
+  void nodeIPAddress(int nodeIndex, String referenceName) {
     job.steps {
-      String command = "${KUBERNETES_SCRIPT} nodeIPAddress"
+      String command = "${KUBERNETES_SCRIPT} nodeIPAddress ${nodeIndex}"
       shell("set -eo pipefail; eval ${command} | sed 's/^/${referenceName}=/' > job.properties")
       environmentVariables {
         propertiesFile('job.properties')

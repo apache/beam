@@ -65,8 +65,10 @@ job(jobName) {
     }
   }
   k8s.apply(kafkaDir)
-  k8s.nodeIPAddress("NODE_IP")
-  (0..2).each { k8s.nodePort("outside-$it", "NODE_PORT_$it") }
+  (0..2).each {
+    k8s.nodeIPAddress(it, "NODE_IP_$it")
+    k8s.nodePort("outside-$it", "NODE_PORT_$it")
+  }
   k8s.waitForJob(kafkaTopicJob,"40m")
 
   Map pipelineOptions = [
@@ -86,7 +88,7 @@ job(jobName) {
     influxMeasurement            : 'kafkaioit_results',
     influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    kafkaBootstrapServerAddresses: "\$NODE_IP:\$NODE_PORT_0,\$NODE_IP:\$NODE_PORT_1,\$NODE_IP:\$NODE_PORT_2",
+    kafkaBootstrapServerAddresses: "\$NODE_IP_0:\$NODE_PORT_0,\$NODE_IP_1:\$NODE_PORT_1,\$NODE_IP_2:\$NODE_PORT_2",
     kafkaTopic                   : 'beam-batch',
     readTimeout                  : '1800',
     numWorkers                   : '5',

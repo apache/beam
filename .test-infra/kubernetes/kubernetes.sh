@@ -81,9 +81,10 @@ function deleteNamespace() {
 }
 
 # Gets Node IP address of cluster
-# Usage: ./kubernetes.sh nodeIPAddress
+# Usage: ./kubernetes.sh nodeIPAddress nodeIndex
 function nodeIPAddress() {
-  local command="$KUBECTL get node -ojsonpath='{.items[*].status.addresses[?(@.type==\"InternalIP\")].address}'"
+  local nodeIndex=$1
+  local command="$KUBECTL get node -ojsonpath='{.items[${nodeIndex}].status.addresses[?(@.type==\"InternalIP\")].address}'"
 }
 
 # Gets NodePort of service
@@ -92,7 +93,7 @@ function nodeIPAddress() {
 # Usage: ./kubernetes.sh nodePort <name of the kubernetes service>
 function nodePort() {
   local name=$1
-  local command="$KUBECTL get svc $name -ojsonpath='{.status.ports[0].nodePort}'"
+  local command="$KUBECTL get svc $name -ojsonpath='{.spec.ports[0].nodePort}'"
   retry "${command}" 36 10
 }
 
