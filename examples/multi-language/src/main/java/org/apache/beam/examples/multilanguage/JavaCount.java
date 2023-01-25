@@ -25,7 +25,7 @@ import org.apache.beam.sdk.values.PCollection;
 public class JavaCount extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
 
   @Override
-  public PCollection<KV<String, Long>> expand(PCollection<String> input) {
+  public PCollections<KV<String, Long>> expand(PCollection<String> input) {
     return input.apply("JavaCount", Count.perElement());
   }
 }

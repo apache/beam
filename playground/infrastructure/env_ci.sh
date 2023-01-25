@@ -18,6 +18,7 @@
 # Added set -x to show output into cloud build console
 set -x
 
+# Assign variables
 export GRADLE_VERSION=7.5.1
 export GO_VERSION=1.18
 
