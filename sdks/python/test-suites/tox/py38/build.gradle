@@ -115,15 +115,15 @@ preCommitPy38.dependsOn "testPy38pytorch-110"
 
 toxTask "testPy38pytorch-111", "py38-pytorch-111", "${posargs}"
 test.dependsOn "testPy38pytorch-111"
-preCommitPy38.dependsOn "testPy38pytorch-111"
+preCommitPyCoverage.dependsOn "testPy38pytorch-111"
 
 toxTask "testPy38pytorch-112", "py38-pytorch-112", "${posargs}"
 test.dependsOn "testPy38pytorch-112"
-preCommitPy38.dependsOn "testPy38pytorch-112"
+preCommitPyCoverage.dependsOn "testPy38pytorch-112"
 
 toxTask "testPy38pytorch-113", "py38-pytorch-113", "${posargs}"
 test.dependsOn "testPy38pytorch-113"
-preCommitPy38.dependsOn "testPy38pytorch-113"
+preCommitPyCoverage.dependsOn "testPy38pytorch-113"
 
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 
