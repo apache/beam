@@ -68,10 +68,10 @@ sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
 # Get changed files from Webhook result (body.files)
-if [ -z $base_ref ] || [ $base_ref == "master" ]; then
-  BASE_REF=origin/master
+if [ -z $branch_name ] || [ $branch_name == "master" ]; then
+  branch_name=origin/master
 fi
-diff=$(git diff --name-only $base_ref $commit_sha | tr '\n' ' ')
+diff=$(git diff --name-only $branch_name $commit_sha | tr '\n' ' ')
 echo $diff
 
 # Check if there are Examples
