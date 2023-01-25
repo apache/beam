@@ -26,7 +26,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer2;
+import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
@@ -44,7 +44,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
 
-  private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer2>
+  private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer>
       multiplexerCache;
   private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
   private final OutboundObserverFactory outboundObserverFactory;
@@ -67,7 +67,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       CloseableFnDataReceiver<Elements> receiver) {
     LOG.debug("Registering consumer for {}", instructionId);
     for (int i = 0, size = apiServiceDescriptors.size(); i < size; i++) {
-      BeamFnDataGrpcMultiplexer2 client = getClientFor(apiServiceDescriptors.get(i));
+      BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptors.get(i));
       client.registerConsumer(instructionId, receiver);
     }
   }
@@ -77,7 +77,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       String instructionId, List<ApiServiceDescriptor> apiServiceDescriptors) {
     LOG.debug("Unregistering consumer for {}", instructionId);
     for (int i = 0, size = apiServiceDescriptors.size(); i < size; i++) {
-      BeamFnDataGrpcMultiplexer2 client = getClientFor(apiServiceDescriptors.get(i));
+      BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptors.get(i));
       client.unregisterConsumer(instructionId);
     }
   }
@@ -94,12 +94,12 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
         collectElementsIfNoFlushes);
   }
 
-  private BeamFnDataGrpcMultiplexer2 getClientFor(
+  private BeamFnDataGrpcMultiplexer getClientFor(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor) {
     return multiplexerCache.computeIfAbsent(
         apiServiceDescriptor,
         (Endpoints.ApiServiceDescriptor descriptor) ->
-            new BeamFnDataGrpcMultiplexer2(
+            new BeamFnDataGrpcMultiplexer(
                 descriptor,
                 outboundObserverFactory,
                 BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data));
