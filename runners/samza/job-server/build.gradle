@@ -93,6 +93,7 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
             excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
             excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
