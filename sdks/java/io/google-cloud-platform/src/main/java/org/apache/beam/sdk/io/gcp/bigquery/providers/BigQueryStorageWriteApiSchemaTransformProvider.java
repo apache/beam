@@ -228,7 +228,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
     // A counter of input BQ PCollection element count.
     private static class ElementCounterFn extends DoFn<Row, Row> {
-      static final Counter bqInputElementCounter =
+      private static final Counter bqInputElementCounter =
           Metrics.counter(
               BigQueryStorageWriteApiPCollectionRowTupleTransform.class, "element-counter");
 
@@ -241,7 +241,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
     // A counter of output BQ insert failures.
     private static class ErrorCounterFn extends DoFn<Row, Row> {
-      static final Counter bqErrorCounter =
+      private static final Counter bqErrorCounter =
           Metrics.counter(
               BigQueryStorageWriteApiPCollectionRowTupleTransform.class, "error-counter");
 

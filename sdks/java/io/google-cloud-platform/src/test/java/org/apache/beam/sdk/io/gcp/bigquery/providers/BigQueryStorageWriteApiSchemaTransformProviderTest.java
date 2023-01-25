@@ -175,9 +175,9 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
       throw new RuntimeException("no counters available for the input element count");
     }
 
-    Long expected_count = 3l;
+    Long expectedCount = 3L;
     for (MetricResult<Long> count : counters) {
-      assertEquals(expected_count, count.getAttempted());
+      assertEquals(expectedCount, count.getAttempted());
     }
   }
 
@@ -263,9 +263,9 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
       throw new RuntimeException("no counters available ");
     }
 
-    Long expected_count = 1l;
+    Long expectedCount = 1L;
     for (MetricResult<Long> count : counters) {
-      assertEquals(expected_count, count.getAttempted());
+      assertEquals(expectedCount, count.getAttempted());
     }
   }
 }
