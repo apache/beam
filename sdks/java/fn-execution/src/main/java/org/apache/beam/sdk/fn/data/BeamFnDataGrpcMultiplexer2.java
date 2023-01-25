@@ -253,7 +253,6 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
           "Failed to handle for {}",
           apiServiceDescriptor == null ? "unknown endpoint" : apiServiceDescriptor,
           t);
-      outboundObserver.onCompleted();
     }
 
     @Override
@@ -261,7 +260,6 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
       LOG.warn(
           "Hanged up for {}.",
           apiServiceDescriptor == null ? "unknown endpoint" : apiServiceDescriptor);
-      outboundObserver.onCompleted();
     }
   }
 }

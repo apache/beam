@@ -234,7 +234,8 @@ class _CoGBKImpl(PTransform):
     for pcoll in pcolls.values():
       self._check_pcollection(pcoll)
       if self.pipeline:
-        assert pcoll.pipeline == self.pipeline
+        assert pcoll.pipeline == self.pipeline, (
+            'All input PCollections must belong to the same pipeline.')
 
     tags = list(pcolls.keys())
 

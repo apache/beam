@@ -23,6 +23,7 @@ class BeamSizes {
   static const double size3 = 3;
   static const double size4 = 4;
   static const double size6 = 6;
+  static const double size7 = 7;
   static const double size8 = 8;
   static const double size10 = 10;
   static const double size12 = 12;

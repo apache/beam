@@ -48,7 +48,6 @@ class PlaygroundDemoWidget extends StatelessWidget {
           first: SnippetEditor(
             controller: snippetController,
             isEditable: true,
-            goToContextLine: false,
           ),
           second: OutputWidget(
             playgroundController: playgroundController,

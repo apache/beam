@@ -52,8 +52,8 @@ parser.add_argument(
 parser.add_argument(
     "--datastore-project",
     dest="datastore_project",
-    help="Datastore project to use when saving data",
-    required=True
+    help="Datastore project to use when saving data (CD step only)",
+    default=None
 )
 parser.add_argument(
     "--sdk",
@@ -113,7 +113,9 @@ def _run_ci_cd(step: str, raw_sdk: str, origin: Origin, project: str, namespace:
 
 
 if __name__ == "__main__":
-    parser = parser.parse_args()
+    args = parser.parse_args()
+    if args.step == Config.CD_STEP_NAME and args.datastore_project is None:
+        parser.error(f"--datastore-project is required when --step {Config.CD_STEP_NAME} is selected")
     _check_envs()
     setup_logger()
-    _run_ci_cd(parser.step, parser.sdk, parser.origin, parser.datastore_project, parser.namespace, parser.subdirs)
+    _run_ci_cd(args.step, args.sdk, args.origin, args.datastore_project, args.namespace, args.subdirs)

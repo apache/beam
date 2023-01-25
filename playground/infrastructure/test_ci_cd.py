@@ -37,6 +37,7 @@ def test_ci_step(
         step,
         "SDK_JAVA",
         Origin.PG_EXAMPLES,
+        "test",
         Config.DEFAULT_NAMESPACE,
         [
             "../../examples",

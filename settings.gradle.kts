@@ -260,7 +260,6 @@ include(":vendor:grpc-1_48_1")
 include(":vendor:calcite-1_28_0")
 include(":vendor:guava-26_0-jre")
 include(":website")
-include(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 include(":runners:google-cloud-dataflow-java:worker")
 include(":runners:google-cloud-dataflow-java:worker:windmill")
 // no dots allowed for project paths

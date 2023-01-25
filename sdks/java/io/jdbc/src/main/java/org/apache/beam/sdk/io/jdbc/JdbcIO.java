@@ -446,6 +446,9 @@ public class JdbcIO {
     abstract @Nullable ValueProvider<Collection<String>> getConnectionInitSqls();
 
     @Pure
+    abstract @Nullable ValueProvider<Integer> getMaxConnections();
+
+    @Pure
     abstract @Nullable ClassLoader getDriverClassLoader();
 
     @Pure
@@ -468,6 +471,8 @@ public class JdbcIO {
 
       abstract Builder setConnectionInitSqls(
           ValueProvider<Collection<@Nullable String>> connectionInitSqls);
+
+      abstract Builder setMaxConnections(ValueProvider<@Nullable Integer> maxConnections);
 
       abstract Builder setDriverClassLoader(ClassLoader driverClassLoader);
 
@@ -557,6 +562,18 @@ public class JdbcIO {
       return builder().setConnectionInitSqls(connectionInitSqls).build();
     }
 
+    /** Sets the maximum total number of connections. Use a negative value for no limit. */
+    public DataSourceConfiguration withMaxConnections(Integer maxConnections) {
+      checkArgument(maxConnections != null, "maxConnections can not be null");
+      return withMaxConnections(ValueProvider.StaticValueProvider.of(maxConnections));
+    }
+
+    /** Same as {@link #withMaxConnections(Integer)} but accepting a ValueProvider. */
+    public DataSourceConfiguration withMaxConnections(
+        ValueProvider<@Nullable Integer> maxConnections) {
+      return builder().setMaxConnections(maxConnections).build();
+    }
+
     /**
      * Sets the class loader instance to be used to load the JDBC driver. If not specified, the
      * default class loader is used.
@@ -606,6 +623,9 @@ public class JdbcIO {
             && getConnectionInitSqls().get() != null
             && !getConnectionInitSqls().get().isEmpty()) {
           basicDataSource.setConnectionInitSqls(getConnectionInitSqls().get());
+        }
+        if (getMaxConnections() != null && getMaxConnections().get() != null) {
+          basicDataSource.setMaxTotal(getMaxConnections().get());
         }
         if (getDriverClassLoader() != null) {
           basicDataSource.setDriverClassLoader(getDriverClassLoader());

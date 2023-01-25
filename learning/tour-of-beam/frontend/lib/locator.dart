@@ -19,28 +19,40 @@
 import 'package:app_state/app_state.dart';
 import 'package:get_it/get_it.dart';
 
+import 'auth/notifier.dart';
 import 'cache/content_tree.dart';
 import 'cache/sdk.dart';
 import 'cache/unit_content.dart';
+import 'cache/unit_progress.dart';
 import 'pages/welcome/page.dart';
+import 'repositories/client/client.dart';
 import 'repositories/client/cloud_functions_client.dart';
 import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
+import 'state.dart';
 
 Future<void> initializeServiceLocator() async {
-  _initializeCaches();
+  _initializeAuth();
   _initializeState();
+  _initializeCaches();
+}
+
+void _initializeAuth() {
+  GetIt.instance.registerSingleton(AuthNotifier());
 }
 
 void _initializeCaches() {
   final client = CloudFunctionsTobClient();
 
+  GetIt.instance.registerSingleton<TobClient>(client);
   GetIt.instance.registerSingleton(ContentTreeCache(client: client));
   GetIt.instance.registerSingleton(SdkCache(client: client));
   GetIt.instance.registerSingleton(UnitContentCache(client: client));
+  GetIt.instance.registerSingleton(UnitProgressCache(client: client));
 }
 
 void _initializeState() {
+  GetIt.instance.registerSingleton(AppNotifier());
   GetIt.instance.registerSingleton(
     PageStack(
       bottomPage: WelcomePage(),
