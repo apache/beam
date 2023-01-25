@@ -58,6 +58,8 @@ COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/con
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/datasets /opt/playground/backend/datasets/
 
+RUN apt-get update -y && apt-get install zip
+
 # Install Beam DirectRunner
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
     mv beam-runners-direct-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-direct.jar
@@ -105,16 +107,7 @@ RUN cd /go/src/katas &&\
     ./gradlew jar &&\
     mv util/build/libs/util.jar /opt/apache/beam/jars/util.jar
 
-# Install mitmpoxy
-RUN mkdir /opt/mitmproxy &&\
-    cd /opt/mitmproxy &&\
-    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
-    tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
-    mkdir /usr/local/share/ca-certificates/extra
-COPY allow_list_proxy.py /opt/mitmproxy/
-COPY allow_list.py /opt/mitmproxy/
-ENV HTTP_PROXY="http://127.0.0.1:8081"
-ENV HTTPS_PROXY="http://127.0.0.1:8081"
+RUN mkdir /usr/local/share/ca-certificates/extra
 
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
@@ -126,11 +119,7 @@ RUN groupadd --gid 20000 appgroup \
 RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
-RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod -R 775 /opt/apache/beam/jars/ \
-  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /usr/local/openjdk-8/jre/lib/security/ \
-  && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
-
-# Switch to appuser
-USER appuser
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod -R 664 /opt/apache/beam/jars/ \
+  && chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

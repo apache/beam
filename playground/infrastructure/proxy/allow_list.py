@@ -22,12 +22,16 @@ ALLOWED_LIST = [
     "datastore.googleapis.com",
     "oauth2.googleapis.com",
     "storage.googleapis.com",
-    "repo1.maven.org"
+    "www.googleapis.com",
+    "repo1.maven.org",
+    "github.com",
+    "packages.confluent.io",
 ]
 
 # ALLOWED_BUCKET_LIST contains all public Google Cloud Storage buckets
 # that are allowed to make requests from Beam Playground
 ALLOWED_BUCKET_LIST = [
     "dataflow-samples",
-    "beam-samples"
+    "beam-samples",
+    "apache-beam-samples",
 ]
