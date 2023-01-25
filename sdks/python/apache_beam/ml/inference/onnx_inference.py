@@ -25,7 +25,9 @@ from typing import Union
 
 import numpy
 import onnxruntime as ort
+import onnx
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 
@@ -96,10 +98,26 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._provider_options = provider_options
     self._model_inference_fn = inference_fn
 
+  '''
   def load_model(self) -> ort.InferenceSession:
     """Loads and initializes an onnx inference session for processing."""
+    
     ort_session = ort.InferenceSession(
         self._model_uri,
+        sess_options=self._session_options,
+        providers=self._providers,
+        provider_options=self._provider_options)
+    return ort_session
+  '''
+
+  def load_model(self) -> ort.InferenceSession:
+    """Loads and initializes an onnx inference session for processing."""
+    # when path is remote, we should first load into memory then deserialize
+    f =  FileSystems.open(self._model_uri, "rb")
+    model_proto = onnx.load(f)
+    model_proto_bytes = onnx._serialize(model_proto)
+    ort_session = ort.InferenceSession(
+        model_proto_bytes,
         sess_options=self._session_options,
         providers=self._providers,
         provider_options=self._provider_options)
