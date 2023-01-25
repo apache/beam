@@ -25,14 +25,15 @@ from typing import Any
 from typing import DefaultDict
 from typing import Deque
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
 
-from apache_beam.coders.coders import Coder
 from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.coders.coder_impl import WindowedValueCoderImpl
+from apache_beam.coders.coders import Coder
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -119,8 +120,9 @@ class DataSampler:
 
   def samples(
       self,
-      descriptor_ids: Optional[List[str]] = None,
-      pcollection_ids: Optional[List[str]] = None) -> Dict[str, List[bytes]]:
+      descriptor_ids: Optional[Iterable[str]] = None,
+      pcollection_ids: Optional[Iterable[str]] = None
+  ) -> Dict[str, List[bytes]]:
     """Returns all samples filtered by descriptor ids and pcollection ids."""
     ret: DefaultDict[str, List[bytes]] = collections.defaultdict(lambda: [])
 

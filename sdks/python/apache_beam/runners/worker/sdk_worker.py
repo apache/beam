@@ -372,6 +372,7 @@ class SdkHarness(object):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
 
     def get_samples(request):
+      # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
       samples: Dict[str, List[bytes]] = {}
       if self.data_sampler:
         samples = self.data_sampler.samples(

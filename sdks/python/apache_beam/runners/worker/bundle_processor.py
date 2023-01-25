@@ -1219,7 +1219,7 @@ class BeamTransformFactory(object):
                counter_factory,  # type: counters.CounterFactory
                state_sampler,  # type: statesampler.StateSampler
                state_handler,  # type: sdk_worker.CachingStateHandler
-               data_sampler,  # type: data_sampler.DataSampler
+               data_sampler,  # type: Optional[data_sampler.DataSampler]
               ):
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
@@ -1758,7 +1758,7 @@ def create_assign_windows(
       yield WindowedValue(element, timestamp, new_windows)
 
   from apache_beam.transforms.core import Windowing
-  from apache_beam.transforms.window import WindowFn, WindowedValue
+  from apache_beam.transforms.window import WindowFn
   windowing = Windowing.from_runner_api(parameter, factory.context)
   return _create_simple_pardo_operation(
       factory,
@@ -2024,6 +2024,10 @@ def create_data_sampling_op(
     pcoll_and_coder_id,  # type: bytes
     consumers,  # type: Dict[str, List[operations.Operation]]
 ):
+  # Creating this operation should only occur when data sampling is enabled.
+  data_sampler = factory.data_sampler
+  assert data_sampler is not None
+
   coder = coders.FastPrimitivesCoder()
   pcoll_id, coder_id = coder.decode(pcoll_and_coder_id)
   return DataSamplingOperation(
@@ -2032,6 +2036,6 @@ def create_data_sampling_op(
       factory.state_sampler,
       pcoll_id,
       factory.get_coder(coder_id),
-      factory.data_sampler,
+      data_sampler,
       factory.descriptor,
   )

@@ -20,17 +20,16 @@
 
 import unittest
 
+from apache_beam.coders.coders import FastPrimitivesCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.coders.coders import FastPrimitivesCoder
 from apache_beam.runners import common
 from apache_beam.runners.worker import operations
-from apache_beam.runners.worker.bundle_processor import BundleProcessor
+from apache_beam.runners.worker.bundle_processor import SYNTHETIC_DATA_SAMPLING_URN
 from apache_beam.runners.worker.bundle_processor import BeamTransformFactory
+from apache_beam.runners.worker.bundle_processor import BundleProcessor
 from apache_beam.runners.worker.bundle_processor import DataInputOperation
 from apache_beam.runners.worker.bundle_processor import FnApiUserStateContext
-from apache_beam.runners.worker.bundle_processor import SYNTHETIC_DATA_SAMPLING_URN
 from apache_beam.runners.worker.bundle_processor import TimerInfo
 from apache_beam.runners.worker.data_plane import SizeBasedBufferingClosableOutputStream
 from apache_beam.runners.worker.data_sampler import DataSampler
