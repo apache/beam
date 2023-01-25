@@ -2015,10 +2015,6 @@ class DataSamplingOperation(operations.Operation):
     # type: (windowed_value.WindowedValue) -> None
     self._sampler.sample(windowed_value)
 
-  def finish(self):
-    # type: () -> None
-    super().finish()
-
 
 @BeamTransformFactory.register_urn(SYNTHETIC_DATA_SAMPLING_URN, (bytes))
 def create_data_sampling_op(

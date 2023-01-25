@@ -196,13 +196,12 @@ class TestOperation(operations.Operation):
 
   def __init__(
       self,
-      name_context,  # type: common.NameContext
-      counter_factory,  # type: counters.CounterFactory
-      state_sampler,  # type: statesampler.StateSampler
-      consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
-      payload,  # type: bytes
+      name_context,
+      counter_factory,
+      state_sampler,
+      consumers,
+      payload,
   ):
-    # type: (...) -> None
     super().__init__(name_context, self.Spec(), counter_factory, state_sampler)
     self.payload = payload
 
@@ -218,23 +217,11 @@ class TestOperation(operations.Operation):
         WindowedValue(self.payload, timestamp=0, windows=[GlobalWindow()]))
 
   def process(self, windowed_value):
-    # type: (windowed_value.WindowedValue) -> None
     self.output(windowed_value)
-
-  def finish(self):
-    # type: () -> None
-    super().finish()
 
 
 @BeamTransformFactory.register_urn('beam:internal:testop:v1', bytes)
-def create_test_op(
-    factory,  # type: BeamTransformFactory
-    transform_id,  # type: str
-    transform_proto,  # type: beam_runner_api_pb2.PTransform
-    payload,  # type: bytes
-    consumers  # type: Dict[str, List[operations.Operation]]
-):
-  # type: (...) -> operations.FlattenOperation
+def create_test_op(factory, transform_id, transform_proto, payload, consumers):
   return TestOperation(
       common.NameContext(transform_proto.unique_name, transform_id),
       factory.counter_factory,
@@ -252,7 +239,7 @@ class DataSamplingTest(unittest.TestCase):
     """
     descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
     descriptor.pcollections['a'].unique_name = 'a'
-    processor = BundleProcessor(descriptor, None, None)
+    _ = BundleProcessor(descriptor, None, None)
     self.assertEqual(len(descriptor.transforms), 0)
 
   def test_adds_data_sampling_operations(self):
@@ -274,8 +261,7 @@ class DataSamplingTest(unittest.TestCase):
     descriptor.coders[
         CODER_ID].spec.urn = common_urns.StandardCoders.Enum.BYTES.urn
 
-    processor = BundleProcessor(
-        descriptor, None, None, data_sampler=data_sampler)
+    _ = BundleProcessor(descriptor, None, None, data_sampler=data_sampler)
 
     # Assert that the data sampling transform was created.
     self.assertEqual(len(descriptor.transforms), 1)

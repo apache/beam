@@ -39,7 +39,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
-from apache_beam.runners.worker import data_sampler
+from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 from apache_beam.utils import profiler
@@ -146,10 +146,9 @@ def create_harness(environment, dry_run=False):
   if dry_run:
     return
 
-
   data_sampler = None
   if 'enable_data_sampling' in experiments:
-    data_sampler = data_sampler.DataSampler()
+    data_sampler = DataSampler()
 
   sdk_harness = SdkHarness(
       control_address=control_service_descriptor.url,
@@ -160,8 +159,7 @@ def create_harness(environment, dry_run=False):
       profiler_factory=profiler.Profile.factory_from_options(
           sdk_pipeline_options.view_as(ProfilingOptions)),
       enable_heap_dump=enable_heap_dump,
-      data_sampler=data_sampler
-  )
+      data_sampler=data_sampler)
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
