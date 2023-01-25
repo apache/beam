@@ -34,11 +34,11 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 @Experimental
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class PubsubSchemaTransformReadConfiguration {
+public abstract class PubsubReadSchemaTransformConfiguration {
 
-  /** Instantiates a {@link PubsubSchemaTransformReadConfiguration.Builder}. */
+  /** Instantiates a {@link PubsubReadSchemaTransformConfiguration.Builder}. */
   public static Builder builder() {
-    return new AutoValue_PubsubSchemaTransformReadConfiguration.Builder();
+    return new AutoValue_PubsubReadSchemaTransformConfiguration.Builder();
   }
 
   /** The expected schema of the Pub/Sub message. */
@@ -165,7 +165,7 @@ public abstract class PubsubSchemaTransformReadConfiguration {
      */
     public abstract Builder setTopic(String value);
 
-    /** Builds a {@link PubsubSchemaTransformReadConfiguration} instance. */
-    public abstract PubsubSchemaTransformReadConfiguration build();
+    /** Builds a {@link PubsubReadSchemaTransformConfiguration} instance. */
+    public abstract PubsubReadSchemaTransformConfiguration build();
   }
 }
