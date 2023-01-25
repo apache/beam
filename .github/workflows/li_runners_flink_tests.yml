@@ -1,12 +1,12 @@
 # This workflow will build a package using Gradle and then publish it to GitHub packages when a release is created
 # For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#Publishing-using-gradle
 
-name: LI Samza Runner Test
+name: LI Flink Runner Test
 
 on:
   pull_request:
     branches: ['li_trunk', "li-release-*"]
-    paths: ['runners/samza/**', 'runners/spark/**', 'buildSrc/src/main/groovy/org/apache/beam/gradle/**']
+    paths: ['runners/flink/**', 'buildSrc/src/main/groovy/org/apache/beam/gradle/**']
 
 jobs:
   build:
@@ -29,5 +29,5 @@ jobs:
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
-    - name: Validate Samza runner
-      run: ./gradlew :runners:samza:build :runners:samza:validatesRunner
+    - name: Validate Flink runner # Point to the latest
+      run: ./gradlew :runners:flink:1.15:build :runners:flink:1.15:validatesRunner
