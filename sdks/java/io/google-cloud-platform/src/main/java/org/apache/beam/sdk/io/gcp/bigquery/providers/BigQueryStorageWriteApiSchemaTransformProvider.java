@@ -37,6 +37,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -45,8 +47,10 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -222,6 +226,32 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       this.testBigQueryServices = testBigQueryServices;
     }
 
+    // A counter of input BQ PCollection element count.
+    private static class ElementCounterFn extends DoFn<Row, Row> {
+      static final Counter bqInputElementCounter =
+          Metrics.counter(
+              BigQueryStorageWriteApiPCollectionRowTupleTransform.class, "element-counter");
+
+      @ProcessElement
+      public void process(ProcessContext c) {
+        bqInputElementCounter.inc();
+        c.output(c.element());
+      }
+    }
+
+    // A counter of output BQ insert failures.
+    private static class ErrorCounterFn extends DoFn<Row, Row> {
+      static final Counter bqErrorCounter =
+          Metrics.counter(
+              BigQueryStorageWriteApiPCollectionRowTupleTransform.class, "error-counter");
+
+      @ProcessElement
+      public void process(ProcessContext c) {
+        bqErrorCounter.inc();
+        c.output(c.element());
+      }
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       // Check that the input exists
@@ -241,7 +271,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                         : Duration.standardSeconds(triggeringFrequency));
       }
 
-      WriteResult result = inputRows.apply(write);
+      Schema inputSchema = inputRows.getSchema();
+      WriteResult result =
+          inputRows.apply(ParDo.of(new ElementCounterFn())).setRowSchema(inputSchema).apply(write);
 
       Schema errorSchema =
           Schema.of(
@@ -263,7 +295,10 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                                   .build()))
               .setRowSchema(errorSchema);
 
-      return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorRows);
+      PCollection<Row> errorOutput =
+          errorRows.apply(ParDo.of(new ErrorCounterFn())).setRowSchema(errorSchema);
+
+      return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorOutput);
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform() {
