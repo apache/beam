@@ -29,7 +29,6 @@
   <properties>
     <cloud-storage.version>2.2.2</cloud-storage.version>
     <elasticsearch.version>7.9.2</elasticsearch.version>
-    <guava.version>31.0.1-jre</guava.version>
     <kafka.version>2.4.1</kafka.version>
     <mockito.version>3.7.7</mockito.version>
     <mockito-inline.version>4.5.1</mockito-inline.version>
