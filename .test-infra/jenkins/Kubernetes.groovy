@@ -123,7 +123,7 @@ class Kubernetes {
    * @param referenceName - name of the environment variable
    */
   void nodeIPAddress(String referenceName) {
-    jobs.steps {
+    job.steps {
       String command = "${KUBERNETES_SCRIPT} nodeIPAddress"
       shell("set -eo pipefail; eval ${command} | sed 's/^/${referenceName}=/' > job.properties")
       environmentVariables {
