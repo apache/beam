@@ -68,9 +68,11 @@ sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
 # Get changed files from Webhook result (body.files)
-diff=$(echo $changed_files | sed -e 's/[][]//g' -e 's/"//g' -e 's/,/\n/g' -e "s/'//g")
-echo "Changed files:"
-echo "${diff}"
+if [ -z $base_ref ] || [ $base_ref == "master" ]; then
+  BASE_REF=origin/master
+fi
+diff=$(git diff --name-only $base_ref $commit_sha | tr '\n' ' ')
+echo $diff
 
 # Check if there are Examples
 for sdk in "${sdks[@]}"
