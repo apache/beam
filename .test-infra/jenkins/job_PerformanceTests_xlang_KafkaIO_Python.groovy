@@ -106,7 +106,7 @@ private void createKafkaIOTestJob(testJob) {
       project         : 'apache-beam-testing',
       region          : 'us-central1',
       temp_location   : 'gs://temp-storage-for-perf-tests/',
-      usePublicIPs    : false,
+      usePublicIPs    : false, // See .test-infra/terraform/google-cloud-platform/networking
       filename_prefix : "gs://temp-storage-for-perf-tests/${testJob.name}/\${BUILD_ID}/",
       sdk_harness_container_image_overrides: '.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest'
     ]

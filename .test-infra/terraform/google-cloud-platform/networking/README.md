@@ -23,7 +23,8 @@ This folder contains Infrastructure-as-Code implemented using
 [terraform](https://terraform.io) to provision resources
 for Apache Beam tests requiring networking specific Google Cloud resources.
 
-Code in the folder:
+To support the [`usePublicIps=false`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/runners/dataflow/options/DataflowPipelineWorkerPoolOptions.html#setUsePublicIps-java.lang.Boolean-)
+flag for Dataflow jobs, code in the folder:
 - Validates the Google Cloud Virtual Private Cloud (VPC) subnetwork has
 has [private Google Access](https://cloud.google.com/vpc/docs/private-google-access)
 turned on
