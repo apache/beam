@@ -18,7 +18,23 @@ limitations under the License.
 
 # Machine Learning
 
-{{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+<table>
+  <tr>
+    <td>
+      <a>
+      {{< button-pydoc path="apache_beam.ml.inference" class="RunInference" >}}
+      </a>
+   </td>
+   <td>
+      <a target="_blank" class="button"
+          href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/extensions/python/transforms/RunInference.html">
+        <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="30px"
+            alt="Javadoc" />
+      Javadoc
+      </a>
+    </td>
+  </tr>
+</table>
 
 You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through tfx-bsl.
 

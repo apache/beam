@@ -37,15 +37,15 @@ import org.apache.beam.sdk.fn.CancellableQueue;
  *
  * <p>Closing the receiver will unblock any upstream producer and downstream consumer exceptionally.
  */
-public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamFnApi.Elements> {
+public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFnApi.Elements> {
 
   /**
    * Creates a receiver that is able to consume elements multiplexing on to the provided set of
    * endpoints.
    */
-  public static BeamFnDataInboundObserver2 forConsumers(
+  public static BeamFnDataInboundObserver forConsumers(
       List<DataEndpoint<?>> dataEndpoints, List<TimerEndpoint<?>> timerEndpoints) {
-    return new BeamFnDataInboundObserver2(dataEndpoints, timerEndpoints);
+    return new BeamFnDataInboundObserver(dataEndpoints, timerEndpoints);
   }
 
   /** Holds the status of whether the endpoint has been completed or not. */
@@ -78,7 +78,7 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
   private final int totalNumEndpoints;
   private int numEndpointsThatAreIncomplete;
 
-  private BeamFnDataInboundObserver2(
+  private BeamFnDataInboundObserver(
       List<DataEndpoint<?>> dataEndpoints, List<TimerEndpoint<?>> timerEndpoints) {
     this.transformIdToDataEndpoint = new HashMap<>();
     for (DataEndpoint<?> endpoint : dataEndpoints) {
