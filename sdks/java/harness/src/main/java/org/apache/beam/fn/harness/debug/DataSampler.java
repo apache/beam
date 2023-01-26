@@ -37,11 +37,16 @@ public class DataSampler {
     private final List<T> buffer = new ArrayList<>();
     private static final Logger LOG = LoggerFactory.getLogger(OutputSampler.class);
 
+    // Maximum number of elements in buffer.
     private final int maxElements = 10;
 
+    // Sampling rate.
     private final int sampleEveryN = 1000;
+
+    // Total number of samples taken.
     private long numSamples = 0;
 
+    // Index into the buffer of where to overwrite samples.
     private int resampleIndex = 0;
 
     public OutputSampler(Coder<T> coder) {

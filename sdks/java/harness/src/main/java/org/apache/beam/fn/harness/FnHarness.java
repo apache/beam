@@ -93,9 +93,8 @@ public class FnHarness {
   private static final String STATUS_API_SERVICE_DESCRIPTOR = "STATUS_API_SERVICE_DESCRIPTOR";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
   private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
-  private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
-
   private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
+  private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
 
   private static final DataSampler dataSampler = new DataSampler();
 
