@@ -36,9 +36,9 @@ from apache_beam.ml.inference import base
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms import window
 
 
 class FakeModel:
@@ -69,10 +69,16 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     pass
 
 
-class FakeModelHandlerReturnsPredictionResult(FakeModelHandler):
+class FakeModelHandlerReturnsPredictionResult(
+    base.ModelHandler[int, base.PredictionResult, FakeModel]):
   def __init__(self, clock=None, model_id='fake_model_id_default'):
     self.model_id = model_id
     self._fake_clock = clock
+
+  def load_model(self):
+    if self._fake_clock:
+      self._fake_clock.current_time_ns += 500_000_000  # 500ms
+    return FakeModel()
 
   def run_inference(
       self,
