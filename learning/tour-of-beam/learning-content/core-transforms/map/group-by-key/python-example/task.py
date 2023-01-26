@@ -14,14 +14,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-#   beam-playground:
+# beam-playground:
 #   name: group-by-key
 #   description: GroupByKey example.
 #   multifile: false
 #   context_line: 43
 #   categories:
 #     - Quickstart
-#   complexity: BASIC
+#   complexity: MEDIUM
 #   tags:
 #     - hellobeam
 

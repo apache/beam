@@ -14,15 +14,15 @@
 // limitations under the License.
 
 // beam-playground:
-// name: pardo-one-to-many
-// description: ParDo one-to-many example.
-// multifile: false
-// context_line: 33
-// categories:
-//   - Quickstart
-// complexity: BASIC
-// tags:
-//   - hellobeam
+//   name: pardo-one-to-many
+//   description: ParDo one-to-many example.
+//   multifile: false
+//   context_line: 33
+//   categories:
+//     - Quickstart
+//   complexity: MEDIUM
+//   tags:
+//     - hellobeam
 
 package main
 

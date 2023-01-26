@@ -14,14 +14,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-#   beam-playground:
+# beam-playground:
 #   name: pardo-one-to-many
 #   description: ParDo one-to-many example.
 #   multifile: false
 #   context_line: 50
 #   categories:
 #     - Quickstart
-#   complexity: BASIC
+#   complexity: MEDIUM
 #   tags:
 #     - hellobeam
 

@@ -14,8 +14,6 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import apache_beam as beam
-
 # beam-playground:
 #   name: simple-function-combine
 #   description: Simple function combine example.
@@ -23,9 +21,11 @@ import apache_beam as beam
 #   context_line: 42
 #   categories:
 #     - Quickstart
-#   complexity: BASIC
+#   complexity: ADVANCED
 #   tags:
 #     - hellobeam
+
+import apache_beam as beam
 
 # Output PCollection
 class Output(beam.PTransform):

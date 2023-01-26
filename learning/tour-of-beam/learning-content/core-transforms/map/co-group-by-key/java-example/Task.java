@@ -15,14 +15,14 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-//   beam-playground:
+// beam-playground:
 //   name: co-group-by-key
 //   description: CoGroupByKey example.
 //   multifile: false
 //   context_line: 33
 //   categories:
 //     - Quickstart
-//   complexity: BASIC
+//   complexity: ADVANCED
 //   tags:
 //     - hellobeam
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;

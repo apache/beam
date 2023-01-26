@@ -18,12 +18,12 @@
 
 // beam-playground:
 //   name: simple-function-combine
-//   description: Simple combine functions
+//   description: Simple function
 //   multifile: false
 //   context_line: 44
 //   categories:
 //     - Quickstart
-//   complexity: BASIC
+//   complexity: ADVANCED
 //   tags:
 //     - hellobeam
 

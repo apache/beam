@@ -13,14 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//   beam-playground:
+// beam-playground:
 //   name: map-elements
 //   description: Map elements example.
 //   multifile: false
 //   context_line: 31
 //   categories:
 //     - Quickstart
-//   complexity: BASIC
+//   complexity: MEDIUM
 //   tags:
 //     - hellobeam
 

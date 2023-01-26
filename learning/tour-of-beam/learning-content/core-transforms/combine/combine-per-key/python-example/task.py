@@ -23,7 +23,7 @@ import apache_beam as beam
 #   context_line: 42
 #   categories:
 #     - Quickstart
-#   complexity: BASIC
+#   complexity: MEDIUM
 #   tags:
 #     - hellobeam
 

@@ -18,12 +18,12 @@
 
 // beam-playground:
 //   name: combine-fn
-//   description: Combine Fn example.
+//   description: Combine-fn example.
 //   multifile: false
 //   context_line: 44
 //   categories:
 //     - Quickstart
-//   complexity: BASIC
+//   complexity: ADVANCED
 //   tags:
 //     - hellobeam
 

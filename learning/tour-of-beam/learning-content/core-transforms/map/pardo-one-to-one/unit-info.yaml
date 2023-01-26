@@ -24,3 +24,4 @@ sdk:
 id: pardo-one-to-one
 name: ParDo one-to-one
 taskName: pardo-one-to-one
+complexity: MEDIUM

@@ -20,7 +20,7 @@
 //   context_line: 36
 //   categories:
 //     - Quickstart
-//   complexity: BASIC
+//   complexity: MEDIUM
 //   tags:
 //     - hellobeam
 

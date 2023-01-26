@@ -13,6 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// beam-playground:
+//   name: combine-fn
+//   description: Combine-fn
+//   multifile: false
+//   context_line: 44
+//   categories:
+//     - Quickstart
+//   complexity: ADVANCED
+//   tags:
+//     - hellobeam
+
 package main
 
 import (

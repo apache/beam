@@ -21,7 +21,7 @@
 #   context_line: 49
 #   categories:
 #     - Quickstart
-#   complexity: BASIC
+#   complexity: MEDIUM
 #   tags:
 #     - hellobeam
 

@@ -13,14 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// beam-playground:
+//   beam-playground:
 //   name: branching
 //   description: Branching example.
 //   multifile: false
 //   context_line: 34
 //   categories:
 //     - Quickstart
-//   complexity: BASIC
+//   complexity: MEDIUM
 //   tags:
 //     - hellobeam
 

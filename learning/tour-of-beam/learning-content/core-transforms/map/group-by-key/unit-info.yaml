@@ -17,6 +17,11 @@
 # under the License.
 #
 
+sdk:
+  - Java
+  - Python
+  - Go
 id: group-by-key
 name: GroupByKey
 taskName: group-by-key
+complexity: MEDIUM

@@ -27,3 +27,4 @@ content:
   - simple-function
   - combine-fn
   - combine-per-key
+  - binary-combine-fn

@@ -14,10 +14,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-#   beam-playground:
+# beam-playground:
 #   name: co-group-by-key
-#   description: Task from katas to implement a CoGroupByKey transform that join words by its first
-#     alphabetical letter, and then produces the string representation of the WordsAlphabet model.
+#   description: CoGroupByKey example.
 #   multifile: false
 #   context_line: 31
 #   categories:

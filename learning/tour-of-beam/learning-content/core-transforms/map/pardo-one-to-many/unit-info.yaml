@@ -24,3 +24,4 @@ sdk:
 id: pardo-one-to-many
 name: ParDo one-to-many
 taskName: pardo-one-to-many
+complexity: MEDIUM
