@@ -75,7 +75,7 @@ job(jobName) {
     tempRoot                     : 'gs://temp-storage-for-perf-tests',
     project                      : 'apache-beam-testing',
     runner                       : 'DataflowRunner',
-    usePublicIPs                 : 'false', // See .test-infra/terraform/google-cloud-platform/networking
+    usePublicIps                 : 'false', // See .test-infra/terraform/google-cloud-platform/networking
     sourceOptions                : """
                                      {
                                        "numRecords": "100000000",
