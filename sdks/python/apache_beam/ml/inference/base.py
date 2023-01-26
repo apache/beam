@@ -64,10 +64,18 @@ _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
 
 
-class PredictionResult(NamedTuple):
-  example: _INPUT_TYPE
-  inference: _OUTPUT_TYPE
-  model_id: Optional[str] = None
+# We use NamedTuple to define the structure of the PredictionResult,
+# however, as support for generic NamedTuples is not available in Python
+# versions prior to 3.11, we use the __new__ method to provide default
+# values for the fields while maintaining backwards compatibility.
+class PredictionResult(NamedTuple('PredictionResult',
+                                  [('example', _INPUT_TYPE),
+                                   ('inference', _OUTPUT_TYPE),
+                                   ('model_id', Optional[str])])):
+  __slots__ = ()
+
+  def __new__(cls, example, inference, model_id=None):
+    return super().__new__(cls, example, inference, model_id)
 
 
 PredictionResult.__doc__ = """A NamedTuple containing both input and output
@@ -75,6 +83,7 @@ PredictionResult.__doc__ = """A NamedTuple containing both input and output
 PredictionResult.example.__doc__ = """The input example."""
 PredictionResult.inference.__doc__ = """Results for the inference on the model
   for the given example."""
+PredictionResult.model_id.__doc__ = """Model ID used to run the prediction."""
 
 
 class ModelMetdata(NamedTuple):
