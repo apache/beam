@@ -126,7 +126,7 @@ Config = typing.NamedTuple(
         ('output_parallelization', typing.Optional[bool]),
         ('autosharding', typing.Optional[bool]),
         ('partitionColumn', typing.Optional[str]),
-        ('tableName', typing.Optional([str])),
+        ('tableName', typing.Optional[str]),
         ('partitions', typing.Optional[bool])
     ],
 )
@@ -293,6 +293,8 @@ class ReadFromJdbc(ExternalTransform):
     :param query: sql query to be executed
     :param output_parallelization: is output parallelization on
     :param fetch_size: how many rows to fetch
+    :param partition_column: enable partitioned reads by splitting on this column.
+    :param partitions: override the default number of splits when using partition_column
     :param connection_properties: properties of the jdbc connection
                                   passed as string with format
                                   [propertyName=property;]*
