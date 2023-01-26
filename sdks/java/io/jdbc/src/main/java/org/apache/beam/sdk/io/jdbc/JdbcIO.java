@@ -77,6 +77,7 @@ import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -101,6 +102,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1703,21 +1705,45 @@ public class JdbcIO {
   static <T> PCollection<Iterable<T>> batchElements(
       PCollection<T> input, @Nullable Boolean withAutoSharding, long batchSize) {
     PCollection<Iterable<T>> iterables;
-    if (input.isBounded() == IsBounded.UNBOUNDED && withAutoSharding != null && withAutoSharding) {
-      iterables =
-          input
-              .apply(WithKeys.<String, T>of(""))
-              .apply(
-                  GroupIntoBatches.<String, T>ofSize(batchSize)
-                      .withMaxBufferingDuration(Duration.millis(200))
-                      .withShardedKey())
-              .apply(Values.create());
+    if (input.isBounded() == IsBounded.UNBOUNDED) {
+      PCollection<KV<String, T>> keyedInput = input.apply(WithKeys.<String, T>of(""));
+      GroupIntoBatches<String, T> groupTransform =
+          GroupIntoBatches.<String, T>ofSize(batchSize)
+              .withMaxBufferingDuration(Duration.millis(200));
+      if (withAutoSharding != null && withAutoSharding) {
+        // unbounded and withAutoSharding enabled, group into batches with shardedKey
+        iterables = keyedInput.apply(groupTransform.withShardedKey()).apply(Values.create());
+      } else {
+        // unbounded and without auto sharding, group into batches of assigned max size
+        iterables = keyedInput.apply(groupTransform).apply(Values.create());
+      }
     } else {
       iterables =
-          input
-              .apply(WithKeys.<String, T>of(""))
-              .apply(GroupIntoBatches.<String, T>ofSize(batchSize).withShardedKey())
-              .apply(Values.create());
+          input.apply(
+              ParDo.of(
+                  new DoFn<T, Iterable<T>>() {
+                    @Nullable List<T> outputList;
+
+                    @ProcessElement
+                    public void process(ProcessContext c) {
+                      if (outputList == null) {
+                        outputList = new ArrayList<>();
+                      }
+                      outputList.add(c.element());
+                      if (outputList.size() > batchSize) {
+                        c.output(outputList);
+                        outputList = null;
+                      }
+                    }
+
+                    @FinishBundle
+                    public void finish(FinishBundleContext c) {
+                      if (outputList != null && outputList.size() > 0) {
+                        c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
+                      }
+                      outputList = null;
+                    }
+                  }));
     }
     return iterables;
   }
