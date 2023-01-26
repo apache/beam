@@ -98,13 +98,15 @@ class DataSampler:
   Samples generated during execution can then be sampled with the `samples`
   method. This can filter to samples from a descriptor id and pcollection id.
   """
-  def __init__(self) -> None:
+  def __init__(self, max_samples: int = 10, sample_every_n: int = 1000) -> None:
     # Key is a tuple of (ProcessBundleDescriptor id, PCollection id). Is guarded
     # by the _samplers_lock.
     self._samplers: Dict[Tuple[str, str], OutputSampler] = {}
     # Bundles are processed in parallel, so new samplers may be added when the
     # runner queries for samples.
     self._samplers_lock: threading.Lock = threading.Lock()
+    self._max_samples = max_samples
+    self._sampler_every_n = sample_every_n
 
   def sample_output(
       self, descriptor_id: str, pcoll_id: str, coder: Coder) -> OutputSampler:
@@ -114,7 +116,7 @@ class DataSampler:
       if key in self._samplers:
         sampler = self._samplers[key]
       else:
-        sampler = OutputSampler(coder)
+        sampler = OutputSampler(coder, self._max_samples, self._sampler_every_n)
         self._samplers[key] = sampler
       return sampler
 
@@ -142,3 +144,8 @@ class DataSampler:
         ret[pcoll_id].extend(samples)
 
     return dict(ret)
+
+  def clear(self) -> None:
+    """Clears all samples."""
+    for sampler in self._samplers.values():
+      sampler.flush()
