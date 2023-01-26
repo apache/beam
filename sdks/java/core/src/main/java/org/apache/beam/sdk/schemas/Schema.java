@@ -142,8 +142,18 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableByteField(String name) {
+      fields.add(Field.nullable(name, FieldType.BYTE));
+      return this;
+    }
+
     public Builder addByteArrayField(String name) {
       fields.add(Field.of(name, FieldType.BYTES));
+      return this;
+    }
+
+    public Builder addNullableByteArrayField(String name) {
+      fields.add(Field.nullable(name, FieldType.BYTES));
       return this;
     }
 
@@ -152,8 +162,18 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableInt16Field(String name) {
+      fields.add(Field.nullable(name, FieldType.INT16));
+      return this;
+    }
+
     public Builder addInt32Field(String name) {
       fields.add(Field.of(name, FieldType.INT32));
+      return this;
+    }
+
+    public Builder addNullableInt32Field(String name) {
+      fields.add(Field.nullable(name, FieldType.INT32));
       return this;
     }
 
@@ -162,8 +182,18 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableInt64Field(String name) {
+      fields.add(Field.nullable(name, FieldType.INT64));
+      return this;
+    }
+
     public Builder addDecimalField(String name) {
       fields.add(Field.of(name, FieldType.DECIMAL));
+      return this;
+    }
+
+    public Builder addNullableDecimalField(String name) {
+      fields.add(Field.nullable(name, FieldType.DECIMAL));
       return this;
     }
 
@@ -172,8 +202,18 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableFloatField(String name) {
+      fields.add(Field.nullable(name, FieldType.FLOAT));
+      return this;
+    }
+
     public Builder addDoubleField(String name) {
       fields.add(Field.of(name, FieldType.DOUBLE));
+      return this;
+    }
+
+    public Builder addNullableDoubleField(String name) {
+      fields.add(Field.nullable(name, FieldType.DOUBLE));
       return this;
     }
 
@@ -182,13 +222,28 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableStringField(String name) {
+      fields.add(Field.nullable(name, FieldType.STRING));
+      return this;
+    }
+
     public Builder addDateTimeField(String name) {
       fields.add(Field.of(name, FieldType.DATETIME));
       return this;
     }
 
+    public Builder addNullableDateTimeField(String name) {
+      fields.add(Field.nullable(name, FieldType.DATETIME));
+      return this;
+    }
+
     public Builder addBooleanField(String name) {
       fields.add(Field.of(name, FieldType.BOOLEAN));
+      return this;
+    }
+
+    public Builder addNullableBooleanField(String name) {
+      fields.add(Field.nullable(name, FieldType.BOOLEAN));
       return this;
     }
 
@@ -198,8 +253,19 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public <InputT, BaseT> Builder addNullableLogicalTypeField(
+        String name, LogicalType<InputT, BaseT> logicalType) {
+      fields.add(Field.nullable(name, FieldType.logicalType(logicalType)));
+      return this;
+    }
+
     public Builder addArrayField(String name, FieldType collectionElementType) {
       fields.add(Field.of(name, FieldType.array(collectionElementType)));
+      return this;
+    }
+
+    public Builder addNullableArrayField(String name, FieldType collectionElementType) {
+      fields.add(Field.nullable(name, FieldType.array(collectionElementType)));
       return this;
     }
 
@@ -208,13 +274,28 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addNullableIterableField(String name, FieldType collectionElementType) {
+      fields.add(Field.nullable(name, FieldType.iterable(collectionElementType)));
+      return this;
+    }
+
     public Builder addRowField(String name, Schema fieldSchema) {
       fields.add(Field.of(name, FieldType.row(fieldSchema)));
       return this;
     }
 
+    public Builder addNullableRowField(String name, Schema fieldSchema) {
+      fields.add(Field.nullable(name, FieldType.row(fieldSchema)));
+      return this;
+    }
+
     public Builder addMapField(String name, FieldType keyType, FieldType valueType) {
       fields.add(Field.of(name, FieldType.map(keyType, valueType)));
+      return this;
+    }
+
+    public Builder addNullableMapField(String name, FieldType keyType, FieldType valueType) {
+      fields.add(Field.nullable(name, FieldType.map(keyType, valueType)));
       return this;
     }
 
