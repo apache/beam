@@ -67,13 +67,13 @@ BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
-echo $branch_name
+echo $branch
 # Get changed files from Webhook result (body.files)
-if [ -z $branch_name ] || [ $branch_name == "master" ]; then
+if [ -z $branch ] || [ $branch == "master" ]; then
     branch_name=origin/master
 fi
 
-diff=$(git diff --name-only $branch_name $commit_sha)
+diff=$(git diff --name-only $branch $commit_sha)
 diff=$(echo $diff | sed -e "s/ /\n/g" -e "s/'//g")
 
 # Check if there are Examples
