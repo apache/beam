@@ -21,6 +21,7 @@ import 'dart:io';
 
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
+import 'package:playground_components/playground_components.dart';
 
 import '../../auth/notifier.dart';
 import '../../config.dart';
@@ -104,7 +105,7 @@ class CloudFunctionsTobClient extends TobClient {
 
   @override
   Future<void> postUserCode({
-    required String code,
+    required List<SnippetFile> snippetFiles,
     required String sdkId,
     required String unitId,
   }) async {
@@ -121,13 +122,7 @@ class CloudFunctionsTobClient extends TobClient {
         HttpHeaders.authorizationHeader: 'Bearer $token',
       },
       body: jsonEncode({
-        'files': [
-          {
-            'content': code,
-            'isMain': true,
-            'name': '',
-          },
-        ],
+        'files': snippetFiles.map((file) => file.toJson()).toList(),
         'pipelineOptions': '',
       }),
     );

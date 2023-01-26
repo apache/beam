@@ -193,7 +193,7 @@ class _SnippetTypeSwitcher extends StatelessWidget {
               tourNotifier: tourNotifier,
               label: 'pages.tour.solution'.tr(),
             ),
-          if (tourNotifier.hasSavedSnippet) ...[
+          if (tourNotifier.hasSolution || tourNotifier.hasSavedSnippet)
             _SnippetTypeButton(
               buttonSnippetType: SnippetType.original,
               tourNotifier: tourNotifier,
@@ -201,12 +201,12 @@ class _SnippetTypeSwitcher extends StatelessWidget {
                   ? 'pages.tour.assignment'.tr()
                   : 'pages.tour.example'.tr(),
             ),
+          if (tourNotifier.hasSavedSnippet)
             _SnippetTypeButton(
               buttonSnippetType: SnippetType.saved,
               tourNotifier: tourNotifier,
               label: 'pages.tour.myCode'.tr(),
             ),
-          ]
         ],
       ),
     );

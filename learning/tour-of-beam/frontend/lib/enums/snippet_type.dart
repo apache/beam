@@ -16,4 +16,8 @@
  * limitations under the License.
  */
 
-enum SnippetType { original, saved, solution }
+enum SnippetType {
+  original,
+  saved,
+  solution,
+}

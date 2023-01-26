@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'package:playground_components/playground_components.dart';
+
 import '../../models/content_tree.dart';
 import '../../models/unit_content.dart';
 import '../models/get_sdks_response.dart';
@@ -33,7 +35,7 @@ abstract class TobClient {
   Future<void> postUnitComplete(String sdkId, String id);
 
   Future<void> postUserCode({
-    required String code,
+    required List<SnippetFile> snippetFiles,
     required String sdkId,
     required String unitId,
   });

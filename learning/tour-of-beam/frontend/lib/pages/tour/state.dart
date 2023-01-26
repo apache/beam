@@ -70,46 +70,55 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   void _setSaveCodeListener() {
-    // Creates snippetEditingController
+    // Creates snippetEditingController if it doesn't exist.
     playgroundController.setSdk(_appNotifier.sdk!);
-    // Notifies when activeFileController is created
+    // Notifies when activeFileController is created.
     playgroundController.snippetEditingController?.addListener(
       _snippedEditingControllerListener,
     );
   }
 
   void _snippedEditingControllerListener() {
-    // Notifies when code is changed
+    // Notifies when code is changed.
     playgroundController
         .snippetEditingController?.activeFileController?.codeController
-        .addListener(_saveCodeListener);
+        .addListener(_onCodeChanged);
   }
 
-  void _saveCodeListener() {
+  void _onCodeChanged() {
+    final snippetEditingController =
+        playgroundController.snippetEditingController!;
     final currentUnit = currentUnitController;
-    final isCodeChanged = playgroundController
-            .snippetEditingController?.activeFileController?.isChanged ??
-        false;
-    final code = playgroundController.snippetEditingController
-        ?.activeFileController?.codeController.fullText;
+    final isCodeChanged =
+        snippetEditingController.activeFileController?.isChanged ?? false;
+    final snippetFiles = snippetEditingController.getFiles();
+
     final doSave = _authNotifier.isAuthenticated &&
         isCodeChanged &&
         currentUnit != null &&
-        code != null;
+        snippetFiles.isNotEmpty;
 
     if (doSave) {
-      _saveCodeDebounced?.call([
-        currentUnit.sdkId,
-        currentUnit.unitId,
-        code,
-      ]);
+      _saveCodeDebounced?.call([], {
+        const Symbol('sdkId'): currentUnit.sdkId,
+        const Symbol('unitId'): currentUnit.unitId,
+        const Symbol('snippetFiles'): snippetFiles,
+      });
     }
   }
 
-  Future<void> _saveUserCode(String sdkId, String unitId, String code) async {
+  Future<void> _saveUserCode({
+    required String sdkId,
+    required List<SnippetFile> snippetFiles,
+    required String unitId,
+  }) async {
     try {
       final client = GetIt.instance.get<TobClient>();
-      await client.postUserCode(sdkId: sdkId, unitId: unitId, code: code);
+      await client.postUserCode(
+        sdkId: sdkId,
+        snippetFiles: snippetFiles,
+        unitId: unitId,
+      );
       if (!hasSavedSnippet) {
         await _unitProgressCache.updateUnitProgress();
         _snippetType = SnippetType.saved;
@@ -298,9 +307,10 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _authNotifier.removeListener(_onAuthChanged);
     playgroundController.snippetEditingController
         ?.removeListener(_snippedEditingControllerListener);
+    // TODO(nausharipov): use stream events https://github.com/apache/beam/issues/25185
     playgroundController
         .snippetEditingController?.activeFileController?.codeController
-        .removeListener(_saveCodeListener);
+        .removeListener(_onCodeChanged);
     super.dispose();
   }
 }
