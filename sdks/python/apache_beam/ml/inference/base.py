@@ -64,10 +64,18 @@ _OUTPUT_TYPE = TypeVar('_OUTPUT_TYPE')
 KeyT = TypeVar('KeyT')
 
 
-class PredictionResult(NamedTuple):
-  example: _INPUT_TYPE
-  inference: _OUTPUT_TYPE
-  model_id: Optional[str] = None
+# We use NamedTuple to define the structure of the PredictionResult,
+# however, as support for generic NamedTuples is not available in Python
+# versions prior to 3.11, we use the __new__ method to provide default
+# values for the fields while maintaining backwards compatibility.
+class PredictionResult(NamedTuple('PredictionResult',
+                                  [('example', _INPUT_TYPE),
+                                   ('inference', _OUTPUT_TYPE),
+                                   ('model_id', Optional[str])])):
+  __slots__ = ()
+
+  def __new__(cls, example, inference, model_id=None):
+    return super().__new__(cls, example, inference, model_id)
 
 
 PredictionResult.__doc__ = """A NamedTuple containing both input and output
@@ -75,6 +83,7 @@ PredictionResult.__doc__ = """A NamedTuple containing both input and output
 PredictionResult.example.__doc__ = """The input example."""
 PredictionResult.inference.__doc__ = """Results for the inference on the model
   for the given example."""
+PredictionResult.model_id.__doc__ = """Model ID used to run the prediction."""
 
 
 class ModelMetdata(NamedTuple):
@@ -495,7 +504,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     if not self._enable_side_input_loading:
       self._model = self._load_model()
 
-  def update_model(self, side_input_model_path):
+  def update_model(self, side_input_model_path: Optional[str] = None):
     self._model = self._load_model(side_input_model_path=side_input_model_path)
 
   def _run_inference(self, batch, inference_args):
@@ -517,27 +526,25 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     return predictions
 
   def process(
-      self,
-      batch,
-      inference_args,
-      si_model_metadata: Optional[ModelMetdata] = None):
-    if self._enable_side_input_loading:
-      side_input_model_id = None
-      # when a side input gets refreshed, new instance of DoFn would
-      # be invoked. Then self._side_input_path and side_input_model_id
-      # would be different values.
-      if ((not isinstance(si_model_metadata, beam.pvalue.EmptySideInput)) and
-          (self._side_input_path != si_model_metadata.model_id)):
+      self, batch, inference_args, si_model_metadata: Optional[ModelMetdata]):
+    """
+    When side input is enabled:
+      The method checks if the side input model has been updated, and if so,
+      updates the model and runs inference on the batch of data. If the
+      side input is empty or the model has not been updated, the method
+      simply runs inference on the batch of data.
+    """
+    if si_model_metadata and self._enable_side_input_loading:
+      if isinstance(si_model_metadata, beam.pvalue.EmptySideInput):
+        self.update_model(side_input_model_path=None)
+        return self._run_inference(batch, inference_args)
+      elif self._side_input_path != si_model_metadata.model_id:
+        self._side_input_path = si_model_metadata.model_id
         self._metrics_collector = self.get_metrics_collector(
             prefix=si_model_metadata.model_name)
-        side_input_model_id = si_model_metadata.model_id
-        self._side_input_path = side_input_model_id
-        logging.info("Side Input is updated to %s " % side_input_model_id)
         with threading.Lock():
-          self.update_model(side_input_model_id)
+          self.update_model(si_model_metadata.model_id)
           return self._run_inference(batch, inference_args)
-      else:
-        self.update_model(side_input_model_id)
     return self._run_inference(batch, inference_args)
 
   def finish_bundle(self):
