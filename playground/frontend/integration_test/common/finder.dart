@@ -27,7 +27,6 @@ extension FinderExtension on Finder {
         .expand((e) => e)
         .where((e) => e.widget.runtimeType == childType);
 
-    //todo: may be there are a way to create finder more efficiently
     return find.byElementPredicate(
       (element) => childElements.contains(element),
     );
