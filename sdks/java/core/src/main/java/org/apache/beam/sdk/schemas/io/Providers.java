@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,24 +42,25 @@ public final class Providers {
   public static <T extends Identifyable> Map<String, T> loadProviders(Class<T> klass) {
     Map<String, T> providers = new HashMap<>();
     for (T provider : ServiceLoader.load(klass)) {
-      // Avro provider is treated as a special case until two providers may exist: in "core"
-      // (deprecated) and in "extensions/avro" (actual).
+      // Avro provider is treated as a special case since two Avro providers may want to be loaded -
+      // from "core" (deprecated) and from "extensions/avro" (actual) - but only one must succeed.
+      // TODO: this check should be removed once once AvroPayloadSerializerProvider from "core" is
+      // removed
       if (provider.identifier().equals("avro")) {
         // Avro provider from "extensions/avro" must have a priority.
         if (provider
-            .toString()
-            .startsWith(
+            .getClass()
+            .getName()
+            .equals(
                 "org.apache.beam.sdk.extensions.avro.schemas.io.payloads.AvroPayloadSerializerProvider")) {
           // Use AvroPayloadSerializerProvider from extensions/avro by any case.
           providers.put(provider.identifier(), provider);
         } else {
           // Load Avro provider from "core" if it was not loaded from Avro extension before.
-          if (!providers.containsKey(provider.identifier())) {
-            providers.put(provider.identifier(), provider);
-          }
+          providers.putIfAbsent(provider.identifier(), provider);
         }
       } else {
-        checkArgument(
+        checkState(
             !providers.containsKey(provider.identifier()),
             "Duplicate providers exist with identifier `%s` for class %s.",
             provider.identifier(),
