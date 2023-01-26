@@ -18,17 +18,16 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
+
 import 'package:playground_components/playground_components.dart';
 
-import '../../../cache/unit_progress.dart';
 import '../../../constants/sizes.dart';
+import '../../../enums/snippet_type.dart';
 import '../../../models/unit_content.dart';
 import '../state.dart';
 import 'complete_unit_button.dart';
 import 'hints.dart';
 import 'markdown/tob_markdown.dart';
-import 'solution_button.dart';
 
 class UnitContentWidget extends StatelessWidget {
   final TourNotifier tourNotifier;
@@ -156,14 +155,9 @@ class _Buttons extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        AnimatedBuilder(
-          animation: tourNotifier,
-          builder: (context, child) => tourNotifier.isCurrentUnitCodeSaved
-              ? Padding(
-                  padding: _buttonPadding,
-                  child: _ResetCodeButton(tourNotifier: tourNotifier),
-                )
-              : Container(),
+        _SnippetTypeSwitcher(
+          tourNotifier: tourNotifier,
+          unitContent: unitContent,
         ),
         if (hints.isNotEmpty)
           Padding(
@@ -172,29 +166,75 @@ class _Buttons extends StatelessWidget {
               hints: hints,
             ),
           ),
-        if (tourNotifier.doesCurrentUnitHaveSolution)
-          Padding(
-            padding: _buttonPadding,
-            child: SolutionButton(tourNotifier: tourNotifier),
-          ),
       ],
     );
   }
 }
 
-class _ResetCodeButton extends StatelessWidget {
+class _SnippetTypeSwitcher extends StatelessWidget {
   final TourNotifier tourNotifier;
-  const _ResetCodeButton({required this.tourNotifier});
+  final UnitContentModel unitContent;
+
+  const _SnippetTypeSwitcher({
+    required this.tourNotifier,
+    required this.unitContent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // TODO(nausharipov): styling
+    return AnimatedBuilder(
+      animation: tourNotifier,
+      builder: (context, child) => Row(
+        children: [
+          if (tourNotifier.hasSolution)
+            _SnippetTypeButton(
+              buttonSnippetType: SnippetType.solution,
+              tourNotifier: tourNotifier,
+              label: 'pages.tour.solution'.tr(),
+            ),
+          if (tourNotifier.hasSavedSnippet) ...[
+            _SnippetTypeButton(
+              buttonSnippetType: SnippetType.original,
+              tourNotifier: tourNotifier,
+              label: unitContent.isChallenge
+                  ? 'pages.tour.assignment'.tr()
+                  : 'pages.tour.example'.tr(),
+            ),
+            _SnippetTypeButton(
+              buttonSnippetType: SnippetType.saved,
+              tourNotifier: tourNotifier,
+              label: 'pages.tour.myCode'.tr(),
+            ),
+          ]
+        ],
+      ),
+    );
+  }
+}
+
+class _SnippetTypeButton extends StatelessWidget {
+  final SnippetType buttonSnippetType;
+  final String label;
+  final TourNotifier tourNotifier;
+
+  const _SnippetTypeButton({
+    required this.buttonSnippetType,
+    required this.tourNotifier,
+    required this.label,
+  });
+
+  Future<void> _setSnippetByType() async {
+    await tourNotifier.setSnippetByType(buttonSnippetType);
+  }
 
   @override
   Widget build(BuildContext context) {
     return TextButton(
-      onPressed: tourNotifier.toggleIsSnippetReset,
-      child: Text(
-        tourNotifier.isSnippetReset
-            ? 'pages.tour.myCode'
-            : 'pages.tour.resetCode',
-      ).tr(),
+      onPressed: buttonSnippetType == tourNotifier.snippetType
+          ? null
+          : _setSnippetByType,
+      child: Text(label),
     );
   }
 }

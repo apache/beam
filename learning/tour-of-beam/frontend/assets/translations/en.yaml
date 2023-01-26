@@ -27,7 +27,6 @@ ui:
   reportIssue: Report Issue in GitHub
   signIn: Sign in
   signOut: Sign out
-  solution: Solution
   toWebsite: To Apache Beam website
 
 pages:
@@ -38,10 +37,12 @@ pages:
     startTour: Start your tour
     title: Welcome to the Tour of Beam!
   tour:
+    assignment: Assignment
     completeUnit: Complete Unit
-    summaryTitle: Table of Contents
+    example: Example
     myCode: My code
-    resetCode: Reset
+    solution: Solution
+    summaryTitle: Table of Contents
 
 dialogs:
   signInIf: If you would like to save your progress and track completed modules
