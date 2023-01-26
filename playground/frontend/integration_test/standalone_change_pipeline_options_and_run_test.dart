@@ -21,12 +21,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_body.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_input.dart';
+import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_row.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_text_field.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
+import 'common/finder.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -74,11 +76,11 @@ void main() {
 
 Future<void> _addTwoOptions(WidgetTester wt) async {
   await wt.enterText(
-    _getPipelineOptionsTextField(wt, _Placement.topLeft),
+    find.byType(PipelineOptionsTextField).horizontallyAt(0, wt),
     'some',
   );
   await wt.enterText(
-    _getPipelineOptionsTextField(wt, _Placement.topRight),
+    find.byType(PipelineOptionsTextField).horizontallyAt(1, wt),
     'test',
   );
 
@@ -86,50 +88,22 @@ Future<void> _addTwoOptions(WidgetTester wt) async {
   await wt.pumpAndSettle();
 
   await wt.enterText(
-    _getPipelineOptionsTextField(wt, _Placement.bottomLeft),
+    find
+        .byType(PipelineOptionsRow)
+        .verticallyAt(1, wt)
+        .getChildrenByType(PipelineOptionsTextField)
+        .horizontallyAt(0, wt),
     'some2',
   );
+
   await wt.enterText(
-    _getPipelineOptionsTextField(wt, _Placement.bottomRight),
+    find
+        .byType(PipelineOptionsRow)
+        .verticallyAt(1, wt)
+        .getChildrenByType(PipelineOptionsTextField)
+        .horizontallyAt(1, wt),
     'test2',
   );
-}
-
-Finder _getPipelineOptionsTextField(WidgetTester wt, _Placement placement) {
-  final fields = find.byType(PipelineOptionsTextField);
-  final positions = <_Point>[];
-  for (var i = 0; i < fields.evaluate().length; i++) {
-    final element = fields.at(i);
-    final position = wt.getCenter(element);
-    positions.add(_Point(position.dx, position.dy));
-  }
-
-  late _Point Function(_Point, _Point) reduceFunc;
-  switch (placement) {
-    case _Placement.topLeft:
-      reduceFunc = (a, b) => a.x <= b.x && a.y <= b.y ? a : b;
-      break;
-    case _Placement.topRight:
-      reduceFunc = (a, b) => a.x >= b.x && a.y <= b.y ? a : b;
-      break;
-    case _Placement.bottomLeft:
-      reduceFunc = (a, b) => a.x <= b.x && a.y >= b.y ? a : b;
-      break;
-    case _Placement.bottomRight:
-      reduceFunc = (a, b) => a.x >= b.x && a.y >= b.y ? a : b;
-      break;
-  }
-  final position = positions.reduce(reduceFunc);
-  return fields.at(positions.indexOf(position));
-}
-
-enum _Placement { topLeft, topRight, bottomLeft, bottomRight }
-
-class _Point {
-  final double x;
-  final double y;
-
-  _Point(this.x, this.y);
 }
 
 Finder _getBottomDeleteIcon(WidgetTester wt) {
