@@ -16,4 +16,7 @@
  * limitations under the License.
  */
 
-enum FeedbackRating { positive, negative }
+enum FeedbackRating {
+  positive,
+  negative,
+}

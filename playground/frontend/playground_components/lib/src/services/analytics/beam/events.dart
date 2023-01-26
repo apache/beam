@@ -16,19 +16,7 @@
  * limitations under the License.
  */
 
-// To build and run the app, copy this file to './config.g.dart'
-// This is a temporary solution while we cannot have 'config.g.dart'
-// in the repository.
-// TODO: https://github.com/apache/beam/issues/24200
-
-const String kAnalyticsUA = 'UA-73650088-2';
-const String kApiClientURL =
-    'https://backend-router-beta-dot-apache-beam-testing.appspot.com';
-const String kApiJavaClientURL =
-    'https://backend-java-beta-dot-apache-beam-testing.appspot.com';
-const String kApiGoClientURL =
-    'https://backend-go-beta-dot-apache-beam-testing.appspot.com';
-const String kApiPythonClientURL =
-    'https://backend-python-beta-dot-apache-beam-testing.appspot.com';
-const String kApiScioClientURL =
-    'https://backend-scio-beta-dot-apache-beam-testing.appspot.com';
+class GenericAnalyticsEvents {
+  static const run = 'click_run';
+  static const modifySnippet = 'modify_example';
+}

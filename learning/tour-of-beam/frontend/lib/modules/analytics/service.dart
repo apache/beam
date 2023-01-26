@@ -30,8 +30,6 @@ abstract class TobAnalyticsService extends AnalyticsService {
   Future<void> openUnit(Sdk sdk, UnitModel unit);
   Future<void> closeUnit(Sdk sdk, String unitId, Duration timeSpent);
   Future<void> completeUnit(Sdk sdk, UnitModel unit);
-  // TODO(nausharipov): implement
-  Future<void> completeModule(Sdk sdk, ModuleModel module);
   Future<void> positiveFeedback(String feedback);
   Future<void> negativeFeedback(String feedback);
 }

@@ -23,7 +23,7 @@ import 'package:playground/modules/analytics/service.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
-class PlaygroundGoogleAnalyticsService extends GoogleAnalyticsService
+class PlaygroundGoogleAnalyticsService extends BeamAnalyticsService
     implements PlaygroundAnalyticsService {
   static const _appName = 'beam';
   static const _appVersion = '1.0';

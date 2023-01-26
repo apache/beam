@@ -21,13 +21,12 @@ import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
 import '../../config.dart';
-import '../../models/module.dart';
 import '../../models/unit.dart';
 import 'categories.dart';
 import 'events.dart';
 import 'service.dart';
 
-class TobGoogleAnalyticsService extends GoogleAnalyticsService
+class TobGoogleAnalyticsService extends BeamAnalyticsService
     implements TobAnalyticsService {
   static const _appName = 'beam';
   static const _appVersion = '1.0';
@@ -75,17 +74,6 @@ class TobGoogleAnalyticsService extends GoogleAnalyticsService
         action: TobAnalyticsEvents.completeUnit,
         category: TobAnalyticsCategories.unit,
         label: '${sdk.title}_${unit.id}',
-      ),
-    );
-  }
-
-  @override
-  Future<void> completeModule(Sdk sdk, ModuleModel module) async {
-    await _safeSendEvent(
-      AnalyticsEvent(
-        action: TobAnalyticsEvents.completeModule,
-        category: TobAnalyticsCategories.module,
-        label: '${sdk.title}_${module.id}',
       ),
     );
   }

@@ -18,15 +18,15 @@
 
 import 'package:usage/usage_html.dart';
 
+import 'beam/categories.dart';
+import 'beam/events.dart';
 import 'event.dart';
-import 'generic/categories.dart';
-import 'generic/events.dart';
 import 'service.dart';
 
-class GoogleAnalyticsService implements AnalyticsService {
+class BeamAnalyticsService implements AnalyticsService {
   late AnalyticsHtml _appAnalytics;
 
-  GoogleAnalyticsService({
+  BeamAnalyticsService({
     required AnalyticsHtml appAnalytics,
   }) {
     _appAnalytics = appAnalytics;
