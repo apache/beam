@@ -28,6 +28,7 @@ import '../../auth/notifier.dart';
 import '../../cache/unit_content.dart';
 import '../../cache/unit_progress.dart';
 import '../../config.dart';
+import '../../enums/save_code_status.dart';
 import '../../enums/snippet_type.dart';
 import '../../models/unit.dart';
 import '../../models/unit_content.dart';
@@ -67,6 +68,29 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     );
     _setSaveCodeListener();
     _onUnitChanged();
+  }
+
+  @override
+  PagePath get path => TourPath(
+        sdkId: contentTreeController.sdkId,
+        treeIds: contentTreeController.treeIds,
+      );
+
+  String? get currentUnitId => currentUnitController?.unitId;
+  UnitContentModel? get currentUnitContent => _currentUnitContent;
+
+  bool get hasSolution => currentUnitContent?.solutionSnippetId != null;
+  bool get hasSavedSnippet =>
+      _unitProgressCache.getUnitSnippets()[currentUnitId] != null;
+
+  SnippetType _snippetType = SnippetType.original;
+  SnippetType get snippetType => _snippetType;
+
+  SaveCodeStatus _saveCodeStatus = SaveCodeStatus.saved;
+  SaveCodeStatus get saveCodeStatus => _saveCodeStatus;
+  set saveCodeStatus(SaveCodeStatus saveCodeStatus) {
+    _saveCodeStatus = saveCodeStatus;
+    notifyListeners();
   }
 
   void _setSaveCodeListener() {
@@ -112,6 +136,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     required List<SnippetFile> snippetFiles,
     required String unitId,
   }) async {
+    saveCodeStatus = SaveCodeStatus.saving;
     try {
       final client = GetIt.instance.get<TobClient>();
       await client.postUserCode(
@@ -119,35 +144,21 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         snippetFiles: snippetFiles,
         unitId: unitId,
       );
-      if (!hasSavedSnippet) {
-        await _unitProgressCache.updateUnitProgress();
-        _snippetType = SnippetType.saved;
-        notifyListeners();
-      }
+      await _checkHasSavedSnippet();
+      saveCodeStatus = SaveCodeStatus.saved;
     } on Exception catch (e) {
-      // TODO(nausharipov): how to handle?
       print(['Could not save code: ', e]);
+      _saveCodeStatus = SaveCodeStatus.error;
     }
   }
 
-  @override
-  PagePath get path => TourPath(
-        sdkId: contentTreeController.sdkId,
-        treeIds: contentTreeController.treeIds,
-      );
-
-  String? get currentUnitId => currentUnitController?.unitId;
-  UnitContentModel? get currentUnitContent => _currentUnitContent;
-  bool get hasSolution => currentUnitContent?.solutionSnippetId != null;
-  bool get hasSavedSnippet =>
-      _unitProgressCache.getUnitSnippets()[currentUnitId] != null;
-
-  SnippetType _snippetType = SnippetType.original;
-  SnippetType get snippetType => _snippetType;
-  Future<void> setSnippetByType(SnippetType snippetType) async {
-    _snippetType = snippetType;
-    await _setCurrentSnippet();
-    notifyListeners();
+  Future<void> setSnippetByTypeIfChanged(SnippetType snippetType) async {
+    if (snippetType != _snippetType) {
+      _snippetType = snippetType;
+      await _unitProgressCache.updateUnitProgress();
+      await _setCurrentSnippet();
+      notifyListeners();
+    }
   }
 
   void _createCurrentUnitController(String sdkId, String unitId) {
@@ -186,8 +197,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     } else {
       _emptyPlayground();
     }
-
-    notifyListeners();
   }
 
   Future<void> _setCurrentUnitContent(UnitContentModel? content) async {
@@ -200,7 +209,23 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     if (content == null) {
       return;
     }
+
+    await _checkHasSavedSnippet();
+    _setSavedTypeIfHas();
     await _setCurrentSnippet();
+    notifyListeners();
+  }
+
+  Future<void> _checkHasSavedSnippet() async {
+    if (!hasSavedSnippet) {
+      await _unitProgressCache.updateUnitProgress();
+    }
+  }
+
+  void _setSavedTypeIfHas() {
+    if (hasSavedSnippet) {
+      _snippetType = SnippetType.saved;
+    }
   }
 
   Future<void> _setCurrentSnippet() async {
@@ -215,7 +240,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         snippetId = unit.taskSnippetId;
         break;
       case SnippetType.saved:
-        await _unitProgressCache.updateUnitProgress();
         snippetId =
             _unitProgressCache.getUnitSnippets()[unit.id] ?? unit.taskSnippetId;
         break;
@@ -223,7 +247,6 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         snippetId = unit.solutionSnippetId;
         break;
     }
-
     await _setPlaygroundSnippet(snippetId);
   }
 

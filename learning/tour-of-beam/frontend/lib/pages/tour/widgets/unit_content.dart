@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../constants/sizes.dart';
+import '../../../enums/save_code_status.dart';
 import '../../../enums/snippet_type.dart';
 import '../../../models/unit_content.dart';
 import '../state.dart';
@@ -144,7 +145,6 @@ class _Buttons extends StatelessWidget {
   });
 
   static const _buttonPadding = EdgeInsets.only(
-    top: BeamSizes.size10,
     right: BeamSizes.size10,
   );
 
@@ -185,29 +185,34 @@ class _SnippetTypeSwitcher extends StatelessWidget {
     // TODO(nausharipov): styling
     return AnimatedBuilder(
       animation: tourNotifier,
-      builder: (context, child) => Row(
-        children: [
-          if (tourNotifier.hasSolution)
-            _SnippetTypeButton(
-              buttonSnippetType: SnippetType.solution,
-              tourNotifier: tourNotifier,
-              label: 'pages.tour.solution'.tr(),
-            ),
-          if (tourNotifier.hasSolution || tourNotifier.hasSavedSnippet)
-            _SnippetTypeButton(
-              buttonSnippetType: SnippetType.original,
-              tourNotifier: tourNotifier,
-              label: unitContent.isChallenge
-                  ? 'pages.tour.assignment'.tr()
-                  : 'pages.tour.example'.tr(),
-            ),
-          if (tourNotifier.hasSavedSnippet)
-            _SnippetTypeButton(
-              buttonSnippetType: SnippetType.saved,
-              tourNotifier: tourNotifier,
-              label: 'pages.tour.myCode'.tr(),
-            ),
-        ],
+      builder: (context, child) => Padding(
+        padding: const EdgeInsets.all(BeamSizes.size10),
+        child: Row(
+          children: [
+            if (tourNotifier.hasSolution)
+              _SnippetTypeButton(
+                buttonSnippetType: SnippetType.solution,
+                tourNotifier: tourNotifier,
+                label: 'pages.tour.solution'.tr(),
+              ),
+            if (tourNotifier.hasSolution || tourNotifier.hasSavedSnippet)
+              _SnippetTypeButton(
+                buttonSnippetType: SnippetType.original,
+                tourNotifier: tourNotifier,
+                label: unitContent.isChallenge
+                    ? 'pages.tour.assignment'.tr()
+                    : 'pages.tour.example'.tr(),
+              ),
+            if (tourNotifier.hasSavedSnippet)
+              _SnippetTypeButton(
+                buttonSnippetType: SnippetType.saved,
+                tourNotifier: tourNotifier,
+                label: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
+                    ? 'pages.tour.saving'.tr()
+                    : 'pages.tour.myCode'.tr(),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -225,15 +230,31 @@ class _SnippetTypeButton extends StatelessWidget {
   });
 
   Future<void> _setSnippetByType() async {
-    await tourNotifier.setSnippetByType(buttonSnippetType);
+    await tourNotifier.setSnippetByTypeIfChanged(buttonSnippetType);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isSelected = buttonSnippetType == tourNotifier.snippetType;
+    final Color? bgColor;
+    final Color? fgColor;
+    final VoidCallback? onPressed;
+    if (isSelected) {
+      bgColor = Theme.of(context).splashColor;
+      fgColor = Theme.of(context).colorScheme.onSurface;
+      onPressed = null;
+    } else {
+      bgColor = null;
+      fgColor = null;
+      onPressed = _setSnippetByType;
+    }
+
     return TextButton(
-      onPressed: buttonSnippetType == tourNotifier.snippetType
-          ? null
-          : _setSnippetByType,
+      style: ButtonStyle(
+        backgroundColor: MaterialStateProperty.all(bgColor),
+        foregroundColor: MaterialStateProperty.all(fgColor),
+      ),
+      onPressed: onPressed,
       child: Text(label),
     );
   }
