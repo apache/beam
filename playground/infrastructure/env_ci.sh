@@ -73,7 +73,6 @@ if [ -z $branch_name ] || [ $branch_name == "master" ]; then
 fi
 diff=$(git diff --name-only $branch_name $commit_sha | grep 'playground/*')
 diff=$(echo $diff | tr ' ' '\n')
-echo "${diff}"
 
 # Check if there are Examples
 for sdk in "${sdks[@]}"
