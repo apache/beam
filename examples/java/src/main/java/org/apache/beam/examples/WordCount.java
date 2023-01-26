@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-packagee org.apache.beam.examples;
+package org.apache.beam.examples;
 
 // beam-playground:
 //   name: WordCount
@@ -96,7 +96,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>The input file defaults to a public data set containing the text of King Lear, by William
  * Shakespeare. You can override it and choose your own input with {@code --inputFile}.
  */
-publicc class WordCount {
+public class WordCount {
 
   /**
    * Concept #2: You can make your pipeline assembly code less verbose by defining your DoFns
