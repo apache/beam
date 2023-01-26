@@ -71,8 +71,8 @@ allowlist=("playground/infrastructure" "playground/backend")
 if [ -z $branch_name ] || [ $branch_name == "master" ]; then
   branch_name=origin/master
 fi
-diff=$(git diff --name-only $branch_name $commit_sha | grep 'playground/*')
-diff=$(echo $diff | tr ' ' '\n')
+diff=$(git diff --name-only $branch_name $commit_sha)
+diff=$(echo $diff | tr ' ' '\n' | sed "s/'//g")
 
 # Check if there are Examples
 for sdk in "${sdks[@]}"
