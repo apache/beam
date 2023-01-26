@@ -31,6 +31,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
@@ -205,6 +206,8 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder outgoingTimersEndpoints(List<TimerEndpoint<?>> value);
 
     Builder timerApiServiceDescriptor(ApiServiceDescriptor value);
+
+    Builder dataSampler(DataSampler dataSampler);
 
     PTransformRunnerFactoryTestContext build();
   }

@@ -17,8 +17,10 @@
  */
 package org.apache.beam.fn.harness;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
@@ -29,6 +31,8 @@ import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
 import org.apache.beam.fn.harness.control.HarnessMonitoringInfosInstructionHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
+import org.apache.beam.fn.harness.debug.DataSampler;
+import org.apache.beam.fn.harness.debug.DataSamplingDescriptorModifier;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.harness.status.BeamFnStatusClient;
@@ -90,6 +94,10 @@ public class FnHarness {
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
   private static final String RUNNER_CAPABILITIES = "RUNNER_CAPABILITIES";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
+
+  private static final String ENABLE_DATA_SAMPLING_EXPERIMENT = "enable_data_sampling";
+
+  private static final DataSampler dataSampler = new DataSampler();
 
   private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String descriptor)
       throws TextFormat.ParseException {
@@ -248,11 +256,23 @@ public class FnHarness {
 
       FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
 
+      // Add any graph modifications.
+      List<ProcessBundleDescriptorModifier> modifierList = new ArrayList<>();
+      List<String> experimentList = options.as(ExperimentalOptions.class).getExperiments();
+
+      if (experimentList != null && experimentList.contains(ENABLE_DATA_SAMPLING_EXPERIMENT)) {
+        modifierList.add(new DataSamplingDescriptorModifier());
+      }
+
+      // Retrieves the ProcessBundleDescriptor from cache. Requests the PBD from the Runner if it
+      // doesn't exist. Additionally, runs any graph modifications.
       Function<String, BeamFnApi.ProcessBundleDescriptor> getProcessBundleDescriptor =
           new Function<String, ProcessBundleDescriptor>() {
             private static final String PROCESS_BUNDLE_DESCRIPTORS = "ProcessBundleDescriptors";
             private final Cache<String, BeamFnApi.ProcessBundleDescriptor> cache =
                 Caches.subCache(processWideCache, PROCESS_BUNDLE_DESCRIPTORS);
+
+            private final List<ProcessBundleDescriptorModifier> modifiers = modifierList;
 
             @Override
             public BeamFnApi.ProcessBundleDescriptor apply(String id) {
@@ -260,10 +280,21 @@ public class FnHarness {
             }
 
             private BeamFnApi.ProcessBundleDescriptor loadDescriptor(String id) {
-              return blockingControlStub.getProcessBundleDescriptor(
-                  BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
-                      .setProcessBundleDescriptorId(id)
-                      .build());
+              ProcessBundleDescriptor descriptor =
+                  blockingControlStub.getProcessBundleDescriptor(
+                      BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
+                          .setProcessBundleDescriptorId(id)
+                          .build());
+              for (ProcessBundleDescriptorModifier modifier : modifiers) {
+                try {
+                  LOG.debug("Modifying graph with " + modifier);
+                  descriptor = modifier.ModifyProcessBundleDescriptor(descriptor);
+                } catch (ProcessBundleDescriptorModifier.GraphModificationException e) {
+                  LOG.warn("Could not modify graph with " + modifier + ": " + e.getMessage());
+                }
+              }
+
+              return descriptor;
             }
           };
 
@@ -279,7 +310,8 @@ public class FnHarness {
               finalizeBundleHandler,
               metricsShortIds,
               executionStateSampler,
-              processWideCache);
+              processWideCache,
+              dataSampler);
       logging.setProcessBundleHandler(processBundleHandler);
 
       BeamFnStatusClient beamFnStatusClient = null;

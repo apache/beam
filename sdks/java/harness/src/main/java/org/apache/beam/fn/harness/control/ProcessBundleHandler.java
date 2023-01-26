@@ -20,17 +20,7 @@ package org.apache.beam.fn.harness.control;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.ServiceLoader;
-import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Phaser;
@@ -52,6 +42,7 @@ import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistra
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
+import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -105,6 +96,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static java.util.Optional.ofNullable;
 
 /**
  * Processes {@link BeamFnApi.ProcessBundleRequest}s and {@link
@@ -165,6 +158,8 @@ public class ProcessBundleHandler {
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
   private final Set<String> runnerCapabilities;
 
+  private DataSampler dataSampler;
+
   public ProcessBundleHandler(
       PipelineOptions options,
       Set<String> runnerCapabilities,
@@ -174,7 +169,8 @@ public class ProcessBundleHandler {
       FinalizeBundleHandler finalizeBundleHandler,
       ShortIdMap shortIds,
       ExecutionStateSampler executionStateSampler,
-      Cache<Object, Object> processWideCache) {
+      Cache<Object, Object> processWideCache,
+      DataSampler dataSampler) {
     this(
         options,
         runnerCapabilities,
@@ -186,7 +182,8 @@ public class ProcessBundleHandler {
         executionStateSampler,
         REGISTERED_RUNNER_FACTORIES,
         processWideCache,
-        new BundleProcessorCache());
+        new BundleProcessorCache(),
+        dataSampler);
   }
 
   @VisibleForTesting
@@ -201,7 +198,8 @@ public class ProcessBundleHandler {
       ExecutionStateSampler executionStateSampler,
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap,
       Cache<Object, Object> processWideCache,
-      BundleProcessorCache bundleProcessorCache) {
+      BundleProcessorCache bundleProcessorCache,
+      DataSampler dataSampler) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
@@ -218,6 +216,7 @@ public class ProcessBundleHandler {
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
     this.processWideCache = processWideCache;
     this.bundleProcessorCache = bundleProcessorCache;
+    this.dataSampler = dataSampler;
   }
 
   private void createRunnerAndConsumersForPTransformRecursively(
@@ -480,6 +479,11 @@ public class ProcessBundleHandler {
                     @Override
                     public BundleFinalizer getBundleFinalizer() {
                       return bundleFinalizer;
+                    }
+
+                    @Override
+                    public Optional<DataSampler> getDataSampler() {
+                        return Optional.ofNullable(dataSampler);
                     }
                   });
       if (runner instanceof BeamFnDataReadRunner) {
