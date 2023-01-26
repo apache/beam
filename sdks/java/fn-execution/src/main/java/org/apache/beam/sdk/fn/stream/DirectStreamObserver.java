@@ -33,7 +33,8 @@ import org.slf4j.LoggerFactory;
  * <p>Flow control with the underlying {@link CallStreamObserver} is handled with a {@link Phaser}
  * which waits for advancement of the phase if the {@link CallStreamObserver} is not ready. Creator
  * is expected to advance the {@link Phaser} whenever the underlying {@link CallStreamObserver}
- * becomes ready.
+ * becomes ready. If the {@link Phaser} is terminated, {@link DirectStreamObserver<T>.onNext(T)}
+ * will no longer wait for the {@link CallStreamObserver} to become ready.
  */
 @ThreadSafe
 public final class DirectStreamObserver<T> implements StreamObserver<T> {
@@ -76,12 +77,13 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         // Record the initial phase in case we are in the inbound gRPC thread where the phase won't
         // advance.
         int initialPhase = phase;
-        while (!outboundObserver.isReady()) {
+        // A negative phase indicates that the phaser is terminated.
+        while (phase >= 0 && !outboundObserver.isReady()) {
           try {
             phase = phaser.awaitAdvanceInterruptibly(phase, waitTime, TimeUnit.SECONDS);
           } catch (TimeoutException e) {
             totalTimeWaited += waitTime;
-            waitTime = waitTime * 2;
+            waitTime = Math.min(waitTime * 2, 60);
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
