@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-id: min
-name: Min example
-complexity: BASIC
-taskName: Min
+id: simple-function
+name: Simple function example
+complexity: ADVANCED
+taskName: simple-function

@@ -21,7 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-id: min
-name: Min example
-complexity: BASIC
-taskName: Min
+id: combine-per-key
+name: combine-per-key example
+complexity: ADVANCED
+taskName: combine-per-key

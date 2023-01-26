@@ -21,5 +21,5 @@ sdk:
   - Java
 id: binary-combine-fn
 name: BinaryCombineFn
-complexity: MEDIUM
+complexity: ADVANCED
 taskName: binary-combine-fn

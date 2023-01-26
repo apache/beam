@@ -23,5 +23,5 @@ sdk:
   - Go
 id: combine-fn
 name: Combine-fn example
-complexity: MEDIUM
+complexity: ADVANCED
 taskName: combine-fn

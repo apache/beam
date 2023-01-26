@@ -22,5 +22,5 @@ sdk:
   - Go
 id: co-group-by-key
 name: CoGroupByKey
-complexity: MEDIUM
+complexity: ADVANCED
 taskName: co-group-by-key
