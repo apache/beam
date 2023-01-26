@@ -91,7 +91,7 @@ private void createKafkaIOTestJob(testJob) {
     }
     k8s.apply(kafkaDir)
     (0..2).each {
-      k8s.nodeIPAddress(it, "NODE_IP_$it")
+      k8s.nodeIPAddress(it, "KAFKA_BROKER_$it")
       k8s.nodePort("outside-$it", "NODE_PORT_$it")
     }
     k8s.waitForJob(kafkaTopicJob,"40m")
@@ -99,7 +99,7 @@ private void createKafkaIOTestJob(testJob) {
     additionalPipelineArgs = [
       influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
       influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
-      bootstrap_servers: "\$NODE_IP_0:\$NODE_PORT_0,\$NODE_IP_1:\$NODE_PORT_1,\$NODE_IP_2:\$NODE_PORT_2",
+      bootstrap_servers: "\$KAFKA_BROKER_0:\$NODE_PORT_0,\$KAFKA_BROKER_1:\$NODE_PORT_1,\$KAFKA_BROKER_2:\$NODE_PORT_2",
     ]
     testJob.pipelineOptions.putAll(additionalPipelineArgs)
 

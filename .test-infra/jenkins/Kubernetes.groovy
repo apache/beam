@@ -117,7 +117,7 @@ class Kubernetes {
   }
 
   /**
-   * Specifies steps that will save specified address node ip address
+   * Specifies steps that will save specified node ip address
    * as an environment variable that can be used in later steps if needed.
    *
    * @param nodeIndex - index of node
