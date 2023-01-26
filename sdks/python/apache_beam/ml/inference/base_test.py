@@ -383,7 +383,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandlerReturnsPredictionResult())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  @pytest.mark.it_postcommit_1
+  @pytest.mark.it_postcommit
   def test_run_inference_prediction_result_with_side_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 
