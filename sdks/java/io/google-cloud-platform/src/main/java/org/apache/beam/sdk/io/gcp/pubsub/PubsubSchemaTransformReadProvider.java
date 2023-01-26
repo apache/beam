@@ -54,7 +54,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @AutoService(SchemaTransformProvider.class)
 public class PubsubSchemaTransformReadProvider
     extends TypedSchemaTransformProvider<PubsubSchemaTransformReadConfiguration> {
-  private static final String API = "pubsub";
   static final String OUTPUT_TAG = "OUTPUT";
 
   /** Returns the expected class of the configuration. */
@@ -74,7 +73,7 @@ public class PubsubSchemaTransformReadProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
   @Override
   public String identifier() {
-    return String.format("%s:read", API);
+    return "beam:schematransform:org.apache.beam:pubsub_read:v1";
   }
 
   /**
