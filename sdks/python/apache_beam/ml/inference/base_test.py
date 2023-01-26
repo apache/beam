@@ -28,6 +28,8 @@ from typing import Mapping
 from typing import Optional
 from typing import Sequence
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.ml.inference import base
@@ -381,8 +383,9 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandlerReturnsPredictionResult())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  @pytest.mark.it_postcommit_1
   def test_run_inference_prediction_result_with_side_input(self):
-    test_pipeline = TestPipeline()
+    test_pipeline = TestPipeline(is_integration_test=True)
 
     first_ts = math.floor(time.time()) - 30
     interval = 5
