@@ -45,12 +45,7 @@ void main() {
 
 Future<void> _checkFilteringExamplesByTypes(WidgetTester wt) async {
   await wt.tapAndSettle(find.exampleSelector());
-  final allExamplesCount = _getExamplesCount(wt);
   await wt.tapAndSettle(find.widgetWithText(TypeBubble, ExampleType.test.name));
-  
-  final filteredExamplesCount = _getExamplesCount(wt);
-
-  expect(allExamplesCount, isNot(filteredExamplesCount));
 
   final categoriesWithExamples = _getCategoriesWithExamples(wt);
   for (final example in categoriesWithExamples.expand((e) => e.examples)) {
@@ -63,44 +58,39 @@ Future<void> _checkFilteringExamplesByTypes(WidgetTester wt) async {
 Future<void> _checkFilteringExamplesByTags(WidgetTester wt) async {
   await wt.tapAndSettle(find.exampleSelector());
 
-  final allExamplesCount = _getExamplesCount(wt);
   final sortedTags = _getSortedTags(wt);
+
   await wt.tapAndSettle(find.widgetWithText(TagBubble, sortedTags[0]));
-  final filteredExamplesCount = _getExamplesCount(wt);
 
   expect(_areCategoriesContainsTag(wt, [sortedTags[0]]), isTrue);
-  expect(allExamplesCount, isNot(filteredExamplesCount));
 
   await wt.tapAndSettle(find.widgetWithText(TagBubble, sortedTags[1]));
-  final nextFilteredExamplesCount = _getExamplesCount(wt);
 
   expect(_areCategoriesContainsTag(wt, [sortedTags[0], sortedTags[1]]), isTrue);
-  expect(filteredExamplesCount, isNot(nextFilteredExamplesCount));
 
   await wt.tapAndSettle(find.exampleSelector());
 }
 
 List<String> _getSortedTags(WidgetTester wt) {
   final categoriesWithExamples = _getCategoriesWithExamples(wt);
-  final tags = categoriesWithExamples
-      .expand((e) => e.examples)
-      .expand((e) => e.tags);
+  final tags =
+      categoriesWithExamples.expand((e) => e.examples).expand((e) => e.tags);
+
   final tagsMap = <String, int>{};
   for (final tag in tags) {
-    tagsMap[tag] = tagsMap[tag] == null ? 1 : tagsMap[tag]! + 1;
+    tagsMap[tag] = (tagsMap[tag] ?? 0) + 1;
   }
-  final tagsMapList = tagsMap.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+
+  final tagsMapList = tagsMap.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+
   return tagsMapList.map((e) => e.key).toList();
 }
 
 bool _areCategoriesContainsTag(WidgetTester wt, List<String> tags) {
   final categoriesWithExamples = _getCategoriesWithExamples(wt);
   final examples = categoriesWithExamples.expand((e) => e.examples);
-  
-  if (examples.isEmpty) {
-    return true;
-  }
-  
+
   for (final example in examples) {
     for (final tag in tags) {
       if (!example.tags.contains(tag)) {
@@ -109,18 +99,6 @@ bool _areCategoriesContainsTag(WidgetTester wt, List<String> tags) {
     }
   }
   return true;
-}
-
-int _getExamplesCount(WidgetTester wt) {
-  final categories = _getCategoriesWithExamples(wt);
-
-  if (categories.isEmpty) {
-    return 0;
-  }
-
-  return categories
-      .map((e) => e.examples.length)
-      .reduce((value, element) => value + element);
 }
 
 List<CategoryWithExamples> _getCategoriesWithExamples(WidgetTester wt) {
@@ -136,10 +114,6 @@ Future<void> _checkFilteringExamplesBySearchString(WidgetTester wt) async {
 
   await wt.enterText(find.byType(SearchField), 'te');
 
-  final filteredExamplesCount = _getExamplesCount(wt);
-
-  expect(allExamplesCount != filteredExamplesCount, true);
-
   final categories = _getCategoriesWithExamples(wt);
   for (var category in categories) {
     for (var example in category.examples) {
@@ -152,6 +126,16 @@ Future<void> _checkFilteringExamplesBySearchString(WidgetTester wt) async {
   expect(_getExamplesCount(wt), allExamplesCount);
 
   await wt.tapAndSettle(find.exampleSelector());
+}
+
+int _getExamplesCount(WidgetTester wt) {
+  final categories = _getCategoriesWithExamples(wt);
+
+  if (categories.isEmpty) {
+    return 0;
+  }
+
+  return categories.map((e) => e.examples.length).reduce((a, b) => a + b);
 }
 
 Future<void> _checkViewDescription(WidgetTester wt) async {

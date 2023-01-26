@@ -23,13 +23,14 @@ import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
 import 'common/common_finders.dart';
+import 'common/finder.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('Testing editing code', (WidgetTester wt) async {
     await init(wt);
-    await _checkResetDefaultCode(wt);
+    await _checkResetUnchangedCode(wt);
     await _checkResetEditedCode(wt);
     await _checkAutocomplete(wt);
     await _checkCodeHighlightedMultipleColors(wt);
@@ -38,11 +39,12 @@ void main() {
 }
 
 Future<void> _checkAutocomplete(WidgetTester wt) async {
+  // Several newlines are required here because suggestion popup works incorrectly. Remove when fixed
   await wt.enterText(find.codeField(), '\n\n\n\n\nsdk');
 
   final playgroundController = wt.findPlaygroundController();
   await wt.runShortcut(
-      playgroundController.showAutocompleterShortcut.shortcuts.keys);
+      playgroundController.showSuggestionsShortcut.shortcuts.keys);
   await wt.pumpAndSettle();
 
   expect(find.text('sdkHttpMetadata'), findsOneWidget);
@@ -53,7 +55,7 @@ Future<void> _checkAutocomplete(WidgetTester wt) async {
   await wt.tapAndSettle(find.resetButton());
 }
 
-Future<void> _checkResetDefaultCode(WidgetTester wt) async {
+Future<void> _checkResetUnchangedCode(WidgetTester wt) async {
   final playgroundController = wt.findPlaygroundController();
 
   final code = playgroundController.source;
@@ -121,25 +123,15 @@ public class MyClass {
 
   expect(wt.findOneCodeController().text, foldedCode);
 
-  await wt.tapAndSettle(_getFoldToggles());
+  await wt.tapAndSettle(_getTopToggle(wt));
 
   expect(wt.findOneCodeController().text, code);
 }
 
 Finder _getTopToggle(WidgetTester wt) {
-  Finder foldToggles = _getFoldToggles();
-
-  Finder topToggle =
-      wt.getCenter(foldToggles.at(0)).dy < wt.getCenter(foldToggles.at(1)).dy
-          ? foldToggles.at(0)
-          : foldToggles.at(1);
-  return topToggle;
-}
-
-Finder _getFoldToggles() {
-  Finder foldToggles = find.descendant(
+  return find.descendant(
     of: find.byType(RotatedBox),
     matching: find.byIcon(Icons.chevron_right),
-  );
-  return foldToggles;
+  ).verticallyAt(0, wt);
 }
+

@@ -131,12 +131,12 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: null,
       );
   @override
-  _i6.BeamShortcut get showAutocompleterShortcut => (super.noSuchMethod(
+  _i6.BeamShortcut get showSuggestionsShortcut => (super.noSuchMethod(
         Invocation.getter(#showAutocompleterShortcut),
         returnValue: _FakeBeamShortcut_4(),
       ) as _i6.BeamShortcut);
   @override
-  set showAutocompleterShortcut(_i6.BeamShortcut? _showAutocompleterShortcut) =>
+  set showSuggestionsShortcut(_i6.BeamShortcut? _showAutocompleterShortcut) =>
       super.noSuchMethod(
         Invocation.setter(
           #showAutocompleterShortcut,
@@ -244,7 +244,7 @@ class MockPlaygroundController extends _i1.Mock
         returnValueForMissingStub: Future<void>.value(),
       ) as _i14.Future<void>);
   @override
-  void showAutocompleter() => super.noSuchMethod(
+  void showSuggestions() => super.noSuchMethod(
         Invocation.method(
           #showAutocompleter,
           [],

@@ -32,13 +32,7 @@ void main() {
     // Cancel unchanged example.
     await _runAndCancelExample(wt, const Duration(milliseconds: 300));
 
-    final source = wt
-            .findPlaygroundController()
-            .snippetEditingController
-            ?.activeFileController
-            ?.codeController
-            .fullText ??
-        '';
+    final source = wt.findPlaygroundController().source ?? '';
     await wt.enterText(find.codeField(), '//comment\n' + source);
     await wt.pumpAndSettle();
 
@@ -49,15 +43,8 @@ void main() {
 
 Future<void> _runAndCancelExample(WidgetTester wt, Duration duration) async {
   await wt.tap(find.runOrCancelButton());
-  try {
-    await wt.pumpAndSettle(
-      const Duration(milliseconds: 100),
-      EnginePhase.sendSemanticsUpdate,
-      duration,
-    );
-  } catch (e) {
-    //ignore
-  }
+
+  await wt.wait(duration);
   await wt.tapAndSettle(find.runOrCancelButton());
 
   final playgroundController = wt.findPlaygroundController();

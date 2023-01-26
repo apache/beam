@@ -65,4 +65,18 @@ extension WidgetTesterExtension on WidgetTester {
     await tap(finder);
     await pumpAndSettle();
   }
+
+  /// Waits without blocking the main isolate (Animations are able to play).
+  Future<void> wait(Duration duration) async {
+    try {
+      await pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        duration,
+      );
+    // ignore: avoid_catches_without_on_clauses
+    } catch (e) {
+      //ignore
+    }
+  }
 }

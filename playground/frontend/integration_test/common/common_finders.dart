@@ -36,10 +36,6 @@ import 'package:playground_components/src/widgets/drag_handle.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 extension CommonFindersExtension on CommonFinders {
-  Finder appDropdownButtonWithText(String text) {
-    return find.byType(PipelineOptionsDropdown);
-  }
-
   Finder codeTextAreaWrapper() {
     return byType(CodeTextAreaWrapper);
   }
@@ -92,6 +88,10 @@ extension CommonFindersExtension on CommonFinders {
     return byType(MoreActions);
   }
 
+  Finder pipelineOptions() {
+    return find.byType(PipelineOptionsDropdown);
+  }
+  
   Finder pipelineOptionsListTab() {
     return find.byKey(PipelineOptionsDropdownBody.optionsTabKey);
   }

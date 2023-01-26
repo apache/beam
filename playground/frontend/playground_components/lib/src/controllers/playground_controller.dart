@@ -256,7 +256,7 @@ class PlaygroundController with ChangeNotifier {
     notifyListeners();
   }
 
-  void showAutocompleter() {
+  void showSuggestions() {
     snippetEditingController?.activeFileController?.codeController
         .generateSuggestions();
     notifyListeners();
@@ -337,22 +337,22 @@ class PlaygroundController with ChangeNotifier {
     ),
   );
 
-  late BeamShortcut showAutocompleterShortcut = BeamShortcut(
+  late BeamShortcut showSuggestionsShortcut = BeamShortcut(
     shortcuts: LogicalKeySet(
       LogicalKeyboardKeyExtension.metaOrControl,
       LogicalKeyboardKey.shift,
       LogicalKeyboardKey.keyS,
     ),
-    actionIntent: const ShowAutocompleterIntent(),
+    actionIntent: const ShowSuggestionsIntent(),
     createAction: (BuildContext context) => CallbackAction(
-      onInvoke: (_) => showAutocompleter(),
+      onInvoke: (_) => showSuggestions(),
     ),
   );
 
   List<BeamShortcut> get shortcuts => [
         runShortcut,
         resetShortcut,
-        showAutocompleterShortcut,
+        showSuggestionsShortcut,
       ];
 
   @override

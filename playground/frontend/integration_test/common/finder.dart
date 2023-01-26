@@ -5,16 +5,23 @@ extension FinderExtension on Finder {
   Finder getChildrenByType(Type childType) {
     final finders = evaluate();
     final childElements = finders
-        .map((f) => collectAllElementsFrom(f, skipOffstage: true))
+        .map((e) => collectAllElementsFrom(e, skipOffstage: true))
         .expand((e) => e)
         .where((e) => e.widget.runtimeType == childType);
 
+    //todo: may be there are a way to create finder more efficiently
     return find.byElementPredicate(
       (element) => childElements.contains(element),
     );
   }
 
-  Finder alignedIndexAt(int index, Axis axis, WidgetTester wt) {
+  Finder horizontallyAt(int index, WidgetTester wt) =>
+      _alignedIndexAt(index, Axis.horizontal, wt);
+
+  Finder verticallyAt(int index, WidgetTester wt) =>
+      _alignedIndexAt(index, Axis.vertical, wt);
+
+  Finder _alignedIndexAt(int index, Axis axis, WidgetTester wt) {
     final finders = evaluate();
 
     if (index > finders.length - 1) {
@@ -33,18 +40,7 @@ extension FinderExtension on Finder {
           : _compareDoubles(a.offset.dx, b.offset.dx),
     );
 
-    final result = find.byElementPredicate((element) {
-      return axis == Axis.vertical
-          ? finders.contains(element) &&
-              wt.getCenter(at(finders.toList().indexOf(element))).dy ==
-                  offsets[index].offset.dy
-          : finders.contains(element) &&
-              wt.getCenter(at(finders.toList().indexOf(element))).dx ==
-                  offsets[index].offset.dx;
-    });
-
-    print(result.evaluate().length);
-    return result;
+    return at(offsets[index].index);
   }
 
   int _compareDoubles(double a, double b) {
@@ -56,12 +52,6 @@ extension FinderExtension on Finder {
       return -1;
     }
   }
-
-  Finder horizontallyAt(int index, WidgetTester wt) =>
-      alignedIndexAt(index, Axis.horizontal, wt);
-
-  Finder verticallyAt(int index, WidgetTester wt) =>
-      alignedIndexAt(index, Axis.vertical, wt);
 }
 
 class _IndexAndOffset {

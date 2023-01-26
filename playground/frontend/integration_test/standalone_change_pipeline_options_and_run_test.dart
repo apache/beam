@@ -38,27 +38,28 @@ void main() {
     (WidgetTester wt) async {
       await init(wt);
 
-      await wt.tapAndSettle(find.appDropdownButtonWithText('Pipeline Options'));
+      await wt.tapAndSettle(find.pipelineOptions());
 
       await _addTwoOptions(wt);
 
       await wt.tapAndSettle(find.pipelineOptionsRawTab());
 
-      _checkIfRawTextCorrect('--some test --some2 test2');
+      _expectRawText('--some test --some2 test2');
 
       await wt.tapAndSettle(find.pipelineOptionsListTab());
 
-      await wt.tap(_getBottomDeleteIcon(wt));
+      await wt.tap(_getDeleteIcon(1, wt));
 
       await wt.tapAndSettle(find.pipelineOptionsRawTab());
 
-      _checkIfRawTextCorrect('--some test');
+      _expectRawText('--some test');
 
       await wt.tapAndSettle(find.pipelineOptionsSaveAndCloseButton());
 
       await wt.tap(find.runOrCancelButton());
       await Future.delayed(const Duration(milliseconds: 300));
 
+      // Cancel execution just for test speed.
       await wt.tapAndSettle(find.runOrCancelButton());
 
       final playgroundController = wt.findPlaygroundController();
@@ -106,17 +107,14 @@ Future<void> _addTwoOptions(WidgetTester wt) async {
   );
 }
 
-Finder _getBottomDeleteIcon(WidgetTester wt) {
-  Finder deleteIcons = find.byIcon(Icons.delete_outlined);
-
-  Finder bottomIcon =
-      wt.getCenter(deleteIcons.at(0)).dy > wt.getCenter(deleteIcons.at(1)).dy
-          ? deleteIcons.at(0)
-          : deleteIcons.at(1);
-  return bottomIcon;
+Finder _getDeleteIcon(int index, WidgetTester wt) {
+  return find.descendant(
+    of: find.byType(PipelineOptionsRow).verticallyAt(index, wt),
+    matching: find.byIcon(Icons.delete_outlined),
+  );
 }
 
-void _checkIfRawTextCorrect(String text) {
+void _expectRawText(String text) {
   expect(
     find.descendant(
         of: find.byKey(PipelineOptionsDropdownInput.textFieldKey),

@@ -34,7 +34,7 @@ class RunIntent extends BeamIntent {
   const RunIntent() : super(slug: 'intents.playground.run');
 }
 
-class ShowAutocompleterIntent extends BeamIntent {
-  const ShowAutocompleterIntent()
-      : super(slug: 'intents.playground.showAutocompleter');
+class ShowSuggestionsIntent extends BeamIntent {
+  const ShowSuggestionsIntent()
+      : super(slug: 'intents.playground.showSuggestions');
 }
