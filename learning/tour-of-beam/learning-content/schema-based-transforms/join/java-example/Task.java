@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-//   beam-playground:
-//   name: co-group
-//   description: CoGroup example.
+// beam-playground:
+//   name: join
+//   description: Join example.
 //   multifile: false
 //   context_line: 46
 //   categories:
@@ -35,11 +35,12 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.CoGroup;
+import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.transforms.Join;
+import org.apache.beam.sdk.schemas.transforms.RenameFields;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
@@ -132,11 +133,26 @@ public class Task {
         PCollection<User> userInfo = getUserPCollection(pipeline);
         PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
-        PCollection<Row> coGroupPCollection =
-                PCollectionTuple.of("user", userInfo).and("game", gameInfo)
-                        .apply(CoGroup.join(CoGroup.By.fieldNames("userId")));
+        Schema type = Schema.builder()
+                .addStringField("userId")
+                .addStringField("userName")
+                .build();
 
-        coGroupPCollection
+        PCollection<Row> pCollection = userInfo
+                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
+                .setSchema(type,
+                        TypeDescriptor.of(Object.class), input ->
+                        {
+                            User user = (User) input;
+                            return Row.withSchema(type)
+                                    .addValues(user.userId, user.userName)
+                                    .build();
+                        },
+                        input -> new User(input.getString(0), input.getString(1))
+                )
+                .apply(Join.innerJoin(gameInfo).using("userId"));
+
+        pCollection
                 .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();

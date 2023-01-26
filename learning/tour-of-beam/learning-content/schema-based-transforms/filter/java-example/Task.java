@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-//   beam-playground:
-//   name: group
-//   description: Group example.
+// beam-playground:
+//   name: schema-filter
+//   description: Schema filter example.
 //   multifile: false
 //   context_line: 46
 //   categories:
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.Group;
+import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -141,7 +141,7 @@ public class Task {
                 .addStringField("date")
                 .build();
 
-        PCollection<String> pCollection = fullStatistics
+        PCollection<User> pCollection = fullStatistics
                 .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
                 .setSchema(type,
                         TypeDescriptor.of(Object.class), input ->
@@ -154,11 +154,11 @@ public class Task {
                         input -> new User(input.getString(0), input.getString(1),
                                 new Game(input.getString(0), input.getInt32(2), input.getString(3), input.getString(4)))
                 )
-                .apply(Group.byFieldNames("userId").aggregateField("score", Sum.ofIntegers(), "total"))
-                .apply(MapElements.into(TypeDescriptor.of(String.class)).via(row -> row.getRow(0).getValue(0)+" : "+row.getRow(1).getValue(0)));
+                .apply(Filter.create().whereFieldName("score", score -> (int) score > 11))
+                .apply(MapElements.into(TypeDescriptor.of(User.class)).via(user -> (User) user));
 
         pCollection
-                .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
+                .apply("User", ParDo.of(new LogOutput<>("Filtered")));
 
         pipeline.run();
     }

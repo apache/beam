@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-//   beam-playground:
+// beam-playground:
 //   name: SchemaBasedSolution
 //   description: Schema Based Solution example.
 //   multifile: false

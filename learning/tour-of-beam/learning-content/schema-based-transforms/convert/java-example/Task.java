@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-//   beam-playground:
-//   name: schema-filter
-//   description: Schema filter example.
+// beam-playground:
+//   name: convert
+//   description: Convert example.
 //   multifile: false
 //   context_line: 46
 //   categories:
@@ -35,7 +35,8 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
-import org.apache.beam.sdk.schemas.transforms.Filter;
+import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.schemas.transforms.RenameFields;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -127,6 +128,50 @@ public class Task {
         }
     }
 
+    @DefaultSchema(JavaFieldSchema.class)
+    public static class Result {
+
+        public String userId;
+        public String userName;
+        public Integer score;
+        public String gameId;
+        public String date;
+
+        @SchemaCreate
+        public Result(String userId, String userName, Integer score, String gameId, String date) {
+            this.userId = userId;
+            this.userName = userName;
+            this.score = score;
+            this.gameId = gameId;
+            this.date = date;
+        }
+
+        @Override
+        public String toString() {
+            return "Result{" +
+                    "userId='" + userId + '\'' +
+                    ", userName='" + userName + '\'' +
+                    ", score=" + score +
+                    ", gameId='" + gameId + '\'' +
+                    ", date='" + date + '\'' +
+                    '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            User user = (User) o;
+            return Objects.equals(userId, user.userId) && Objects.equals(userName, user.userName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(userId, userName);
+        }
+    }
+
+
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
@@ -141,31 +186,21 @@ public class Task {
                 .addStringField("date")
                 .build();
 
-        PCollection<User> pCollection = fullStatistics
-                .apply(MapElements.into(TypeDescriptor.of(Object.class)).via(it -> it))
-                .setSchema(type,
-                        TypeDescriptor.of(Object.class), input ->
-                        {
-                            User user = (User) input;
-                            return Row.withSchema(type)
-                                    .addValues(user.userId, user.userName, user.game.score, user.game.gameId, user.game.date)
-                                    .build();
-                        },
-                        input -> new User(input.getString(0), input.getString(1),
-                                new Game(input.getString(0), input.getInt32(2), input.getString(3), input.getString(4)))
-                )
-                .apply(Filter.create().whereFieldName("score", score -> (int) score > 11))
-                .apply(MapElements.into(TypeDescriptor.of(User.class)).via(user -> (User) user));
+        PCollection<Object> pCollection = fullStatistics
+                .apply(Convert.toRows())
+                .apply("User", ParDo.of(new LogOutput<>("ToRows")));
 
         pCollection
-                .apply("User", ParDo.of(new LogOutput<>("Filtered")));
+                .apply(Convert.to(Result.class))
+                .apply("User", ParDo.of(new LogOutput<>("Convert to Result")));
+
 
         pipeline.run();
     }
 
     public static PCollection<User> getProgressPCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
-        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(10);
         return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
     }
 

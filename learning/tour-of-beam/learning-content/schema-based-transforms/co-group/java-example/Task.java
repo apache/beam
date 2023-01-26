@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-//   beam-playground:
-//   name: creating-schema
-//   description: Creating schema example.
+// beam-playground:
+//   name: co-group
+//   description: CoGroup example.
 //   multifile: false
 //   context_line: 46
 //   categories:
@@ -32,10 +32,16 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.transforms.CoGroup;
+import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.Objects;
@@ -47,12 +53,12 @@ public class Task {
     @DefaultSchema(JavaFieldSchema.class)
     public static class Game {
         public String userId;
-        public String score;
+        public Integer score;
         public String gameId;
         public String date;
 
         @SchemaCreate
-        public Game(String userId, String score, String gameId, String date) {
+        public Game(String userId, Integer score, String gameId, String date) {
             this.userId = userId;
             this.score = score;
             this.gameId = gameId;
@@ -86,16 +92,14 @@ public class Task {
     // User schema
     @DefaultSchema(JavaFieldSchema.class)
     public static class User {
+
         public String userId;
         public String userName;
 
-        public Game game;
-
         @SchemaCreate
-        public User(String userId, String userName, Game game) {
+        public User(String userId, String userName) {
             this.userId = userId;
             this.userName = userName;
-            this.game = game;
         }
 
         @Override
@@ -103,7 +107,6 @@ public class Task {
             return "User{" +
                     "userId='" + userId + '\'' +
                     ", userName='" + userName + '\'' +
-                    ", game=" + game +
                     '}';
         }
 
@@ -121,28 +124,49 @@ public class Task {
         }
     }
 
+
     public static void main(String[] args) {
         PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
         Pipeline pipeline = Pipeline.create(options);
 
-        PCollection<User> fullStatistics = getProgressPCollection(pipeline);
+        PCollection<User> userInfo = getUserPCollection(pipeline);
+        PCollection<Game> gameInfo = getGamePCollection(pipeline);
 
-        fullStatistics.apply("User", ParDo.of(new LogOutput<>("User statistics")));
+        PCollection<Row> coGroupPCollection =
+                PCollectionTuple.of("user", userInfo).and("game", gameInfo)
+                        .apply(CoGroup.join(CoGroup.By.fieldNames("userId")));
+
+        coGroupPCollection
+                .apply("User flatten row", ParDo.of(new LogOutput<>("Flattened")));
 
         pipeline.run();
     }
 
-    public static PCollection<User> getProgressPCollection(Pipeline pipeline) {
+    public static PCollection<User> getUserPCollection(Pipeline pipeline) {
+        PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
+        final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
+        return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserFn()));
+    }
+
+    public static PCollection<Game> getGamePCollection(Pipeline pipeline) {
         PCollection<String> rides = pipeline.apply(TextIO.read().from("gs://apache-beam-samples/game/small/gaming_data.csv"));
         final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample = Sample.fixedSizeGlobally(100);
         return rides.apply(sample).apply(Flatten.iterables()).apply(ParDo.of(new ExtractUserProgressFn()));
     }
 
-    static class ExtractUserProgressFn extends DoFn<String, User> {
+    static class ExtractUserFn extends DoFn<String, User> {
         @ProcessElement
         public void processElement(ProcessContext c) {
             String[] items = c.element().split(",");
-            c.output(new User(items[0], items[1], new Game(items[0], items[2], items[3], items[4])));
+            c.output(new User(items[0], items[1]));
+        }
+    }
+
+    static class ExtractUserProgressFn extends DoFn<String, Game> {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            String[] items = c.element().split(",");
+            c.output(new Game(items[0], Integer.valueOf(items[2]), items[3], items[4]));
         }
     }
 

@@ -21,7 +21,7 @@ sdk:
   - Java
 id: schema-based-transforms
 name: Schema-based transforms
-complexity: MEDIUM
+complexity: ADVANCED
 content:
   - schema-concept
   - select

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-//   beam-playground:
+// beam-playground:
 //   name: rename
 //   description: Rename example.
 //   multifile: false
