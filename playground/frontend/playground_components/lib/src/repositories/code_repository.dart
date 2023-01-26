@@ -31,9 +31,9 @@ const kTimeoutErrorText =
     'to try examples without timeout limitation.';
 const kUnknownErrorText =
     'Something went wrong. Please try again later or create a GitHub issue';
-const kProcessingStartedText = 'The processing has started\n';
+const kProcessingStartedText = 'The processing has been started\n';
 const kProcessingStartedOptionsText =
-    'The processing has started with pipeline options: ';
+    'The processing has been started with the pipeline options: ';
 
 // TODO(alexeyinkin): Rename. This is not a repository but a higher level client.
 class CodeRepository {

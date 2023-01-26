@@ -44,7 +44,8 @@ Future<void> _checkAutocomplete(WidgetTester wt) async {
 
   final playgroundController = wt.findPlaygroundController();
   await wt.runShortcut(
-      playgroundController.showSuggestionsShortcut.shortcuts.keys);
+    playgroundController.showSuggestionsShortcut.shortcuts.keys,
+  );
   await wt.pumpAndSettle();
 
   expect(find.text('sdkHttpMetadata'), findsOneWidget);
@@ -129,9 +130,10 @@ public class MyClass {
 }
 
 Finder _getTopToggle(WidgetTester wt) {
-  return find.descendant(
-    of: find.byType(RotatedBox),
-    matching: find.byIcon(Icons.chevron_right),
-  ).verticallyAt(0, wt);
+  return find
+      .descendant(
+        of: find.byType(RotatedBox),
+        matching: find.byIcon(Icons.chevron_right),
+      )
+      .verticallyAt(0, wt);
 }
-

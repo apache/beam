@@ -48,7 +48,7 @@ void main() {
 
       await wt.tapAndSettle(find.pipelineOptionsListTab());
 
-      await wt.tap(_getDeleteIcon(1, wt));
+      await wt.tap(_getDeleteIconByIndex(1, wt));
 
       await wt.tapAndSettle(find.pipelineOptionsRawTab());
 
@@ -107,7 +107,7 @@ Future<void> _addTwoOptions(WidgetTester wt) async {
   );
 }
 
-Finder _getDeleteIcon(int index, WidgetTester wt) {
+Finder _getDeleteIconByIndex(int index, WidgetTester wt) {
   return find.descendant(
     of: find.byType(PipelineOptionsRow).verticallyAt(index, wt),
     matching: find.byIcon(Icons.delete_outlined),
