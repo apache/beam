@@ -70,7 +70,7 @@ allowlist=("playground/infrastructure" "playground/backend")
 echo $branch
 # Get changed files from Webhook result (body.files)
 if [ -z $branch ] || [ $branch == "master" ]; then
-    branch_name=origin/master
+    branch=origin/master
 fi
 
 diff=$(git diff --name-only $branch $commit_sha)
