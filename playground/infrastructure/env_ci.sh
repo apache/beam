@@ -67,12 +67,13 @@ BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
+echo $branch_name
 # Get changed files from Webhook result (body.files)
 if [ -z $branch_name ] || [ $branch_name == "master" ]; then
   branch_name=origin/master
 fi
 diff=$(git diff --name-only $branch_name $commit_sha)
-diff=$(echo $diff | tr ' ' '\n' | sed "s/'//g")
+diff=$(echo $diff | sed -e "s/ /\n/g" -e "s/'//g")
 
 # Check if there are Examples
 for sdk in "${sdks[@]}"
