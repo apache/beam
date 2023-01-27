@@ -284,7 +284,13 @@ func TestSetup(t *testing.T) {
 				pipelinesFolder: pipelinesFolder,
 			},
 			prep: func() error {
-				_, err := os.Create(filepath.Join(workingDir, scioCommonConstants))
+				sourceScioShFile := "../../../new_scio_project.sh"
+				scioShFile := filepath.Join(workingDir, scioProject)
+				err := utils.CopyFile(sourceScioShFile, scioShFile)
+				if err != nil {
+					return err
+				}
+				_, err = os.Create(filepath.Join(workingDir, scioCommonConstants))
 				if err != nil {
 					return err
 				}

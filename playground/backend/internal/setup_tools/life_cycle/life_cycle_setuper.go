@@ -32,7 +32,7 @@ import (
 	"beam.apache.org/playground/backend/internal/emulators"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/utils"
+	utils "beam.apache.org/playground/backend/internal/utils"
 )
 
 const (
@@ -41,6 +41,7 @@ const (
 	javaLogFilePlaceholder = "{logFilePath}"
 	goModFileName          = "go.mod"
 	goSumFileName          = "go.sum"
+	bashCmd                = "bash"
 	scioProjectName        = "scio"
 	scioProjectPath        = scioProjectName + "/src/main/scala/" + scioProjectName
 	logFileName            = "logs.log"
@@ -110,11 +111,11 @@ func Setup(sdk pb.Sdk, sources []entity.FileEntity, pipelineId uuid.UUID, workin
 // prepareGoFiles prepares file for Go environment.
 // Copy go.mod and go.sum file from /path/to/preparedModDir to /path/to/workingDir/pipelinesFolder/{pipelineId}
 func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir string, pipelineId uuid.UUID) error {
-	if err := lc.CopyFile(goModFileName, preparedModDir, lc.Paths.AbsoluteBaseFolderPath); err != nil {
+	if err := utils.CopyFilePreservingName(goModFileName, preparedModDir, lc.Paths.AbsoluteBaseFolderPath); err != nil {
 		logger.Errorf("%s: error during copying %s file: %s\n", pipelineId, goModFileName, err.Error())
 		return err
 	}
-	if err := lc.CopyFile(goSumFileName, preparedModDir, lc.Paths.AbsoluteBaseFolderPath); err != nil {
+	if err := utils.CopyFilePreservingName(goSumFileName, preparedModDir, lc.Paths.AbsoluteBaseFolderPath); err != nil {
 		logger.Errorf("%s: error during copying %s file: %s\n", pipelineId, goSumFileName, err.Error())
 		return err
 	}
@@ -126,7 +127,7 @@ func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir string, pipelineId uui
 //
 //	and update this file according to pipeline.
 func prepareJavaFiles(lc *fs_tool.LifeCycle, workingDir string, pipelineId uuid.UUID) error {
-	err := lc.CopyFile(javaLogConfigFileName, workingDir, lc.Paths.AbsoluteBaseFolderPath)
+	err := utils.CopyFilePreservingName(javaLogConfigFileName, workingDir, lc.Paths.AbsoluteBaseFolderPath)
 	if err != nil {
 		logger.Errorf("%s: error during copying logging.properties file: %s\n", pipelineId, err.Error())
 		return err
@@ -176,7 +177,7 @@ func updateJavaLogConfigFile(paths fs_tool.LifeCyclePaths) error {
 }
 
 func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir string) (*fs_tool.LifeCycle, error) {
-	cmd := exec.Command(filepath.Join(workingDir, scioProject))
+	cmd := exec.Command(bashCmd, filepath.Join(workingDir, scioProject))
 	cmd.Dir = pipelineFolder
 	_, err := cmd.Output()
 	if err != nil {
@@ -197,7 +198,7 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 		return lc, err
 	}
 
-	err = lc.CopyFile(scioCommonConstants, workingDir, absFileFolderPath)
+	err = utils.CopyFilePreservingName(scioCommonConstants, workingDir, absFileFolderPath)
 	if err != nil {
 		return lc, err
 	}

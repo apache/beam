@@ -370,9 +370,12 @@ func runCmdWithOutput(cmd *exec.Cmd, stdOutput io.Writer, stdError io.Writer, su
 // reconcileBackgroundTask waits when first background task finishes.
 // If finishes by canceling, timeout or context is done - returns error.
 // If cmd operation (Validate/Prepare/Compile/Run/RunTest) finishes successfully with no error
-//  during step processing - returns true.
+//
+//	during step processing - returns true.
+//
 // If cmd operation (Validate/Prepare/Compile/Run/RunTest) finishes successfully but with some error
-//  during step processing - returns false.
+//
+//	during step processing - returns false.
 func reconcileBackgroundTask(pipelineLifeCycleCtx, backgroundCtx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool) (bool, error) {
 	select {
 	case <-pipelineLifeCycleCtx.Done():
@@ -422,21 +425,21 @@ func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheSer
 		case <-ticker.C:
 			if _, err := os.Stat(graphFilePath); err == nil {
 				ticker.Stop()
-				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
 					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
 				}
-				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, string(graph))
 			}
 		// in case of timeout or cancel
 		case <-pipelineLifeCycleCtx.Done():
 			ticker.Stop()
 			if _, err := os.Stat(graphFilePath); err == nil {
-				graph, err := utils.ReadFile(pipelineId, graphFilePath)
+				graph, err := os.ReadFile(graphFilePath)
 				if err != nil {
 					logger.Errorf("%s: Error during saving graph to the file: %s", pipelineId, err.Error())
 				}
-				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, graph)
+				_ = utils.SetToCache(backgroundCtx, cacheService, pipelineId, cache.Graph, string(graph))
 			}
 			return
 		}
@@ -446,8 +449,10 @@ func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheSer
 // readLogFile reads logs from the log file and keeps it to the cache.
 // If context is done it means that the code processing was finished (successfully/with error/timeout). Write last logs to the cache.
 // If <-stopReadLogsChannel it means that the code processing was finished (canceled/timeout)
-// 	and it waits until the method stops the work to change status to the pb.Status_STATUS_FINISHED. Write last logs
+//
+//	and it waits until the method stops the work to change status to the pb.Status_STATUS_FINISHED. Write last logs
 //	to the cache and set value to the finishReadLogChannel channel to unblock the code processing.
+//
 // In other case each pauseDuration write to cache logs of the code processing.
 func readLogFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheService cache.Cache, logFilePath string, pipelineId uuid.UUID, stopReadLogsChannel, finishReadLogChannel chan bool) {
 	ticker := time.NewTicker(pauseDuration)
@@ -476,8 +481,10 @@ func finishReadLogFile(ctx context.Context, ticker *time.Ticker, cacheService ca
 
 // writeLogsToCache write all logs from the log file to the cache.
 // If log file doesn't exist, return nil.
+//
 //	Reading logs works as a parallel with code processing so when program tries to read file
 //	it could be that the file doesn't exist yet.
+//
 // If log file exists, read all from the log file and keep it to the cache using cache.Logs subKey.
 // If some error occurs, log the error and return the error.
 func writeLogsToCache(ctx context.Context, cacheService cache.Cache, logFilePath string, pipelineId uuid.UUID) error {
@@ -527,6 +534,7 @@ func processErrorWithSavingOutput(ctx context.Context, err error, errorOutput []
 
 // processRunError processes error received during processing run step.
 // This method sets error output to the cache and after that sets value to channel to stop goroutine which writes logs.
+//
 //	After receiving a signal that goroutine was finished (read value from finishReadLogsChannel) this method
 //	sets corresponding status to the cache.
 func processRunError(ctx context.Context, errorChannel chan error, errorOutput []byte, pipelineId uuid.UUID, cacheService cache.Cache, stopReadLogsChannel, finishReadLogsChannel chan bool) error {
@@ -553,6 +561,7 @@ func processSuccess(ctx context.Context, pipelineId uuid.UUID, cacheService cach
 
 // processCompileSuccess processes case after successful compile step.
 // This method sets output of the compile step, sets empty string as output of the run step and
+//
 //	sets corresponding status to the cache.
 func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, cacheService cache.Cache) error {
 	logger.Infof("%s: Compile() finish\n", pipelineId)
@@ -577,6 +586,7 @@ func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.U
 
 // processRunSuccess processes case after successful run step.
 // This method sets value to channel to stop goroutine which writes logs.
+//
 //	After receiving a signal that goroutine was finished (read value from finishReadLogsChannel) this method
 //	sets corresponding status to the cache.
 func processRunSuccess(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, stopReadLogsChannel, finishReadLogsChannel chan bool) error {
