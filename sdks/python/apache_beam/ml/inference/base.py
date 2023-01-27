@@ -311,7 +311,8 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       metrics_namespace: Optional[str] = None,
       *,
       model_metadata_pcoll: beam.PCollection[ModelMetdata] = None):
-    """A transform that takes a PCollection of examples (or features) for use
+    """
+    A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
     those examples in a PCollection of PredictionResults that contains the input
     examples and the output inferences.
@@ -329,14 +330,17 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
         model_metadata_pcoll: PCollection that emits Singleton ModelMetadata
-        containing model path and model name, that is used as a side input
-        to the _RunInferenceDoFn.
+          containing model path and model name, that is used as a side input
+          to the _RunInferenceDoFn.
+          ** This is only supported in streaming mode. **
+
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
     self._metrics_namespace = metrics_namespace
     self._model_metadata_pcoll = model_metadata_pcoll
+    self._enable_side_input_loading = self._model_metadata_pcoll is not None
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -366,7 +370,6 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         # batching DoFn APIs.
         | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
 
-    enable_side_input_loading = self._model_metadata_pcoll is not None
     return (
         batched_elements_pcoll
         | 'BeamML_RunInference' >> (
@@ -375,12 +378,12 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                     self._model_handler,
                     self._clock,
                     self._metrics_namespace,
-                    enable_side_input_loading),
+                    self._enable_side_input_loading),
                 self._inference_args,
                 beam.pvalue.AsSingleton(
                     self._model_metadata_pcoll,
-                ) if enable_side_input_loading else None).with_resource_hints(
-                    **resource_hints)))
+                ) if self._enable_side_input_loading else
+                None).with_resource_hints(**resource_hints)))
 
 
 class _MetricsCollector:

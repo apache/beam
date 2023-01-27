@@ -525,6 +525,14 @@ class Pipeline(object):
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
 
+    self.contains_run_inference_transform = (
+        RunInferenceSideInputFinder.contains_run_inference_transform(self))
+
+    if (self.contains_run_inference_transform and
+        not self._options.view_as(StandardOptions).streaming):
+      raise RuntimeError(
+          "SideInputs to RunInference PTransform is only supported "
+          "in streaming mode.")
     try:
       if test_runner_api == 'AUTO':
         # Don't pay the cost of a round-trip if we're going to be going through
@@ -1078,6 +1086,36 @@ class ExternalTransformFinder(PipelineVisitor):
     # transforms. A Runner API pipeline proto generated from the Pipeline object
     # will include external sub-transform.
     self._perform_exernal_transform_test(transform_node.transform)
+
+
+class RunInferenceSideInputFinder(PipelineVisitor):
+  """
+  Looks for RunInference transform in the pipeline.
+  """
+  def __init__(self):
+    self._contains_run_inference_side_inputs = False
+
+  @staticmethod
+  def contains_run_inference_transform(pipeline):
+    visitor = RunInferenceSideInputFinder()
+    pipeline.visit(visitor)
+    return visitor._contains_run_inference_side_inputs
+
+  def _perform_run_inference_transform_test(self, transform):
+    if not transform:
+      return
+    from apache_beam.ml.inference.base import RunInference
+    if isinstance(transform, RunInference):
+      # check for side input
+      self._contains_run_inference_side_inputs = (
+          transform._enable_side_input_loading)
+
+  def visit_transform(self, transform_node):
+    self._perform_run_inference_transform_test(transform_node.transform)
+
+  def enter_composite_transform(self, transform_node):
+    # type: (AppliedPTransform) -> None
+    self._perform_run_inference_transform_test(transform_node.transform)
 
 
 class AppliedPTransform(object):
