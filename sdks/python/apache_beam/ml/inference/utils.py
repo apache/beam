@@ -164,5 +164,5 @@ class WatchFilePattern(beam.PTransform):
         | "AcceptNewSideInputOnly" >> beam.ParDo(_CoverIterToSingleton())
         | 'ApplyGlobalWindow' >> beam.transforms.WindowInto(
             window.GlobalWindows(),
-            trigger=trigger.AfterProcessingTime(1),
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
             accumulation_mode=trigger.AccumulationMode.DISCARDING))
