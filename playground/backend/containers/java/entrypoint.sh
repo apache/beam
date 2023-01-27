@@ -18,6 +18,12 @@ openssl x509 -in /home/appuser/.mitmproxy/mitmproxy-ca.pem -inform PEM -out /usr
 keytool -importcert -trustcacerts -storepass changeit -alias mitmproxy -file /home/appuser/.mitmproxy/mitmproxy-ca-cert.pem -noprompt -keystore $JAVA_HOME/jre/lib/security/cacerts
 update-ca-certificates
 
-su - appuser
+mkdir -p ~/jar-update
+pushd ~/jar-update|| exit
+jar xf /opt/apache/beam/jars/beam-sdks-java-harness.jar com/google/api/client/googleapis/google.p12
+keytool -importcert -trustcacerts -storepass notasecret -alias mitmproxy -file /home/appuser/.mitmproxy/mitmproxy-ca-cert.pem -noprompt -keystore com/google/api/client/googleapis/google.p12
+zip -u /opt/apache/beam/jars/beam-sdks-java-harness.jar com/google/api/client/googleapis/google.p12
+popd || exit
+rm -r ~/jar-update
 
 su appuser -c /opt/playground/backend/server_java_backend
