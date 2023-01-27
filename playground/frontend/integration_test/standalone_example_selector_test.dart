@@ -81,8 +81,8 @@ List<String> _getSortedTags(WidgetTester wt) {
     tagsMap[tag] = (tagsMap[tag] ?? 0) + 1;
   }
 
-  final tagsMapList = tagsMap.entries.toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
+  final tagsMapList = tagsMap.entries.toList();
+  tagsMapList.sort((a, b) => b.value.compareTo(a.value));
 
   return tagsMapList.map((e) => e.key).toList();
 }

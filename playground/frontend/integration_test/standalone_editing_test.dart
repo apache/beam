@@ -39,7 +39,8 @@ void main() {
 }
 
 Future<void> _checkAutocomplete(WidgetTester wt) async {
-  // Several newlines are required here because suggestion popup works incorrectly. Remove when fixed
+  // Several newlines are required here because suggestion 
+  // popup works incorrectly. Remove when fixed
   await wt.enterText(find.codeField(), '\n\n\n\n\nsdk');
 
   final playgroundController = wt.findPlaygroundController();
