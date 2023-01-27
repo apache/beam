@@ -44,8 +44,7 @@ TensorInferenceFn = Callable[[
     torch.device,
     Optional[Dict[str, Any]],
     Optional[str]
-],
-                             Iterable[PredictionResult]]
+], Iterable[PredictionResult]]
 
 KeyedTensorInferenceFn = Callable[[
     Sequence[Dict[str, torch.Tensor]],
@@ -53,8 +52,7 @@ KeyedTensorInferenceFn = Callable[[
     torch.device,
     Optional[Dict[str, Any]],
     Optional[str]
-],
-                                  Iterable[PredictionResult]]
+], Iterable[PredictionResult]]
 
 
 def _load_model(
