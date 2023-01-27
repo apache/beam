@@ -119,7 +119,8 @@ RUN groupadd --gid 20000 appgroup \
 RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
-RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod -R 664 /opt/apache/beam/jars/ \
+
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod o+r /opt/apache/beam/jars/* \
   && chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
