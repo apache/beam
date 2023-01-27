@@ -160,8 +160,10 @@ class OptionsForm:
   """A form visualized to take inputs from users in IPython Notebooks and
   generate PipelineOptions to run pipelines.
   """
+
   def __init__(self):
-    self.options = PipelineOptions()
+    # ignore all flags
+    self.options = PipelineOptions(flags={})
     self.entries = []
 
   def add(self, entry: OptionsEntry) -> 'OptionsForm':
