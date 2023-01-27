@@ -310,7 +310,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       inference_args: Optional[Dict[str, Any]] = None,
       metrics_namespace: Optional[str] = None,
       *,
-      model_path_pcoll: beam.PCollection[ModelMetdata] = None):
+      model_metadata_pcoll: beam.PCollection[ModelMetdata] = None):
     """A transform that takes a PCollection of examples (or features) for use
     on an ML model. The transform then outputs inferences (or predictions) for
     those examples in a PCollection of PredictionResults that contains the input
@@ -328,14 +328,15 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         inference_args: Extra arguments for models whose inference call requires
           extra parameters.
         metrics_namespace: Namespace of the transform to collect metrics.
-        model_path_pcoll: PCollection that emits model path
-          that is used as a side input to the _RunInferenceDoFn.
+        model_metadata_pcoll: PCollection that emits Singleton ModelMetadata
+        containing model path and model name, that is used as a side input
+        to the _RunInferenceDoFn.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
     self._clock = clock
     self._metrics_namespace = metrics_namespace
-    self._model_path_pcoll = model_path_pcoll
+    self._model_metadata_pcoll = model_metadata_pcoll
 
   # TODO(BEAM-14046): Add and link to help documentation.
   @classmethod
@@ -365,7 +366,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         # batching DoFn APIs.
         | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
 
-    enable_side_input_loading = self._model_path_pcoll is not None
+    enable_side_input_loading = self._model_metadata_pcoll is not None
     return (
         batched_elements_pcoll
         | 'BeamML_RunInference' >> (
@@ -377,7 +378,7 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
                     enable_side_input_loading),
                 self._inference_args,
                 beam.pvalue.AsSingleton(
-                    self._model_path_pcoll,
+                    self._model_metadata_pcoll,
                 ) if enable_side_input_loading else None).with_resource_hints(
                     **resource_hints)))
 
