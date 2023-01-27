@@ -67,6 +67,7 @@ BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
+# Branch name
 echo "Branch name is below"
 echo $branch_name
 # Get changed files from Webhook result (body.files)
