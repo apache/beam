@@ -234,16 +234,6 @@ For more information, see the [`PredictionResult` documentation](https://github.
 For detailed instructions explaining how to build and run a pipeline that uses ML models, see the
 [Example RunInference API pipelines](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) on GitHub.
 
-## Side Inputs to Update Models
-From Beam 2.45.0, the RunInference PTransform will accept a side input of `ModelMetadata`, which is a `NamedTuple` containing the `model_id` and `model_name`.
-  * `model_id`: The model_id is used to load the models. It could be an URI or path to the model.
-  * `model_name`: Unique identifier used to append the metrics. This should be short relative to the model_id so that it can be attached to the metrics to identify which model was used to calculate the metrics.
-
-**Note**: The side input PCollection must be compatible with `AsSingleton` view or the pipeline will result in error.
-
-**Note**: If the main PCollection emits inputs and side input has yet to receive inputs, the main PCollection will get buffered until there is
-            an update to the side input. This could happen with Global windowed side inputs with data driven triggers such as `AfterCount`, `AfterProcessingTime`. So until there is an update to the side input, emit the default/initial model id that is used to pass the respective `ModelHandler` as side input..
-
 ## Beam Java SDK support
 
 The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). To try it out, see the [Java Sklearn Mnist Classification example](https://github.com/apache/beam/tree/master/examples/multi-language).
