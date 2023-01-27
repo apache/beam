@@ -539,13 +539,20 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     """
     if si_model_metadata and self._enable_side_input_loading:
       if isinstance(si_model_metadata, beam.pvalue.EmptySideInput):
+        logging.info('Empty side input, continuing with default model URI')
         self.update_model(side_input_model_path=None)
         return self._run_inference(batch, inference_args)
       elif self._side_input_path != si_model_metadata.model_id:
+        logging.info(
+            "self._side_input path: %s, si model path % s" %
+            (self._side_input_path, si_model_metadata.model_id))
         self._side_input_path = si_model_metadata.model_id
+        logging.info(
+            'Updating metrics collector: %s' % si_model_metadata.model_name)
         self._metrics_collector = self.get_metrics_collector(
             prefix=si_model_metadata.model_name)
         with threading.Lock():
+          logging.info('Updating model to %s ' % si_model_metadata.model_id)
           self.update_model(si_model_metadata.model_id)
           return self._run_inference(batch, inference_args)
     return self._run_inference(batch, inference_args)
