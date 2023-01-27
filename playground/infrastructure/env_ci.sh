@@ -94,7 +94,7 @@ do
           example_has_changed=False
       fi
 
-# Run commands if examples have been changed
+# Run commands if examples have been changed:
       if [[ $example_has_changed == "True" ]]
       then
             if [ -z ${tag_name} ]
