@@ -11,13 +11,15 @@ from apache_beam.transforms.core import Windowing
 class FlinkKafkaInput(PTransform):
   """Custom transform that wraps a Flink Kafka consumer - only works with the
   portable Flink runner."""
-  consumer_properties = {'bootstrap.servers': 'localhost:9092'}
-  topics = list()
-  username = None
-  password = None
-  max_out_of_orderness_millis = None
-  start_from_timestamp_millis = None
-  idleness_timeout_millis = None
+
+  def __init__(self):
+    self.consumer_properties = dict()
+    self.topics = list()
+    self.username = None
+    self.password = None
+    self.max_out_of_orderness_millis = None
+    self.start_from_timestamp_millis = None
+    self.idleness_timeout_millis = None
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin), (
@@ -135,10 +137,12 @@ class FlinkKafkaSink(PTransform):
     The properties are for the Java Kafka producer. For details see:
     - https://ci.apache.org/projects/flink/flink-docs-stable/dev/connectors/kafka.html#kafka-producer
   """
-  producer_properties = {'bootstrap.servers': 'localhost:9092'}
-  topic = None
-  username = None
-  password = None
+
+  def __init__(self):
+    self.producer_properties = dict()
+    self.topic = None
+    self.username = None
+    self.password = None
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
@@ -163,7 +167,7 @@ class FlinkKafkaSink(PTransform):
   @PTransform.register_urn("lyft:flinkKafkaSink", None)
   def from_runner_api_parameter(_unused_ptransform, spec_parameter, _unused_context):
     logging.info("kafka spec: %s", spec_parameter)
-    instance = FlinkKafkaInput()
+    instance = FlinkKafkaSink()
     payload = json.loads(spec_parameter)
     instance.topic = payload['topic']
     instance.producer_properties = payload['properties']
