@@ -173,17 +173,27 @@ public final class DataflowOperator {
       }
 
       LOG.info("Checking if condition is met.");
-      if (conditionCheck.get()) {
-        LOG.info("Condition met!");
-        return Result.CONDITION_MET;
+      try {
+        if (conditionCheck.get()) {
+          LOG.info("Condition met!");
+          return Result.CONDITION_MET;
+        }
+      } catch (Exception e) {
+        LOG.warn("Error happened when checking for condition: {}", e.getMessage());
       }
+
       LOG.info("Condition not met. Checking if job is finished.");
       if (stopChecking.get()) {
         LOG.info("Detected that we should stop checking.");
         return Result.JOB_FINISHED;
       }
       LOG.info(
-          "Job not finished. Will check again in {} seconds", config.checkAfter().getSeconds());
+          "Job not finished. Will check again in {} seconds (total wait: "
+              + Duration.between(start, Instant.now()).getSeconds()
+              + "s of max "
+              + config.timeoutAfter().getSeconds()
+              + "s)",
+          config.checkAfter().getSeconds());
     }
 
     LOG.warn("Neither the condition or job completion were fulfilled on time.");

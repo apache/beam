@@ -15,11 +15,13 @@
  */
 package com.google.cloud.teleport.it.matchers;
 
+import com.google.common.truth.Fact;
 import com.google.common.truth.FailureMetadata;
 import com.google.common.truth.Subject;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -59,7 +61,30 @@ public final class RecordsSubject extends Subject {
    * @param record Expected row to search
    */
   public void hasRecord(Map<String, Object> record) {
-    check("record %s is there", record.toString()).that(actual).contains(record);
+    check("expected that contains record %s", record.toString()).that(actual).contains(record);
+  }
+
+  /**
+   * Check if the records list has specific rows, without guarantees of ordering. The way that
+   * ordering is taken out of the equation is by converting all records to TreeMap, which guarantee
+   * natural key ordering.
+   *
+   * @param records Expected rows to search
+   */
+  public void hasRecordsUnordered(List<Map<String, Object>> records) {
+
+    for (Map<String, Object> record : records) {
+      String expected = new TreeMap<>(record).toString();
+      if (actual.stream()
+          .noneMatch(candidate -> new TreeMap<>(candidate).toString().equals(expected))) {
+        failWithoutActual(
+            Fact.simpleFact(
+                "expected that contains unordered record "
+                    + expected
+                    + ", but only had "
+                    + actual));
+      }
+    }
   }
 
   /**

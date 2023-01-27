@@ -16,6 +16,8 @@
 package com.google.cloud.teleport.it.kafka;
 
 import java.util.Set;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.common.serialization.Serializer;
 
 /** Interface for managing Kafka resources in integration tests. */
 public interface KafkaResourceManager {
@@ -28,6 +30,10 @@ public interface KafkaResourceManager {
 
   /** Returns the kafka boostrap server connection string. */
   String getBootstrapServers();
+
+  /** Build a {@link KafkaProducer} for the given serializer and deserializers. */
+  <K, V> KafkaProducer<K, V> buildProducer(
+      Serializer<K> keySerializer, Serializer<V> valueSerializer);
 
   /**
    * Deletes all created resources and cleans up the Kafka client, making the manager object
@@ -43,8 +49,9 @@ public interface KafkaResourceManager {
    * <p>Note: Implementations may do topic creation here, if one does not already exist.
    *
    * @param topicName Topic name to associate with the given kafka instance.
-   * @return A boolean indicating whether the resource was created.
+   * @param partitions Number of partitions on the topic.
+   * @return The name of the topic that was created.
    * @throws KafkaResourceManagerException if there is an error creating the kafka topic.
    */
-  boolean createTopic(String topicName);
+  String createTopic(String topicName, int partitions);
 }

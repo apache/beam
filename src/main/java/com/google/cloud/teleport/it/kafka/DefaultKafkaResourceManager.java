@@ -20,13 +20,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.cloud.teleport.it.testcontainers.TestContainerResourceManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.common.serialization.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -55,8 +56,8 @@ public class DefaultKafkaResourceManager extends TestContainerResourceManager<Ge
   // https://hub.docker.com/r/confluentinc/cp-kafka/tags
   private static final String DEFAULT_KAFKA_CONTAINER_TAG = "7.3.1";
 
-  // 9092 is the default port that kafka is configured to listen on.
-  private static final int KAFKA_INTERNAL_PORT = 9092;
+  // 9093 is the default port that kafka broker is configured to listen on.
+  private static final int KAFKA_BROKER_PORT = 9093;
 
   private final AdminClient kafkaClient;
   private final Set<String> topicNames;
@@ -64,11 +65,7 @@ public class DefaultKafkaResourceManager extends TestContainerResourceManager<Ge
   private final boolean usingStaticTopic;
 
   private DefaultKafkaResourceManager(DefaultKafkaResourceManager.Builder builder) {
-    this(
-        null,
-        new KafkaContainer(
-            DockerImageName.parse(builder.containerImageName).withTag(builder.containerImageTag)),
-        builder);
+    this(null, new DefaultKafkaContainer(builder), builder);
   }
 
   @VisibleForTesting
@@ -78,7 +75,7 @@ public class DefaultKafkaResourceManager extends TestContainerResourceManager<Ge
 
     this.usingStaticTopic = builder.topicNames.size() > 0;
     if (this.usingStaticTopic) {
-      this.topicNames = ImmutableSet.copyOf(builder.topicNames);
+      this.topicNames = new HashSet<>(builder.topicNames);
     } else {
       Set<String> setOfTopicNames = new HashSet<String>();
       for (int index = 0; index < builder.numTopics; ++index) {
@@ -86,16 +83,16 @@ public class DefaultKafkaResourceManager extends TestContainerResourceManager<Ge
             KafkaResourceManagerUtils.generateTopicName(
                 String.format("%s-%d", builder.testId, index)));
       }
-      this.topicNames = ImmutableSet.copyOf(setOfTopicNames);
+      this.topicNames = new HashSet<>(setOfTopicNames);
     }
 
     this.connectionString =
-        String.format("PLAINTEXT://%s:%d", this.getHost(), this.getPort(KAFKA_INTERNAL_PORT));
+        String.format("PLAINTEXT://%s:%d", this.getHost(), this.getPort(KAFKA_BROKER_PORT));
 
     this.kafkaClient =
-        (client == null)
-            ? AdminClient.create(ImmutableMap.of("bootstrap.servers", this.connectionString))
-            : client;
+        client != null
+            ? client
+            : AdminClient.create(ImmutableMap.of("bootstrap.servers", this.connectionString));
   }
 
   public static DefaultKafkaResourceManager.Builder builder(String testId) throws IOException {
@@ -113,24 +110,36 @@ public class DefaultKafkaResourceManager extends TestContainerResourceManager<Ge
   }
 
   @Override
-  public synchronized boolean createTopic(String topicName) {
+  public synchronized String createTopic(String topicName, int partitions) {
+    checkArgument(partitions > 0, "partitions must be positive.");
+
+    String uniqueName = KafkaResourceManagerUtils.generateTopicName(topicName);
     try {
       Set<String> currentTopics = kafkaClient.listTopics().names().get();
-      if (currentTopics.contains(topicName)) {
-        return false;
-      } else {
+      if (!currentTopics.contains(uniqueName)) {
         kafkaClient
-            .createTopics(Collections.singletonList(new NewTopic(topicName, 1, (short) 1)))
+            .createTopics(
+                Collections.singletonList(new NewTopic(uniqueName, partitions, (short) 1)))
             .all()
             .get();
+        topicNames.add(uniqueName);
       }
     } catch (Exception e) {
       throw new KafkaResourceManagerException("Error creating topics.", e);
     }
 
-    LOG.info("Successfully created topic {}.{}", topicName);
+    LOG.info("Successfully created topic {}.", uniqueName);
 
-    return true;
+    return uniqueName;
+  }
+
+  @Override
+  public synchronized <K, V> KafkaProducer<K, V> buildProducer(
+      Serializer<K> keySerializer, Serializer<V> valueSerializer) {
+    return new KafkaProducer<>(
+        ImmutableMap.of("bootstrap.servers", getBootstrapServers()),
+        keySerializer,
+        valueSerializer);
   }
 
   @Override
@@ -205,7 +214,7 @@ public class DefaultKafkaResourceManager extends TestContainerResourceManager<Ge
      * @return this builder object with numTopics set.
      */
     public Builder setNumTopics(int numTopics) {
-      checkArgument(numTopics > 0, "numTopics must be positive.");
+      checkArgument(numTopics >= 0, "numTopics must be non-negative.");
       checkArgument(
           this.topicNames.size() == 0,
           "setTopicNames and setNumTopics cannot be set at the same time.");
@@ -216,6 +225,24 @@ public class DefaultKafkaResourceManager extends TestContainerResourceManager<Ge
     @Override
     public DefaultKafkaResourceManager build() {
       return new DefaultKafkaResourceManager(this);
+    }
+  }
+
+  static class DefaultKafkaContainer extends KafkaContainer {
+
+    private String host;
+
+    public DefaultKafkaContainer(Builder builder) {
+      super(DockerImageName.parse(builder.containerImageName).withTag(builder.containerImageTag));
+      this.host = builder.host;
+    }
+
+    @Override
+    public String getHost() {
+      if (this.host == null) {
+        return super.getHost();
+      }
+      return this.host;
     }
   }
 }

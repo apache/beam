@@ -38,7 +38,7 @@ public abstract class TestContainerResourceManager<T extends GenericContainer<?>
   private final T container;
   private final boolean usingStaticContainer;
   private final String host;
-  private final int port;
+  protected final int port;
 
   protected <B extends TestContainerResourceManager.Builder<?>> TestContainerResourceManager(
       T container, B builder) {

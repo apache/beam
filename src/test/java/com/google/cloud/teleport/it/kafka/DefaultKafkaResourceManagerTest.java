@@ -16,9 +16,8 @@
 package com.google.cloud.teleport.it.kafka;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
@@ -57,7 +56,7 @@ public final class DefaultKafkaResourceManagerTest {
   private static final String TEST_ID = "test-id";
   private static final String HOST = "localhost";
   private static final String TOPIC_NAME = "topic-name";
-  private static final int KAFKA_PORT = 9092;
+  private static final int KAFKA_PORT = 9093;
   private static final int MAPPED_PORT = 10000;
 
   private DefaultKafkaResourceManager testManager;
@@ -110,12 +109,18 @@ public final class DefaultKafkaResourceManagerTest {
   }
 
   @Test
+  public void testCreateTopicZeroPartitionsThrowErrors()
+      throws ExecutionException, InterruptedException {
+    assertThrows(IllegalArgumentException.class, () -> testManager.createTopic(TOPIC_NAME, 0));
+  }
+
+  @Test
   public void testCreateTopicShouldThrowErrorWhenKafkaFailsToListTopics()
       throws ExecutionException, InterruptedException {
     when(kafkaClient.listTopics().names().get())
         .thenThrow(new ExecutionException(new RuntimeException("list topic future fails")));
 
-    assertThrows(KafkaResourceManagerException.class, () -> testManager.createTopic(TOPIC_NAME));
+    assertThrows(KafkaResourceManagerException.class, () -> testManager.createTopic(TOPIC_NAME, 1));
   }
 
   @Test
@@ -125,15 +130,15 @@ public final class DefaultKafkaResourceManagerTest {
     when(kafkaClient.createTopics(any(Collection.class)).all().get())
         .thenThrow(new ExecutionException(new RuntimeException("create topic future fails")));
 
-    assertThrows(KafkaResourceManagerException.class, () -> testManager.createTopic(TOPIC_NAME));
+    assertThrows(KafkaResourceManagerException.class, () -> testManager.createTopic(TOPIC_NAME, 1));
   }
 
   @Test
-  public void testCreateTopicShouldReturnFalseIfTopicExists()
+  public void testCreateTopicShouldReturnTopicIfTopicExists()
       throws ExecutionException, InterruptedException {
     when(kafkaClient.listTopics().names().get()).thenReturn(Collections.singleton(TOPIC_NAME));
 
-    assertFalse(testManager.createTopic(TOPIC_NAME));
+    assertNotNull(testManager.createTopic(TOPIC_NAME, 1));
   }
 
   @Test
@@ -141,7 +146,7 @@ public final class DefaultKafkaResourceManagerTest {
     when(kafkaClient.listTopics().names().get()).thenReturn(new HashSet<String>());
     when(kafkaClient.createTopics(any(Collection.class)).all().get()).thenReturn(null);
 
-    assertTrue(testManager.createTopic(TOPIC_NAME));
+    assertNotNull(testManager.createTopic(TOPIC_NAME, 1));
   }
 
   @Test
