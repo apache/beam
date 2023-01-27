@@ -593,10 +593,15 @@ public class BigQueryHelpers {
 
   static void verifyTablePresence(DatasetService datasetService, TableReference table) {
     try {
-      datasetService.getTable(table);
+      Table fetchedTable = datasetService.getTable(table);
+      if (fetchedTable == null) {
+        throw new IOException("Table does not exist.");
+      }
     } catch (Exception e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-      if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
+      if ((e instanceof IOException)
+          && ("Table does not exist.".equals(e.getMessage())
+              || errorExtractor.itemNotFound((IOException) e))) {
         throw new IllegalArgumentException(
             String.format(RESOURCE_NOT_FOUND_ERROR, "table", toTableSpec(table)), e);
       } else if (e instanceof RuntimeException) {
