@@ -433,7 +433,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         | "ApplyWindow" >> beam.WindowInto(
             window.FixedWindows(main_input_windowing_interval))
         | "RunInference" >> base.RunInference(
-            model_handler, model_path_pcoll=side_input))
+            model_handler, model_metadata_pcoll=side_input))
     test_pipeline.run()
 
     expected_model_id_order = [

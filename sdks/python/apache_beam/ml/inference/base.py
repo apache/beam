@@ -455,6 +455,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         model_handler: An implementation of ModelHandler.
         clock: A clock implementing time_ns. *Used for unit testing.*
         metrics_namespace: Namespace of the transform to collect metrics.
+        enable_side_input_loading: Bool to indicate if model updates
+            with side inputs.
     """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()

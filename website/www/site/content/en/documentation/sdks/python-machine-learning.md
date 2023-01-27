@@ -241,7 +241,7 @@ From Beam 2.45.0, the RunInference PTransform will accept a side input of `Model
 
 **Note**: The side input PCollection must be compatible with `AsSingleton` view or the pipeline will result in error.
 
-**Note**: If the main PCollection emits inputs and side input has yet to receive inputs, the main PCollection will get buffered until there is 
+**Note**: If the main PCollection emits inputs and side input has yet to receive inputs, the main PCollection will get buffered until there is
             an update to the side input. This could happen with Global windowed side inputs with data driven triggers such as `AfterCount`, `AfterProcessingTime`. So until there is an update to the side input, emit the default/initial model id that is used to pass the respective `ModelHandler` as side input..
 
 ## Beam Java SDK support
