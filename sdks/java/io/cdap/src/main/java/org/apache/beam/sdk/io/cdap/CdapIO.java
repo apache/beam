@@ -492,7 +492,7 @@ public class CdapIO {
         extends PTransform<
             PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>> {
 
-      private final Configuration hConf;
+      private final transient Configuration hConf;
 
       private ConfigTransform(Configuration hConf) {
         this.hConf = hConf;
