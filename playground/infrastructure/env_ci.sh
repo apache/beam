@@ -74,6 +74,7 @@ if [ -z $branch_name ] || [ $branch_name == "master" ]; then
     branch_name=origin/master
 fi
 
+# Get diff
 diff=$(git diff --name-only $branch_name $commit_sha)
 diff=$(echo $diff | sed -e "s/ /\n/g" -e "s/'//g")
 echo "Diff is below"
