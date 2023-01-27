@@ -78,7 +78,7 @@ public final class TestProperties {
       }
     } catch (IOException e) {
       throw new RuntimeException(
-          "Unable to get credetials! \n"
+          "Unable to get credentials! \n"
               + "Please run the following command to set 60 minute access token, \n"
               + "\t export DT_IT_ACCESS_TOKEN=$(gcloud auth application-default print-access-token) \n"
               + "Please run the following command to set credentials using the gcloud command, "
