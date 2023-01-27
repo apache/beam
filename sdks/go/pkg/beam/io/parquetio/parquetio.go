@@ -167,7 +167,6 @@ func (a *parquetWriteFn) ProcessElement(ctx context.Context, _ int, iter func(*b
 		return err
 	}
 
-	//val := reflect.New(a.Type.T).Interface()
 	var val beam.X
 	for iter(&val) {
 		if err := pw.Write(val); err != nil {
