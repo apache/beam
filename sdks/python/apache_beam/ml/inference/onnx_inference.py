@@ -98,18 +98,6 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._provider_options = provider_options
     self._model_inference_fn = inference_fn
 
-  '''
-  def load_model(self) -> ort.InferenceSession:
-    """Loads and initializes an onnx inference session for processing."""
-    
-    ort_session = ort.InferenceSession(
-        self._model_uri,
-        sess_options=self._session_options,
-        providers=self._providers,
-        provider_options=self._provider_options)
-    return ort_session
-  '''
-
   def load_model(self) -> ort.InferenceSession:
     """Loads and initializes an onnx inference session for processing."""
     # when path is remote, we should first load into memory then deserialize

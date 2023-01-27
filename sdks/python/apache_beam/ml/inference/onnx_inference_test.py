@@ -379,38 +379,22 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
           equal_to(
               self.test_data_and_model.get_two_feature_predictions(),
               equals_fn=_compare_prediction_result))
-
-  # need to put onnx in gs path
-
-  '''
+  
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
-      examples = torch.from_numpy(
-          np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
-      expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(
-              examples,
-              torch.Tensor([example * 2.0 + 0.5
-                            for example in examples]).reshape(-1, 1))
-      ]
+      examples = self.test_data_and_model.get_one_feature_samples()
+      expected_predictions = self.test_data_and_model.get_one_feature_predictions()
+      gs_path = 'gs://ziqi-bucket1/tf_2xplus5_onnx'
 
-      gs_pth = 'gs://apache-beam-ml/models/' \
-          'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
-      model_handler = PytorchModelHandlerTensor(
-          state_dict_path=gs_pth,
-          model_class=PytorchLinearRegression,
-          model_params={
-              'input_dim': 1, 'output_dim': 1
-          })
+      model_handler = TestOnnxModelHandler(gs_path)
 
       pcoll = pipeline | 'start' >> beam.Create(examples)
       predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
-  '''
+  
 
   # need to figure out what type of error this is
   def test_invalid_input_type(self):
@@ -454,37 +438,19 @@ class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
               self.test_data_and_model.get_two_feature_predictions(),
               equals_fn=_compare_prediction_result))
 
-  # need to put onnx in gs path
-
-  '''
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
-      examples = torch.from_numpy(
-          np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1))
-      expected_predictions = [
-          PredictionResult(ex, pred) for ex,
-          pred in zip(
-              examples,
-              torch.Tensor([example * 2.0 + 0.5
-                            for example in examples]).reshape(-1, 1))
-      ]
+      examples = self.test_data_and_model.get_one_feature_samples()
+      expected_predictions = self.test_data_and_model.get_one_feature_predictions()
+      gs_path = 'gs://ziqi-bucket1/tf_2xplus5_onnx'
 
-      gs_pth = 'gs://apache-beam-ml/models/' \
-          'pytorch_lin_reg_model_2x+0.5_state_dict.pth'
-      model_handler = PytorchModelHandlerTensor(
-          state_dict_path=gs_pth,
-          model_class=PytorchLinearRegression,
-          model_params={
-              'input_dim': 1, 'output_dim': 1
-          })
-
+      model_handler = TestOnnxModelHandler(gs_path)
       pcoll = pipeline | 'start' >> beam.Create(examples)
       predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
-  '''
 
   def test_invalid_input_type(self):
     with self.assertRaises(InvalidArgument):
