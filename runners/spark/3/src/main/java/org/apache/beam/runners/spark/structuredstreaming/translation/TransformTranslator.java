@@ -59,6 +59,15 @@ import scala.reflect.ClassTag;
 public abstract class TransformTranslator<
     InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>> {
 
+  // Factor to help estimate the complexity of the Spark execution plan. This is used to limit
+  // complexity by break linage where necessary to avoid overly large plans. Such plans can become
+  // very expensive during planning in the Catalyst optimizer.
+  protected final float complexityFactor;
+
+  protected TransformTranslator(float complexityFactor) {
+    this.complexityFactor = complexityFactor;
+  }
+
   protected abstract void translate(TransformT transform, Context cxt) throws IOException;
 
   final void translate(
@@ -150,8 +159,8 @@ public abstract class TransformTranslator<
     }
 
     @Override
-    public boolean isLeave(PCollection<?> pCollection) {
-      return state.isLeave(pCollection);
+    public boolean isLeaf(PCollection<?> pCollection) {
+      return state.isLeaf(pCollection);
     }
 
     @Override
