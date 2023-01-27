@@ -183,7 +183,7 @@ class ExternalPythonProvider(ExternalProvider):
         self._service)
 
 
-# This is needed because type inference can't handle *args, **kwargs fowarding.
+# This is needed because type inference can't handle *args, **kwargs forwarding.
 # TODO(BEAM-24755): Add support for type inference of through kwargs calls.
 def fix_pycallable():
   from apache_beam.transforms.ptransform import label_from_callable
