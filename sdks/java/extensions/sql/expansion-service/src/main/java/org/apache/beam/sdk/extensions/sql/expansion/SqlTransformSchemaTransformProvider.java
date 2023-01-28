@@ -41,9 +41,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 @AutoService(SchemaTransformProvider.class)
 public class SqlTransformSchemaTransformProvider implements SchemaTransformProvider {
@@ -66,12 +63,12 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
           Schema.Field.nullable("datetime", Schema.FieldType.DATETIME));
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return "schematransform:org.apache.beam:sql_transform:v1";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized Schema configurationSchema() {
+  public Schema configurationSchema() {
     List<String> providers = new ArrayList<>();
     ServiceLoader.load(TableProvider.class)
         .forEach(
@@ -101,20 +98,17 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      @UnknownKeyFor @NonNull @Initialized Row configuration) {
+  public SchemaTransform from(Row configuration) {
     return new SqlSchemaTransform(configuration);
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.emptyList();
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return ImmutableList.of("output");
   }
 
@@ -141,10 +135,7 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized PTransform<
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple,
-            @UnknownKeyFor @NonNull @Initialized PCollectionRowTuple>
-        buildTransform() {
+    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
       return new PTransform<PCollectionRowTuple, PCollectionRowTuple>() {
         @Override
         public PCollectionRowTuple expand(PCollectionRowTuple input) {
