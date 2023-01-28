@@ -33,10 +33,12 @@ import pytest
 import apache_beam as beam
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.ml.inference import base
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
+from apache_beam.transforms import trigger
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.window import TimestampedValue
 
@@ -69,6 +71,21 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     pass
 
 
+class FakeModelAdd(FakeModel):
+  def predict(self, example: int) -> int:
+    return example + 1
+
+
+class FakeModelSub(FakeModel):
+  def predict(self, example: int) -> int:
+    return example - 1
+
+
+class FakeModelError(FakeModel):
+  def predict(self, example: int) -> int:
+    raise NotImplementedError
+
+
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModel]):
   def __init__(self, clock=None, model_id='fake_model_id_default'):
@@ -78,7 +95,12 @@ class FakeModelHandlerReturnsPredictionResult(
   def load_model(self):
     if self._fake_clock:
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
-    return FakeModel()
+    if self.model_id == 'model_add.pkl':
+      return FakeModelAdd()
+    elif self.model_id == 'model_sub.pkl':
+      return FakeModelSub()
+    # in the test, this branch won't get called.
+    return FakeModelError()
 
   def run_inference(
       self,
@@ -389,6 +411,12 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandlerReturnsPredictionResult())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  @unittest.skipIf(
+      not TestPipeline().get_pipeline_options().view_as(
+          StandardOptions).streaming,
+      "RunInference side input tests are only valid for streaming jobs.")
+  @pytest.mark.sickbay_direct
+  @pytest.mark.timeout(1800)
   @pytest.mark.it_postcommit
   def test_run_inference_prediction_result_with_side_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -447,6 +475,48 @@ class RunInferenceBaseTest(unittest.TestCase):
     ]
 
     assert_that(result, equal_to(expected_result))
+
+  @pytest.mark.it_postcommit
+  def test_run_inference_side_input(self):
+
+    test_pipeline = TestPipeline(is_integration_test=True)
+    first_ts = math.floor(time.time()) - 30
+    interval = 10
+    main_input_interval = 5
+    # aligning timestamp to get persistent results
+    first_ts = first_ts - (first_ts % (interval * main_input_interval))
+    last_ts = first_ts + 45
+
+    def get_random_model():
+      import random
+      random.seed(10)
+      p = random.random()
+      if p > 0.5:
+        return base.ModelMetdata(
+            model_id='model_add.pkl', model_name='model_sub.pkl')
+
+    side_input = (
+        test_pipeline
+        | PeriodicImpulse(first_ts, last_ts, fire_interval=interval)
+        | beam.Map(lambda x: get_random_model())
+        | beam.WindowInto(
+            window.GlobalWindows(),
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+            accumulation_mode=trigger.AccumulationMode.DISCARDING))
+
+    model_handler = FakeModelHandlerReturnsPredictionResult()
+    # Read from Periodic Impulse again
+    _ = (
+        test_pipeline
+        | PeriodicImpulse(first_ts, last_ts, fire_interval=main_input_interval)
+        | beam.Map(lambda x: 1)  # return some input since it won't be used
+        # down stream.
+        | beam.WindowInto(window.FixedWindows(1))
+        | base.RunInference(
+            model_handler=model_handler, model_metadata_pcoll=side_input)
+        | beam.Map(print))
+
+  # add test to catch streaming flag errors.
 
 
 if __name__ == '__main__':

@@ -525,10 +525,10 @@ class Pipeline(object):
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
 
-    self.contains_run_inference_transform = (
+    self.run_inference_contains_side_input = (
         RunInferenceSideInputFinder.contains_run_inference_transform(self))
 
-    if (self.contains_run_inference_transform and
+    if (self.run_inference_contains_side_input and
         not self._options.view_as(StandardOptions).streaming):
       raise RuntimeError(
           "SideInputs to RunInference PTransform is only supported "
