@@ -16,7 +16,6 @@
 package funcx
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
