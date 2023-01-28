@@ -16,6 +16,7 @@
 package funcx
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -84,7 +85,8 @@ func unfoldEmit(t reflect.Type) ([]reflect.Type, bool, error) {
 		if ok, err := isInParam(t.In(i)); !ok {
 			return nil, false, errors.Wrap(err, errIllegalParametersInEmit)
 		}
-		if reflect.TypeOf((*any)(nil)).Elem() == t.In(i) && !typex.IsUniversal(t.In(i)) {
+		emptyInterface := reflect.TypeOf((*any)(nil)).Elem()
+		if ((t.In(i).Kind() == reflect.Ptr && t.In(i).Elem() == emptyInterface) || t.In(i) == emptyInterface) && !typex.IsUniversal(t.In(i)) {
 			return nil, false, errors.New("Type interface{} isn't a supported PCollection type")
 		}
 		ret = append(ret, t.In(i))
