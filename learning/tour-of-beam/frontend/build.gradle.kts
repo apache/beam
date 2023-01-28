@@ -16,25 +16,10 @@
  * limitations under the License.
  */
 
-
-apply(plugin: "org.apache.beam.module")
-apply(plugin: "base")
-applyDockerNature()
-
-def playgroundJobServerProject = "${project.path.replace("-container", "")}"
-
-description = project(playgroundJobServerProject).description + " :: Container"
-
-configurations {
-  dockerDependency
-}
-
-dependencies {
-  dockerDependency(project(path: playgroundJobServerProject, configuration: "shadow"))
-}
+evaluationDependsOn(":playground:frontend:playground_components")
 
 tasks.register("generate") {
-  dependsOn("playground_components:generate")
+  dependsOn(":playground:frontend:playground_components:generate")
 
   dependsOn("generateCode")
 
@@ -42,17 +27,8 @@ tasks.register("generate") {
   description = "Generates all generated files."
 }
 
-tasks.register("printPath") {
-  doLast {
-    exec {
-      executable("printenv")
-      args("PATH")
-    }
-  }
-}
-
 tasks.register("analyze") {
-  dependsOn("playground_components:generateCode")
+  dependsOn(":playground:frontend:playground_components:generateCode")
   dependsOn("generateCode")
 
   group = "verification"
@@ -101,7 +77,7 @@ tasks.register("run") {
 }
 
 tasks.register("test") {
-  dependsOn("playground_components:generateCode")
+  dependsOn(":playground:frontend:playground_components:generateCode")
   dependsOn("generateCode")
 
   group = "verification"
@@ -116,14 +92,14 @@ tasks.register("test") {
 }
 
 tasks.register("precommit") {
-  dependsOn("playground_components:precommit")
+  dependsOn(":playground:frontend:playground_components:precommit")
 
   dependsOn("analyze")
   dependsOn("test")
 }
 
 tasks.register("generateCode") {
-  dependsOn("playground_components:generateCode")
+  dependsOn(":playground:frontend:playground_components:generateCode")
 
   dependsOn("cleanFlutter")
   dependsOn("pubGet")
@@ -152,7 +128,7 @@ tasks.register("cleanFlutter") {
 }
 
 tasks.register("cleanGenerated") {
-  dependsOn("playground_components:cleanGenerated")
+  dependsOn(":playground:frontend:playground_components:cleanGenerated")
 
   group = "build"
   description = "Remove build artifacts"
@@ -166,77 +142,15 @@ tasks.register("cleanGenerated") {
   }
 }
 
-ext.deleteFilesByRegExp = { re ->
+val deleteFilesByRegExp: (String) -> Unit = { re ->
   // Prints file names.
   exec {
     executable("find")
     args("assets", "lib", "test", "-regex", re)
   }
-
   // Actually deletes them.
   exec {
     executable("find")
     args("assets", "lib", "test", "-regex", re, "-delete")
   }
 }
-
-tasks.register("integrationTest") {
-  dependsOn("integrationTest_standalone_change_example_sdk_run")
-  dependsOn("integrationTest_standalone_miscellaneous_ui")
-}
-
-tasks.register("integrationTest_standalone_change_example_sdk_run") {
-  doLast {
-    runIntegrationTest("standalone_change_example_sdk_run", "/")
-  }
-}
-
-tasks.register("integrationTest_standalone_miscellaneous_ui") {
-  doLast {
-    runIntegrationTest("standalone_miscellaneous_ui", "/")
-  }
-}
-
-void runIntegrationTest(String path, String url) {
-  exec {
-    executable("flutter")
-    args(
-      "drive",
-      "--driver=test_driver/integration_test.dart",
-      "--target=integration_test/${path}_test.dart",
-      "--web-launch-url='$url'",
-      "--device-id=chrome",
-    )
-  }
-}
-
-task copyDockerfileDependencies(type: Copy) {
-   group = "build"
-   description = "Copy files that required to build docker container"
-   copy {
-      from(".")
-      into("build/")
-      exclude("build")
-      exclude("Dockerfile")
-   }
-   copy {
-      from("../playground")
-      into("build/playground")
-   }
-}
-
-docker {
-  group = "build"
-  description = "Build container for frontend application"
-  name = containerImageName(
-    name: project.docker_image_default_repo_prefix + "playground-frontend",
-    root: project.rootProject.hasProperty(["docker-repository-root"])
-            ? project.rootProject["docker-repository-root"]
-            : project.docker_image_default_repo_root
-  )
-  files("./build/")
-  tags(containerImageTags())
-}
-
-// Ensure that we build the required resources and copy and file dependencies from related projects
-dockerPrepare.dependsOn(copyDockerfileDependencies)

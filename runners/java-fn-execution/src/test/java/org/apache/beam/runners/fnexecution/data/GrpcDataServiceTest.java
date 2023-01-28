@@ -40,7 +40,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -150,18 +150,18 @@ public class GrpcDataServiceTest {
       }
 
       List<Collection<WindowedValue<String>>> serverInboundValues = new ArrayList<>();
-      Collection<BeamFnDataInboundObserver2> inboundObservers = new ArrayList<>();
+      Collection<BeamFnDataInboundObserver> inboundObservers = new ArrayList<>();
       for (int i = 0; i < 3; ++i) {
         final Collection<WindowedValue<String>> serverInboundValue = new ArrayList<>();
         serverInboundValues.add(serverInboundValue);
-        BeamFnDataInboundObserver2 inboundObserver =
-            BeamFnDataInboundObserver2.forConsumers(
+        BeamFnDataInboundObserver inboundObserver =
+            BeamFnDataInboundObserver.forConsumers(
                 Arrays.asList(DataEndpoint.create(TRANSFORM_ID, CODER, serverInboundValue::add)),
                 Collections.emptyList());
         service.registerReceiver(Integer.toString(i), inboundObserver);
         inboundObservers.add(inboundObserver);
       }
-      for (BeamFnDataInboundObserver2 inboundObserver : inboundObservers) {
+      for (BeamFnDataInboundObserver inboundObserver : inboundObservers) {
         inboundObserver.awaitCompletion();
       }
       waitForInboundElements.countDown();

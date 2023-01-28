@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
-import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer2;
+import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.server.FnService;
@@ -60,7 +60,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     return new GrpcDataService(options, executor, outboundObserverFactory);
   }
 
-  private final SettableFuture<BeamFnDataGrpcMultiplexer2> connectedClient;
+  private final SettableFuture<BeamFnDataGrpcMultiplexer> connectedClient;
   /**
    * A collection of multiplexers which are not used to send data. A handle to these multiplexers is
    * maintained in order to perform an orderly shutdown.
@@ -68,7 +68,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
    * <p>TODO: (BEAM-3811) Replace with some cancellable collection, to ensure that new clients of a
    * closed {@link GrpcDataService} are closed with that {@link GrpcDataService}.
    */
-  private final Queue<BeamFnDataGrpcMultiplexer2> additionalMultiplexers;
+  private final Queue<BeamFnDataGrpcMultiplexer> additionalMultiplexers;
 
   private final PipelineOptions options;
   private final ExecutorService executor;
@@ -99,8 +99,8 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   public StreamObserver<BeamFnApi.Elements> data(
       final StreamObserver<BeamFnApi.Elements> outboundElementObserver) {
     LOG.info("Beam Fn Data client connected.");
-    BeamFnDataGrpcMultiplexer2 multiplexer =
-        new BeamFnDataGrpcMultiplexer2(
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
             null, outboundObserverFactory, inbound -> outboundElementObserver);
     // First client that connects completes this future.
     if (!connectedClient.set(multiplexer)) {
@@ -121,7 +121,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     // Multiplexer, but if there isn't any multiplexer it prevents callers blocking forever.
     connectedClient.cancel(true);
     // Close any other open connections
-    for (BeamFnDataGrpcMultiplexer2 additional : additionalMultiplexers) {
+    for (BeamFnDataGrpcMultiplexer additional : additionalMultiplexers) {
       try {
         additional.close();
       } catch (Exception ignored) {
