@@ -91,8 +91,8 @@ func unfoldIter(t reflect.Type) ([]reflect.Type, bool, error) {
 		if ok, err := isOutParam(t.In(i)); !ok {
 			return nil, false, errors.Wrap(err, errIllegalParametersInIter)
 		}
-		if  t.In(i).Elem().Kind() == reflect.Interface{
-			panic("Type interface{} isn't a supported PCollection type")
+		if  reflect.TypeOf((*any)(nil)).Elem() == t.In(i) && !typex.IsUniversal(t.In(i)){
+			return nil, false, errors.New("Type interface{} isn't a supported PCollection type")
 		}
 		ret = append(ret, t.In(i).Elem())
 	}
