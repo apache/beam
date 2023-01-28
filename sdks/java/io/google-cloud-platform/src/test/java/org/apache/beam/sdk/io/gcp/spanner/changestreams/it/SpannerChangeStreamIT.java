@@ -42,6 +42,7 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.Instant;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -69,6 +71,7 @@ public class SpannerChangeStreamIT {
   private static String instanceId;
   private static String projectId;
   private static String databaseId;
+  private static String metadataDatabaseId;
   private static String metadataTableName;
   private static String changeStreamTableName;
   private static String changeStreamName;
@@ -83,6 +86,13 @@ public class SpannerChangeStreamIT {
     changeStreamTableName = ENV.createSingersTable();
     changeStreamName = ENV.createChangeStreamFor(changeStreamTableName);
     databaseClient = ENV.getDatabaseClient();
+    metadataDatabaseId = ENV.getMetadataDatabaseId();
+    ENV.createMetadataDatabase();
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    ENV.destroyMetadataDatabase();
   }
 
   @Before
@@ -93,6 +103,19 @@ public class SpannerChangeStreamIT {
 
   @Test
   public void testReadSpannerChangeStream() {
+    testReadSpannerChangeStreamImpl(null);
+  }
+
+  @Test
+  public void testReadSpannerChangeStreamWithRole() {
+    testReadSpannerChangeStreamImpl(ENV.getDatabaseRole());
+  }
+
+  public void testReadSpannerChangeStreamImpl(String role) {
+    if (role != null) {
+      // If using RBAC, create test role and grant privileges
+      ENV.createRoleAndGrantPrivileges(changeStreamTableName, changeStreamName);
+    }
     // Defines how many rows are going to be inserted / updated / deleted in the test
     final int numRows = 5;
     // Inserts numRows rows and uses the first commit timestamp as the startAt for reading the
@@ -106,11 +129,14 @@ public class SpannerChangeStreamIT {
     final Pair<Timestamp, Timestamp> deleteTimestamps = deleteRows(numRows);
     final Timestamp endAt = deleteTimestamps.getRight();
 
-    final SpannerConfig spannerConfig =
+    SpannerConfig spannerConfig =
         SpannerConfig.create()
             .withProjectId(projectId)
             .withInstanceId(instanceId)
             .withDatabaseId(databaseId);
+    if (role != null) {
+      spannerConfig = spannerConfig.withDatabaseRole(StaticValueProvider.of(role));
+    }
 
     final PCollection<String> tokens =
         pipeline
@@ -118,7 +144,7 @@ public class SpannerChangeStreamIT {
                 SpannerIO.readChangeStream()
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
-                    .withMetadataDatabase(databaseId)
+                    .withMetadataDatabase(metadataDatabaseId)
                     .withMetadataTable(metadataTableName)
                     .withInclusiveStartAt(startAt)
                     .withInclusiveEndAt(endAt))
@@ -176,7 +202,7 @@ public class SpannerChangeStreamIT {
                 SpannerIO.readChangeStream()
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
-                    .withMetadataDatabase(databaseId)
+                    .withMetadataDatabase(metadataDatabaseId)
                     .withMetadataTable(metadataTableName)
                     .withInclusiveStartAt(startAt)
                     .withInclusiveEndAt(endAt))

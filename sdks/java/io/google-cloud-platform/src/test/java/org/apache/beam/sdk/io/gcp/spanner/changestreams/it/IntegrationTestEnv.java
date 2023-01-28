@@ -24,6 +24,7 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -48,12 +49,14 @@ public class IntegrationTestEnv extends ExternalResource {
   private static final String METADATA_TABLE_NAME_PREFIX = "TestMetadata";
   private static final String SINGERS_TABLE_NAME_PREFIX = "Singers";
   private static final String CHANGE_STREAM_NAME_PREFIX = "SingersStream";
+  private static final String DATABASE_ROLE = "test_role";
   private List<String> changeStreams;
   private List<String> tables;
 
   private String projectId;
   private String instanceId;
   private String databaseId;
+  private String metadataDatabaseId;
   private String metadataTableName;
   private Spanner spanner;
   private final String host = "https://spanner.googleapis.com";
@@ -70,7 +73,7 @@ public class IntegrationTestEnv extends ExternalResource {
         Optional.ofNullable(options.getProjectId())
             .orElseGet(() -> options.as(GcpOptions.class).getProject());
     instanceId = options.getInstanceId();
-    databaseId = generateDatabaseName(options.getDatabaseId());
+    generateDatabaseIds(options);
     spanner =
         SpannerOptions.newBuilder().setProjectId(projectId).setHost(host).build().getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
@@ -218,6 +221,32 @@ public class IntegrationTestEnv extends ExternalResource {
     return changeStreamName;
   }
 
+  void createRoleAndGrantPrivileges(String table, String changeStream) {
+    if (this.isPostgres) {
+      LOG.error("Database roles not supported with Postgres dialect.");
+      return;
+    }
+    try {
+      databaseAdminClient
+          .updateDatabaseDdl(
+              instanceId,
+              databaseId,
+              Arrays.asList(
+                  "CREATE ROLE " + DATABASE_ROLE,
+                  "GRANT INSERT, UPDATE, DELETE ON TABLE " + table + " TO ROLE " + DATABASE_ROLE,
+                  "GRANT SELECT ON CHANGE STREAM " + changeStream + " TO ROLE " + DATABASE_ROLE,
+                  "GRANT EXECUTE ON TABLE FUNCTION READ_"
+                      + changeStream
+                      + " TO ROLE "
+                      + DATABASE_ROLE),
+              null)
+          .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+    } catch (Exception e) {
+      LOG.error("Failed to create role " + DATABASE_ROLE + " and grant permissions.", e);
+    }
+    return;
+  }
+
   String getProjectId() {
     return projectId;
   }
@@ -230,12 +259,37 @@ public class IntegrationTestEnv extends ExternalResource {
     return databaseId;
   }
 
+  String getMetadataDatabaseId() {
+    return metadataDatabaseId;
+  }
+
+  String getDatabaseRole() {
+    return DATABASE_ROLE;
+  }
+
   String getMetadataTableName() {
     return metadataTableName;
   }
 
   DatabaseClient getDatabaseClient() {
     return databaseClient;
+  }
+
+  void createMetadataDatabase() throws ExecutionException, InterruptedException, TimeoutException {
+    // Drops the database if it already exists
+    databaseAdminClient.dropDatabase(instanceId, metadataDatabaseId);
+    LOG.info("Creating metadata database " + metadataDatabaseId);
+    databaseAdminClient
+        .createDatabase(
+            databaseAdminClient
+                .newDatabaseBuilder(DatabaseId.of(this.projectId, instanceId, metadataDatabaseId))
+                .build(),
+            Collections.emptyList())
+        .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+  }
+
+  void destroyMetadataDatabase() {
+    databaseAdminClient.dropDatabase(instanceId, metadataDatabaseId);
   }
 
   private void recreateDatabase(
@@ -282,10 +336,13 @@ public class IntegrationTestEnv extends ExternalResource {
             MAX_CHANGE_STREAM_NAME_LENGTH - 1 - CHANGE_STREAM_NAME_PREFIX.length());
   }
 
-  private String generateDatabaseName(String prefix) {
-    return prefix
-        + "_"
-        + RandomStringUtils.randomAlphanumeric(MAX_DATABASE_NAME_LENGTH - 1 - prefix.length())
+  private void generateDatabaseIds(ChangeStreamTestPipelineOptions options) {
+    int prefixLength =
+        Math.max(options.getDatabaseId().length(), options.getMetadataDatabaseId().length());
+    String suffix =
+        RandomStringUtils.randomAlphanumeric(MAX_DATABASE_NAME_LENGTH - 1 - prefixLength)
             .toLowerCase(Locale.ROOT);
+    databaseId = options.getDatabaseId() + "_" + suffix;
+    metadataDatabaseId = options.getMetadataDatabaseId() + "_" + suffix;
   }
 }
