@@ -65,7 +65,7 @@ BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
 BEAM_CONCURRENCY=4 \
 BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
-allowlist=("playground/infrastructure playground/backend")
+allowlist=("playground/infrastructure" "playground/backend")
 
 # Branch name
 echo "Branch name is below"
