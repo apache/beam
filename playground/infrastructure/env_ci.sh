@@ -86,7 +86,7 @@ do
       --verbose \
       --sdk SDK_"${sdk^^}" \
       --allowlist "${allowlist[@]}" \
-      --paths ${diff}
+      --paths "${diff}"
       if [ $? -eq 0 ]
       then
           example_has_changed=True
