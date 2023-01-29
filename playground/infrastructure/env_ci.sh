@@ -70,14 +70,14 @@ allowlist=("playground/infrastructure" "playground/backend")
 # Branch name
 echo "Branch name is below"
 echo $branch_name
-# Get changed files from Webhook result (body.files)
-if [ -z $branch_name ] || [ $branch_name == "master" ]
-then
-    branch_name=origin/master
-fi
+## Get changed files from Webhook result (body.files)
+#if [ -z $branch_name ] || [ $branch_name == "master" ]
+#then
+#    branch_name=origin/master
+#fi
 
 # Get diff
-diff=$(git diff --name-only $branch_name $commit_sha | sed -e "s/ /\n/g")
+diff=$(git diff --name-only origin/master $commit_sha | sed -e "s/ /\n/g")
 echo "Diff is below"
 echo "${diff}"
 
