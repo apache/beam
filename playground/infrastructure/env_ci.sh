@@ -65,7 +65,7 @@ BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
 BEAM_CONCURRENCY=4 \
 BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
-allowlist=("playground/infrastructure" "playground/backend")
+allowlist=("playground/infrastructure playground/backend")
 
 # Branch name
 echo "Branch name is below"
@@ -77,9 +77,7 @@ echo $branch_name
 #fi
 
 # Get diff
-diff=$(git diff --name-only origin/master $commit_sha | sed -e "s/ /\n/g" -e "s/'//g")
-echo "Diff is below"
-echo "${diff}"
+diff=$(git diff --name-only origin/master $commit_sha | tr '\n' ' ')
 
 # Check if there are Examples
 for sdk in "${sdks[@]}"
@@ -87,8 +85,8 @@ do
       python3 playground/infrastructure/checker.py \
       --verbose \
       --sdk SDK_"${sdk^^}" \
-      --allowlist "${allowlist[@]}" \
-      --paths "${diff}"
+      --allowlist "${allowlist}" \
+      --paths ${diff}
       if [ $? -eq 0 ]
       then
           example_has_changed=True
