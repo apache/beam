@@ -71,7 +71,8 @@ allowlist=("playground/infrastructure" "playground/backend")
 echo "Branch name is below"
 echo $branch_name
 # Get changed files from Webhook result (body.files)
-if [ -z $branch_name ] || [ $branch_name == "master" ]; then
+if [ -z $branch_name ] || [ $branch_name == "master" ]
+then
     branch_name=origin/master
 fi
 
@@ -91,8 +92,12 @@ do
       if [ $? -eq 0 ]
       then
           example_has_changed=True
-      else
+      elif [ $? -eq 11 ]
+      then
           example_has_changed=False
+      else
+          echo "Checker is broken"
+          exit 1
       fi
 
 # Run main logic if examples have been changed
