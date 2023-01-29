@@ -77,7 +77,7 @@ echo $branch_name
 #fi
 
 # Get diff
-diff=$(git diff --name-only origin/master $commit_sha | sed -e "s/ /\n/g")
+diff=$(git diff --name-only origin/master $commit_sha | sed -e "s/ /\n/g" -e "s/'//g")
 echo "Diff is below"
 echo "${diff}"
 
