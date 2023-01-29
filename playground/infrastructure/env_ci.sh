@@ -85,7 +85,7 @@ do
       python3 playground/infrastructure/checker.py \
       --verbose \
       --sdk SDK_"${sdk^^}" \
-      --allowlist "${allowlist}" \
+      --allowlist "${allowlist[@]}" \
       --paths ${diff}
       if [ $? -eq 0 ]
       then
