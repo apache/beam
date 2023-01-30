@@ -44,18 +44,6 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
 
-def _train_model(model_state_output_path: str = '/tmp/model.json', seed=999):
-  """Function to train an XGBoost Classifier using the sklearn Iris dataset"""
-  dataset = load_iris()
-  x_train, _, y_train, _ = train_test_split(
-      dataset['data'], dataset['target'], test_size=.2, random_state=seed)
-  booster = xgboost.XGBClassifier(
-      n_estimators=2, max_depth=2, learning_rate=1, objective='binary:logistic')
-  booster.fit(x_train, y_train)
-  booster.save_model(model_state_output_path)
-  return booster
-
-
 class PostProcessor(beam.DoFn):
   """Process the PredictionResult to get the predicted label.
   Returns a comma separated string with true label and predicted label.
@@ -163,5 +151,4 @@ def run(
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  _train_model()
   run()

@@ -384,6 +384,23 @@ The pipeline reads rows that contain the features of a given iris. The features 
 
 To use this transform, you need to have sklearn installed. The dataset is loaded from using sklearn. The `_train_model` function can be used to train a simple classifier. The function outputs it's configuration in a file that can be loaded by the `XGBoostModelHandler`.
 
+### Training a simple classifier
+
+The following function you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in an pipeline using the `XGBoostModelHandler`.
+
+```
+def _train_model(model_state_output_path: str = '/tmp/model.json', seed=999):
+  """Function to train an XGBoost Classifier using the sklearn Iris dataset"""
+  dataset = load_iris()
+  x_train, _, y_train, _ = train_test_split(
+      dataset['data'], dataset['target'], test_size=.2, random_state=seed)
+  booster = xgboost.XGBClassifier(
+      n_estimators=2, max_depth=2, learning_rate=1, objective='binary:logistic')
+  booster.fit(x_train, y_train)
+  booster.save_model(model_state_output_path)
+  return booster
+```
+
 #### Running the Pipeline
 To run locally, use the following command:
 

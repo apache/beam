@@ -1,0 +1,2 @@
+datatable==1.0.0
+xgboost>=1.6.0
