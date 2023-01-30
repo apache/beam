@@ -25,13 +25,18 @@ from typing import Mapping
 from typing import Optional
 from typing import Sequence
 
+import pytest
+
 import apache_beam as beam
+from apache_beam.examples.inference import run_inference_side_inputs
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.ml.inference import base
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import window
+from apache_beam.transforms import trigger
 
 
 class FakeModel:
@@ -420,8 +425,14 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_with_iterable_side_input(self):
     test_pipeline = TestPipeline()
-    side_input = test_pipeline | "CreateDummySideInput" >> beam.Create(
-        [base.ModelMetdata(1, 1), base.ModelMetdata(2, 2)])
+    side_input = (
+        test_pipeline | "CreateDummySideInput" >> beam.Create(
+            [base.ModelMetdata(1, 1), base.ModelMetdata(2, 2)])
+        | "ApplySideInputWindow" >> beam.WindowInto(
+            window.GlobalWindows(),
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+            accumulation_mode=trigger.AccumulationMode.DISCARDING))
+
     test_pipeline.options.view_as(StandardOptions).streaming = True
     with self.assertRaises(ValueError) as e:
       _ = (
@@ -435,6 +446,33 @@ class RunInferenceBaseTest(unittest.TestCase):
         'PCollection of size 2 with more than one element accessed as a '
         'singleton view. First two elements encountered are' in str(
             e.exception))
+
+  def test_run_inference_side_input_no_window(self):
+    test_pipeline = TestPipeline()
+    side_input = (
+        test_pipeline | "CreateDummySideInput" >> beam.Create(
+            [base.ModelMetdata(1, 1), base.ModelMetdata(2, 2)]))
+
+    test_pipeline.options.view_as(StandardOptions).streaming = True
+    with self.assertRaises(RuntimeError) as e:
+      _ = (
+          test_pipeline
+          | beam.Create([1, 2, 3, 4])
+          | base.RunInference(
+              FakeModelHandler(), model_metadata_pcoll=side_input))
+      test_pipeline.run()
+
+    self.assertTrue(
+        "The SideInput to the RunInference PTransform "
+        "is using GlobalWindows with default trigger "
+        "or not using Windowing on the side input. "
+        "This could lead to odd behaviors. " in str(e.exception))
+
+  @pytest.mark.it_postcommit
+  def test_run_inference_with_side_input(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    test_pipeline.options.view_as(StandardOptions).streaming = True
+    run_inference_side_inputs.run(test_pipeline.get_full_options_as_args())
 
 
 if __name__ == '__main__':
