@@ -34,16 +34,23 @@ import com.google.cloud.teleport.it.dataflow.DataflowClient;
 import com.google.cloud.teleport.it.dataflow.DataflowClient.JobInfo;
 import com.google.cloud.teleport.it.dataflow.DataflowClient.LaunchConfig;
 import com.google.cloud.teleport.it.dataflow.DataflowOperator;
+import com.google.cloud.teleport.it.dataflow.DataflowOperator.Config;
 import com.google.cloud.teleport.it.dataflow.DataflowUtils;
+import com.google.cloud.teleport.it.dataflow.DirectRunnerClient;
 import com.google.cloud.teleport.it.dataflow.FlexTemplateClient;
 import com.google.cloud.teleport.metadata.Template;
+import com.google.cloud.teleport.metadata.TemplateCreationParameter;
+import com.google.cloud.teleport.metadata.TemplateCreationParameters;
 import com.google.cloud.teleport.metadata.TemplateIntegrationTest;
+import com.google.cloud.teleport.metadata.util.MetadataUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -81,6 +88,7 @@ public abstract class TemplateTestBase {
   private static final Map<String, String> stagedTemplates = new HashMap<>();
 
   protected Template template;
+  private Class<?> templateClass;
   protected GcsArtifactClient artifactClient;
 
   @Before
@@ -92,7 +100,7 @@ public abstract class TemplateTestBase {
           getClass());
       return;
     }
-    Class<?> templateClass = annotation.value();
+    templateClass = annotation.value();
     template = getTemplateAnnotation(annotation, templateClass);
     if (template == null) {
       return;
@@ -127,7 +135,7 @@ public abstract class TemplateTestBase {
       specPath = TestProperties.specPath();
     } else if (stagedTemplates.containsKey(template.name())) {
       specPath = stagedTemplates.get(template.name());
-    } else {
+    } else if (System.getProperty("directRunnerTest") == null) {
       LOG.info("Preparing test for {} ({})", template.name(), templateClass);
 
       String prefix = new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date()) + "_IT";
@@ -272,7 +280,9 @@ public abstract class TemplateTestBase {
   }
 
   protected DataflowClient getDataflowClient() {
-    if (template.flexContainerName() != null && !template.flexContainerName().isEmpty()) {
+    if (System.getProperty("directRunnerTest") != null) {
+      return DirectRunnerClient.builder(templateClass).setCredentials(credentials).build();
+    } else if (template.flexContainerName() != null && !template.flexContainerName().isEmpty()) {
       return FlexTemplateClient.builder().setCredentials(credentials).build();
     } else {
       return ClassicTemplateClient.builder().setCredentials(credentials).build();
@@ -305,6 +315,33 @@ public abstract class TemplateTestBase {
       options.addEnvironment("experiments", "use_runner_v2");
     }
 
+    if (System.getProperty("directRunnerTest") != null) {
+      // For direct runner tests we need to explicitly add a tempLocation if missing
+      if (options.getParameter("tempLocation") == null) {
+        options.addParameter("tempLocation", "gs://" + artifactBucketName + "/temp/");
+      }
+
+      if (System.getProperty("runner") != null) {
+        options.addParameter("runner", System.getProperty("runner"));
+      }
+
+      // If template has creation parameters, they need to be specified as a --parameter=value
+      for (Method method : template.optionsClass().getMethods()) {
+        TemplateCreationParameters creationParameters =
+            method.getAnnotation(TemplateCreationParameters.class);
+        if (creationParameters != null) {
+          for (TemplateCreationParameter param : creationParameters.value()) {
+            if (param.template() == null
+                || param.template().isEmpty()
+                || param.template().equals(template.name())) {
+              options.addParameter(
+                  MetadataUtils.getParameterNameFromMethod(method.getName()), param.value());
+            }
+          }
+        }
+      }
+    }
+
     DataflowClient dataflowClient = getDataflowClient();
     JobInfo jobInfo = dataflowClient.launch(PROJECT, REGION, options.build());
 
@@ -330,11 +367,16 @@ public abstract class TemplateTestBase {
 
   /** Create the default configuration {@link DataflowOperator.Config} for a specific job info. */
   protected DataflowOperator.Config createConfig(JobInfo info) {
-    return DataflowOperator.Config.builder()
-        .setJobId(info.jobId())
-        .setProject(PROJECT)
-        .setRegion(REGION)
-        .build();
+    Config.Builder configBuilder =
+        Config.builder().setJobId(info.jobId()).setProject(PROJECT).setRegion(REGION);
+
+    // For DirectRunner tests, reduce the max time and the interval, as there is no worker required
+    if (System.getProperty("directRunnerTest") != null) {
+      configBuilder =
+          configBuilder.setTimeoutAfter(Duration.ofMinutes(3)).setCheckAfter(Duration.ofSeconds(5));
+    }
+
+    return configBuilder.build();
   }
 
   /**

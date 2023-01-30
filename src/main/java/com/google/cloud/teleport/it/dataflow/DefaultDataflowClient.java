@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,8 +99,8 @@ public class DefaultDataflowClient extends AbstractDataflowClient {
                 "Invalid sdk %s specified. " + "sdk can be one of java, python, or go.",
                 options.sdk()));
     }
-    for (String parameter : options.parameters().keySet()) {
-      cmd.add(String.format("--%s=%s", parameter, options.getParameter(parameter)));
+    for (Map.Entry<String, String> parameter : options.parameters().entrySet()) {
+      cmd.add(String.format("--%s=%s", parameter.getKey(), parameter.getValue()));
     }
     cmd.add(String.format("--project=%s", project));
     cmd.add(String.format("--region=%s", region));
