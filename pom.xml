@@ -199,4 +199,25 @@
     </plugins>
   </build>
 
+  <!-- Skip tests for this common module when profile enabled -->
+  <profiles>
+    <profile>
+      <id>skipCommonTests</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <skipTests>true</skipTests>
+      </properties>
+    </profile>
+    <profile>
+      <id>skipIT</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <skipTests>true</skipTests>
+      </properties>
+    </profile>
+  </profiles>
 </project>
