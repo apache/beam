@@ -42,7 +42,7 @@ for sdk in "${sdks[@]}"
 do
   export SERVER_ADDRESS=https://${sdk}.${dns_name}
   python3 ci_cd.py \
-  --datastore-project $GOOGLE_CLOUD_PROJECT \
+  --datastore-project $PROJECT_ID \
   --step ${STEP} \
   --sdk SDK_"${sdk^^}" \
   --origin ${ORIGIN} \
