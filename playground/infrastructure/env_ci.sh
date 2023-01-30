@@ -72,6 +72,7 @@ echo "Branch name is below and PWD"
 echo $branch_name
 pwd
 ls -la
+ls -l playground/backend/datasets
 ## Get changed files from Webhook result (body.files)
 #if [ -z $branch_name ] || [ $branch_name == "master" ]
 #then
