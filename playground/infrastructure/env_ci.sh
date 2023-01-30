@@ -57,7 +57,7 @@ apt update > /dev/null && apt install -y docker-ce > /dev/null
 export \
 ORIGIN=PG_EXAMPLES \
 STEP=CI \
-SUBDIRS=./learning/katas ./examples ./sdks \
+SUBDIRS="./learning/katas ./examples ./sdks" \
 GOOGLE_CLOUD_PROJECT=${PROJECT_ID} \
 BEAM_ROOT_DIR="." \
 SDK_CONFIG="playground/sdks.yaml" \
@@ -68,8 +68,9 @@ sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
 # Branch name
-echo "Branch name is below"
+echo "Branch name is below and PWD"
 echo $branch_name
+pwd
 ## Get changed files from Webhook result (body.files)
 #if [ -z $branch_name ] || [ $branch_name == "master" ]
 #then
