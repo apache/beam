@@ -393,6 +393,10 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":runners:spark:3:hadoopVersionsTest")
 }
 
+tasks.register("javaAvroVersionsTest") {
+  dependsOn(":sdks:java:extensions:avro:avroVersionsTest")
+}
+
 tasks.register("sqlPostCommit") {
   dependsOn(":sdks:java:extensions:sql:postCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")

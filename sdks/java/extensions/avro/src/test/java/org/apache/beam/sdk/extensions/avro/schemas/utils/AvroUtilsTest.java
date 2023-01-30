@@ -156,7 +156,7 @@ public class AvroUtilsTest {
             ReflectData.makeNullable(
                 org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null);
+            (Object) null);
 
     Field expectedBeamField = Field.nullable("arrayField", FieldType.array(FieldType.INT32));
 
@@ -174,7 +174,7 @@ public class AvroUtilsTest {
             ReflectData.makeNullable(
                 org.apache.avro.Schema.createArray(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null);
+            (Object) null);
 
     org.apache.avro.Schema.Field avroField = AvroUtils.toAvroField(beamField, "ignored");
     assertEquals(expectedAvroField, avroField);
@@ -184,9 +184,10 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
-            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", null));
+            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", (Object) null));
     fields.add(
-        new org.apache.avro.Schema.Field("int", org.apache.avro.Schema.create(Type.INT), "", null));
+        new org.apache.avro.Schema.Field(
+            "int", org.apache.avro.Schema.create(Type.INT), "", (Object) null));
     return fields;
   }
 
@@ -402,21 +403,24 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
-            "int", ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)), "", null));
+            "int",
+            ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "array",
             org.apache.avro.Schema.createArray(
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.BYTES))),
             "",
-            null));
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "map",
             org.apache.avro.Schema.createMap(
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null));
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "enum",
@@ -424,7 +428,7 @@ public class AvroUtilsTest {
                 org.apache.avro.Schema.createEnum(
                     "fruit", "", "", ImmutableList.of("banana", "apple", "pear"))),
             "",
-            null));
+            (Object) null));
 
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
@@ -472,21 +476,24 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
-            "int", ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)), "", null));
+            "int",
+            ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)),
+            "",
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "array",
             org.apache.avro.Schema.createArray(
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null));
+            (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
             "map",
             org.apache.avro.Schema.createMap(
                 ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
             "",
-            null));
+            (Object) null));
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
     assertEquals(avroSchema, AvroUtils.toAvroSchema(beamSchema));
@@ -522,7 +529,7 @@ public class AvroUtilsTest {
 
     fields.add(
         new org.apache.avro.Schema.Field(
-            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", (Object) null));
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
     OneOfType oneOfType =
@@ -549,7 +556,7 @@ public class AvroUtilsTest {
     unionFields.add(org.apache.avro.Schema.create(Type.STRING));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", (Object) null));
     org.apache.avro.Schema avroSchema =
         org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
     GenericRecord expectedGenericRecord =

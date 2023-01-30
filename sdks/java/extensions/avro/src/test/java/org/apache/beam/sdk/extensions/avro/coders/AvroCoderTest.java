@@ -28,11 +28,11 @@ import static org.junit.Assert.fail;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -55,16 +55,12 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
-import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.TestAvro;
-import org.apache.beam.sdk.extensions.avro.schemas.TestAvroNested;
-import org.apache.beam.sdk.extensions.avro.schemas.TestEnum;
-import org.apache.beam.sdk.extensions.avro.schemas.fixed4;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -78,8 +74,6 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -87,7 +81,6 @@ import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -103,23 +96,6 @@ public class AvroCoderTest {
       new DateTime().withDate(1994, 10, 31).withZone(DateTimeZone.UTC);
   public static final DateTime DATETIME_B =
       new DateTime().withDate(1997, 4, 25).withZone(DateTimeZone.UTC);
-  private static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
-  private static final TestAvro AVRO_SPECIFIC_RECORD =
-      new TestAvro(
-          true,
-          43,
-          44L,
-          44.1f,
-          44.2d,
-          "mystring",
-          ByteBuffer.wrap(new byte[] {1, 2, 3, 4}),
-          new fixed4(new byte[] {1, 2, 3, 4}),
-          new LocalDate(1979, 3, 14),
-          new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4),
-          TestEnum.abc,
-          AVRO_NESTED_SPECIFIC_RECORD,
-          ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
-          ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
 
   @DefaultCoder(AvroCoder.class)
   private static class Pojo {
@@ -286,6 +262,7 @@ public class AvroCoderTest {
     // Kryo instantiation
     Kryo kryo = new Kryo();
     kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+    kryo.addDefaultSerializer(AvroCoder.SerializableSchemaSupplier.class, JavaSerializer.class);
 
     // Serialization of object without any memoization
     ByteArrayOutputStream coderWithoutMemoizationBos = new ByteArrayOutputStream();
@@ -325,38 +302,14 @@ public class AvroCoderTest {
   }
 
   @Test
-  public void testSpecificRecordEncoding() throws Exception {
-    AvroCoder<TestAvro> coder =
-        AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema(), false);
-
-    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
-    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
-  }
-
-  @Test
-  public void testReflectRecordEncoding() throws Exception {
-    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, true);
-    AvroCoder<TestAvro> coderWithSchema =
-        AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema(), true);
-
-    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
-    assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
-
-    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
-    CoderProperties.coderDecodeEncodeEqual(coderWithSchema, AVRO_SPECIFIC_RECORD);
-  }
-
-  @Test
   public void testDisableReflectionEncoding() {
     try {
       AvroCoder.of(Pojo.class, false);
       fail("When userReclectApi is disable, schema should not be generated through reflection");
     } catch (AvroRuntimeException e) {
       String message =
-          "avro.shaded.com.google.common.util.concurrent.UncheckedExecutionException: "
-              + "org.apache.avro.AvroRuntimeException: "
-              + "Not a Specific class: class org.apache.beam.sdk.extensions.avro.coders.AvroCoderTest$Pojo";
-      assertEquals(message, e.getMessage());
+          "Not a Specific class: class org.apache.beam.sdk.extensions.avro.coders.AvroCoderTest$Pojo";
+      assertTrue(e.getMessage().contains(message));
     }
   }
 
