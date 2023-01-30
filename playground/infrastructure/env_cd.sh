@@ -48,3 +48,5 @@ do
   --origin ${ORIGIN} \
   --subdirs ${SUBDIRS}
 done
+
+# Note: ${dns.name} taken from cloud build subs
