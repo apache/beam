@@ -67,21 +67,6 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     pass
 
 
-class FakeModelAdd(FakeModel):
-  def predict(self, example: int) -> int:
-    return example + 1
-
-
-class FakeModelSub(FakeModel):
-  def predict(self, example: int) -> int:
-    return example - 1
-
-
-class FakeModelDefault(FakeModel):
-  def predict(self, example: int) -> int:
-    return example
-
-
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModel]):
   def __init__(self, clock=None, model_id='fake_model_id_default'):
@@ -89,14 +74,7 @@ class FakeModelHandlerReturnsPredictionResult(
     self._fake_clock = clock
 
   def load_model(self):
-    if self._fake_clock:
-      self._fake_clock.current_time_ns += 500_000_000  # 500ms
-    if self.model_id == 'model_add.pkl':
-      return FakeModelAdd()
-    elif self.model_id == 'model_sub.pkl':
-      return FakeModelSub()
-    # in the test, this branch won't get called.
-    return FakeModelDefault()
+    return FakeModel()
 
   def run_inference(
       self,
@@ -398,7 +376,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     expected = [
         base.PredictionResult(
             example=example,
-            inference=example,
+            inference=example + 1,
             model_id='fake_model_id_default') for example in examples
     ]
     with TestPipeline() as pipeline:
