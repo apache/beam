@@ -101,7 +101,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def load_model(self) -> ort.InferenceSession:
     """Loads and initializes an onnx inference session for processing."""
     # when path is remote, we should first load into memory then deserialize
-    f =  FileSystems.open(self._model_uri, "rb")
+    f = FileSystems.open(self._model_uri, "rb")
     model_proto = onnx.load(f)
     model_proto_bytes = onnx._serialize(model_proto)
     ort_session = ort.InferenceSession(

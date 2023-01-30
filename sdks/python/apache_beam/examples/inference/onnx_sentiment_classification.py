@@ -15,18 +15,19 @@
 # limitations under the License.
 #
 
-""""A pipeline that uses RunInference to perform sentiment classification using RoBERTa.
+""""A pipeline that uses RunInference to perform sentiment classification
+using RoBERTa.
 
-This pipeline takes sentences from a custom text file, and then uses RoBERTa from
-Hugging Face to predict the sentiment of a given review. The pipeline then writes the prediction to an output
-file in which users can then compare against true labels.
+This pipeline takes sentences from a custom text file, and then uses RoBERTa
+from Hugging Face to predict the sentiment of a given review. The pipeline
+then writes the prediction to an output file in which users can then compare against true labels.
 
-Model is fine-tuned RoBERTa from https://github.com/SeldonIO/seldon-models/blob/master/pytorch/moviesentiment_roberta/pytorch-roberta-onnx.ipynb
+Model is fine-tuned RoBERTa from
+https://github.com/SeldonIO/seldon-models/blob/master/pytorch/moviesentiment_roberta/pytorch-roberta-onnx.ipynb # pylint: disable=line-too-long
 """
 
 import argparse
 import logging
-from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import Tuple
@@ -44,16 +45,15 @@ from apache_beam.runners.runner import PipelineResult
 from transformers import RobertaTokenizer
 
 
-def tokenize_sentence(
-    text: str,
-    tokenizer: RobertaTokenizer) -> Tuple[str, torch.Tensor]:
+def tokenize_sentence(text: str,
+                      tokenizer: RobertaTokenizer) -> Tuple[str, torch.Tensor]:
   tokenized_sentence = tokenizer.encode(text, add_special_tokens=True)
 
   # Workaround to manually remove batch dim until we have the feature to
   # add optional batching flag.
   # TODO(https://github.com/apache/beam/issues/21863): Remove once optional
   # batching flag added
-  return text, torch.tensor(tokenized_sentence).numpy()#.unsqueeze(0)
+  return text, torch.tensor(tokenized_sentence).numpy()
 
 
 def filter_empty_lines(text: str) -> Iterator[str]:
@@ -89,9 +89,7 @@ def parse_known_args(argv):
 
 
 def run(
-    argv=None,
-    save_main_session=True,
-    test_pipeline=None) -> PipelineResult:
+    argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   """
   Args:
     argv: Command line arguments defined for this example.
@@ -117,8 +115,7 @@ def run(
     def batch_elements_kwargs(self):
       return {'max_batch_size': 1}
 
-  model_handler = OnnxNoBatchModelHandler(
-      model_uri=known_args.model_uri)
+  model_handler = OnnxNoBatchModelHandler(model_uri=known_args.model_uri)
 
   pipeline = test_pipeline
   if not test_pipeline:
@@ -128,11 +125,11 @@ def run(
 
   if not known_args.input:
     text = (pipeline | 'CreateSentences' >> beam.Create([
-      'A comedy-drama of nearly epic proportions rooted in a sincere performance by the title character undergoing midlife crisis .',
-      'There \s little to recommend Snow Dogs , unless one considers cliched dialogue and perverse escapism a source of high hilarity .',
+      'A comedy-drama of nearly epic proportions rooted in a sincere performance by the title character undergoing midlife crisis .', # pylint: disable=line-too-long
+      'There \'s little to recommend Snow Dogs , unless one considers cliched dialogue and perverse escapism a source of high hilarity .', # pylint: disable=line-too-long
       'It is a terrible movie .',
-      'A welcome relief from baseball movies that try too hard to be mythic , this one is a sweet and modest and ultimately winning story .',
-      'It almost feels as if the movie is more interested in entertaining itself than in amusing us .',
+      'A welcome relief from baseball movies that try too hard to be mythic , this one is a sweet and modest and ultimately winning story .', # pylint: disable=line-too-long
+      'It almost feels as if the movie is more interested in entertaining itself than in amusing us .', # pylint: disable=line-too-long
       'Cliche. Not worth watching .',
       'I \'m sure the filmmaker would disagree , but , honestly , I don\'t see the point .', # pylint: disable=line-too-long
       'Such a waste of time .',
@@ -145,13 +142,12 @@ def run(
   text_and_tokenized_text_tuple = (
       text
       | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
-      | 'TokenizeSentence' >>
-      beam.Map(lambda x: tokenize_sentence(x, tokenizer)))
+      |
+      'TokenizeSentence' >> beam.Map(lambda x: tokenize_sentence(x, tokenizer)))
   output = (
       text_and_tokenized_text_tuple
       | 'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
-      | 'ProcessOutput' >> beam.ParDo(
-          PostProcessor()))
+      | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
   output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
     known_args.output,
     shard_name_template='',

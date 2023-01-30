@@ -28,12 +28,8 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
-import onnxruntime as ort
-from apache_beam.examples.inference import onnx_sentiment_classification
-
 try:
   import onnx
-  import onnxruntime as ort
   from apache_beam.examples.inference import onnx_sentiment_classification
 except ImportError as e:
   onnx = None
@@ -51,7 +47,6 @@ def process_outputs(filepath):
     'Missing dependencies. '
     'Test depends on onnx and transformers')
 class OnnxInference(unittest.TestCase):
-
   @pytest.mark.uses_onnx
   @pytest.mark.it_postcommit
   def test_onnx_run_inference_roberta_sentiment_classification(self):
@@ -73,7 +68,7 @@ class OnnxInference(unittest.TestCase):
 
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = process_outputs(filepath=output_file)
-    actuals_file = 'gs://ziqi-bucket1/sentiment_classification_expected_output.txt'
+    actuals_file = 'gs://ziqi-bucket1/sentiment_classification_expected_output.txt'  # pylint: disable=line-too-long
     actuals = process_outputs(filepath=actuals_file)
 
     predictions_dict = {}

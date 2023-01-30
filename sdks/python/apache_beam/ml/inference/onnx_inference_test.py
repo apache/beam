@@ -49,13 +49,11 @@ try:
 except ImportError:
   raise unittest.SkipTest('Onnx dependencies are not installed')
 
-from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
-'''
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
   GCSFileSystem = None  # type: ignore
-'''
+
 
 class PytorchLinearRegression(torch.nn.Module):
   def __init__(self, input_dim, output_dim):
@@ -329,7 +327,8 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
       examples = self.test_data_and_model.get_one_feature_samples()
-      expected_predictions = self.test_data_and_model.get_one_feature_predictions()
+      expected_predictions = self.test_data_and_model \
+                                 .get_one_feature_predictions()
       gs_path = 'gs://ziqi-bucket1/torch_2xplus5_onnx'
       # first need to download model from remote
       model_handler = TestOnnxModelHandler(gs_path)
@@ -339,7 +338,6 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
       assert_that(
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
-
 
   def test_invalid_input_type(self):
     with self.assertRaisesRegex(InvalidArgument,
@@ -379,12 +377,13 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
           equal_to(
               self.test_data_and_model.get_two_feature_predictions(),
               equals_fn=_compare_prediction_result))
-  
+
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
       examples = self.test_data_and_model.get_one_feature_samples()
-      expected_predictions = self.test_data_and_model.get_one_feature_predictions()
+      expected_predictions = self.test_data_and_model \
+                                 .get_one_feature_predictions()
       gs_path = 'gs://ziqi-bucket1/tf_2xplus5_onnx'
 
       model_handler = TestOnnxModelHandler(gs_path)
@@ -394,7 +393,6 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
       assert_that(
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
-  
 
   # need to figure out what type of error this is
   def test_invalid_input_type(self):
@@ -441,8 +439,10 @@ class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
-      examples = self.test_data_and_model.get_one_feature_samples()
-      expected_predictions = self.test_data_and_model.get_one_feature_predictions()
+      examples = self.test_data_and_model \
+                     .get_one_feature_samples()
+      expected_predictions = self.test_data_and_model \
+                                 .get_one_feature_predictions()
       gs_path = 'gs://ziqi-bucket1/tf_2xplus5_onnx'
 
       model_handler = TestOnnxModelHandler(gs_path)
