@@ -58,7 +58,7 @@ export \
 ORIGIN=PG_EXAMPLES \
 STEP=CI \
 SUBDIRS="./learning/katas ./examples ./sdks" \
-GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
+GOOGLE_CLOUD_PROJECT=${PROJECT_ID} \
 BEAM_ROOT_DIR="." \
 SDK_CONFIG="playground/sdks.yaml" \
 BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
