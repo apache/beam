@@ -393,7 +393,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     expected = [
         base.PredictionResult(
             example=example,
-            inference=example + 1,
+            inference=example,
             model_id='fake_model_id_default') for example in examples
     ]
     with TestPipeline() as pipeline:

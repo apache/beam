@@ -526,13 +526,14 @@ class Pipeline(object):
         ExternalTransformFinder.contains_external_transforms(self))
 
     self.run_inference_contains_side_input = (
-        RunInferenceSideInputFinder.contains_run_inference_transform(self))
+        RunInferenceSideInputFinder.contains_side_input(self))
 
     if (self.run_inference_contains_side_input and
         not self._options.view_as(StandardOptions).streaming):
       raise RuntimeError(
           "SideInputs to RunInference PTransform is only supported "
-          "in streaming mode.")
+          "in streaming mode. To run in streaming mode, add the"
+          " --streaming pipeline option")
     try:
       if test_runner_api == 'AUTO':
         # Don't pay the cost of a round-trip if we're going to be going through
@@ -1096,7 +1097,7 @@ class RunInferenceSideInputFinder(PipelineVisitor):
     self._contains_run_inference_side_inputs = False
 
   @staticmethod
-  def contains_run_inference_transform(pipeline):
+  def contains_side_input(pipeline):
     visitor = RunInferenceSideInputFinder()
     pipeline.visit(visitor)
     return visitor._contains_run_inference_side_inputs
