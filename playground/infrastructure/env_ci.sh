@@ -142,7 +142,7 @@ do
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
-            --subdirs ${SUBDIRS}
+            --subdirs "${SUBDIRS}"
 
             docker stop container-${sdk}
             docker rm container-${sdk}
