@@ -38,7 +38,7 @@ void main() {
     (WidgetTester wt) async {
       await init(wt);
 
-      await wt.tapAndSettle(find.pipelineOptions());
+      await wt.tapAndSettle(find.pipelineOptionsDropdown());
 
       await _addTwoOptions(wt);
 

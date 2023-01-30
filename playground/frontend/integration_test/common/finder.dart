@@ -33,12 +33,12 @@ extension FinderExtension on Finder {
   }
 
   Finder horizontallyAt(int index, WidgetTester wt) =>
-      _alignedIndexAt(index, Axis.horizontal, wt);
+      _atIndexOnAxis(index, Axis.horizontal, wt);
 
   Finder verticallyAt(int index, WidgetTester wt) =>
-      _alignedIndexAt(index, Axis.vertical, wt);
+      _atIndexOnAxis(index, Axis.vertical, wt);
 
-  Finder _alignedIndexAt(int index, Axis axis, WidgetTester wt) {
+  Finder _atIndexOnAxis(int index, Axis axis, WidgetTester wt) {
     final finders = evaluate();
 
     if (index > finders.length - 1) {
@@ -61,13 +61,7 @@ extension FinderExtension on Finder {
   }
 
   int _compareDoubles(double a, double b) {
-    if (a == b) {
-      return 0;
-    } else if (a > b) {
-      return 1;
-    } else {
-      return -1;
-    }
+    return (a - b).sign.toInt();
   }
 }
 
