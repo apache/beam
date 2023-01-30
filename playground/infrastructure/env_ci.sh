@@ -71,6 +71,7 @@ allowlist=("playground/infrastructure" "playground/backend")
 echo "Branch name is below and PWD"
 echo $branch_name
 pwd
+ls -la
 ## Get changed files from Webhook result (body.files)
 #if [ -z $branch_name ] || [ $branch_name == "master" ]
 #then
@@ -143,7 +144,7 @@ do
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
-            --subdirs "${SUBDIRS}"
+            --subdirs ${SUBDIRS}
 
             docker stop container-${sdk}
             docker rm container-${sdk}
