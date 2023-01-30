@@ -18,4 +18,12 @@ openssl x509 -in /home/appuser/.mitmproxy/mitmproxy-ca.pem -inform PEM -out /usr
 keytool -importcert -trustcacerts -storepass changeit -alias mitmproxy -file /home/appuser/.mitmproxy/mitmproxy-ca-cert.pem -noprompt -keystore $JAVA_HOME/jre/lib/security/cacerts
 update-ca-certificates
 
+mkdir -p ~/jar-update
+pushd ~/jar-update|| exit
+jar xf /opt/google-api-client.jar com/google/api/client/googleapis/google.p12
+keytool -importcert -trustcacerts -storepass notasecret -alias mitmproxy -file /home/appuser/.mitmproxy/mitmproxy-ca-cert.pem -noprompt -keystore com/google/api/client/googleapis/google.p12
+zip -u /opt/google-api-client.jar com/google/api/client/googleapis/google.p12
+popd || exit
+rm -r ~/jar-update
+
 su appuser -c /opt/playground/backend/server_scio_backend

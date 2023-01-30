@@ -36,6 +36,7 @@ RUN go mod download &&\
     go build -o /go/bin/server_scio_backend
 
 FROM $BASE_IMAGE
+ARG GOOGLE_API_CLIENT_VERSION=1.34.1
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
@@ -53,7 +54,7 @@ COPY --from=build /go/src/playground/backend/internal/fs_tool/ExampleData.scala 
 RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list &&\
 echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list &&\
 curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | apt-key add
-RUN apt-get update && apt-get install -y sbt
+RUN apt-get update && apt-get install -y sbt zip
 
 RUN mkdir /usr/local/share/ca-certificates/extra
 
@@ -69,5 +70,9 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
   && chmod +x /entrypoint.sh
+
+# Fetch Google Api Client to be able to patch in our MITM certificate
+RUN wget https://repo1.maven.org/maven2/com/google/api-client/google-api-client/$GOOGLE_API_CLIENT_VERSION/google-api-client-$GOOGLE_API_CLIENT_VERSION.jar &&\
+    mv google-api-client-$GOOGLE_API_CLIENT_VERSION.jar /opt/google-api-client.jar
 
 ENTRYPOINT ["/entrypoint.sh"]
