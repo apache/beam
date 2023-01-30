@@ -137,12 +137,14 @@ public class RunInference<OutputT> extends PTransform<PCollection<?>, PCollectio
    * infer correct packages needed, so this may be omitted.
    *
    * @param extraPackages a list of PyPi packages. May include the version.
+   * @return A {@link RunInference} with extra packages.
    */
-  public void withExtraPackages(List<String> extraPackages) {
+  public RunInference<OutputT> withExtraPackages(List<String> extraPackages) {
     if (!this.extraPackages.isEmpty()) {
       throw new IllegalArgumentException("Extra packages were already specified");
     }
     this.extraPackages.addAll(extraPackages);
+    return this;
   }
 
   /**

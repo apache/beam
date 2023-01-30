@@ -59,4 +59,26 @@ public class PythonMapTest extends BaseExternalTest {
     PAssert.that(output)
         .containsInAnyOrder("aa", "aaa", "aaaa", "bb", "bbb", "bbbb", "cc", "ccc", "cccc");
   }
+
+  private static String getSympyFunc() {
+    String s = "from sympy import Abs\n";
+    s = s + "def get_func(input):\n";
+    s = s + "  return str(Abs(int(input)))\n";
+
+    return s;
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
+  public void testPythonMapWithDependencies() {
+    PCollection<String> output =
+        testPipeline
+            .apply("CreateData", Create.of(ImmutableList.of("-10", "-20", "-30", "-40")))
+            .apply(
+                "ApplyPythonMap",
+                PythonMap.<String, String>viaMapFn(getSympyFunc(), StringUtf8Coder.of())
+                    .withExtraPackages(ImmutableList.of("sympy"))
+                    .withExpansionService(expansionAddr));
+    PAssert.that(output).containsInAnyOrder("10", "20", "30", "40");
+  }
 }
