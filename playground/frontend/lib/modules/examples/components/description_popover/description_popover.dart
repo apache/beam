@@ -17,15 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/components/link_button.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground_components/playground_components.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../constants/font_weight.dart';
-import '../../../../constants/sizes.dart';
-import '../../../../src/assets/assets.gen.dart';
+import '../example_actions.dart';
 
 const kDescriptionWidth = 300.0;
 
@@ -36,8 +32,6 @@ class DescriptionPopover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasGithubLink = example.urlVcs?.isNotEmpty ?? false;
-    final hasNotebookLink = example.urlNotebook?.isNotEmpty ?? false;
     return SizedBox(
       width: kDescriptionWidth,
       child: Card(
@@ -51,8 +45,7 @@ class DescriptionPopover extends StatelessWidget {
               const SizedBox(height: kMdSpacing),
               description,
               const SizedBox(height: kMdSpacing),
-              if (hasGithubLink) LinkButton.github(example.urlVcs ?? ''),
-              if (hasNotebookLink) LinkButton.colab(example.urlNotebook ?? ''),
+              ...buildExampleActions(example, showButtonsText: true),
             ],
           ),
         ),

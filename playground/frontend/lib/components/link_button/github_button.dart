@@ -18,45 +18,26 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:playground/src/assets/assets.gen.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-class LinkButton extends StatelessWidget {
-  final String iconPath;
-  final String text;
+import '../../src/assets/assets.gen.dart';
+import 'link_button.dart';
+
+class GithubButton extends StatelessWidget {
+  final bool showText;
   final String url;
 
-  const LinkButton({
-    required this.iconPath,
-    required this.text,
+  const GithubButton({
     required this.url,
+    required this.showText,
   });
 
-  factory LinkButton.colab(String url) {
-    return LinkButton(
-      iconPath: Assets.colab,
-      text: 'intents.playground.openGoogleColab'.tr(),
-      url: url,
-    );
-  }
-
-  factory LinkButton.github(String url) {
+  @override
+  Widget build(BuildContext context) {
     return LinkButton(
       iconPath: Assets.github,
       text: 'intents.playground.viewOnGithub'.tr(),
       url: url,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      icon: SvgPicture.asset(iconPath),
-      onPressed: () {
-        launchUrl(Uri.parse(url));
-      },
-      label: Text(text),
+      showText: showText,
     );
   }
 }
