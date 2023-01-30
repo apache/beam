@@ -90,7 +90,9 @@ class SamzaMetricsBundleProgressHandler implements BundleProgressHandler {
   public void onCompleted(BeamFnApi.ProcessBundleResponse response) {
     response.getMonitoringInfosList().stream()
         .filter(monitoringInfo -> !monitoringInfo.getPayload().isEmpty())
-        .forEach(this::parseAndUpdateMetric);
+        .forEach(this::parseAndUpdateMetric)
+        .distinct()
+        .forEach(samzaMetricsContainer::updateMetrics);
   }
 
   /**
@@ -113,8 +115,9 @@ class SamzaMetricsBundleProgressHandler implements BundleProgressHandler {
    *
    * @see
    *     org.apache.beam.runners.core.metrics.MonitoringInfoMetricName#of(MetricsApi.MonitoringInfo)
+   * @return the final transformUniqueName for the metric
    */
-  private void parseAndUpdateMetric(MetricsApi.MonitoringInfo monitoringInfo) {
+  private String parseAndUpdateMetric(MetricsApi.MonitoringInfo monitoringInfo) {
     String pTransformId =
         monitoringInfo.getLabelsOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, stepName);
     String transformUniqueName = transformIdToUniqueName.getOrDefault(pTransformId, pTransformId);
@@ -150,5 +153,6 @@ class SamzaMetricsBundleProgressHandler implements BundleProgressHandler {
       default:
         LOG.warn("Unsupported metric type {}", monitoringInfo.getType());
     }
+    return transformUniqueName;
   }
 }
