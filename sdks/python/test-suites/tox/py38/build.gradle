@@ -114,6 +114,11 @@ toxTask "testPy38pytorch-110", "py38-pytorch-110", "${posargs}"
 test.dependsOn "testPy38pytorch-110"
 preCommitPyCoverage.dependsOn "testPy38pytorch-110"
 
+// Create a test task for each minor version of onnx
+toxTask "testPy38onnx-113", "py38-onnx-113", "${posargs}"
+test.dependsOn "testPy38onnx-113"
+preCommitPyCoverage.dependsOn "testPy38onnx-113"
+
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 
 task archiveFilesToLint(type: Zip) {
