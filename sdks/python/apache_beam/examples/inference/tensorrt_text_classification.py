@@ -1,18 +1,46 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""A pipeline to demonstrate usage of TensorRT with RunInference for a text classification model.
+This pipeline reads in memory data, does some preprocessing and then uses RunInference for
+getting prediction from the text classification TensorRT engine. Afterwards, it post process
+the RunInference outputs to print the input and the predicted class label. It also prints
+different metrics provided by RunInference.
+"""
+
 import argparse
 import logging
+
 import numpy as np
 
 import apache_beam as beam
-
 from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.tensorrt_inference import TensorRTEngineHandlerNumPy
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.ml.inference.tensorrt_inference import TensorRTEngineHandlerNumPy
 from transformers import AutoTokenizer
 
 
 class Preprocess(beam.DoFn):
+  """Processes the input sentence to tokenize them.
 
+  The input sentences are tokenized as the
+  model is expecting tokens.
+  """
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 
@@ -23,7 +51,12 @@ class Preprocess(beam.DoFn):
 
 
 class Postprocess(beam.DoFn):
+  """Processes the PredictionResult to get the predicted class.
 
+  The logits are the output of the TensorRT engine.
+  We can get the class label by getting the index of
+  maximum logit using argmax.
+  """
   def __init__(self, tokenizer: AutoTokenizer):
     self._tokenizer = tokenizer
 
