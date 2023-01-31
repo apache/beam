@@ -54,7 +54,7 @@ class FakeModelSub(FakeModelDefault):
 
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModelDefault]):
-  def __init__(self, clock=None, model_id='fake_model_id_default'):
+  def __init__(self, clock=None, model_id='model_default'):
     self.model_id = model_id
     self._fake_clock = clock
 
@@ -123,6 +123,9 @@ def run(argv=None, save_main_session=True):
 
     if model_id == 'model_add.pkl':
       assert (x.example == 1 and x.inference == 2)
+
+    if model_id == 'model_default':
+      assert (x.example == 1 and x.inference == 1)
 
   side_input = (
       test_pipeline
