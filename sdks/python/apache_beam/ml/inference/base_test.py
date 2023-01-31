@@ -451,6 +451,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       "SideInputs to RunInference are only supported in streaming mode.")
   @pytest.mark.it_postcommit
   @pytest.mark.sickbay_direct
+  @pytest.mark.it_validatesrunner
   def test_run_inference_with_side_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     test_pipeline.options.view_as(StandardOptions).streaming = True
