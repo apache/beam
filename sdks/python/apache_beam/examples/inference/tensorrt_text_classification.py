@@ -15,11 +15,12 @@
 # limitations under the License.
 #
 
-"""A pipeline to demonstrate usage of TensorRT with RunInference for a text classification model.
-This pipeline reads in memory data, does some preprocessing and then uses RunInference for
-getting prediction from the text classification TensorRT engine. Afterwards, it post process
-the RunInference outputs to print the input and the predicted class label. It also prints
-different metrics provided by RunInference.
+"""A pipeline to demonstrate usage of TensorRT with RunInference
+for a text classification model. This pipeline reads in memory data,
+does some preprocessing and then uses RunInference for getting prediction
+from the text classification TensorRT engine. Afterwards, it post process
+the RunInference outputs to print the input and the predicted class label.
+It also prints different metrics provided by RunInference.
 """
 
 import argparse
