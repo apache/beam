@@ -2661,12 +2661,10 @@ public class BigQueryIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
-    /**
-     *
-     * If set, this will set the max number of retry of batch load jobs.
-     */
-
-    public Write<T> withMaxRetryJobs(int maxRetryJobs) {return toBuilder().setMaxRetryJobs(maxRetryJobs).build();}
+    /** If set, this will set the max number of retry of batch load jobs. */
+    public Write<T> withMaxRetryJobs(int maxRetryJobs) {
+      return toBuilder().setMaxRetryJobs(maxRetryJobs).build();
+    }
 
     /**
      * If true, it enables the propagation of the successfully inserted TableRows on BigQuery as

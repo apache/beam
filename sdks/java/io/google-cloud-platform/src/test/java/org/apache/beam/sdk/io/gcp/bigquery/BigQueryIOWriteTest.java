@@ -2174,15 +2174,15 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testMaxRetryJobs() {
     BigQueryIO.Write<TableRow> write =
-            BigQueryIO.writeTableRows()
-                    .to("dataset.table")
-                    .withSchema(new TableSchema())
-                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                    .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-                    .withSchemaUpdateOptions(
-                            EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
-                    .withMaxRetryJobs(500);
-    assertEquals(500,write.getMaxRetryJobs());
+        BigQueryIO.writeTableRows()
+            .to("dataset.table")
+            .withSchema(new TableSchema())
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(
+                EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
+            .withMaxRetryJobs(500);
+    assertEquals(500, write.getMaxRetryJobs());
   }
 
   @Test
