@@ -53,7 +53,7 @@ dependencies {
   provided library.java.hadoop_common
   testImplementation library.java.hadoop_client
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:avro")
   testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

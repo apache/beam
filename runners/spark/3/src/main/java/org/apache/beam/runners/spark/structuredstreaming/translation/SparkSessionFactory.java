@@ -288,7 +288,7 @@ public class SparkSessionFactory {
       try {
         kryo.register(Class.forName(className));
       } catch (ClassNotFoundException e) {
-        LOG.warn("Class {}} was not found on classpath", className);
+        LOG.info("Class {}} was not found on classpath", className);
       }
     }
   }

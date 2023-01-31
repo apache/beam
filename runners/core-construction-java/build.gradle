@@ -74,6 +74,6 @@ dependencies {
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation project(path: ":model:fn-execution", configuration: "shadow")
   testImplementation project(path: ":sdks:java:core", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:avro")
   testRuntimeOnly library.java.slf4j_jdk14
 }

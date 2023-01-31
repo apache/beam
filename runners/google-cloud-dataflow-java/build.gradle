@@ -116,7 +116,7 @@ dependencies {
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:avro")
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:python", configuration: "testRuntimeMigration")
