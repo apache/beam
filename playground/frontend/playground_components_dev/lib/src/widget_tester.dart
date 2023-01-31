@@ -52,11 +52,12 @@ extension WidgetTesterExtension on WidgetTester {
     return context.read<PlaygroundController>();
   }
 
-  Future<void> runShortcut(List<LogicalKeyboardKey> shortcut) async {
-    for (final key in shortcut) {
+  Future<void> runShortcut(LogicalKeySet shortcut) async {
+    final list = shortcut.keys.toList();
+    for (final key in list) {
       await sendKeyDownEvent(key);
     }
-    for (final key in shortcut.reversed) {
+    for (final key in list.reversed) {
       await sendKeyUpEvent(key);
     }
   }

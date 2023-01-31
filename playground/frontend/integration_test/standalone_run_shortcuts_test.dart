@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
@@ -50,11 +50,7 @@ Future<void> _checkResetShortcut(
 
   expect(controller.source, isNot(startSource));
 
-  await wt.runShortcut([
-    LogicalKeyboardKeyExtension.metaOrControl,
-    LogicalKeyboardKey.shift,
-    LogicalKeyboardKey.keyE,
-  ]);
+  await wt.runShortcut(controller.resetShortcut.shortcuts);
   await wt.pumpAndSettle();
 
   expect(startSource, controller.source);
@@ -65,10 +61,7 @@ Future<void> _checkRunShortcut(
   PlaygroundController controller,
 ) async {
   final output = controller.codeRunner.resultLogOutput;
-  await wt.runShortcut([
-    LogicalKeyboardKeyExtension.metaOrControl,
-    LogicalKeyboardKey.enter,
-  ]);
+  await wt.runShortcut(controller.runShortcut.shortcuts);
   await wt.pumpAndSettle();
 
   expect(output, isNot(controller.codeRunner.resultLogOutput));
@@ -81,10 +74,7 @@ Future<void> _checkClearOutputShortcut(
   expect(controller.codeRunner.resultLogOutput, isNotEmpty);
   expect(controller.codeRunner.resultLogOutput, isNotNull);
 
-  await wt.runShortcut([
-    LogicalKeyboardKeyExtension.metaOrControl,
-    LogicalKeyboardKey.keyB,
-  ]);
+  await wt.runShortcut(kClearOutputShortcut.shortcuts);
   await wt.pumpAndSettle();
 
   expect(controller.codeRunner.resultLogOutput, isEmpty);

@@ -45,11 +45,10 @@ Future<void> _checkAutocomplete(WidgetTester wt) async {
   // popup works incorrectly. Remove when fixed
   await wt.enterText(find.codeField(), '\n\n\n\n\nsdk');
 
-  await wt.runShortcut([
-    LogicalKeyboardKeyExtension.metaOrControl,
-    LogicalKeyboardKey.shift,
-    LogicalKeyboardKey.keyS,
-  ]);
+  final playgroundController = wt.findPlaygroundController();
+  await wt.runShortcut(
+    playgroundController.showSuggestionsShortcut.shortcuts,
+  );
   await wt.pumpAndSettle();
 
   expect(find.text('sdkHttpMetadata'), findsOneWidget);

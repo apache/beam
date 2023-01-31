@@ -62,11 +62,11 @@ Future<void> _checkFilteringExamplesByTags(WidgetTester wt) async {
 
   await wt.tapAndSettle(find.widgetWithText(TagBubble, sortedTags[0]));
 
-  expect(_areCategoriesContainsTag(wt, [sortedTags[0]]), isTrue);
+  expect(_doVisibleCategoriesHaveAllTags(wt, [sortedTags[0]]), isTrue);
 
   await wt.tapAndSettle(find.widgetWithText(TagBubble, sortedTags[1]));
 
-  expect(_areCategoriesContainsTag(wt, [sortedTags[0], sortedTags[1]]), isTrue);
+  expect(_doVisibleCategoriesHaveAllTags(wt, [sortedTags[0], sortedTags[1]]), isTrue,);
 
   await wt.tapAndSettle(find.exampleSelector());
 }
@@ -87,7 +87,7 @@ List<String> _getSortedTags(WidgetTester wt) {
   return tagsMapList.map((e) => e.key).toList();
 }
 
-bool _areCategoriesContainsTag(WidgetTester wt, List<String> tags) {
+bool _doVisibleCategoriesHaveAllTags(WidgetTester wt, List<String> tags) {
   final categoriesWithExamples = _getCategoriesWithExamples(wt);
   final examples = categoriesWithExamples.expand((e) => e.examples);
 
