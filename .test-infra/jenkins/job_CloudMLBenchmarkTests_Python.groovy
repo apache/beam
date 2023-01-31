@@ -30,7 +30,12 @@ def cloudMLJob = { scope ->
     influx_db_name      : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname     : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     metrics_dataset     : 'beam_cloudml',
-    publish_to_big_query: true
+    publish_to_big_query: true,
+    project             : 'apache-beam-testing',
+    region              : 'us-central1',
+    staging_location    : 'gs://temp-storage-for-perf-tests/loadtests',
+    temp_location       : 'gs://temp-storage-for-perf-tests/loadtests',
+    runner              : 'DataflowRunner'
   ]
   // Gradle goals for this job.
   scope.steps {
