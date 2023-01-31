@@ -61,6 +61,9 @@ public interface PTransformRunnerFactory<T> {
     /** A client for handling state requests. */
     BeamFnStateClient getBeamFnStateClient();
 
+    /** The id of the parent ProcessBundleDescriptor. */
+    String getProcessBundleDescriptorId();
+
     /** The id of the PTransform. */
     String getPTransformId();
 

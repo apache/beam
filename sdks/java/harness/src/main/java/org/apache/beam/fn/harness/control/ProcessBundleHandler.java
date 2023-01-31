@@ -320,6 +320,11 @@ public class ProcessBundleHandler {
                     }
 
                     @Override
+                    public String getProcessBundleDescriptorId() {
+                      return processBundleDescriptor.getId();
+                    }
+
+                    @Override
                     public String getPTransformId() {
                       return pTransformId;
                     }

@@ -28,8 +28,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class DataSampler {
   public static class OutputSampler<T> {
@@ -92,24 +94,45 @@ public class DataSampler {
     }
   }
 
-  private final Map<String, OutputSampler<?>> outputSamplers = new HashMap<>();
+  private final Map<String, Map<String, OutputSampler<?>>> outputSamplers = new HashMap<>();
 
-  public <T>OutputSampler<T> sampleOutput(String outputName, Coder<T> coder) {
-    if (outputSamplers.containsKey(outputName)) {
-      return (OutputSampler<T>)outputSamplers.get(outputName);
-    }
+  public <T>OutputSampler<T> sampleOutput(String processBundleDescriptorId, String pcollectionId, Coder<T> coder) {
+    outputSamplers.putIfAbsent(processBundleDescriptorId, new HashMap<>());
+    Map<String, OutputSampler<?>> samplers = outputSamplers.get(processBundleDescriptorId);
+    samplers.putIfAbsent(pcollectionId, new OutputSampler<T>(coder));
 
-    OutputSampler<T> sampler = new OutputSampler<T>(coder);
-    outputSamplers.put(outputName, sampler);
-    return sampler;
+    return (OutputSampler<T>)samplers.get(pcollectionId);
   }
 
   public Map<String, List<byte[]>> samples() {
+    return samplesFor(new HashSet<>(), new HashSet<>());
+  }
+
+  public Map<String, List<byte[]>> samplesFor(Set<String> descriptors, Set<String> pcollections) {
     Map<String, List<byte[]>> samples = new HashMap<>();
-    outputSamplers.forEach((pcollectionId, outputSampler) -> {
-      samples.putIfAbsent(pcollectionId, new ArrayList<>());
-      samples.get(pcollectionId).addAll(outputSampler.samples());
+    outputSamplers.forEach((descriptorId, samplers) -> {
+      if (!descriptors.isEmpty() && !descriptors.contains(descriptorId)) {
+        return;
+      }
+
+      samplers.forEach((pcollectionId, outputSampler) -> {
+        if (!pcollections.isEmpty() && !pcollections.contains(pcollectionId)) {
+          return;
+        }
+
+        samples.putIfAbsent(pcollectionId, new ArrayList<>());
+        samples.get(pcollectionId).addAll(outputSampler.samples());
+      });
     });
+
     return samples;
+  }
+
+  public Map<String, List<byte[]>> samplesForDescriptors(Set<String> descriptors) {
+    return samplesFor(descriptors, new HashSet<>());
+  }
+
+  public Map<String, List<byte[]>> samplesForPCollections(Set<String> pcollections) {
+    return samplesFor(new HashSet<>(), pcollections);
   }
 }
