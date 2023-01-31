@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.junit.Assert.assertThrows;
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.Database;
@@ -33,10 +34,12 @@ import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -51,6 +54,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -256,7 +260,9 @@ public class SpannerReadIT {
   @Test
   public void testQuery() throws Exception {
     SpannerConfig spannerConfig = createSpannerConfig();
+    spannerConfig = spannerConfig.withPartitionQueryTimeout(StaticValueProvider.of(Duration.standardSeconds(30)));
     SpannerConfig pgSpannerConfig = createPgSpannerConfig();
+    pgSpannerConfig = pgSpannerConfig.withPartitionQueryTimeout(StaticValueProvider.of(Duration.standardSeconds(30)));
 
     PCollectionView<Transaction> tx =
         p.apply(
@@ -290,6 +296,52 @@ public class SpannerReadIT {
                 .withTransaction(pgTx));
     PAssert.thatSingleton(pgOutput.apply("Count PG rows", Count.globally())).isEqualTo(5L);
     p.run();
+  }
+
+  @Test
+  public void testQueryWithTimeoutError() throws Exception {
+    SpannerConfig spannerConfig = createSpannerConfig();
+    spannerConfig = spannerConfig
+        .withPartitionQueryTimeout(StaticValueProvider.of(Duration.millis(1)));
+
+    PCollectionView<Transaction> tx =
+        p.apply(
+            "Create tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+        p.apply(
+            "Read db",
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
+                .withQuery("SELECT * FROM " + options.getTable())
+                .withTransaction(tx));
+
+    assertThrows("PartitionQuery Timeout error", PipelineExecutionException.class, () -> p.run());
+  }
+
+  @Test
+  public void testQueryWithTimeoutErrorPG() throws Exception {
+    SpannerConfig pgSpannerConfig = createPgSpannerConfig();
+    pgSpannerConfig = pgSpannerConfig
+        .withPartitionQueryTimeout(StaticValueProvider.of(Duration.millis(1)));
+
+    PCollectionView<Transaction> pgTx =
+        p.apply(
+            "Create PG tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(pgSpannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+    p.apply(
+            "Read PG db",
+            SpannerIO.read()
+                .withSpannerConfig(pgSpannerConfig)
+                .withQuery("SELECT * FROM " + options.getTable())
+                .withTransaction(pgTx));
+
+    assertThrows("PartitionQuery Timeout error", PipelineExecutionException.class, () -> p.run());
   }
 
   @Test

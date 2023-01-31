@@ -48,6 +48,8 @@ public abstract class SpannerConfig implements Serializable {
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(15);
   // A default priority for batch traffic.
   static final RpcPriority DEFAULT_RPC_PRIORITY = RpcPriority.MEDIUM;
+  // Default timeout for PartitionRead and PartitionQuery API call.
+  private static final Duration DEFAULT_PARITION_QUERY_TIMEOUT = Duration.standardSeconds(30);
 
   public abstract @Nullable ValueProvider<String> getProjectId();
 
@@ -75,6 +77,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<String> getDatabaseRole();
 
+  public abstract @Nullable ValueProvider<Duration> getPartitionQueryTimeout();
+
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
@@ -87,6 +91,8 @@ public abstract class SpannerConfig implements Serializable {
         .setMaxCumulativeBackoff(
             ValueProvider.StaticValueProvider.of(DEFAULT_MAX_CUMULATIVE_BACKOFF))
         .setRpcPriority(ValueProvider.StaticValueProvider.of(DEFAULT_RPC_PRIORITY))
+        .setPartitionQueryTimeout(
+            ValueProvider.StaticValueProvider.of(DEFAULT_PARITION_QUERY_TIMEOUT))
         .build();
   }
 
@@ -148,6 +154,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setRpcPriority(ValueProvider<RpcPriority> rpcPriority);
 
     abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
+
+    abstract Builder setPartitionQueryTimeout(ValueProvider<Duration> partitionQueryTimeout);
 
     public abstract SpannerConfig build();
   }
@@ -264,5 +272,15 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the Cloud Spanner database role. */
   public SpannerConfig withDatabaseRole(ValueProvider<String> databaseRole) {
     return toBuilder().setDatabaseRole(databaseRole).build();
+  }
+
+  /** Specifies the PartitionQuery timeout. */
+  public SpannerConfig withPartitionQueryTimeout(Duration partitionQueryTimeout) {
+    return withPartitionQueryTimeout(ValueProvider.StaticValueProvider.of(partitionQueryTimeout));
+  }
+
+  /** Specifies the PartitionQuery timeout. */
+  public SpannerConfig withPartitionQueryTimeout(ValueProvider<Duration> partitionQueryTimeout) {
+    return toBuilder().setPartitionQueryTimeout(partitionQueryTimeout).build();
   }
 }

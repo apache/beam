@@ -162,6 +162,15 @@ public class SpannerAccessor implements AutoCloseable {
               .build());
     }
 
+    ValueProvider<Duration> partitionQueryTimeout = spannerConfig.getPartitionQueryTimeout();
+    if (partitionQueryTimeout != null && partitionQueryTimeout.get().getMillis() > 0) {
+      builder
+          .getSpannerStubSettingsBuilder()
+          .partitionQuerySettings()
+          .setSimpleTimeoutNoRetries(
+              org.threeten.bp.Duration.ofMillis(partitionQueryTimeout.get().getMillis()));
+    }
+
     ValueProvider<String> projectId = spannerConfig.getProjectId();
     if (projectId != null) {
       builder.setProjectId(projectId.get());
