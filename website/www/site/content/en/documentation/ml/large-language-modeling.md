@@ -29,10 +29,13 @@ First, install the required packages listed in [requirements.txt](https://github
 
 - Install Git LFS following the instructions [here](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage?platform=mac)
 - Run `git lfs install`
-- Run `git clone https://huggingface.co/t5-11b` (this may take a long time). This will download the checkpoint, then you need to convert it to the model state dict as described [here](https://pytorch.org/tutorials/beginner/saving_loading_models.html#save-load-state-dict-recommended).
+- Run `git clone https://huggingface.co/t5-11b` (this may take a long time). This will download the checkpoint, then you need to convert it to the model state dict as described [here](https://pytorch.org/tutorials/beginner/saving_loading_models.html#save-load-state-dict-recommended):
 
 ```
-model = torch.load("t5-11b/tf_model.h5")
+import torch
+from transformers import T5ForConditionalGeneration
+
+model = T5ForConditionalGeneration.from_pretrained("path/to/cloned/t5-11b")
 torch.save(model.state_dict(), "path/to/save/state_dict.pth")
 ```
 
