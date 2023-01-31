@@ -172,7 +172,7 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	var res *jobpb.ExpansionResponse
 	backoff := retry.NewExponential(1 * time.Second)
 	if err := retry.Do(ctx, retry.WithMaxRetries(maxRetries, backoff), func(ctx context.Context) error {
-		res, err := client.Expand(ctx, req)
+		res, err = client.Expand(ctx, req)
 		if err != nil {
 			err = errors.Wrap(err, "expansion failed")
 			return retry.RetryableError(errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req))
