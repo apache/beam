@@ -98,7 +98,7 @@ private void createKafkaIOTestJob(testJob) {
     additionalPipelineArgs = [
       influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
       influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
-      bootstrap_servers: "\$KAFKA_BROKER_0:\$NODE_PORT_0,\$KAFKA_BROKER_1:\$NODE_PORT_1,\$KAFKA_BROKER_2:\$NODE_PORT_2",
+      bootstrap_servers: "\$KAFKA_BROKER_0:\$KAFKA_SERVICE_PORT_0,\$KAFKA_BROKER_1:\$KAFKA_SERVICE_PORT_1,\$KAFKA_BROKER_2:\$KAFKA_SERVICE_PORT_2",
     ]
     testJob.pipelineOptions.putAll(additionalPipelineArgs)
 
