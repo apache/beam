@@ -56,6 +56,7 @@ FROM apache/beam_java8_sdk:$BEAM_VERSION
 
 ARG BEAM_VERSION
 ARG SPRING_VERSION=5.3.18
+ARG KAFKA_CLIENTS_VERSION=2.3.1
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
@@ -78,6 +79,9 @@ RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-constr
 # Install jars for core tests
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
+# Install kafka client
+RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/$KAFKA_CLIENTS_VERSION/kafka-clients-$KAFKA_CLIENTS_VERSION.jar &&\
+    mv kafka-clients-$KAFKA_CLIENTS_VERSION.jar /opt/apache/beam/jars/kafka-clients.jar
 # Install Spring dependencies
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-expression/$SPRING_VERSION/spring-expression-$SPRING_VERSION.jar &&\
     mv spring-expression-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-expression.jar
