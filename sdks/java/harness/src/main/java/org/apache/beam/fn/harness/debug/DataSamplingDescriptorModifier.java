@@ -19,11 +19,39 @@ package org.apache.beam.fn.harness.debug;
 
 import org.apache.beam.fn.harness.ProcessBundleDescriptorModifier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 
 public class DataSamplingDescriptorModifier implements ProcessBundleDescriptorModifier {
   @Override
   public BeamFnApi.ProcessBundleDescriptor ModifyProcessBundleDescriptor(
       BeamFnApi.ProcessBundleDescriptor pbd) throws GraphModificationException {
-    return pbd.toBuilder().build();
+    BeamFnApi.ProcessBundleDescriptor.Builder builder = pbd.toBuilder();
+    for (String pcollectionId : pbd.getPcollectionsMap().keySet()) {
+      RunnerApi.PCollection pcollection = pbd.getPcollectionsMap().get(pcollectionId);
+      String coderId = pcollection.getCoderId();
+      String transformId = "synthetic-data-sampling-transform-" + pcollectionId;
+      try {
+        builder.putTransforms(
+            transformId,
+            RunnerApi.PTransform.newBuilder()
+                .setUniqueName(transformId)
+                .setSpec(
+                    RunnerApi.FunctionSpec.newBuilder()
+                        .setUrn(DataSamplingFnRunner.URN)
+                        .setPayload(
+                            ByteString.copyFrom(
+                                DataSamplingFnRunner.Payload.encode(pcollectionId, coderId))))
+                .putInputs("main", pcollectionId)
+                .build());
+      } catch (Exception exception) {
+        throw new GraphModificationException(
+            "Failed to modify graph: could not encode payload for synthetic data "
+                + "sampling operation.",
+            exception);
+      }
+    }
+
+    return builder.build();
   }
 }

@@ -97,8 +97,6 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static java.util.Optional.ofNullable;
-
 /**
  * Processes {@link BeamFnApi.ProcessBundleRequest}s and {@link
  * BeamFnApi.ProcessBundleSplitRequest}s.
@@ -488,7 +486,7 @@ public class ProcessBundleHandler {
 
                     @Override
                     public Optional<DataSampler> getDataSampler() {
-                        return Optional.ofNullable(dataSampler);
+                      return Optional.ofNullable(dataSampler);
                     }
                   });
       if (runner instanceof BeamFnDataReadRunner) {

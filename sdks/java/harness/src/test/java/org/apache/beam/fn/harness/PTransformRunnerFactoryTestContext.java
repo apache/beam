@@ -155,6 +155,8 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder beamFnStateClient(BeamFnStateClient value);
 
+    Builder processBundleDescriptorId(String value);
+
     Builder pTransformId(String value);
 
     Builder pTransform(RunnerApi.PTransform value);

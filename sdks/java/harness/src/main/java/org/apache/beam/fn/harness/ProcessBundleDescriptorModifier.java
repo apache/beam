@@ -26,6 +26,10 @@ public interface ProcessBundleDescriptorModifier {
     public GraphModificationException(String message) {
       super(message);
     }
+
+    public GraphModificationException(String message, Throwable throwable) {
+      super(throwable);
+    }
   }
 
   /**

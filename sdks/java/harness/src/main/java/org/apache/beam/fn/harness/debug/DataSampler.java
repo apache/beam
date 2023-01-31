@@ -17,122 +17,74 @@
  */
 package org.apache.beam.fn.harness.debug;
 
-import org.apache.beam.fn.harness.FnHarness;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.coders.Coder;
 
 public class DataSampler {
-  public static class OutputSampler<T> {
-    private final Coder<T> coder;
-    private final List<T> buffer = new ArrayList<>();
-    private static final Logger LOG = LoggerFactory.getLogger(OutputSampler.class);
 
-    // Maximum number of elements in buffer.
-    private final int maxElements = 10;
+  public DataSampler() {}
 
-    // Sampling rate.
-    private final int sampleEveryN = 1000;
-
-    // Total number of samples taken.
-    private long numSamples = 0;
-
-    // Index into the buffer of where to overwrite samples.
-    private int resampleIndex = 0;
-
-    public OutputSampler(Coder<T> coder) {
-      this.coder = coder;
-    }
-
-    public void sample(T element) {
-      // Only sample the first 10 elements then after every `sampleEveryN`th element.
-      numSamples += 1;
-      if (numSamples > 10 && numSamples % sampleEveryN != 0) {
-        return;
-      }
-
-      // Fill buffer until maxElements.
-      if (buffer.size() < maxElements) {
-        buffer.add(element);
-      } else {
-        // Then rewrite sampled elements as a circular buffer.
-        buffer.set(resampleIndex, element);
-        resampleIndex = (resampleIndex + 1) % maxElements;
-      }
-    }
-
-    public List<byte[]> samples() {
-      List<byte[]> ret = new ArrayList<>();
-      ByteArrayOutputStream stream = new ByteArrayOutputStream();
-      for (T el : buffer) {
-        try {
-          coder.encode(el, stream);
-          ret.add(stream.toByteArray());
-        } catch (Exception exception) {
-          LOG.warn("Could not encode element \"" + el + "\" to bytes: " + exception);
-        }
-      }
-
-      clear();
-      return ret;
-    }
-
-    private void clear() {
-      buffer.clear();
-      resampleIndex = 0;
-    }
+  public DataSampler(int maxSamples, int sampleEveryN) {
+    this.maxSamples = maxSamples;
+    this.sampleEveryN = sampleEveryN;
   }
+
+  public static Set<String> EMPTY = new HashSet<>();
+
+  // Maximum number of elements in buffer.
+  private int maxSamples = 10;
+
+  // Sampling rate.
+  private int sampleEveryN = 1000;
 
   private final Map<String, Map<String, OutputSampler<?>>> outputSamplers = new HashMap<>();
 
-  public <T>OutputSampler<T> sampleOutput(String processBundleDescriptorId, String pcollectionId, Coder<T> coder) {
+  public <T> OutputSampler<T> sampleOutput(
+      String processBundleDescriptorId, String pcollectionId, Coder<T> coder) {
     outputSamplers.putIfAbsent(processBundleDescriptorId, new HashMap<>());
     Map<String, OutputSampler<?>> samplers = outputSamplers.get(processBundleDescriptorId);
-    samplers.putIfAbsent(pcollectionId, new OutputSampler<T>(coder));
+    samplers.putIfAbsent(
+        pcollectionId, new OutputSampler<T>(coder, this.maxSamples, this.sampleEveryN));
 
-    return (OutputSampler<T>)samplers.get(pcollectionId);
+    return (OutputSampler<T>) samplers.get(pcollectionId);
   }
 
   public Map<String, List<byte[]>> samples() {
-    return samplesFor(new HashSet<>(), new HashSet<>());
+    return samplesFor(EMPTY, EMPTY);
   }
 
   public Map<String, List<byte[]>> samplesFor(Set<String> descriptors, Set<String> pcollections) {
     Map<String, List<byte[]>> samples = new HashMap<>();
-    outputSamplers.forEach((descriptorId, samplers) -> {
-      if (!descriptors.isEmpty() && !descriptors.contains(descriptorId)) {
-        return;
-      }
+    outputSamplers.forEach(
+        (descriptorId, samplers) -> {
+          if (!descriptors.isEmpty() && !descriptors.contains(descriptorId)) {
+            return;
+          }
 
-      samplers.forEach((pcollectionId, outputSampler) -> {
-        if (!pcollections.isEmpty() && !pcollections.contains(pcollectionId)) {
-          return;
-        }
+          samplers.forEach(
+              (pcollectionId, outputSampler) -> {
+                if (!pcollections.isEmpty() && !pcollections.contains(pcollectionId)) {
+                  return;
+                }
 
-        samples.putIfAbsent(pcollectionId, new ArrayList<>());
-        samples.get(pcollectionId).addAll(outputSampler.samples());
-      });
-    });
+                samples.putIfAbsent(pcollectionId, new ArrayList<>());
+                samples.get(pcollectionId).addAll(outputSampler.samples());
+              });
+        });
 
     return samples;
   }
 
   public Map<String, List<byte[]>> samplesForDescriptors(Set<String> descriptors) {
-    return samplesFor(descriptors, new HashSet<>());
+    return samplesFor(descriptors, EMPTY);
   }
 
   public Map<String, List<byte[]>> samplesForPCollections(Set<String> pcollections) {
-    return samplesFor(new HashSet<>(), pcollections);
+    return samplesFor(EMPTY, pcollections);
   }
 }
