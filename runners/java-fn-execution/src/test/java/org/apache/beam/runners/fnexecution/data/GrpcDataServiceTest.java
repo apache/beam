@@ -24,7 +24,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -38,9 +40,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
+import org.apache.beam.sdk.fn.data.DataEndpoint;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.InProcessServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
@@ -93,13 +96,16 @@ public class GrpcDataServiceTest {
       }
 
       for (int i = 0; i < 3; ++i) {
-        CloseableFnDataReceiver<WindowedValue<String>> consumer =
-            service.send(LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID), CODER);
-
+        final String instructionId = Integer.toString(i);
+        BeamFnDataOutboundAggregator aggregator =
+            service.createOutboundAggregator(() -> instructionId, false);
+        aggregator.start();
+        FnDataReceiver<WindowedValue<String>> consumer =
+            aggregator.registerOutputDataLocation(TRANSFORM_ID, CODER);
         consumer.accept(WindowedValue.valueInGlobalWindow("A" + i));
         consumer.accept(WindowedValue.valueInGlobalWindow("B" + i));
         consumer.accept(WindowedValue.valueInGlobalWindow("C" + i));
-        consumer.close();
+        aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
       }
       waitForInboundElements.countDown();
       for (Future<Void> clientFuture : clientFutures) {
@@ -144,18 +150,19 @@ public class GrpcDataServiceTest {
       }
 
       List<Collection<WindowedValue<String>>> serverInboundValues = new ArrayList<>();
-      Collection<InboundDataClient> readFutures = new ArrayList<>();
+      Collection<BeamFnDataInboundObserver> inboundObservers = new ArrayList<>();
       for (int i = 0; i < 3; ++i) {
         final Collection<WindowedValue<String>> serverInboundValue = new ArrayList<>();
         serverInboundValues.add(serverInboundValue);
-        readFutures.add(
-            service.receive(
-                LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID),
-                CODER,
-                serverInboundValue::add));
+        BeamFnDataInboundObserver inboundObserver =
+            BeamFnDataInboundObserver.forConsumers(
+                Arrays.asList(DataEndpoint.create(TRANSFORM_ID, CODER, serverInboundValue::add)),
+                Collections.emptyList());
+        service.registerReceiver(Integer.toString(i), inboundObserver);
+        inboundObservers.add(inboundObserver);
       }
-      for (InboundDataClient readFuture : readFutures) {
-        readFuture.awaitCompletion();
+      for (BeamFnDataInboundObserver inboundObserver : inboundObservers) {
+        inboundObserver.awaitCompletion();
       }
       waitForInboundElements.countDown();
       for (Future<Void> clientFuture : clientFutures) {

@@ -25,20 +25,19 @@ void main() {
   group('ContentExampleLoadingDescriptor', () {
     test('defaults', () {
       const descriptorWithDefaults = ContentExampleLoadingDescriptor(
-        content: 'abc',
+        files: [SnippetFile(content: 'abc', isMain: true)],
         sdk: Sdk.go,
       );
 
-      final parsed = ContentExampleLoadingDescriptor.tryParse(
-        descriptorWithDefaults.toJson(),
-      );
+      final map = descriptorWithDefaults.toJson();
+      final parsed = ContentExampleLoadingDescriptor.tryParse(map);
 
       expect(parsed, descriptorWithDefaults);
     });
 
     const descriptor = ContentExampleLoadingDescriptor(
       complexity: Complexity.advanced,
-      content: 'abc',
+      files: [SnippetFile(content: 'abc', isMain: true)],
       name: 'name',
       sdk: Sdk.go,
     );

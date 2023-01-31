@@ -22,76 +22,118 @@ import 'package:flutter/material.dart';
 import '../constants/sizes.dart';
 import '../controllers/playground_controller.dart';
 import '../theme/theme.dart';
+import 'periodic_builder.dart';
 import 'shortcut_tooltip.dart';
-
-const kMsToSec = 1000;
-const kSecondsFractions = 1;
-
-const _width = 150.0;
 
 class RunButton extends StatelessWidget {
   final PlaygroundController playgroundController;
-  final bool isRunning;
   final VoidCallback runCode;
   final VoidCallback cancelRun;
-  final bool disabled;
+  final bool isEnabled;
 
   const RunButton({
     super.key,
     required this.playgroundController,
-    required this.isRunning,
     required this.runCode,
     required this.cancelRun,
-    this.disabled = false,
+    this.isEnabled = true,
   });
+
+  static const _buttonTextRebuildInterval = 100;
+  static const _width = 150.0;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: _width,
-      height: BeamSizes.buttonHeight,
-      child: ShortcutTooltip(
-        shortcut: playgroundController.runShortcut,
-        child: ElevatedButton.icon(
-          style: const ButtonStyle(
-            padding: MaterialStatePropertyAll(EdgeInsets.zero),
+    return AnimatedBuilder(
+      animation: playgroundController.codeRunner,
+      builder: (context, child) {
+        final isRunning = playgroundController.codeRunner.isCodeRunning;
+        final runStartDate = playgroundController.codeRunner.runStartDate;
+        final runStopDate = playgroundController.codeRunner.runStopDate;
+
+        return SizedBox(
+          width: _width,
+          height: BeamSizes.buttonHeight,
+          child: ShortcutTooltip(
+            shortcut: playgroundController.runShortcut,
+            child: ElevatedButton.icon(
+              style: const ButtonStyle(
+                padding: MaterialStatePropertyAll(EdgeInsets.zero),
+              ),
+              icon: isRunning
+                  ? SizedBox(
+                      width: BeamIconSizes.small,
+                      height: BeamIconSizes.small,
+                      child: CircularProgressIndicator(
+                        color: Theme.of(context)
+                            .extension<BeamThemeExtension>()!
+                            .primaryBackgroundTextColor,
+                      ),
+                    )
+                  : const Icon(Icons.play_arrow),
+              label: isRunning
+                  // TODO(nausharipov): fix bug
+                  // It is also rebuilt on every codeRunner notification
+                  ? PeriodicBuilderWidget(
+                      interval: const Duration(
+                        milliseconds: _buttonTextRebuildInterval,
+                      ),
+                      builder: () {
+                        return _ButtonText(
+                          isRunning: isRunning,
+                          runStartDate: runStartDate,
+                          runStopDate: runStopDate,
+                        );
+                      },
+                    )
+                  : _ButtonText(
+                      isRunning: isRunning,
+                      runStartDate: runStartDate,
+                      runStopDate: runStopDate,
+                    ),
+              onPressed: isEnabled ? _onPressed() : null,
+            ),
           ),
-          icon: isRunning
-              ? SizedBox(
-                  width: BeamIconSizes.small,
-                  height: BeamIconSizes.small,
-                  child: CircularProgressIndicator(
-                    color: Theme.of(context)
-                        .extension<BeamThemeExtension>()!
-                        .primaryBackgroundTextColor,
-                  ),
-                )
-              : const Icon(Icons.play_arrow),
-          label: StreamBuilder(
-              stream: playgroundController.executionTime,
-              builder: (context, AsyncSnapshot<int> state) {
-                final seconds = (state.data ?? 0) / kMsToSec;
-                final runText = 'widgets.runOrCancelButton.titles.run'.tr();
-                final cancelText =
-                    'widgets.runOrCancelButton.titles.cancel'.tr();
-                final buttonText = isRunning ? cancelText : runText;
-                if (seconds > 0) {
-                  return Text(
-                    '$buttonText (${seconds.toStringAsFixed(kSecondsFractions)} s)',
-                  );
-                }
-                return Text(buttonText);
-              }),
-          onPressed: onPressHandler(),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  onPressHandler() {
-    if (disabled) {
-      return null;
+  VoidCallback _onPressed() {
+    return playgroundController.codeRunner.isCodeRunning ? cancelRun : runCode;
+  }
+}
+
+class _ButtonText extends StatelessWidget {
+  final bool isRunning;
+  final DateTime? runStartDate;
+  final DateTime? runStopDate;
+
+  const _ButtonText({
+    required this.isRunning,
+    required this.runStartDate,
+    required this.runStopDate,
+  });
+
+  static const _msToSec = 1000;
+  static const _secondsFractionDigits = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final runText = 'widgets.runOrCancelButton.titles.run'.tr();
+    final cancelText = 'widgets.runOrCancelButton.titles.cancel'.tr();
+    final buttonText = isRunning ? cancelText : runText;
+    final runStopDateOrNow = runStopDate ?? DateTime.now();
+
+    final elapsedDuration =
+        runStopDateOrNow.difference(runStartDate ?? DateTime.now());
+
+    if (elapsedDuration.inMilliseconds > 0) {
+      final seconds = elapsedDuration.inMilliseconds / _msToSec;
+      return Text(
+        '$buttonText (${seconds.toStringAsFixed(_secondsFractionDigits)} s)',
+      );
     }
-    return !isRunning ? runCode : cancelRun;
+    return Text(buttonText);
   }
 }

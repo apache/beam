@@ -22,6 +22,7 @@
 
 import collections
 import contextlib
+import logging
 import random
 import re
 import threading
@@ -234,7 +235,8 @@ class _CoGBKImpl(PTransform):
     for pcoll in pcolls.values():
       self._check_pcollection(pcoll)
       if self.pipeline:
-        assert pcoll.pipeline == self.pipeline
+        assert pcoll.pipeline == self.pipeline, (
+            'All input PCollections must belong to the same pipeline.')
 
     tags = list(pcolls.keys())
 
@@ -352,6 +354,8 @@ class _BatchSizeEstimator(object):
     self._batch_size_num_seen = {}
     self._replay_last_batch_size = None
     self._record_metrics = record_metrics
+    self._element_count = 0
+    self._batch_count = 0
 
     if record_metrics:
       self._size_distribution = Metrics.distribution(
@@ -383,6 +387,8 @@ class _BatchSizeEstimator(object):
     if self._record_metrics:
       self._size_distribution.update(batch_size)
       self._time_distribution.update(int(elapsed_msec))
+    self._element_count += batch_size
+    self._batch_count += 1
     self._remainder_msecs = elapsed_msec - int(elapsed_msec)
     # If we ignore the next timing, replay the batch size to get accurate
     # timing.
@@ -529,6 +535,13 @@ class _BatchSizeEstimator(object):
     self._batch_size_num_seen[result] = seen_count
     return result
 
+  def stats(self):
+    return "element_count=%s batch_count=%s next_batch_size=%s timings=%s" % (
+        self._element_count,
+        self._batch_count,
+        self._calculate_next_batch_size(),
+        self._data)
+
 
 class _GlobalWindowsBatchingDoFn(DoFn):
   def __init__(self, batch_size_estimator, element_size_fn):
@@ -559,6 +572,8 @@ class _GlobalWindowsBatchingDoFn(DoFn):
       self._batch = None
       self._running_batch_size = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
+    logging.info(
+        "BatchElements statistics: " + self._batch_size_estimator.stats())
 
 
 class _SizedBatch():

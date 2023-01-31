@@ -26,9 +26,14 @@ import (
 
 func init() {
 	beam.RegisterCoder(
-		reflect.TypeOf((*bson.M)(nil)).Elem(),
-		encodeBSONMap,
-		decodeBSONMap,
+		reflect.TypeOf((*idRangeRestriction)(nil)).Elem(),
+		encodeBSON[idRangeRestriction],
+		decodeBSON[idRangeRestriction],
+	)
+	beam.RegisterCoder(
+		reflect.TypeOf((*idRange)(nil)).Elem(),
+		encodeBSON[idRange],
+		decodeBSON[idRange],
 	)
 	beam.RegisterCoder(
 		reflect.TypeOf((*primitive.ObjectID)(nil)).Elem(),
@@ -37,19 +42,19 @@ func init() {
 	)
 }
 
-func encodeBSONMap(m bson.M) ([]byte, error) {
-	bytes, err := bson.Marshal(m)
+func encodeBSON[T any](in T) ([]byte, error) {
+	out, err := bson.Marshal(in)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding BSON: %w", err)
 	}
 
-	return bytes, nil
+	return out, nil
 }
 
-func decodeBSONMap(bytes []byte) (bson.M, error) {
-	var out bson.M
-	if err := bson.Unmarshal(bytes, &out); err != nil {
-		return nil, fmt.Errorf("error decoding BSON: %w", err)
+func decodeBSON[T any](in []byte) (T, error) {
+	var out T
+	if err := bson.Unmarshal(in, &out); err != nil {
+		return out, fmt.Errorf("error decoding BSON: %w", err)
 	}
 
 	return out, nil

@@ -18,7 +18,7 @@ import pytest
 
 from api.v1.api_pb2 import SDK_JAVA
 from ci_cd import _check_envs, _run_ci_cd
-from config import Origin
+from config import Origin, Config
 
 
 @pytest.mark.parametrize("step", ["CI", "CD"])
@@ -37,6 +37,8 @@ def test_ci_step(
         step,
         "SDK_JAVA",
         Origin.PG_EXAMPLES,
+        "test",
+        Config.DEFAULT_NAMESPACE,
         [
             "../../examples",
         ],

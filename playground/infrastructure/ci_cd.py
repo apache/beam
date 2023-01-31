@@ -44,6 +44,18 @@ parser.add_argument(
     choices=[Config.CI_STEP_NAME, Config.CD_STEP_NAME],
 )
 parser.add_argument(
+    "--namespace",
+    dest="namespace",
+    help=f"Datastore namespace to use when saving data (default: {Config.DEFAULT_NAMESPACE})",
+    default=Config.DEFAULT_NAMESPACE
+)
+parser.add_argument(
+    "--datastore-project",
+    dest="datastore_project",
+    help="Datastore project to use when saving data (CD step only)",
+    default=None
+)
+parser.add_argument(
     "--sdk",
     dest="sdk",
     required=True,
@@ -78,7 +90,7 @@ def _check_envs():
         )
 
 
-def _run_ci_cd(step: str, raw_sdk: str, origin: Origin, subdirs: List[str]):
+def _run_ci_cd(step: str, raw_sdk: str, origin: Origin, project: str, namespace: str, subdirs: List[str]):
     sdk: SdkEnum = StringToSdkEnum(raw_sdk)
 
     load_supported_categories(categories_file)
@@ -94,14 +106,16 @@ def _run_ci_cd(step: str, raw_sdk: str, origin: Origin, subdirs: List[str]):
 
     if step == Config.CD_STEP_NAME:
         logging.info("Start of sending Playground examples to the Cloud Datastore ...")
-        datastore_client = DatastoreClient()
+        datastore_client = DatastoreClient(project, namespace)
         datastore_client.save_catalogs()
         datastore_client.save_to_cloud_datastore(examples, sdk, origin)
         logging.info("Finish of sending Playground examples to the Cloud Datastore")
 
 
 if __name__ == "__main__":
-    parser = parser.parse_args()
+    args = parser.parse_args()
+    if args.step == Config.CD_STEP_NAME and args.datastore_project is None:
+        parser.error(f"--datastore-project is required when --step {Config.CD_STEP_NAME} is selected")
     _check_envs()
     setup_logger()
-    _run_ci_cd(parser.step, parser.sdk, parser.origin, parser.subdirs)
+    _run_ci_cd(args.step, args.sdk, args.origin, args.datastore_project, args.namespace, args.subdirs)
