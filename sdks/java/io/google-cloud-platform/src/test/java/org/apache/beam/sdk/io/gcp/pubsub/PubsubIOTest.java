@@ -97,7 +97,7 @@ import org.junit.runners.model.Statement;
 /** Tests for PubsubIO Read and Write transforms. */
 @RunWith(JUnit4.class)
 public class PubsubIOTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(60);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test

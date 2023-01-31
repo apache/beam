@@ -99,7 +99,7 @@ public class BigQueryIOReadTest implements Serializable {
   private transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
 
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(60);
 
   @Rule
   public final transient TestRule folderThenPipeline =
