@@ -2904,15 +2904,6 @@ public class BigQueryIO {
             !getUseBeamSchema(), "Auto schema update not supported when using Beam schemas.");
       }
 
-      if (method != Write.Method.FILE_LOADS) {
-        // we only support writing avro for FILE_LOADS
-        checkArgument(
-            getAvroRowWriterFactory() == null,
-            "Writing avro formatted data is only supported for FILE_LOADS, however "
-                + "the method was %s",
-            method);
-      }
-
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }

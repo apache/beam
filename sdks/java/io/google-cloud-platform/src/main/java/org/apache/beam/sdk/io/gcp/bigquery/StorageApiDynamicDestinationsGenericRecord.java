@@ -67,11 +67,12 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     }
 
     @Override
+    @SuppressWarnings("nullness")
     public StorageApiWritePayload toMessage(T element) {
       Message msg =
           AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
               descriptor, toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)));
-      return new AutoValue_StorageApiWritePayload(msg.toByteArray());
+      return new AutoValue_StorageApiWritePayload(msg.toByteArray(), null);
     }
 
     @Override
@@ -83,6 +84,12 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     @Override
     public com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema() {
       return protoTableSchema;
+    }
+
+    @Override
+    public StorageApiWritePayload toMessage(TableRow tableRow, boolean respectRequired)
+        throws Exception {
+      throw new RuntimeException("Not supported");
     }
   }
 }
