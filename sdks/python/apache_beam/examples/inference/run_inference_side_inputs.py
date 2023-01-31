@@ -85,10 +85,10 @@ class FakeModelHandlerReturnsPredictionResult(
 def run(argv=None, save_main_session=True):
   parser = argparse.ArgumentParser()
   first_ts = time.time()
-  side_input_interval = 120
-  main_input_interval = 60
+  side_input_interval = 60
+  main_input_interval = 20
   # give some time for dataflow to start.
-  last_ts = first_ts + 3000
+  last_ts = first_ts + 1200
   mid_ts = (first_ts + last_ts) / 2
 
   _, pipeline_args = parser.parse_known_args(argv)
@@ -149,6 +149,7 @@ def run(argv=None, save_main_session=True):
           last_ts,
           fire_interval=main_input_interval,
           apply_windowing=True)
+      | beam.Map(lambda x: 1)
       | base.RunInference(
           model_handler=model_handler, model_metadata_pcoll=side_input))
 
