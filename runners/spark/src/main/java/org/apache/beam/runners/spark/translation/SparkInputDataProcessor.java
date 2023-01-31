@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -256,7 +257,9 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
         @Override
         @SuppressWarnings({"nullness"})
         public Tuple2<TupleTag<?>, WindowedValue<?>> next() {
-          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(next);
+          if (next == null && !hasNext()) {
+            throw new NoSuchElementException();
+          }
           Tuple2<TupleTag<?>, WindowedValue<?>> value = next;
           next = null;
           return value;
