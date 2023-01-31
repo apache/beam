@@ -380,7 +380,8 @@ task tftTests {
   dependsOn "installTFTRequirements"
 
   doLast {
-    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def opts = project.findProperty('opts')
+    def testOpts = basicPytestOpts + opts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,
         "sdk_location": files(configurations.distTarBall.files).singleFile,

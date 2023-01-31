@@ -26,11 +26,18 @@ def cloudMLJob = { scope ->
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 360)
 
+  Map pipelineOptions = [
+    influx_db_name      : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influx_hostname     : InfluxDBCredentialsHelper.InfluxDBHostUrl,
+    metrics_dataset     : 'beam_cloudml',
+    publish_to_big_query: true
+  ]
   // Gradle goals for this job.
   scope.steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
+      switches("-Popts=\'${commonJobProperties.mapToArgString(pipelineOptions)}\'")
       tasks(':sdks:python:test-suites:dataflow:tftTests')
     }
   }
