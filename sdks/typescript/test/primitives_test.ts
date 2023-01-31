@@ -54,6 +54,10 @@ before(async function () {
 
 after(() => subprocessCache.stopAll());
 
+function sortValues(kvs) {
+  return { key: kvs.key, value: [...kvs.value].sort() };
+}
+
 export function suite(runner: beam.Runner = new DirectRunner()) {
   describe("testing.assertDeepEqual", function () {
     // The tests below won't catch failures if this doesn't fail.
@@ -186,7 +190,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
                 (kv, context) => {
                   return {
                     key: kv.key,
-                    value: kv.value,
+                    value: [...kv.value].sort(),
                     window_start_ms: context.window.lookup().start.low,
                     a: context.other,
                   };
@@ -212,6 +216,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
           .apply(beam.create(["apple", "apricot", "banana"]))
           .apply(beam.windowInto(windowings.globalWindows()))
           .apply(beam.groupBy((e: string) => e[0]))
+          .map(sortValues)
           .apply(
             testing.assertDeepEqual([
               { key: "a", value: ["apple", "apricot"] },
@@ -228,6 +233,7 @@ export function suite(runner: beam.Runner = new DirectRunner()) {
           .apply(beam.assignTimestamps((t) => Long.fromValue(t * 1000)))
           .apply(beam.windowInto(windowings.fixedWindows(10)))
           .apply(beam.groupBy((e: number) => ""))
+          .map(sortValues)
           .apply(
             testing.assertDeepEqual([
               { key: "", value: [1, 2, 3, 4, 5] },
