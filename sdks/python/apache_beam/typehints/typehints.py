@@ -389,10 +389,14 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   if sys.version_info.major == 3 and sys.version_info.minor >= 10:
     if isinstance(type_param, types.UnionType):
       is_not_type_constraint = False
-  is_forbidden_type = (
-      isinstance(type_param, type) and type_param in DISALLOWED_PRIMITIVE_TYPES)
+  # Pre-Python 3.9 compositve type-hinting with built-in types was not
+  # supported, the typing module equivalents should be used instead.
+  if sys.version_info.major == 3 and sys.version_info.minor < 9:
+    is_not_type_constraint = is_not_type_constraint or (
+        isinstance(type_param, type) and
+        type_param in DISALLOWED_PRIMITIVE_TYPES)
 
-  if is_not_type_constraint or is_forbidden_type:
+  if is_not_type_constraint:
     raise TypeError(
         '%s must be a non-sequence, a type, or a TypeConstraint. %s'
         ' is an instance of %s.' %
@@ -1186,20 +1190,18 @@ _KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
 
 def normalize(x, none_as_type=False):
   # None is inconsistantly used for Any, unknown, or NoneType.
+
+  # Avoid circular imports
+  from apache_beam.typehints import native_type_compatibility
+
+  if sys.version_info >= (3, 9) and isinstance(x, types.GenericAlias):
+    x = native_type_compatibility.convert_builtin_to_typing(x)
+
   if none_as_type and x is None:
     return type(None)
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
-  elif sys.version_info >= (3, 9) and isinstance(x, types.GenericAlias):
-    # TODO(https://github.com/apache/beam/issues/23366): handle PEP 585
-    # generic type hints properly
-    raise TypeError(
-        'PEP 585 generic type hints like %s are not yet supported, '
-        'use typing module containers instead. See equivalents listed '
-        'at https://docs.python.org/3/library/typing.html' % x)
   elif getattr(x, '__module__', None) == 'typing':
-    # Avoid circular imports
-    from apache_beam.typehints import native_type_compatibility
     beam_type = native_type_compatibility.convert_to_beam_type(x)
     if beam_type != x:
       # We were able to do the conversion.

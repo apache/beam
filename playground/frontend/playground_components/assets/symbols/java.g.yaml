@@ -474,6 +474,7 @@ AvroIO:
   - withSchema
   - withShardNameTemplate
   - withSuffix
+  - withSyncInterval
   - withTempDirectory
   - withUsesReshuffle
   - withWindowedWrites
@@ -683,9 +684,11 @@ BatchContextImpl:
   methods: 
   - addProperties
   - addTags
+  - asMap
   - createDataset
   - datasetExists
   - discardDataset
+  - get
   - getArguments
   - getDataset
   - getFailureCollector
@@ -703,6 +706,8 @@ BatchContextImpl:
   - getPluginProperties
   - getServiceURL
   - getStageName
+  - has
+  - iterator
   - loadPluginClass
   - newPluginInstance
   - provide
@@ -711,6 +716,10 @@ BatchContextImpl:
   - removeMetadata
   - removeProperties
   - removeTags
+  - set
+  properties: 
+  - DEFAULT_SCHEMA_FIELD_NAME
+  - DEFAULT_SCHEMA_RECORD_NAME
 BatchSinkContextImpl: 
   methods: 
   - addOutput
@@ -1328,11 +1337,13 @@ BeamSqlPipelineOptionsRegistrar:
   - getPipelineOptions
 BeamSqlRelUtils: 
   methods: 
+  - explainLazily
   - getBeamRelInput
   - getErrorRowSchema
   - getInput
   - getNodeStats
   - toPCollection
+  - toString
   properties: 
   - ERROR
   - ROW
@@ -1600,7 +1611,6 @@ BigQueryDirectReadSchemaTransformProvider:
   - buildTransform
   - builder
   - expand
-  - getBigQueryServices
   - getQuery
   - getRowRestriction
   - getSelectedFields
@@ -1791,6 +1801,27 @@ BigQueryStorageTableSource:
   - create
   - getEstimatedSizeBytes
   - populateDisplayData
+BigQueryStorageWriteApiSchemaTransformProvider: 
+  methods: 
+  - build
+  - buildTransform
+  - builder
+  - expand
+  - getCreateDisposition
+  - getTable
+  - getTriggeringFrequencySeconds
+  - getUseAtLeastOnceSemantics
+  - getWriteDisposition
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setBigQueryServices
+  - setCreateDisposition
+  - setTable
+  - setTriggeringFrequencySeconds
+  - setUseAtLeastOnceSemantics
+  - setWriteDisposition
+  - validate
 BigQueryTableProvider: 
   methods: 
   - buildBeamSqlTable
@@ -1935,6 +1966,7 @@ BlockBasedSource:
   - getCurrentRecord
   - getFractionConsumed
   - getFractionOfBlockConsumed
+  - isAtSplitPoint
   - readNextBlock
   - readNextRecord
 BlockingCommitterImpl: 
@@ -2533,6 +2565,8 @@ CdapIO:
   - withKeyClass
   - withLocksDirPath
   - withPluginConfig
+  - withPullFrequencySec
+  - withStartOffset
   - withValueClass
   - write
 ChangeStreamDao: 
@@ -3584,10 +3618,34 @@ DebeziumIO:
   - withFormatFunction
   - withHostName
   - withMaxNumberOfRecords
+  - withMaxTimeToRun
   - withPassword
   - withPort
   - withSourceConnector
   - withUsername
+DebeziumReadSchemaTransformProvider: 
+  methods: 
+  - build
+  - buildTransform
+  - builder
+  - expand
+  - getDatabase
+  - getDebeziumConnectionProperties
+  - getHost
+  - getPassword
+  - getPort
+  - getTable
+  - getUsername
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setDatabase
+  - setDebeziumConnectionProperties
+  - setHost
+  - setPassword
+  - setPort
+  - setTable
+  - setUsername
 DebeziumTransformRegistrar: 
   methods: 
   - buildExternal
@@ -3631,6 +3689,7 @@ DefaultBlobstoreClientBuilderFactory:
   - createBuilder
 DefaultFilenamePolicy: 
   methods: 
+  - constructName
   - decode
   - encode
   - equals
@@ -3996,6 +4055,7 @@ DoFnSignatures:
   - usesBagState
   - usesBundleFinalizer
   - usesMapState
+  - usesMultimapState
   - usesOrderedListState
   - usesSetState
   - usesState
@@ -4863,6 +4923,48 @@ FileSystems:
   - filteredExistingSrcs
   - resultDestinations
   - resultSources
+FileWriteSchemaTransformConfiguration: 
+  methods: 
+  - build
+  - builder
+  - csvConfigurationBuilder
+  - getCharset
+  - getCompression
+  - getCompressionCodecName
+  - getCsvConfiguration
+  - getCsvFormat
+  - getFilenamePrefix
+  - getFilenameSuffix
+  - getFormat
+  - getNumShards
+  - getParquetConfiguration
+  - getPreamble
+  - getRootElement
+  - getRowGroupSize
+  - getShardNameTemplate
+  - getXmlConfiguration
+  - parquetConfigurationBuilder
+  - setCharset
+  - setCompression
+  - setCompressionCodecName
+  - setCsvConfiguration
+  - setCsvFormat
+  - setFilenamePrefix
+  - setFilenameSuffix
+  - setFormat
+  - setNumShards
+  - setParquetConfiguration
+  - setPreamble
+  - setRootElement
+  - setRowGroupSize
+  - setShardNameTemplate
+  - setXmlConfiguration
+  - xmlConfigurationBuilder
+FileWriteSchemaTransformFormatProviders: 
+  methods: 
+  - buildTransform
+  - identifier
+  - loadProviders
 FillGaps: 
   methods: 
   - expand
@@ -5113,6 +5215,7 @@ FnApiStateAccessor:
   - bindCombining
   - bindCombiningWithContext
   - bindMap
+  - bindMultimap
   - bindOrderedList
   - bindSet
   - bindValue
@@ -5495,6 +5598,7 @@ GroupIntoBatches:
   methods: 
   - apply
   - create
+  - createDefault
   - expand
   - getBatchSize
   - getBatchSizeBytes
@@ -5509,8 +5613,11 @@ GroupIntoBatches:
   - onWindowExpiration
   - onWindowTimer
   - processElement
+  - toString
+  - withByteSize
   - withMaxBufferingDuration
   - withShardedKey
+  - withSize
 GrowableOffsetRangeTracker: 
   methods: 
   - getProgress
@@ -6212,6 +6319,36 @@ JdbcIO:
   - withWriteResults
   - write
   - writeVoid
+JdbcReadSchemaTransformProvider: 
+  methods: 
+  - build
+  - buildTransform
+  - builder
+  - expand
+  - getConnectionInitSql
+  - getConnectionProperties
+  - getDriverClassName
+  - getFetchSize
+  - getJdbcUrl
+  - getLocation
+  - getOutputParallelization
+  - getPassword
+  - getReadQuery
+  - getUsername
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setConnectionInitSql
+  - setConnectionProperties
+  - setDriverClassName
+  - setFetchSize
+  - setJdbcUrl
+  - setLocation
+  - setOutputParallelization
+  - setPassword
+  - setReadQuery
+  - setUsername
+  - validate
 JdbcSchemaIOProvider: 
   methods: 
   - buildReader
@@ -6226,6 +6363,34 @@ JdbcSchemaIOProvider:
 JdbcWriteResult: 
   methods: 
   - create
+JdbcWriteSchemaTransformProvider: 
+  methods: 
+  - build
+  - buildTransform
+  - builder
+  - expand
+  - getAutosharding
+  - getConnectionInitSql
+  - getConnectionProperties
+  - getDriverClassName
+  - getJdbcUrl
+  - getLocation
+  - getPassword
+  - getUsername
+  - getWriteStatement
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setAutosharding
+  - setConnectionInitSql
+  - setConnectionProperties
+  - setDriverClassName
+  - setJdbcUrl
+  - setLocation
+  - setPassword
+  - setUsername
+  - setWriteStatement
+  - validate
 JmsIO: 
   methods: 
   - advance
@@ -6370,6 +6535,7 @@ JsonToRow:
 JsonUtils: 
   methods: 
   - apply
+  - beamSchemaFromJsonSchema
   - getJsonBytesToRowFunction
   - getJsonStringToRowFunction
   - getRowToJsonBytesFunction
@@ -6400,6 +6566,12 @@ KafkaCommitOffset:
   methods: 
   - expand
   - processElement
+KafkaConnectUtils: 
+  methods: 
+  - beamRowFromSourceRecordFn
+  - beamSchemaFromKafkaConnectSchema
+  - beamSchemaTypeFromKafkaType
+  - mapSourceRecord
 KafkaIO: 
   methods: 
   - apply
@@ -6490,6 +6662,37 @@ KafkaIO:
   - URN
   - URN_WITHOUT_METADATA
   - URN_WITH_METADATA
+KafkaReadSchemaTransformConfiguration: 
+  methods: 
+  - build
+  - builder
+  - getAutoOffsetResetConfig
+  - getBootstrapServers
+  - getConfluentSchemaRegistrySubject
+  - getConfluentSchemaRegistryUrl
+  - getConsumerConfigUpdates
+  - getDataFormat
+  - getSchema
+  - getTopic
+  - setAutoOffsetResetConfig
+  - setBootstrapServers
+  - setConfluentSchemaRegistrySubject
+  - setConfluentSchemaRegistryUrl
+  - setConsumerConfigUpdates
+  - setDataFormat
+  - setSchema
+  - setTopic
+  - validate
+  properties: 
+  - VALID_DATA_FORMATS
+  - VALID_START_OFFSET_VALUES
+KafkaReadSchemaTransformProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
 KafkaRecord: 
   methods: 
   - equals
@@ -6511,37 +6714,6 @@ KafkaRecordCoder:
   - of
   - structuralValue
   - verifyDeterministic
-KafkaSchemaTransformReadConfiguration: 
-  methods: 
-  - build
-  - builder
-  - getAutoOffsetResetConfig
-  - getAvroSchema
-  - getBootstrapServers
-  - getConfluentSchemaRegistrySubject
-  - getConfluentSchemaRegistryUrl
-  - getConsumerConfigUpdates
-  - getDataFormat
-  - getTopic
-  - setAutoOffsetResetConfig
-  - setAvroSchema
-  - setBootstrapServers
-  - setConfluentSchemaRegistrySubject
-  - setConfluentSchemaRegistryUrl
-  - setConsumerConfigUpdates
-  - setDataFormat
-  - setTopic
-  - validate
-  properties: 
-  - VALID_DATA_FORMATS
-  - VALID_START_OFFSET_VALUES
-KafkaSchemaTransformReadProvider: 
-  methods: 
-  - buildTransform
-  - expand
-  - identifier
-  - inputCollectionNames
-  - outputCollectionNames
 KafkaSourceConsumerFn: 
   methods: 
   - checkDone
@@ -6566,7 +6738,7 @@ KafkaSourceConsumerFn:
   - fetchedRecords
   - history
   - maxRecords
-  - minutesToRun
+  - milisToRun
   - offset
 KafkaSourceDescriptor: 
   methods: 
@@ -6576,6 +6748,25 @@ KafkaTableProvider:
   methods: 
   - buildBeamSqlTable
   - getTableType
+KafkaWriteSchemaTransformProvider: 
+  methods: 
+  - build
+  - buildTransform
+  - builder
+  - expand
+  - getBootstrapServers
+  - getFormat
+  - getProducerConfigUpdates
+  - getTopic
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setBootstrapServers
+  - setFormat
+  - setProducerConfigUpdates
+  - setTopic
+  properties: 
+  - SUPPORTED_FORMATS
 KeyPairUtils: 
   methods: 
   - preparePrivateKey
@@ -6905,9 +7096,7 @@ MapperFactory:
   methods: 
   - changeStreamRecordMapper
   - partitionMetadataMapper
-MappingUtils: 
-  methods: 
-  - registerStreamingPlugin
+MappingUtils: {}
 MatchResult: 
   methods: 
   - build
@@ -7422,6 +7611,7 @@ Neo4jIO:
   - readAll
   - setup
   - startBundle
+  - tearDown
   - withBatchSize
   - withCoder
   - withConfig
@@ -8070,6 +8260,7 @@ ParDo:
   - dispatchBag
   - dispatchCombining
   - dispatchMap
+  - dispatchMultimap
   - dispatchOrderedList
   - dispatchSet
   - dispatchValue
@@ -8422,10 +8613,14 @@ Plugin:
   - getContext
   - getFormatClass
   - getFormatProviderClass
+  - getGetOffsetFn
+  - getGetReceiverArgsFromConfigFn
   - getHadoopConfiguration
   - getPluginClass
   - getPluginConfig
   - getPluginType
+  - getReceiverBuilder
+  - getReceiverClass
   - initContext
   - initPluginType
   - isUnbounded
@@ -8433,8 +8628,11 @@ Plugin:
   - setContext
   - setFormatClass
   - setFormatProviderClass
+  - setGetOffsetFn
+  - setGetReceiverArgsFromConfigFn
   - setPluginClass
   - setPluginType
+  - setReceiverClass
   - withConfig
   - withHadoopConfiguration
 PluginConfigInstantiationUtils: {}
@@ -8684,9 +8882,12 @@ PubsubClient:
   - ackDeadlineSeconds
   - ackId
   - acknowledge
+  - apply
   - createRandomSubscription
+  - createSchema
   - createSubscription
   - createTopic
+  - deleteSchema
   - deleteSubscription
   - deleteTopic
   - equals
@@ -8694,6 +8895,9 @@ PubsubClient:
   - getId
   - getName
   - getPath
+  - getProjectId
+  - getSchema
+  - getSchemaPath
   - hashCode
   - isEOF
   - listSubscriptions
@@ -8707,6 +8911,8 @@ PubsubClient:
   - pull
   - recordId
   - requestTimeMsSinceEpoch
+  - schemaPathFromId
+  - schemaPathFromPath
   - subscriptionPathFromName
   - subscriptionPathFromPath
   - timestampMsSinceEpoch
@@ -8726,11 +8932,15 @@ PubsubGrpcClient:
   - ackDeadlineSeconds
   - acknowledge
   - close
+  - createSchema
   - createSubscription
   - createTopic
+  - deleteSchema
   - deleteSubscription
   - deleteTopic
   - getKind
+  - getSchema
+  - getSchemaPath
   - isEOF
   - listSubscriptions
   - listTopics
@@ -8796,11 +9006,15 @@ PubsubJsonClient:
   - ackDeadlineSeconds
   - acknowledge
   - close
+  - createSchema
   - createSubscription
   - createTopic
+  - deleteSchema
   - deleteSubscription
   - deleteTopic
   - getKind
+  - getSchema
+  - getSchemaPath
   - isEOF
   - listSubscriptions
   - listTopics
@@ -8817,6 +9031,26 @@ PubsubLiteIO:
   - expand
   - read
   - write
+PubsubLiteReadSchemaTransformProvider: 
+  methods: 
+  - build
+  - buildTransform
+  - builder
+  - expand
+  - from
+  - getDataFormat
+  - getLocation
+  - getProject
+  - getSchema
+  - getSubscriptionName
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setDataFormat
+  - setLocation
+  - setProject
+  - setSchema
+  - setSubscriptionName
 PubsubLiteSink: 
   methods: 
   - finishBundle
@@ -8826,6 +9060,25 @@ PubsubLiteTableProvider:
   methods: 
   - buildBeamSqlTable
   - getTableType
+PubsubLiteWriteSchemaTransformProvider: 
+  methods: 
+  - build
+  - buildTransform
+  - builder
+  - expand
+  - getFormat
+  - getLocation
+  - getProject
+  - getTopicName
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setFormat
+  - setLocation
+  - setProject
+  - setTopicName
+  properties: 
+  - SUPPORTED_FORMATS
 PubsubMessage: 
   methods: 
   - equals
@@ -8913,17 +9166,6 @@ PubsubSchemaTransformReadProvider:
   - inputCollectionNames
   - outputCollectionNames
   - validate
-PubsubSchemaTransformWriteConfiguration: 
-  methods: 
-  - build
-  - getFormat
-  - getIdAttribute
-  - getTimestampAttribute
-  - getTopic
-  - setFormat
-  - setIdAttribute
-  - setTimestampAttribute
-  - setTopic
 PubsubTableProvider: 
   methods: 
   - getSchemaIOProvider
@@ -8935,14 +9177,19 @@ PubsubTestClient:
   - advance
   - close
   - createFactoryForCreateSubscription
+  - createFactoryForGetSchema
   - createFactoryForPublish
   - createFactoryForPull
   - createFactoryForPullAndPublish
+  - createSchema
   - createSubscription
   - createTopic
+  - deleteSchema
   - deleteSubscription
   - deleteTopic
   - getKind
+  - getSchema
+  - getSchemaPath
   - isEOF
   - listSubscriptions
   - listTopics
@@ -9006,6 +9253,40 @@ PubsubUnboundedSource:
   - validate
   properties: 
   - outer
+PubsubWriteSchemaTransformConfiguration: 
+  methods: 
+  - build
+  - builder
+  - getAttributesFieldName
+  - getFormat
+  - getIdAttribute
+  - getPayloadFieldName
+  - getSource
+  - getTarget
+  - getTimestampAttributeKey
+  - getTimestampFieldName
+  - getTopic
+  - setAttributesFieldName
+  - setFormat
+  - setIdAttribute
+  - setPayloadFieldName
+  - setSource
+  - setTarget
+  - setTimestampAttributeKey
+  - setTimestampFieldName
+  - setTopic
+  - sourceConfigurationBuilder
+  - targetConfigurationBuilder
+  properties: 
+  - DEFAULT_TIMESTAMP_ATTRIBUTE
+PubsubWriteSchemaTransformProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - process
 PulsarIO: 
   methods: 
   - expand
@@ -9330,6 +9611,8 @@ ReadAllViaFileBasedSource:
   - apply
   - expand
   - process
+  properties: 
+  - DEFAULT_USES_RESHUFFLE
 ReadBuilder: 
   methods: 
   - buildExternal
@@ -10180,6 +10463,7 @@ Schema:
   - setOptions
   - setType
   - setUUID
+  - sorted
   - toBuilder
   - toSchema
   - toString
@@ -10542,7 +10826,9 @@ SingleStoreIO:
   - process
   - processElement
   - read
+  - readRows
   - readWithPartitions
+  - readWithPartitionsRows
   - run
   - splitRange
   - withBatchSize
@@ -10558,6 +10844,49 @@ SingleStoreIO:
   - withUserDataMapper
   - withUsername
   - write
+  - writeRows
+SingleStoreSchemaTransformReadConfiguration: 
+  methods: 
+  - build
+  - builder
+  - getDataSourceConfiguration
+  - getOutputParallelization
+  - getQuery
+  - getTable
+  - getWithPartitions
+  - setDataSourceConfiguration
+  - setOutputParallelization
+  - setQuery
+  - setTable
+  - setWithPartitions
+  - toBeamRow
+SingleStoreSchemaTransformReadProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+SingleStoreSchemaTransformWriteConfiguration: 
+  methods: 
+  - build
+  - builder
+  - getBatchSize
+  - getDataSourceConfiguration
+  - getTable
+  - setBatchSize
+  - setDataSourceConfiguration
+  - setTable
+  - toBeamRow
+SingleStoreSchemaTransformWriteProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  properties: 
+  - INPUT_TAG
 SingleValueCollector: 
   methods: 
   - asContext
@@ -11152,7 +11481,9 @@ SparkReceiverIO:
   - read
   - validateTransform
   - withGetOffsetFn
+  - withPullFrequencySec
   - withSparkReceiverBuilder
+  - withStartOffset
   - withTimestampFn
 Split: 
   methods: 
@@ -11391,10 +11722,12 @@ StateSpecs:
   - hashCode
   - map
   - match
+  - multimap
   - offerCoders
   - orderedList
   - rowBag
   - rowMap
+  - rowMultimap
   - rowOrderedList
   - rowSet
   - rowValue

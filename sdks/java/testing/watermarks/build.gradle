@@ -49,7 +49,7 @@ if (isDataflowRunner) {
    * the following projects are evaluated before we evaluate this project. This is because
    * we are attempting to reference a property from the project directly.
    */
-  evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+  evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 }
 
 configurations {
@@ -98,9 +98,9 @@ task run(type: JavaExec) {
   def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
 
   if (isDataflowRunner) {
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
     // Provide job with a customizable worker jar.
     // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
     // More context and discussions can be found in PR#6694.

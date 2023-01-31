@@ -31,7 +31,7 @@ import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 
 /**
- * Builds a {@link PubsubMessageToRow} from a {@link PubsubSchemaTransformReadConfiguration}.
+ * Builds a {@link PubsubMessageToRow} from a {@link PubsubReadSchemaTransformConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -58,10 +58,10 @@ class PubsubSchemaTransformMessageToRowFactory {
 
   /**
    * Instantiate a {@link PubsubSchemaTransformMessageToRowFactory} from a {@link
-   * PubsubSchemaTransformReadConfiguration}.
+   * PubsubReadSchemaTransformConfiguration}.
    */
   static PubsubSchemaTransformMessageToRowFactory from(
-      PubsubSchemaTransformReadConfiguration configuration) {
+      PubsubReadSchemaTransformConfiguration configuration) {
     return new PubsubSchemaTransformMessageToRowFactory(configuration);
   }
 
@@ -82,10 +82,10 @@ class PubsubSchemaTransformMessageToRowFactory {
     return builder.build();
   }
 
-  private final PubsubSchemaTransformReadConfiguration configuration;
+  private final PubsubReadSchemaTransformConfiguration configuration;
 
   private PubsubSchemaTransformMessageToRowFactory(
-      PubsubSchemaTransformReadConfiguration configuration) {
+      PubsubReadSchemaTransformConfiguration configuration) {
     this.configuration = configuration;
   }
 
@@ -132,7 +132,7 @@ class PubsubSchemaTransformMessageToRowFactory {
 
   /**
    * Determines whether a nested schema should be used for {@link
-   * PubsubSchemaTransformReadConfiguration#getDataSchema()}.
+   * PubsubReadSchemaTransformConfiguration#getDataSchema()}.
    *
    * <p>The determination is based on {@link #schemaHasValidPayloadField()} and {@link
    * #schemaHasValidAttributesField()}}
@@ -142,7 +142,7 @@ class PubsubSchemaTransformMessageToRowFactory {
   }
 
   /**
-   * Determines whether {@link PubsubSchemaTransformReadConfiguration#getDataSchema()} has a valid
+   * Determines whether {@link PubsubReadSchemaTransformConfiguration#getDataSchema()} has a valid
    * {@link PubsubMessageToRow#PAYLOAD_FIELD}.
    */
   boolean schemaHasValidPayloadField() {
@@ -157,7 +157,7 @@ class PubsubSchemaTransformMessageToRowFactory {
   }
 
   /**
-   * Determines whether {@link PubsubSchemaTransformReadConfiguration#getDataSchema()} has a valid
+   * Determines whether {@link PubsubReadSchemaTransformConfiguration#getDataSchema()} has a valid
    * {@link PubsubMessageToRow#ATTRIBUTES_FIELD} field.
    *
    * <p>The determination is based on whether {@link #fieldPresent(String, Schema.FieldType)} for
@@ -170,7 +170,7 @@ class PubsubSchemaTransformMessageToRowFactory {
   }
 
   /**
-   * Determines whether {@link PubsubSchemaTransformReadConfiguration#getDataSchema()} contains the
+   * Determines whether {@link PubsubReadSchemaTransformConfiguration#getDataSchema()} contains the
    * field and whether that field is an expectedType {@link Schema.FieldType}.
    */
   boolean fieldPresent(String field, Schema.FieldType expectedType) {

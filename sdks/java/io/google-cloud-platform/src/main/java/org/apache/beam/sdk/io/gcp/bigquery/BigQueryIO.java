@@ -2895,6 +2895,24 @@ public class BigQueryIO {
             "withAutoSchemaUpdate only supported when using storage-api writes.");
       }
 
+      if (getAutoSchemaUpdate()) {
+        // TODO(reuvenlax): Remove this restriction once we implement support.
+        checkArgument(
+            getIgnoreUnknownValues(),
+            "Auto schema update currently only supported when ignoreUnknownValues also set.");
+        checkArgument(
+            !getUseBeamSchema(), "Auto schema update not supported when using Beam schemas.");
+      }
+
+      if (method != Write.Method.FILE_LOADS) {
+        // we only support writing avro for FILE_LOADS
+        checkArgument(
+            getAvroRowWriterFactory() == null,
+            "Writing avro formatted data is only supported for FILE_LOADS, however "
+                + "the method was %s",
+            method);
+      }
+
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
@@ -3200,11 +3218,12 @@ public class BigQueryIO {
                   dynamicDestinations,
                   tableRowWriterFactory.getToRowFn(),
                   getCreateDisposition(),
-                  getIgnoreUnknownValues());
+                  getIgnoreUnknownValues(),
+                  getAutoSchemaUpdate());
         }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =
-            new StorageApiLoads<DestinationT, T>(
+            new StorageApiLoads<>(
                 destinationCoder,
                 storageApiDynamicDestinations,
                 getCreateDisposition(),
@@ -3213,7 +3232,9 @@ public class BigQueryIO {
                 getBigQueryServices(),
                 getStorageApiNumStreams(bqOptions),
                 method == Method.STORAGE_API_AT_LEAST_ONCE,
-                getAutoSharding());
+                getAutoSharding(),
+                getAutoSchemaUpdate(),
+                getIgnoreUnknownValues());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

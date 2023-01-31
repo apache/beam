@@ -468,10 +468,13 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
                     "apache_beam.runners.portability.expansion_service_main", args.build())
                 .withExtraPackages(extraPackages);
         try (AutoCloseable p = service.start()) {
-          PythonService.waitForPort("localhost", port, 15000);
+          // allow more time waiting for the port ready for transient expansion service setup.
+          PythonService.waitForPort("localhost", port, 60000);
           return apply(input, String.format("localhost:%s", port), payload);
         }
       }
+    } catch (RuntimeException exn) {
+      throw exn;
     } catch (Exception exn) {
       throw new RuntimeException(exn);
     }
