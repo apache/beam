@@ -540,7 +540,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       side input is empty or the model has not been updated, the method
       simply runs inference on the batch of data.
     """
-    if si_model_metadata and self._enable_side_input_loading:
+    if si_model_metadata:
       if isinstance(si_model_metadata, beam.pvalue.EmptySideInput):
         self.update_model(side_input_model_path=None)
         return self._run_inference(batch, inference_args)
