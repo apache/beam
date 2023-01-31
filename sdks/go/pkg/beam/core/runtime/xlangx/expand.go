@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -31,8 +32,13 @@ import (
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/xlang"
+	"github.com/sethvargo/go-retry"
 	"google.golang.org/grpc"
 )
+
+// maxRetries is the maximum number of retries to attempt connecting to
+// an expansion service endpoint.
+const maxRetries = 5
 
 // Expand expands an unexpanded graph.ExternalTransform as a
 // graph.ExpandedTransform and assigns it to the ExternalTransform's Expanded
@@ -163,16 +169,24 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	client := jobpb.NewExpansionServiceClient(conn)
 
 	// Handling ExpansionResponse
-	res, err := client.Expand(ctx, req)
-	if err != nil {
-		err = errors.Wrapf(err, "expansion failed")
-		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
+	var res *jobpb.ExpansionResponse
+	backoff := retry.NewExponential(1 * time.Second)
+	if err := retry.Do(ctx, retry.WithMaxRetries(maxRetries, backoff), func(ctx context.Context) error {
+		res, err := client.Expand(ctx, req)
+		if err != nil {
+			err = errors.Wrap(err, "expansion failed")
+			return retry.RetryableError(errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req))
+		}
+		if len(res.GetError()) != 0 { // ExpansionResponse includes an error.
+			err := errors.New(res.GetError())
+			err = errors.Wrap(err, "expansion response error")
+			return errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	if len(res.GetError()) != 0 { // ExpansionResponse includes an error.
-		err := errors.New(res.GetError())
-		err = errors.Wrapf(err, "expansion failed")
-		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
-	}
+
 	return res, nil
 }
 
