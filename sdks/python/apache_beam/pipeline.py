@@ -545,12 +545,11 @@ class Pipeline(object):
     if (self._run_inference_contains_side_input and
         not self.run_inference_global_window_non_default_trigger):
       raise RuntimeError(
-          "The SideInput to the RunInference PTransform "
-          "is using GlobalWindows with default trigger "
-          "or not using Windowing on the side input. "
-          "This could lead to odd behaviors. Please consider "
-          "using GlobalWindows with AfterProcessing or AfterCount "
-          "trigger.")
+          "The RunInference PTransform's SideInput is either using "
+          "GlobalWindows with a default trigger or no Windowing, which "
+          "may cause unexpected results. "
+          "It's recommended to use GlobalWindows with an "
+          "AfterProcessing or AfterCount trigger.")
     try:
       if test_runner_api == 'AUTO':
         # Don't pay the cost of a round-trip if we're going to be going through

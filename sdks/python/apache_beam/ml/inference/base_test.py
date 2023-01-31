@@ -441,10 +441,9 @@ class RunInferenceBaseTest(unittest.TestCase):
       test_pipeline.run()
 
     self.assertTrue(
-        "The SideInput to the RunInference PTransform "
-        "is using GlobalWindows with default trigger "
-        "or not using Windowing on the side input. "
-        "This could lead to odd behaviors. " in str(e.exception))
+        "The RunInference PTransform's SideInput is either using "
+        "GlobalWindows with a default trigger or no Windowing," in str(
+            e.exception))
 
   @unittest.skipIf(
       not TestPipeline().get_pipeline_options().view_as(
