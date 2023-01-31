@@ -77,7 +77,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final boolean stateful;
   private final DoFnSchemaInformation doFnSchemaInformation;
   private final Map<String, PCollectionView<?>> sideInputMapping;
-  private final boolean useBoundedOutput;
+  private final boolean useBoundedConcurrentOutput;
 
   /**
    * @param metricsAccum The Spark {@link AccumulatorV2} that backs the Beam metrics.
@@ -90,7 +90,7 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param sideInputs Side inputs used in this {@link DoFn}.
    * @param windowingStrategy Input {@link WindowingStrategy}.
    * @param stateful Stateful {@link DoFn}.
-   * @param useBoundedOutput If it should use bounded output for processing.
+   * @param useBoundedConcurrentOutput If it should use bounded output for processing.
    */
   public MultiDoFnFunction(
       MetricsContainerStepMapAccumulator metricsAccum,
@@ -106,7 +106,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       boolean stateful,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping,
-      boolean useBoundedOutput) {
+      boolean useBoundedConcurrentOutput) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -120,7 +120,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.stateful = stateful;
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
-    this.useBoundedOutput = useBoundedOutput;
+    this.useBoundedConcurrentOutput = useBoundedConcurrentOutput;
   }
 
   @Override
@@ -138,7 +138,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     }
 
     SparkInputDataProcessor<InputT, OutputT, Tuple2<TupleTag<?>, WindowedValue<?>>> processor;
-    if (useBoundedOutput) {
+    if (useBoundedConcurrentOutput) {
       processor = SparkInputDataProcessor.createBounded();
     } else {
       processor = SparkInputDataProcessor.createUnbounded();
@@ -200,7 +200,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             key,
             stateful ? new TimerDataIterator(timerInternals) : Collections.emptyIterator());
 
-    return processor.process(iter, ctx);
+    return processor.createOutputIterator(iter, ctx);
   }
 
   private static class TimerDataIterator implements Iterator<TimerInternals.TimerData> {

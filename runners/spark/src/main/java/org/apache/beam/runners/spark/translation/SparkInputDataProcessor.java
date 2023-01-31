@@ -54,12 +54,13 @@ interface SparkInputDataProcessor<FnInputT, FnOutputT, OutputT> {
   OutputManager getOutputManager();
 
   /**
-   * Processes input partition data and return results as {@link Iterable}.
+   * Creates a transformation which processes input partition data and returns output results as
+   * {@link Iterator}.
    *
    * @param input input partition iterator
    * @param ctx current processing context
    */
-  <K> Iterator<OutputT> process(
+  <K> Iterator<OutputT> createOutputIterator(
       Iterator<WindowedValue<FnInputT>> input, SparkProcessContext<K, FnInputT, FnOutputT> ctx);
 
   /**
@@ -96,7 +97,7 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
   }
 
   @Override
-  public <K> Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> process(
+  public <K> Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> createOutputIterator(
       Iterator<WindowedValue<FnInputT>> input, SparkProcessContext<K, FnInputT, FnOutputT> ctx) {
     return new UnboundedInOutIterator<>(input, ctx);
   }
@@ -117,7 +118,7 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
 
     @Override
     public synchronized <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      outputs.push(new Tuple2<>(tag, output));
+      outputs.addLast(new Tuple2<>(tag, output));
     }
   }
 
@@ -211,7 +212,7 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
   }
 
   @Override
-  public <K> Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> process(
+  public <K> Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> createOutputIterator(
       Iterator<WindowedValue<FnInputT>> input, SparkProcessContext<K, FnInputT, FnOutputT> ctx) {
     return new BoundedInOutIterator<>(input, ctx);
   }
@@ -235,38 +236,36 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
     public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> iterator() {
       return new Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>>() {
 
-        private @Nullable Tuple2<TupleTag<?>, WindowedValue<?>> value = null;
+        private @Nullable Tuple2<TupleTag<?>, WindowedValue<?>> next = null;
 
         @Override
         public boolean hasNext() {
           // expect elements appearing in queue until stop() is invoked.
           // after that, no more inputs can arrive, so just drain the queue
-          while (true) {
-            try {
-              value = queue.poll(1000, TimeUnit.MILLISECONDS);
-              if (value != null) {
-                return true;
-              }
-              if (stopped) {
-                return false;
-              }
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              throw new IllegalStateException(e);
+          try {
+            while (next == null && !(stopped && queue.isEmpty())) {
+              next = queue.poll(1000, TimeUnit.MILLISECONDS);
             }
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
           }
+          return next != null;
         }
 
         @Override
         @SuppressWarnings({"nullness"})
         public Tuple2<TupleTag<?>, WindowedValue<?>> next() {
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(next);
+          Tuple2<TupleTag<?>, WindowedValue<?>> value = next;
+          next = null;
           return value;
         }
       };
     }
 
     @Override
-    public synchronized <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       try {
         Preconditions.checkState(!stopped, "Output called on already stopped manager");
         queue.put(new Tuple2<>(tag, output));
@@ -305,51 +304,20 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
     protected Tuple2<TupleTag<?>, WindowedValue<?>> computeNext() {
 
       if (outputProducerTask == null) {
-        outputProducerTask =
-            executorService.submit(
-                () -> {
-                  try {
-                    ctx.getDoFnRunner().startBundle();
-                    while (true) {
-                      if (inputIterator.hasNext()) {
-                        // grab the next element and process it.
-                        WindowedValue<InputT> next = inputIterator.next();
-                        ctx.getDoFnRunner().processElement(next);
-
-                      } else if (ctx.getTimerDataIterator().hasNext()) {
-                        fireTimer(ctx.getTimerDataIterator().next());
-                      } else {
-
-                        // no more input to consume, but finishBundle can produce more output
-                        ctx.getDoFnRunner().finishBundle();
-                        DoFnInvokers.invokerFor(ctx.getDoFn()).invokeTeardown();
-
-                        outputManager.stop();
-                        break;
-                      }
-                    }
-
-                  } catch (RuntimeException ex) {
-                    inputConsumeFailure = ex;
-                    DoFnInvokers.invokerFor(ctx.getDoFn()).invokeTeardown();
-                    outputManager.stop();
-                  }
-                });
+        outputProducerTask = startOutputProducerTask();
       }
 
-      while (true) {
-        boolean hasNext = outputIterator.hasNext();
-        if (inputConsumeFailure != null) {
-          executorService.shutdown();
-          throw inputConsumeFailure;
-        }
+      boolean hasNext = outputIterator.hasNext();
+      if (inputConsumeFailure != null) {
+        executorService.shutdown();
+        throw inputConsumeFailure;
+      }
 
-        if (hasNext) {
-          return outputIterator.next();
-        } else {
-          executorService.shutdown();
-          return endOfData();
-        }
+      if (hasNext) {
+        return outputIterator.next();
+      } else {
+        executorService.shutdown();
+        return endOfData();
       }
     }
 
@@ -366,6 +334,38 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
               timer.getTimestamp(),
               timer.getOutputTimestamp(),
               timer.getDomain());
+    }
+
+    private Future<?> startOutputProducerTask() {
+      return executorService.submit(
+          () -> {
+            try {
+              ctx.getDoFnRunner().startBundle();
+              while (true) {
+                if (inputIterator.hasNext()) {
+                  // grab the next element and process it.
+                  WindowedValue<InputT> next = inputIterator.next();
+                  ctx.getDoFnRunner().processElement(next);
+
+                } else if (ctx.getTimerDataIterator().hasNext()) {
+                  fireTimer(ctx.getTimerDataIterator().next());
+                } else {
+
+                  // no more input to consume, but finishBundle can produce more output
+                  ctx.getDoFnRunner().finishBundle();
+                  DoFnInvokers.invokerFor(ctx.getDoFn()).invokeTeardown();
+
+                  outputManager.stop();
+                  break;
+                }
+              }
+
+            } catch (RuntimeException ex) {
+              inputConsumeFailure = ex;
+              DoFnInvokers.invokerFor(ctx.getDoFn()).invokeTeardown();
+              outputManager.stop();
+            }
+          });
     }
   }
 }

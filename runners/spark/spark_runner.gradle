@@ -249,8 +249,8 @@ def applyBatchValidatesRunnerSetup = { Test it ->
   group = "Verification"
   // Disable gradle cache
   it.outputs.upToDateWhen { false }
-  jvmArgs += sparkTestJvmArgs()
-  jvmArgs '-Xmx3g'
+  it.jvmArgs += sparkTestJvmArgs()
+  it.jvmArgs '-Xmx3g'
 
   it.classpath = project.configurations.validatesRunner
   it.testClassesDirs = project.files(
@@ -259,6 +259,7 @@ def applyBatchValidatesRunnerSetup = { Test it ->
   )
 
   it.maxParallelForks 4
+
   it.useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     // Should be run only in a properly configured SDK harness environment
@@ -292,9 +293,14 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
   systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false"])
 }
 
-def validatesRunnerBatchWithBoundedSDFExperiment = tasks.register("validatesRunnerBatchWitBoundedSDFExperiment", Test) {
+def validatesRunnerBatchWithBoundedSDFExperiment = tasks.register("validatesRunnerBatchWithBoundedSDFExperiment", Test) {
   applyBatchValidatesRunnerSetup(it)
   systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false", "--experiments":"use_bounded_output_for_sdf"])
+
+  // experiment concerns only SDF implementation, therefore avoid needlessly rerunning other tests
+  it.filter {
+    includeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest'
+  }
 }
 
 
