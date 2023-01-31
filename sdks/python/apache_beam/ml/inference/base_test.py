@@ -446,11 +446,17 @@ class RunInferenceBaseTest(unittest.TestCase):
         "or not using Windowing on the side input. "
         "This could lead to odd behaviors. " in str(e.exception))
 
+  @unittest.skipIf(
+      not TestPipeline().get_pipeline_options().view_as(
+          StandardOptions).streaming,
+      "SideInputs to RunInference are only supported in streaming mode.")
   @pytest.mark.it_postcommit
+  @pytest.mark.sickbay_direct
   def test_run_inference_with_side_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     test_pipeline.options.view_as(StandardOptions).streaming = True
-    run_inference_side_inputs.run(test_pipeline.get_full_options_as_args())
+    run_inference_side_inputs.run(
+        test_pipeline.get_full_options_as_args(), save_main_session=False)
 
 
 if __name__ == '__main__':
