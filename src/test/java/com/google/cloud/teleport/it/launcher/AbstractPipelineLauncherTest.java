@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.teleport.it.dataflow;
+package com.google.cloud.teleport.it.launcher;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
@@ -27,7 +27,7 @@ import com.google.api.services.dataflow.Dataflow.Projects.Locations;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.Get;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.Update;
 import com.google.api.services.dataflow.model.Job;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.JobState;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.JobState;
 import java.io.IOException;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,9 +40,9 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-/** Unit tests for {@link AbstractDataflowClient}. */
+/** Unit tests for {@link AbstractPipelineLauncher}. */
 @RunWith(JUnit4.class)
-public final class AbstractDataflowClientTest {
+public final class AbstractPipelineLauncherTest {
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
 
   @Mock(answer = Answers.RETURNS_DEEP_STUBS)
@@ -64,7 +64,7 @@ public final class AbstractDataflowClientTest {
     when(getLocationJobs(client).get(any(), any(), any())).thenReturn(get);
     when(get.execute()).thenReturn(job);
 
-    JobState actual = new FakeDataflowClient(client).getJobStatus(PROJECT, REGION, JOB_ID);
+    JobState actual = new FakePipelineLauncher(client).getJobStatus(PROJECT, REGION, JOB_ID);
 
     verify(getLocationJobs(client))
         .get(projectCaptor.capture(), regionCaptor.capture(), jobIdCaptor.capture());
@@ -79,7 +79,7 @@ public final class AbstractDataflowClientTest {
     when(getLocationJobs(client).get(any(), any(), any())).thenThrow(new IOException());
     assertThrows(
         IOException.class,
-        () -> new FakeDataflowClient(client).getJobStatus(PROJECT, REGION, JOB_ID));
+        () -> new FakePipelineLauncher(client).getJobStatus(PROJECT, REGION, JOB_ID));
   }
 
   @Test
@@ -88,7 +88,7 @@ public final class AbstractDataflowClientTest {
     when(getLocationJobs(client).update(any(), any(), any(), any())).thenReturn(update);
     when(update.execute()).thenReturn(new Job());
 
-    new FakeDataflowClient(client).cancelJob(PROJECT, REGION, JOB_ID);
+    new FakePipelineLauncher(client).cancelJob(PROJECT, REGION, JOB_ID);
 
     verify(getLocationJobs(client))
         .update(
@@ -106,7 +106,8 @@ public final class AbstractDataflowClientTest {
   public void testCancelJobThrowsException() throws IOException {
     when(getLocationJobs(client).update(any(), any(), any(), any())).thenThrow(new IOException());
     assertThrows(
-        IOException.class, () -> new FakeDataflowClient(client).cancelJob(PROJECT, REGION, JOB_ID));
+        IOException.class,
+        () -> new FakePipelineLauncher(client).cancelJob(PROJECT, REGION, JOB_ID));
   }
 
   @Test
@@ -115,7 +116,7 @@ public final class AbstractDataflowClientTest {
     when(getLocationJobs(client).update(any(), any(), any(), any())).thenReturn(update);
     when(update.execute()).thenReturn(new Job());
 
-    new FakeDataflowClient(client).drainJob(PROJECT, REGION, JOB_ID);
+    new FakePipelineLauncher(client).drainJob(PROJECT, REGION, JOB_ID);
 
     verify(getLocationJobs(client))
         .update(
@@ -133,7 +134,8 @@ public final class AbstractDataflowClientTest {
   public void testDrainJobThrowsException() throws IOException {
     when(getLocationJobs(client).update(any(), any(), any(), any())).thenThrow(new IOException());
     assertThrows(
-        IOException.class, () -> new FakeDataflowClient(client).drainJob(PROJECT, REGION, JOB_ID));
+        IOException.class,
+        () -> new FakePipelineLauncher(client).drainJob(PROJECT, REGION, JOB_ID));
   }
 
   private static Locations.Jobs getLocationJobs(Dataflow client) {
@@ -143,13 +145,13 @@ public final class AbstractDataflowClientTest {
   /**
    * Fake implementation that simply throws {@link UnsupportedOperationException} for some methods.
    */
-  private static final class FakeDataflowClient extends AbstractDataflowClient {
-    FakeDataflowClient(Dataflow client) {
+  private static final class FakePipelineLauncher extends AbstractPipelineLauncher {
+    FakePipelineLauncher(Dataflow client) {
       super(client);
     }
 
     @Override
-    public JobInfo launch(String project, String region, LaunchConfig options) {
+    public LaunchInfo launch(String project, String region, LaunchConfig options) {
       throw new UnsupportedOperationException();
     }
   }

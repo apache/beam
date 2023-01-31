@@ -25,12 +25,13 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.RuntimeEnvironment;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.teleport.it.launcher.AbstractPipelineLauncher;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Client for interacting with Dataflow Classic Templates using the Dataflow SDK. */
-public final class ClassicTemplateClient extends AbstractDataflowClient {
+public final class ClassicTemplateClient extends AbstractPipelineLauncher {
   private static final Logger LOG = LoggerFactory.getLogger(ClassicTemplateClient.class);
 
   private ClassicTemplateClient(Builder builder) {
@@ -54,7 +55,7 @@ public final class ClassicTemplateClient extends AbstractDataflowClient {
   }
 
   @Override
-  public JobInfo launch(String project, String region, LaunchConfig options) throws IOException {
+  public LaunchInfo launch(String project, String region, LaunchConfig options) throws IOException {
     checkState(
         options.specPath() != null,
         "Cannot launch a template job without specPath. Please specify specPath and try again!");

@@ -25,11 +25,11 @@ import com.google.cloud.bigquery.InsertAllRequest.RowToInsert;
 import com.google.cloud.teleport.it.bigquery.BigQueryResourceManager;
 import com.google.cloud.teleport.it.bigquery.DefaultBigQueryResourceManager;
 import com.google.cloud.teleport.it.dataflow.ClassicTemplateClient;
-import com.google.cloud.teleport.it.dataflow.DataflowClient;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.JobInfo;
-import com.google.cloud.teleport.it.dataflow.DataflowOperator;
-import com.google.cloud.teleport.it.dataflow.DefaultDataflowClient;
 import com.google.cloud.teleport.it.dataflow.FlexTemplateClient;
+import com.google.cloud.teleport.it.launcher.DefaultPipelineLauncher;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.LaunchInfo;
+import com.google.cloud.teleport.it.launcher.PipelineOperator;
 import com.google.cloud.teleport.it.monitoring.MonitoringClient;
 import com.google.cloud.teleport.metadata.Template;
 import com.google.cloud.teleport.metadata.TemplateIntegrationTest;
@@ -71,8 +71,8 @@ public class PerformanceBenchmarkingBase {
   protected static final CredentialsProvider CREDENTIALS_PROVIDER =
       FixedCredentialsProvider.create(CREDENTIALS);
   protected static MonitoringClient monitoringClient;
-  protected static DataflowClient dataflowClient;
-  protected static DataflowOperator dataflowOperator;
+  protected static PipelineLauncher pipelineLauncher;
+  protected static PipelineOperator pipelineOperator;
 
   @Rule public final TestName testName = new TestName();
 
@@ -80,8 +80,8 @@ public class PerformanceBenchmarkingBase {
   public void setUpPerformanceBenchmarkingBase() throws IOException {
     monitoringClient =
         MonitoringClient.builder().setCredentialsProvider(CREDENTIALS_PROVIDER).build();
-    dataflowClient = getDataflowClient();
-    dataflowOperator = new DataflowOperator(dataflowClient);
+    pipelineLauncher = launcher();
+    pipelineOperator = new PipelineOperator(pipelineLauncher);
   }
 
   @After
@@ -89,7 +89,7 @@ public class PerformanceBenchmarkingBase {
     monitoringClient.cleanupAll();
   }
 
-  protected DataflowClient getDataflowClient() {
+  protected PipelineLauncher launcher() {
     // If there is a TemplateIntegrationTest annotation, return appropriate dataflow template client
     // Else, return default dataflow client.
     TemplateIntegrationTest annotation = getClass().getAnnotation(TemplateIntegrationTest.class);
@@ -97,7 +97,7 @@ public class PerformanceBenchmarkingBase {
       LOG.warn(
           "{} did not specify which template is tested using @TemplateIntegrationTest, using DefaultDataflowClient.",
           getClass());
-      return DefaultDataflowClient.builder().setCredentials(CREDENTIALS).build();
+      return DefaultPipelineLauncher.builder().setCredentials(CREDENTIALS).build();
     }
 
     Class<?> templateClass = annotation.value();
@@ -106,7 +106,7 @@ public class PerformanceBenchmarkingBase {
       LOG.warn(
           " \"Template mentioned in @TemplateIntegrationTest for {} does not contain a @Template annotation, using DefaultDataflowClient.",
           getClass());
-      return DefaultDataflowClient.builder().setCredentials(CREDENTIALS).build();
+      return DefaultPipelineLauncher.builder().setCredentials(CREDENTIALS).build();
     } else if (templateAnnotations[0].flexContainerName() != null
         && !templateAnnotations[0].flexContainerName().isEmpty()) {
       return FlexTemplateClient.builder().setCredentials(CREDENTIALS).build();
@@ -118,10 +118,10 @@ public class PerformanceBenchmarkingBase {
   /**
    * Exports the metrics of given dataflow job to BigQuery.
    *
-   * @param jobInfo Job info of the job
+   * @param launchInfo Job info of the job
    * @param metrics metrics to export
    */
-  public void exportMetricsToBigQuery(JobInfo jobInfo, Map<String, Double> metrics) {
+  public void exportMetricsToBigQuery(LaunchInfo launchInfo, Map<String, Double> metrics) {
     LOG.info("Exporting metrics:\n{}", formatForLogging(metrics));
     try {
       // either use the user specified project for exporting, or the same project
@@ -133,19 +133,21 @@ public class PerformanceBenchmarkingBase {
               .build();
       // exporting metrics to bigQuery table
       Map<String, Object> rowContent = new HashMap<>();
-      rowContent.put("timestamp", jobInfo.createTime());
-      rowContent.put("sdk", jobInfo.sdk());
-      rowContent.put("version", jobInfo.version());
-      rowContent.put("job_type", jobInfo.jobType());
-      rowContent.put("template_name", jobInfo.templateName());
-      rowContent.put("template_version", jobInfo.templateVersion());
-      rowContent.put("template_type", jobInfo.templateType());
+      rowContent.put("timestamp", launchInfo.createTime());
+      rowContent.put("sdk", launchInfo.sdk());
+      rowContent.put("version", launchInfo.version());
+      rowContent.put("job_type", launchInfo.jobType());
+      rowContent.put("template_name", launchInfo.templateName());
+      rowContent.put("template_version", launchInfo.templateVersion());
+      rowContent.put("template_type", launchInfo.templateType());
       rowContent.put("test_name", testName.getMethodName());
       // Convert parameters map to list of table row since it's a repeated record
       List<TableRow> parameterRows = new ArrayList<>();
-      for (String parameter : jobInfo.parameters().keySet()) {
+      for (String parameter : launchInfo.parameters().keySet()) {
         TableRow row =
-            new TableRow().set("name", parameter).set("value", jobInfo.parameters().get(parameter));
+            new TableRow()
+                .set("name", parameter)
+                .set("value", launchInfo.parameters().get(parameter));
         parameterRows.add(row);
       }
       rowContent.put("parameters", parameterRows);
@@ -175,7 +177,7 @@ public class PerformanceBenchmarkingBase {
     try {
       // the element count metric always follows the pattern <pcollection name>-ElementCount
       String metricName = pcollectionName.replace(".", "-") + "-ElementCount";
-      Double metric = dataflowClient.getMetric(PROJECT, REGION, jobId, metricName);
+      Double metric = pipelineLauncher.getMetric(PROJECT, REGION, jobId, metricName);
       if ((metric != null) && (metric >= (double) expectedElements)) {
         return true;
       }
@@ -191,21 +193,21 @@ public class PerformanceBenchmarkingBase {
   /**
    * Computes the metrics of the given job using dataflow and monitoring clients.
    *
-   * @param jobInfo Job info of the job
+   * @param launchInfo Job info of the job
    * @param inputPcollection input pcollection of the dataflow job to query additional metrics
    * @return metrics
    * @throws IOException if there is an issue sending the request
    * @throws ParseException if timestamp is inaccurate
    * @throws InterruptedException thrown if thread is interrupted
    */
-  protected Map<String, Double> getMetrics(JobInfo jobInfo, String inputPcollection)
+  protected Map<String, Double> getMetrics(LaunchInfo launchInfo, String inputPcollection)
       throws ParseException, InterruptedException, IOException {
     // Metrics take up to 3 minutes to show up
     Thread.sleep(Duration.ofMinutes(4).toMillis());
-    Map<String, Double> metrics = dataflowClient.getMetrics(PROJECT, REGION, jobInfo.jobId());
-    LOG.info("Calculating approximate cost for {} under {}", jobInfo.jobId(), PROJECT);
+    Map<String, Double> metrics = pipelineLauncher.getMetrics(PROJECT, REGION, launchInfo.jobId());
+    LOG.info("Calculating approximate cost for {} under {}", launchInfo.jobId(), PROJECT);
     double cost = 0;
-    if (jobInfo.jobType().equals("JOB_TYPE_STREAMING")) {
+    if (launchInfo.jobType().equals("JOB_TYPE_STREAMING")) {
       cost += metrics.get("TotalVcpuTime") / 3600 * VCPU_PER_HR_STREAMING;
       cost += (metrics.get("TotalMemoryUsage") / 1000) / 3600 * MEM_PER_GB_HR_STREAMING;
       cost += metrics.get("TotalShuffleDataProcessed") * SHUFFLE_PER_GB_STREAMING;
@@ -217,8 +219,8 @@ public class PerformanceBenchmarkingBase {
     cost += metrics.get("TotalPdUsage") / 3600 * PD_PER_GB_HR;
     cost += metrics.get("TotalSsdUsage") / 3600 * PD_SSD_PER_GB_HR;
     metrics.put("EstimatedCost", cost);
-    metrics.put("ElapsedTime", monitoringClient.getElapsedTime(PROJECT, jobInfo));
-    Double dataProcessed = monitoringClient.getDataProcessed(PROJECT, jobInfo, inputPcollection);
+    metrics.put("ElapsedTime", monitoringClient.getElapsedTime(PROJECT, launchInfo));
+    Double dataProcessed = monitoringClient.getDataProcessed(PROJECT, launchInfo, inputPcollection);
     if (dataProcessed != null) {
       metrics.put("EstimatedDataProcessedGB", dataProcessed / 1e9d);
       metrics.put("EstimatedCostPerGBProcessed", metrics.get("EstimatedCost") / dataProcessed);
@@ -229,12 +231,13 @@ public class PerformanceBenchmarkingBase {
   /**
    * Computes CPU Utilization metrics of the given job.
    *
-   * @param jobInfo Job info of the job
+   * @param launchInfo Job info of the job
    * @return CPU Utilization metrics of the job
    * @throws ParseException if timestamp is inaccurate
    */
-  protected Map<String, Double> getCpuUtilizationMetrics(JobInfo jobInfo) throws ParseException {
-    List<Double> cpuUtilization = monitoringClient.getCpuUtilization(PROJECT, jobInfo);
+  protected Map<String, Double> getCpuUtilizationMetrics(LaunchInfo launchInfo)
+      throws ParseException {
+    List<Double> cpuUtilization = monitoringClient.getCpuUtilization(PROJECT, launchInfo);
     Map<String, Double> cpuUtilizationMetrics = new HashMap<>();
     if (cpuUtilization == null) {
       return cpuUtilizationMetrics;
@@ -247,42 +250,43 @@ public class PerformanceBenchmarkingBase {
   /**
    * Computes throughput metrics of the given ptransform in dataflow job.
    *
-   * @param jobInfo Job info of the job
+   * @param launchInfo Job info of the job
    * @param ptransform ptransform of the dataflow job to query additional metrics
    * @return throughput metrics of the ptransform
    * @throws ParseException if timestamp is inaccurate
    */
-  protected Map<String, Double> getThroughputMetricsOfPtransform(JobInfo jobInfo, String ptransform)
-      throws ParseException {
+  protected Map<String, Double> getThroughputMetricsOfPtransform(
+      LaunchInfo launchInfo, String ptransform) throws ParseException {
     List<Double> throughput =
-        monitoringClient.getThroughputOfPtransform(PROJECT, jobInfo, ptransform);
+        monitoringClient.getThroughputOfPtransform(PROJECT, launchInfo, ptransform);
     return getThroughputMetrics(throughput);
   }
 
   /**
    * Computes throughput metrics of the given pcollection in dataflow job.
    *
-   * @param jobInfo Job info of the job
+   * @param launchInfo Job info of the job
    * @param pcollection pcollection of the dataflow job to query additional metrics
    * @return throughput metrics of the pcollection
    * @throws ParseException if timestamp is inaccurate
    */
   protected Map<String, Double> getThroughputMetricsOfPcollection(
-      JobInfo jobInfo, String pcollection) throws ParseException {
+      LaunchInfo launchInfo, String pcollection) throws ParseException {
     List<Double> throughput =
-        monitoringClient.getThroughputOfPcollection(PROJECT, jobInfo, pcollection);
+        monitoringClient.getThroughputOfPcollection(PROJECT, launchInfo, pcollection);
     return getThroughputMetrics(throughput);
   }
 
   /**
    * Computes Data freshness metrics of the given job.
    *
-   * @param jobInfo Job info of the job
+   * @param launchInfo Job info of the job
    * @return Data freshness metrics of the job
    * @throws ParseException if timestamp is inaccurate
    */
-  protected Map<String, Double> getDataFreshnessMetrics(JobInfo jobInfo) throws ParseException {
-    List<Double> dataFreshness = monitoringClient.getDataFreshness(PROJECT, jobInfo);
+  protected Map<String, Double> getDataFreshnessMetrics(LaunchInfo launchInfo)
+      throws ParseException {
+    List<Double> dataFreshness = monitoringClient.getDataFreshness(PROJECT, launchInfo);
     Map<String, Double> dataFreshnessMetrics = new HashMap<>();
     if (dataFreshness == null) {
       return dataFreshnessMetrics;
@@ -295,12 +299,13 @@ public class PerformanceBenchmarkingBase {
   /**
    * Computes System latency metrics of the given job.
    *
-   * @param jobInfo Job info of the job
+   * @param launchInfo Job info of the job
    * @return System latency metrics of the job
    * @throws ParseException if timestamp is inaccurate
    */
-  protected Map<String, Double> getSystemLatencyMetrics(JobInfo jobInfo) throws ParseException {
-    List<Double> systemLatency = monitoringClient.getSystemLatency(PROJECT, jobInfo);
+  protected Map<String, Double> getSystemLatencyMetrics(LaunchInfo launchInfo)
+      throws ParseException {
+    List<Double> systemLatency = monitoringClient.getSystemLatency(PROJECT, launchInfo);
     Map<String, Double> systemLatencyMetrics = new HashMap<>();
     if (systemLatency == null) {
       return systemLatencyMetrics;
@@ -324,8 +329,8 @@ public class PerformanceBenchmarkingBase {
     return values.stream().mapToDouble(d -> d).average().orElse(0.0);
   }
 
-  public static DataflowOperator.Config createConfig(JobInfo info, Duration timeout) {
-    return DataflowOperator.Config.builder()
+  public static PipelineOperator.Config createConfig(LaunchInfo info, Duration timeout) {
+    return PipelineOperator.Config.builder()
         .setJobId(info.jobId())
         .setProject(PROJECT)
         .setRegion(REGION)

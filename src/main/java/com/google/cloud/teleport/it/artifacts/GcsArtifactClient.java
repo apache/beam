@@ -32,6 +32,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,6 +108,11 @@ public final class GcsArtifactClient implements ArtifactClient {
         "Successfully uploaded {} bytes to '{}' under bucket '{}'", contents.length, path, bucket);
 
     return new GcsArtifact(blob);
+  }
+
+  @Override
+  public List<Artifact> listArtifacts(TestName testName, Pattern regex) {
+    return listArtifacts(testName.getMethodName(), regex);
   }
 
   @Override

@@ -22,6 +22,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.teleport.it.artifacts.Artifact;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.LaunchInfo;
+import com.google.cloud.teleport.it.launcher.PipelineOperator.Result;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,26 @@ public final class TemplateAsserts {
   private static TypeReference<Map<String, Object>> recordTypeReference = new TypeReference<>() {};
 
   private static ObjectMapper objectMapper = new ObjectMapper();
+
+  /**
+   * Creates a {@link LaunchInfoSubject} to assert information returned from pipeline launches.
+   *
+   * @param launchInfo Launch information returned from the launcher.
+   * @return Truth Subject to chain assertions.
+   */
+  public static LaunchInfoSubject assertThatPipeline(LaunchInfo launchInfo) {
+    return assertAbout(LaunchInfoSubject.launchInfo()).that(launchInfo);
+  }
+
+  /**
+   * Creates a {@link ResultSubject} to add assertions based on a pipeline result.
+   *
+   * @param result Pipeline result returned from the launcher.
+   * @return Truth Subject to chain assertions.
+   */
+  public static ResultSubject assertThatResult(Result result) {
+    return assertAbout(ResultSubject.result()).that(result);
+  }
 
   /**
    * Creates a {@link RecordsSubject} to assert information within a list of records.

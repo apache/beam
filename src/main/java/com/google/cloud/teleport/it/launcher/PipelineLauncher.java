@@ -13,7 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.teleport.it.dataflow;
+package com.google.cloud.teleport.it.launcher;
+
+import static com.google.cloud.teleport.it.PipelineUtils.createJobName;
 
 import com.google.api.services.dataflow.model.Job;
 import com.google.auto.value.AutoValue;
@@ -23,9 +25,10 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.junit.rules.TestName;
 
 /** Client for working with Cloud Dataflow. */
-public interface DataflowClient {
+public interface PipelineLauncher {
   /** Enum representing Apache Beam SDKs. */
   enum Sdk {
     JAVA("JAVA"),
@@ -157,8 +160,16 @@ public interface DataflowClient {
       return new Builder(jobName, specPath);
     }
 
+    public static Builder builder(TestName testName, String specPath) {
+      return new Builder(createJobName(testName.getMethodName()), specPath);
+    }
+
     public static Builder builder(String jobName) {
       return builder(jobName, null);
+    }
+
+    public static Builder builder(TestName testName) {
+      return builder(testName, null);
     }
 
     /** Builder for the {@link LaunchConfig}. */
@@ -250,7 +261,7 @@ public interface DataflowClient {
 
   /** Info about the job from what Dataflow returned. */
   @AutoValue
-  abstract class JobInfo {
+  abstract class LaunchInfo {
     public abstract String jobId();
 
     public abstract String projectId();
@@ -281,10 +292,10 @@ public interface DataflowClient {
     public abstract ImmutableMap<String, String> parameters();
 
     public static Builder builder() {
-      return new AutoValue_DataflowClient_JobInfo.Builder();
+      return new AutoValue_PipelineLauncher_LaunchInfo.Builder();
     }
 
-    /** Builder for {@link JobInfo}. */
+    /** Builder for {@link LaunchInfo}. */
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setProjectId(String value);
@@ -316,7 +327,7 @@ public interface DataflowClient {
 
       public abstract Builder setParameters(ImmutableMap<String, String> value);
 
-      public abstract JobInfo build();
+      public abstract LaunchInfo build();
     }
   }
 
@@ -329,7 +340,7 @@ public interface DataflowClient {
    * @return info about the request to launch a new job
    * @throws IOException if there is an issue sending the request
    */
-  JobInfo launch(String project, String region, LaunchConfig options) throws IOException;
+  LaunchInfo launch(String project, String region, LaunchConfig options) throws IOException;
 
   /**
    * Gets information of a job.

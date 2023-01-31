@@ -19,6 +19,7 @@ import com.google.re2j.Pattern;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import org.junit.rules.TestName;
 
 /**
  * Interface for working with test artifacts.
@@ -82,6 +83,15 @@ public interface ArtifactClient {
   Artifact uploadArtifact(String artifactName, Path localPath) throws IOException;
 
   // TODO(zhoufek): Add equivalents for the above for uploading artifacts of a test method
+
+  /**
+   * Lists all artifacts under test-class-name/run-id/{@code prefix}.
+   *
+   * @param testName the test name to use as the prefix on the testing artifacts.
+   * @param regex a regex to use for filtering out unwanted artifacts
+   * @return all the artifacts whose name matches regex
+   */
+  List<Artifact> listArtifacts(TestName testName, Pattern regex);
 
   /**
    * Lists all artifacts under test-class-name/run-id/{@code prefix}.

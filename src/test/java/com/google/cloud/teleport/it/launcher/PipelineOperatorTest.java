@@ -13,8 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.teleport.it.dataflow;
+package com.google.cloud.teleport.it.launcher;
 
+import static com.google.cloud.teleport.it.matchers.TemplateAsserts.assertThatResult;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeast;
@@ -25,9 +26,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.teleport.it.dataflow.DataflowClient.JobState;
-import com.google.cloud.teleport.it.dataflow.DataflowOperator.Config;
-import com.google.cloud.teleport.it.dataflow.DataflowOperator.Result;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.JobState;
+import com.google.cloud.teleport.it.launcher.PipelineOperator.Config;
+import com.google.cloud.teleport.it.launcher.PipelineOperator.Result;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashSet;
@@ -44,12 +45,12 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-/** Unit tests for {@link DataflowOperator}. */
+/** Unit tests for {@link PipelineOperator}. */
 @RunWith(JUnit4.class)
-public final class DataflowOperatorTest {
+public final class PipelineOperatorTest {
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
 
-  @Mock private DataflowClient client;
+  @Mock private PipelineLauncher client;
 
   private static final String PROJECT = "test-project";
   private static final String REGION = "us-east1";
@@ -80,7 +81,7 @@ public final class DataflowOperatorTest {
         .thenReturn(JobState.CANCELLED);
 
     // Act
-    Result result = new DataflowOperator(client).waitUntilDone(DEFAULT_CONFIG);
+    Result result = new PipelineOperator(client).waitUntilDone(DEFAULT_CONFIG);
 
     // Assert
     verify(client, times(4))
@@ -93,14 +94,15 @@ public final class DataflowOperatorTest {
     assertThat(allProjects).containsExactly(PROJECT);
     assertThat(allRegions).containsExactly(REGION);
     assertThat(allJobIds).containsExactly(JOB_ID);
-    assertThat(result).isEqualTo(Result.JOB_FINISHED);
+    assertThat(result).isEqualTo(Result.LAUNCH_FINISHED);
   }
 
   @Test
   public void testWaitUntilDoneTimeout() throws IOException {
     when(client.getJobStatus(any(), any(), any())).thenReturn(JobState.RUNNING);
-    Result result = new DataflowOperator(client).waitUntilDone(DEFAULT_CONFIG);
+    Result result = new PipelineOperator(client).waitUntilDone(DEFAULT_CONFIG);
     assertThat(result).isEqualTo(Result.TIMEOUT);
+    assertThatResult(result).hasTimedOut();
   }
 
   @Test
@@ -113,7 +115,7 @@ public final class DataflowOperatorTest {
         .thenThrow(new IOException())
         .thenReturn(JobState.RUNNING);
 
-    Result result = new DataflowOperator(client).waitForCondition(DEFAULT_CONFIG, checker);
+    Result result = new PipelineOperator(client).waitForCondition(DEFAULT_CONFIG, checker);
 
     verify(client, atMost(totalCalls))
         .getJobStatus(projectCaptor.capture(), regionCaptor.capture(), jobIdCaptor.capture());
@@ -121,6 +123,7 @@ public final class DataflowOperatorTest {
     assertThat(regionCaptor.getValue()).isEqualTo(REGION);
     assertThat(jobIdCaptor.getValue()).isEqualTo(JOB_ID);
     assertThat(result).isEqualTo(Result.CONDITION_MET);
+    assertThatResult(result).meetsConditions();
   }
 
   @Test
@@ -129,16 +132,17 @@ public final class DataflowOperatorTest {
         .thenReturn(JobState.RUNNING)
         .thenReturn(JobState.CANCELLED);
 
-    Result result = new DataflowOperator(client).waitForCondition(DEFAULT_CONFIG, () -> false);
+    Result result = new PipelineOperator(client).waitForCondition(DEFAULT_CONFIG, () -> false);
 
-    assertThat(result).isEqualTo(Result.JOB_FINISHED);
+    assertThat(result).isEqualTo(Result.LAUNCH_FINISHED);
+    assertThatResult(result).isLaunchFinished();
   }
 
   @Test
   public void testWaitForConditionTimeout() throws IOException {
     when(client.getJobStatus(any(), any(), any())).thenReturn(JobState.RUNNING);
 
-    Result result = new DataflowOperator(client).waitForCondition(DEFAULT_CONFIG, () -> false);
+    Result result = new PipelineOperator(client).waitForCondition(DEFAULT_CONFIG, () -> false);
 
     assertThat(result).isEqualTo(Result.TIMEOUT);
   }
@@ -159,7 +163,7 @@ public final class DataflowOperatorTest {
     doAnswer(invocation -> null).when(client).cancelJob(any(), any(), any());
 
     // Act
-    Result result = new DataflowOperator(client).waitForConditionAndFinish(DEFAULT_CONFIG, checker);
+    Result result = new PipelineOperator(client).waitForConditionAndFinish(DEFAULT_CONFIG, checker);
 
     // Assert
     verify(client, atLeast(totalCalls))
@@ -173,7 +177,7 @@ public final class DataflowOperatorTest {
     assertThat(allProjects).containsExactly(PROJECT);
     assertThat(allRegions).containsExactly(REGION);
     assertThat(allJobIds).containsExactly(JOB_ID);
-    assertThat(result).isEqualTo(Result.CONDITION_MET);
+    assertThatResult(result).meetsConditions();
   }
 
   @Test
@@ -184,10 +188,10 @@ public final class DataflowOperatorTest {
     doAnswer(invocation -> null).when(client).cancelJob(any(), any(), any());
 
     Result result =
-        new DataflowOperator(client).waitForConditionAndFinish(DEFAULT_CONFIG, () -> false);
+        new PipelineOperator(client).waitForConditionAndFinish(DEFAULT_CONFIG, () -> false);
 
     verify(client, never()).cancelJob(any(), any(), any());
-    assertThat(result).isEqualTo(Result.JOB_FINISHED);
+    assertThat(result).isEqualTo(Result.LAUNCH_FINISHED);
   }
 
   @Test
@@ -196,7 +200,7 @@ public final class DataflowOperatorTest {
     doAnswer(invocation -> null).when(client).cancelJob(any(), any(), any());
 
     Result result =
-        new DataflowOperator(client).waitForConditionAndFinish(DEFAULT_CONFIG, () -> false);
+        new PipelineOperator(client).waitForConditionAndFinish(DEFAULT_CONFIG, () -> false);
 
     verify(client).drainJob(any(), any(), any());
     assertThat(result).isEqualTo(Result.TIMEOUT);

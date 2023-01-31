@@ -30,14 +30,13 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.teleport.it.artifacts.GcsArtifactClient;
 import com.google.cloud.teleport.it.common.IORedirectUtil;
 import com.google.cloud.teleport.it.dataflow.ClassicTemplateClient;
-import com.google.cloud.teleport.it.dataflow.DataflowClient;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.JobInfo;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.LaunchConfig;
-import com.google.cloud.teleport.it.dataflow.DataflowOperator;
-import com.google.cloud.teleport.it.dataflow.DataflowOperator.Config;
-import com.google.cloud.teleport.it.dataflow.DataflowUtils;
 import com.google.cloud.teleport.it.dataflow.DirectRunnerClient;
 import com.google.cloud.teleport.it.dataflow.FlexTemplateClient;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.LaunchConfig;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.LaunchInfo;
+import com.google.cloud.teleport.it.launcher.PipelineOperator;
+import com.google.cloud.teleport.it.launcher.PipelineOperator.Config;
 import com.google.cloud.teleport.metadata.Template;
 import com.google.cloud.teleport.metadata.TemplateCreationParameter;
 import com.google.cloud.teleport.metadata.TemplateCreationParameters;
@@ -82,7 +81,7 @@ public abstract class TemplateTestBase {
   protected Credentials credentials;
   protected CredentialsProvider credentialsProvider;
   protected String artifactBucketName;
-  protected String testId = DataflowUtils.createJobName("");
+  protected String testId = PipelineUtils.createJobName("");
 
   /** Cache to avoid staging the same template multiple times on the same execution. */
   private static final Map<String, String> stagedTemplates = new HashMap<>();
@@ -279,7 +278,7 @@ public abstract class TemplateTestBase {
     }
   }
 
-  protected DataflowClient getDataflowClient() {
+  protected PipelineLauncher launcher() {
     if (System.getProperty("directRunnerTest") != null) {
       return DirectRunnerClient.builder(templateClass).setCredentials(credentials).build();
     } else if (template.flexContainerName() != null && !template.flexContainerName().isEmpty()) {
@@ -293,7 +292,7 @@ public abstract class TemplateTestBase {
    * Launch the template job with the given options. By default, it will setup the hooks to avoid
    * jobs getting leaked.
    */
-  protected JobInfo launchTemplate(LaunchConfig.Builder options) throws IOException {
+  protected LaunchInfo launchTemplate(LaunchConfig.Builder options) throws IOException {
     return this.launchTemplate(options, true);
   }
 
@@ -304,10 +303,10 @@ public abstract class TemplateTestBase {
    * @param setupShutdownHook Whether should setup a hook to cancel the job upon VM termination.
    *     This is useful to teardown resources if the VM/test terminates unexpectedly.
    * @return Job details.
-   * @throws IOException Thrown when {@link DataflowClient#launch(String, String, LaunchConfig)}
+   * @throws IOException Thrown when {@link PipelineLauncher#launch(String, String, LaunchConfig)}
    *     fails.
    */
-  protected JobInfo launchTemplate(LaunchConfig.Builder options, boolean setupShutdownHook)
+  protected LaunchInfo launchTemplate(LaunchConfig.Builder options, boolean setupShutdownHook)
       throws IOException {
 
     // Property allows testing with Runner v2 / Unified Worker
@@ -342,16 +341,16 @@ public abstract class TemplateTestBase {
       }
     }
 
-    DataflowClient dataflowClient = getDataflowClient();
-    JobInfo jobInfo = dataflowClient.launch(PROJECT, REGION, options.build());
+    PipelineLauncher pipelineLauncher = launcher();
+    LaunchInfo launchInfo = pipelineLauncher.launch(PROJECT, REGION, options.build());
 
     // if the launch succeeded and setupShutdownHook is enabled, setup a thread to cancel job
-    if (setupShutdownHook && jobInfo.jobId() != null && !jobInfo.jobId().isEmpty()) {
+    if (setupShutdownHook && launchInfo.jobId() != null && !launchInfo.jobId().isEmpty()) {
       Runtime.getRuntime()
-          .addShutdownHook(new Thread(new CancelJobShutdownHook(dataflowClient, jobInfo)));
+          .addShutdownHook(new Thread(new CancelJobShutdownHook(pipelineLauncher, launchInfo)));
     }
 
-    return jobInfo;
+    return launchInfo;
   }
 
   /** Get the Cloud Storage base path for this test suite. */
@@ -359,14 +358,19 @@ public abstract class TemplateTestBase {
     return getFullGcsPath(artifactBucketName, getClass().getSimpleName(), artifactClient.runId());
   }
 
-  /** Get the Cloud Storage base path for a specific testing method. */
-  protected String getGcsPath(String testMethod) {
-    return getFullGcsPath(
-        artifactBucketName, getClass().getSimpleName(), artifactClient.runId(), testMethod);
+  /** Get the Cloud Storage base path for a specific test. */
+  protected String getGcsPath(TestName testName) {
+    return getGcsPath(testName.getMethodName());
   }
 
-  /** Create the default configuration {@link DataflowOperator.Config} for a specific job info. */
-  protected DataflowOperator.Config createConfig(JobInfo info) {
+  /** Get the Cloud Storage base path for a specific testing method or artifact id. */
+  protected String getGcsPath(String artifactId) {
+    return getFullGcsPath(
+        artifactBucketName, getClass().getSimpleName(), artifactClient.runId(), artifactId);
+  }
+
+  /** Create the default configuration {@link PipelineOperator.Config} for a specific job info. */
+  protected PipelineOperator.Config createConfig(LaunchInfo info) {
     Config.Builder configBuilder =
         Config.builder().setJobId(info.jobId()).setProject(PROJECT).setRegion(REGION);
 
@@ -453,7 +457,7 @@ public abstract class TemplateTestBase {
    * @param table TableId to format.
    * @return String in the format {project}:{dataset}.{table}.
    */
-  protected String toTableSpec(TableId table) {
+  public static String toTableSpec(TableId table) {
     return String.format(
         "%s:%s.%s",
         table.getProject() != null ? table.getProject() : PROJECT,
@@ -461,30 +465,35 @@ public abstract class TemplateTestBase {
         table.getTable());
   }
 
+  protected PipelineOperator pipelineOperator() {
+    return new PipelineOperator(launcher());
+  }
+
   /**
-   * This {@link Runnable} class calls {@link DataflowClient#cancelJob(String, String, String)} for
-   * a specific instance of client and given job information, which is useful to enforcing resource
-   * termination using {@link Runtime#addShutdownHook(Thread)}.
+   * This {@link Runnable} class calls {@link PipelineLauncher#cancelJob(String, String, String)}
+   * for a specific instance of client and given job information, which is useful to enforcing
+   * resource termination using {@link Runtime#addShutdownHook(Thread)}.
    */
   static class CancelJobShutdownHook implements Runnable {
 
-    private final DataflowClient dataflowClient;
-    private final JobInfo jobInfo;
+    private final PipelineLauncher pipelineLauncher;
+    private final LaunchInfo launchInfo;
 
-    public CancelJobShutdownHook(DataflowClient dataflowClient, JobInfo jobInfo) {
-      this.dataflowClient = dataflowClient;
-      this.jobInfo = jobInfo;
+    public CancelJobShutdownHook(PipelineLauncher pipelineLauncher, LaunchInfo launchInfo) {
+      this.pipelineLauncher = pipelineLauncher;
+      this.launchInfo = launchInfo;
     }
 
     @Override
     public void run() {
       try {
         Job cancelled =
-            dataflowClient.cancelJob(jobInfo.projectId(), jobInfo.region(), jobInfo.jobId());
+            pipelineLauncher.cancelJob(
+                launchInfo.projectId(), launchInfo.region(), launchInfo.jobId());
         LOG.warn("Job {} was shutdown by the hook to prevent resources leak.", cancelled.getId());
       } catch (Exception e) {
         // expected that the cancel fails if the test works as intended, so logging as debug only.
-        LOG.debug("Error shutting down job {}: {}", jobInfo.jobId(), e.getMessage());
+        LOG.debug("Error shutting down job {}: {}", launchInfo.jobId(), e.getMessage());
       }
     }
   }

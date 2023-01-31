@@ -22,6 +22,8 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.teleport.it.launcher.AbstractPipelineLauncher;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
@@ -34,10 +36,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of the {@link DataflowClient} interface which invokes the template class using
+ * Implementation of the {@link PipelineLauncher} interface which invokes the template class using
  * DirectRunner, and manages the state in-memory.
  */
-public class DirectRunnerClient extends AbstractDataflowClient {
+public class DirectRunnerClient extends AbstractPipelineLauncher {
   private static final Logger LOG = LoggerFactory.getLogger(DirectRunnerClient.class);
 
   private static final Map<String, DirectRunnerJobThread> MANAGED_JOBS = new HashMap<>();
@@ -54,7 +56,7 @@ public class DirectRunnerClient extends AbstractDataflowClient {
   }
 
   @Override
-  public JobInfo launch(String project, String region, LaunchConfig options) throws IOException {
+  public LaunchInfo launch(String project, String region, LaunchConfig options) throws IOException {
 
     LOG.info("Getting ready to launch {} in {} under {}", options.jobName(), region, project);
     LOG.info("Using parameters:\n{}", formatForLogging(options.parameters()));
@@ -79,7 +81,7 @@ public class DirectRunnerClient extends AbstractDataflowClient {
       MANAGED_JOBS.put(jobId, jobThread);
       jobThread.start();
 
-      return JobInfo.builder()
+      return LaunchInfo.builder()
           .setJobId(jobId)
           .setProjectId(project)
           .setRegion(region)

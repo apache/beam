@@ -13,12 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.teleport.it.dataflow;
+package com.google.cloud.teleport.it.launcher;
 
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.JobState;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.JobState;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.time.Duration;
@@ -29,21 +29,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for managing Dataflow jobs. */
-public final class DataflowOperator {
+public final class PipelineOperator {
 
-  private static final Logger LOG = LoggerFactory.getLogger(DataflowOperator.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PipelineOperator.class);
 
   /** The result of running an operation. */
   public enum Result {
     CONDITION_MET,
-    JOB_FINISHED,
-    JOB_FAILED,
+    LAUNCH_FINISHED,
+    LAUNCH_FAILED,
     TIMEOUT
   }
 
-  private final DataflowClient client;
+  private final PipelineLauncher client;
 
-  public DataflowOperator(DataflowClient client) {
+  public PipelineOperator(PipelineLauncher client) {
     this.client = client;
   }
 
@@ -54,8 +54,8 @@ public final class DataflowOperator {
    * will time out unless the job is explicitly cancelled or drained.
    *
    * @param config the configuration for performing the operation
-   * @return the result, which will be {@link Result#JOB_FINISHED}, {@link Result#JOB_FAILED} or
-   *     {@link Result#TIMEOUT}
+   * @return the result, which will be {@link Result#LAUNCH_FINISHED}, {@link Result#LAUNCH_FAILED}
+   *     or {@link Result#TIMEOUT}
    */
   public Result waitUntilDone(Config config) {
     return finishOrTimeout(
@@ -74,8 +74,8 @@ public final class DataflowOperator {
    * is fully drained.
    *
    * @param config the configuration for performing the operation
-   * @return the result, which will be {@link Result#JOB_FINISHED}, {@link Result#JOB_FAILED} or
-   *     {@link Result#TIMEOUT}
+   * @return the result, which will be {@link Result#LAUNCH_FINISHED}, {@link Result#LAUNCH_FAILED}
+   *     or {@link Result#TIMEOUT}
    */
   public Result waitUntilDoneAndFinish(Config config) throws IOException {
     Result result = waitUntilDone(config);
@@ -131,7 +131,7 @@ public final class DataflowOperator {
       ThrowingConsumer<IOException, Config> executable)
       throws IOException {
     Result conditionStatus = waitForCondition(config, conditionCheck);
-    if (conditionStatus != Result.JOB_FINISHED && conditionStatus != Result.JOB_FAILED) {
+    if (conditionStatus != Result.LAUNCH_FINISHED && conditionStatus != Result.LAUNCH_FAILED) {
       executable.accept(config);
     }
     return conditionStatus;
@@ -185,7 +185,7 @@ public final class DataflowOperator {
       LOG.info("Condition not met. Checking if job is finished.");
       if (stopChecking.get()) {
         LOG.info("Detected that we should stop checking.");
-        return Result.JOB_FINISHED;
+        return Result.LAUNCH_FINISHED;
       }
       LOG.info(
           "Job not finished. Will check again in {} seconds (total wait: "
@@ -254,7 +254,7 @@ public final class DataflowOperator {
     // TODO(zhoufek): Also let users set the maximum number of exceptions.
 
     public static Builder builder() {
-      return new AutoValue_DataflowOperator_Config.Builder()
+      return new AutoValue_PipelineOperator_Config.Builder()
           .setCheckAfter(Duration.ofSeconds(15))
           .setTimeoutAfter(Duration.ofMinutes(15));
     }

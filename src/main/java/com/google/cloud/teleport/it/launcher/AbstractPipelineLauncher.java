@@ -13,10 +13,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.teleport.it.dataflow;
+package com.google.cloud.teleport.it.launcher;
 
-import static com.google.cloud.teleport.it.dataflow.DataflowClient.JobState.FAILED;
-import static com.google.cloud.teleport.it.dataflow.DataflowClient.JobState.PENDING_STATES;
+import static com.google.cloud.teleport.it.launcher.PipelineLauncher.JobState.FAILED;
+import static com.google.cloud.teleport.it.launcher.PipelineLauncher.JobState.PENDING_STATES;
 import static com.google.cloud.teleport.it.logging.LogStrings.formatForLogging;
 
 import com.google.api.client.util.ArrayMap;
@@ -42,13 +42,13 @@ import org.slf4j.LoggerFactory;
  * <p>Generally, the methods here are the ones that focus more on the Dataflow jobs rather than
  * launching a specific type of template.
  */
-abstract class AbstractDataflowClient implements DataflowClient {
-  private static final Logger LOG = LoggerFactory.getLogger(AbstractDataflowClient.class);
+public abstract class AbstractPipelineLauncher implements PipelineLauncher {
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractPipelineLauncher.class);
   private static final Pattern CURRENT_METRICS = Pattern.compile(".*Current.*");
 
   protected final Dataflow client;
 
-  AbstractDataflowClient(Dataflow client) {
+  protected AbstractPipelineLauncher(Dataflow client) {
     this.client = client;
   }
 
@@ -189,10 +189,10 @@ abstract class AbstractDataflowClient implements DataflowClient {
   }
 
   /** Creates a JobInfo object from the provided parameters. */
-  protected JobInfo getJobInfo(LaunchConfig options, JobState state, Job job, String runner) {
+  protected LaunchInfo getJobInfo(LaunchConfig options, JobState state, Job job, String runner) {
     Map<String, String> labels = job.getLabels();
-    JobInfo.Builder builder =
-        JobInfo.builder()
+    LaunchInfo.Builder builder =
+        LaunchInfo.builder()
             .setProjectId(job.getProjectId())
             .setJobId(job.getId())
             .setRegion(job.getLocation())

@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.teleport.it.dataflow;
+package com.google.cloud.teleport.it;
 
 import com.google.common.base.CaseFormat;
 import java.time.Duration;
@@ -23,9 +23,9 @@ import java.time.format.DateTimeFormatter;
 import org.apache.beam.sdk.PipelineResult;
 
 /** Utilities to make working with Dataflow easier. */
-public class DataflowUtils {
+public class PipelineUtils {
 
-  private DataflowUtils() {}
+  private PipelineUtils() {}
 
   public static boolean waitUntilState(
       PipelineResult pipeline, PipelineResult.State expectedState, Long timeoutMillis)

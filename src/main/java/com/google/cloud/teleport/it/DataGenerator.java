@@ -16,16 +16,16 @@
 package com.google.cloud.teleport.it;
 
 import static com.google.cloud.teleport.it.PerformanceBenchmarkingBase.createConfig;
-import static com.google.common.truth.Truth.assertThat;
+import static com.google.cloud.teleport.it.matchers.TemplateAsserts.assertThatPipeline;
+import static com.google.cloud.teleport.it.matchers.TemplateAsserts.assertThatResult;
 
 import com.google.auth.Credentials;
-import com.google.cloud.teleport.it.dataflow.DataflowClient;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.JobInfo;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.JobState;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.LaunchConfig;
-import com.google.cloud.teleport.it.dataflow.DataflowOperator;
-import com.google.cloud.teleport.it.dataflow.DataflowOperator.Result;
 import com.google.cloud.teleport.it.dataflow.FlexTemplateClient;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.LaunchConfig;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.LaunchInfo;
+import com.google.cloud.teleport.it.launcher.PipelineOperator;
+import com.google.cloud.teleport.it.launcher.PipelineOperator.Result;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -40,12 +40,12 @@ public class DataGenerator {
   private static final Credentials CREDENTIALS = TestProperties.googleCredentials();
   private static final String MESSAGES_LIMIT = "messagesLimit";
   private final LaunchConfig dataGeneratorOptions;
-  private final DataflowClient dataflowClient;
-  private final DataflowOperator dataflowOperator;
+  private final PipelineLauncher pipelineLauncher;
+  private final PipelineOperator pipelineOperator;
 
   private DataGenerator(Builder builder) {
-    dataflowClient = FlexTemplateClient.builder().setCredentials(CREDENTIALS).build();
-    dataflowOperator = new DataflowOperator(dataflowClient);
+    pipelineLauncher = FlexTemplateClient.builder().setCredentials(CREDENTIALS).build();
+    pipelineOperator = new PipelineOperator(pipelineLauncher);
     this.dataGeneratorOptions =
         LaunchConfig.builder(builder.getJobName(), SPEC_PATH)
             .setParameters(builder.getParameters())
@@ -79,19 +79,20 @@ public class DataGenerator {
    * @throws IOException if any errors are encountered.
    */
   public void execute(Duration timeout) throws IOException {
-    JobInfo dataGeneratorJobInfo = dataflowClient.launch(PROJECT, REGION, dataGeneratorOptions);
-    assertThat(dataGeneratorJobInfo.state()).isIn(JobState.ACTIVE_STATES);
-    DataflowOperator.Config config = createConfig(dataGeneratorJobInfo, timeout);
+    LaunchInfo dataGeneratorLaunchInfo =
+        pipelineLauncher.launch(PROJECT, REGION, dataGeneratorOptions);
+    assertThatPipeline(dataGeneratorLaunchInfo).isRunning();
+    PipelineOperator.Config config = createConfig(dataGeneratorLaunchInfo, timeout);
     // check if the job will be BATCH or STREAMING
     Result dataGeneratorResult;
     if (dataGeneratorOptions.parameters().containsKey(MESSAGES_LIMIT)) {
       // BATCH job, wait till data generator job finishes
-      dataGeneratorResult = dataflowOperator.waitUntilDone(config);
-      assertThat(dataGeneratorResult).isEqualTo(Result.JOB_FINISHED);
+      dataGeneratorResult = pipelineOperator.waitUntilDone(config);
+      assertThatResult(dataGeneratorResult).isLaunchFinished();
     } else {
       // STREAMING job, wait till timeout and drain job
-      dataGeneratorResult = dataflowOperator.waitUntilDoneAndFinish(config);
-      assertThat(dataGeneratorResult).isEqualTo(Result.TIMEOUT);
+      dataGeneratorResult = pipelineOperator.waitUntilDoneAndFinish(config);
+      assertThatResult(dataGeneratorResult).hasTimedOut();
     }
   }
 

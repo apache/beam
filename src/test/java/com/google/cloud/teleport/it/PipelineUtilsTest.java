@@ -13,18 +13,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.teleport.it.dataflow;
+package com.google.cloud.teleport.it;
 
-import static com.google.cloud.teleport.it.dataflow.DataflowUtils.createJobName;
+import static com.google.cloud.teleport.it.PipelineUtils.createJobName;
 import static com.google.common.truth.Truth.assertThat;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for {@link DataflowUtils}. */
+/** Unit tests for {@link PipelineUtils}. */
 @RunWith(JUnit4.class)
-public class DataflowUtilsTest {
+public class PipelineUtilsTest {
   @Test
   public void testCreateJobName() {
     String name = "create-job-name";

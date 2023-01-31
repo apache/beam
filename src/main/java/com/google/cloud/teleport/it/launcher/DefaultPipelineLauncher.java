@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.teleport.it.dataflow;
+package com.google.cloud.teleport.it.launcher;
 
 import static com.google.cloud.teleport.it.logging.LogStrings.formatForLogging;
 import static com.google.common.base.Preconditions.checkState;
@@ -33,16 +33,16 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Default class for implementation of {@link DataflowClient} interface. */
-public class DefaultDataflowClient extends AbstractDataflowClient {
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultDataflowClient.class);
+/** Default class for implementation of {@link PipelineLauncher} interface. */
+public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultPipelineLauncher.class);
   private static final Pattern JOB_ID_PATTERN = Pattern.compile("Submitted job: (?<jobId>\\S+)");
 
-  DefaultDataflowClient(Dataflow client) {
+  DefaultPipelineLauncher(Dataflow client) {
     super(client);
   }
 
-  private DefaultDataflowClient(DefaultDataflowClient.Builder builder) {
+  private DefaultPipelineLauncher(DefaultPipelineLauncher.Builder builder) {
     this(
         new Dataflow(
             Utils.getDefaultTransport(),
@@ -50,16 +50,16 @@ public class DefaultDataflowClient extends AbstractDataflowClient {
             new HttpCredentialsAdapter(builder.getCredentials())));
   }
 
-  public static DefaultDataflowClient withDataflowClient(Dataflow client) {
-    return new DefaultDataflowClient(client);
+  public static DefaultPipelineLauncher withDataflowClient(Dataflow client) {
+    return new DefaultPipelineLauncher(client);
   }
 
-  public static DefaultDataflowClient.Builder builder() {
-    return new DefaultDataflowClient.Builder();
+  public static DefaultPipelineLauncher.Builder builder() {
+    return new DefaultPipelineLauncher.Builder();
   }
 
   @Override
-  public JobInfo launch(String project, String region, LaunchConfig options) throws IOException {
+  public LaunchInfo launch(String project, String region, LaunchConfig options) throws IOException {
     checkState(
         options.sdk() != null,
         "Cannot launch a dataflow job "
@@ -128,7 +128,7 @@ public class DefaultDataflowClient extends AbstractDataflowClient {
     return jobId;
   }
 
-  /** Builder for {@link DefaultDataflowClient}. */
+  /** Builder for {@link DefaultPipelineLauncher}. */
   public static final class Builder {
     private Credentials credentials;
 
@@ -138,13 +138,13 @@ public class DefaultDataflowClient extends AbstractDataflowClient {
       return credentials;
     }
 
-    public DefaultDataflowClient.Builder setCredentials(Credentials value) {
+    public DefaultPipelineLauncher.Builder setCredentials(Credentials value) {
       credentials = value;
       return this;
     }
 
-    public DefaultDataflowClient build() {
-      return new DefaultDataflowClient(this);
+    public DefaultPipelineLauncher build() {
+      return new DefaultPipelineLauncher(this);
     }
   }
 }

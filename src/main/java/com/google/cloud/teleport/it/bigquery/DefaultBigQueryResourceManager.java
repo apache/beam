@@ -291,8 +291,18 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
   }
 
   @Override
+  public synchronized TableResult readTable(TableId table) {
+    return readTable(table.getTable());
+  }
+
+  @Override
   public synchronized TableResult readTable(String tableName) {
     return readTable(tableName, -1);
+  }
+
+  @Override
+  public synchronized TableResult readTable(TableId table, int numRows) {
+    return readTable(table.getTable(), numRows);
   }
 
   @Override

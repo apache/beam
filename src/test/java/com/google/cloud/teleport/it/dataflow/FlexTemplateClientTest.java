@@ -36,9 +36,9 @@ import com.google.api.services.dataflow.model.LaunchFlexTemplateRequest;
 import com.google.api.services.dataflow.model.LaunchFlexTemplateResponse;
 import com.google.api.services.dataflow.model.SdkVersion;
 import com.google.auth.Credentials;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.JobInfo;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.JobState;
-import com.google.cloud.teleport.it.dataflow.DataflowClient.LaunchConfig;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.JobState;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.LaunchConfig;
+import com.google.cloud.teleport.it.launcher.PipelineLauncher.LaunchInfo;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import org.junit.Rule;
@@ -112,7 +112,8 @@ public final class FlexTemplateClientTest {
     when(get.execute()).thenReturn(getJob);
 
     // Act
-    JobInfo actual = FlexTemplateClient.withDataflowClient(client).launch(PROJECT, REGION, options);
+    LaunchInfo actual =
+        FlexTemplateClient.withDataflowClient(client).launch(PROJECT, REGION, options);
 
     // Assert
     LaunchFlexTemplateRequest expectedRequest =
@@ -135,8 +136,8 @@ public final class FlexTemplateClientTest {
     assertThat(regionCaptor.getValue()).isEqualTo(REGION);
     assertThat(jobIdCaptor.getValue()).isEqualTo(JOB_ID);
 
-    JobInfo expected =
-        JobInfo.builder()
+    LaunchInfo expected =
+        LaunchInfo.builder()
             .setJobId(JOB_ID)
             .setProjectId(PROJECT)
             .setRegion(REGION)
