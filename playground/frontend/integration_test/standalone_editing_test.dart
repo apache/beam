@@ -17,8 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
@@ -39,14 +41,15 @@ void main() {
 }
 
 Future<void> _checkAutocomplete(WidgetTester wt) async {
-  // Several newlines are required here because suggestion 
+  // Several newlines are required here because suggestion
   // popup works incorrectly. Remove when fixed
   await wt.enterText(find.codeField(), '\n\n\n\n\nsdk');
 
-  final playgroundController = wt.findPlaygroundController();
-  await wt.runShortcut(
-    playgroundController.showSuggestionsShortcut.shortcuts.keys,
-  );
+  await wt.runShortcut([
+    LogicalKeyboardKeyExtension.metaOrControl,
+    LogicalKeyboardKey.shift,
+    LogicalKeyboardKey.keyS,
+  ]);
   await wt.pumpAndSettle();
 
   expect(find.text('sdkHttpMetadata'), findsOneWidget);
