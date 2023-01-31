@@ -546,8 +546,8 @@ class Pipeline(object):
         not self.run_inference_global_window_non_default_trigger):
       raise RuntimeError(
           "The RunInference PTransform's SideInput is either using "
-          "GlobalWindows with a default trigger or no Windowing, which "
-          "may cause unexpected results. "
+          "GlobalWindows with a default trigger, non-global windowing or"
+          " no Windowing, which may cause unexpected results. "
           "It's recommended to use GlobalWindows with an "
           "AfterProcessing or AfterCount trigger.")
     try:
