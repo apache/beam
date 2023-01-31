@@ -77,8 +77,9 @@ public class PythonMapTest extends BaseExternalTest {
             .apply(
                 "ApplyPythonMap",
                 PythonMap.<String, String>viaMapFn(getSympyFunc(), StringUtf8Coder.of())
-                    .withExtraPackages(ImmutableList.of("sympy"))
-                    .withExpansionService(expansionAddr));
+                    // We do not specify an expansion service here since 'withExtraPackages' can
+                    // only be applied to auto-started expansion services.
+                    .withExtraPackages(ImmutableList.of("sympy")));
     PAssert.that(output).containsInAnyOrder("10", "20", "30", "40");
   }
 }
