@@ -67,7 +67,6 @@ job(jobName) {
   k8s.apply(kafkaDir)
   (0..2).each {
     k8s.nodeIPAddress(it, "KAFKA_BROKER_$it")
-    k8s.nodePort("outside-$it", "NODE_PORT_$it")
   }
   k8s.waitForJob(kafkaTopicJob,"40m")
 
