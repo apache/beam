@@ -25,8 +25,8 @@ import time
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-import apache_beam as beam
 
+import apache_beam as beam
 from apache_beam.ml.inference import base
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
