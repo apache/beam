@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.auto.value.AutoValue;
@@ -44,9 +43,7 @@ public abstract class HL7v2ReadParameter implements Serializable {
    */
   public abstract String getMetadata();
 
-  /**
-   * HL7v2MessageId string.
-   */
+  /** HL7v2MessageId string. */
   public abstract String getHl7v2MessageId();
 
   @SchemaCreate
@@ -67,5 +64,4 @@ public abstract class HL7v2ReadParameter implements Serializable {
 
     abstract HL7v2ReadParameter build();
   }
-
 }

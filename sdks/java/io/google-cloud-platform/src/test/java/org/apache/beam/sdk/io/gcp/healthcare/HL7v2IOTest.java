@@ -65,10 +65,10 @@ public class HL7v2IOTest {
   public void test_HL7v2IO_failedReadsByParameter() {
     List<HL7v2ReadParameter> badReadParameters =
         Arrays.asList(
-            HL7v2ReadParameter.of("metadata-foo",
-                "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/foo"),
-            HL7v2ReadParameter.of("metadata-bar",
-                "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/bar"));
+            HL7v2ReadParameter.of(
+                "metadata-foo", "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/foo"),
+            HL7v2ReadParameter.of(
+                "metadata-bar", "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/bar"));
 
     PCollection<HL7v2ReadParameter> parameters = pipeline.apply(Create.of(badReadParameters));
     HL7v2IO.HL7v2Read.Result readResult = parameters.apply(HL7v2IO.readAllRequests());
@@ -77,14 +77,13 @@ public class HL7v2IOTest {
 
     PCollection<HL7v2ReadResponse> messages = readResult.getMessages();
 
-    PCollection<HL7v2ReadParameter> failedParameters = failed.apply("Map to parameters",
-        ParDo.of(new MapHealthCareIOErrorToReadParameter()));
+    PCollection<HL7v2ReadParameter> failedParameters =
+        failed.apply("Map to parameters", ParDo.of(new MapHealthCareIOErrorToReadParameter()));
 
     PAssert.that(failedParameters).containsInAnyOrder(badReadParameters);
     PAssert.that(messages).empty();
     pipeline.run();
   }
-
 
   @Test
   public void test_HL7v2IO_failedWrites() {
@@ -109,11 +108,12 @@ public class HL7v2IOTest {
     pipeline.run();
   }
 
-  private static class MapHealthCareIOErrorToReadParameter extends
-      DoFn<HealthcareIOError<HL7v2ReadParameter>, HL7v2ReadParameter> {
+  private static class MapHealthCareIOErrorToReadParameter
+      extends DoFn<HealthcareIOError<HL7v2ReadParameter>, HL7v2ReadParameter> {
 
     @ProcessElement
-    public void processElement(@Element HealthcareIOError<HL7v2ReadParameter> error,
+    public void processElement(
+        @Element HealthcareIOError<HL7v2ReadParameter> error,
         OutputReceiver<HL7v2ReadParameter> receiver) {
       receiver.output(error.getDataResource());
     }

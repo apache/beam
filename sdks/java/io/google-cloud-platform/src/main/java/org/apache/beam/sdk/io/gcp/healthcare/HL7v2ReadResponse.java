@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,8 +28,7 @@ import javax.annotation.Nullable;
  */
 public class HL7v2ReadResponse {
 
-  @Nullable
-  private final String metadata;
+  @Nullable private final String metadata;
   private final HL7v2Message hl7v2Message;
 
   @Override

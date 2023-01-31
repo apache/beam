@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import java.io.IOException;
@@ -26,13 +25,10 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-/**
- * Coder for {@link HL7v2ReadResponse}.
- */
+/** Coder for {@link HL7v2ReadResponse}. */
 public class HL7v2ReadResponseCoder extends CustomCoder<HL7v2ReadResponse> {
 
-  HL7v2ReadResponseCoder() {
-  }
+  HL7v2ReadResponseCoder() {}
 
   public static HL7v2ReadResponseCoder of() {
     return new HL7v2ReadResponseCoder();

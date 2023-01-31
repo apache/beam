@@ -203,6 +203,7 @@ public class HL7v2Message {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, messageType, sendTime, createTime, data, sendFacility, schematizedData, labels);
+    return Objects.hash(
+        name, messageType, sendTime, createTime, data, sendFacility, schematizedData, labels);
   }
 }

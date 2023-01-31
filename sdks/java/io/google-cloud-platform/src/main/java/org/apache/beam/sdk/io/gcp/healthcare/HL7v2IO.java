@@ -167,23 +167,17 @@ public class HL7v2IO {
     return new Read();
   }
 
-  /**
-   * Retrieve all HL7v2 Messages from a PCollection of {@link HL7v2ReadParameter}.
-   */
+  /** Retrieve all HL7v2 Messages from a PCollection of {@link HL7v2ReadParameter}. */
   public static HL7v2Read readAllRequests() {
     return new HL7v2Read();
   }
 
-  /**
-   * Read all HL7v2 Messages from multiple stores.
-   */
+  /** Read all HL7v2 Messages from multiple stores. */
   public static ListHL7v2Messages readAll(List<String> hl7v2Stores) {
     return new ListHL7v2Messages(StaticValueProvider.of(hl7v2Stores), StaticValueProvider.of(null));
   }
 
-  /**
-   * Read all HL7v2 Messages from multiple stores.
-   */
+  /** Read all HL7v2 Messages from multiple stores. */
   public static ListHL7v2Messages readAll(ValueProvider<List<String>> hl7v2Stores) {
     return new ListHL7v2Messages(hl7v2Stores, StaticValueProvider.of(null));
   }
@@ -270,13 +264,13 @@ public class HL7v2IO {
    */
   public static class Read extends PTransform<PCollection<String>, Read.Result> {
 
-    public Read() {
-    }
+    public Read() {}
 
     public static class Result extends HL7v2ReadResult<String, HL7v2Message> {
 
       public static Result of(PCollectionTuple pct) throws IllegalArgumentException {
-        if (pct.getAll().keySet()
+        if (pct.getAll()
+            .keySet()
             .containsAll(TupleTagList.of(Read.OUT).and(DEAD_LETTER).getAll())) {
           return new Result(pct);
         } else {
@@ -329,11 +323,8 @@ public class HL7v2IO {
      */
     public static class FetchHL7v2Message extends PTransform<PCollection<String>, Read.Result> {
 
-      /**
-       * Instantiates a new Fetch HL7v2 message DoFn.
-       */
-      public FetchHL7v2Message() {
-      }
+      /** Instantiates a new Fetch HL7v2 message DoFn. */
+      public FetchHL7v2Message() {}
 
       @Override
       public Read.Result expand(PCollection<String> msgIds) {
@@ -385,16 +376,16 @@ public class HL7v2IO {
    * The type Read that reads HL7v2 message contents given a PCollection of {@link
    * HL7v2ReadParameter}.
    */
-  public static class HL7v2Read extends
-      PTransform<PCollection<HL7v2ReadParameter>, HL7v2Read.Result> {
+  public static class HL7v2Read
+      extends PTransform<PCollection<HL7v2ReadParameter>, HL7v2Read.Result> {
 
-    public HL7v2Read() {
-    }
+    public HL7v2Read() {}
 
     public static class Result extends HL7v2ReadResult<HL7v2ReadParameter, HL7v2ReadResponse> {
 
       public static Result of(PCollectionTuple pct) throws IllegalArgumentException {
-        if (pct.getAll().keySet()
+        if (pct.getAll()
+            .keySet()
             .containsAll(TupleTagList.of(HL7v2Read.OUT).and(HL7v2Read.DEAD_LETTER).getAll())) {
           return new HL7v2Read.Result(pct);
         } else {
@@ -409,22 +400,17 @@ public class HL7v2IO {
         this.out = HL7v2Read.OUT;
         this.messages = pct.get(OUT).setCoder(HL7v2ReadResponseCoder.of());
         this.failedReads =
-            pct.get(DEAD_LETTER).setCoder(
-                HealthcareIOErrorCoder.of(SerializableCoder.of(HL7v2ReadParameter.class)));
+            pct.get(DEAD_LETTER)
+                .setCoder(
+                    HealthcareIOErrorCoder.of(SerializableCoder.of(HL7v2ReadParameter.class)));
       }
     }
 
-    /**
-     * The tag for the main output of HL7v2 read responses.
-     */
-    public static final TupleTag<HL7v2ReadResponse> OUT = new TupleTag<HL7v2ReadResponse>() {
-    };
-    /**
-     * The tag for the deadletter output of HL7v2 read responses.
-     */
+    /** The tag for the main output of HL7v2 read responses. */
+    public static final TupleTag<HL7v2ReadResponse> OUT = new TupleTag<HL7v2ReadResponse>() {};
+    /** The tag for the deadletter output of HL7v2 read responses. */
     public static final TupleTag<HealthcareIOError<HL7v2ReadParameter>> DEAD_LETTER =
-        new TupleTag<HealthcareIOError<HL7v2ReadParameter>>() {
-        };
+        new TupleTag<HealthcareIOError<HL7v2ReadParameter>>() {};
 
     @Override
     public HL7v2Read.Result expand(PCollection<HL7v2ReadParameter> input) {
@@ -445,21 +431,18 @@ public class HL7v2IO {
      * <p>The {@link PCollectionTuple} output will contain the following {@link PCollection}:
      *
      * <ul>
-     *   <li>{@link HL7v2IO.Read#OUT} - Contains all {@link PCollection} of
-     *       {@link HL7v2ReadResponse} records successfully read from the HL7v2 store.
+     *   <li>{@link HL7v2IO.Read#OUT} - Contains all {@link PCollection} of {@link
+     *       HL7v2ReadResponse} records successfully read from the HL7v2 store.
      *   <li>{@link HL7v2IO.Read#DEAD_LETTER} - Contains all {@link PCollection} of {@link
      *       HealthcareIOError} message IDs which failed to be fetched from the HL7v2 store, with
      *       error message and stacktrace.
      * </ul>
      */
-    public static class FetchHL7v2Message extends
-        PTransform<PCollection<HL7v2ReadParameter>, HL7v2Read.Result> {
+    public static class FetchHL7v2Message
+        extends PTransform<PCollection<HL7v2ReadParameter>, HL7v2Read.Result> {
 
-      /**
-       * Instantiates a new Fetch HL7v2 message DoFn.
-       */
-      public FetchHL7v2Message() {
-      }
+      /** Instantiates a new Fetch HL7v2 message DoFn. */
+      public FetchHL7v2Message() {}
 
       @Override
       public HL7v2Read.Result expand(PCollection<HL7v2ReadParameter> input) {
@@ -469,15 +452,12 @@ public class HL7v2IO {
         return HL7v2Read.Result.of(
             input.apply(
                 ParDo.of(new HL7v2Read.FetchHL7v2Message.HL7v2MessageGetFn())
-                    .withOutputTags(HL7v2IO.HL7v2Read.OUT,
-                        TupleTagList.of(HL7v2IO.HL7v2Read.DEAD_LETTER))));
+                    .withOutputTags(
+                        HL7v2IO.HL7v2Read.OUT, TupleTagList.of(HL7v2IO.HL7v2Read.DEAD_LETTER))));
       }
 
-      /**
-       * DoFn for fetching messages from the HL7v2 store with error handling.
-       */
-      public static class HL7v2MessageGetFn extends
-          DoFn<HL7v2ReadParameter, HL7v2ReadResponse> {
+      /** DoFn for fetching messages from the HL7v2 store with error handling. */
+      public static class HL7v2MessageGetFn extends DoFn<HL7v2ReadParameter, HL7v2ReadResponse> {
 
         private HL7v2MessageClient client;
 
@@ -500,12 +480,12 @@ public class HL7v2IO {
         public void processElement(ProcessContext context) {
           String msgId = context.element().getHl7v2MessageId();
           try {
-            HL7v2ReadResponse response = HL7v2ReadResponse.of(context.element().getMetadata(),
-                client.fetchMessage(msgId));
+            HL7v2ReadResponse response =
+                HL7v2ReadResponse.of(context.element().getMetadata(), client.fetchMessage(msgId));
             context.output(response);
           } catch (Exception e) {
-            HealthcareIOError<HL7v2ReadParameter> error = HealthcareIOError.of(context.element(),
-                e);
+            HealthcareIOError<HL7v2ReadParameter> error =
+                HealthcareIOError.of(context.element(), e);
             context.output(HL7v2IO.HL7v2Read.DEAD_LETTER, error);
           }
         }
@@ -513,9 +493,7 @@ public class HL7v2IO {
     }
   }
 
-  /**
-   * Abstract class for HL7v2 Read result.
-   */
+  /** Abstract class for HL7v2 Read result. */
   private abstract static class HL7v2ReadResult<T, K> implements POutput, PInput {
 
     PCollection<K> messages;
@@ -547,27 +525,20 @@ public class HL7v2IO {
 
     @Override
     public void finishSpecifyingOutput(
-        String transformName, PInput input, PTransform<?, ?> transform) {
-    }
+        String transformName, PInput input, PTransform<?, ?> transform) {}
   }
 
-  /**
-   * Client for fetching HL7v2Message with handling metrics and errors.
-   */
+  /** Client for fetching HL7v2Message with handling metrics and errors. */
   private static class HL7v2MessageClient {
 
     private final Counter failedMessageGets =
         Metrics.counter(HL7v2MessageClient.class, "failed-message-reads");
-    private static final Logger LOG =
-        LoggerFactory.getLogger(HL7v2MessageClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HL7v2MessageClient.class);
     private final Counter successfulHL7v2MessageGets =
-        Metrics.counter(
-            HL7v2MessageClient.class, "successful-hl7v2-message-gets");
+        Metrics.counter(HL7v2MessageClient.class, "successful-hl7v2-message-gets");
     private final HealthcareApiClient client;
 
-    /**
-     * Instantiates a new HL7v2MessageClient.
-     */
+    /** Instantiates a new HL7v2MessageClient. */
     HL7v2MessageClient(HealthcareApiClient client) {
       this.client = client;
     }

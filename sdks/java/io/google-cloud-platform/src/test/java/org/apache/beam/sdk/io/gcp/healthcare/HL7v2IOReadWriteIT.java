@@ -137,14 +137,19 @@ public class HL7v2IOReadWriteIT {
 
   @Test
   public void testHL7v2IOGetAllE2E() {
-    HL7v2IO.Read.Result actualResult = pipeline.apply(
-            new ListHL7v2MessageIDs(
-                Collections.singletonList(
-                    healthcareDataset + "/hl7V2Stores/" + INPUT_HL7V2_STORE_NAME)))
-        .apply(HL7v2IO.getAll());
-    PCollection<HL7v2Message> actualMessages = actualResult.getMessages()
-        .apply("Convert to message to contains only data parameter for assert",
-            ParDo.of(new MapHl7MessagesToComparableMessages()));
+    HL7v2IO.Read.Result actualResult =
+        pipeline
+            .apply(
+                new ListHL7v2MessageIDs(
+                    Collections.singletonList(
+                        healthcareDataset + "/hl7V2Stores/" + INPUT_HL7V2_STORE_NAME)))
+            .apply(HL7v2IO.getAll());
+    PCollection<HL7v2Message> actualMessages =
+        actualResult
+            .getMessages()
+            .apply(
+                "Convert to message to contains only data parameter for assert",
+                ParDo.of(new MapHl7MessagesToComparableMessages()));
 
     PAssert.that(actualMessages).containsInAnyOrder(MESSAGES);
     pipeline.run().waitUntilFinish();
@@ -152,20 +157,24 @@ public class HL7v2IOReadWriteIT {
 
   @Test
   public void testHL7v2IOGetAllByReadParameterE2E() {
-    PCollection<String> msgIds = pipeline.apply(
-        new ListHL7v2MessageIDs(
-            Collections.singletonList(
-                healthcareDataset + "/hl7V2Stores/" + INPUT_HL7V2_STORE_NAME)));
-    PCollection<HL7v2ReadParameter> readParameters = msgIds.apply("Make read parameter lists",
-        ParDo.of(new MapIdsToReadParameter()));
+    PCollection<String> msgIds =
+        pipeline.apply(
+            new ListHL7v2MessageIDs(
+                Collections.singletonList(
+                    healthcareDataset + "/hl7V2Stores/" + INPUT_HL7V2_STORE_NAME)));
+    PCollection<HL7v2ReadParameter> readParameters =
+        msgIds.apply("Make read parameter lists", ParDo.of(new MapIdsToReadParameter()));
     HL7v2IO.HL7v2Read.Result result = readParameters.apply(HL7v2IO.readAllRequests());
-    PCollection<HL7v2ReadResponse> actualResponse = result.getMessages()
-        .setCoder(HL7v2ReadResponseCoder.of())
-        .apply(ParDo.of(new MapHL7v2ReadResponseToComparableResponse()));
+    PCollection<HL7v2ReadResponse> actualResponse =
+        result
+            .getMessages()
+            .setCoder(HL7v2ReadResponseCoder.of())
+            .apply(ParDo.of(new MapHL7v2ReadResponseToComparableResponse()));
 
-    List<HL7v2ReadResponse> expectedResponse = MESSAGES.stream().map(
-            (HL7v2Message message) -> HL7v2ReadResponse.of(METADATA, message))
-        .collect(Collectors.toList());
+    List<HL7v2ReadResponse> expectedResponse =
+        MESSAGES.stream()
+            .map((HL7v2Message message) -> HL7v2ReadResponse.of(METADATA, message))
+            .collect(Collectors.toList());
 
     PAssert.that(actualResponse).containsInAnyOrder(expectedResponse);
     pipeline.run().waitUntilFinish();
@@ -190,18 +199,17 @@ public class HL7v2IOReadWriteIT {
     }
   }
 
-  private static class MapHL7v2ReadResponseToComparableResponse extends
-      DoFn<HL7v2ReadResponse, HL7v2ReadResponse> {
+  private static class MapHL7v2ReadResponseToComparableResponse
+      extends DoFn<HL7v2ReadResponse, HL7v2ReadResponse> {
 
     @ProcessElement
-    public void processElement(@Element HL7v2ReadResponse input,
-        OutputReceiver<HL7v2ReadResponse> receiver) {
+    public void processElement(
+        @Element HL7v2ReadResponse input, OutputReceiver<HL7v2ReadResponse> receiver) {
       Message message = new Message();
       message.setData(input.getHL7v2Message().getData());
-      HL7v2ReadResponse response = HL7v2ReadResponse.of(input.getMetadata(),
-          HL7v2Message.fromModel(message));
+      HL7v2ReadResponse response =
+          HL7v2ReadResponse.of(input.getMetadata(), HL7v2Message.fromModel(message));
       receiver.output(response);
     }
   }
-
 }
