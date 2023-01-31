@@ -231,10 +231,10 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     private static class ElementCounterFn extends DoFn<Row, Row> {
       private Counter bqGenericElementCounter;
       private Long elementsInBundle = 0L;
-          
+
       ElementCounterFn(String name) {
-        this.bqGenericElementCounter = Metrics.counter(
-            BigQueryStorageWriteApiPCollectionRowTupleTransform.class, name);
+        this.bqGenericElementCounter =
+            Metrics.counter(BigQueryStorageWriteApiPCollectionRowTupleTransform.class, name);
       }
 
       @ProcessElement
@@ -271,7 +271,10 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       Schema inputSchema = inputRows.getSchema();
       WriteResult result =
-          inputRows.apply("element-count", ParDo.of(new ElementCounterFn("element-counter"))).setRowSchema(inputSchema).apply(write);
+          inputRows
+              .apply("element-count", ParDo.of(new ElementCounterFn("element-counter")))
+              .setRowSchema(inputSchema)
+              .apply(write);
 
       Schema errorSchema =
           Schema.of(
@@ -294,7 +297,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .setRowSchema(errorSchema);
 
       PCollection<Row> errorOutput =
-          errorRows.apply("error-count", ParDo.of(new ElementCounterFn("error-counter"))).setRowSchema(errorSchema);
+          errorRows
+              .apply("error-count", ParDo.of(new ElementCounterFn("error-counter")))
+              .setRowSchema(errorSchema);
 
       return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorOutput);
     }
