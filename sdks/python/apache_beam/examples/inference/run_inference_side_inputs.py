@@ -30,8 +30,8 @@ import apache_beam as beam
 from apache_beam.ml.inference import base
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.transforms import window
 from apache_beam.transforms import trigger
+from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 
