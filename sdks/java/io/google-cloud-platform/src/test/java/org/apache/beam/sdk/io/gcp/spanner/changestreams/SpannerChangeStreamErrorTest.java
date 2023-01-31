@@ -72,6 +72,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -84,6 +85,8 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   private static final String TEST_DATABASE = "my-database";
   private static final String TEST_TABLE = "my-metadata-table";
   private static final String TEST_CHANGE_STREAM = "my-change-stream";
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Rule
   public final transient TestPipeline pipeline =

@@ -16,120 +16,67 @@
  * limitations under the License.
  */
 
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter_code_editor/flutter_code_editor.dart';
 
+import '../constants/sizes.dart';
 import '../controllers/snippet_editing_controller.dart';
-import '../theme/theme.dart';
+import 'loading_indicator.dart';
+import 'snippet_file_editor.dart';
+import 'tabbed_snippet_editor.dart';
 
-class SnippetEditor extends StatefulWidget {
+class SnippetEditor extends StatelessWidget {
+  const SnippetEditor({
+    required this.controller,
+    required this.isEditable,
+    this.actionsWidget,
+  });
+
   final SnippetEditingController controller;
   final bool isEditable;
 
-  SnippetEditor({
-    required this.controller,
-    required this.isEditable,
-  }) : super(
-    // When the example is changed, will scroll to the context line again.
-    key: ValueKey(controller.selectedExample),
-  );
-
-  @override
-  State<SnippetEditor> createState() => _SnippetEditorState();
-}
-
-class _SnippetEditorState extends State<SnippetEditor> {
-  bool _didAutoFocus = false;
-  final _focusNode = FocusNode();
-  final _scrollController = ScrollController();
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    if (!_didAutoFocus) {
-      _didAutoFocus = true;
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _scrollSoCursorIsOnTop();
-        }
-      });
-    }
-  }
-
-  void _scrollSoCursorIsOnTop() {
-    _focusNode.requestFocus();
-
-    final position = max(widget.controller.codeController.selection.start, 0);
-    final characterOffset = _getLastCharacterOffset(
-      text: widget.controller.codeController.text.substring(0, position),
-      style: kLightTheme.extension<BeamThemeExtension>()!.codeRootStyle,
-    );
-
-    _scrollController.jumpTo(
-      min(
-        characterOffset.dy,
-        _scrollController.position.maxScrollExtent,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
+  /// A child widget that will be:
+  ///  - Hidden if no file is loaded.
+  ///  - Shown as an overlay for a single file editor.
+  ///  - Built into the tab bar for a multi-file editor.
+  final Widget? actionsWidget;
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<BeamThemeExtension>()!;
-    final isMultiFile = widget.controller.selectedExample?.isMultiFile ?? false;
-    final isEnabled = widget.isEditable && !isMultiFile;
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        switch (controller.fileControllers.length) {
+          case 0:
+            return const Center(
+              child: LoadingIndicator(),
+            );
 
-    return Semantics(
-      container: true,
-      enabled: isEnabled,
-      label: 'widgets.codeEditor.label',
-      multiline: true,
-      readOnly: isEnabled,
-      textField: true,
-      child: FocusScope(
-        node: FocusScopeNode(canRequestFocus: isEnabled),
-        child: CodeTheme(
-          data: ext.codeTheme,
-          child: Container(
-            color: ext.codeTheme.styles['root']?.backgroundColor,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              child: CodeField(
-                key: ValueKey(widget.controller.codeController),
-                controller: widget.controller.codeController,
-                enabled: isEnabled,
-                focusNode: _focusNode,
-                textStyle: ext.codeRootStyle,
-              ),
-            ),
-          ),
-        ),
-      ),
+          case 1:
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: SnippetFileEditor(
+                    controller: controller.fileControllers.first,
+                    isEditable: isEditable,
+                  ),
+                ),
+                if (actionsWidget != null)
+                  Positioned(
+                    right: 0,
+                    top: BeamSizes.size10,
+                    child: actionsWidget!,
+                  ),
+              ],
+            );
+
+          default:
+            return TabbedSnippetEditor(
+              controller: controller,
+              isEditable: isEditable,
+              trailing: actionsWidget,
+            );
+        }
+      },
     );
   }
-}
-
-Offset _getLastCharacterOffset({
-  required String text,
-  required TextStyle style,
-}) {
-  final textPainter = TextPainter(
-    textDirection: TextDirection.ltr,
-    text: TextSpan(text: text, style: style),
-  )..layout();
-
-  return textPainter.getOffsetForCaret(
-    TextPosition(offset: text.length),
-    Rect.zero,
-  );
 }

@@ -17,16 +17,21 @@
  */
 
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 
+import '../../auth/notifier.dart';
 import '../../config.dart';
 import '../../models/content_tree.dart';
 import '../../models/unit_content.dart';
 import '../models/get_content_tree_response.dart';
 import '../models/get_sdks_response.dart';
+import '../models/get_user_progress_response.dart';
 import 'client.dart';
 
+// TODO(nausharipov): add repository and handle exceptions
 class CloudFunctionsTobClient extends TobClient {
   @override
   Future<GetSdksResponse> getSdks() async {
@@ -63,5 +68,37 @@ class CloudFunctionsTobClient extends TobClient {
 
     final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
     return UnitContentModel.fromJson(map);
+  }
+
+  @override
+  Future<GetUserProgressResponse?> getUserProgress(String sdkId) async {
+    final token = await GetIt.instance.get<AuthNotifier>().getToken();
+    if (token == null) {
+      return null;
+    }
+    final json = await http.get(
+      Uri.parse(
+        '$cloudFunctionsBaseUrl/getUserProgress?sdk=$sdkId',
+      ),
+      headers: {
+        HttpHeaders.authorizationHeader: 'Bearer $token',
+      },
+    );
+    final map = jsonDecode(utf8.decode(json.bodyBytes)) as Map<String, dynamic>;
+    final response = GetUserProgressResponse.fromJson(map);
+    return response;
+  }
+
+  @override
+  Future<void> postUnitComplete(String sdkId, String id) async {
+    final token = await GetIt.instance.get<AuthNotifier>().getToken();
+    await http.post(
+      Uri.parse(
+        '$cloudFunctionsBaseUrl/postUnitComplete?sdk=$sdkId&id=$id',
+      ),
+      headers: {
+        HttpHeaders.authorizationHeader: 'Bearer $token',
+      },
+    );
   }
 }

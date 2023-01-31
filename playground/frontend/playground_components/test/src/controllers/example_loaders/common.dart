@@ -46,10 +46,10 @@ class TestExampleLoader extends ExampleLoader {
       : example = descriptor.sdk == null
             ? null
             : Example(
+                files: [SnippetFile(content: descriptor.sdk!.id, isMain: true)],
                 name: descriptor.sdk!.id,
                 path: descriptor.sdk!.id,
                 sdk: descriptor.sdk!,
-                source: descriptor.sdk!.id,
                 type: ExampleType.example,
               );
 
