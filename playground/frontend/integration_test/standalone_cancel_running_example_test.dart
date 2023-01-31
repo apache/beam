@@ -44,7 +44,7 @@ void main() {
 Future<void> _runAndCancelExample(WidgetTester wt, Duration duration) async {
   await wt.tap(find.runOrCancelButton());
 
-  await wt.wait(duration);
+  await wt.pumpAndSettleNoException(timeout: duration);
   await wt.tapAndSettle(find.runOrCancelButton());
 
   final playgroundController = wt.findPlaygroundController();

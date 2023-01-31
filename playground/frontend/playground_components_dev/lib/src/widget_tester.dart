@@ -66,11 +66,22 @@ extension WidgetTesterExtension on WidgetTester {
     await pumpAndSettle();
   }
 
-  /// Waits without blocking the main isolate (Animations are able to play).
-  Future<void> wait(Duration duration) async {
-    final DateTime endTime = binding.clock.fromNowBy(duration);
-    while (binding.clock.now().isBefore(endTime)) {
-      await binding.pump();
-    }
+  Future<int> pumpAndSettleNoException({
+    Duration duration = const Duration(milliseconds: 100),
+    EnginePhase phase = EnginePhase.sendSemanticsUpdate,
+    Duration timeout = const Duration(minutes: 10),
+  }) async {
+    return TestAsyncUtils.guard<int>(() async {
+      final DateTime endTime = binding.clock.fromNowBy(timeout);
+      int count = 0;
+      do {
+        if (binding.clock.now().isAfter(endTime)) {
+          return count;
+        }
+        await binding.pump(duration, phase);
+        count += 1;
+      } while (binding.hasScheduledFrame);
+      return count;
+    });
   }
 }
