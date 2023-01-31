@@ -226,29 +226,27 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       this.testBigQueryServices = testBigQueryServices;
     }
 
-    // A counter of input BQ PCollection element count.
+    // A generic counter for PCollection of Row. Will be initialized with the given
+    // name argument. Performs element-wise counter of the input PCollection.
     private static class ElementCounterFn extends DoFn<Row, Row> {
-      private static final Counter bqInputElementCounter =
-          Metrics.counter(
-              BigQueryStorageWriteApiPCollectionRowTupleTransform.class, "element-counter");
+      private Counter bqGenericElementCounter;
+      private Long elementsInBundle = 0L;
+          
+      ElementCounterFn(String name) {
+        this.bqGenericElementCounter = Metrics.counter(
+            BigQueryStorageWriteApiPCollectionRowTupleTransform.class, name);
+      }
 
       @ProcessElement
       public void process(ProcessContext c) {
-        bqInputElementCounter.inc();
+        this.elementsInBundle += 1;
         c.output(c.element());
       }
-    }
 
-    // A counter of output BQ insert failures.
-    private static class ErrorCounterFn extends DoFn<Row, Row> {
-      private static final Counter bqErrorCounter =
-          Metrics.counter(
-              BigQueryStorageWriteApiPCollectionRowTupleTransform.class, "error-counter");
-
-      @ProcessElement
-      public void process(ProcessContext c) {
-        bqErrorCounter.inc();
-        c.output(c.element());
+      @FinishBundle
+      public void finish(FinishBundleContext c) {
+        this.bqGenericElementCounter.inc(this.elementsInBundle);
+        this.elementsInBundle = 0L;
       }
     }
 
@@ -273,7 +271,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       Schema inputSchema = inputRows.getSchema();
       WriteResult result =
-          inputRows.apply(ParDo.of(new ElementCounterFn())).setRowSchema(inputSchema).apply(write);
+          inputRows.apply("element-count", ParDo.of(new ElementCounterFn("element-counter"))).setRowSchema(inputSchema).apply(write);
 
       Schema errorSchema =
           Schema.of(
@@ -296,7 +294,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .setRowSchema(errorSchema);
 
       PCollection<Row> errorOutput =
-          errorRows.apply(ParDo.of(new ErrorCounterFn())).setRowSchema(errorSchema);
+          errorRows.apply("error-count", ParDo.of(new ElementCounterFn("error-counter"))).setRowSchema(errorSchema);
 
       return PCollectionRowTuple.of(OUTPUT_ERRORS_TAG, errorOutput);
     }
