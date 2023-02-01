@@ -525,31 +525,6 @@ class Pipeline(object):
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
 
-    # Finds if RunInference has side inputs enables.
-    # also, checks for the side input window is global and has non default
-    # triggers.
-    run_inference_visitor = RunInferenceVisitor().visit_run_inference(self)
-    self._run_inference_contains_side_input = (
-        run_inference_visitor.contains_run_inference_side_inputs)
-
-    self.run_inference_global_window_non_default_trigger = (
-        run_inference_visitor.contains_global_windows_non_default_trigger)
-
-    if (self._run_inference_contains_side_input and
-        not self._options.view_as(StandardOptions).streaming):
-      raise RuntimeError(
-          "SideInputs to RunInference PTransform is only supported "
-          "in streaming mode. To run in streaming mode, add the"
-          " --streaming pipeline option")
-
-    if (self._run_inference_contains_side_input and
-        not self.run_inference_global_window_non_default_trigger):
-      raise RuntimeError(
-          "The RunInference PTransform's SideInput is either using "
-          "GlobalWindows with a default trigger, non-global windowing or"
-          " no Windowing, which may cause unexpected results. "
-          "It's recommended to use GlobalWindows with an "
-          "AfterProcessing or AfterCount trigger.")
     try:
       if test_runner_api == 'AUTO':
         # Don't pay the cost of a round-trip if we're going to be going through
@@ -1103,52 +1078,6 @@ class ExternalTransformFinder(PipelineVisitor):
     # transforms. A Runner API pipeline proto generated from the Pipeline object
     # will include external sub-transform.
     self._perform_exernal_transform_test(transform_node.transform)
-
-
-class RunInferenceVisitor(PipelineVisitor):
-  """
-  Looks for RunInference transform in the pipeline.
-  """
-  def __init__(self):
-    self.contains_run_inference_side_inputs = False
-    self.contains_global_windows_non_default_trigger = False
-
-  def visit_run_inference(self, pipeline):
-    pipeline.visit(self)
-    return self
-
-  def _check_global_window_non_default_trigger(self, transform_node):
-    if hasattr(transform_node, 'windowing'):
-      windowing = transform_node.windowing
-      window_fn = windowing.windowfn
-      trigger_fn = windowing.triggerfn
-      from apache_beam.transforms.window import GlobalWindows
-      from apache_beam.transforms.trigger import DefaultTrigger
-      if isinstance(
-          window_fn,
-          GlobalWindows) and not isinstance(trigger_fn, DefaultTrigger):
-        return True
-    return False
-
-  def _perform_run_inference_transform_test(self, transform):
-    if not transform:
-      return
-    from apache_beam.ml.inference.base import RunInference
-    if isinstance(transform, RunInference):
-      # check for side input
-      self.contains_run_inference_side_inputs = (
-          transform._enable_side_input_loading)
-      if self.contains_run_inference_side_inputs:
-        self.contains_global_windows_non_default_trigger = (
-            self._check_global_window_non_default_trigger(
-                transform._model_metadata_pcoll))
-
-  def visit_transform(self, transform_node):
-    self._perform_run_inference_transform_test(transform_node.transform)
-
-  def enter_composite_transform(self, transform_node):
-    # type: (AppliedPTransform) -> None
-    self._perform_run_inference_transform_test(transform_node.transform)
 
 
 class AppliedPTransform(object):
