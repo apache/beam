@@ -43,7 +43,7 @@ spec:
          - name: PROTOCOL_TYPE
            value: TCP
          - name: DATASTORE_NAMESPACE
-           value: {{ .Values.dstore_name }}
+           value: {{ .Values.datastore_name }}
   replicas: {{ .Values.replicaCount  }}
   selector:
     matchLabels:

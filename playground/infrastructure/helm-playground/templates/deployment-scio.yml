@@ -40,7 +40,7 @@ spec:
        - name: NUM_PARALLEL_JOBS
          value: "5"
        - name: DATASTORE_NAMESPACE
-         value: {{ .Values.dstore_name }}
+         value: {{ .Values.datastore_name }}
        livenessProbe:
          httpGet:
            path: /liveness
