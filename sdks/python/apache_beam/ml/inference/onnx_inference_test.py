@@ -394,7 +394,6 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
           predictions,
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
-  # need to figure out what type of error this is
   def test_invalid_input_type(self):
     with self.assertRaisesRegex(InvalidArgument,
                                 "Got invalid dimensions for input"):
