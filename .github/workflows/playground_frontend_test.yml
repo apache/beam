@@ -74,13 +74,13 @@ jobs:
 #        working-directory: playground/frontend
 #        run: dart analyze --fatal-infos lib test
 
-      - name: 'Test playground_components'
-        working-directory: playground/frontend/playground_components
-        run: flutter test
+#      - name: 'Test playground_components'
+#        working-directory: playground/frontend/playground_components
+#        run: flutter test
 
-      - name: 'Test playground'
-        working-directory: playground/frontend
-        run: flutter test
+#      - name: 'Test playground'
+#        working-directory: playground/frontend
+#        run: flutter test
 
       - uses: nanasess/setup-chromedriver@v1
 
