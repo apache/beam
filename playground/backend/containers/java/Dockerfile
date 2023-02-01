@@ -36,7 +36,6 @@ RUN go mod download &&\
     cd cmd/server &&\
     go build -o /go/bin/server_java_backend
 
-
 FROM maven:3.8.6-openjdk-8 as dep
 ARG BEAM_VERSION
 RUN mvn archetype:generate \
@@ -50,7 +49,6 @@ RUN mvn archetype:generate \
 WORKDIR /pipeline-dependencies/
 RUN mvn dependency:resolve && mvn -o dependency:list
 RUN mvn dependency:copy-dependencies
-
 
 FROM apache/beam_java8_sdk:$BEAM_VERSION
 
