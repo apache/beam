@@ -27,8 +27,10 @@ import com.google.common.collect.ImmutableSet;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,6 +51,11 @@ public class DataSamplerTest {
     return stream.toByteArray();
   }
 
+  /**
+   * Smoke test that a samples show in the output map.
+   *
+   * @throws Exception
+   */
   @Test
   public void testSingleOutput() throws Exception {
     DataSampler sampler = new DataSampler();
@@ -56,10 +63,15 @@ public class DataSamplerTest {
     VarIntCoder coder = VarIntCoder.of();
     sampler.sampleOutput("descriptor-id", "pcollection-id", coder).sample(1);
 
-    Map<String, List<byte[]>> samples = sampler.samples();
+    Map<String, List<byte[]>> samples = sampler.allSamples();
     assertThat(samples.get("pcollection-id"), contains(encodeInt(1)));
   }
 
+  /**
+   * Test that sampling multiple PCollections under the same descriptor is OK.
+   *
+   * @throws Exception
+   */
   @Test
   public void testMultipleOutputs() throws Exception {
     DataSampler sampler = new DataSampler();
@@ -68,11 +80,16 @@ public class DataSamplerTest {
     sampler.sampleOutput("descriptor-id", "pcollection-id-1", coder).sample(1);
     sampler.sampleOutput("descriptor-id", "pcollection-id-2", coder).sample(2);
 
-    Map<String, List<byte[]>> samples = sampler.samples();
+    Map<String, List<byte[]>> samples = sampler.allSamples();
     assertThat(samples.get("pcollection-id-1"), contains(encodeInt(1)));
     assertThat(samples.get("pcollection-id-2"), contains(encodeInt(2)));
   }
 
+  /**
+   * Test that the response contains samples from the same PCollection across descriptors.
+   *
+   * @throws Exception
+   */
   @Test
   public void testMultipleDescriptors() throws Exception {
     DataSampler sampler = new DataSampler();
@@ -81,10 +98,15 @@ public class DataSamplerTest {
     sampler.sampleOutput("descriptor-id-1", "pcollection-id", coder).sample(1);
     sampler.sampleOutput("descriptor-id-2", "pcollection-id", coder).sample(2);
 
-    Map<String, List<byte[]>> samples = sampler.samples();
+    Map<String, List<byte[]>> samples = sampler.allSamples();
     assertThat(samples.get("pcollection-id"), contains(encodeInt(1), encodeInt(2)));
   }
 
+  /**
+   * Test that samples can be filtered based on ProcessBundleDescriptor id.
+   *
+   * @throws Exception
+   */
   @Test
   public void testFiltersSingleDescriptorId() throws Exception {
     DataSampler sampler = new DataSampler(10, 10);
@@ -101,6 +123,11 @@ public class DataSamplerTest {
     assertThat(samples.get("2"), contains(encodeString("a2")));
   }
 
+  /**
+   * Test that samples are unioned based on ProcessBundleDescriptor id.
+   *
+   * @throws Exception
+   */
   @Test
   public void testFiltersMultipleDescriptorId() throws Exception {
     DataSampler sampler = new DataSampler(10, 10);
@@ -116,6 +143,11 @@ public class DataSamplerTest {
     assertThat(samples.get("2"), contains(encodeString("a2"), encodeString("b2")));
   }
 
+  /**
+   * Test that samples can be filtered based on PCollection id.
+   *
+   * @throws Exception
+   */
   @Test
   public void testFiltersSinglePCollectionId() throws Exception {
     DataSampler sampler = new DataSampler(10, 10);
@@ -131,14 +163,6 @@ public class DataSamplerTest {
     assertThat(samples.get("1"), containsInAnyOrder(encodeString("a1"), encodeString("b1")));
   }
 
-  Map<String, List<byte[]>> singletonSample(String pcollectionId, byte[] element) {
-    Map<String, List<byte[]>> ret = new HashMap<>();
-    List<byte[]> list = new ArrayList<>();
-    list.add(element);
-    ret.put(pcollectionId, list);
-    return ret;
-  }
-
   void generateStringSamples(DataSampler sampler) {
     StringUtf8Coder coder = StringUtf8Coder.of();
     sampler.sampleOutput("a", "1", coder).sample("a1");
@@ -147,11 +171,17 @@ public class DataSamplerTest {
     sampler.sampleOutput("b", "2", coder).sample("b2");
   }
 
+  /**
+   * Test that samples can be filtered both on PCollection and ProcessBundleDescriptor id.
+   *
+   * @throws Exception
+   */
   @Test
   public void testFiltersDescriptorAndPCollectionIds() throws Exception {
     List<String> descriptorIds = ImmutableList.of("a", "b");
     List<String> pcollectionIds = ImmutableList.of("1", "2");
 
+    // Try all combinations for descriptor and PCollection ids.
     for (String descriptorId : descriptorIds) {
       for (String pcollectionId : pcollectionIds) {
         DataSampler sampler = new DataSampler(10, 10);
@@ -165,5 +195,47 @@ public class DataSamplerTest {
         System.out.println("ok");
       }
     }
+  }
+
+  /**
+   * Test that the DataSampler can respond with the correct samples with filters.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testMakesCorrectResponse() throws Exception {
+    DataSampler dataSampler = new DataSampler();
+    generateStringSamples(dataSampler);
+
+    // SampleDataRequest that filters on PCollection=1 and PBD ids = "a" or "b".
+    BeamFnApi.InstructionRequest request =
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setSample(
+                BeamFnApi.SampleDataRequest.newBuilder()
+                    .addPcollectionIds("1")
+                    .addProcessBundleDescriptorIds("a")
+                    .addProcessBundleDescriptorIds("b")
+                    .build())
+            .build();
+    BeamFnApi.InstructionResponse actual = dataSampler.handleDataSampleRequest(request).build();
+    BeamFnApi.InstructionResponse expected =
+        BeamFnApi.InstructionResponse.newBuilder()
+            .setSample(
+                BeamFnApi.SampleDataResponse.newBuilder()
+                    .putElementSamples(
+                        "1",
+                        BeamFnApi.SampleDataResponse.ElementList.newBuilder()
+                            .addElements(
+                                BeamFnApi.SampledElement.newBuilder()
+                                    .setElement(ByteString.copyFrom(encodeString("a1")))
+                                    .build())
+                            .addElements(
+                                BeamFnApi.SampledElement.newBuilder()
+                                    .setElement(ByteString.copyFrom(encodeString("b1")))
+                                    .build())
+                            .build())
+                    .build())
+            .build();
+    assertThat(actual, equalTo(expected));
   }
 }

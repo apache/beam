@@ -89,7 +89,7 @@ public class DataSamplingFnRunnerTest {
             .withPipeline(Pipeline.create());
     Coder<String> rehydratedCoder = (Coder<String>) rehydratedComponents.getCoder("coder-id");
 
-    Map<String, List<byte[]>> samples = dataSampler.samples();
+    Map<String, List<byte[]>> samples = dataSampler.allSamples();
     assertThat(samples.keySet(), contains("inputTarget"));
 
     // Ensure that the value was sampled.

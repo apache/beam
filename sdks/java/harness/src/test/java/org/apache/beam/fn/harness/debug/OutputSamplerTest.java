@@ -56,7 +56,7 @@ public class OutputSamplerTest {
       expected.add(encodeInt(i));
     }
 
-    Map<String, List<byte[]>> samples = sampler.samples();
+    Map<String, List<byte[]>> samples = sampler.allSamples();
     assertThat(samples.get("pcollection-id"), containsInAnyOrder(expected.toArray()));
   }
 
@@ -79,7 +79,7 @@ public class OutputSamplerTest {
     expected.add(encodeInt(79));
     expected.add(encodeInt(99));
 
-    Map<String, List<byte[]>> samples = sampler.samples();
+    Map<String, List<byte[]>> samples = sampler.allSamples();
     assertThat(samples.get("pcollection-id"), containsInAnyOrder(expected.toArray()));
   }
 }

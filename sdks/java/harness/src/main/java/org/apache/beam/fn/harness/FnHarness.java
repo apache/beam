@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
@@ -256,9 +257,12 @@ public class FnHarness {
 
       // Add any graph modifications.
       List<ProcessBundleDescriptorModifier> modifierList = new ArrayList<>();
-      List<String> experimentList = options.as(ExperimentalOptions.class).getExperiments();
+      Optional<List<String>> experimentList =
+          Optional.ofNullable(options.as(ExperimentalOptions.class).getExperiments());
 
-      if (experimentList != null && experimentList.contains(ENABLE_DATA_SAMPLING_EXPERIMENT)) {
+      // If data sampling is enabled, then modify the graph to add any DataSampling Operations.
+      if (experimentList.isPresent()
+          && experimentList.get().contains(ENABLE_DATA_SAMPLING_EXPERIMENT)) {
         modifierList.add(new DataSamplingDescriptorModifier());
       }
 
@@ -357,6 +361,7 @@ public class FnHarness {
       handlers.put(
           InstructionRequest.RequestCase.HARNESS_MONITORING_INFOS,
           processWideHandler::harnessMonitoringInfos);
+      handlers.put(InstructionRequest.RequestCase.SAMPLE, dataSampler::handleDataSampleRequest);
 
       JvmInitializers.runBeforeProcessing(options);
 
