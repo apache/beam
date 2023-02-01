@@ -54,13 +54,12 @@ Future<void> main() async {
     });
 
     test('Initial value of isCodeRunning should be false', () {
-      expect(controller.isCodeRunning, false);
+      expect(controller.codeRunner.isCodeRunning, false);
     });
 
     test('Initial value of pipelineOptions should be empty string', () {
-      expect(controller.pipelineOptions, null);
       controller.setSdk(Sdk.go);
-      expect(controller.pipelineOptions, '');
+      expect(controller.codeRunner.pipelineOptions, '');
     });
 
     test('source', () {
@@ -80,10 +79,10 @@ Future<void> main() async {
             descriptor: emptyDescriptor,
             setCurrentSdk: true,
           );
-          expect(controller.isExampleChanged, false);
+          expect(controller.codeRunner.isExampleChanged, false);
           controller.snippetEditingController?.fileControllers.first
               .codeController.text = 'test';
-          expect(controller.isExampleChanged, true);
+          expect(controller.codeRunner.isExampleChanged, true);
         },
       );
 
@@ -95,9 +94,9 @@ Future<void> main() async {
             descriptor: emptyDescriptor,
             setCurrentSdk: true,
           );
-          expect(controller.isExampleChanged, false);
+          expect(controller.codeRunner.isExampleChanged, false);
           controller.setPipelineOptions('test options');
-          expect(controller.isExampleChanged, true);
+          expect(controller.codeRunner.isExampleChanged, true);
         },
       );
     });
@@ -156,8 +155,8 @@ Future<void> main() async {
     test(
       'If Playground state result is empty, then resetError should break the execution',
       () {
-        controller.resetError();
-        expect(controller.result, null);
+        controller.resetErrorMessageText();
+        expect(controller.codeRunner.result, null);
       },
     );
 
@@ -166,7 +165,7 @@ Future<void> main() async {
       () {
         controller.setSdk(Sdk.go);
         controller.addListener(() {
-          expect(controller.pipelineOptions, 'test options');
+          expect(controller.codeRunner.pipelineOptions, 'test options');
         });
         controller.setPipelineOptions('test options');
       },

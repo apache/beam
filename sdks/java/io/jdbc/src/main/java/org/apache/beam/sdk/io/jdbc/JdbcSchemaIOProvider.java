@@ -175,9 +175,11 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         dataSourceConfiguration = dataSourceConfiguration.withConnectionInitSqls(initSqls);
       }
 
-      @Nullable Integer maxConnections = config.getInt32("maxConnections");
-      if (maxConnections != null) {
-        dataSourceConfiguration = dataSourceConfiguration.withMaxConnections(maxConnections);
+      if (config.getSchema().hasField("maxConnections")) {
+        @Nullable Integer maxConnections = config.getInt32("maxConnections");
+        if (maxConnections != null) {
+          dataSourceConfiguration = dataSourceConfiguration.withMaxConnections(maxConnections);
+        }
       }
 
       return dataSourceConfiguration;

@@ -52,7 +52,7 @@ if (isDataflowRunner) {
   if (isDataflowRunnerV2) {
     evaluationDependsOn(":runners:google-cloud-dataflow-java")
   } else {
-    evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
+    evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
   }
 }
 
@@ -117,7 +117,7 @@ def getNexmarkArgs = {
         nexmarkArgsList.add("--skipQueries=LOCAL_ITEM_SUGGESTION,AVERAGE_PRICE_FOR_CATEGORY,AVERAGE_SELLING_PRICE_BY_SELLER,HIGHEST_BID,WINNING_BIDS,SESSION_SIDE_INPUT_JOIN,BOUNDED_SIDE_INPUT_JOIN") // 3, 4, 6, 7, 9, 13, 14, 15
       }
     } else {
-      def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+      def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
       // Provide job with a customizable worker jar.
       // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
       // More context and discussions can be found in PR#6694.
@@ -155,7 +155,7 @@ task run(type: JavaExec) {
       dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
       finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
     } else {
-      dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+      dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     }
   }
   if(isSparkRunner) {
