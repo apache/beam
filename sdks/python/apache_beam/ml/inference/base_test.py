@@ -16,7 +16,10 @@
 #
 
 """Tests for apache_beam.ml.base."""
+import logging
+import math
 import pickle
+import time
 import unittest
 from typing import Any
 from typing import Dict
@@ -37,6 +40,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
+from apache_beam.transforms.periodicsequence import TimestampedValue
 
 
 class FakeModel:
@@ -408,6 +412,90 @@ class RunInferenceBaseTest(unittest.TestCase):
         'PCollection of size 2 with more than one element accessed as a '
         'singleton view. First two elements encountered are' in str(
             e.exception))
+
+  @pytest.mark.it_validatesrunner
+  def test_run_inference_empty_side_input(self):
+    pipeline = TestPipeline(is_integration_test=True)
+    side_pcoll = pipeline | "side" >> beam.Create([])
+    model_handler = FakeModelHandlerReturnsPredictionResult()
+    with TestPipeline() as pipeline:
+      _ = (
+          pipeline
+          | beam.Create([1, 2, 3, 4])
+          | base.RunInference(model_handler, model_metadata_pcoll=side_pcoll)
+          | beam.Map(logging.info))
+
+  @pytest.mark.it_validatesrunner
+  def test_run_inference_prediction_result_with_side_input(self):
+    test_pipeline = TestPipeline()
+
+    first_ts = math.floor(time.time()) - 30
+    interval = 5
+    main_input_windowing_interval = 7
+
+    # aligning timestamp to get persistent results
+    first_ts = first_ts - (
+        first_ts % (interval * main_input_windowing_interval))
+
+    sample_main_input_elements = ([
+        first_ts - 2,
+        first_ts + 1,
+        first_ts + 8,
+        first_ts + 15,
+        first_ts + 22,
+    ])
+
+    sample_side_input_elements = [(
+        first_ts + 11,
+        base.ModelMetdata(
+            model_id='fake_model_id_1', model_name='fake_model_id_1')),
+                                  (
+                                      first_ts + 19,
+                                      base.ModelMetdata(
+                                          model_id='fake_model_id_2',
+                                          model_name='fake_model_id_2'))]
+
+    model_handler = FakeModelHandlerReturnsPredictionResult()
+
+    side_input = (
+        test_pipeline
+        | "CreateSideInputElements" >> beam.Create(sample_side_input_elements)
+        | beam.Map(lambda x: TimestampedValue(x[1], x[0]))
+        | beam.WindowInto(
+            window.FixedWindows(interval),
+            accumulation_mode=trigger.AccumulationMode.DISCARDING)
+        | beam.Map(lambda x: ('key', x))
+        | beam.GroupByKey()
+        | beam.Map(lambda x: x[1])
+        | beam.Map(lambda x: base.ModelMetdata(x, x)))
+
+    result = (
+        test_pipeline
+        | beam.Create(sample_main_input_elements)
+        | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x))
+        | "ApplyWindow" >> beam.WindowInto(
+            window.FixedWindows(main_input_windowing_interval))
+        | "RunInference" >> base.RunInference(
+            model_handler, model_metadata_pcoll=side_input)
+        | beam.Map(print))
+    print(time.time())
+    test_pipeline.run().wait_until_finish()
+
+    expected_model_id_order = [
+        'fake_model_id_default',
+        'fake_model_id_default',
+        'fake_model_id_1',
+        'fake_model_id_1',
+        'fake_model_id_2'
+    ]
+    expected_result = [
+        base.PredictionResult(
+            example=sample_main_input_elements[i],
+            inference=sample_main_input_elements[i] + 1,
+            model_id=expected_model_id_order[i]) for i in range(5)
+    ]
+
+    assert_that(result, equal_to(expected_result))
 
   @unittest.skipIf(
       not TestPipeline().get_pipeline_options().view_as(
