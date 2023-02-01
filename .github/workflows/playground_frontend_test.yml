@@ -42,8 +42,8 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          - flutter-version: '${{ env.FLUTTER_VERSION }}'
-          - channel: 'stable'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
 
       - name: 'Install Dependencies'
         working-directory: playground/frontend
