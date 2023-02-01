@@ -76,10 +76,12 @@ func getLines(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 
 func getSplitLineAsMap(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line string) (string,int){
-        split := strings.Split(line, ":")
+    return beam.ParDo(s, func(line []string,emit func(string,int)){
+      for _,element := range line {
+        split := strings.Split(element, ":")
         count,_ := strconv.Atoi(strings.TrimLeft(split[1], " "))
-        return split[0], count
+        emit(split[0], count)
+      }
     }, input)
 }
 

@@ -31,7 +31,7 @@ package main
 
 import (
 	"context"
-    _ "strings"
+     "strings"
 	"regexp"
     _ "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
@@ -91,8 +91,18 @@ func getLines(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 
 func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return input
+    return beam.ParDo(s, func(line []string, emit func(string)) {
+        for _, word := range line {
+            e := strings.Split(word, " ")
+            for _,element := range e{
+                reg := regexp.MustCompile(`([^\w])`)
+                res := reg.ReplaceAllString(element, "")
+                emit(res)
+            }
+        }
+    }, input)
 }
+
 
 
 func partitionPCollectionByCase(s beam.Scope, input beam.PCollection) []beam.PCollection {

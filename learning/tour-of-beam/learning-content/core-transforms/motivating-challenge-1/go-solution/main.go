@@ -93,9 +93,14 @@ func getLines(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 
 func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line string, emit func(string)) {
-        for _, word := range wordRE.FindAllString(line, -1) {
-            emit(word)
+    return beam.ParDo(s, func(line []string, emit func(string)) {
+        for _, word := range line {
+            e := strings.Split(word, " ")
+            for _,element := range e{
+                reg := regexp.MustCompile(`([^\w])`)
+                res := reg.ReplaceAllString(element, "")
+                emit(res)
+            }
         }
     }, input)
 }

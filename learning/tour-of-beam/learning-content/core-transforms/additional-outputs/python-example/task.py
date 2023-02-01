@@ -59,12 +59,12 @@ class ProcessNumbersDoFn(beam.DoFn):
 
 
 with beam.Pipeline() as p:
-    results = (p | beam.Create([10, 50, 120, 20, 200, 0])
+  results = (p | beam.Create([10, 50, 120, 20, 200, 0])
                | beam.ParDo(ProcessNumbersDoFn())
                .with_outputs(num_above_100_tag, main=num_below_100_tag))
 
-    # First PCollection
-    results[num_below_100_tag] | 'Log nums below 100' >> Output(prefix='num_below_100: ')
+  # First PCollection
+  results[num_below_100_tag] | 'Log nums below 100' >> Output(prefix='num_below_100: ')
 
-    # Additional PCollection
-    results[num_above_100_tag] | 'Log nums above 100' >> Output(prefix='num_above_100: ')
+  # Additional PCollection
+  results[num_above_100_tag] | 'Log nums above 100' >> Output(prefix='num_above_100: ')
