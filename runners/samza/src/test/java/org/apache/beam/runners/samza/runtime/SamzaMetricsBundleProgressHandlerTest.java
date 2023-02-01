@@ -24,8 +24,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.Charset;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.runners.core.metrics.CounterCell;
@@ -35,6 +37,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.samza.config.Config;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -54,8 +57,60 @@ public class SamzaMetricsBundleProgressHandlerTest {
 
   @Before
   public void setup() {
+    Config config =
+        new Config() {
+          @Override
+          public Config sanitize() {
+            return null;
+          }
+
+          @Override
+          public int size() {
+            return 0;
+          }
+
+          @Override
+          public boolean isEmpty() {
+            return false;
+          }
+
+          @Override
+          public boolean containsKey(Object key) {
+            return false;
+          }
+
+          @Override
+          public boolean containsValue(Object value) {
+            return false;
+          }
+
+          @Override
+          public String get(Object key) {
+            return null;
+          }
+
+          @Override
+          public Set<String> keySet() {
+            return null;
+          }
+
+          @Override
+          public Collection<String> values() {
+            return null;
+          }
+
+          @Override
+          public Set<Entry<String, String>> entrySet() {
+            return null;
+          }
+
+          @Override
+          public boolean getBoolean(String k, boolean defaultValue) {
+            return false;
+          }
+        };
     metricsRegistryMap = new MetricsRegistryMap();
-    samzaMetricsContainer = new SamzaMetricsContainer(metricsRegistryMap);
+    samzaMetricsContainer = new SamzaMetricsContainer(metricsRegistryMap, config);
     samzaMetricsBundleProgressHandler =
         new SamzaMetricsBundleProgressHandler(
             stepName, samzaMetricsContainer, transformIdToUniqueName);
