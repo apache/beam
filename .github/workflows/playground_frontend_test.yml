@@ -42,7 +42,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          - flutter-version: $FLUTTER_VERSION
+          - flutter-version: ${{ env.FLUTTER_VERSION }}
           - channel: 'stable'
 
       - name: 'Install Dependencies'
