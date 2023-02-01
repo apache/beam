@@ -68,7 +68,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* The deprecated SparkRunner for Spark 2 (see [2.41.0](#2410---2022-08-23)) was finally removed ([#25263](https://github.com/apache/beam/pull/25263)).
 
 ## Deprecations
 

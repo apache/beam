@@ -505,7 +505,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def jmh_version = "1.34"
 
     // Export Spark versions, so they are defined in a single place only
-    project.ext.spark2_version = spark2_version
     project.ext.spark3_version = spark3_version
 
     // A map of maps containing common libraries used per language. To use:
@@ -730,8 +729,6 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.8.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
-        spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark2_version",
-        spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark2_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
         spark3_core                                 : "org.apache.spark:spark-core_2.12:$spark3_version",
         spark3_network_common                       : "org.apache.spark:spark-network-common_2.12:$spark3_version",
