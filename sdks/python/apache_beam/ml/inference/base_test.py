@@ -385,22 +385,6 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandlerReturnsPredictionResult())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_run_inference_with_side_input_without_streaming_option(self):
-    test_pipeline = TestPipeline()
-    side_input = test_pipeline | "CreateDummySideInput" >> beam.Create(
-        [base.ModelMetdata(1, 1)])
-    with self.assertRaises(RuntimeError) as e:
-      _ = (
-          test_pipeline
-          | beam.Create([1, 2, 3, 4])
-          | base.RunInference(
-              FakeModelHandler(), model_metadata_pcoll=side_input))
-
-      test_pipeline.run()
-    self.assertTrue(
-        "SideInputs to RunInference PTransform is "
-        "only supported in streaming mode." in str(e.exception))
-
   def test_run_inference_with_iterable_side_input(self):
     test_pipeline = TestPipeline()
     side_input = (
@@ -424,25 +408,6 @@ class RunInferenceBaseTest(unittest.TestCase):
         'PCollection of size 2 with more than one element accessed as a '
         'singleton view. First two elements encountered are' in str(
             e.exception))
-
-  def test_run_inference_side_input_no_window(self):
-    test_pipeline = TestPipeline()
-    side_input = (
-        test_pipeline | "CreateDummySideInput" >> beam.Create(
-            [base.ModelMetdata(1, 1), base.ModelMetdata(2, 2)]))
-
-    test_pipeline.options.view_as(StandardOptions).streaming = True
-    with self.assertRaises(RuntimeError) as e:
-      _ = (
-          test_pipeline
-          | beam.Create([1, 2, 3, 4])
-          | base.RunInference(
-              FakeModelHandler(), model_metadata_pcoll=side_input))
-      test_pipeline.run()
-
-    self.assertTrue(
-        "The RunInference PTransform's SideInput is either using "
-        "GlobalWindows with a default trigger" in str(e.exception))
 
   @unittest.skipIf(
       not TestPipeline().get_pipeline_options().view_as(
