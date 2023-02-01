@@ -29,7 +29,7 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 &&\
 COPY src /go/src/playground/backend
 #COPY playground /go/src/playground/playground
 WORKDIR /go/src/playground/backend
-
+RUN ls
 # Build Application
 RUN go mod download &&\
     go mod tidy &&\
@@ -76,22 +76,20 @@ RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM
 # Install jars for Playground graphs
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-core-construction-java/$BEAM_VERSION/beam-runners-core-construction-java-$BEAM_VERSION.jar &&\
     mv beam-runners-core-construction-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-core-construction-java-$BEAM_VERSION.jar
-# Install jars for core tests
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
     mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
-# Install kafka client
+# Install Apache Kafka Clients
 RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/$KAFKA_CLIENTS_VERSION/kafka-clients-$KAFKA_CLIENTS_VERSION.jar &&\
     mv kafka-clients-$KAFKA_CLIENTS_VERSION.jar /opt/apache/beam/jars/kafka-clients.jar
-# Install Spring dependencies
+# Install Spring Expression
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-expression/$SPRING_VERSION/spring-expression-$SPRING_VERSION.jar &&\
     mv spring-expression-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-expression.jar
-
+# Install Spring Core
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-core/$SPRING_VERSION/spring-core-$SPRING_VERSION.jar &&\
     mv spring-core-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-core.jar
-
+# Install Spring JCL
 RUN wget https://repo1.maven.org/maven2/org/springframework/spring-jcl/$SPRING_VERSION/spring-jcl-$SPRING_VERSION.jar &&\
     mv spring-jcl-$SPRING_VERSION.jar /opt/apache/beam/jars/spring-jcl.jar
-
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\
