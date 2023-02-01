@@ -22,7 +22,7 @@ apply plugin: 'base'
 applyDockerNature()
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
-
+def default_beam_version = "2.44.0"
 description = project(playgroundJobServerProject).description + " :: Container"
 
 configurations {
@@ -71,7 +71,7 @@ docker {
   tags containerImageTags()
   buildArgs(['BEAM_VERSION': project.rootProject.hasProperty(["sdk-tag"]) ?
                            project.rootProject["sdk-tag"] :
-                           "2.44.0" ])
+                           default_beam_version ])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects
