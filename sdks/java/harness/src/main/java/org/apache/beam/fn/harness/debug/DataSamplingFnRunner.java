@@ -18,8 +18,6 @@
 package org.apache.beam.fn.harness.debug;
 
 import com.google.auto.service.AutoService;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
@@ -28,11 +26,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
@@ -41,44 +36,14 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
+
+/**
+ * This class is in charge of retrieving and sampling in-flight elements. This uses an internal only URN to identify it.
+ */
 public class DataSamplingFnRunner {
   public static final String URN = "beam:internal:sampling:v1";
 
   private static final Logger LOG = LoggerFactory.getLogger(DataSamplingFnRunner.class);
-
-  public static class Payload {
-    public String pcollectionId;
-    public String coderId;
-
-    public static Coder<KV<String, String>> coder =
-        KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
-
-    public static Payload of(String pcollectionId, String coderId) {
-      return new Payload(pcollectionId, coderId);
-    }
-
-    private Payload(String pcollectionId, String coderId) {
-      this.pcollectionId = pcollectionId;
-      this.coderId = coderId;
-    }
-
-    public static byte[] encode(String pcollectionId, String coderId) throws IOException {
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      coder.encode(KV.of(pcollectionId, coderId), outputStream);
-      return outputStream.toByteArray();
-    }
-
-    public static Payload decode(byte[] payload) throws IOException {
-      ByteArrayInputStream inputStream = new ByteArrayInputStream(payload);
-      KV<String, String> decodedPayload = coder.decode(inputStream);
-
-      if (decodedPayload == null) {
-        throw new IOException("Could not decode payload for DataSamplingFnRunner.");
-      }
-
-      return new Payload(decodedPayload.getKey(), decodedPayload.getValue());
-    }
-  }
 
   @AutoService(PTransformRunnerFactory.Registrar.class)
   public static class Registrar implements PTransformRunnerFactory.Registrar {
@@ -94,32 +59,31 @@ public class DataSamplingFnRunner {
     public DataSamplingFnRunner createRunnerForPTransform(Context context) throws IOException {
       DataSamplingFnRunner runner = new DataSamplingFnRunner();
 
+      // This is only present when the "enable_data_sampling" experiment is used. Returns a NOOP runner if Datasampling is disabled.
       Optional<DataSampler> maybeDataSampler = context.getDataSampler();
       if (!maybeDataSampler.isPresent()) {
         LOG.warn(
-            "Trying to sample output but DataSampler is not present. Is "
-                + "\"enable_data_sampling\" set?");
+            "Trying to sample output but DataSampler is not present. Is \"enable_data_sampling\" set?");
         return runner;
       }
 
       DataSampler dataSampler = maybeDataSampler.get();
 
+      // This should only have one input, the PCollection to sample
       String inputPCollectionId =
           Iterables.getOnlyElement(context.getPTransform().getInputsMap().values());
 
       RunnerApi.PCollection inputPCollection = context.getPCollections().get(inputPCollectionId);
-
       if (inputPCollection == null) {
         LOG.warn(
             "Expected input PCollection \""
                 + inputPCollectionId
-                + "\" does not exist in "
-                + "PCollections map.");
+                + "\" does not exist in PCollections map.");
         return runner;
       }
 
+      // This coder is used to encode sampled elements to sample back to the Runner Harness.
       String inputCoderId = inputPCollection.getCoderId();
-
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(
                   RunnerApi.Components.newBuilder()
@@ -128,16 +92,15 @@ public class DataSamplingFnRunner {
                       .putAllWindowingStrategies(context.getWindowingStrategies())
                       .build())
               .withPipeline(Pipeline.create());
-      Coder<ElementT> inputCoder = (Coder<ElementT>) rehydratedComponents.getCoder(inputCoderId);
 
+      Coder<ElementT> inputCoder = (Coder<ElementT>) rehydratedComponents.getCoder(inputCoderId);
       OutputSampler<ElementT> outputSampler =
           dataSampler.sampleOutput(
               context.getProcessBundleDescriptorId(), inputPCollectionId, inputCoder);
 
-      String pCollectionId =
-          Iterables.getOnlyElement(context.getPTransform().getInputsMap().values());
+      // Add the runner to consume the PCollection as an input.
       context.addPCollectionConsumer(
-          pCollectionId,
+          inputPCollectionId,
           (FnDataReceiver<WindowedValue<ElementT>>)
               input -> outputSampler.sample(input.getValue()));
       return runner;

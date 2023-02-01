@@ -21,10 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 
-import com.google.common.collect.Iterables;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -62,11 +61,5 @@ public class DataSamplingDescriptorModifierTest {
         equalTo("synthetic-data-sampling-transform-" + PCOLLECTION_ID));
     assertThat(samplingTransform.getSpec().getUrn(), equalTo(DataSamplingFnRunner.URN));
     assertThat(samplingTransform.getInputsMap(), hasEntry("main", PCOLLECTION_ID));
-
-    ByteString encodedPayload = samplingTransform.getSpec().getPayload();
-    DataSamplingFnRunner.Payload payload =
-        DataSamplingFnRunner.Payload.decode(encodedPayload.toByteArray());
-    assertThat(payload.pcollectionId, equalTo(PCOLLECTION_ID));
-    assertThat(payload.coderId, equalTo(CODER_ID));
   }
 }

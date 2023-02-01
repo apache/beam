@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness.debug;
 
-import avro.shaded.com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +28,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.SampleDataResponse.Element
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.SampledElement;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * The DataSampler is a global (per SDK Harness) object that facilitates taking and returning
