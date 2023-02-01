@@ -71,8 +71,4 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
   && chmod +x /entrypoint.sh
 
-# Fetch Google Api Client to be able to patch in our MITM certificate
-RUN wget https://repo1.maven.org/maven2/com/google/api-client/google-api-client/$GOOGLE_API_CLIENT_VERSION/google-api-client-$GOOGLE_API_CLIENT_VERSION.jar &&\
-    mv google-api-client-$GOOGLE_API_CLIENT_VERSION.jar /opt/google-api-client.jar
-
 ENTRYPOINT ["/entrypoint.sh"]
