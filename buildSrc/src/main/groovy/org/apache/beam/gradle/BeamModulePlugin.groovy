@@ -2392,7 +2392,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "python_port": pythonPort
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
-      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion == '2.7' ? '2' : project.project(':sdks:python').pythonVersion.replace('.', '')
+      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
       def javaContainerSuffix
       if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
         javaContainerSuffix = 'java8'
@@ -2534,9 +2534,13 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn setupTask
         dependsOn config.startJobServer
       }
-      mainTask.configure{dependsOn goTask}
-      cleanupTask.configure{mustRunAfter goTask}
-      config.cleanupJobServer.configure{mustRunAfter goTask}
+      // CrossLanguageValidatesRunnerTask is setup under python sdk but also runs tasks not involving
+      // python versions. set 'skipNonPythonTask' property to avoid duplicated run of these tasks.
+      if (!(project.hasProperty('skipNonPythonTask') && project.skipNonPythonTask == 'true')) {
+        mainTask.configure { dependsOn goTask }
+      }
+      cleanupTask.configure { mustRunAfter goTask }
+      config.cleanupJobServer.configure { mustRunAfter goTask }
     }
 
     /** ***********************************************************************************************/
@@ -2795,7 +2799,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.ext.getVersionSuffix = { String version ->
-        return version == '2.7' ? '2' : version.replace('.', '')
+        return version.replace('.', '')
       }
 
       project.ext.getVersionsAsList = { String propertyName ->
