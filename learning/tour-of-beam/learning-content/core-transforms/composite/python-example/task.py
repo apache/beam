@@ -54,6 +54,6 @@ class ExtractAndMultiplyNumbers(beam.PTransform):
                 )
 
 with beam.Pipeline() as p:
-    (p | beam.Create(['1,2,3,4,5', '6,7,8,9,10'])
-     | ExtractAndMultiplyNumbers()
+  (p | beam.Create(['1,2,3,4,5', '6,7,8,9,10']) \
+     | ExtractAndMultiplyNumbers() \
      | Output())
