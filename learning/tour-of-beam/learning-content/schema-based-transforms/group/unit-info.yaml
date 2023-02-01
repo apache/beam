@@ -19,9 +19,7 @@
 
 sdk:
   - Java
-  - Python
-  - Go
-content:
-  - introduction
-  - schema-based-transforms
-  
+id: group
+name: Group
+taskName: group
+complexity: ADVANCED

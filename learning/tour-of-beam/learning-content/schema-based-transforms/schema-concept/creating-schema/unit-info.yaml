@@ -19,9 +19,7 @@
 
 sdk:
   - Java
-  - Python
-  - Go
-content:
-  - introduction
-  - schema-based-transforms
-  
+id: creating-schema
+name: Creating schema
+taskName: creating-schema
+complexity: ADVANCED

@@ -19,9 +19,7 @@
 
 sdk:
   - Java
-  - Python
-  - Go
-content:
-  - introduction
-  - schema-based-transforms
-  
+id: co-group
+name: CoGroup
+taskName: co-group
+complexity: ADVANCED
