@@ -35,14 +35,14 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04]
 
     env:
-      FLUTTER_VERSION: 3.3.2
+      FLUTTER_VERSION: '3.3.2'
 
     steps:
       - uses: actions/checkout@v3
 
       - uses: subosito/flutter-action@v2
         with:
-          - flutter-version: 3.3.2 #'${{ env.FLUTTER_VERSION }}'
+          - flutter-version: '${{ env.FLUTTER_VERSION }}'
           - channel: 'stable'
 
       - name: 'Install Dependencies'
