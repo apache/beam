@@ -472,7 +472,6 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
         self._perform_run_inference_transform_test(transform_node.transform)
 
       def enter_composite_transform(self, transform_node):
-        # type: (AppliedPTransform) -> None
         self._perform_run_inference_transform_test(transform_node.transform)
 
     return RunInferenceVisitor()

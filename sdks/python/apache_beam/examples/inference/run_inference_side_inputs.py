@@ -95,8 +95,6 @@ def run(argv=None, save_main_session=True):
   options = PipelineOptions(pipeline_args)
   options.view_as(SetupOptions).save_main_session = save_main_session
 
-  test_pipeline = beam.Pipeline(options=options)
-
   class GetModel(beam.DoFn):
     def process(self, element) -> Iterable[base.ModelMetdata]:
       if time.time() > mid_ts:
@@ -127,41 +125,40 @@ def run(argv=None, save_main_session=True):
     if model_id == 'model_default':
       assert (x.example == 1 and x.inference == 1)
 
-  side_input = (
-      test_pipeline
-      | "SideInputPColl" >> PeriodicImpulse(
-          first_ts, last_ts, fire_interval=side_input_interval)
-      | "GetModelId" >> beam.ParDo(GetModel())
-      | "AttachKey" >> beam.Map(lambda x: (x, x))
-      # due to periodic impulse, which has a start timestamp before
-      # Dataflow pipeline process data, it can trigger in multiple
-      # firings, causing an Iterable instead of singleton. So, using
-      # the _EmitSingletonSideInput DoFn will ensure unique path will be
-      # fired only once.
-      | "GetSingleton" >> beam.ParDo(_EmitSingletonSideInput())
-      | "ApplySideInputWindow" >> beam.WindowInto(
-          window.GlobalWindows(),
-          trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
-          accumulation_mode=trigger.AccumulationMode.DISCARDING))
+  with beam.Pipeline(options=options) as pipeline:
+    side_input = (
+        pipeline
+        | "SideInputPColl" >> PeriodicImpulse(
+            first_ts, last_ts, fire_interval=side_input_interval)
+        | "GetModelId" >> beam.ParDo(GetModel())
+        | "AttachKey" >> beam.Map(lambda x: (x, x))
+        # due to periodic impulse, which has a start timestamp before
+        # Dataflow pipeline process data, it can trigger in multiple
+        # firings, causing an Iterable instead of singleton. So, using
+        # the _EmitSingletonSideInput DoFn will ensure unique path will be
+        # fired only once.
+        | "GetSingleton" >> beam.ParDo(_EmitSingletonSideInput())
+        | "ApplySideInputWindow" >> beam.WindowInto(
+            window.GlobalWindows(),
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+            accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
-  model_handler = FakeModelHandlerReturnsPredictionResult()
-  inference_pcoll = (
-      test_pipeline
-      | "MainInputPColl" >> PeriodicImpulse(
-          first_ts,
-          last_ts,
-          fire_interval=main_input_interval,
-          apply_windowing=True)
-      | beam.Map(lambda x: 1)
-      | base.RunInference(
-          model_handler=model_handler, model_metadata_pcoll=side_input))
+    model_handler = FakeModelHandlerReturnsPredictionResult()
+    inference_pcoll = (
+        pipeline
+        | "MainInputPColl" >> PeriodicImpulse(
+            first_ts,
+            last_ts,
+            fire_interval=main_input_interval,
+            apply_windowing=True)
+        | beam.Map(lambda x: 1)
+        | base.RunInference(
+            model_handler=model_handler, model_metadata_pcoll=side_input))
 
-  _ = inference_pcoll | "AssertPredictionResult" >> beam.Map(
-      validate_prediction_result)
+    _ = inference_pcoll | "AssertPredictionResult" >> beam.Map(
+        validate_prediction_result)
 
-  _ = inference_pcoll | "Logging" >> beam.Map(logging.info)
-
-  test_pipeline.run().wait_until_finish()
+    _ = inference_pcoll | "Logging" >> beam.Map(logging.info)
 
 
 if __name__ == '__main__':
