@@ -25,7 +25,13 @@ RunInference works well on arbitrarily large models as long as they can fit on y
 This example demonstrates running inference with a `T5` language model using `RunInference` in a pipeline. `T5` is an encoder-decoder model pre-trained on a multi-task mixture of unsupervised and supervised tasks. Each task is converted into a text-to-text format. The example uses `T5-11B`, which contains 11 billion parameters and is 45 GB in size. In  order to work well on a variety of tasks, `T5` prepends a different prefix to the input corresponding to each task. For example, for translation, the input would be: `translate English to German: …` and for summarization, it would be: `summarize: …`. For more information about `T5` see the [T5 overiew](https://huggingface.co/docs/transformers/model_doc/t5) in the HuggingFace documentation.
 
 ### Run the Pipeline ?
-First, install the required packages listed in [requirements.txt](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/large_language_modeling/requirements.txt) and pass the required arguments. You can download the `T5-11b` model from [Hugging Face Hub](https://huggingface.co/t5-11b) with the following steps:
+First, install `apache-beam` 2.40 or greater:
+
+```
+pip install apache-beam -U
+```
+
+Next, install the required packages listed in [requirements.txt](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/large_language_modeling/requirements.txt) and pass the required arguments. You can download the `T5-11b` model from [Hugging Face Hub](https://huggingface.co/t5-11b) with the following steps:
 
 - Install Git LFS following the instructions [here](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage?platform=mac)
 - Run `git lfs install`
