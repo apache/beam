@@ -20,21 +20,13 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UTFDataFormatException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.Counter;
@@ -362,7 +354,7 @@ public class CountingSource {
 
     @Override
     public Coder<CountingSource.CounterMark> getCheckpointMarkCoder() {
-      return CounterMarkCoder.of();
+      return AvroCoder.of(CountingSource.CounterMark.class);
     }
 
     @Override
@@ -489,45 +481,11 @@ public class CountingSource {
     }
   }
 
-  public static class CounterMarkCoder extends CustomCoder<CounterMark> {
-
-    private static final CounterMarkCoder INSTANCE = new CounterMarkCoder();
-
-    public static CounterMarkCoder of() {
-      return INSTANCE;
-    }
-
-    @Override
-    public void encode(CountingSource.CounterMark value, OutputStream outStream)
-        throws CoderException, IOException {
-      if (value == null) {
-        throw new CoderException("cannot encode a null CounterMark");
-      }
-
-      DataOutputStream stream = new DataOutputStream(outStream);
-      stream.writeLong(value.getLastEmitted());
-      InstantCoder.of().encode(value.getStartTime(), stream);
-    }
-
-    @Override
-    public CountingSource.CounterMark decode(InputStream inStream)
-        throws CoderException, IOException {
-      try {
-        DataInputStream stream = new DataInputStream(inStream);
-        long lastEmitted = stream.readLong();
-        Instant startTime = InstantCoder.of().decode(stream);
-        return new CountingSource.CounterMark(lastEmitted, startTime);
-      } catch (EOFException | UTFDataFormatException e) {
-        throw new CoderException(e);
-      }
-    }
-  }
-
   /**
    * The checkpoint for an unbounded {@link CountingSource} is simply the last value produced. The
    * associated source object encapsulates the information needed to produce the next value.
    */
-  @DefaultCoder(CounterMarkCoder.class)
+  @DefaultCoder(AvroCoder.class)
   public static class CounterMark implements UnboundedSource.CheckpointMark {
     /** The last value emitted. */
     private final long lastEmitted;

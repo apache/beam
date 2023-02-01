@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -342,7 +343,7 @@ public class ReadTest implements Serializable {
 
     @Override
     public Coder<CounterMark> getCheckpointMarkCoder() {
-      return CountingSource.CounterMarkCoder.of();
+      return AvroCoder.of(CountingSource.CounterMark.class);
     }
   }
 
