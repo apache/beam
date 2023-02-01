@@ -41,6 +41,7 @@ public class OutputSamplerTest {
 
   /**
    * Test that the first N are always sampled.
+   *
    * @throws Exception when encoding fails (shouldn't happen).
    */
   @Test
@@ -68,6 +69,7 @@ public class OutputSamplerTest {
 
   /**
    * Test that the previous values are overwritten and only the most recent `maxSamples` are kept.
+   *
    * @throws Exception when encoding fails (shouldn't happen).
    */
   @Test
@@ -82,7 +84,8 @@ public class OutputSamplerTest {
       outputSampler.sample(i);
     }
 
-    // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to 4..9 inclusive. Then,
+    // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to
+    // 4..9 inclusive. Then,
     // the 20th element is sampled (19) and every 20 after.
     List<byte[]> expected = new ArrayList<>();
     expected.add(encodeInt(19));

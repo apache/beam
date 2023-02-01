@@ -25,8 +25,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class holds samples for a single PCollection until queried by the parent DataSampler. This class is meant to hold
- * only a limited number of elements in memory. So old values are constantly being overridden in a circular buffer.
+ * This class holds samples for a single PCollection until queried by the parent DataSampler. This
+ * class is meant to hold only a limited number of elements in memory. So old values are constantly
+ * being overridden in a circular buffer.
+ *
  * @param <T> the element type of the PCollection.
  */
 public class OutputSampler<T> {
@@ -58,6 +60,7 @@ public class OutputSampler<T> {
 
   /**
    * Samples every 1000th element or if it is part of the first 10 in the (local) PCollection.
+   *
    * @param element the element to sample.
    */
   public void sample(T element) {
@@ -79,6 +82,7 @@ public class OutputSampler<T> {
 
   /**
    * Clears samples at end of call. This is to help mitigate memory use.
+   *
    * @return samples taken since last call.
    */
   public List<byte[]> samples() {

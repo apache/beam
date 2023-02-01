@@ -22,8 +22,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 /**
- * Modifies the given ProcessBundleDescriptor by adding a DataSampling operation as a consumer to every
- * PCollection.
+ * Modifies the given ProcessBundleDescriptor by adding a DataSampling operation as a consumer to
+ * every PCollection.
  */
 public class DataSamplingDescriptorModifier implements ProcessBundleDescriptorModifier {
   @Override
@@ -39,9 +39,7 @@ public class DataSamplingDescriptorModifier implements ProcessBundleDescriptorMo
           transformId,
           RunnerApi.PTransform.newBuilder()
               .setUniqueName(transformId)
-              .setSpec(
-                  RunnerApi.FunctionSpec.newBuilder()
-                      .setUrn(DataSamplingFnRunner.URN))
+              .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DataSamplingFnRunner.URN))
               .putInputs("main", pcollectionId)
               .build());
     }

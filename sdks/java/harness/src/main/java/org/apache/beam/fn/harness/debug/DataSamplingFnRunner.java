@@ -38,7 +38,8 @@ import org.slf4j.LoggerFactory;
 })
 
 /**
- * This class is in charge of retrieving and sampling in-flight elements. This uses an internal only URN to identify it.
+ * This class is in charge of retrieving and sampling in-flight elements. This uses an internal only
+ * URN to identify it.
  */
 public class DataSamplingFnRunner {
   public static final String URN = "beam:internal:sampling:v1";
@@ -59,7 +60,8 @@ public class DataSamplingFnRunner {
     public DataSamplingFnRunner createRunnerForPTransform(Context context) throws IOException {
       DataSamplingFnRunner runner = new DataSamplingFnRunner();
 
-      // This is only present when the "enable_data_sampling" experiment is used. Returns a NOOP runner if Datasampling is disabled.
+      // This is only present when the "enable_data_sampling" experiment is used. Returns a NOOP
+      // runner if Datasampling is disabled.
       Optional<DataSampler> maybeDataSampler = context.getDataSampler();
       if (!maybeDataSampler.isPresent()) {
         LOG.warn(

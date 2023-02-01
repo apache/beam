@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.hasEntry;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -32,7 +31,8 @@ import org.junit.runners.JUnit4;
 public class DataSamplingDescriptorModifierTest {
 
   /**
-   * Tests that given a ProcessBundleDescriptor, the correct graph modification is done to create a DataSampling PTransform.
+   * Tests that given a ProcessBundleDescriptor, the correct graph modification is done to create a
+   * DataSampling PTransform.
    */
   @Test
   public void testThatDataSamplingTransformIsMade() {
