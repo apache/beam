@@ -21,6 +21,7 @@ sdk:
   - Java
   - Python
   - Go
-content:
-  - introduction
-  - triggers
+complexity: ADVANCED
+id: data-driven-trigger
+name: Data driven trigger
+taskName: data-driven-trigger
