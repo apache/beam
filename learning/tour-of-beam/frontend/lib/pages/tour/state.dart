@@ -81,7 +81,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   bool get hasSolution => currentUnitContent?.solutionSnippetId != null;
   bool get hasSavedSnippet =>
-      _unitProgressCache.getUnitSnippets()[currentUnitId] != null;
+      _unitProgressCache.unitProgressByUnitId[currentUnitId]?.userSnippetId !=
+      null;
 
   SnippetType _snippetType = SnippetType.original;
   SnippetType get snippetType => _snippetType;
@@ -144,7 +145,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         snippetFiles: snippetFiles,
         unitId: unitId,
       );
-      await _checkHasSavedSnippet();
+      await _updateHasSavedSnippet();
       saveCodeStatus = SaveCodeStatus.saved;
     } on Exception catch (e) {
       print(['Could not save code: ', e]);
@@ -153,12 +154,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> setSnippetByTypeIfChanged(SnippetType snippetType) async {
-    if (snippetType != _snippetType) {
-      _snippetType = snippetType;
-      await _unitProgressCache.updateUnitProgress();
-      await _setCurrentSnippet();
-      notifyListeners();
+    if (snippetType == _snippetType) {
+      return;
     }
+    _snippetType = snippetType;
+    await _unitProgressCache.updateUnitProgress();
+    await _setCurrentSnippet();
+    notifyListeners();
   }
 
   void _createCurrentUnitController(String sdkId, String unitId) {
@@ -210,13 +212,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       return;
     }
 
-    await _checkHasSavedSnippet();
+    await _updateHasSavedSnippet();
     _setSavedTypeIfHas();
     await _setCurrentSnippet();
     notifyListeners();
   }
 
-  Future<void> _checkHasSavedSnippet() async {
+  Future<void> _updateHasSavedSnippet() async {
     if (!hasSavedSnippet) {
       await _unitProgressCache.updateUnitProgress();
     }
@@ -240,8 +242,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         snippetId = unit.taskSnippetId;
         break;
       case SnippetType.saved:
-        snippetId =
-            _unitProgressCache.getUnitSnippets()[unit.id] ?? unit.taskSnippetId;
+        snippetId = _unitProgressCache
+                .unitProgressByUnitId[currentUnitId]?.userSnippetId ??
+            unit.taskSnippetId;
         break;
       case SnippetType.solution:
         snippetId = unit.solutionSnippetId;

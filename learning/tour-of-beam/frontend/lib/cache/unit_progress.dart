@@ -36,7 +36,9 @@ class UnitProgressCache extends Cache {
   final _completedUnitIds = <String>{};
   final _updatingUnitIds = <String>{};
 
-  final _userSnippetIdsByUnitId = <String, String?>{};
+  final _unitProgressByUnitId = <String, UnitProgressModel>{};
+  Map<String, UnitProgressModel> get unitProgressByUnitId =>
+      _unitProgressByUnitId;
 
   Future<void> updateUnitProgress() async {
     final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
@@ -59,6 +61,9 @@ class UnitProgressCache extends Cache {
 
     if (result != null) {
       _unitProgress = result.units;
+      for (final unitProgress in _unitProgress) {
+        _unitProgressByUnitId[unitProgress.id] = unitProgress;
+      }
     } else {
       _unitProgress = [];
     }
@@ -112,15 +117,5 @@ class UnitProgressCache extends Cache {
       return UnitCompletion.completed;
     }
     return UnitCompletion.uncompleted;
-  }
-
-  // Snippets
-
-  Map<String, String?> getUnitSnippets() {
-    _userSnippetIdsByUnitId.clear();
-    for (final unitProgress in getUnitProgress()) {
-      _userSnippetIdsByUnitId[unitProgress.id] = unitProgress.userSnippetId;
-    }
-    return _userSnippetIdsByUnitId;
   }
 }

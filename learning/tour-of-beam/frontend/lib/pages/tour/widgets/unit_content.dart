@@ -145,6 +145,7 @@ class _Buttons extends StatelessWidget {
   });
 
   static const _buttonPadding = EdgeInsets.only(
+    top: BeamSizes.size10,
     right: BeamSizes.size10,
   );
 
@@ -153,6 +154,7 @@ class _Buttons extends StatelessWidget {
     final hints = unitContent.hints;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         _SnippetTypeSwitcher(
