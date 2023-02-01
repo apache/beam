@@ -28,4 +28,4 @@ if [[ "$1" = "reverseproxy" ]]; then
   done
 fi
 
-gosu mitmproxy mitmdump -s /home/mitmproxy/allow_list_proxy.py -p 8080
+gosu mitmproxy mitmdump -s /home/mitmproxy/allow_list_proxy.py -p 8080 --ignore-hosts "storage.googleapis.com"

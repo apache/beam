@@ -27,11 +27,3 @@ ALLOWED_LIST = [
     "github.com",
     "packages.confluent.io",
 ]
-
-# ALLOWED_BUCKET_LIST contains all public Google Cloud Storage buckets
-# that are allowed to make requests from Beam Playground
-ALLOWED_BUCKET_LIST = [
-    "dataflow-samples",
-    "beam-samples",
-    "apache-beam-samples",
-]
