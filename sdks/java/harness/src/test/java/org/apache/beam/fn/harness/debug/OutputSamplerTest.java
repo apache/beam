@@ -39,6 +39,10 @@ public class OutputSamplerTest {
     return stream.toByteArray();
   }
 
+  /**
+   * Test that the first N are always sampled.
+   * @throws Exception when encoding fails (shouldn't happen).
+   */
   @Test
   public void testSamplesFirstN() throws Exception {
     DataSampler sampler = new DataSampler(10, 10);
@@ -47,10 +51,12 @@ public class OutputSamplerTest {
     OutputSampler<Integer> outputSampler =
         sampler.sampleOutput("descriptor-id", "pcollection-id", coder);
 
+    // Purposely go over maxSamples and sampleEveryN. This helps to increase confidence.
     for (int i = 0; i < 15; ++i) {
       outputSampler.sample(i);
     }
 
+    // The expected list is only 0..9 inclusive.
     List<byte[]> expected = new ArrayList<>();
     for (int i = 0; i < 10; ++i) {
       expected.add(encodeInt(i));
@@ -60,6 +66,10 @@ public class OutputSamplerTest {
     assertThat(samples.get("pcollection-id"), containsInAnyOrder(expected.toArray()));
   }
 
+  /**
+   * Test that the previous values are overwritten and only the most recent `maxSamples` are kept.
+   * @throws Exception when encoding fails (shouldn't happen).
+   */
   @Test
   public void testActsLikeCircularBuffer() throws Exception {
     DataSampler sampler = new DataSampler(5, 20);
@@ -72,6 +82,8 @@ public class OutputSamplerTest {
       outputSampler.sample(i);
     }
 
+    // The first 10 are always sampled, but with maxSamples = 5, the first ten are downsampled to 4..9 inclusive. Then,
+    // the 20th element is sampled (19) and every 20 after.
     List<byte[]> expected = new ArrayList<>();
     expected.add(encodeInt(19));
     expected.add(encodeInt(39));

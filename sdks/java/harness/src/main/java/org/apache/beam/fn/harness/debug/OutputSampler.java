@@ -24,6 +24,11 @@ import org.apache.beam.sdk.coders.Coder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This class holds samples for a single PCollection until queried by the parent DataSampler. This class is meant to hold
+ * only a limited number of elements in memory. So old values are constantly being overridden in a circular buffer.
+ * @param <T> the element type of the PCollection.
+ */
 public class OutputSampler<T> {
   private final Coder<T> coder;
   private final List<T> buffer = new ArrayList<>();
@@ -51,6 +56,10 @@ public class OutputSampler<T> {
     this.sampleEveryN = sampleEveryN;
   }
 
+  /**
+   * Samples every 1000th element or if it is part of the first 10 in the (local) PCollection.
+   * @param element the element to sample.
+   */
   public void sample(T element) {
     // Only sample the first 10 elements then after every `sampleEveryN`th element.
     numSamples += 1;
@@ -68,6 +77,10 @@ public class OutputSampler<T> {
     }
   }
 
+  /**
+   * Clears samples at end of call. This is to help mitigate memory use.
+   * @return samples taken since last call.
+   */
   public List<byte[]> samples() {
     List<byte[]> ret = new ArrayList<>();
     ByteArrayOutputStream stream = new ByteArrayOutputStream();

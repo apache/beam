@@ -33,11 +33,8 @@ public class DataSamplingDescriptorModifier implements ProcessBundleDescriptorMo
 
     // Get all PCollections to modify.
     for (String pcollectionId : pbd.getPcollectionsMap().keySet()) {
-      RunnerApi.PCollection pcollection = pbd.getPcollectionsMap().get(pcollectionId);
-      String coderId = pcollection.getCoderId();
-      String transformId = "synthetic-data-sampling-transform-" + pcollectionId;
-
       // Create a new DataSampling PTransform that consumes that given PCollection.
+      String transformId = "synthetic-data-sampling-transform-" + pcollectionId;
       builder.putTransforms(
           transformId,
           RunnerApi.PTransform.newBuilder()

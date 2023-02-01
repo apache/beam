@@ -30,36 +30,58 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class DataSamplingDescriptorModifierTest {
+
+  /**
+   * Tests that given a ProcessBundleDescriptor, the correct graph modification is done to create a DataSampling PTransform.
+   */
   @Test
-  public void testSimple() throws Exception {
+  public void testThatDataSamplingTransformIsMade() {
     DataSamplingDescriptorModifier modifier = new DataSamplingDescriptorModifier();
 
-    final String PCOLLECTION_ID = "pcollection-id";
-    final String CODER_ID = "coder-id";
+    final String PCOLLECTION_ID_A = "pcollection-id-a";
+    final String PCOLLECTION_ID_B = "pcollection-id-b";
+    final String CODER_ID_A = "coder-id-a";
+    final String CODER_ID_B = "coder-id-b";
     BeamFnApi.ProcessBundleDescriptor descriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
             .putPcollections(
-                PCOLLECTION_ID,
+                PCOLLECTION_ID_A,
                 RunnerApi.PCollection.newBuilder()
-                    .setUniqueName(PCOLLECTION_ID)
-                    .setCoderId(CODER_ID)
+                    .setUniqueName(PCOLLECTION_ID_A)
+                    .setCoderId(CODER_ID_A)
+                    .build())
+            .putPcollections(
+                PCOLLECTION_ID_B,
+                RunnerApi.PCollection.newBuilder()
+                    .setUniqueName(PCOLLECTION_ID_B)
+                    .setCoderId(CODER_ID_B)
                     .build())
             .putCoders(
-                CODER_ID,
+                CODER_ID_A,
+                RunnerApi.Coder.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DataSamplingFnRunner.URN))
+                    .build())
+            .putCoders(
+                CODER_ID_B,
                 RunnerApi.Coder.newBuilder()
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DataSamplingFnRunner.URN))
                     .build())
             .build();
 
-    BeamFnApi.ProcessBundleDescriptor modified = modifier.ModifyProcessBundleDescriptor(descriptor);
-    assertThat(modified.getTransformsCount(), equalTo(1));
+    final String PTRANSFORM_ID_A = "synthetic-data-sampling-transform-" + PCOLLECTION_ID_A;
+    final String PTRANSFORM_ID_B = "synthetic-data-sampling-transform-" + PCOLLECTION_ID_B;
 
-    RunnerApi.PTransform samplingTransform =
-        Iterables.getOnlyElement(modified.getTransformsMap().values());
-    assertThat(
-        samplingTransform.getUniqueName(),
-        equalTo("synthetic-data-sampling-transform-" + PCOLLECTION_ID));
-    assertThat(samplingTransform.getSpec().getUrn(), equalTo(DataSamplingFnRunner.URN));
-    assertThat(samplingTransform.getInputsMap(), hasEntry("main", PCOLLECTION_ID));
+    BeamFnApi.ProcessBundleDescriptor modified = modifier.ModifyProcessBundleDescriptor(descriptor);
+    assertThat(modified.getTransformsCount(), equalTo(2));
+
+    RunnerApi.PTransform samplingTransformA = modified.getTransformsMap().get(PTRANSFORM_ID_A);
+    assertThat(samplingTransformA.getUniqueName(), equalTo(PTRANSFORM_ID_A));
+    assertThat(samplingTransformA.getSpec().getUrn(), equalTo(DataSamplingFnRunner.URN));
+    assertThat(samplingTransformA.getInputsMap(), hasEntry("main", PCOLLECTION_ID_A));
+
+    RunnerApi.PTransform samplingTransformB = modified.getTransformsMap().get(PTRANSFORM_ID_B);
+    assertThat(samplingTransformB.getUniqueName(), equalTo(PTRANSFORM_ID_B));
+    assertThat(samplingTransformB.getSpec().getUrn(), equalTo(DataSamplingFnRunner.URN));
+    assertThat(samplingTransformB.getInputsMap(), hasEntry("main", PCOLLECTION_ID_B));
   }
 }
