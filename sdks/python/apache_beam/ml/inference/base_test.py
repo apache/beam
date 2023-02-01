@@ -477,8 +477,8 @@ class RunInferenceBaseTest(unittest.TestCase):
             window.FixedWindows(main_input_windowing_interval))
         | "RunInference" >> base.RunInference(
             model_handler, model_metadata_pcoll=side_input)
-        | beam.Map(print))
-    print(time.time())
+        | beam.Map(logging.info))
+
     test_pipeline.run().wait_until_finish()
 
     expected_model_id_order = [
