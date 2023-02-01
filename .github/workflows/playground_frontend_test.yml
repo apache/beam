@@ -32,7 +32,7 @@ concurrency:
 jobs:
   playground_frontend_test:
     name: Playground Frontend Test
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: ubuntu-latest
 
     env:
       FLUTTER_VERSION: '3.3.2'
