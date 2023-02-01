@@ -103,7 +103,7 @@ def run(
   # TODO: Remove once nested tensors https://github.com/pytorch/nestedtensor
   # is officially released.
   class OnnxNoBatchModelHandler(OnnxModelHandlerNumpy):
-    """Wrapper to PytorchModelHandler to limit batch size to 1.
+    """Wrapper to OnnxModelHandlerNumpy to limit batch size to 1.
 
     The tokenized strings generated from RobertaTokenizer may have different
     lengths, which doesn't work with torch.stack() in current RunInference
@@ -123,22 +123,7 @@ def run(
 
   tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
 
-  if not known_args.input:
-    text = (pipeline | 'CreateSentences' >> beam.Create([
-      'A comedy-drama of nearly epic proportions rooted in a sincere performance by the title character undergoing midlife crisis .', # pylint: disable=line-too-long
-      'There \'s little to recommend Snow Dogs , unless one considers cliched dialogue and perverse escapism a source of high hilarity .', # pylint: disable=line-too-long
-      'It is a terrible movie .',
-      'A welcome relief from baseball movies that try too hard to be mythic , this one is a sweet and modest and ultimately winning story .', # pylint: disable=line-too-long
-      'It almost feels as if the movie is more interested in entertaining itself than in amusing us .', # pylint: disable=line-too-long
-      'Cliche. Not worth watching .',
-      'I \'m sure the filmmaker would disagree , but , honestly , I don\'t see the point .', # pylint: disable=line-too-long
-      'Such a waste of time .',
-      'There is no storyline .',
-      'A very funny romantic comedy .',
-    ]))
-  else:
-    text = (
-        pipeline | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
+  text = (pipeline | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))
   text_and_tokenized_text_tuple = (
       text
       | 'FilterEmptyLines' >> beam.ParDo(filter_empty_lines)
@@ -148,10 +133,8 @@ def run(
       text_and_tokenized_text_tuple
       | 'PyTorchRunInference' >> RunInference(KeyedModelHandler(model_handler))
       | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
-  output | "WriteOutput" >> beam.io.WriteToText( # pylint: disable=expression-not-assigned
-    known_args.output,
-    shard_name_template='',
-    append_trailing_newlines=True)
+  _ = output | "WriteOutput" >> beam.io.WriteToText(
+      known_args.output, shard_name_template='', append_trailing_newlines=True)
 
   result = pipeline.run()
   result.wait_until_finish()

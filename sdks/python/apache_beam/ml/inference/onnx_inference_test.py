@@ -329,7 +329,7 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
       examples = self.test_data_and_model.get_one_feature_samples()
       expected_predictions = self.test_data_and_model \
                                  .get_one_feature_predictions()
-      gs_path = 'gs://ziqi-bucket1/torch_2xplus5_onnx'
+      gs_path = 'gs://apache-beam-ml/models/torch_2xplus5_onnx'
       # first need to download model from remote
       model_handler = TestOnnxModelHandler(gs_path)
 
@@ -384,7 +384,7 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
       examples = self.test_data_and_model.get_one_feature_samples()
       expected_predictions = self.test_data_and_model \
                                  .get_one_feature_predictions()
-      gs_path = 'gs://ziqi-bucket1/tf_2xplus5_onnx'
+      gs_path = 'gs://apache-beam-ml/models/tf_2xplus5_onnx'
 
       model_handler = TestOnnxModelHandler(gs_path)
 
@@ -443,7 +443,7 @@ class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
                      .get_one_feature_samples()
       expected_predictions = self.test_data_and_model \
                                  .get_one_feature_predictions()
-      gs_path = 'gs://ziqi-bucket1/skl_2xplus5_onnx'
+      gs_path = 'gs://apache-beam-ml/models/skl_2xplus5_onnx'
 
       model_handler = TestOnnxModelHandler(gs_path)
       pcoll = pipeline | 'start' >> beam.Create(examples)

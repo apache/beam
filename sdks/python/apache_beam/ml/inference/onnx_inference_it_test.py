@@ -52,11 +52,13 @@ class OnnxInference(unittest.TestCase):
   def test_onnx_run_inference_roberta_sentiment_classification(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some sentences
-    file_of_sentences = 'gs://ziqi-bucket1/sentiment_classification_input.txt'
+    file_of_sentences = 'gs://apache-beam-ml/testing/inputs/onnx/' \
+                        'sentiment_classification_input.txt'
     output_file_dir = 'local/sentiment_classification/output'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
-    model_uri = 'gs://ziqi-bucket1/roberta_sentiment_classification.onnx'
+    model_uri = 'gs://apache-beam-ml/models/' \
+                'roberta_sentiment_classification.onnx'
     extra_opts = {
         'input': file_of_sentences,
         'output': output_file,
@@ -68,7 +70,9 @@ class OnnxInference(unittest.TestCase):
 
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = process_outputs(filepath=output_file)
-    actuals_file = 'gs://ziqi-bucket1/sentiment_classification_expected_output.txt'  # pylint: disable=line-too-long
+    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/' \
+                   'test_onnx_run_inference_roberta_sentiment' \
+                   '_classification_actuals.txt'
     actuals = process_outputs(filepath=actuals_file)
 
     predictions_dict = {}
