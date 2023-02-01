@@ -86,5 +86,6 @@ jobs:
 
       - name: 'Integration tests'
         run: |
+          cp playground/frontend/lib/config.example.dart playground/frontend/lib/config.g.dart
           chromedriver --port=4444 &
-          ./gradlew :playground:frontend:integrationTest
+          ./gradlew :playground:frontend:integrationTest -PdeviceId=web-server
