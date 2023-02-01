@@ -12,7 +12,8 @@
     "js-yaml": "^4.1.0",
     "mocha": "^9.1.3",
     "prettier": "^2.5.1",
-    "typescript": "^4.5.4"
+    "typedoc": "^0.23.23",
+    "typescript": "4.7"
   },
   "files": [
     "dist"
@@ -27,6 +28,7 @@
     "pretest": "npm run build",
     "test": "mocha dist/test dist/test/docs",
     "codecovTest": "istanbul cover mocha dist/test --reporter lcovonly -- -R spec && codecov",
+    "docs": "typedoc",
     "prettier": "prettier --write src/",
     "prettier-check": "prettier --check src/",
     "lint": "eslint . --ext .ts"

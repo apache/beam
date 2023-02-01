@@ -16,12 +16,31 @@
  * limitations under the License.
  */
 
+/**
+ * Utilities for invoking Python transforms on PCollections.
+ *
+ * See also https://beam.apache.org/documentation/programming-guide/#1324-using-cross-language-transforms-in-a-typescript-pipeline
+ *
+ * @packageDocumentation
+ */
+
 import * as beam from "../../apache_beam";
 import { StrUtf8Coder } from "../coders/standard_coders";
 import * as external from "../transforms/external";
 import { PythonService } from "../utils/service";
 import * as row_coder from "../coders/row_coder";
 
+/**
+ * Returns a PTransform applying a Python transform (typically identified by
+ * fully qualified name) to a PCollection, e.g.
+ *
+ *```js
+ * const input_pcoll = ...
+ * const output_pcoll = input_pcoll.apply(
+ *     pythonTransform("beam.Map", [pythonCallable("str.upper")]));
+ *```
+ * See also https://beam.apache.org/documentation/programming-guide/#1324-using-cross-language-transforms-in-a-typescript-pipeline
+ */
 export function pythonTransform<
   InputT extends beam.PValue<any>,
   OutputT extends beam.PValue<any>
@@ -65,6 +84,22 @@ export function pythonTransform<
   );
 }
 
+/**
+ * A type representing a Python callable as a string.
+ *
+ * Supported formats include fully-qualified names such as `math.sin`,
+ * expressions such as `lambda x: x * x` or `str.upper`, and multi-line function
+ * definitions such as `def foo(x): ...` or class definitions like
+ * `class Foo(...): ...`. If the source string contains multiple lines then lines
+ * prior to the last will be evaluated to provide the context in which to
+ * evaluate the expression, for example::
+ *```py
+ *    import math
+ *
+ *    lambda x: x - math.sin(x)
+ *```
+ * is a valid chunk of source code.
+ */
 export function pythonCallable(expr: string) {
   return { expr, beamLogicalType: "beam:logical_type:python_callable:v1" };
 }
