@@ -17,15 +17,15 @@
  */
 
 //   beam-playground:
-//   name: CoreTransformsChallenge4
-//   description: Core Transforms fourth motivating challenge.
-//   multifile: false
-//   context_line: 44
-//   categories:
-//     - Quickstart
-//   complexity: BASIC
-//   tags:
-//     - hellobeam
+//     name: CoreTransformsChallenge4
+//     description: Core Transforms fourth motivating challenge.
+//     multifile: false
+//     context_line: 44
+//     categories:
+//       - Quickstart
+//     complexity: BASIC
+//     tags:
+//       - hellobeam
 
 package main
 

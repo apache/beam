@@ -15,15 +15,15 @@
 #   limitations under the License.
 
 #   beam-playground:
-#   name: CoreTransformsChallenge1
-#   description: Core Transforms first motivating challenge.
-#   multifile: false
-#   context_line: 31
-#   categories:
-#     - Quickstart
-#   complexity: BASIC
-#   tags:
-#     - hellobeam
+#     name: CoreTransformsChallenge1
+#     description: Core Transforms first motivating challenge.
+#     multifile: false
+#     context_line: 31
+#     categories:
+#       - Quickstart
+#     complexity: BASIC
+#     tags:
+#       - hellobeam
 
 import apache_beam as beam
 

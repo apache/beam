@@ -14,11 +14,11 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-#   beam-playground:
+# beam-playground:
 #   name: CoreTransformsChallenge4
 #   description: Core Transforms fourth motivating challenge.
 #   multifile: false
-#   context_line: 23
+#   context_line: 28
 #   categories:
 #     - Quickstart
 #   complexity: BASIC

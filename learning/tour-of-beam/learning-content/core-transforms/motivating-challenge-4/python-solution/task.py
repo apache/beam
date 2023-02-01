@@ -14,11 +14,11 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-#   beam-playground:
+# beam-playground:
 #   name: CoreTransformsSolution4
 #   description: Core Transforms fourth motivating solution.
 #   multifile: false
-#   context_line: 31
+#   context_line: 30
 #   categories:
 #     - Quickstart
 #   complexity: BASIC

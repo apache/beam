@@ -17,15 +17,15 @@
  */
 
 //   beam-playground:
-//   name: CoreTransformsSolution2
-//   description: Core Transforms second motivating challenge.
-//   multifile: false
-//   context_line: 44
-//   categories:
-//     - Quickstart
-//   complexity: BASIC
-//   tags:
-//     - hellobeam
+//     name: CoreTransformsSolution2
+//     description: Core Transforms second motivating challenge.
+//     multifile: false
+//     context_line: 44
+//     categories:
+//       - Quickstart
+//     complexity: BASIC
+//     tags:
+//       - hellobeam
 
 package main
 
