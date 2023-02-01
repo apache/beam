@@ -81,3 +81,10 @@ jobs:
       - name: 'Test playground'
         working-directory: playground/frontend
         run: flutter test
+
+      - uses: nanasess/setup-chromedriver@v1
+
+      - name: 'Integration tests'
+        run: |
+          chromedriver --port=4444 &
+          ./gradlew :playground:frontend:integrationTest
