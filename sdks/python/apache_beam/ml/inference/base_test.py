@@ -413,7 +413,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         'singleton view. First two elements encountered are' in str(
             e.exception))
 
-  @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner_1
   def test_run_inference_empty_side_input(self):
     pipeline = TestPipeline(is_integration_test=True)
     side_pcoll = pipeline | "side" >> beam.Create([])
@@ -425,7 +425,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           | base.RunInference(model_handler, model_metadata_pcoll=side_pcoll)
           | beam.Map(logging.info))
 
-  @pytest.mark.it_validatesrunner
+  @pytest.mark.it_validatesrunner_1
   def test_run_inference_prediction_result_with_side_input(self):
     test_pipeline = TestPipeline()
 

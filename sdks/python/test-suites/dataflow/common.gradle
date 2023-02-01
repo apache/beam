@@ -201,7 +201,7 @@ task validatesRunnerBatchTests {
           "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
           "sdk_location": files(configurations.distTarBall.files).singleFile,
           "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
-          "collect": "it_validatesrunner and not no_sickbay_batch"
+          "collect": "it_validatesrunner_1 and not no_sickbay_batch"
           ]
 
   if (project.hasProperty('useRunnerV2')) {
