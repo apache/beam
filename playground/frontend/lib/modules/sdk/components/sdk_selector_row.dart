@@ -25,11 +25,10 @@ class SdkSelectorRow extends StatelessWidget {
   final Sdk sdk;
   final VoidCallback onSelect;
 
-  const SdkSelectorRow({
-    Key? key,
+  SdkSelectorRow({
     required this.sdk,
     required this.onSelect,
-  }) : super(key: key);
+  }) : super(key: ValueKey(sdk));
 
   @override
   Widget build(BuildContext context) {

@@ -229,6 +229,14 @@ task torchInferenceTest {
 task sklearnInferenceTest {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
+  // TODO(https://github.com/apache/beam/issues/24787)
+  // Scikit learn tests fails from version 1.2.0
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install 'scikit-learn<1.2.0'"
+      }
+    }
   doLast {
       def testOpts = basicTestOpts
       def argMap = [

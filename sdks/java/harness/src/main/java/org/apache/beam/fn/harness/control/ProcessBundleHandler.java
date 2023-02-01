@@ -77,7 +77,7 @@ import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
-import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -538,7 +538,7 @@ public class ProcessBundleHandler {
                       + bundleProcessor.getInboundObserver().getUnfinishedEndpoints());
             }
           } else if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
-            BeamFnDataInboundObserver2 observer = bundleProcessor.getInboundObserver();
+            BeamFnDataInboundObserver observer = bundleProcessor.getInboundObserver();
             beamFnDataClient.registerReceiver(
                 request.getInstructionId(),
                 bundleProcessor.getInboundEndpointApiServiceDescriptors(),
@@ -1122,16 +1122,16 @@ public class ProcessBundleHandler {
       return this.bundleCache;
     }
 
-    private BeamFnDataInboundObserver2 inboundObserver2;
+    private BeamFnDataInboundObserver inboundObserver2;
 
-    BeamFnDataInboundObserver2 getInboundObserver() {
+    BeamFnDataInboundObserver getInboundObserver() {
       return inboundObserver2;
     }
 
     /** Finishes construction of the {@link BundleProcessor}. */
     void finish() {
       inboundObserver2 =
-          BeamFnDataInboundObserver2.forConsumers(getInboundDataEndpoints(), getTimerEndpoints());
+          BeamFnDataInboundObserver.forConsumers(getInboundDataEndpoints(), getTimerEndpoints());
       for (BeamFnDataOutboundAggregator aggregator : getOutboundAggregators().values()) {
         aggregator.start();
       }

@@ -59,14 +59,9 @@ import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.Schema;
@@ -436,18 +431,11 @@ public class PubsubGrpcClient extends PubsubClient {
     return false;
   }
 
-  /** Create {@link com.google.pubsub.v1.Schema} from resource path. */
+  /** Create {@link com.google.pubsub.v1.Schema} from Schema definition content. */
   @Override
   public void createSchema(
-      SchemaPath schemaPath, String resourcePath, com.google.pubsub.v1.Schema.Type type)
+      SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)
       throws IOException {
-
-    Path path =
-        FileSystems.getDefault()
-            .getPath(
-                Objects.requireNonNull(PubsubGrpcClient.class.getResource(resourcePath)).getPath());
-    byte[] b = Files.readAllBytes(path);
-    String definition = new String(b, StandardCharsets.UTF_8);
 
     CreateSchemaRequest request =
         CreateSchemaRequest.newBuilder()
@@ -456,7 +444,7 @@ public class PubsubGrpcClient extends PubsubClient {
             .setSchema(
                 com.google.pubsub.v1.Schema.newBuilder()
                     .setType(type)
-                    .setDefinition(definition)
+                    .setDefinition(schemaContent)
                     .build())
             .build();
 

@@ -22,8 +22,13 @@ import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground_components/playground_components.dart';
 import 'package:usage/usage_html.dart';
 
+import 'analytics_event.dart';
+
 class GoogleAnalyticsService implements AnalyticsService {
   final _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
+
+  @override
+  AnalyticsEvent? lastSentEvent;
 
   @override
   void trackSelectSdk(Sdk? oldSdk, Sdk newSdk) {
@@ -133,6 +138,13 @@ class GoogleAnalyticsService implements AnalyticsService {
       _analytics.sendEvent(
         category,
         action,
+        label: label,
+        value: value,
+        parameters: parameters,
+      );
+      lastSentEvent = AnalyticsEvent(
+        category: category,
+        action: action,
         label: label,
         value: value,
         parameters: parameters,

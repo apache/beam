@@ -27,6 +27,9 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^model/.*$',
       '^sdks/python/.*$',
       '^release/.*$',
+    ],
+    gradleSwitches: [
+      '-Pposargs=\"--ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/\"' // All these tests are covered by different jobs.
     ]
     )
 builder.build {

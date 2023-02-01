@@ -163,7 +163,7 @@ final kLightTheme = ThemeData(
         fontSize: codeFontSize,
       ),
       codeTheme: CodeThemeData(
-        styles: {
+        styles: const {
           'root': TextStyle(
             backgroundColor: BeamLightThemeColors.primaryBackground,
             color: BeamLightThemeColors.text,
@@ -194,8 +194,8 @@ final kLightTheme = ThemeData(
           'symbol': TextStyle(color: BeamLightThemeColors.code2),
           'bullet': TextStyle(color: BeamLightThemeColors.code2),
           'link': TextStyle(color: BeamLightThemeColors.code2),
-          'emphasis': const TextStyle(fontStyle: FontStyle.italic),
-          'strong': const TextStyle(fontWeight: FontWeight.bold),
+          'emphasis': TextStyle(fontStyle: FontStyle.italic),
+          'strong': TextStyle(fontWeight: FontWeight.bold),
         },
       ),
     ),
@@ -239,7 +239,7 @@ final kDarkTheme = ThemeData(
         fontSize: codeFontSize,
       ),
       codeTheme: CodeThemeData(
-        styles: {
+        styles: const {
           'root': TextStyle(
             backgroundColor: BeamDarkThemeColors.primaryBackground,
             color: BeamDarkThemeColors.text,
@@ -270,8 +270,8 @@ final kDarkTheme = ThemeData(
           'symbol': TextStyle(color: BeamDarkThemeColors.code2),
           'bullet': TextStyle(color: BeamDarkThemeColors.code2),
           'link': TextStyle(color: BeamDarkThemeColors.code2),
-          'emphasis': const TextStyle(fontStyle: FontStyle.italic),
-          'strong': const TextStyle(fontWeight: FontWeight.bold),
+          'emphasis': TextStyle(fontStyle: FontStyle.italic),
+          'strong': TextStyle(fontWeight: FontWeight.bold),
         },
       ),
     ),
@@ -421,8 +421,8 @@ MarkdownStyleSheet _getMarkdownStyle(Brightness brightness) {
   return MarkdownStyleSheet(
     p: textTheme.bodyMedium,
     pPadding: EdgeInsets.only(top: BeamSizes.size2),
-    h1: textTheme.headlineLarge,
-    h3: textTheme.headlineMedium,
+    h1: textTheme.headlineMedium,
+    h3: textTheme.headlineSmall,
     h3Padding: EdgeInsets.only(top: BeamSizes.size4),
     code: GoogleFonts.sourceCodePro(
       color: textColor,

@@ -41,14 +41,17 @@ public class BigQueryPerfTable extends BigQueryTable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    return super.buildIOReader(begin).apply(ParDo.of(new RowMonitor(namespace, metric)));
+    return super.buildIOReader(begin)
+        .apply(ParDo.of(new RowMonitor(namespace, metric)))
+        .setRowSchema(this.schema);
   }
 
   @Override
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
     return super.buildIOReader(begin, filters, fieldNames)
-        .apply(ParDo.of(new RowMonitor(namespace, metric)));
+        .apply(ParDo.of(new RowMonitor(namespace, metric)))
+        .setRowSchema(this.schema);
   }
 
   /** Monitor that records the number of Fields in each Row read from an IO. */

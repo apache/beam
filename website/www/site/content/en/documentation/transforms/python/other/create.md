@@ -18,7 +18,7 @@ limitations under the License.
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Create">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
+      <img src="/images/logos/sdks/python.png" width="20px" height="20px"
            alt="Pydoc" />
      Pydoc
     </a>

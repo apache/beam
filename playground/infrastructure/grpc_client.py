@@ -32,8 +32,9 @@ from models import SdkEnum
 class GRPCClient:
     """GRPCClient is gRPC client for sending a request to the backend."""
 
-    def __init__(self, timeout=10, wait_for_ready=True):
+    def __init__(self, wait_for_ready=True):
         use_webgrpc = os.getenv("BEAM_USE_WEBGRPC", False)
+        timeout = os.getenv("GRPC_TIMEOUT", 10)
         if use_webgrpc:
             self._channel = sonora.aio.insecure_web_channel(Config.SERVER_ADDRESS)
         else:
@@ -110,12 +111,13 @@ class GRPCClient:
         response = await self._stub.GetRunError(request, **self._kwargs)
         return response.output
 
-    async def get_run_output(self, pipeline_uuid: str) -> str:
+    async def get_run_output(self, pipeline_uuid: str, example_filepath: str) -> str:
         """
         Get the result of pipeline execution.
 
         Args:
             pipeline_uuid: uuid of the pipeline
+            example_filepath: path to the file of the example
 
         Returns:
             output: contain the result of pipeline execution
@@ -123,14 +125,17 @@ class GRPCClient:
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.GetRunOutputRequest(pipeline_uuid=pipeline_uuid)
         response = await self._stub.GetRunOutput(request, **self._kwargs)
+        if response.output == "":
+            logging.info("Run output for %s is empty", example_filepath)
         return response.output
 
-    async def get_log(self, pipeline_uuid: str) -> str:
+    async def get_log(self, pipeline_uuid: str, example_filepath: str) -> str:
         """
         Get the result of pipeline execution.
 
         Args:
             pipeline_uuid: uuid of the pipeline
+            example_filepath: path to the file of the example
 
         Returns:
             output: contain the result of pipeline execution
@@ -138,6 +143,8 @@ class GRPCClient:
         self._verify_pipeline_uuid(pipeline_uuid)
         request = api_pb2.GetLogsRequest(pipeline_uuid=pipeline_uuid)
         response = await self._stub.GetLogs(request, **self._kwargs)
+        if response.output == "":
+            logging.info("Log for %s is empty", example_filepath)
 
         return response.output
 

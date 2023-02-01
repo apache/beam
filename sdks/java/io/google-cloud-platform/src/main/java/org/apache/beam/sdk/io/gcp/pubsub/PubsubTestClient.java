@@ -626,7 +626,7 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
 
   @Override
   public void createSchema(
-      SchemaPath schemaPath, String resourcePath, com.google.pubsub.v1.Schema.Type type)
+      SchemaPath schemaPath, String schemaContent, com.google.pubsub.v1.Schema.Type type)
       throws IOException {
     throw new UnsupportedOperationException();
   }

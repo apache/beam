@@ -71,8 +71,8 @@ class Verifier:
                 example.compile_output = await client.get_compile_output(
                     example.pipeline_id
                 )
-                example.output = await client.get_run_output(example.pipeline_id)
-                example.logs = await client.get_log(example.pipeline_id)
+                example.output = await client.get_run_output(example.pipeline_id, example.filepath)
+                example.logs = await client.get_log(example.pipeline_id, example.filepath)
                 if example.sdk in [SDK_JAVA, SDK_PYTHON]:
                     example.graph = await client.get_graph(
                         example.pipeline_id, example.filepath

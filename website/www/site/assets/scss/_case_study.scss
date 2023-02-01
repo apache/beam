@@ -125,6 +125,7 @@
 
   .case-study-card-img img {
     height: 50px;
+    object-fit: scale-down;
     @media (min-width: $mobile) and (max-width: $tablet) {
       object-fit: contain;
     }
@@ -362,6 +363,9 @@ h2.case-study-h2 {
         }
       }
     }
+    .pb-0 {
+      padding-bottom: 30px;
+    }
   }
 
   .case-study-post {
@@ -383,6 +387,15 @@ h2.case-study-h2 {
       img {
         max-width: 480px;
       }
+    }
+  }
+
+  .post-scheme--centered {
+    margin-left: auto;
+    margin-right: auto;
+
+    img {
+      width: 70%;
     }
   }
 

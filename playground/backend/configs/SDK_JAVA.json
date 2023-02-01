@@ -5,6 +5,7 @@
   "compile_args": [
     "-d",
     "bin",
+    "-parameters",
     "-classpath"
   ],
   "run_args": [

@@ -106,6 +106,19 @@ class PythonCallableWithSource(object):
     exec('\n'.join(lines), exec_globals)
     return exec_globals[name]
 
+  def default_label(self):
+    src = self._source.strip()
+    last_line = src.split('\n')[-1]
+    if last_line[0] != ' ' and len(last_line) < 72:
+      return last_line
+    # Avoid circular import.
+    from apache_beam.transforms.ptransform import label_from_callable
+    return label_from_callable(self._callable)
+
+  @property
+  def _argspec_fn(self):
+    return self._callable
+
   def get_source(self):
     # type: () -> str
     return self._source

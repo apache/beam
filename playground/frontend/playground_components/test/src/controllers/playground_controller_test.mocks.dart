@@ -22,8 +22,7 @@ import 'package:playground_components/src/models/example_loading_descriptors/exa
     as _i8;
 import 'package:playground_components/src/models/loading_status.dart' as _i12;
 import 'package:playground_components/src/models/sdk.dart' as _i9;
-import 'package:playground_components/src/repositories/models/shared_file.dart'
-    as _i13;
+import 'package:playground_components/src/models/snippet_file.dart' as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -175,7 +174,7 @@ class MockExampleCache extends _i1.Mock implements _i10.ExampleCache {
       ) as _i7.Future<_i4.Example>);
   @override
   _i7.Future<String> saveSnippet({
-    List<_i13.SharedFile>? files,
+    List<_i13.SnippetFile>? files,
     _i9.Sdk? sdk,
     String? pipelineOptions,
   }) =>

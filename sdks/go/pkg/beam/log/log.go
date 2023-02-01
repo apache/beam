@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync/atomic"
 )
 
 // Severity is the severity of the log message.
@@ -44,9 +45,17 @@ type Logger interface {
 	Log(ctx context.Context, sev Severity, calldepth int, msg string)
 }
 
-var (
-	logger Logger = &Standard{}
-)
+var logger atomic.Value
+
+// concreteLogger works around atomic.Value's requirement that the type
+// be identical for all callers.
+type concreteLogger struct {
+	Logger
+}
+
+func init() {
+	logger.Store(&concreteLogger{&Standard{}})
+}
 
 // SetLogger sets the global Logger. Intended to be called during initialization
 // only.
@@ -54,13 +63,13 @@ func SetLogger(l Logger) {
 	if l == nil {
 		panic("Logger cannot be nil")
 	}
-	logger = l
+	logger.Store(&concreteLogger{l})
 }
 
 // Output logs the given message to the global logger. Calldepth is the count
 // of the number of frames to skip when computing the file name and line number.
 func Output(ctx context.Context, sev Severity, calldepth int, msg string) {
-	logger.Log(ctx, sev, calldepth+1, msg) // +1 for this frame
+	logger.Load().(Logger).Log(ctx, sev, calldepth+1, msg) // +1 for this frame
 }
 
 // User-facing logging functions.

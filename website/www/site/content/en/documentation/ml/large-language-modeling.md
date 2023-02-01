@@ -16,7 +16,7 @@ limitations under the License.
 -->
 
 # RunInference
-In Apache Beam 2.40.0, Beam introduced the RunInference API, which lets you deploy a machine learning model in a Beam pipeline. A `RunInference` transform performs inference on a `PCollection` of examples using a machine learning (ML) model. The transform outputs a PCollection that contains the input examples and output predictions. For more information, see RunInference [here](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/). You can also find [inference examples on GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference).
+In Apache Beam 2.40.0, Beam introduced the RunInference API, which lets you deploy a machine learning model in a Beam pipeline. A `RunInference` transform performs inference on a `PCollection` of examples using a machine learning (ML) model. The transform outputs a PCollection that contains the input examples and output predictions. For more information, see RunInference [here](/documentation/transforms/python/elementwise/runinference/). You can also find [inference examples on GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference).
 
 
 ## Using RunInference with very large models
@@ -25,11 +25,17 @@ RunInference works well on arbitrarily large models as long as they can fit on y
 This example demonstrates running inference with a `T5` language model using `RunInference` in a pipeline. `T5` is an encoder-decoder model pre-trained on a multi-task mixture of unsupervised and supervised tasks. Each task is converted into a text-to-text format. The example uses `T5-11B`, which contains 11 billion parameters and is 45 GB in size. In  order to work well on a variety of tasks, `T5` prepends a different prefix to the input corresponding to each task. For example, for translation, the input would be: `translate English to German: …` and for summarization, it would be: `summarize: …`. For more information about `T5` see the [T5 overiew](https://huggingface.co/docs/transformers/model_doc/t5) in the HuggingFace documentation.
 
 ### Run the Pipeline ?
-First, install the required packages and pass the required arguments.
+First, install the required packages listed in [requirements.txt](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/large_language_modeling/requirements.txt) and pass the required arguments. You can download the `T5-11b` model from [Hugging Face Hub](https://huggingface.co/t5-11b) using:
+
+- git lfs install
+- git clone https://huggingface.co/t5-11b
+Note: It will download the checkpoint, then you need to convert it to the model state dict as mentioned [here](https://pytorch.org/tutorials/beginner/saving_loading_models.html#save-load-state-dict-recommended).
+
 You can view the code on [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/large_language_modeling/main.py)
 
-1. Locally on your machine: `python main.py --runner DirectRunner`. You need to have 45 GB of disk space available to run this example.
-2. On Google Cloud using Dataflow: `python main.py --runner DataflowRunner`
+1. Locally on your machine: `python main.py --runner DirectRunner --model_state_dict_path <local or remote path to state_dict>`. You need to have 45 GB of disk space available to run this example.
+2. On Google Cloud using Dataflow: `python main.py --runner DataflowRunner  --model_state_dict_path <local or remote path to state_dict> --project PROJECT_ID
+--region REGION --requirements_file requirements.txt --temp_location GCS_PATH`. Make sure to pass other arguments as mentioned [here](https://cloud.google.com/dataflow/docs/guides/setting-pipeline-options#setting_required_options)
 
 ### Pipeline Steps
 The pipeline contains the following steps:

@@ -10,20 +10,21 @@ import 'package:playground_components/src/models/category_with_examples.dart'
     as _i7;
 import 'package:playground_components/src/models/example_base.dart' as _i2;
 import 'package:playground_components/src/models/sdk.dart' as _i6;
+import 'package:playground_components/src/models/snippet_file.dart' as _i10;
 import 'package:playground_components/src/repositories/example_repository.dart'
     as _i4;
 import 'package:playground_components/src/repositories/models/get_default_precompiled_object_request.dart'
     as _i9;
 import 'package:playground_components/src/repositories/models/get_precompiled_object_request.dart'
-    as _i10;
+    as _i11;
 import 'package:playground_components/src/repositories/models/get_precompiled_objects_request.dart'
     as _i8;
 import 'package:playground_components/src/repositories/models/get_snippet_request.dart'
-    as _i11;
+    as _i12;
 import 'package:playground_components/src/repositories/models/get_snippet_response.dart'
     as _i3;
 import 'package:playground_components/src/repositories/models/save_snippet_request.dart'
-    as _i12;
+    as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -71,18 +72,18 @@ class MockExampleRepository extends _i1.Mock implements _i4.ExampleRepository {
         returnValue: Future<_i2.ExampleBase>.value(_FakeExampleBase_0()),
       ) as _i5.Future<_i2.ExampleBase>);
   @override
-  _i5.Future<String> getPrecompiledObjectCode(
-          _i10.GetPrecompiledObjectRequest? request) =>
+  _i5.Future<List<_i10.SnippetFile>> getPrecompiledObjectCode(
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObjectCode,
           [request],
         ),
-        returnValue: Future<String>.value(''),
-      ) as _i5.Future<String>);
+        returnValue: Future<List<_i10.SnippetFile>>.value(<_i10.SnippetFile>[]),
+      ) as _i5.Future<List<_i10.SnippetFile>>);
   @override
   _i5.Future<String> getPrecompiledObjectOutput(
-          _i10.GetPrecompiledObjectRequest? request) =>
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObjectOutput,
@@ -92,7 +93,7 @@ class MockExampleRepository extends _i1.Mock implements _i4.ExampleRepository {
       ) as _i5.Future<String>);
   @override
   _i5.Future<String> getPrecompiledObjectLogs(
-          _i10.GetPrecompiledObjectRequest? request) =>
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObjectLogs,
@@ -102,7 +103,7 @@ class MockExampleRepository extends _i1.Mock implements _i4.ExampleRepository {
       ) as _i5.Future<String>);
   @override
   _i5.Future<String> getPrecompiledObjectGraph(
-          _i10.GetPrecompiledObjectRequest? request) =>
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObjectGraph,
@@ -112,7 +113,7 @@ class MockExampleRepository extends _i1.Mock implements _i4.ExampleRepository {
       ) as _i5.Future<String>);
   @override
   _i5.Future<_i2.ExampleBase> getPrecompiledObject(
-          _i10.GetPrecompiledObjectRequest? request) =>
+          _i11.GetPrecompiledObjectRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getPrecompiledObject,
@@ -122,7 +123,7 @@ class MockExampleRepository extends _i1.Mock implements _i4.ExampleRepository {
       ) as _i5.Future<_i2.ExampleBase>);
   @override
   _i5.Future<_i3.GetSnippetResponse> getSnippet(
-          _i11.GetSnippetRequest? request) =>
+          _i12.GetSnippetRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #getSnippet,
@@ -132,7 +133,7 @@ class MockExampleRepository extends _i1.Mock implements _i4.ExampleRepository {
             Future<_i3.GetSnippetResponse>.value(_FakeGetSnippetResponse_1()),
       ) as _i5.Future<_i3.GetSnippetResponse>);
   @override
-  _i5.Future<String> saveSnippet(_i12.SaveSnippetRequest? request) =>
+  _i5.Future<String> saveSnippet(_i13.SaveSnippetRequest? request) =>
       (super.noSuchMethod(
         Invocation.method(
           #saveSnippet,

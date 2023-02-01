@@ -26,7 +26,7 @@ Apache Beam is an open source, unified model for defining both batch and streami
 
 ![A standalone beam pipeline](/images/standalone-beam-pipeline.svg)
 
-Defining a pipeline and the corresponding DAG does not mean that data starts flowing through the pipeline. To run the pipeline, you need to deploy it to one of the [supported Beam runners](https://beam.apache.org/documentation/runners/capability-matrix/). These distributed processing backends include Apache Flink, Apache Spark, and Google Cloud Dataflow. To run the pipeline locally on your machine for development and debugging purposes, a [Direct Runner](https://beam.apache.org/documentation/runners/direct/) is also provided. View the [runner capability matrix](https://beam.apache.org/documentation/runners/capability-matrix/) to verify that your chosen runner supports the data processing steps defined in your pipeline, especially when using the Direct Runner.
+Defining a pipeline and the corresponding DAG does not mean that data starts flowing through the pipeline. To run the pipeline, you need to deploy it to one of the [supported Beam runners](/documentation/runners/capability-matrix/). These distributed processing backends include Apache Flink, Apache Spark, and Google Cloud Dataflow. To run the pipeline locally on your machine for development and debugging purposes, a [Direct Runner](/documentation/runners/direct/) is also provided. View the [runner capability matrix](/documentation/runners/capability-matrix/) to verify that your chosen runner supports the data processing steps defined in your pipeline, especially when using the Direct Runner.
 
 ## Orchestrating frameworks
 

@@ -34,10 +34,10 @@ documentation and notebooks to make it easier to use these new features
 and to show how Beam can be used to solve common Machine Learning problems.
 We're now happy to present this new and improved Beam ML experience!
 
-To get started, we encourage you to visit Beam's new [AI/ML landing page](https://beam.apache.org/documentation/ml/overview/).
-We've got plenty of content on things like [multi-model pipelines](https://beam.apache.org/documentation/ml/multi-model-pipelines/),
-[performing inference with metrics](https://beam.apache.org/documentation/ml/runinference-metrics/),
-[online training](https://beam.apache.org/documentation/ml/online-clustering/), and much more.
+To get started, we encourage you to visit Beam's new [AI/ML landing page](/documentation/ml/overview/).
+We've got plenty of content on things like [multi-model pipelines](/documentation/ml/multi-model-pipelines/),
+[performing inference with metrics](/documentation/ml/runinference-metrics/),
+[online training](/documentation/ml/online-clustering/), and much more.
 
 <img class="center-block"
      src="/images/blog/ml-landing.png"

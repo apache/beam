@@ -18,14 +18,11 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import java.io.Serializable;
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
+import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -34,6 +31,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,15 +40,11 @@ import org.junit.runners.JUnit4;
 /** Test class for beam to spark {@link Combine#groupedValues} translation. */
 @RunWith(JUnit4.class)
 public class CombineGroupedValuesTest implements Serializable {
-  @Rule public transient TestPipeline pipeline = TestPipeline.fromOptions(testOptions());
+  @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
 
-  private static PipelineOptions testOptions() {
-    SparkStructuredStreamingPipelineOptions options =
-        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
-    options.setRunner(SparkStructuredStreamingRunner.class);
-    options.setTestMode(true);
-    return options;
-  }
+  @Rule
+  public transient TestPipeline pipeline =
+      TestPipeline.fromOptions(SESSION.createPipelineOptions());
 
   @Test
   public void testCombineGroupedValues() {

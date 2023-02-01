@@ -19,8 +19,9 @@
 import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/components/banner/banner_description.dart';
-import 'package:playground/constants/assets.dart';
+
+import '../../src/assets/assets.gen.dart';
+import 'banner_description.dart';
 
 class BannerButton extends StatelessWidget {
   const BannerButton({Key? key}) : super(key: key);
@@ -38,7 +39,7 @@ class BannerButton extends StatelessWidget {
           barrierColor: Colors.transparent,
         );
       },
-      child: SvgPicture.asset(kBeamIconAsset),
+      child: SvgPicture.asset(Assets.beam.path),
     );
   }
 }

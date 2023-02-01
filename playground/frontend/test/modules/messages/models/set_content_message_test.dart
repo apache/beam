@@ -21,7 +21,8 @@ import 'package:playground/modules/examples/models/example_loading_descriptors/e
 import 'package:playground/modules/messages/models/set_content_message.dart';
 import 'package:playground_components/playground_components.dart';
 
-const _content = 'my_code';
+const _content1 = 'my_code1';
+const _content2 = 'my_code2';
 const _sdk = Sdk.python;
 
 void main() {
@@ -94,19 +95,26 @@ void main() {
               [],
               {'type': 'any-other'},
               {
-                'content': _content,
+                'files': [
+                  {'content': _content1, 'isMain': false, 'name': '1'},
+                  {'content': _content2, 'isMain': true, 'name': '2'},
+                ],
                 'name': 'name',
                 'sdk': _sdk.id,
                 'complexity': 'basic',
               },
               {
-                'content': _content,
+                'files': [
+                  {'content': _content1, 'isMain': false, 'name': '1'}
+                ],
                 'name': null,
                 'sdk': _sdk.id,
                 'complexity': 'medium',
               },
               {
-                'content': _content,
+                'files': [
+                  {'content': _content1, 'isMain': false, 'name': '1'}
+                ],
                 'sdk': _sdk.id,
                 'complexity': 'advanced',
               },
@@ -122,22 +130,29 @@ void main() {
             descriptor: ExamplesLoadingDescriptor(
               descriptors: const [
                 ContentExampleLoadingDescriptor(
-                  content: _content,
+                  complexity: Complexity.basic,
+                  files: [
+                    SnippetFile(content: _content1, isMain: false, name: '1'),
+                    SnippetFile(content: _content2, isMain: true, name: '2'),
+                  ],
                   name: 'name',
                   sdk: _sdk,
-                  complexity: Complexity.basic,
                 ),
                 ContentExampleLoadingDescriptor(
-                  content: _content,
-                  name: null,
-                  sdk: _sdk,
                   complexity: Complexity.medium,
-                ),
-                ContentExampleLoadingDescriptor(
-                  content: _content,
+                  files: [
+                    SnippetFile(content: _content1, isMain: false, name: '1'),
+                  ],
                   name: null,
                   sdk: _sdk,
+                ),
+                ContentExampleLoadingDescriptor(
                   complexity: Complexity.advanced,
+                  files: [
+                    SnippetFile(content: _content1, isMain: false, name: '1'),
+                  ],
+                  name: null,
+                  sdk: _sdk,
                 ),
               ],
               lazyLoadDescriptors:

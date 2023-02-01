@@ -41,14 +41,26 @@ async function main() {
     options["beam:option:registered_node_modules:v1"] ||
     options["registered_node_modules"] ||
     []
-  ).forEach(require);
+  ).forEach((m) => {
+    try {
+      require(m);
+    } catch (error) {
+      console.error(
+        `**ERROR**
+      Unable to require module '${m}' used in requireForSerialization:
+      please ensure that it is available in the package exports.`
+      );
+      // Explicitly exit the process to avoid the error getting swallowed
+      // by a long traceback.
+      process.exit(1);
+    }
+  });
 
   console.info("Starting worker", argv.id);
   const worker = new Worker(
     argv.id,
     {
       controlUrl: argv.control_endpoint,
-      //loggingUrl: argv.logging_endpoint,
     },
     options
   );

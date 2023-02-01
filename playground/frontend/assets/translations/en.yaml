@@ -19,3 +19,4 @@ intents:
   playground:
     clearOutput: 'Clear Output'
     newExample: 'New Example'
+    usesEmulatedData: 'This examples uses emulated data'

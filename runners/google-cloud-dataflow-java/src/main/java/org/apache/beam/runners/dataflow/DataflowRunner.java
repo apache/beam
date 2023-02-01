@@ -1096,6 +1096,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
     }
     if (useUnifiedWorker(options)) {
+      if (hasExperiment(options, "disable_runner_v2")
+          || hasExperiment(options, "disable_runner_v2_until_2023")
+          || hasExperiment(options, "disable_prime_runner_v2")) {
+        throw new IllegalArgumentException(
+            "Runner V2 both disabled and enabled: at least one of ['beam_fn_api', 'use_unified_worker', 'use_runner_v2', 'use_portable_job_submission'] is set and also one of ['disable_runner_v2', 'disable_runner_v2_until_2023', 'disable_prime_runner_v2'] is set.");
+      }
       List<String> experiments =
           new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
       if (!experiments.contains("use_runner_v2")) {
@@ -1116,6 +1122,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
     if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
+
+      if (useUnifiedWorker(options)) {
+        options.setEnableStreamingEngine(true);
+        List<String> experiments =
+            new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
+        if (!experiments.contains("enable_streaming_engine")) {
+          experiments.add("enable_streaming_engine");
+        }
+        if (!experiments.contains("enable_windmill_service")) {
+          experiments.add("enable_windmill_service");
+        }
+      }
     }
 
     if (!ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
@@ -2412,7 +2430,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
-        || hasExperiment(options, "use_unified_worker");
+        || hasExperiment(options, "use_unified_worker")
+        || hasExperiment(options, "use_portable_job_submission");
   }
 
   static boolean useStreamingEngine(DataflowPipelineOptions options) {

@@ -142,3 +142,63 @@ func TestInferFieldNamesPanic(t *testing.T) {
 		InferFieldNames(reflect.TypeOf(""), "key")
 	})
 }
+
+func TestFieldIndexByTag(t *testing.T) {
+	tests := []struct {
+		name  string
+		t     reflect.Type
+		key   string
+		value string
+		want  int
+	}{
+		{
+			name: "Return index of field with matching tag key and value",
+			t: reflect.TypeOf(struct {
+				Field1 string `key:"field1"`
+				Field2 string `key:"field2"`
+			}{}),
+			key:   "key",
+			value: "field2",
+			want:  1,
+		},
+		{
+			name: "Return -1 for non-existent tag key",
+			t: reflect.TypeOf(struct {
+				Field1 string `key:"field1"`
+				Field2 string `key:"field2"`
+			}{}),
+			key:   "other",
+			value: "field1",
+			want:  -1,
+		},
+		{
+			name: "Return -1 for non-existent tag value",
+			t: reflect.TypeOf(struct {
+				Field1 string `key:"field1"`
+				Field2 string `key:"field2"`
+			}{}),
+			key:   "key",
+			value: "field3",
+			want:  -1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := FieldIndexByTag(tt.t, tt.key, tt.value); got != tt.want {
+				t.Errorf("FieldIndexByTag() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFieldIndexByTagPanic(t *testing.T) {
+	t.Run("Panic for non-struct type", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("FieldIndexByTag() does not panic")
+			}
+		}()
+
+		FieldIndexByTag(reflect.TypeOf(""), "key", "field1")
+	})
+}

@@ -1524,6 +1524,36 @@ func (fn *WindowBlockingSdf) ProcessElement(w typex.Window, rt *sdf.LockRTracker
 	emit(elm)
 }
 
+// CheckpointingSdf is a very basic checkpointing DoFn that always
+// returns a processing continuation.
+type CheckpointingSdf struct {
+	delay time.Duration
+}
+
+// CreateInitialRestriction creates a four-element offset range.
+func (fn *CheckpointingSdf) CreateInitialRestriction(_ int) offsetrange.Restriction {
+	return offsetrange.Restriction{Start: 0, End: 4}
+}
+
+// SplitRestriction is a no-op, and does not split.
+func (fn *CheckpointingSdf) SplitRestriction(_ int, rest offsetrange.Restriction) []offsetrange.Restriction {
+	return []offsetrange.Restriction{rest}
+}
+
+// RestrictionSize defers to the default offset range restriction size.
+func (fn *CheckpointingSdf) RestrictionSize(_ int, rest offsetrange.Restriction) float64 {
+	return rest.Size()
+}
+
+// CreateTracker creates a LockRTracker wrapping an offset range RTracker.
+func (fn *CheckpointingSdf) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+}
+
+func (fn *CheckpointingSdf) ProcessElement(rt *sdf.LockRTracker, elm int, emit func(int)) sdf.ProcessContinuation {
+	return sdf.ResumeProcessingIn(fn.delay)
+}
+
 // SplittableUnitRTracker is a VetRTracker with some added behavior needed for
 // TestAsSplittableUnit.
 type SplittableUnitRTracker struct {

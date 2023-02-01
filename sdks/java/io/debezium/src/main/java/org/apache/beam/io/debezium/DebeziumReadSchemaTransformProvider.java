@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.debezium;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -50,6 +52,7 @@ import org.slf4j.LoggerFactory;
  * <p>This transform is tested against <b>MySQL and Postgres</b>, but it should work well for any
  * data source supported by Debezium.
  */
+@AutoService(SchemaTransformProvider.class)
 public class DebeziumReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration> {
@@ -60,7 +63,7 @@ public class DebeziumReadSchemaTransformProvider
   private final Integer testLimitRecords;
   private final Long testLimitMilliseconds;
 
-  DebeziumReadSchemaTransformProvider() {
+  public DebeziumReadSchemaTransformProvider() {
     this(false, -1, Long.MAX_VALUE);
   }
 

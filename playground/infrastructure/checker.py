@@ -27,10 +27,10 @@ import os
 import sys
 from pathlib import PurePath
 from typing import List
-from api.v1.api_pb2 import Sdk
 
+from api.v1.api_pb2 import Sdk
 from config import Config
-from helper import get_tag
+from helper import get_tag, load_supported_categories
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,11 +78,14 @@ def check_sdk_examples(paths: List[PurePath], sdk: Sdk, root_dir: str) -> bool:
         if path.suffix.lstrip(".") != Config.SDK_TO_EXTENSION[sdk]:
             continue
         path = PurePath(root_dir, path)
+        if not os.path.isfile(path):
+            # TODO file is deleted but this potentially can break multi file examples
+            logging.info(f"{path} not exists, continue")
+            continue
         if get_tag(path) is not None:
             logging.info(f"{path} is an example, return")
             return True
     return False
-
 
 def main():
     args = parse_args()
@@ -90,6 +93,11 @@ def main():
     root_dir = os.getenv("BEAM_ROOT_DIR")
     if root_dir is None:
         raise KeyError("BEAM_ROOT_DIR environment variable should be specified in os")
+    categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
+    if categories_file is None:
+        raise KeyError("BEAM_EXAMPLE_CATEGORIES environment variable should be specified in os")
+
+    load_supported_categories(categories_file)
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING)
 

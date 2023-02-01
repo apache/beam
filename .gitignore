@@ -127,6 +127,8 @@ website/www/yarn-error.log
 **/.packages
 **/generated_plugin_registrant.dart
 playground/frontend/playground_components/pubspec.lock
+playground/frontend/playground_components/test/tools/extract_symbols_java/dependencies
+playground/frontend/playground_components_dev/pubspec.lock
 
 # Ignore Beam Playground Terraform
 **/.terraform

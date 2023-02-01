@@ -35,6 +35,10 @@ const String kFeedbackContentText = 'Have feedback? We\'d love to hear it,'
     '\nHave questions? Try help or support.';
 
 class FeedbackDropdownContent extends StatelessWidget {
+  static const textFieldKey = Key('feedbackTextFieldKey');
+  static const cancelButtonKey = Key('cancelButtonKey');
+  static const sendButtonKey = Key('sendFeedbackButtonKey');
+
   final void Function() close;
   final TextEditingController textController;
 
@@ -46,7 +50,8 @@ class FeedbackDropdownContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = Theme.of(context).extension<BeamThemeExtension>()!.borderColor;
+    final borderColor =
+        Theme.of(context).extension<BeamThemeExtension>()!.borderColor;
 
     final OutlineInputBorder border = OutlineInputBorder(
       borderSide: BorderSide(color: borderColor),
@@ -110,6 +115,7 @@ class FeedbackDropdownContent extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(kMdBorderRadius),
                     child: TextFormField(
+                      key: textFieldKey,
                       controller: textController,
                       decoration: InputDecoration(
                         focusedBorder: border,
@@ -147,6 +153,7 @@ class FeedbackDropdownContent extends StatelessWidget {
                     ),
                   ),
                   child: TextButton(
+                    key: cancelButtonKey,
                     onPressed: () {
                       close();
                       textController.clear();
@@ -162,6 +169,7 @@ class FeedbackDropdownContent extends StatelessWidget {
                     borderRadius: BorderRadius.circular(kSmBorderRadius),
                   ),
                   child: ElevatedButton(
+                    key: sendButtonKey,
                     onPressed: () {
                       if (textController.text.isNotEmpty) {
                         AnalyticsService.get(context).trackClickSendFeedback(

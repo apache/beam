@@ -37,7 +37,7 @@ enum DropdownAlignment {
 class AppDropdownButton extends StatefulWidget {
   final Widget buttonText;
   final Widget Function(void Function()) createDropdown;
-  final double height;
+  final double? height;
   final double width;
   final Widget? leading;
   final bool showArrow;
@@ -47,8 +47,8 @@ class AppDropdownButton extends StatefulWidget {
     super.key,
     required this.buttonText,
     required this.createDropdown,
-    required this.height,
     required this.width,
+    this.height,
     this.leading,
     this.showArrow = true,
     this.dropdownAlign = DropdownAlignment.left,

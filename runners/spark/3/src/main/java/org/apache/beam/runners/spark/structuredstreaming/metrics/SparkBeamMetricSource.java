@@ -29,9 +29,9 @@ public class SparkBeamMetricSource implements Source {
 
   private final MetricRegistry metricRegistry = new MetricRegistry();
 
-  public SparkBeamMetricSource(final String name) {
+  public SparkBeamMetricSource(String name, MetricsAccumulator metrics) {
     this.name = name;
-    metricRegistry.register(name, new SparkBeamMetric());
+    metricRegistry.register(name, new SparkBeamMetric(metrics));
   }
 
   @Override

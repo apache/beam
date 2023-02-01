@@ -56,3 +56,22 @@ func InferFieldNames(t reflect.Type, key string) []string {
 
 	return names
 }
+
+// FieldIndexByTag returns the index of the field with the given tag key and value. Returns -1 if
+// the field is not found. Panics if the type's kind is not a struct.
+func FieldIndexByTag(t reflect.Type, key string, value string) int {
+	if t.Kind() != reflect.Struct {
+		panic(fmt.Sprintf("structx: FieldIndexByTag of non-struct type %s", t))
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		values := t.Field(i).Tag.Get(key)
+		name := strings.Split(values, ",")[0]
+
+		if name == value {
+			return i
+		}
+	}
+
+	return -1
+}

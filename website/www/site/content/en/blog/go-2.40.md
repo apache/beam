@@ -29,15 +29,15 @@ some of the biggest changes coming with this important release!
 2.40 marks the release of one of our most anticipated feature sets yet:
 native streaming Go pipelines. This includes adding support for:
 
-- [Self Checkpointing](https://beam.apache.org/documentation/programming-guide/#user-initiated-checkpoint)
-- [Watermark Estimation](https://beam.apache.org/documentation/programming-guide/#watermark-estimation)
-- [Pipeline Drain/Truncation](https://beam.apache.org/documentation/programming-guide/#truncating-during-drain)
-- [Bundle Finalization](https://beam.apache.org/documentation/programming-guide/#bundle-finalization) (added in 2.39)
+- [Self Checkpointing](/documentation/programming-guide/#user-initiated-checkpoint)
+- [Watermark Estimation](/documentation/programming-guide/#watermark-estimation)
+- [Pipeline Drain/Truncation](/documentation/programming-guide/#truncating-during-drain)
+- [Bundle Finalization](/documentation/programming-guide/#bundle-finalization) (added in 2.39)
 
 With all of these features, it is now possible to write your own streaming
 pipeline source DoFns in Go without relying on cross-language transforms
 from Java or Python. We encourage you to try out all of these new features
-in your streaming pipelines! The [programming guide](https://beam.apache.org/documentation/programming-guide/#splittable-dofns)
+in your streaming pipelines! The [programming guide](/documentation/programming-guide/#splittable-dofns)
 has additional information on getting started with native Go streaming DoFns.
 
 # Generic Registration (Make Your Pipelines 3x Faster)
@@ -61,7 +61,7 @@ gains, check out the [registration doc page](https://pkg.go.dev/github.com/apach
 
 Moving forward, we remain focused on improving the streaming experience and
 leveraging generics to improve the SDK. Specific improvements we are considering
-include adding [State & Timers](https://beam.apache.org/documentation/programming-guide/#state-and-timers)
+include adding [State & Timers](/documentation/programming-guide/#state-and-timers)
 support, introducing a Go expansion service so that Go DoFns can be used in other
 languages, and wrapping more Java and Python IOs so that they can be easily used
 in Go. As always, please let us know what changes you would like to see by
