@@ -17,15 +17,15 @@
  */
 
 //   beam-playground:
-//   name: CoreTransformsSolution1
-//   description: Core Transforms first motivating challenge.
-//   multifile: false
-//   context_line: 44
-//   categories:
-//     - Quickstart
-//   complexity: BASIC
-//   tags:
-//     - hellobeam
+//     name: CoreTransformsSolution1
+//     description: Core Transforms first motivating challenge.
+//     multifile: false
+//     context_line: 44
+//     categories:
+//       - Quickstart
+//     complexity: BASIC
+//     tags:
+//       - hellobeam
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;

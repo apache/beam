@@ -14,15 +14,15 @@
 // limitations under the License.
 
 //   beam-playground:
-//   name: branching
-//   description: Branching example.
-//   multifile: false
-//   context_line: 34
-//   categories:
-//     - Quickstart
-//   complexity: MEDIUM
-//   tags:
-//     - hellobeam
+//     name: branching
+//     description: Branching example.
+//     multifile: false
+//     context_line: 34
+//     categories:
+//       - Quickstart
+//     complexity: MEDIUM
+//     tags:
+//       - hellobeam
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 

@@ -45,7 +45,6 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
-
 num_below_100_tag = 'num_below_100'
 num_above_100_tag = 'num_above_100'
 
@@ -56,7 +55,6 @@ class ProcessNumbersDoFn(beam.DoFn):
             yield element
         else:
             yield pvalue.TaggedOutput(num_above_100_tag, element)
-
 
 with beam.Pipeline() as p:
     results = (p | beam.Create([10, 50, 120, 20, 200, 0])

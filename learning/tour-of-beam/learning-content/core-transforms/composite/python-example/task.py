@@ -18,7 +18,7 @@
 #   name: composite
 #   description: Composite example.
 #   multifile: false
-#   context_line: 42
+#   context_line: 30
 #   categories:
 #     - Quickstart
 #   complexity: MEDIUM
@@ -44,10 +44,7 @@ class Output(beam.PTransform):
     def expand(self, input):
         input | beam.ParDo(self._OutputFn(self.prefix))
 
-
-
 class ExtractAndMultiplyNumbers(beam.PTransform):
-
     def expand(self, pcoll):
         return (pcoll
                 # First operation
@@ -56,9 +53,7 @@ class ExtractAndMultiplyNumbers(beam.PTransform):
                 | beam.Map(lambda num: num * 10)
                 )
 
-
 with beam.Pipeline() as p:
-
     (p | beam.Create(['1,2,3,4,5', '6,7,8,9,10'])
      | ExtractAndMultiplyNumbers()
      | Output())
