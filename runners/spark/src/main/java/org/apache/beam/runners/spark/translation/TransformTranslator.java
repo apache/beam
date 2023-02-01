@@ -370,8 +370,8 @@ public final class TransformTranslator {
       public void evaluate(
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
 
-        boolean useBoundedOutput =
-            ExperimentalOptions.hasExperiment(context.getOptions(), "use_bounded_output_for_sdf")
+        boolean useBoundedConcurrentOutput =
+            ExperimentalOptions.hasExperiment(context.getOptions(), "use_bounded_concurrent_output_for_sdf")
                 && splitDoFnMatcher.matches(context.getCurrentTransform());
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
@@ -422,7 +422,7 @@ public final class TransformTranslator {
                 stateful,
                 doFnSchemaInformation,
                 sideInputMapping,
-                useBoundedOutput);
+                useBoundedConcurrentOutput);
 
         if (stateful) {
           // Based on the fact that the signature is stateful, DoFnSignatures ensures

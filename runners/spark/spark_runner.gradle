@@ -295,7 +295,7 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
 
 def validatesRunnerBatchWithBoundedSDFExperiment = tasks.register("validatesRunnerBatchWithBoundedSDFExperiment", Test) {
   applyBatchValidatesRunnerSetup(it)
-  systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false", "--experiments":"use_bounded_output_for_sdf"])
+  systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false", "--experiments":"use_bounded_concurrent_output_for_sdf"])
 
   // experiment concerns only SDF implementation, therefore avoid needlessly rerunning other tests
   it.filter {
