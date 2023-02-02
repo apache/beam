@@ -142,5 +142,4 @@ do
       else
             echo "Nothing changed in Examples. CI check is skipped" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
       fi
-# comment
 done
