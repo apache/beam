@@ -16,6 +16,7 @@
 package builder
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -476,7 +477,7 @@ func TestRunnerBuilder(t *testing.T) {
 		WithPipelineOptions(strings.Split("", " "))
 
 	arg := replaceLogPlaceholder(javaPaths, javaSdkEnv.ExecutorConfig)
-	javaClassName, err := javaPaths.ExecutableName(javaPaths.AbsoluteExecutableFileFolderPath)
+	javaClassName, err := javaPaths.ExecutableName(context.Background(), javaPaths.AbsoluteExecutableFileFolderPath)
 	if err != nil {
 		t.Errorf("Cannot get executable name for Java, error = %v", err)
 	}
@@ -496,7 +497,7 @@ func TestRunnerBuilder(t *testing.T) {
 		WithArgs(goSdkEnv.ExecutorConfig.RunArgs).
 		WithPipelineOptions(strings.Split("", " "))
 
-	scioClassName, err := scioPaths.ExecutableName(scioPaths.AbsoluteSourceFileFolderPath)
+	scioClassName, err := scioPaths.ExecutableName(context.Background(), scioPaths.AbsoluteSourceFileFolderPath)
 	if err != nil {
 		t.Errorf("Cannot get executable name for SCIO, error = %v", err)
 	}
@@ -570,7 +571,7 @@ func TestRunnerBuilder(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _ := Runner(tt.args.paths, tt.args.pipelineOptions, tt.args.sdkEnv)
+			got, _ := Runner(context.Background(), tt.args.paths, tt.args.pipelineOptions, tt.args.sdkEnv)
 			if tt.want != nil {
 				if !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
 					t.Errorf("Runner() got = %v, want %v", got.Build(), tt.want.Build())
@@ -588,7 +589,7 @@ func TestTestRunner(t *testing.T) {
 	incorrectJavaPaths := *javaPaths
 	incorrectJavaPaths.AbsoluteExecutableFileFolderPath = emptyFolder
 
-	className, err := javaPaths.ExecutableName(javaPaths.AbsoluteExecutableFileFolderPath)
+	className, err := javaPaths.ExecutableName(context.Background(), javaPaths.AbsoluteExecutableFileFolderPath)
 	if err != nil {
 		panic(err)
 	}
@@ -657,7 +658,7 @@ func TestTestRunner(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _ := TestRunner(tt.args.paths, tt.args.sdkEnv)
+			got, _ := TestRunner(context.Background(), tt.args.paths, tt.args.sdkEnv)
 			if tt.want != nil {
 				if !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
 					t.Errorf("TestRunner() got = %v, want %v", got.Build(), tt.want.Build())

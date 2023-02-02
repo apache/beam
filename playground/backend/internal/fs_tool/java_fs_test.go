@@ -17,6 +17,7 @@ package fs_tool
 
 import (
 	"beam.apache.org/playground/backend/internal/utils"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,7 +63,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
 					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
-					ExecutableName:                   executableName,
+					ExecutableName:                   findExecutableName,
 				},
 			},
 		},
@@ -329,7 +330,7 @@ func Test_executableName(t *testing.T) {
 					t.Errorf("java_fs_test cleanup error = %v", err)
 				}
 			}()
-			got, err := executableName(tt.args.executableFolder)
+			got, err := findExecutableName(context.Background(), tt.args.executableFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("java_fs_test error = %v, wantErr %v", err, tt.wantErr)
 				return

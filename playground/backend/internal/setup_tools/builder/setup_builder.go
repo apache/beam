@@ -16,6 +16,7 @@
 package builder
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -103,7 +104,7 @@ func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*exe
 }
 
 // Runner return executor with set args for runner
-func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func Runner(ctx context.Context, paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
 
 	if sdk == pb.Sdk_SDK_JAVA || sdk == pb.Sdk_SDK_SCIO {
@@ -120,7 +121,7 @@ func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *envir
 	switch sdk {
 	case pb.Sdk_SDK_JAVA: // Executable name for java class is known after compilation
 		args := replaceLogPlaceholder(paths, executorConfig)
-		className, err := paths.ExecutableName(paths.AbsoluteExecutableFileFolderPath)
+		className, err := paths.ExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
 		if err != nil {
 			return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s", paths.AbsoluteExecutableFileFolderPath)
 		}
@@ -143,7 +144,7 @@ func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *envir
 			WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 			ExecutorBuilder
 	case pb.Sdk_SDK_SCIO:
-		className, err := paths.ExecutableName(paths.AbsoluteBaseFolderPath)
+		className, err := paths.ExecutableName(ctx, paths.AbsoluteBaseFolderPath)
 		if err != nil {
 			return nil, fmt.Errorf("no executable file name found for SCIO pipeline at %s", paths.AbsoluteBaseFolderPath)
 		}
@@ -158,7 +159,7 @@ func Runner(paths *fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *envir
 }
 
 // TestRunner return executor with set args for runner
-func TestRunner(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func TestRunner(ctx context.Context, paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
@@ -170,7 +171,7 @@ func TestRunner(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*e
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA: // Executable name for java class is known after compilation
-		className, err := paths.TestExecutableName(paths.AbsoluteExecutableFileFolderPath)
+		className, err := paths.TestExecutableName(ctx, paths.AbsoluteExecutableFileFolderPath)
 		if err != nil {
 			return nil, fmt.Errorf("no executable file name found for JAVA pipeline at %s", paths.AbsoluteExecutableFileFolderPath)
 		}

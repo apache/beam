@@ -17,6 +17,7 @@ package fs_tool
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -42,13 +43,13 @@ const (
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
 func newJavaLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
 	javaLifeCycle := newCompilingLifeCycle(pipelineId, pipelinesFolder, JavaSourceFileExtension, javaCompiledFileExtension)
-	javaLifeCycle.Paths.ExecutableName = executableName
-	javaLifeCycle.Paths.TestExecutableName = testExecutableName
+	javaLifeCycle.Paths.ExecutableName = findExecutableName
+	javaLifeCycle.Paths.TestExecutableName = findTestExecutableName
 	return javaLifeCycle
 }
 
-// executableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
-func executableName(executableFileFolderPath string) (string, error) {
+// findExecutableName returns name of .class file which has main() method
+func findExecutableName(ctx context.Context, executableFileFolderPath string) (string, error) {
 	dirEntries, err := os.ReadDir(executableFileFolderPath)
 	if err != nil {
 		return "", err
@@ -62,43 +63,48 @@ func executableName(executableFileFolderPath string) (string, error) {
 	}
 
 	for _, entry := range dirEntries {
-		filePath := fmt.Sprintf("%s/%s", executableFileFolderPath, entry.Name())
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			logger.Error(fmt.Sprintf("error during file reading: %s", err.Error()))
-			break
-		}
-		ext := filepath.Ext(entry.Name())
-		filename := strings.TrimSuffix(entry.Name(), ext)
-		sdk := utils.ToSDKFromExt(ext)
-
-		if sdk == pb.Sdk_SDK_UNSPECIFIED {
-			logger.Error("invalid file extension")
-			break
-		}
-
-		switch ext {
-		case javaCompiledFileExtension:
-			isMain, err := isMainClass(executableFileFolderPath, filename)
-			if err != nil {
-				return "", err
-			}
-			if isMain {
-				logger.Infof("executableName(): main file is %s", filename)
-				return filename, nil
-			}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
 		default:
-			if utils.IsFileMain(string(content), sdk) {
-				return filename, nil
+			filePath := fmt.Sprintf("%s/%s", executableFileFolderPath, entry.Name())
+			content, err := os.ReadFile(filePath)
+			if err != nil {
+				logger.Error(fmt.Sprintf("error during file reading: %s", err.Error()))
+				break
+			}
+			ext := filepath.Ext(entry.Name())
+			filename := strings.TrimSuffix(entry.Name(), ext)
+			sdk := utils.ToSDKFromExt(ext)
+
+			if sdk == pb.Sdk_SDK_UNSPECIFIED {
+				logger.Error("invalid file extension")
+				break
+			}
+
+			switch ext {
+			case javaCompiledFileExtension:
+				isMain, err := isMainClass(ctx, executableFileFolderPath, filename)
+				if err != nil {
+					return "", err
+				}
+				if isMain {
+					logger.Infof("executableName(): main file is %s", filename)
+					return filename, nil
+				}
+			default:
+				if utils.IsFileMain(string(content), sdk) {
+					return filename, nil
+				}
 			}
 		}
-
 	}
 
 	return "", errors.New("cannot find file with main() method")
 }
 
-func testExecutableName(executableFileFolderPath string) (string, error) {
+// findTestExecutableName returns name of .class file which has JUnit tests
+func findTestExecutableName(ctx context.Context, executableFileFolderPath string) (string, error) {
 	dirEntries, err := os.ReadDir(executableFileFolderPath)
 	if err != nil {
 		return "", err
@@ -112,21 +118,26 @@ func testExecutableName(executableFileFolderPath string) (string, error) {
 	}
 
 	for _, entry := range dirEntries {
-		if err != nil {
-			logger.Error(fmt.Sprintf("error during file reading: %s", err.Error()))
-			break
-		}
-		ext := filepath.Ext(entry.Name())
-		filename := strings.TrimSuffix(entry.Name(), ext)
-
-		if ext == javaCompiledFileExtension {
-			isMain, err := isTestClass(executableFileFolderPath, filename)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
 			if err != nil {
-				return "", err
+				logger.Error(fmt.Sprintf("error during file reading: %s", err.Error()))
+				break
 			}
-			if isMain {
-				logger.Infof("executableName(): main file is %s", filename)
-				return filename, nil
+			ext := filepath.Ext(entry.Name())
+			filename := strings.TrimSuffix(entry.Name(), ext)
+
+			if ext == javaCompiledFileExtension {
+				isMain, err := isTestClass(ctx, executableFileFolderPath, filename)
+				if err != nil {
+					return "", err
+				}
+				if isMain {
+					logger.Infof("executableName(): main file is %s", filename)
+					return filename, nil
+				}
 			}
 		}
 	}
@@ -134,8 +145,8 @@ func testExecutableName(executableFileFolderPath string) (string, error) {
 	return "", errors.New("cannot find file with unit tests")
 }
 
-func isMainClass(classPath string, className string) (bool, error) {
-	cmd := exec.Command(javaDecompilerCommand, "-public", "-classpath", classPath, className)
+func isMainClass(ctx context.Context, classPath string, className string) (bool, error) {
+	cmd := exec.CommandContext(ctx, javaDecompilerCommand, "-public", "-classpath", classPath, className)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
@@ -146,8 +157,8 @@ func isMainClass(classPath string, className string) (bool, error) {
 	return strings.Contains(out.String(), javaEntryPointFullName), nil
 }
 
-func isTestClass(classPath string, className string) (bool, error) {
-	cmd := exec.Command(javaDecompilerCommand, "-verbose", "-classpath", classPath, className)
+func isTestClass(ctx context.Context, classPath string, className string) (bool, error) {
+	cmd := exec.CommandContext(ctx, javaDecompilerCommand, "-verbose", "-classpath", classPath, className)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()

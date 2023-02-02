@@ -100,9 +100,9 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	var executorBuilder *executors.ExecutorBuilder
 	err := error(nil)
 	if isUnitTest {
-		executorBuilder, err = builder.TestRunner(paths, sdkEnv)
+		executorBuilder, err = builder.TestRunner(pipelineLifeCycleCtx, paths, sdkEnv)
 	} else {
-		executorBuilder, err = builder.Runner(paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
+		executorBuilder, err = builder.Runner(pipelineLifeCycleCtx, paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
 	}
 	if err != nil {
 		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
