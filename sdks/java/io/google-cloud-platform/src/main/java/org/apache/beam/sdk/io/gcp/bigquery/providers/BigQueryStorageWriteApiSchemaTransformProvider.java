@@ -129,17 +129,19 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       // validate create and write dispositions
       if (!Strings.isNullOrEmpty(this.getCreateDisposition())) {
-        checkArgument(
-            CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase()) != null,
+        checkNotNull(
+            CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase()),
             invalidConfigMessage
-                + "Invalid create disposition was specified. Available dispositions are: ",
+                + "Invalid create disposition (%s) was specified. Available dispositions are: %s",
+            this.getCreateDisposition(),
             CREATE_DISPOSITIONS.keySet());
       }
       if (!Strings.isNullOrEmpty(this.getWriteDisposition())) {
         checkNotNull(
             WRITE_DISPOSITIONS.get(this.getWriteDisposition().toUpperCase()),
             invalidConfigMessage
-                + "Invalid write disposition was specified. Available dispositions are: ",
+                + "Invalid write disposition (%s) was specified. Available dispositions are: ",
+            this.getWriteDisposition(),
             WRITE_DISPOSITIONS.keySet());
       }
     }
@@ -296,13 +298,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =
             BigQueryStorageWriteApiSchemaTransformConfiguration.CREATE_DISPOSITIONS.get(
-                configuration.getCreateDisposition());
+                configuration.getCreateDisposition().toUpperCase());
         write = write.withCreateDisposition(createDisposition);
       }
       if (!Strings.isNullOrEmpty(configuration.getWriteDisposition())) {
         WriteDisposition writeDisposition =
             BigQueryStorageWriteApiSchemaTransformConfiguration.WRITE_DISPOSITIONS.get(
-                configuration.getWriteDisposition());
+                configuration.getWriteDisposition().toUpperCase());
         write = write.withWriteDisposition(writeDisposition);
       }
 
