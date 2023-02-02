@@ -48,8 +48,8 @@ torch.save(model.state_dict(), "path/to/save/state_dict.pth")
 You can view the code on [GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/large_language_modeling/main.py)
 
 1. Locally on your machine: `python main.py --runner DirectRunner --model_state_dict_path <local or remote path to state_dict>`. You need to have 45 GB of disk space available to run this example.
-2. On Google Cloud using Dataflow: `python main.py --runner DataflowRunner  --model_state_dict_path <gs://path/to/saved/state_dict.pth> --project PROJECT_ID
---region REGION --requirements_file requirements.txt --temp_location GCS_PATH`. Make sure to pass other arguments as mentioned [here](https://cloud.google.com/dataflow/docs/guides/setting-pipeline-options#setting_required_options)
+2. On Google Cloud using Dataflow: `python main.py --runner DataflowRunner --model_state_dict_path <gs://path/to/saved/state_dict.pth> --project <PROJECT_ID>
+--region <REGION> --requirements_file requirements.txt --temp_location <gs://path/to/temp/location> --experiments "use_runner_v2,no_use_multiple_sdk_containers" --machine_type=n2-standard-16`. You can also pass other configuration parameters as described [here](https://cloud.google.com/dataflow/docs/guides/setting-pipeline-options#setting_required_options).
 
 ### Pipeline Steps
 The pipeline contains the following steps:
