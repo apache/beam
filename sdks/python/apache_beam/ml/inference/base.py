@@ -172,7 +172,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def update_model_path(self, model_path: Optional[str] = None):
     """Update the model paths produced by side inputs."""
-    raise NotImplementedError
+    pass
 
 
 class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
