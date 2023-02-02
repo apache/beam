@@ -193,25 +193,25 @@ class _SnippetTypeSwitcher extends StatelessWidget {
           children: [
             if (tourNotifier.hasSolution)
               _SnippetTypeButton(
-                buttonSnippetType: SnippetType.solution,
+                title: 'pages.tour.solution'.tr(),
                 tourNotifier: tourNotifier,
-                label: 'pages.tour.solution'.tr(),
+                value: SnippetType.solution,
               ),
             if (tourNotifier.hasSolution || tourNotifier.hasSavedSnippet)
               _SnippetTypeButton(
-                buttonSnippetType: SnippetType.original,
-                tourNotifier: tourNotifier,
-                label: unitContent.isChallenge
+                title: unitContent.isChallenge
                     ? 'pages.tour.assignment'.tr()
                     : 'pages.tour.example'.tr(),
+                tourNotifier: tourNotifier,
+                value: SnippetType.original,
               ),
             if (tourNotifier.hasSavedSnippet)
               _SnippetTypeButton(
-                buttonSnippetType: SnippetType.saved,
-                tourNotifier: tourNotifier,
-                label: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
+                title: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
                     ? 'pages.tour.saving'.tr()
                     : 'pages.tour.myCode'.tr(),
+                tourNotifier: tourNotifier,
+                value: SnippetType.saved,
               ),
           ],
         ),
@@ -221,23 +221,23 @@ class _SnippetTypeSwitcher extends StatelessWidget {
 }
 
 class _SnippetTypeButton extends StatelessWidget {
-  final SnippetType buttonSnippetType;
-  final String label;
+  final String title;
   final TourNotifier tourNotifier;
+  final SnippetType value;
 
   const _SnippetTypeButton({
-    required this.buttonSnippetType,
+    required this.value,
     required this.tourNotifier,
-    required this.label,
+    required this.title,
   });
 
   Future<void> _setSnippetByType() async {
-    await tourNotifier.setSnippetByTypeIfChanged(buttonSnippetType);
+    await tourNotifier.setSnippetByTypeIfChanged(value);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isSelected = buttonSnippetType == tourNotifier.snippetType;
+    final isSelected = value == tourNotifier.snippetType;
     final Color? bgColor;
     final Color? fgColor;
     final VoidCallback? onPressed;
@@ -257,7 +257,7 @@ class _SnippetTypeButton extends StatelessWidget {
         foregroundColor: MaterialStateProperty.all(fgColor),
       ),
       onPressed: onPressed,
-      child: Text(label),
+      child: Text(title),
     );
   }
 }

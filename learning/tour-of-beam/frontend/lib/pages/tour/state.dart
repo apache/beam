@@ -95,16 +95,14 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   void _setSaveCodeListener() {
-    // Creates snippetEditingController if it doesn't exist.
+    // setSdk creates snippetEditingController if it doesn't exist.
     playgroundController.setSdk(_appNotifier.sdk!);
-    // Notifies when activeFileController is created.
     playgroundController.snippetEditingController?.addListener(
-      _snippedEditingControllerListener,
+      _onActiveFileControllerCreated,
     );
   }
 
-  void _snippedEditingControllerListener() {
-    // Notifies when code is changed.
+  void _onActiveFileControllerCreated() {
     playgroundController
         .snippetEditingController?.activeFileController?.codeController
         .addListener(_onCodeChanged);
@@ -158,8 +156,9 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
       return;
     }
     _snippetType = snippetType;
+    // get fresh saved snippet IDs
     await _unitProgressCache.updateUnitProgress();
-    await _setCurrentSnippet();
+    await _setCurrentSnippetFromType();
     notifyListeners();
   }
 
@@ -171,17 +170,22 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
   }
 
   Future<void> _onAuthChanged() async {
-    await _unitProgressCache.updateUnitProgress();
-    await _setCurrentSnippet();
+    await _updateUnitProgressAndSnippet();
     notifyListeners();
   }
 
-  void _onAppNotifierChanged() {
+  Future<void> _updateUnitProgressAndSnippet() async {
+    await _unitProgressCache.updateUnitProgress();
+    await _setCurrentSnippetFromType();
+  }
+
+  Future<void> _onAppNotifierChanged() async {
     final sdkId = _appNotifier.sdkId;
     if (sdkId != null) {
       playgroundController.setSdk(Sdk.parseOrCreate(sdkId));
       contentTreeController.sdkId = sdkId;
-      _onAuthChanged();
+      await _updateUnitProgressAndSnippet();
+      notifyListeners();
     }
   }
 
@@ -213,8 +217,8 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
 
     await _updateHasSavedSnippet();
-    _setSavedTypeIfHas();
-    await _setCurrentSnippet();
+    _setSnippetTypeSavedIfCan();
+    await _setCurrentSnippetFromType();
     notifyListeners();
   }
 
@@ -224,13 +228,13 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     }
   }
 
-  void _setSavedTypeIfHas() {
+  void _setSnippetTypeSavedIfCan() {
     if (hasSavedSnippet) {
       _snippetType = SnippetType.saved;
     }
   }
 
-  Future<void> _setCurrentSnippet() async {
+  Future<void> _setCurrentSnippetFromType() async {
     final unit = _currentUnitContent;
     if (unit == null) {
       return;
@@ -332,7 +336,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
     _appNotifier.removeListener(_onAppNotifierChanged);
     _authNotifier.removeListener(_onAuthChanged);
     playgroundController.snippetEditingController
-        ?.removeListener(_snippedEditingControllerListener);
+        ?.removeListener(_onActiveFileControllerCreated);
     // TODO(nausharipov): use stream events https://github.com/apache/beam/issues/25185
     playgroundController
         .snippetEditingController?.activeFileController?.codeController
