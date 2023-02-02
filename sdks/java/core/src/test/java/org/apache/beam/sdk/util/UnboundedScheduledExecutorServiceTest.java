@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -38,6 +39,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.util.UnboundedScheduledExecutorService.ScheduledFutureTask;
 import org.hamcrest.collection.IsIterableContainingInOrder;
@@ -46,10 +50,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests for {@link UnboundedScheduledExecutorService}. */
 @RunWith(JUnit4.class)
 public class UnboundedScheduledExecutorServiceTest {
+  private static final Logger LOG = LoggerFactory.getLogger(UnboundedScheduledExecutorServiceTest.class);
 
   private static final Runnable RUNNABLE =
       () -> {
@@ -501,5 +508,46 @@ public class UnboundedScheduledExecutorServiceTest {
       executorService.tasks.notify();
     }
     Thread.sleep(100);
+  }
+
+  @Test
+  public void testThreadsAreAddedOnlyAsNeededWithContention() throws Exception {
+    UnboundedScheduledExecutorService executorService = new UnboundedScheduledExecutorService();
+    CountDownLatch done = new CountDownLatch(1);
+
+    ThreadPoolExecutor executor =
+        new ThreadPoolExecutor(100, 100, Long.MAX_VALUE, MILLISECONDS, new SynchronousQueue<>());
+    // Schedule 1000 threads that are going to be scheduling work non-stop but sequentially.
+    for (int i = 0; i < 100; ++i) {
+      executor.execute(
+          () -> {
+            // Periodically check if done.
+            while (done.getCount() == 1) {
+              for (int j = 0; j < 100; ++j) {
+                try {
+                  executorService.submit(() -> {
+                    try {
+                      Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                      throw new RuntimeException(e);
+                    }
+                  }).get();
+                } catch (InterruptedException | ExecutionException e) {
+                  // Ignore, happens on executor shutdown.
+                }
+              }
+            }
+          });
+    }
+
+    Thread.sleep(20 * 1000);
+    done.countDown();
+    executor.shutdown();
+    executor.awaitTermination(1, MINUTES);
+
+    int largestPool = executorService.threadPoolExecutor.getLargestPoolSize();
+    LOG.info("Created {} threads to execute at most 100 parallel tasks", largestPool);
+    assert(largestPool <= 100);
+    executorService.shutdown();
   }
 }
