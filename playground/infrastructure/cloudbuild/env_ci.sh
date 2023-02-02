@@ -67,18 +67,6 @@ BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
-# Branch name
-echo "Branch name is below and PWD"
-echo $branch_name
-pwd
-ls -la
-ls -l playground/backend/datasets
-## Get changed files from Webhook result (body.files)
-#if [ -z $branch_name ] || [ $branch_name == "master" ]
-#then
-#    branch_name=origin/master
-#fi
-
 # Get diff
 diff=$(git diff --name-only origin/master $commit_sha | tr '\n' ' ')
 
@@ -92,12 +80,14 @@ do
       --paths ${diff}
       if [ $? -eq 0 ]
       then
+            echo "Checker has found changed examples" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
           example_has_changed=True
       elif [ $? -eq 11 ]
       then
+          echo "Checker has not found changed examples" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
           example_has_changed=False
       else
-          echo "Checker is broken"
+          echo "Error: Checker is broken" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
           exit 1
       fi
 
@@ -145,11 +135,11 @@ do
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
-            --subdirs ${SUBDIRS}
+            --subdirs ${SUBDIRS} >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
 
             docker stop container-${sdk}
             docker rm container-${sdk}
       else
-            echo "Nothing changed in Examples. CI check is skipped"
+            echo "Nothing changed in Examples. CI check is skipped" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
       fi
 done
