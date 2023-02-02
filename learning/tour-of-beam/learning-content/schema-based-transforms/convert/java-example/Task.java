@@ -128,48 +128,6 @@ public class Task {
         }
     }
 
-    @DefaultSchema(JavaFieldSchema.class)
-    public static class Result {
-
-        public String userId;
-        public String userName;
-        public Integer score;
-        public String gameId;
-        public String date;
-
-        @SchemaCreate
-        public Result(String userId, String userName, Integer score, String gameId, String date) {
-            this.userId = userId;
-            this.userName = userName;
-            this.score = score;
-            this.gameId = gameId;
-            this.date = date;
-        }
-
-        @Override
-        public String toString() {
-            return "Result{" +
-                    "userId='" + userId + '\'' +
-                    ", userName='" + userName + '\'' +
-                    ", score=" + score +
-                    ", gameId='" + gameId + '\'' +
-                    ", date='" + date + '\'' +
-                    '}';
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            User user = (User) o;
-            return Objects.equals(userId, user.userId) && Objects.equals(userName, user.userName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(userId, userName);
-        }
-    }
 
 
     public static void main(String[] args) {
@@ -178,20 +136,13 @@ public class Task {
 
         PCollection<User> fullStatistics = getProgressPCollection(pipeline);
 
-        Schema type = Schema.builder()
-                .addStringField("userId")
-                .addStringField("userName")
-                .addInt32Field("score")
-                .addStringField("gameId")
-                .addStringField("date")
-                .build();
 
-        PCollection<Object> pCollection = fullStatistics
-                .apply(Convert.toRows())
-                .apply("User", ParDo.of(new LogOutput<>("ToRows")));
+
+        PCollection<Row> pCollection = fullStatistics
+                .apply(Convert.toRows());
 
         pCollection
-                .apply(Convert.to(Result.class))
+                .apply(Convert.to(User.class))
                 .apply("User", ParDo.of(new LogOutput<>("Convert to Result")));
 
 
