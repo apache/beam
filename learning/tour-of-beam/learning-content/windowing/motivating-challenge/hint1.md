@@ -24,7 +24,7 @@ To solve this challenge, you may build a pipeline that consists of the following
    Window.<Double>into(SlidingWindows.of(Duration.standardSeconds(10)).every(Duration.standardSeconds(5))))`
 2. Write SerializableFunction which define max value: `.apply(Combine.globally((SerializableFunction<Iterable<Double>, Double>) input -> {
    Iterator<Double> iterator = input.iterator();
-   double firstValue = iterator.hasNext() ? iterator.next() : null;
+   double firstValue = iterator.hasNext() ? iterator.next() : : -Double.MAX_VALUE;
    for (double i : input){
    if(firstValue<i){
    firstValue = i;
