@@ -174,7 +174,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
     }
   }
 
-  public static <T extends AnnotatedElement & Member> String getFieldDescription(T member) {
+  public static <T extends AnnotatedElement & Member> @Nullable String getFieldDescription(
+      T member) {
     @Nullable
     SchemaFieldDescription fieldDescription = member.getAnnotation(SchemaFieldDescription.class);
     if (fieldDescription == null) {
