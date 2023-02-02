@@ -1457,17 +1457,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;h1 id="apache-beam-python-sdk-quickstart">Apache Beam Python SDK Quickstart&lt;/h1>
+&lt;h1 id="wordcount-quickstart-for-python">WordCount quickstart for Python&lt;/h1>
 &lt;p>This guide shows you how to set up your Python development environment, get the Apache Beam SDK for Python, and run an example pipeline.&lt;/p>
 &lt;p>If you&amp;rsquo;re interested in contributing to the Apache Beam Python codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/p>
 &lt;nav id="TableOfContents">
 &lt;ul>
-&lt;li>&lt;a href="#set-up-your-environment">Set up your environment&lt;/a>
-&lt;ul>
-&lt;li>&lt;a href="#check-your-python-version">Check your Python version&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#install-pip">Install pip&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;/li>
+&lt;li>&lt;a href="#set-up-your-environment">Set up your environment&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#get-apache-beam">Get Apache Beam&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#create-and-activate-a-virtual-environment">Create and activate a virtual environment&lt;/a>&lt;/li>
@@ -1484,44 +1479,8 @@ limitations under the License.
 &lt;/nav>
 &lt;p>The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last release with support for Python 2.7 and 3.5.&lt;/p>
 &lt;h2 id="set-up-your-environment">Set up your environment&lt;/h2>
-&lt;h3 id="check-your-python-version">Check your Python version&lt;/h3>
-&lt;p>The Beam SDK requires Python users to use Python version 3.6 or higher. Check your version by running:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>python --version&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;h3 id="install-pip">Install pip&lt;/h3>
-&lt;p>Install &lt;a href="https://pip.pypa.io/en/stable/installing/">pip&lt;/a>, Python&amp;rsquo;s package manager. Check that you have version 7.0.0 or newer by running:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>pip --version&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>If you do not have &lt;code>pip&lt;/code> version 7.0.0 or newer, run the following command to
-install it. This command might require administrative privileges.&lt;/p>
-&lt;div class='shell-unix snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code class="language-unix" data-lang="unix">pip install --upgrade pip&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class='shell-powerShell snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-powerShell" data-lang="powerShell">&lt;span class="n">PS&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="n">python&lt;/span> &lt;span class="n">-m&lt;/span> &lt;span class="n">pip&lt;/span> &lt;span class="n">install&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="n">-upgrade&lt;/span> &lt;span class="n">pip&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
+&lt;p>For details, see
+&lt;a href="/get-started/quickstart/python#set-up-your-development-environment">Set up your development environment&lt;/a>.&lt;/p>
 &lt;h2 id="get-apache-beam">Get Apache Beam&lt;/h2>
 &lt;h3 id="create-and-activate-a-virtual-environment">Create and activate a virtual environment&lt;/h3>
 &lt;p>A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, run:&lt;/p>
@@ -1684,7 +1643,212 @@ and look through the &lt;a href="https://beam.apache.org/releases/pydoc">Python 
 &lt;li>Dive in to some of our favorite &lt;a href="/get-started/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;/ul>
-&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Beam Releases</title><link>/get-started/downloads/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/downloads/</guid><description>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Beam Quickstart for Python</title><link>/get-started/quickstart/python/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/quickstart/python/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="apache-beam-python-sdk-quickstart">Apache Beam Python SDK quickstart&lt;/h1>
+&lt;p>This quickstart shows you how to run an
+&lt;a href="https://github.com/apache/beam-starter-python">example pipeline&lt;/a> written with
+the &lt;a href="/documentation/sdks/python">Apache Beam Python SDK&lt;/a>, using the
+&lt;a href="/documentation/runners/direct/">Direct Runner&lt;/a>. The Direct Runner executes
+pipelines locally on your machine.&lt;/p>
+&lt;p>If you&amp;rsquo;re interested in contributing to the Apache Beam Python codebase, see the
+&lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/p>
+&lt;p>On this page:&lt;/p>
+&lt;nav id="TableOfContents">
+&lt;ul>
+&lt;li>&lt;a href="#set-up-your-development-environment">Set up your development environment&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#clone-the-github-repository">Clone the GitHub repository&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#create-and-activate-a-virtual-environment">Create and activate a virtual environment&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#install-the-project-dependences">Install the project dependences&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-the-quickstart">Run the quickstart&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#explore-the-code">Explore the code&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#create-a-pipeline">Create a pipeline&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#create-an-initial-pcollection">Create an initial PCollection&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#apply-a-transform-to-the-pcollection">Apply a transform to the PCollection&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-the-pipeline">Run the pipeline&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#next-steps">Next Steps&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;h2 id="set-up-your-development-environment">Set up your development environment&lt;/h2>
+&lt;p>Apache Beam aims to work on released
+&lt;a href="https://devguide.python.org/versions/">Python versions&lt;/a> that have not yet
+reached end of life, but it may take a few releases until Apache Beam fully
+supports the most recently released Python minor version.&lt;/p>
+&lt;p>The minimum required Python version is listed in the &lt;strong>Meta&lt;/strong> section of the
+&lt;a href="https://pypi.org/project/apache-beam/">apache-beam&lt;/a> project page under
+&lt;strong>Requires&lt;/strong>. The list of all supported Python versions is listed in the
+&lt;strong>Classifiers&lt;/strong> section at the bottom of the page, under &lt;strong>Programming
+Language&lt;/strong>.&lt;/p>
+&lt;p>Check your Python version by running:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>python3 --version&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>If you don&amp;rsquo;t have a Python interpreter, you can download and install it from
+the &lt;a href="https://devguide.python.org/versions/">Python downloads&lt;/a> page.&lt;/p>
+&lt;p>If you need to install a different version of Python in addition to the version
+that you already have, you can find some recommendations in our
+&lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters">Developer Wiki&lt;/a>.&lt;/p>
+&lt;h2 id="clone-the-github-repository">Clone the GitHub repository&lt;/h2>
+&lt;p>Clone or download the
+&lt;a href="https://github.com/apache/beam-starter-python">apache/beam-starter-python&lt;/a>
+GitHub repository and change into the &lt;code>beam-starter-python&lt;/code> directory.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>git clone https://github.com/apache/beam-starter-python.git
+cd beam-starter-python&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="create-and-activate-a-virtual-environment">Create and activate a virtual environment&lt;/h2>
+&lt;p>A virtual environment is a directory tree containing its own Python
+distribution. We recommend using a virtual environment so that all dependencies
+of your project are installed in an isolated and self-contained environment. To
+set up a virtual environment, run the following commands:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code># Create a new Python virtual environment.
+python3 -m venv env
+# Activate the virtual environment.
+source env/bin/activate&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>If these commands do not work on your platform, see the
+&lt;a href="https://docs.python.org/3/library/venv.html#how-venvs-work">&lt;code>venv&lt;/code>&lt;/a>
+documentation.&lt;/p>
+&lt;h2 id="install-the-project-dependences">Install the project dependences&lt;/h2>
+&lt;p>Run the following command to install the project&amp;rsquo;s dependencies from the
+&lt;code>requirements.txt&lt;/code> file:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>pip install -e .&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="run-the-quickstart">Run the quickstart&lt;/h2>
+&lt;p>Run the following command:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>python main.py --input-text=&amp;#34;--inputText=Greetings&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>The output is similar to the following:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>Hello
+World!
+Greetings&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>The lines might appear in a different order.&lt;/p>
+&lt;p>Run the following command to deactivate the virtual environment:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>deactivate&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="explore-the-code">Explore the code&lt;/h2>
+&lt;p>The main code file for this quickstart is &lt;strong>app.py&lt;/strong>
+(&lt;a href="https://github.com/apache/beam-starter-python/blob/main/my_app/app.py">GitHub&lt;/a>).
+The code performs the following steps:&lt;/p>
+&lt;ol>
+&lt;li>Create a Beam pipeline.&lt;/li>
+&lt;li>Create an initial &lt;code>PCollection&lt;/code>.&lt;/li>
+&lt;li>Apply a transform to the &lt;code>PCollection&lt;/code>.&lt;/li>
+&lt;li>Run the pipeline, using the Direct Runner.&lt;/li>
+&lt;/ol>
+&lt;h3 id="create-a-pipeline">Create a pipeline&lt;/h3>
+&lt;p>The code first creates a &lt;code>Pipeline&lt;/code> object. The &lt;code>Pipeline&lt;/code> object builds up the
+graph of transformations to be executed.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam_options&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>The &lt;code>beam_option&lt;/code> variable shown here is a &lt;code>PipelineOptions&lt;/code> object, which
+is used to set options for the pipeline. For more information, see
+&lt;a href="/documentation/programming-guide/#configuring-pipeline-options">Configuring pipeline options&lt;/a>.&lt;/p>
+&lt;h3 id="create-an-initial-pcollection">Create an initial PCollection&lt;/h3>
+&lt;p>The &lt;code>PCollection&lt;/code> abstraction represents a potentially distributed,
+multi-element data set. A Beam pipeline needs a source of data to populate an
+initial &lt;code>PCollection&lt;/code>. The source can be bounded (with a known, fixed size) or
+unbounded (with unlimited size).&lt;/p>
+&lt;p>This example uses the
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Create">&lt;code>Create&lt;/code>&lt;/a>
+method to create a &lt;code>PCollection&lt;/code> from an in-memory array of strings. The
+resulting &lt;code>PCollection&lt;/code> contains the strings &amp;ldquo;Hello&amp;rdquo;, &amp;ldquo;World!&amp;quot;, and a
+user-provided input string.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create elements&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s2">&amp;#34;Hello&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;World!&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">input_text&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Note: The pipe operator &lt;code>|&lt;/code> is used to
+&lt;a href="/documentation/programming-guide/#applying-transforms">chain&lt;/a> transforms.&lt;/p>
+&lt;h3 id="apply-a-transform-to-the-pcollection">Apply a transform to the PCollection&lt;/h3>
+&lt;p>Transforms can change, filter, group, analyze, or otherwise process the
+elements in a &lt;code>PCollection&lt;/code>. This example uses the
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map">&lt;code>Map&lt;/code>&lt;/a>
+transform, which maps the elements of a collection into a new collection:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print elements&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="run-the-pipeline">Run the pipeline&lt;/h3>
+&lt;p>To run the pipeline, you can call the
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.pipeline.html#apache_beam.pipeline.Pipeline.run">&lt;code>Pipeline.run&lt;/code>&lt;/a>
+method:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">run&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">wait_until_finish&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>However, by enclosing the &lt;code>Pipeline&lt;/code> object inside a &lt;code>with&lt;/code> statement, the
+&lt;code>run&lt;/code> method is automatically invoked.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam_options&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="c1"># ...&lt;/span>
+&lt;span class="c1"># run() is called automatically&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>A Beam &lt;a href="/documentation/basics/#runner">runner&lt;/a> runs a Beam pipeline on a
+specific platform. If you don&amp;rsquo;t specify a runner, the Direct Runner is the
+default. The Direct Runner runs the pipeline locally on your machine. It is
+meant for testing and development, rather than being optimized for efficiency.
+For more information, see
+&lt;a href="/documentation/runners/direct/">Using the Direct Runner&lt;/a>.&lt;/p>
+&lt;p>For production workloads, you typically use a distributed runner that runs the
+pipeline on a big data processing system such as Apache Flink, Apache Spark, or
+Google Cloud Dataflow. These systems support massively parallel processing.&lt;/p>
+&lt;h2 id="next-steps">Next Steps&lt;/h2>
+&lt;ul>
+&lt;li>Learn more about the &lt;a href="/documentation/sdks/python/">Beam SDK for Python&lt;/a>
+and look through the
+&lt;a href="https://beam.apache.org/releases/pydoc/current">Python SDK API reference&lt;/a>.&lt;/li>
+&lt;li>Take a self-paced tour through our
+&lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite
+&lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
+&lt;/ul>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any
+issues!&lt;/p></description></item><item><title>Get-Started: Beam Releases</title><link>/get-started/downloads/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/downloads/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
