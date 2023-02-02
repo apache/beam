@@ -19,7 +19,8 @@ package org.apache.beam.runners.flink;
 
 import java.util.Map;
 
-public interface FlinkCustomTransformRegistrar {
-  Map<String, FlinkStreamingPipelineTranslator.StreamTransformTranslator<?>>
-      getTransformPayloadTranslators();
+
+/** A registrar of Flink StreamTransformTranslator(s) to extend custom translations. */
+public interface FlinkCustomTransformTranslatorRegistrar {
+  Map<String, FlinkStreamingPipelineTranslator.StreamTransformTranslator<?>> getTransformTranslators();
 }

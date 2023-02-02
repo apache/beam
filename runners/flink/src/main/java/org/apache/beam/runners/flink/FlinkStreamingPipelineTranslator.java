@@ -72,7 +72,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
+class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkStreamingPipelineTranslator.class);
 
@@ -105,10 +105,6 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     if (transform != null) {
       StreamTransformTranslator<?> translator =
           FlinkStreamingTransformTranslators.getTranslator(transform);
-
-      if (translator == null) {
-        translator = FlinkLiStreamingTransformTranslators.getTranslator(transform);
-      }
 
       if (translator != null && applyCanTranslate(transform, node, translator)) {
         applyStreamingTransform(transform, node, translator);
