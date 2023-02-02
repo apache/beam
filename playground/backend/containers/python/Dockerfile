@@ -52,6 +52,11 @@ COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/con
 # Install Python Katas Utils
 ENV PYTHONPATH="$PYTHONPATH:/go/src/katas"
 
+# Install prerequisites for ML examples (latest available stable version of packages)
+RUN pip3 install --no-cache-dir --upgrade pip
+# PyTorch (CPU version)
+RUN pip3 install --no-cache-dir torch==1.13.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
+RUN pip3 install --no-cache-dir numpy==1.21.6
 # Install mitmpoxy
 RUN mkdir /opt/mitmproxy &&\
     cd /opt/mitmproxy &&\
@@ -76,6 +81,7 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
   && chmod 777 /usr/local/lib/python3.7/site-packages/certifi/cacert.pem \
   && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
+
 
 # Switch to appuser
 USER appuser
