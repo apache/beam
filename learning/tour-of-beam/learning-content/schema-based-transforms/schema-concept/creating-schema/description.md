@@ -152,7 +152,7 @@ You can also use `@SchemaFieldName` and `@SchemaIgnore` annotations to specify d
 
 ### Playground exercise
 
-In the playground window you can find examples of creating schemes. By running this example, you will see user statistics in certain games. 
+In the playground window you can find examples of creating schemes. By running this example, you will see user statistics in certain games.
 For using `@DefaultSchema(JavaBeanSchema.class)` need getter and setter:
 ```
 @DefaultSchema(JavaBeanSchema.class)
@@ -161,7 +161,7 @@ public static class Game {
         public String score;
         public String gameId;
         public String date;
-        
+
         public String getUserId() {
             return userId;
         }

@@ -57,7 +57,7 @@ The result will be a new row schema containing the fields **total_cost**, **top_
 
 ### Playground exercise
 
-In the playground window you can find examples of using the `Group`. By running this example, you will see user statistics in certain games. 
+In the playground window you can find examples of using the `Group`. By running this example, you will see user statistics in certain games.
 
 Instead of `Sum`, you can use other `CombineFn` functions:
 ```

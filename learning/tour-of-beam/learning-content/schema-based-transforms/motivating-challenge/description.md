@@ -18,21 +18,21 @@ You are provided with a `PCollection` of the array of game statistics of users i
 
 
 `Game PCollection`:
-| userId                   | score | gameId        | date                |  
+| userId                   | score | gameId        | date                |
 |--------------------------|-------|---------------|---------------------|
 | user16_AmaranthKoala     | 18    | 1447719060000 | 2015-11-16 16:11:04 |
-| user10_AndroidGreenKoala | 2     | 1447719060000 | 2015-11-16 16:11:04 | 
-| user9_AuburnCockatoo     | 5     | 1447719060000 | 2015-11-16 16:11:04 | 
+| user10_AndroidGreenKoala | 2     | 1447719060000 | 2015-11-16 16:11:04 |
+| user9_AuburnCockatoo     | 5     | 1447719060000 | 2015-11-16 16:11:04 |
 | ...                      | ...   | ...           | ...                 |
 
 
 
 `User PCollection`:
-| userId                   | userName          | 
+| userId                   | userName          |
 |--------------------------|-------------------|
 | user16_AmaranthKoala     | AmaranthKoala     |
-| user10_AndroidGreenKoala | AndroidGreenKoala | 
-| user9_AuburnCockatoo     | AuburnCockatoo    | 
+| user10_AndroidGreenKoala | AndroidGreenKoala |
+| user9_AuburnCockatoo     | AuburnCockatoo    |
 | ...                      | ...               |
 
 

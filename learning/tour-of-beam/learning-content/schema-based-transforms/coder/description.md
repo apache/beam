@@ -65,7 +65,7 @@ class VendorToPassengerDTO {
 
     @JsonProperty(value = "PassengerCount")
     Integer PassengerCount;
-    
+
     @JsonProperty(value = "VendorID")
     Integer VendorID;
 

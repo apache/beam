@@ -61,8 +61,8 @@ users.apply(Filter
 
 ### Playground exercise
 
-In the playground window you can find examples of using the `Filter` button. 
-By running this example, you will see user statistics in certain games. 
+In the playground window you can find examples of using the `Filter` button.
+By running this example, you will see user statistics in certain games.
 You can do by multiple fields:
 ```
 .apply(Filter.create().whereFieldNames(Arrays.asList("userId", "score"), new SerializableFunction<Row, Boolean>() {
