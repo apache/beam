@@ -69,7 +69,6 @@ allowlist=("playground/infrastructure" "playground/backend")
 
 # Get diff
 diff=$(git diff --name-only origin/master $commit_sha | tr '\n' ' ')
-#Just comment
 
 # Check if there are Examples
 for sdk in "${sdks[@]}"
