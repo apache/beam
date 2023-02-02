@@ -55,6 +55,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.gson.Gson;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -276,7 +277,8 @@ public class SpannerChangestreamsReadSchemaTransformProvider
                             .withDatabaseId(config.getDatabaseId())
                             .withInstanceId(config.getInstanceId())
                             .withProjectId(config.getProjectId()),
-                        sqlDialectView))
+                        sqlDialectView,
+                        Sets.newHashSet(config.getTable())))
                 .withSideInput("dialect", sqlDialectView))
         .apply(
             ParDo.of(
