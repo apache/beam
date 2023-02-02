@@ -33,10 +33,13 @@ import (
   "context"
   "github.com/apache/beam/sdks/v2/go/pkg/beam"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+  "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
   "fmt"
+  "strconv"
+  "strings"
   "time"
 )
 
@@ -49,10 +52,10 @@ func main() {
    input := ExtractCostFromFile(s, file)
 
 
-   trigger := trigger.AfterAll(trigger.AfterCount(10),trigger.AfterEndOfWindow().
+   trigger := trigger.AfterAll([]trigger.Trigger{trigger.AfterCount(10),trigger.AfterEndOfWindow().
 	EarlyFiring(trigger.AfterProcessingTime().
 		PlusDelay(60 * time.Second)).
-	LateFiring(trigger.Repeat(trigger.AfterCount(1))))
+	LateFiring(trigger.Repeat(trigger.AfterCount(1)))})
 
 
   fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),input,beam.Trigger(trigger), beam.PanesDiscard())

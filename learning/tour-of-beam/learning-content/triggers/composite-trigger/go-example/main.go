@@ -14,7 +14,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+*/
 
 // beam-playground:
 //   name: composite-trigger
@@ -30,14 +30,15 @@
 package main
 
 import (
-  "context"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
-  "fmt"
-  "time"
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 func main() {
@@ -45,10 +46,10 @@ func main() {
 
   words := beam.Create(s, "Hello", "world", "it`s", "triggering")
 
-  trigger := trigger.AfterAll(trigger.AfterEndOfWindow().
+  trigger := trigger.AfterAll([]trigger.Trigger{trigger.AfterEndOfWindow().
 	EarlyFiring(trigger.AfterProcessingTime().
 		PlusDelay(60 * time.Second)).
-	LateFiring(trigger.Repeat(trigger.AfterCount(1))),trigger.AfterCount(2))
+	LateFiring(trigger.Repeat(trigger.AfterCount(1))),trigger.AfterCount(2)})
 
 
 

@@ -29,5 +29,5 @@ content:
 - event-time-trigger
 - data-driven-trigger
 - processing-trigger
-- composite
+- composite-trigger
 

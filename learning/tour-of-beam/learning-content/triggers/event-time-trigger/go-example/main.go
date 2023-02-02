@@ -50,9 +50,10 @@ func main() {
 		PlusDelay(60 * time.Second)).
 	LateFiring(trigger.Repeat(trigger.AfterCount(1)))
 
-  fixedWindowedItems := beam.WindowInto(s, words, beam.SlidingWindows(2*time.Second, 1*time.Second),
-		trigger,beam.AllowedLateness(30*time.Minute),
-                	beam.PanesDiscard(),
+  fixedWindowedItems := beam.WindowInto(s, window.NewSlidingWindows(2*time.Second, 1*time.Second), words,
+		beam.Trigger(trigger),
+    beam.AllowedLateness(30*time.Minute),
+    beam.PanesDiscard(),
   )
 
   output(s, fixedWindowedItems)

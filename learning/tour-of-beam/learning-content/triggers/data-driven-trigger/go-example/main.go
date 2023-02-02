@@ -14,7 +14,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+*/
 
 // beam-playground:
 //   name: data-driven-trigger
@@ -30,14 +30,15 @@
 package main
 
 import (
-  "context"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
-  "fmt"
-  "time"
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 func main() {
@@ -45,11 +46,11 @@ func main() {
 
   words := beam.Create(s, "Hello", "world", "it`s", "triggering")
 
-  fixedWindowedItems := beam.WindowInto(s, words, beam.FixedWindows(2*time.Second),
-  		trigger.AfterCount(2),
+  fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(2*time.Second), words,
+  		beam.Trigger(trigger.AfterCount(2)),
   		beam.AllowedLateness(30*time.Minute),
-        beam.PanesDiscard(),
-        )
+      beam.PanesDiscard(),
+    )
 
   output(s, fixedWindowedItems)
 

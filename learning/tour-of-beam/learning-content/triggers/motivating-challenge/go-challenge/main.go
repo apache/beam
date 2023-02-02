@@ -33,11 +33,13 @@ import (
   "context"
   "github.com/apache/beam/sdks/v2/go/pkg/beam"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+  "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
   "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+  _ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+  _ "github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
   "fmt"
-  "time"
+  "strings"
+  "strconv"
 )
 
 func main() {
@@ -46,7 +48,7 @@ func main() {
   file := textio.Read(s, "gs://apache-beam-samples/nyc_taxi/misc/sample1000.csv")
 
    // Extract cost from PCollection
-   input := ExtractCostFromFile(s, file)
+   //input := ExtractCostFromFile(s, file)
 
   output(s, file)
 
