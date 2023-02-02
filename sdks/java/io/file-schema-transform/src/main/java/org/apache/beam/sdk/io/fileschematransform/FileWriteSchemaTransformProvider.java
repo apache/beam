@@ -182,7 +182,7 @@ public class FileWriteSchemaTransformProvider
         throw new IllegalArgumentException(
             "configuration with compression is not compatible with AvroIO");
       }
-      if (format.equals(PARQUET) && configuration.getCompression() != null) {
+      if (format.equals(PARQUET) && !Strings.isNullOrEmpty(configuration.getCompression())) {
         throw new IllegalArgumentException(
             "configuration with compression is not compatible with ParquetIO");
       }
