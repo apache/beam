@@ -173,7 +173,7 @@ public class Task {
 
         @Override
         public void encode(User user, OutputStream outStream) throws IOException {
-            String line = user.userId + "," + user.userName + ";" + user.game.score + "," + user.game.gameId + "," + user.game.gameId + "," + user.winner;
+            String line = user.userId + "," + user.userName + ";" + user.game.score + "," + user.game.gameId + "," + user.game.gameId;
             outStream.write(line.getBytes());
         }
 
