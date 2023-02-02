@@ -43,8 +43,8 @@ const (
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
 func newJavaLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
 	javaLifeCycle := newCompilingLifeCycle(pipelineId, pipelinesFolder, JavaSourceFileExtension, javaCompiledFileExtension)
-	javaLifeCycle.Paths.ExecutableName = findExecutableName
-	javaLifeCycle.Paths.TestExecutableName = findTestExecutableName
+	javaLifeCycle.Paths.FindExecutableName = findExecutableName
+	javaLifeCycle.Paths.FindTestExecutableName = findTestExecutableName
 	return javaLifeCycle
 }
 

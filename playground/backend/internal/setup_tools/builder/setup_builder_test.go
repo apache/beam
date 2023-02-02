@@ -477,7 +477,7 @@ func TestRunnerBuilder(t *testing.T) {
 		WithPipelineOptions(strings.Split("", " "))
 
 	arg := replaceLogPlaceholder(javaPaths, javaSdkEnv.ExecutorConfig)
-	javaClassName, err := javaPaths.ExecutableName(context.Background(), javaPaths.AbsoluteExecutableFileFolderPath)
+	javaClassName, err := javaPaths.FindExecutableName(context.Background(), javaPaths.AbsoluteExecutableFileFolderPath)
 	if err != nil {
 		t.Errorf("Cannot get executable name for Java, error = %v", err)
 	}
@@ -497,7 +497,7 @@ func TestRunnerBuilder(t *testing.T) {
 		WithArgs(goSdkEnv.ExecutorConfig.RunArgs).
 		WithPipelineOptions(strings.Split("", " "))
 
-	scioClassName, err := scioPaths.ExecutableName(context.Background(), scioPaths.AbsoluteSourceFileFolderPath)
+	scioClassName, err := scioPaths.FindExecutableName(context.Background(), scioPaths.AbsoluteSourceFileFolderPath)
 	if err != nil {
 		t.Errorf("Cannot get executable name for SCIO, error = %v", err)
 	}
@@ -589,7 +589,7 @@ func TestTestRunner(t *testing.T) {
 	incorrectJavaPaths := *javaPaths
 	incorrectJavaPaths.AbsoluteExecutableFileFolderPath = emptyFolder
 
-	className, err := javaPaths.ExecutableName(context.Background(), javaPaths.AbsoluteExecutableFileFolderPath)
+	className, err := javaPaths.FindExecutableName(context.Background(), javaPaths.AbsoluteExecutableFileFolderPath)
 	if err != nil {
 		panic(err)
 	}

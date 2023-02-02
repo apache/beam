@@ -126,6 +126,7 @@ func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir string, pipelineId uui
 
 // prepareJavaFiles prepares file for Java environment.
 // Copy log config file from /path/to/workingDir to /path/to/workingDir/pipelinesFolder/{pipelineId}
+//
 //	and update this file according to pipeline.
 func prepareJavaFiles(lc *fs_tool.LifeCycle, workingDir string, pipelineId uuid.UUID) error {
 	err := lc.CopyFile(javaLogConfigFileName, workingDir, lc.Paths.AbsoluteBaseFolderPath)
@@ -192,7 +193,7 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 	absLogFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, logFileName))
 	absGraphFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, utils.GraphFileName))
 	projectFolder, _ := filepath.Abs(filepath.Join(pipelineFolder, scioProjectName))
-	executableName := lc.Paths.ExecutableName
+	executableName := lc.Paths.FindExecutableName
 
 	_, err = exec.Command(rmCmd, filepath.Join(absFileFolderPath, defaultExampleInSbt)).Output()
 	if err != nil {
@@ -218,6 +219,6 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 			ProjectDir:                       projectFolder,
 		},
 	}
-	lc.Paths.ExecutableName = executableName
+	lc.Paths.FindExecutableName = executableName
 	return lc, nil
 }

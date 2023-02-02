@@ -47,8 +47,8 @@ type LifeCyclePaths struct {
 	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
 	AbsoluteGraphFilePath            string // /path/to/workingDir/pipelinesFolder/{pipelineId}/graph.dot
 	ProjectDir                       string // /path/to/workingDir/
-	ExecutableName                   func(context.Context, string) (string, error)
-	TestExecutableName               func(context.Context, string) (string, error)
+	FindExecutableName               func(context.Context, string) (string, error)
+	FindTestExecutableName           func(context.Context, string) (string, error)
 }
 
 // LifeCycle is used for preparing folders and files to process code for one code processing request.
