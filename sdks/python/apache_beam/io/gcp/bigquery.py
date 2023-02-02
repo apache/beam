@@ -405,6 +405,8 @@ from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
 
+from google.api_core.exceptions import ClientError, GoogleAPICallError
+
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
@@ -1554,14 +1556,22 @@ class BigQueryWriteFn(DoFn):
 
     while True:
       start = time.time()
-      passed, errors = self.bigquery_wrapper.insert_rows(
-          project_id=table_reference.projectId,
-          dataset_id=table_reference.datasetId,
-          table_id=table_reference.tableId,
-          rows=rows,
-          insert_ids=insert_ids,
-          skip_invalid_rows=True,
-          ignore_unknown_values=self.ignore_unknown_columns)
+      try:
+        passed, errors = self.bigquery_wrapper.insert_rows(
+              project_id=table_reference.projectId,
+              dataset_id=table_reference.datasetId,
+              table_id=table_reference.tableId,
+              rows=rows,
+              insert_ids=insert_ids,
+              skip_invalid_rows=True,
+              ignore_unknown_values=self.ignore_unknown_columns)
+      except (ClientError, GoogleAPICallError) as e:
+        if e.code == 404:
+          passed = False
+          errors = []
+          _KNOWN_TABLES.remove(destination)
+        else:
+          raise
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
       failed_rows = [(rows[entry['index']], entry["errors"])
