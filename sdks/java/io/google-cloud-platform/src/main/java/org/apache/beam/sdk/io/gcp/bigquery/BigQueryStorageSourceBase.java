@@ -227,7 +227,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         if (streamIndex % streamsPerBundle == 0) {
           sources.add(
               BigQueryStorageStreamBundleSource.create(
-                  readSession, streamBundle, trimmedSchema, parseFn, outputCoder, bqServices));
+                  readSession, streamBundle, trimmedSchema, parseFn, outputCoder, bqServices, 1L));
           streamBundle = Lists.newArrayList();
         }
       }

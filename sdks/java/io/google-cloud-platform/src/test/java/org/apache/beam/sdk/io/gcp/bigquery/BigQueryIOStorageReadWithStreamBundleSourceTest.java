@@ -753,7 +753,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices());
+            new FakeBigQueryServices(),
+            1L);
 
     assertEquals(0, streamSource.getEstimatedSizeBytes(options));
   }
@@ -768,7 +769,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices());
+            new FakeBigQueryServices(),
+            1L);
 
     assertThat(streamSource.split(0, options), containsInAnyOrder(streamSource));
   }
@@ -821,7 +823,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     List<TableRow> rows = new ArrayList<>();
     BigQueryStorageStreamBundleReader<TableRow> reader = streamSource.createReader(options);
@@ -879,7 +882,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     BoundedReader<TableRow> reader = streamSource.createReader(options);
 
@@ -961,7 +965,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     BoundedReader<TableRow> reader = streamSource.createReader(options);
 
@@ -1027,7 +1032,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     // Read a few records from the parent stream and ensure that records are returned in the
     // prescribed order.
@@ -1093,7 +1099,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     // Read a few records from the primary bundle and ensure the records are returned in
     // the prescribed order.
@@ -1171,14 +1178,15 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     BoundedReader<TableRow> primaryReader = primarySource.createReader(options);
     assertTrue(primaryReader.start());
     assertEquals("A", primaryReader.getCurrent().get("name"));
 
     // Should create two sources: the first with 1 stream, the second with 2.
-    BoundedSource<TableRow> secondarySource = primaryReader.splitAtFraction(0.25f);
+    BoundedSource<TableRow> secondarySource = primaryReader.splitAtFraction(0.5f);
     assertNotNull(secondarySource);
     assertEquals("A", primaryReader.getCurrent().get("name"));
 
@@ -1250,7 +1258,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     // Read a few records from the parent bundle and ensure the records are returned in
     // the prescribed order.
@@ -1664,7 +1673,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     List<TableRow> rows = new ArrayList<>();
     BoundedReader<TableRow> reader = streamSource.createReader(options);
@@ -1715,7 +1725,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     BoundedReader<TableRow> reader = streamSource.createReader(options);
 
@@ -1792,7 +1803,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     BoundedReader<TableRow> reader = streamSource.createReader(options);
 
@@ -1860,7 +1872,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     // Read a few records from the primary bundle and ensure that records are returned in the
     // prescribed order.
@@ -1871,8 +1884,7 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
     assertEquals("B", primary.getCurrent().get("name"));
 
     // Now split the StreamBundle, and ensure that the returned source points to a non-null
-    // secondary
-    // StreamBundle.
+    // secondary StreamBundle.
     BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.5);
     assertNotNull(secondarySource);
     BoundedReader<TableRow> secondary = secondarySource.createReader(options);
@@ -1931,14 +1943,15 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     BoundedReader<TableRow> primaryReader = primarySource.createReader(options);
     assertTrue(primaryReader.start());
     assertEquals("A", primaryReader.getCurrent().get("name"));
 
     // Should create two sources: the first with 1 stream, the second with 2.
-    BoundedSource<TableRow> secondarySource = primaryReader.splitAtFraction(0.25f);
+    BoundedSource<TableRow> secondarySource = primaryReader.splitAtFraction(0.5f);
     assertNotNull(secondarySource);
     assertEquals("A", primaryReader.getCurrent().get("name"));
 
@@ -2028,7 +2041,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
-            new FakeBigQueryServices().withStorageClient(fakeStorageClient));
+            new FakeBigQueryServices().withStorageClient(fakeStorageClient),
+            1L);
 
     // Read a few records from the parent stream and ensure that records are returned in the
     // prescribed order.
