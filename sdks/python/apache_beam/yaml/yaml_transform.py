@@ -275,7 +275,7 @@ def expand_leaf_transform(spec, scope):
       outputs = inputs | scope.unique_name(spec, ptransform) >> ptransform
   except Exception as exn:
     raise ValueError(
-        f"Errror apply transform {identify_object(spec)}: {exn}") from exn
+        f"Error apply transform {identify_object(spec)}: {exn}") from exn
   if isinstance(outputs, dict):
     # TODO: Handle (or at least reject) nested case.
     return outputs
