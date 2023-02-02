@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-//   beam-playground:
+// beam-playground:
 //   name: select
 //   description: Select example.
 //   multifile: false

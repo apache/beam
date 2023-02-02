@@ -27,7 +27,7 @@ content:
   - select
   - join
   - group
-  - schema-filter
+  - filter
   - co-group
   - convert
   - rename
