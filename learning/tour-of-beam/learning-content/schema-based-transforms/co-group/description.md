@@ -85,7 +85,7 @@ PCollection joined = PCollectionTuple.of("input1", input1, "input2", input2)
 
 ### Playground exercise
 
-In the playground window you can find examples of using the `CoGroup`. By running this example, you will see user statistics in certain games. 
+In the playground window you can find examples of using the `CoGroup`. By running this example, you will see user statistics in certain games.
 
 You can combine several classes
 
