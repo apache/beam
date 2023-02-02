@@ -404,6 +404,7 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
+from apitools.base.py.exceptions import HttpError
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
@@ -1295,6 +1296,7 @@ class BigQueryWriteFn(DoFn):
 
   FAILED_ROWS = 'FailedRows'
   FAILED_ROWS_WITH_ERRORS = 'FailedRowsWithErrors'
+  FAILED_INSERT_NOTFOUND = 'notFound'
   STREAMING_API_LOGGING_FREQUENCY_SEC = 300
 
   def __init__(
@@ -1580,6 +1582,13 @@ class BigQueryWriteFn(DoFn):
             'There were errors inserting to BigQuery. Will{} retry. '
             'Errors were {}'.format(("" if should_retry else " not"), errors))
 
+        # If error when inserting was a HttpError and status code 404,
+        # with 'notFound', remove the table reference from _KNOWN_TABLES
+        # so that it may be recreated later, depending on create_disposition.
+        if isinstance(errors[0], HttpError) and errors[0].status_code == 404 \
+          and errors[0]['reason'] == self.FAILED_INSERT_NOTFOUND:
+            _KNOWN_TABLES.remove(table_reference)
+          
         # The log level is:
         # - WARNING when we are continuing to retry, and have a deadline.
         # - ERROR when we will no longer retry, or MAY retry forever.
