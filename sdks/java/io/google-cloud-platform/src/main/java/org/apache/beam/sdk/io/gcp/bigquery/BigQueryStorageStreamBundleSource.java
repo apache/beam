@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -48,7 +48,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
+class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(BigQueryStorageStreamBundleSource.class);
@@ -59,14 +59,16 @@ class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
       TableSchema tableSchema,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
+      BigQueryServices bqServices,
+      long minBundleSize) {
     return new BigQueryStorageStreamBundleSource<>(
         readSession,
         streamBundle,
         toJsonString(Preconditions.checkArgumentNotNull(tableSchema, "tableSchema")),
         parseFn,
         outputCoder,
-        bqServices);
+        bqServices,
+        minBundleSize);
   }
 
   /**
@@ -75,7 +77,7 @@ class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
    */
   public BigQueryStorageStreamBundleSource<T> fromExisting(List<ReadStream> newStreamBundle) {
     return new BigQueryStorageStreamBundleSource<>(
-        readSession, newStreamBundle, jsonTableSchema, parseFn, outputCoder, bqServices);
+        readSession, newStreamBundle, jsonTableSchema, parseFn, outputCoder, bqServices, getMinBundleSize());
   }
 
   private final ReadSession readSession;
@@ -91,7 +93,9 @@ class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
       String jsonTableSchema,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
+      BigQueryServices bqServices,
+      long minBundleSize) {
+    super(0, streamBundle.size(), minBundleSize);
     this.readSession = Preconditions.checkArgumentNotNull(readSession, "readSession");
     this.streamBundle = Preconditions.checkArgumentNotNull(streamBundle, "streams");
     this.jsonTableSchema = Preconditions.checkArgumentNotNull(jsonTableSchema, "jsonTableSchema");
@@ -124,11 +128,22 @@ class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
   }
 
   @Override
-  public List<? extends BoundedSource<T>> split(
+  public List<? extends OffsetBasedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) {
     // A stream source can't be split without reading from it due to server-side liquid sharding.
     // TODO: Implement dynamic work rebalancing.
     return ImmutableList.of(this);
+  }
+
+  @Override
+  public long getMaxEndOffset(PipelineOptions options) throws Exception {
+    return this.streamBundle.size();
+  }
+
+  @Override
+  public OffsetBasedSource<T> createSourceForSubrange(long start, long end) {
+    List<ReadStream> newStreamBundle = streamBundle.subList((int) start, (int) end);
+    return fromExisting(newStreamBundle);
   }
 
   @Override
@@ -142,7 +157,7 @@ class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
   //   return readStream.toString();
   // }
 
-  public static class BigQueryStorageStreamBundleReader<T> extends BoundedSource.BoundedReader<T> {
+  public static class BigQueryStorageStreamBundleReader<T> extends OffsetBasedReader<T> {
     private final BigQueryStorageReader reader;
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
     private final StorageClient storageClient;
@@ -168,6 +183,7 @@ class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
 
     private BigQueryStorageStreamBundleReader(
         BigQueryStorageStreamBundleSource<T> source, BigQueryOptions options) throws IOException {
+      super(source);
       this.source = source;
       this.reader = BigQueryStorageReaderFactory.getReader(source.readSession);
       this.parseFn = source.parseFn;
@@ -191,18 +207,31 @@ class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public synchronized boolean start() throws IOException {
+    protected long getCurrentOffset() throws NoSuchElementException {
+      return currentStreamIndex;
+    }
+
+    @Override
+    protected boolean isAtSplitPoint() throws NoSuchElementException {
+      if (currentOffset == 0) {
+        return true;
+      }
+      return false;
+    }
+
+    @Override
+    public boolean startImpl() throws IOException {
       return readNextStream();
     }
 
     @Override
-    public synchronized boolean advance() throws IOException {
+    public boolean advanceImpl() throws IOException {
       // Preconditions.checkStateNotNull(responseIterator);
       currentOffset++;
       return readNextRecord();
     }
 
-    private synchronized boolean readNextStream() throws IOException {
+    private boolean readNextStream() throws IOException {
       BigQueryStorageStreamBundleSource<T> source = getCurrentSource();
       if (currentStreamIndex == source.streamBundle.size()) {
         fractionConsumed = 1d;
@@ -224,7 +253,7 @@ class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
     }
 
     // @RequiresNonNull("responseIterator")
-    private synchronized boolean readNextRecord() throws IOException {
+    private boolean readNextRecord() throws IOException {
       Iterator<ReadRowsResponse> responseIterator = this.responseIterator;
       if (responseIterator == null) {
         return false;
@@ -317,35 +346,35 @@ class BigQueryStorageStreamBundleSource<T> extends BoundedSource<T> {
       return source;
     }
 
-    @Override
-    @SuppressWarnings("ReturnValueIgnored")
-    public @Nullable BoundedSource<T> splitAtFraction(double fraction) {
-      int streamCountInBundle = source.streamBundle.size();
-      double splitIndex = streamCountInBundle * fraction;
-      if (streamCountInBundle <= 1 || currentStreamIndex >= splitIndex) {
-        // The reader has moved past the requested split point.
-        // NOTE: We do not split below the granularity of a stream.
-        Metrics.counter(
-                BigQueryStorageStreamBundleReader.class,
-                "split-at-fraction-calls-failed-due-to-impossible-split-point")
-            .inc();
-        LOG.info(
-            "BigQuery Storage API Session {} cannot be split at {}.",
-            source.readSession.getName(),
-            fraction);
-        return null;
-      }
-      // Splitting the remainder Streams into a new StreamBundle.
-      List<ReadStream> remainderStreamBundle =
-          new ArrayList<>(
-              source.streamBundle.subList((int) Math.ceil(splitIndex), streamCountInBundle));
-      // Updating the primary StreamBundle.
-      source.streamBundle.subList((int) Math.ceil(splitIndex), streamCountInBundle).clear();
-      Metrics.counter(BigQueryStorageStreamBundleReader.class, "split-at-fraction-calls-successful")
-          .inc();
-      LOG.info("Successfully split BigQuery Storage API StreamBundle at {}.", fraction);
-      return source.fromExisting(remainderStreamBundle);
-    }
+    // @Override
+    // @SuppressWarnings("ReturnValueIgnored")
+    // public @Nullable OffsetBasedSource<T> splitAtFraction(double fraction) {
+    //   int streamCountInBundle = source.streamBundle.size();
+    //   double splitIndex = streamCountInBundle * fraction;
+    //   if (streamCountInBundle <= 1 || currentStreamIndex >= splitIndex) {
+    //     // The reader has moved past the requested split point.
+    //     // NOTE: We do not split below the granularity of a stream.
+    //     Metrics.counter(
+    //             BigQueryStorageStreamBundleReader.class,
+    //             "split-at-fraction-calls-failed-due-to-impossible-split-point")
+    //         .inc();
+    //     LOG.info(
+    //         "BigQuery Storage API Session {} cannot be split at {}.",
+    //         source.readSession.getName(),
+    //         fraction);
+    //     return null;
+    //   }
+    //   // Splitting the remainder Streams into a new StreamBundle.
+    //   List<ReadStream> remainderStreamBundle =
+    //       new ArrayList<>(
+    //           source.streamBundle.subList((int) Math.ceil(splitIndex), streamCountInBundle));
+    //   // Updating the primary StreamBundle.
+    //   source.streamBundle.subList((int) Math.ceil(splitIndex), streamCountInBundle).clear();
+    //   Metrics.counter(BigQueryStorageStreamBundleReader.class, "split-at-fraction-calls-successful")
+    //       .inc();
+    //   LOG.info("Successfully split BigQuery Storage API StreamBundle at {}.", fraction);
+    //   return source.fromExisting(remainderStreamBundle);
+    // }
 
     @Override
     public synchronized Double getFractionConsumed() {

@@ -1730,7 +1730,8 @@ public class BigQueryIO {
                                         tableSchema,
                                         getParseFn(),
                                         outputCoder,
-                                        getBigQueryServices());
+                                        getBigQueryServices(),
+                                        1L);
 
                                 // Read all of the data from the stream. In the event that this work
                                 // item fails and is rescheduled, the same rows will be returned in
