@@ -140,7 +140,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         checkNotNull(
             WRITE_DISPOSITIONS.get(this.getWriteDisposition().toUpperCase()),
             invalidConfigMessage
-                + "Invalid write disposition (%s) was specified. Available dispositions are: ",
+                + "Invalid write disposition (%s) was specified. Available dispositions are: %s",
             this.getWriteDisposition(),
             WRITE_DISPOSITIONS.keySet());
       }
