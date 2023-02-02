@@ -46,7 +46,7 @@ do
   --step ${STEP} \
   --sdk SDK_"${sdk^^}" \
   --origin ${ORIGIN} \
-  --subdirs ${SUBDIRS}
+  --subdirs ${SUBDIRS} >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
 done
 
 # Note: ${dns.name} taken from cloud build subs
