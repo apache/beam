@@ -32,6 +32,7 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
  * {@link FileWriteSchemaTransformFormatProviders} contains {@link
@@ -67,15 +68,19 @@ public final class FileWriteSchemaTransformFormatProviders {
   static <T> FileIO.Write<Void, T> applyCommonFileIOWriteFeatures(
       FileIO.Write<Void, T> write, FileWriteSchemaTransformConfiguration configuration) {
 
-    if (configuration.getFilenameSuffix() != null) {
+    if (!Strings.isNullOrEmpty(configuration.getFilenameSuffix())) {
       write = write.withSuffix(getFilenameSuffix(configuration));
     }
 
     if (configuration.getNumShards() != null) {
-      write = write.withNumShards(getNumShards(configuration));
+      int numShards = getNumShards(configuration);
+      // Python SDK external transforms do not support null values requiring additional check.
+      if (numShards > 0) {
+        write = write.withNumShards(numShards);
+      }
     }
 
-    if (configuration.getCompression() != null) {
+    if (!Strings.isNullOrEmpty(configuration.getCompression())) {
       write = write.withCompression(getCompression(configuration));
     }
 
@@ -90,19 +95,23 @@ public final class FileWriteSchemaTransformFormatProviders {
       TextIO.Write write, FileWriteSchemaTransformConfiguration configuration) {
     write = write.to(configuration.getFilenamePrefix());
 
-    if (configuration.getFilenameSuffix() != null) {
+    if (!Strings.isNullOrEmpty(configuration.getFilenameSuffix())) {
       write = write.withSuffix(getFilenameSuffix(configuration));
     }
 
-    if (configuration.getCompression() != null) {
+    if (!Strings.isNullOrEmpty(configuration.getCompression())) {
       write = write.withCompression(getCompression(configuration));
     }
 
     if (configuration.getNumShards() != null) {
-      write = write.withNumShards(getNumShards(configuration));
+      int numShards = getNumShards(configuration);
+      // Python SDK external transforms do not support null values requiring additional check.
+      if (numShards > 0) {
+        write = write.withNumShards(numShards);
+      }
     }
 
-    if (configuration.getShardNameTemplate() != null) {
+    if (!Strings.isNullOrEmpty(configuration.getShardNameTemplate())) {
       write = write.withShardNameTemplate(getShardNameTemplate(configuration));
     }
 

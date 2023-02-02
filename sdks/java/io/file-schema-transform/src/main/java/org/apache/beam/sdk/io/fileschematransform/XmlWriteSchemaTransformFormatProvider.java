@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for XML format. */
 @AutoService(FileWriteSchemaTransformFormatProvider.class)
@@ -67,8 +68,9 @@ public class XmlWriteSchemaTransformFormatProvider
 
         XmlConfiguration xmlConfig = xmlConfiguration(configuration);
 
-        checkArgument(xmlConfig.getCharset() != null, "charset must be specified");
-        checkArgument(xmlConfig.getRootElement() != null, "rootElement must be specified");
+        checkArgument(!Strings.isNullOrEmpty(xmlConfig.getCharset()), "charset must be specified");
+        checkArgument(
+            !Strings.isNullOrEmpty(xmlConfig.getRootElement()), "rootElement must be specified");
 
         Charset charset = Charset.forName(xmlConfig.getCharset());
 

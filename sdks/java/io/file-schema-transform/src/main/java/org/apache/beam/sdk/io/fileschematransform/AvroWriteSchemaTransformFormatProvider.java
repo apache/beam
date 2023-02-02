@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.fileschematransform;
 
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getNumShards;
+import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviders.getShardNameTemplate;
+
 import com.google.auto.service.AutoService;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AvroGenericCoder;
@@ -27,6 +30,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /** A {@link FileWriteSchemaTransformFormatProvider} for avro format. */
 @AutoService(FileWriteSchemaTransformFormatProvider.class)
@@ -64,15 +68,15 @@ public class AvroWriteSchemaTransformFormatProvider
             AvroIO.writeGenericRecords(avroSchema).to(configuration.getFilenamePrefix());
 
         if (configuration.getNumShards() != null) {
-          write =
-              write.withNumShards(
-                  FileWriteSchemaTransformFormatProviders.getNumShards(configuration));
+          int numShards = getNumShards(configuration);
+          // Python SDK external transforms do not support null values requiring additional check.
+          if (numShards > 0) {
+            write = write.withNumShards(numShards);
+          }
         }
 
-        if (configuration.getShardNameTemplate() != null) {
-          write =
-              write.withShardNameTemplate(
-                  FileWriteSchemaTransformFormatProviders.getShardNameTemplate(configuration));
+        if (!Strings.isNullOrEmpty(configuration.getShardNameTemplate())) {
+          write = write.withShardNameTemplate(getShardNameTemplate(configuration));
         }
 
         return avro.apply("Write Avro", write.withOutputFilenames())

@@ -89,7 +89,11 @@ public class ParquetWriteSchemaTransformFormatProvider
                 CompressionCodecName.valueOf(configuration.getCompressionCodecName()));
 
     if (configuration.getRowGroupSize() != null) {
-      sink = sink.withRowGroupSize(getRowGroupSize(configuration));
+      int rowGroupSize = getRowGroupSize(configuration);
+      // Python SDK external transforms do not support null values requiring additional check.
+      if (rowGroupSize > 0) {
+        sink = sink.withRowGroupSize(rowGroupSize);
+      }
     }
 
     return sink;

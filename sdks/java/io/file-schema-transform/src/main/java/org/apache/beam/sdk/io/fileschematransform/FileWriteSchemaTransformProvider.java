@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
  * A {@link TypedSchemaTransformProvider} implementation for writing a {@link Row} {@link
@@ -177,7 +178,7 @@ public class FileWriteSchemaTransformProvider
                 "configuration with %s is not compatible with a %s format",
                 FileWriteSchemaTransformConfiguration.XmlConfiguration.class.getName(), format));
       }
-      if (format.equals(AVRO) && configuration.getCompression() != null) {
+      if (format.equals(AVRO) && !Strings.isNullOrEmpty(configuration.getCompression())) {
         throw new IllegalArgumentException(
             "configuration with compression is not compatible with AvroIO");
       }
