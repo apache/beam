@@ -66,7 +66,7 @@ func main() {
 
     distinctWordsStartLetterI := getCompositeWordsStartWith(s,words)
 
-    wordWithUpperCase, wordWithLowerCase := getMultiplePCollections(s,distinctWordsStartLetterS)
+    wordWithUpperCase, wordWithLowerCase := getMultiplePCollections(s,distinctWordsStartLetterI)
 
     result := checkExistUpperWordsInLowerCaseView(s,wordWithUpperCase,wordWithLowerCase)
 
