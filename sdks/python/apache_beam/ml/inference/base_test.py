@@ -16,7 +16,6 @@
 #
 
 """Tests for apache_beam.ml.base."""
-
 import math
 import pickle
 import time
@@ -31,14 +30,16 @@ from typing import Sequence
 import pytest
 
 import apache_beam as beam
+from apache_beam.examples.inference import run_inference_side_inputs
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.ml.inference import base
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import trigger
 from apache_beam.transforms import window
-from apache_beam.transforms.periodicsequence import PeriodicImpulse
-from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.periodicsequence import TimestampedValue
 
 
 class FakeModel:
@@ -76,8 +77,6 @@ class FakeModelHandlerReturnsPredictionResult(
     self._fake_clock = clock
 
   def load_model(self):
-    if self._fake_clock:
-      self._fake_clock.current_time_ns += 500_000_000  # 500ms
     return FakeModel()
 
   def run_inference(
@@ -389,64 +388,131 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandlerReturnsPredictionResult())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  @pytest.mark.it_postcommit
-  def test_run_inference_prediction_result_with_side_input(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
+  def test_run_inference_with_iterable_side_input(self):
+    test_pipeline = TestPipeline()
+    side_input = (
+        test_pipeline | "CreateDummySideInput" >> beam.Create(
+            [base.ModelMetdata(1, 1), base.ModelMetdata(2, 2)])
+        | "ApplySideInputWindow" >> beam.WindowInto(
+            window.GlobalWindows(),
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(1)),
+            accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
+    test_pipeline.options.view_as(StandardOptions).streaming = True
+    with self.assertRaises(ValueError) as e:
+      _ = (
+          test_pipeline
+          | beam.Create([1, 2, 3, 4])
+          | base.RunInference(
+              FakeModelHandler(), model_metadata_pcoll=side_input))
+      test_pipeline.run()
+
+    self.assertTrue(
+        'PCollection of size 2 with more than one element accessed as a '
+        'singleton view. First two elements encountered are' in str(
+            e.exception))
+
+  def test_run_inference_empty_side_input(self):
+    model_handler = FakeModelHandlerReturnsPredictionResult()
+    main_input_elements = [1, 2]
+    with TestPipeline(is_integration_test=False) as pipeline:
+      side_pcoll = pipeline | "side" >> beam.Create([])
+      result_pcoll = (
+          pipeline
+          | beam.Create(main_input_elements)
+          | base.RunInference(model_handler, model_metadata_pcoll=side_pcoll))
+      expected = [
+          base.PredictionResult(ele, ele + 1, 'fake_model_id_default')
+          for ele in main_input_elements
+      ]
+
+      assert_that(result_pcoll, equal_to(expected))
+
+  def test_run_inference_side_input_in_batch(self):
     first_ts = math.floor(time.time()) - 30
-    interval = 5
-    main_input_windowing_interval = 7
+    interval = 7
 
-    # aligning timestamp to get persistent results
-    first_ts = first_ts - (
-        first_ts % (interval * main_input_windowing_interval))
-    last_ts = first_ts + 45
+    sample_main_input_elements = ([
+        first_ts - 2,
+        first_ts + 1,
+        first_ts + 8,
+        first_ts + 15,
+        first_ts + 22,
+    ])
 
-    sample_main_input_elements = ([first_ts - 2, # no output due to no SI
-                                   first_ts + 8,  # first window
-                                   first_ts + 22,  # second window
-                                   ])
-
-    sample_side_input_elements = [
+    sample_side_input_elements = [(
+        first_ts + 8,
         base.ModelMetdata(
-            model_id='fake_model_id_1', model_name='fake_model_id_1')
-    ]
+            model_id='fake_model_id_1', model_name='fake_model_id_1')),
+                                  (
+                                      first_ts + 15,
+                                      base.ModelMetdata(
+                                          model_id='fake_model_id_2',
+                                          model_name='fake_model_id_2'))]
 
-    class EmitSideInput(beam.DoFn):
+    model_handler = FakeModelHandlerReturnsPredictionResult()
+
+    # applying GroupByKey to utilize windowing according to
+    # https://beam.apache.org/documentation/programming-guide/#windowing-bounded-collections
+    class _EmitElement(beam.DoFn):
       def process(self, element):
         for e in element:
           yield e
 
-    model_handler = FakeModelHandlerReturnsPredictionResult()
+    with TestPipeline() as pipeline:
+      side_input = (
+          pipeline
+          |
+          "CreateSideInputElements" >> beam.Create(sample_side_input_elements)
+          | beam.Map(lambda x: TimestampedValue(x[1], x[0]))
+          | beam.WindowInto(
+              window.FixedWindows(interval),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.Map(lambda x: ('key', x))
+          | beam.GroupByKey()
+          | beam.Map(lambda x: x[1])
+          | "EmitSideInput" >> beam.ParDo(_EmitElement()))
 
-    side_input = (
-        test_pipeline
-        |
-        "PeriodicImpulse" >> PeriodicImpulse(first_ts, last_ts, interval, True)
-        | beam.Map(lambda x: sample_side_input_elements)
-        | beam.ParDo(EmitSideInput()))
+      result_pcoll = (
+          pipeline
+          | beam.Create(sample_main_input_elements)
+          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x))
+          | "ApplyWindow" >> beam.WindowInto(window.FixedWindows(interval))
+          | beam.Map(lambda x: ('key', x))
+          | "MainInputGBK" >> beam.GroupByKey()
+          | beam.Map(lambda x: x[1])
+          | beam.ParDo(_EmitElement())
+          | "RunInference" >> base.RunInference(
+              model_handler, model_metadata_pcoll=side_input))
 
-    result = (
-        test_pipeline
-        | beam.Create(sample_main_input_elements)
-        | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x))
-        | "ApplyWindow" >> beam.WindowInto(
-            window.FixedWindows(main_input_windowing_interval))
-        | "RunInference" >> base.RunInference(
-            model_handler, model_metadata_pcoll=side_input))
-    test_pipeline.run()
+      expected_model_id_order = [
+          'fake_model_id_default',
+          'fake_model_id_default',
+          'fake_model_id_1',
+          'fake_model_id_2',
+          'fake_model_id_2'
+      ]
+      expected_result = [
+          base.PredictionResult(
+              example=sample_main_input_elements[i],
+              inference=sample_main_input_elements[i] + 1,
+              model_id=expected_model_id_order[i]) for i in range(5)
+      ]
 
-    expected_model_id_order = [
-        'fake_model_id_default', 'fake_model_id_1', 'fake_model_id_1'
-    ]
-    expected_result = [
-        base.PredictionResult(
-            example=sample_main_input_elements[i],
-            inference=sample_main_input_elements[i] + 1,
-            model_id=expected_model_id_order[i]) for i in range(3)
-    ]
+      assert_that(result_pcoll, equal_to(expected_result))
 
-    assert_that(result, equal_to(expected_result))
+  @unittest.skipIf(
+      not TestPipeline().get_pipeline_options().view_as(
+          StandardOptions).streaming,
+      "SideInputs to RunInference are only supported in streaming mode.")
+  @pytest.mark.it_postcommit
+  @pytest.mark.sickbay_direct
+  @pytest.mark.it_validatesrunner
+  def test_run_inference_with_side_inputin_streaming(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    test_pipeline.options.view_as(StandardOptions).streaming = True
+    run_inference_side_inputs.run(
+        test_pipeline.get_full_options_as_args(), save_main_session=False)
 
 
 if __name__ == '__main__':

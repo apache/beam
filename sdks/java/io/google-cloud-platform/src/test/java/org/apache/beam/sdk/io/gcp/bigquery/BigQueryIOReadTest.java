@@ -86,6 +86,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -97,6 +98,8 @@ public class BigQueryIOReadTest implements Serializable {
   private transient PipelineOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(60);
 
   @Rule
   public final transient TestRule folderThenPipeline =

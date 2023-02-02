@@ -55,9 +55,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link PubsubSchemaTransformReadProvider}. */
+/** Tests for {@link PubsubReadSchemaTransformProvider}. */
 @RunWith(JUnit4.class)
-public class PubsubSchemaTransformReadProviderTest {
+public class PubsubReadSchemaTransformProviderTest {
 
   private static final Schema SCHEMA =
       Schema.of(
@@ -71,11 +71,11 @@ public class PubsubSchemaTransformReadProviderTest {
       Arrays.asList(
           testCase(
                   "no configured topic or subscription",
-                  PubsubSchemaTransformReadConfiguration.builder().setDataSchema(SCHEMA).build())
+                  PubsubReadSchemaTransformConfiguration.builder().setDataSchema(SCHEMA).build())
               .expectInvalidConfiguration(),
           testCase(
                   "both topic and subscription configured",
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setSubscription(SUBSCRIPTION)
                       .setSubscription(TOPIC)
                       .setDataSchema(SCHEMA)
@@ -83,7 +83,7 @@ public class PubsubSchemaTransformReadProviderTest {
               .expectInvalidConfiguration(),
           testCase(
                   "invalid format configured",
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setSubscription(SUBSCRIPTION)
                       .setDataSchema(SCHEMA)
                       .setFormat("invalidformat")
@@ -91,21 +91,21 @@ public class PubsubSchemaTransformReadProviderTest {
               .expectInvalidConfiguration(),
           testCase(
                   "configuration with subscription",
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setSubscription(SUBSCRIPTION)
                       .setDataSchema(SCHEMA)
                       .build())
               .withExpectedPubsubRead(PubsubIO.readMessages().fromSubscription(SUBSCRIPTION)),
           testCase(
                   "configuration with topic",
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setTopic(TOPIC)
                       .setDataSchema(SCHEMA)
                       .build())
               .withExpectedPubsubRead(PubsubIO.readMessages().fromTopic(TOPIC)),
           testCase(
                   "configuration with subscription, timestamp and id attributes",
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setSubscription(SUBSCRIPTION)
                       .setTimestampAttribute("timestampAttribute")
                       .setIdAttribute("idAttribute")
@@ -118,7 +118,7 @@ public class PubsubSchemaTransformReadProviderTest {
                       .withIdAttribute("idAttribute")),
           testCase(
                   "configuration with subscription and dead letter queue",
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setSubscription(SUBSCRIPTION)
                       .setDataSchema(SCHEMA)
                       .setDeadLetterQueue(TOPIC)
@@ -127,7 +127,7 @@ public class PubsubSchemaTransformReadProviderTest {
               .withExpectedDeadLetterQueue(PubsubIO.writeMessages().to(TOPIC)),
           testCase(
                   "configuration with subscription, timestamp attribute, and dead letter queue",
-                  PubsubSchemaTransformReadConfiguration.builder()
+                  PubsubReadSchemaTransformConfiguration.builder()
                       .setSubscription(SUBSCRIPTION)
                       .setTimestampAttribute("timestampAttribute")
                       .setDataSchema(SCHEMA)
@@ -141,9 +141,9 @@ public class PubsubSchemaTransformReadProviderTest {
                   PubsubIO.writeMessages().to(TOPIC).withTimestampAttribute("timestampAttribute")));
 
   private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<PubsubSchemaTransformReadConfiguration> TYPE_DESCRIPTOR =
-      TypeDescriptor.of(PubsubSchemaTransformReadConfiguration.class);
-  private static final SerializableFunction<PubsubSchemaTransformReadConfiguration, Row>
+  private static final TypeDescriptor<PubsubReadSchemaTransformConfiguration> TYPE_DESCRIPTOR =
+      TypeDescriptor.of(PubsubReadSchemaTransformConfiguration.class);
+  private static final SerializableFunction<PubsubReadSchemaTransformConfiguration, Row>
       ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
 
   private static final List<Row> ROWS =
@@ -185,14 +185,14 @@ public class PubsubSchemaTransformReadProviderTest {
   @Test
   public void testReadAvro() throws IOException {
     PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
-    PubsubSchemaTransformReadProvider.PubsubReadSchemaTransform transform =
+    PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform transform =
         schemaTransformWithClock("avro");
     PubsubTestClient.PubsubTestClientFactory clientFactory =
         clientFactory(incomingAvroMessagesOf(CLOCK.currentTimeMillis()));
     transform.setClientFactory(clientFactory);
     PCollectionRowTuple reads = begin.apply(transform.buildTransform());
 
-    PAssert.that(reads.get(PubsubSchemaTransformReadProvider.OUTPUT_TAG)).containsInAnyOrder(ROWS);
+    PAssert.that(reads.get(PubsubReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(ROWS);
 
     p.run().waitUntilFinish();
     clientFactory.close();
@@ -201,14 +201,14 @@ public class PubsubSchemaTransformReadProviderTest {
   @Test
   public void testReadJson() throws IOException {
     PCollectionRowTuple begin = PCollectionRowTuple.empty(p);
-    PubsubSchemaTransformReadProvider.PubsubReadSchemaTransform transform =
+    PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform transform =
         schemaTransformWithClock("json");
     PubsubTestClient.PubsubTestClientFactory clientFactory =
         clientFactory(incomingJsonMessagesOf(CLOCK.currentTimeMillis()));
     transform.setClientFactory(clientFactory);
     PCollectionRowTuple reads = begin.apply(transform.buildTransform());
 
-    PAssert.that(reads.get(PubsubSchemaTransformReadProvider.OUTPUT_TAG)).containsInAnyOrder(ROWS);
+    PAssert.that(reads.get(PubsubReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(ROWS);
 
     p.run().waitUntilFinish();
 
@@ -250,21 +250,21 @@ public class PubsubSchemaTransformReadProviderTest {
         IllegalArgumentException.class,
         () ->
             begin.apply(
-                new PubsubSchemaTransformReadProvider()
+                new PubsubReadSchemaTransformProvider()
                     .from(
-                        PubsubSchemaTransformReadConfiguration.builder()
+                        PubsubReadSchemaTransformConfiguration.builder()
                             .setDataSchema(SCHEMA)
                             .build())
                     .buildTransform()));
   }
 
-  private PubsubSchemaTransformReadProvider.PubsubReadSchemaTransform schemaTransformWithClock(
+  private PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform schemaTransformWithClock(
       String format) {
-    PubsubSchemaTransformReadProvider.PubsubReadSchemaTransform transform =
-        (PubsubSchemaTransformReadProvider.PubsubReadSchemaTransform)
-            new PubsubSchemaTransformReadProvider()
+    PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform transform =
+        (PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform)
+            new PubsubReadSchemaTransformProvider()
                 .from(
-                    PubsubSchemaTransformReadConfiguration.builder()
+                    PubsubReadSchemaTransformConfiguration.builder()
                         .setDataSchema(SCHEMA)
                         .setSubscription(SUBSCRIPTION)
                         .setFormat(format)
@@ -295,7 +295,7 @@ public class PubsubSchemaTransformReadProviderTest {
   }
 
   private static List<PubsubClient.IncomingMessage> incomingJsonMessagesOf(long millisSinceEpoch) {
-    return PubsubSchemaTransformReadProviderTest.ROWS.stream()
+    return PubsubReadSchemaTransformProviderTest.ROWS.stream()
         .map(row -> incomingJsonMessageOf(row, millisSinceEpoch))
         .collect(Collectors.toList());
   }
@@ -332,14 +332,14 @@ public class PubsubSchemaTransformReadProviderTest {
         UUID.randomUUID().toString());
   }
 
-  static TestCase testCase(String name, PubsubSchemaTransformReadConfiguration configuration) {
+  static TestCase testCase(String name, PubsubReadSchemaTransformConfiguration configuration) {
     return new TestCase(name, configuration);
   }
 
   private static class TestCase {
 
     private final String name;
-    private final PubsubSchemaTransformReadConfiguration configuration;
+    private final PubsubReadSchemaTransformConfiguration configuration;
 
     private Map<DisplayData.Identifier, DisplayData.Item> expectedDeadLetterQueue;
 
@@ -348,19 +348,19 @@ public class PubsubSchemaTransformReadProviderTest {
 
     private boolean invalidConfigurationExpected = false;
 
-    TestCase(String name, PubsubSchemaTransformReadConfiguration configuration) {
+    TestCase(String name, PubsubReadSchemaTransformConfiguration configuration) {
       this.name = name;
       this.configuration = configuration;
     }
 
     SchemaTransform schemaTransform() {
-      PubsubSchemaTransformReadProvider provider = new PubsubSchemaTransformReadProvider();
+      PubsubReadSchemaTransformProvider provider = new PubsubReadSchemaTransformProvider();
       Row configurationRow = toBeamRow();
       return provider.from(configurationRow);
     }
 
-    PubsubSchemaTransformReadProvider.PubsubReadSchemaTransform pubsubReadSchemaTransform() {
-      return (PubsubSchemaTransformReadProvider.PubsubReadSchemaTransform)
+    PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform pubsubReadSchemaTransform() {
+      return (PubsubReadSchemaTransformProvider.PubsubReadSchemaTransform)
           schemaTransform().buildTransform();
     }
 

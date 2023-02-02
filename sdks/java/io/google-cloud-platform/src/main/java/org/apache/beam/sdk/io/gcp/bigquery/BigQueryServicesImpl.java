@@ -555,6 +555,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final PipelineOptions options;
     private final long maxRowsPerBatch;
     private final long maxRowBatchSize;
+    private final long storageWriteMaxInflightRequests;
+    private final long storageWriteMaxInflightBytes;
     // aggregate the total time spent in exponential backoff
     private final Counter throttlingMsecs =
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
@@ -572,6 +574,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
       this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
@@ -589,6 +593,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
       this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
@@ -600,6 +606,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
       this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
@@ -1334,6 +1342,8 @@ class BigQueryServicesImpl implements BigQueryServices {
               .setWriterSchema(protoSchema)
               .setChannelProvider(transportChannelProvider)
               .setEnableConnectionPool(useConnectionPool)
+              .setMaxInflightRequests(storageWriteMaxInflightRequests)
+              .setMaxInflightBytes(storageWriteMaxInflightBytes)
               .setTraceId(
                   "Dataflow:"
                       + (bqIOMetadata.getBeamJobId() != null
