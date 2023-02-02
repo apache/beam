@@ -371,7 +371,8 @@ public final class TransformTranslator {
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
 
         boolean useBoundedConcurrentOutput =
-            ExperimentalOptions.hasExperiment(context.getOptions(), "use_bounded_concurrent_output_for_sdf")
+            ExperimentalOptions.hasExperiment(
+                    context.getOptions(), "use_bounded_concurrent_output_for_sdf")
                 && splitDoFnMatcher.matches(context.getCurrentTransform());
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
