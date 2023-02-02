@@ -15,5 +15,6 @@
 #    limitations under the License.
 #
 
+--index-url https://pypi-nightly.tensorflow.org/simple
 tfx_bsl
 tensorflow-transform
