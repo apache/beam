@@ -11,4 +11,4 @@ limitations under the License.
 -->
 ### Common Transforms motivating challenge
 
-You are given the work of Shakespeare "Kinglear", it will be divided into words and filtered.  Leave the words beginning with "**s**", the case does not matter. After using the `additional output`, return the two `PCollection` separation conditions will be **uppercase** and **lowercase**. Create a view from the PCollection with **lowercase** words and passing it to the `side-input` check if there are matching words in both registers.
+You are given the work of Shakespeare "Kinglear", it will be divided into words and filtered.  Leave the words beginning with "**i**", the case does not matter. After using the `additional output`, return the two `PCollection` separation conditions will be **uppercase** and **lowercase**. Create a view from the PCollection with **lowercase** words and passing it to the `side-input` check if there are matching words in both registers.

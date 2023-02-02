@@ -15,7 +15,7 @@ You can solve the challenge with this way:
 2. To return two `PCollection` we need to use `ParDo2` with nested logic in this case checking for the case of letters:
 ```
 beam.ParDo2(s, func(element string, wordWithUpperCase, wordWithLowerCase func(string)) {
-if strings.HasPrefix(element,"S") {
+if strings.HasPrefix(element,"I") {
    wordWithUpperCase(element)
    return
 }
@@ -44,7 +44,7 @@ for wordWithLowerCase(&word) {
 {{end}}
 
 {{if (eq .Sdk "java")}}
-1. Complete the compositions function first of all filters all words that begin with "**s**" `ParDo.of(new WordsStartWith("s")))` in `WordsStartWith` class `if (c.element().toLowerCase().startsWith(letter)) {
+1. Complete the compositions function first of all filters all words that begin with "**s**" `ParDo.of(new WordsStartWith("i")))` in `WordsStartWith` class `if (c.element().toLowerCase().startsWith(letter)) {
    c.output(c.element());
    }`. Then, you can group the words so that they are unique. After that, we return only the key `apply(Count.perElement()).apply(MapElements.into(TypeDescriptors.strings()).via(KV::getKey)`.
 2. To return two `PCollection` we need to use `ParDo2` with nested logic in this case checking for the case of letters:
@@ -52,7 +52,7 @@ for wordWithLowerCase(&word) {
 wordsWithStartS.apply(ParDo.of(new DoFn<String, String>() {
       @ProcessElement
       public void processElement(@Element String word, MultiOutputReceiver out) {
-         if (word.startsWith("S")) {
+         if (word.startsWith("I")) {
                out.get(wordWithUpperCase).output(word);
          } else {
                out.get(wordWithLowerCase).output(word);
@@ -82,7 +82,7 @@ ParDo.of(new DoFn<String, String>() {
 
 {{if (eq .Sdk "python")}}
 1. Complete the compositions function first of all filters all words that begin with "**s**" `ExtractAndCountWord()` in `return (pcoll
-   | beam.ParDo(StartWithLetter('s'))
+   | beam.ParDo(StartWithLetter('i'))
    )`. Then, you can group the words so that they are unique. After that, we return only the key `| beam.combiners.Count.PerElement()
    | beam.Map(lambda kv: kv[0])`.
 ```
@@ -101,7 +101,7 @@ ProcessNumbersDoFn realization:
 ```
 class ProcessNumbersDoFn(beam.DoFn):
     def process(self, element):
-        if element.startswith('S'):
+        if element.startswith('I'):
             yield element
         else:
             yield pvalue.TaggedOutput(wordWithLowerCase, element)

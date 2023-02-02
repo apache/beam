@@ -33,6 +33,7 @@ import (
 	"context"
 	"strings"
 	"regexp"
+"fmt"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -47,9 +48,6 @@ func less(a, b string) bool{
     return true
 }
 
-var (
-    wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-)
 
 func main() {
 	ctx := context.Background()
@@ -64,7 +62,7 @@ func main() {
 
     words := getWords(s,fixedSizeLines)
 
-    distinctWordsStartLetterS := getCompositeWordsStartWith(s,words)
+    distinctWordsStartLetterI := getCompositeWordsStartWith(s,words)
 
     wordWithUpperCase, wordWithLowerCase := getMultiplePCollections(s,distinctWordsStartLetterS)
 
@@ -87,16 +85,21 @@ func getLines(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 
 func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line string, emit func(string)) {
-        for _, word := range wordRE.FindAllString(line, -1) {
-            emit(word)
+    return beam.ParDo(s, func(line []string, emit func(string)) {
+        for _, word := range line {
+            e := strings.Split(word, " ")
+            for _,element := range e{
+                reg := regexp.MustCompile(`([^\w])`)
+                res := reg.ReplaceAllString(element, "")
+                emit(res)
+            }
         }
     }, input)
 }
 
 func getCompositeWordsStartWith(s beam.Scope, input beam.PCollection) beam.PCollection{
    wordsStartWithLetterS := filter.Include(s, input, func(element string) bool {
-              return strings.HasPrefix(strings.ToLower(element),"s")
+              return strings.HasPrefix(strings.ToLower(element),"i")
          })
 
    wordWithCount := stats.Count(s, wordsStartWithLetterS)
@@ -108,7 +111,7 @@ func getCompositeWordsStartWith(s beam.Scope, input beam.PCollection) beam.PColl
 
 func getMultiplePCollections(s beam.Scope, input beam.PCollection) (beam.PCollection, beam.PCollection){
     return beam.ParDo2(s, func(element string, wordWithUpperCase, wordWithLowerCase func(string)) {
-    		if strings.HasPrefix(element,"S") {
+    		if strings.HasPrefix(element,"I") {
     			wordWithUpperCase(element)
     			return
     		}
@@ -127,8 +130,8 @@ func compareFn(wordWithUpperCase string, wordWithLowerCase func(*string) bool, e
 	var word string
 	for wordWithLowerCase(&word) {
 		if strings.ToLower(wordWithUpperCase) == word {
+  fmt.Print(word)
 			emit(word)
-			break
 		}
 	}
 }

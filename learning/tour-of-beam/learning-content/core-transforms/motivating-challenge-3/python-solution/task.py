@@ -61,7 +61,7 @@ class ExtractAndCountWord(beam.PTransform):
 
     def expand(self, pcoll):
         return (pcoll
-                | beam.ParDo(StartWithLetter('s'))
+                | beam.ParDo(StartWithLetter('i'))
                 | beam.combiners.Count.PerElement()
                 | beam.Map(lambda kv: kv[0])
                 )
@@ -69,7 +69,7 @@ class ExtractAndCountWord(beam.PTransform):
 class ProcessNumbersDoFn(beam.DoFn):
 
     def process(self, element):
-        if element.startswith('S'):
+        if element.startswith('I'):
             yield element
         else:
             yield pvalue.TaggedOutput(wordWithLowerCase, element)

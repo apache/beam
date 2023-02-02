@@ -32,7 +32,7 @@ package main
 import (
 	"context"
 	"regexp"
-	"fmt"
+"strings"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
     "github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -48,7 +48,6 @@ func less(a, b string) bool{
 
 var (
     result = make(map[string][]string)
-    wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 )
 
 func main() {
@@ -83,13 +82,17 @@ func getLines(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 
 func getWords(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return beam.ParDo(s, func(line string, emit func(string)) {
-        for _, word := range wordRE.FindAllString(line, -1) {
-            emit(word)
+    return beam.ParDo(s, func(line []string, emit func(string)) {
+        for _, word := range line {
+            e := strings.Split(word, " ")
+            for _,element := range e{
+                reg := regexp.MustCompile(`([^\w])`)
+                res := reg.ReplaceAllString(element, "")
+                emit(res)
+            }
         }
     }, input)
 }
-
 type groupWordByFirstLetterFn struct{}
 
 type wordAccum struct {
@@ -107,7 +110,7 @@ func (c *groupWordByFirstLetterFn) CreateAccumulator() wordAccum {
 
 func (c *groupWordByFirstLetterFn) AddInput(accum wordAccum, input string) wordAccum {
     firsLetterAndWord := make(map[string]string)
-
+if len(input)>0{
 	firsLetterAndWord[string(input[0])] = input
 
 	accum.Current = append(accum.Current, firsLetterAndWord)
@@ -122,6 +125,7 @@ func (c *groupWordByFirstLetterFn) AddInput(accum wordAccum, input string) wordA
           	result[k]=value
           }
         }
+     }
 	return accum
 }
 
@@ -131,7 +135,5 @@ func (c *groupWordByFirstLetterFn) MergeAccumulators(accumA, accumB wordAccum) w
 }
 
 func (c *groupWordByFirstLetterFn) ExtractOutput(accum wordAccum) map[string][]string {
-    fmt.Println(result)
-
-	return accum.Result
+	return result
 }

@@ -80,7 +80,7 @@ public class Task {
         @Override
         public PCollection<String> expand(PCollection<String> input) {
             PCollection<String> wordsStartWithS = input.apply(
-                    ParDo.of(new WordsStartWith("s")));
+                    ParDo.of(new WordsStartWith("i")));
 
             return wordsStartWithS.apply(Count.perElement())
                     .apply(MapElements.into(TypeDescriptors.strings()).via(KV::getKey));
@@ -122,7 +122,7 @@ public class Task {
         return wordsWithStartS.apply(ParDo.of(new DoFn<String, String>() {
             @ProcessElement
             public void processElement(@Element String word, MultiOutputReceiver out) {
-                if (word.startsWith("S")) {
+                if (word.startsWith("I")) {
                     out.get(wordWithUpperCase).output(word);
                 } else {
                     out.get(wordWithLowerCase).output(word);
