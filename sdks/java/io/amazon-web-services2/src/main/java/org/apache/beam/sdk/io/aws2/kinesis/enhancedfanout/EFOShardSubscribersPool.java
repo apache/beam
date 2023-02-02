@@ -30,6 +30,7 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecord;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ForwardingIterator;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -41,6 +42,35 @@ import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
 import software.amazon.kinesis.retrieval.AggregatorUtil;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
+
+/**
+ * TODO:
+ * - switch to existing ShardCheckpoint
+ *   - we don't care what consumer name was, we want to switch back and forth from / to EFO
+ *   - back-fill -  EFO consumer, then use normal consumer to keep going
+ * - test with real Kinesis
+ * - check whenComplete (netty) vs whenCompleteAsync (fork join pool)
+ * - Work on testing & stub
+ * - think of delay of re-connect (in the pool - oneThreadScheduledExecService)
+ * - Re-sharding: state is always reflecting the ack-ed checkpoint, so
+ *   getNextRecord() executes actual state mutations. The caller of that thing will handle
+ *   starting new subscriptions and deleting the orphaned shards' checkpoints from the map.
+ * - Inner classes are fine:
+ *   - You limit public surface, clear isolation
+ *   - Everything in the package level - hard to navigate, too many classes
+ *   - Inner class can be used only in the context of enclosing class, it is more clear
+ *   - Readers don't need to worry about all the places class can be re-used
+ *   - KinesisIO.Read / Write - Javadoc is easier to navigate
+ *   - Sometimes classes with inner classes become too huge
+ *   - Static helper classes (Util) used in a single place - also good candidates for inner classes
+ *   - If you really re-use over and over - better not to
+ * - DirectRunner interrupts and re-creates new sources too often. Use FlinkRunner
+ * - Config class
+ *   - potential alternative - Client configuration
+ *   - option: not to have back-offs in custom code, client itself has back-offs internally
+ *   - we can think of this later, add any custom back offs as late as possible
+ *   - ? recommend in javadoc to use large initial back offs ?
+ */
 class EFOShardSubscribersPool {
   private static final Logger LOG = LoggerFactory.getLogger(EFOShardSubscribersPool.class);
 
@@ -146,31 +176,34 @@ class EFOShardSubscribersPool {
    */
   @Nullable
   KinesisRecord getNextRecord() throws IOException {
-    if (current == null && eventQueue.isEmpty()) {
-      if (subscriptionError == null) {
-        return null;
-      } else {
-        throw new IOException(subscriptionError);
+    while (true) {
+      if (current == null && eventQueue.isEmpty()) {
+        if (subscriptionError == null) {
+          return null;
+        } else {
+          throw new IOException(subscriptionError);
+        }
       }
-    }
 
-    if (current == null) {
       current = eventQueue.poll();
-    }
-
-    if (current != null) {
-      String shardId = current.shardId;
-      if (current.hasNext()) {
-        KinesisClientRecord r = current.next();
-        state.computeIfPresent(shardId, (k, v) -> v.update(r));
-        return new KinesisRecord(r, config.getStreamName(), shardId);
-      } else {
-        onEventDone(current);
-        current = null;
+      if (current != null) {
+        String shardId = current.shardId;
+        ShardState shardState = Preconditions.checkStateNotNull(state.get(shardId));
+        if (current.hasNext()) {
+          KinesisClientRecord r = current.next();
+          if (!current.hasNext()) {
+            onEventDone(shardState, current);
+            current = null;
+          }
+          shardState.update(r);
+          return new KinesisRecord(r, config.getStreamName(), shardId);
+        } else {
+          onEventDone(shardState, current);
+          shardState.update(current);
+          current = null;
+        }
       }
     }
-
-    return null;
   }
 
   /**
@@ -186,14 +219,11 @@ class EFOShardSubscribersPool {
    * <p>Finally, {@link EFOShardSubscriber#ackEvent() acknowledge} to the respective {@link
    * EFOShardSubscriber} that processing of an event is complete.
    */
-  private void onEventDone(EventRecords records) {
+  private void onEventDone(ShardState shardState, EventRecords records) {
     if (records.event.hasChildShards()) {
       LOG.info("Child shards: {} ", records.event.childShards());
     }
-    state.computeIfPresent(records.shardId, (k, v) -> {
-      v.subscriber.ackEvent();
-      return v;
-    });
+    shardState.subscriber.ackEvent();
   }
 
   /** Adds a {@link EventRecords} iterator for shardId and event to {@link #eventQueue}. */
@@ -211,7 +241,7 @@ class EFOShardSubscribersPool {
   private static class ShardState {
     EFOShardSubscriber subscriber;
     @Nullable String sequenceNumber = null;
-    long subSequenceNumber = -1L;
+    long subSequenceNumber = 0L;
 
     ShardState(EFOShardSubscriber subscriber) {
       this.subscriber = subscriber;
@@ -220,6 +250,12 @@ class EFOShardSubscribersPool {
     ShardState update(KinesisClientRecord r) {
       sequenceNumber = r.sequenceNumber();
       subSequenceNumber = r.subSequenceNumber();
+      return this;
+    }
+
+    ShardState update(EventRecords eventRecords) {
+      sequenceNumber = eventRecords.event.continuationSequenceNumber();
+      subSequenceNumber = 0L;
       return this;
     }
   }

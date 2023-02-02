@@ -33,7 +33,7 @@ import org.junit.Test;
 
 public class EFOShardSubscribersPoolTest {
   @Test
-  public void poolReSubscribesAndReadsRecords() throws TransientKinesisException, IOException {
+  public void poolReSubscribesAndReadsRecords() throws TransientKinesisException, Exception {
     Config config = createConfig();
     KinesisIO.Read readSpec = createReadSpec();
     KinesisClientProxyStub kinesis = KinesisStubBehaviours.twoShardsWithRecords();
@@ -47,12 +47,13 @@ public class EFOShardSubscribersPoolTest {
   }
 
   public static List<KinesisRecord> waitForRecords(EFOShardSubscribersPool pool, int expectedCnt)
-      throws IOException {
+          throws Exception {
     List<KinesisRecord> records = new ArrayList<>();
-    int maxAttempts = expectedCnt * 4;
+    int maxAttempts = expectedCnt * 2;
     int i = 0;
     while (i < maxAttempts) {
       KinesisRecord r = pool.getNextRecord();
+      Thread.sleep(100);
       if (r != null) {
         records.add(r);
       }

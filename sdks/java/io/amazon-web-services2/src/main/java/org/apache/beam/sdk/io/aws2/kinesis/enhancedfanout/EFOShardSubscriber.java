@@ -24,6 +24,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+
+import io.netty.handler.timeout.ReadTimeoutException;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.reactivestreams.Subscriber;
@@ -48,11 +50,16 @@ class EFOShardSubscriber {
   // Read configuration
   private final AsyncClientProxy kinesis;
 
+  /** Signals if subscriber is stopped from externally. */
+  volatile boolean isStopped = false;
+
   /**
    * Completes once this shard subscriber is done, either normally (stopped or shard is completely
    * consumed) or exceptionally due to a non retryable error.
    */
   private final CompletableFuture<Void> done = new CompletableFuture<>();
+
+  private final ShardEventsSubscriber eventsSubscriber = new ShardEventsSubscriber();
 
   /**
    * Async completion handler for {@link AsyncClientProxy#subscribeToShard} that:
@@ -68,11 +75,10 @@ class EFOShardSubscriber {
   @SuppressWarnings({"FutureReturnValueIgnored", "all"})
   BiConsumer<Void, Throwable> reSubscriptionHandler =
       (Void unused, Throwable error) -> {
-        if (error != null) {
-          // FIXME potentially resubscribe
+        if (error != null && !isRetryAble(error)) {
           done.completeExceptionally(error);
-        } else {
-          String lastContinuationSequenceNumber = "0";
+        } else if (!isStopped) {
+          String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
           if (lastContinuationSequenceNumber == null) {
             done.complete(null); // completely consumed this shard, done
           } else {
@@ -82,18 +88,45 @@ class EFOShardSubscriber {
                     .sequenceNumber(lastContinuationSequenceNumber)
                     .build());
           }
+        } else {
+          done.complete(null);
         }
       };
 
-  /** Tracks number of delivered events in flight (until acked). */
+  /** Tracks number of delivered events in flight (until ack-ed). */
   AtomicInteger inFlight;
 
   private static final Integer IN_FLIGHT_LIMIT = 3;
 
-  /** Signals if subscriber is stopped from externally. */
-  volatile boolean isStopped = false;
+  /**
+   * TODO: add 2 other retry-able cases
+   *
+   * @param error
+   * @return
+   */
+  private static boolean isRetryAble(Throwable error) {
+    Throwable cause = unWrapCompletionException(error);
+    return cause instanceof ReadTimeoutException;
+  }
 
-  volatile EFOShardSubscriber.ShardEventsSubscriber eventsSubscriber;
+  /**
+   * Loops through completion exceptions until we get the underlying cause
+   *
+   * @param completionException
+   * @return
+   */
+  private static Throwable unWrapCompletionException(Throwable completionException) {
+    Throwable current = completionException;
+    while (current instanceof CompletionException) {
+      Throwable cause = current.getCause();
+      if (cause != null) {
+        current = cause;
+      } else {
+        return current;
+      }
+    }
+    return current;
+  }
 
   public EFOShardSubscriber(
       EFOShardSubscribersPool pool,
@@ -105,7 +138,6 @@ class EFOShardSubscriber {
     this.shardId = shardId;
     this.kinesis = kinesis;
     this.inFlight = new AtomicInteger();
-    this.eventsSubscriber = new ShardEventsSubscriber();
   }
 
   /**
@@ -161,7 +193,7 @@ class EFOShardSubscriber {
    * {@link ShardEventsSubscriber#subscription} (if active).
    */
   void ackEvent() {
-    if (inFlight.decrementAndGet() < IN_FLIGHT_LIMIT) {
+    if (inFlight.getAndDecrement() == IN_FLIGHT_LIMIT) {
       Subscription s = eventsSubscriber.subscription;
       if (s != null) {
         s.request(1);
@@ -192,8 +224,10 @@ class EFOShardSubscriber {
      */
     @Override
     public void onSubscribe(Subscription subscription) {
+      if (inFlight.incrementAndGet() < IN_FLIGHT_LIMIT && subscription != null) {
+        subscription.request(1);
+      }
       this.subscription = subscription;
-      this.subscription.request(1);
     }
 
     /**
