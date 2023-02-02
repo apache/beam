@@ -404,7 +404,8 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
-from apitools.base.py.exceptions import HttpError
+
+from google.api_core.exceptions import ClientError, GoogleAPICallError
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
@@ -1556,14 +1557,22 @@ class BigQueryWriteFn(DoFn):
 
     while True:
       start = time.time()
-      passed, errors = self.bigquery_wrapper.insert_rows(
-          project_id=table_reference.projectId,
-          dataset_id=table_reference.datasetId,
-          table_id=table_reference.tableId,
-          rows=rows,
-          insert_ids=insert_ids,
-          skip_invalid_rows=True,
-          ignore_unknown_values=self.ignore_unknown_columns)
+      try:
+        passed, errors = self.bigquery_wrapper.insert_rows(
+              project_id=table_reference.projectId,
+              dataset_id=table_reference.datasetId,
+              table_id=table_reference.tableId,
+              rows=rows,
+              insert_ids=insert_ids,
+              skip_invalid_rows=True,
+              ignore_unknown_values=self.ignore_unknown_columns)
+      except (ClientError, GoogleAPICallError) as e:
+        if e.code == 404:
+          passed = False
+          errors = []
+          _KNOWN_TABLES.remove(destination)
+        else:
+          raise
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
       failed_rows = [(rows[entry['index']], entry["errors"])
@@ -1581,14 +1590,6 @@ class BigQueryWriteFn(DoFn):
         message = (
             'There were errors inserting to BigQuery. Will{} retry. '
             'Errors were {}'.format(("" if should_retry else " not"), errors))
-
-        # If error when inserting was a HttpError and status code 404,
-        # with 'notFound', remove the table reference from _KNOWN_TABLES
-        # so that it may be recreated later, depending on create_disposition.
-        if isinstance(errors[0], HttpError) and errors[0].status_code == 404 \
-          and errors[0]['reason'] == self.FAILED_INSERT_NOTFOUND:
-            _KNOWN_TABLES.remove(table_reference)
-          
         # The log level is:
         # - WARNING when we are continuing to retry, and have a deadline.
         # - ERROR when we will no longer retry, or MAY retry forever.
