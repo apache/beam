@@ -207,7 +207,6 @@ void runIntegrationTest(String path, String url) {
       "drive",
       "--driver=test_driver/integration_test.dart",
       "--target=integration_test/${path}_test.dart",
-      //"--release",
       "--web-launch-url='$url'",
       "--device-id=$deviceId",
     )
