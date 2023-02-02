@@ -80,7 +80,7 @@ do
       --paths ${diff}
       if [ $? -eq 0 ]
       then
-            echo "Checker has found changed examples" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
+          echo "Checker has found changed examples" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
           example_has_changed=True
       elif [ $? -eq 11 ]
       then
@@ -142,4 +142,5 @@ do
       else
             echo "Nothing changed in Examples. CI check is skipped" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
       fi
+# comment
 done
