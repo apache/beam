@@ -708,8 +708,6 @@ public class StreamingDataflowWorkerTest {
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
             mockWorkUnitClient,
             options,
-            null /* pipeline */,
-            SdkHarnessRegistries.emptySdkHarnessRegistry(),
             publishCounters,
             hotKeyLogger,
             clock,

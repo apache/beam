@@ -19,62 +19,70 @@ package org.apache.beam.sdk.fn.data;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.sdk.fn.test.TestExecutors;
+import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests for {@link BeamFnDataGrpcMultiplexer}. */
 public class BeamFnDataGrpcMultiplexerTest {
+
   private static final Endpoints.ApiServiceDescriptor DESCRIPTOR =
       Endpoints.ApiServiceDescriptor.newBuilder().setUrl("test").build();
-  private static final LogicalEndpoint DATA_LOCATION = LogicalEndpoint.data("777L", "888L");
-  private static final LogicalEndpoint TIMER_LOCATION =
-      LogicalEndpoint.timer("999L", "555L", "333L");
+  private static final String DATA_INSTRUCTION_ID = "dataInstructionId";
+  private static final String TIMER_INSTRUCTION_ID = "timerInstructionId";
   private static final BeamFnApi.Elements ELEMENTS =
       BeamFnApi.Elements.newBuilder()
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
-                  .setInstructionId(DATA_LOCATION.getInstructionId())
-                  .setTransformId(DATA_LOCATION.getTransformId())
+                  .setInstructionId(DATA_INSTRUCTION_ID)
+                  .setTransformId("dataTransformId")
                   .setData(ByteString.copyFrom(new byte[1])))
           .addTimers(
               BeamFnApi.Elements.Timers.newBuilder()
-                  .setInstructionId(TIMER_LOCATION.getInstructionId())
-                  .setTransformId(TIMER_LOCATION.getTransformId())
-                  .setTimerFamilyId(TIMER_LOCATION.getTimerFamilyId())
+                  .setInstructionId(TIMER_INSTRUCTION_ID)
+                  .setTransformId("timerTransformId")
+                  .setTimerFamilyId("timerFamilyId")
                   .setTimers(ByteString.copyFrom(new byte[2])))
           .build();
   private static final BeamFnApi.Elements TERMINAL_ELEMENTS =
       BeamFnApi.Elements.newBuilder()
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
-                  .setInstructionId(DATA_LOCATION.getInstructionId())
-                  .setTransformId(DATA_LOCATION.getTransformId())
+                  .setInstructionId(DATA_INSTRUCTION_ID)
+                  .setTransformId("dataTransformId")
                   .setIsLast(true))
           .addTimers(
               BeamFnApi.Elements.Timers.newBuilder()
-                  .setInstructionId(TIMER_LOCATION.getInstructionId())
-                  .setTransformId(TIMER_LOCATION.getTransformId())
-                  .setTimerFamilyId(TIMER_LOCATION.getTimerFamilyId())
+                  .setInstructionId(TIMER_INSTRUCTION_ID)
+                  .setTransformId("timerTransformId")
+                  .setTimerFamilyId("timerFamilyId")
                   .setIsLast(true))
           .build();
 
+  @Rule
+  public final TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
+
   @Test
   public void testOutboundObserver() {
-    final Collection<BeamFnApi.Elements> values = new ArrayList<>();
+    Collection<BeamFnApi.Elements> values = new ArrayList<>();
     BeamFnDataGrpcMultiplexer multiplexer =
         new BeamFnDataGrpcMultiplexer(
             DESCRIPTOR,
@@ -86,42 +94,270 @@ public class BeamFnDataGrpcMultiplexerTest {
 
   @Test
   public void testInboundObserverBlocksTillConsumerConnects() throws Exception {
-    final Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
-    final Collection<KV<ByteString, Boolean>> dataInboundValues = new ArrayList<>();
-    final Collection<KV<ByteString, Boolean>> timerInboundValues = new ArrayList<>();
-    final BeamFnDataGrpcMultiplexer multiplexer =
+    Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
+    Collection<BeamFnApi.Elements> dataInboundValues = new ArrayList<>();
+    Collection<BeamFnApi.Elements> timerInboundValues = new ArrayList<>();
+    BeamFnDataGrpcMultiplexer multiplexer =
         new BeamFnDataGrpcMultiplexer(
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
-    ExecutorService executorService = Executors.newCachedThreadPool();
-    executorService
-        .submit(
+    Future<?> registerFuture =
+        executor.submit(
             () -> {
-              // Purposefully sleep to simulate a delay in a consumer connecting.
-              Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
               multiplexer.registerConsumer(
-                  DATA_LOCATION,
-                  (payload, isLast) -> dataInboundValues.add(KV.of(payload, isLast)));
+                  DATA_INSTRUCTION_ID,
+                  new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+                    @Override
+                    public void flush() throws Exception {
+                      fail("Unexpected call");
+                    }
+
+                    @Override
+                    public void close() throws Exception {
+                      fail("Unexpected call");
+                    }
+
+                    @Override
+                    public void accept(BeamFnApi.Elements input) throws Exception {
+                      dataInboundValues.add(input);
+                    }
+                  });
               multiplexer.registerConsumer(
-                  TIMER_LOCATION,
-                  (payload, isLast) -> timerInboundValues.add(KV.of(payload, isLast)));
-            })
-        .get();
+                  TIMER_INSTRUCTION_ID,
+                  new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+                    @Override
+                    public void flush() throws Exception {
+                      fail("Unexpected call");
+                    }
+
+                    @Override
+                    public void close() throws Exception {
+                      fail("Unexpected call");
+                    }
+
+                    @Override
+                    public void accept(BeamFnApi.Elements input) throws Exception {
+                      timerInboundValues.add(input);
+                    }
+                  });
+            });
+
     multiplexer.getInboundObserver().onNext(ELEMENTS);
-    assertTrue(multiplexer.hasConsumer(DATA_LOCATION));
-    assertTrue(multiplexer.hasConsumer(TIMER_LOCATION));
-    // Ensure that when we see a terminal Elements object, we remove the consumer
+    assertTrue(multiplexer.hasConsumer(DATA_INSTRUCTION_ID));
+    assertTrue(multiplexer.hasConsumer(TIMER_INSTRUCTION_ID));
+
+    // Verify that on terminal elements we still wait to be unregistered.
     multiplexer.getInboundObserver().onNext(TERMINAL_ELEMENTS);
-    assertFalse(multiplexer.hasConsumer(DATA_LOCATION));
-    assertFalse(multiplexer.hasConsumer(TIMER_LOCATION));
+    assertTrue(multiplexer.hasConsumer(DATA_INSTRUCTION_ID));
+    assertTrue(multiplexer.hasConsumer(TIMER_INSTRUCTION_ID));
+
+    registerFuture.get();
+    multiplexer.unregisterConsumer(DATA_INSTRUCTION_ID);
+    multiplexer.unregisterConsumer(TIMER_INSTRUCTION_ID);
+    assertFalse(multiplexer.hasConsumer(DATA_INSTRUCTION_ID));
+    assertFalse(multiplexer.hasConsumer(TIMER_INSTRUCTION_ID));
 
     // Assert that normal and terminal Elements are passed to the consumer
     assertThat(
         dataInboundValues,
-        contains(KV.of(ELEMENTS.getData(0).getData(), false), KV.of(ByteString.EMPTY, true)));
+        contains(
+            ELEMENTS.toBuilder().clearTimers().build(),
+            TERMINAL_ELEMENTS.toBuilder().clearTimers().build()));
     assertThat(
         timerInboundValues,
-        contains(KV.of(ELEMENTS.getTimers(0).getTimers(), false), KV.of(ByteString.EMPTY, true)));
+        contains(
+            ELEMENTS.toBuilder().clearData().build(),
+            TERMINAL_ELEMENTS.toBuilder().clearData().build()));
+  }
+
+  @Test
+  public void testElementsNeedsPartitioning() throws Exception {
+    Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
+    Collection<BeamFnApi.Elements> dataInboundValues = new ArrayList<>();
+    Collection<BeamFnApi.Elements> timerInboundValues = new ArrayList<>();
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
+    multiplexer.registerConsumer(
+        DATA_INSTRUCTION_ID,
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+          @Override
+          public void flush() throws Exception {
+            fail("Unexpected call");
+          }
+
+          @Override
+          public void close() throws Exception {
+            fail("Unexpected call");
+          }
+
+          @Override
+          public void accept(BeamFnApi.Elements input) throws Exception {
+            dataInboundValues.add(input);
+          }
+        });
+    multiplexer.registerConsumer(
+        TIMER_INSTRUCTION_ID,
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+          @Override
+          public void flush() throws Exception {
+            fail("Unexpected call");
+          }
+
+          @Override
+          public void close() throws Exception {
+            fail("Unexpected call");
+          }
+
+          @Override
+          public void accept(BeamFnApi.Elements input) throws Exception {
+            timerInboundValues.add(input);
+          }
+        });
+
+    multiplexer.getInboundObserver().onNext(ELEMENTS);
+    multiplexer.getInboundObserver().onNext(TERMINAL_ELEMENTS);
+
+    // Assert that elements are partitioned based upon the instruction id.
+    assertThat(
+        dataInboundValues,
+        contains(
+            ELEMENTS.toBuilder().clearTimers().build(),
+            TERMINAL_ELEMENTS.toBuilder().clearTimers().build()));
+    assertThat(
+        timerInboundValues,
+        contains(
+            ELEMENTS.toBuilder().clearData().build(),
+            TERMINAL_ELEMENTS.toBuilder().clearData().build()));
+  }
+
+  @Test
+  public void testElementsWithOnlySingleInstructionIdUsingHotPath() throws Exception {
+    Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
+    Collection<BeamFnApi.Elements> dataInboundValues = new ArrayList<>();
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
+    multiplexer.registerConsumer(
+        DATA_INSTRUCTION_ID,
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+          @Override
+          public void flush() throws Exception {
+            fail("Unexpected call");
+          }
+
+          @Override
+          public void close() throws Exception {
+            fail("Unexpected call");
+          }
+
+          @Override
+          public void accept(BeamFnApi.Elements input) throws Exception {
+            dataInboundValues.add(input);
+          }
+        });
+
+    BeamFnApi.Elements value = ELEMENTS.toBuilder().clearTimers().build();
+
+    multiplexer.getInboundObserver().onNext(value);
+
+    // Assert that we passed the same instance through.
+    assertSame(Iterables.getOnlyElement(dataInboundValues), value);
+  }
+
+  @Test
+  public void testFailedProcessingCausesAdditionalInboundDataToBeIgnored() throws Exception {
+    Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
+    Collection<BeamFnApi.Elements> dataInboundValues = new ArrayList<>();
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
+    multiplexer.registerConsumer(
+        DATA_INSTRUCTION_ID,
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+          @Override
+          public void flush() throws Exception {
+            fail("Unexpected call");
+          }
+
+          @Override
+          public void close() throws Exception {
+            fail("Unexpected call");
+          }
+
+          @Override
+          public void accept(BeamFnApi.Elements input) throws Exception {
+            if (dataInboundValues.size() == 1) {
+              throw new Exception("processing failed");
+            }
+            dataInboundValues.add(input);
+          }
+        });
+
+    BeamFnApi.Elements.Data.Builder data =
+        BeamFnApi.Elements.Data.newBuilder().setInstructionId(DATA_INSTRUCTION_ID);
+
+    multiplexer
+        .getInboundObserver()
+        .onNext(BeamFnApi.Elements.newBuilder().addData(data.setTransformId("A").build()).build());
+    multiplexer
+        .getInboundObserver()
+        .onNext(BeamFnApi.Elements.newBuilder().addData(data.setTransformId("B").build()).build());
+    multiplexer
+        .getInboundObserver()
+        .onNext(BeamFnApi.Elements.newBuilder().addData(data.setTransformId("C").build()).build());
+
+    // Assert that we ignored the other two elements
+    assertThat(
+        dataInboundValues,
+        contains(
+            BeamFnApi.Elements.newBuilder().addData(data.setTransformId("A").build()).build()));
+  }
+
+  @Test
+  public void testClose() throws Exception {
+    Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
+    Collection<Throwable> errorWasReturned = new ArrayList<>();
+    AtomicBoolean wasClosed = new AtomicBoolean();
+    final BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            OutboundObserverFactory.clientDirect(),
+            inboundObserver ->
+                TestStreams.withOnNext(outboundValues::add)
+                    .withOnError(errorWasReturned::add)
+                    .build());
+    multiplexer.registerConsumer(
+        DATA_INSTRUCTION_ID,
+        new CloseableFnDataReceiver<BeamFnApi.Elements>() {
+          @Override
+          public void flush() throws Exception {
+            fail("Unexpected call");
+          }
+
+          @Override
+          public void close() throws Exception {
+            wasClosed.set(true);
+          }
+
+          @Override
+          public void accept(BeamFnApi.Elements input) throws Exception {
+            fail("Unexpected call");
+          }
+        });
+
+    multiplexer.close();
+
+    assertTrue(wasClosed.get());
+    assertThat(
+        Iterables.getOnlyElement(errorWasReturned).getMessage(),
+        containsString("Multiplexer hanging up"));
   }
 }
