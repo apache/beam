@@ -35,7 +35,8 @@ def cloudMLJob = { scope ->
     region              : 'us-central1',
     staging_location    : 'gs://temp-storage-for-perf-tests/loadtests',
     temp_location       : 'gs://temp-storage-for-perf-tests/loadtests',
-    runner              : 'DataflowRunner'
+    runner              : 'DataflowRunner',
+    requirements_file   : "apache_beam/testing/benchmarks/cloudml/requirements.txt"
   ]
   // Gradle goals for this job.
   scope.steps {
