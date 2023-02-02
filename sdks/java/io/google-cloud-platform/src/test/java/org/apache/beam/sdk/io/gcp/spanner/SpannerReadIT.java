@@ -169,6 +169,7 @@ public class SpannerReadIT {
   public void testRead() throws Exception {
 
     SpannerConfig spannerConfig = createSpannerConfig();
+    spannerConfig = spannerConfig.withPartitionReadTimeout(Duration.standardSeconds(30));
 
     PCollectionView<Transaction> tx =
         p.apply(
@@ -342,6 +343,30 @@ public class SpannerReadIT {
                 .withTransaction(pgTx));
 
     assertThrows("PartitionQuery Timeout error", PipelineExecutionException.class, () -> p.run());
+  }
+
+  @Test
+  public void testReadWithTimeoutError() throws Exception {
+
+    SpannerConfig spannerConfig = createSpannerConfig();
+    spannerConfig = spannerConfig.withPartitionReadTimeout(Duration.millis(1));
+
+    PCollectionView<Transaction> tx =
+        p.apply(
+            "Create tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+        p.apply(
+            "read db",
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
+                .withTable(options.getTable())
+                .withColumns("Key", "Value")
+                .withTransaction(tx));
+
+    assertThrows("PartitionRead Timeout error", PipelineExecutionException.class, () -> p.run().waitUntilFinish());
   }
 
   @Test

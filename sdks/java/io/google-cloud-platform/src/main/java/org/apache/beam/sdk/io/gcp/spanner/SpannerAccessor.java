@@ -30,6 +30,7 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.v1.stub.SpannerStubSettings;
 import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.CommitResponse;
 import com.google.spanner.v1.ExecuteSqlRequest;
@@ -162,13 +163,19 @@ public class SpannerAccessor implements AutoCloseable {
               .build());
     }
 
+    SpannerStubSettings.Builder spannerStubSettingsBuilder = builder
+        .getSpannerStubSettingsBuilder();
     ValueProvider<Duration> partitionQueryTimeout = spannerConfig.getPartitionQueryTimeout();
     if (partitionQueryTimeout != null && partitionQueryTimeout.get().getMillis() > 0) {
-      builder
-          .getSpannerStubSettingsBuilder()
-          .partitionQuerySettings()
+      spannerStubSettingsBuilder.partitionQuerySettings()
           .setSimpleTimeoutNoRetries(
               org.threeten.bp.Duration.ofMillis(partitionQueryTimeout.get().getMillis()));
+    }
+    ValueProvider<Duration> partitionReadTimeout = spannerConfig.getPartitionReadTimeout();
+    if (partitionReadTimeout != null && partitionReadTimeout.get().getMillis() > 0) {
+      spannerStubSettingsBuilder.partitionReadSettings()
+          .setSimpleTimeoutNoRetries(
+              org.threeten.bp.Duration.ofMillis(partitionReadTimeout.get().getMillis()));
     }
 
     ValueProvider<String> projectId = spannerConfig.getProjectId();
