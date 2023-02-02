@@ -32,7 +32,9 @@ import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import external_transforms_pb2
+from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
@@ -49,8 +51,6 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.utils import proto_utils
 from apache_beam.utils.subprocess_server import JavaJarServer
-from apache_beam.portability.api import schema_pb2
-from apache_beam.portability.api import beam_expansion_api_pb2
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

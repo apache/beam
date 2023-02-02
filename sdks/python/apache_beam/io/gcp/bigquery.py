@@ -2389,8 +2389,10 @@ class StorageWriteToBigQuery(PTransform):
     available_runners = ['DataflowRunner', 'TestDataflowRunner']
     if not input.is_bounded and opts.runner not in available_runners:
       raise NotImplementedError(
-        "Storage API Streaming Writes via xlang is not yet available for %s."
-        " Available runners are %s", opts.runner, available_runners)
+          "Storage API Streaming Writes via xlang is not yet available for %s."
+          " Available runners are %s",
+          opts.runner,
+          available_runners)
 
     external_storage_write = SchemaAwareExternalTransform(
         self.schematransform_config.identifier,
