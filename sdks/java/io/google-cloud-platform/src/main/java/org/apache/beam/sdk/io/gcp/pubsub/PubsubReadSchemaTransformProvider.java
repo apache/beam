@@ -40,7 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Pub/Sub reads configured using
- * {@link PubsubSchemaTransformReadConfiguration}.
+ * {@link PubsubReadSchemaTransformConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -52,19 +52,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 @Experimental(Kind.SCHEMAS)
 @AutoService(SchemaTransformProvider.class)
-public class PubsubSchemaTransformReadProvider
-    extends TypedSchemaTransformProvider<PubsubSchemaTransformReadConfiguration> {
+public class PubsubReadSchemaTransformProvider
+    extends TypedSchemaTransformProvider<PubsubReadSchemaTransformConfiguration> {
   static final String OUTPUT_TAG = "OUTPUT";
 
   /** Returns the expected class of the configuration. */
   @Override
-  protected Class<PubsubSchemaTransformReadConfiguration> configurationClass() {
-    return PubsubSchemaTransformReadConfiguration.class;
+  protected Class<PubsubReadSchemaTransformConfiguration> configurationClass() {
+    return PubsubReadSchemaTransformConfiguration.class;
   }
 
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(PubsubSchemaTransformReadConfiguration configuration) {
+  protected SchemaTransform from(PubsubReadSchemaTransformConfiguration configuration) {
     PubsubMessageToRow toRowTransform =
         PubsubSchemaTransformMessageToRowFactory.from(configuration).buildMessageToRow();
     return new PubsubReadSchemaTransform(configuration, toRowTransform);
@@ -96,12 +96,12 @@ public class PubsubSchemaTransformReadProvider
 
   /**
    * An implementation of {@link SchemaTransform} for Pub/Sub reads configured using {@link
-   * PubsubSchemaTransformReadConfiguration}.
+   * PubsubReadSchemaTransformConfiguration}.
    */
   static class PubsubReadSchemaTransform
       extends PTransform<PCollectionRowTuple, PCollectionRowTuple> implements SchemaTransform {
 
-    private final PubsubSchemaTransformReadConfiguration configuration;
+    private final PubsubReadSchemaTransformConfiguration configuration;
     private final PubsubMessageToRow pubsubMessageToRow;
 
     private PubsubClient.PubsubClientFactory clientFactory;
@@ -109,7 +109,7 @@ public class PubsubSchemaTransformReadProvider
     private Clock clock;
 
     private PubsubReadSchemaTransform(
-        PubsubSchemaTransformReadConfiguration configuration,
+        PubsubReadSchemaTransformConfiguration configuration,
         PubsubMessageToRow pubsubMessageToRow) {
       this.configuration = configuration;
       this.pubsubMessageToRow = pubsubMessageToRow;
@@ -139,21 +139,21 @@ public class PubsubSchemaTransformReadProvider
       return this;
     }
 
-    /** Validates the {@link PubsubSchemaTransformReadConfiguration}. */
+    /** Validates the {@link PubsubReadSchemaTransformConfiguration}. */
     @Override
     public void validate(@Nullable PipelineOptions options) {
       if (configuration.getSubscription() == null && configuration.getTopic() == null) {
         throw new IllegalArgumentException(
             String.format(
                 "%s needs to set either the topic or the subscription",
-                PubsubSchemaTransformReadConfiguration.class));
+                PubsubReadSchemaTransformConfiguration.class));
       }
 
       if (configuration.getSubscription() != null && configuration.getTopic() != null) {
         throw new IllegalArgumentException(
             String.format(
                 "%s should not set both the topic or the subscription",
-                PubsubSchemaTransformReadConfiguration.class));
+                PubsubReadSchemaTransformConfiguration.class));
       }
 
       try {
@@ -163,11 +163,11 @@ public class PubsubSchemaTransformReadProvider
         throw new IllegalArgumentException(
             String.format(
                 "Invalid %s, no serializer provider exists for format `%s`",
-                PubsubSchemaTransformReadConfiguration.class, configuration.getFormat()));
+                PubsubReadSchemaTransformConfiguration.class, configuration.getFormat()));
       }
     }
 
-    /** Reads from Pub/Sub according to {@link PubsubSchemaTransformReadConfiguration}. */
+    /** Reads from Pub/Sub according to {@link PubsubReadSchemaTransformConfiguration}. */
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       if (!input.getAll().isEmpty()) {
@@ -198,7 +198,7 @@ public class PubsubSchemaTransformReadProvider
 
     /**
      * Builds {@link PubsubIO.Write} dead letter queue from {@link
-     * PubsubSchemaTransformReadConfiguration}.
+     * PubsubReadSchemaTransformConfiguration}.
      */
     PubsubIO.Write<PubsubMessage> buildDeadLetterQueueWrite() {
       if (configuration.getDeadLetterQueue() == null) {
@@ -215,7 +215,7 @@ public class PubsubSchemaTransformReadProvider
       return writeDlq;
     }
 
-    /** Builds {@link PubsubIO.Read} from a {@link PubsubSchemaTransformReadConfiguration}. */
+    /** Builds {@link PubsubIO.Read} from a {@link PubsubReadSchemaTransformConfiguration}. */
     PubsubIO.Read<PubsubMessage> buildPubsubRead() {
       PubsubIO.Read<PubsubMessage> read = PubsubIO.readMessagesWithAttributes();
 
