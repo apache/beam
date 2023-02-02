@@ -91,7 +91,6 @@ do
           exit 1
       fi
 
-# Just comment 
 # Run main logic if examples have been changed
       if [[ $example_has_changed == "True" ]]
       then
