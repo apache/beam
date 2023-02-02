@@ -368,11 +368,15 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
             outputs=proto_config.output_pcollection_names)
 
   @staticmethod
-  def discover_one(expansion_service, name):
+  def discover_config(expansion_service, name):
     """Discover one SchemaTransform by name in the given expansion service.
 
     :return: one SchemaTransformConfig that represents the discovered
         SchemaTransform
+
+    :raises:
+      ValueError: if more than one SchemaTransform is discovered, or if none
+      are discovered
     """
 
     schematransforms = SchemaAwareExternalTransform.discover(expansion_service)

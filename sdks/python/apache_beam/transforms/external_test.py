@@ -49,6 +49,8 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.utils import proto_utils
 from apache_beam.utils.subprocess_server import JavaJarServer
+from apache_beam.portability.api import schema_pb2
+from apache_beam.portability.api import beam_expansion_api_pb2
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -473,6 +475,47 @@ class SchemaTransformPayloadBuilderTest(unittest.TestCase):
     self.assertEqual(123, schema_transform_config.int_field)
     self.assertEqual('bbb', schema_transform_config.object_field.str_sub_field)
     self.assertEqual(456, schema_transform_config.object_field.int_sub_field)
+
+
+class SchemaAwareExternalTransformTest(unittest.TestCase):
+  class MockService:
+    # define context manager enter and exit functions
+    def __enter__(self):
+      return self
+
+    def __exit__(self, unusued1, unused2, unused3):
+      pass
+
+    def DiscoverSchemaTransform(self, unused_request=None):
+      test_config = beam_expansion_api_pb2.SchemaTransformConfig(
+          config_schema=schema_pb2.Schema(
+              fields=[
+                  schema_pb2.Field(
+                      name="test_field",
+                      type=schema_pb2.FieldType(atomic_type="STRING"))
+              ],
+              id="test-id"),
+          input_pcollection_names=["input"],
+          output_pcollection_names=["output"])
+      return beam_expansion_api_pb2.DiscoverSchemaTransformResponse(
+          schema_transform_configs={"test_schematransform": test_config})
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  def test_discover_one_config(self, mock_service):
+    _mock = self.MockService()
+    mock_service.return_value = _mock
+    config = beam.SchemaAwareExternalTransform.discover_config(
+        "test_service", name="test_schematransform")
+    self.assertEqual(config.outputs[0], "output")
+    self.assertEqual(config.inputs[0], "input")
+    self.assertEqual(config.identifier, "test_schematransform")
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  def test_discover_one_config_fails_with_no_configs_found(self, mock_service):
+    mock_service.return_value = self.MockService()
+    with self.assertRaises(ValueError):
+      beam.SchemaAwareExternalTransform.discover_config(
+          "test_service", name="non_existent")
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
