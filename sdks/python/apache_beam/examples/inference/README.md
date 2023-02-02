@@ -386,8 +386,7 @@ To use this transform, you need to have sklearn installed. The dataset is loaded
 
 ### Training a simple classifier
 
-The following function you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in an pipeline using the `XGBoostModelHandler`.
-
+The following function allows you to train a simple classifier using the sklearn Iris dataset. The trained model will be saved in the location passed as a parameter and can then later be loaded in an pipeline using the `XGBoostModelHandler`.
 ```
 def _train_model(model_state_output_path: str = '/tmp/model.json', seed=999):
   """Function to train an XGBoost Classifier using the sklearn Iris dataset"""
@@ -422,11 +421,17 @@ python -m apache_beam.examples.inference.xgboost_iris_classification.py \
   --split
 ```
 
-This writes the output to the `predictions.txt` with contents like:
+This writes the output to the `predictions.txt`. Each line contains the batch number and a list with all outputted class labels. There are 3 possible values for class labels: `0`, `1`, and `2`. When each batch contains a single elements the output look like this:
 ```
 0,[1]
 1,[2]
 2,[1]
 3,[0]
 ...
+```
+
+When all elements are in a single batch the output looks like this:
+```
+0,[1 1 1 0 0 0 0 1 2 0 0 2 0 2 1 2 2 2 2 0 0 0 0 2 2 0 2 2 2 1]
+
 ```
