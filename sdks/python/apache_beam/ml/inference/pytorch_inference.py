@@ -357,7 +357,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         default = default_keyed_tensor_inference_fn
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
-    with PyTorch 1.9 and 1.10.
+    on torch>=1.9.0,<1.14.0.
     """
     self._state_dict_path = state_dict_path
     if device == 'GPU':
