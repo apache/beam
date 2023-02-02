@@ -241,7 +241,7 @@ static class ProductWeight {
             this.fruit = fruit;
             this.productWeight = productWeight;
         }
-        
+
         // ToString...
 }
 ```

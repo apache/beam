@@ -192,7 +192,7 @@ words
                         return accumulator;
                     }
                 }))
-                .setCoder(KvCoder.of(VarIntCoder.of(), ListCoder.of(StringUtf8Coder.of())));                    
+                .setCoder(KvCoder.of(VarIntCoder.of(), ListCoder.of(StringUtf8Coder.of())));
 ```
 {{end}}
 

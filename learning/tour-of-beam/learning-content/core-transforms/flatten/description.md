@@ -93,13 +93,13 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 ```
 input1 = (p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/counts-00000-of-00003')
    | beam.ParDo(ExtractFn()))
-   
+
 input2 = (p | 'Log lines' >> beam.io.ReadFromText('gs://apache-beam-samples/counts-00001-of-00003')
    | beam.ParDo(ExtractFn()))
-   
+
 merged = (
     (input1, input2)
-    | beam.Flatten())  
+    | beam.Flatten())
 ```
 {{end}}
 

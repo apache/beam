@@ -411,7 +411,7 @@ You can work with any type of object.For example String:
 ```
 words := beam.Create(s, "Hello World! How are you?")
 output := ApplyTransform(s, words)
-	
+
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 	split := beam.ParDo(s, SplitFn, input)
 	return stats.Count(s, split)
