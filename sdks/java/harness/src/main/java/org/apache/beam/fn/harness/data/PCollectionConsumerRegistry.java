@@ -35,7 +35,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
@@ -46,8 +45,6 @@ import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Distribution;
-import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.sdk.metrics.MetricsEnvironment.MetricsEnvironmentState;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -71,12 +68,9 @@ public class PCollectionConsumerRegistry {
   @SuppressWarnings({"rawtypes"})
   abstract static class ConsumerAndMetadata {
     public static ConsumerAndMetadata forConsumer(
-        FnDataReceiver consumer,
-        String pTransformId,
-        ExecutionState state,
-        MetricsContainer metricsContainer) {
+        FnDataReceiver consumer, String pTransformId, ExecutionState state) {
       return new AutoValue_PCollectionConsumerRegistry_ConsumerAndMetadata(
-          consumer, pTransformId, state, metricsContainer);
+          consumer, pTransformId, state);
     }
 
     public abstract FnDataReceiver getConsumer();
@@ -84,12 +78,8 @@ public class PCollectionConsumerRegistry {
     public abstract String getPTransformId();
 
     public abstract ExecutionState getExecutionState();
-
-    public abstract MetricsContainer getMetricsContainer();
   }
 
-  private final MetricsContainerStepMap metricsContainerRegistry;
-  private final MetricsEnvironmentState metricsEnvironmentState;
   private final ExecutionStateTracker stateTracker;
   private final ShortIdMap shortIdMap;
   private final Map<String, List<ConsumerAndMetadata>> pCollectionIdsToConsumers;
@@ -99,14 +89,10 @@ public class PCollectionConsumerRegistry {
   private final RehydratedComponents rehydratedComponents;
 
   public PCollectionConsumerRegistry(
-      MetricsContainerStepMap metricsContainerRegistry,
-      MetricsEnvironmentState metricsEnvironmentState,
       ExecutionStateTracker stateTracker,
       ShortIdMap shortIdMap,
       BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
       ProcessBundleDescriptor processBundleDescriptor) {
-    this.metricsContainerRegistry = metricsContainerRegistry;
-    this.metricsEnvironmentState = metricsEnvironmentState;
     this.stateTracker = stateTracker;
     this.shortIdMap = shortIdMap;
     this.pCollectionIdsToConsumers = new HashMap<>();
@@ -176,11 +162,7 @@ public class PCollectionConsumerRegistry {
     List<ConsumerAndMetadata> consumerAndMetadatas =
         pCollectionIdsToConsumers.computeIfAbsent(pCollectionId, (unused) -> new ArrayList<>());
     consumerAndMetadatas.add(
-        ConsumerAndMetadata.forConsumer(
-            consumer,
-            pTransformId,
-            executionState,
-            metricsContainerRegistry.getContainer(pTransformId)));
+        ConsumerAndMetadata.forConsumer(consumer, pTransformId, executionState));
   }
 
   /**
@@ -219,18 +201,16 @@ public class PCollectionConsumerRegistry {
           if (consumerAndMetadatas.size() == 1) {
             ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(0);
             if (consumerAndMetadata.getConsumer() instanceof HandlesSplits) {
-              return new SplittingMetricTrackingFnDataReceiver(
-                  pcId, coder, consumerAndMetadata, metricsEnvironmentState);
+              return new SplittingMetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata);
             }
-            return new MetricTrackingFnDataReceiver(
-                pcId, coder, consumerAndMetadata, metricsEnvironmentState);
+            return new MetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata);
           } else {
             /* TODO(SDF), Consider supporting splitting each consumer individually. This would never
             come up in the existing SDF expansion, but might be useful to support fused SDF nodes.
             This would require dedicated delivery of the split results to each of the consumers
             separately. */
             return new MultiplexingMetricTrackingFnDataReceiver(
-                pcId, coder, ImmutableList.copyOf(consumerAndMetadatas), metricsEnvironmentState);
+                pcId, coder, ImmutableList.copyOf(consumerAndMetadatas));
           }
         });
   }
@@ -248,14 +228,9 @@ public class PCollectionConsumerRegistry {
     private final BundleCounter elementCountCounter;
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
     private final Coder<T> coder;
-    private final MetricsContainer metricsContainer;
-    private final MetricsEnvironmentState metricsEnvironmentState;
 
     public MetricTrackingFnDataReceiver(
-        String pCollectionId,
-        Coder<T> coder,
-        ConsumerAndMetadata consumerAndMetadata,
-        MetricsEnvironmentState metricsEnvironmentState) {
+        String pCollectionId, Coder<T> coder, ConsumerAndMetadata consumerAndMetadata) {
       this.delegate = consumerAndMetadata.getConsumer();
       this.executionState = consumerAndMetadata.getExecutionState();
 
@@ -291,8 +266,6 @@ public class PCollectionConsumerRegistry {
       bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
 
       this.coder = coder;
-      this.metricsContainer = consumerAndMetadata.getMetricsContainer();
-      this.metricsEnvironmentState = metricsEnvironmentState;
     }
 
     @Override
@@ -303,17 +276,14 @@ public class PCollectionConsumerRegistry {
       // we have window optimization.
       this.sampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
 
-      // Wrap the consumer with extra logic to set the metric container with the appropriate
-      // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
-      // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
-      // Process Bundle Execution time metric.
-      MetricsContainer oldContainer = metricsEnvironmentState.activate(metricsContainer);
+      // Use the ExecutionStateTracker and enter an appropriate state to track the
+      // Process Bundle Execution time metric and also ensure user counters can get an appropriate
+      // metrics container.
       executionState.activate();
       try {
         this.delegate.accept(input);
       } finally {
         executionState.deactivate();
-        metricsEnvironmentState.activate(oldContainer);
       }
       this.sampledByteSizeDistribution.finishLazyUpdate();
     }
@@ -329,18 +299,13 @@ public class PCollectionConsumerRegistry {
   private class MultiplexingMetricTrackingFnDataReceiver<T>
       implements FnDataReceiver<WindowedValue<T>> {
     private final List<ConsumerAndMetadata> consumerAndMetadatas;
-    private final MetricsEnvironmentState metricsEnvironmentState;
     private final BundleCounter elementCountCounter;
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
     private final Coder<T> coder;
 
     public MultiplexingMetricTrackingFnDataReceiver(
-        String pCollectionId,
-        Coder<T> coder,
-        List<ConsumerAndMetadata> consumerAndMetadatas,
-        MetricsEnvironmentState metricsEnvironmentState) {
+        String pCollectionId, Coder<T> coder, List<ConsumerAndMetadata> consumerAndMetadatas) {
       this.consumerAndMetadatas = consumerAndMetadatas;
-      this.metricsEnvironmentState = metricsEnvironmentState;
 
       HashMap<String, String> labels = new HashMap<>();
       labels.put(Labels.PCOLLECTION, pCollectionId);
@@ -384,20 +349,16 @@ public class PCollectionConsumerRegistry {
       // when we have window optimization.
       this.sampledByteSizeDistribution.tryUpdate(input.getValue(), coder);
 
-      // Wrap the consumer with extra logic to set the metric container with the appropriate
-      // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
-      // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
-      // Process Bundle Execution time metric.
+      // Use the ExecutionStateTracker and enter an appropriate state to track the
+      // Process Bundle Execution time metric and also ensure user counters can get an appropriate
+      // metrics container.
       for (ConsumerAndMetadata consumerAndMetadata : consumerAndMetadatas) {
-        MetricsContainer oldContainer =
-            metricsEnvironmentState.activate(consumerAndMetadata.getMetricsContainer());
         ExecutionState state = consumerAndMetadata.getExecutionState();
         state.activate();
         try {
           consumerAndMetadata.getConsumer().accept(input);
         } finally {
           state.deactivate();
-          metricsEnvironmentState.activate(oldContainer);
         }
         this.sampledByteSizeDistribution.finishLazyUpdate();
       }
@@ -416,11 +377,8 @@ public class PCollectionConsumerRegistry {
     private final HandlesSplits delegate;
 
     public SplittingMetricTrackingFnDataReceiver(
-        String pCollection,
-        Coder<T> coder,
-        ConsumerAndMetadata consumerAndMetadata,
-        MetricsEnvironmentState metricsEnvironmentState) {
-      super(pCollection, coder, consumerAndMetadata, metricsEnvironmentState);
+        String pCollection, Coder<T> coder, ConsumerAndMetadata consumerAndMetadata) {
+      super(pCollection, coder, consumerAndMetadata);
       this.delegate = (HandlesSplits) consumerAndMetadata.getConsumer();
     }
 

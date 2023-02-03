@@ -517,7 +517,6 @@ public class ProcessBundleHandler {
       ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
 
       try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
-        bundleProcessor.getMetricsEnvironmentStateForBundle().start();
         stateTracker.start(request.getInstructionId());
         try {
           // Already in reverse topological order so we don't need to do anything.
@@ -736,20 +735,21 @@ public class ProcessBundleHandler {
   }
 
   @VisibleForTesting
-  static class MetricsEnvironmentStateForBundle implements MetricsEnvironmentState {
+  static class MetricsEnvironmentStateForBundle {
     private @Nullable MetricsEnvironmentState currentThreadState;
 
-    @Override
-    public @Nullable MetricsContainer activate(@Nullable MetricsContainer metricsContainer) {
-      return currentThreadState.activate(metricsContainer);
-    }
-
-    public void start() {
+    public void start(MetricsContainer container) {
       currentThreadState = MetricsEnvironment.getMetricsEnvironmentStateForCurrentThread();
+      currentThreadState.activate(container);
     }
 
     public void reset() {
+      currentThreadState.activate(null);
       currentThreadState = null;
+    }
+
+    public void discard() {
+      currentThreadState.activate(null);
     }
   }
 
@@ -763,32 +763,17 @@ public class ProcessBundleHandler {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     MetricsEnvironmentStateForBundle metricsEnvironmentStateForBundle =
         new MetricsEnvironmentStateForBundle();
-    ExecutionStateTracker stateTracker = executionStateSampler.create();
+    ExecutionStateTracker stateTracker = executionStateSampler.create(metricsContainerRegistry);
     bundleProgressReporterAndRegistrar.register(stateTracker);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
-            metricsContainerRegistry,
-            metricsEnvironmentStateForBundle,
-            stateTracker,
-            shortIds,
-            bundleProgressReporterAndRegistrar,
-            bundleDescriptor);
+            stateTracker, shortIds, bundleProgressReporterAndRegistrar, bundleDescriptor);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(
-            metricsContainerRegistry,
-            metricsEnvironmentStateForBundle,
-            shortIds,
-            stateTracker,
-            Urns.START_BUNDLE_MSECS);
+        new PTransformFunctionRegistry(shortIds, stateTracker, Urns.START_BUNDLE_MSECS);
     PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(
-            metricsContainerRegistry,
-            metricsEnvironmentStateForBundle,
-            shortIds,
-            stateTracker,
-            Urns.FINISH_BUNDLE_MSECS);
+        new PTransformFunctionRegistry(shortIds, stateTracker, Urns.FINISH_BUNDLE_MSECS);
     List<ThrowingRunnable> resetFunctions = new ArrayList<>();
     List<ThrowingRunnable> tearDownFunctions = new ArrayList<>();
 
@@ -1140,6 +1125,7 @@ public class ProcessBundleHandler {
     synchronized void setupForProcessBundleRequest(InstructionRequest request) {
       this.instructionId = request.getInstructionId();
       this.cacheTokens = request.getProcessBundle().getCacheTokensList();
+      getMetricsEnvironmentStateForBundle().start(getStateTracker().getMetricsContainer());
     }
 
     void reset() throws Exception {
@@ -1171,6 +1157,7 @@ public class ProcessBundleHandler {
         if (this.bundleCache != null) {
           this.bundleCache.clear();
         }
+        getMetricsEnvironmentStateForBundle().discard();
         for (BeamFnDataOutboundAggregator aggregator : getOutboundAggregators().values()) {
           aggregator.discard();
         }

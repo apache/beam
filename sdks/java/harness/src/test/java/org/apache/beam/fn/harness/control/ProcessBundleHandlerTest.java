@@ -126,6 +126,7 @@ import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.function.ThrowingRunnable;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.TimerMap;
@@ -775,6 +776,7 @@ public class ProcessBundleHandlerTest {
     verify(stateTracker, times(1)).reset();
     verify(bundleFinalizationCallbacks, times(1)).clear();
     verify(resetFunction, times(1)).run();
+    assertNull(MetricsEnvironment.getCurrentContainer());
 
     // Ensure that the next setup produces the expected state.
     bundleProcessor.setupForProcessBundleRequest(

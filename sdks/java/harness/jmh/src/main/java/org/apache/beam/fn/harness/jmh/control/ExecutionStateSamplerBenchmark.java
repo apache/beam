@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
@@ -103,7 +104,7 @@ public class ExecutionStateSamplerBenchmark {
 
     @Setup
     public void setup(HarnessStateSampler sharedState) {
-      tracker = sharedState.sampler.create();
+      tracker = sharedState.sampler.create(new MetricsContainerStepMap());
       state1 = tracker.create("1", PTRANSFORM, PTRANSFORM + "Name", "1");
       state2 = tracker.create("2", PTRANSFORM, PTRANSFORM + "Name", "2");
       state3 = tracker.create("3", PTRANSFORM, PTRANSFORM + "Name", "3");
