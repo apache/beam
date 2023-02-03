@@ -53,7 +53,16 @@ public final class Caches {
    */
   @VisibleForTesting static final int WEIGHT_RATIO = 6;
 
-  /** Objects which change in this amount should always update the cache. */
+  /** All objects less than or equal to this size will account for 1. */
+  private static final long MIN_OBJECT_SIZE = 1 << WEIGHT_RATIO;
+
+  /**
+   * Objects which change in this amount should always update the cache.
+   *
+   * <p>The limit of 2^16 is chosen to be small enough such that objects will be close enough if
+   * they change frequently. Future work could scale these ratios based upon the configured cache
+   * size.
+   */
   private static final long CACHE_SIZE_CHANGE_LIMIT_BYTES = 1 << 16;
 
   private static final MemoryMeter MEMORY_METER =
@@ -87,11 +96,11 @@ public final class Caches {
   public static boolean shouldUpdateOnSizeChange(long oldSize, long newSize) {
     /*
     Our strategy is three fold:
-    - tiny objects (<= 2^WEIGHT_RATIO) don't change the amount being weighed
+    - tiny objects don't impact the cache accounting and count as a size of `1` in the cache.
     - large changes (>= CACHE_SIZE_CHANGE_LIMIT_BYTES) should always update the size
     - all others if the size changed by a factor of 2
     */
-    return (oldSize > 1 << WEIGHT_RATIO || newSize > 1 << WEIGHT_RATIO)
+    return (oldSize > MIN_OBJECT_SIZE || newSize > MIN_OBJECT_SIZE)
         && ((newSize - oldSize >= CACHE_SIZE_CHANGE_LIMIT_BYTES)
             || Long.highestOneBit(oldSize) != Long.highestOneBit(newSize));
   }

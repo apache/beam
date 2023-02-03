@@ -1553,7 +1553,7 @@ class BeamModulePlugin implements Plugin<Project> {
             if (project.file("/opt/cprof/profiler_java_agent.so").exists()) {
               def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
               def userName = System.getProperty("user.name").toLowerCase().replaceAll(" ", "_")
-              jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + String.format('%1$tm%1$td%1$tY_%1$tH%1$tM%1$tS%1$tL', System.currentTimeMillis()) + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
+              jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + String.format('%1$tY%1$tm%1$td_%1$tH%1$tM%1$tS_%1$tL', System.currentTimeMillis()) + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
             }
           } else {
             // We filter for only Apache Beam benchmarks to ensure that we aren't
