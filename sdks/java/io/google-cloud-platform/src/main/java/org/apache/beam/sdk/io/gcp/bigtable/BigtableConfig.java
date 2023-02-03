@@ -137,7 +137,7 @@ abstract class BigtableConfig implements Serializable {
     return toBuilder().setInstanceId(instanceId).build();
   }
 
-  BigtableConfig withAppProfileId(@Nullable ValueProvider<String> appProfileId) {
+  BigtableConfig withAppProfileId(ValueProvider<String> appProfileId) {
     checkArgument(appProfileId != null, "App profile id can not be null");
     return toBuilder().setAppProfileId(appProfileId).build();
   }
