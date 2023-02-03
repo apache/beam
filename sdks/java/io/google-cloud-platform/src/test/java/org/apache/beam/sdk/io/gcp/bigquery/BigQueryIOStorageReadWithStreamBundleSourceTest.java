@@ -123,7 +123,7 @@ import org.junit.runners.model.Statement;
 
 /**
  * Tests for {@link BigQueryIO#readTableRows() using {@link Method#DIRECT_READ}} AND {@link
- * BigQueryOptions#setUseReadAPIStreamBundleSource(Boolean)} set to True.
+ * BigQueryOptions#setEnableBundling(Boolean)} (Boolean)} set to True.
  */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageReadWithStreamBundleSourceTest {
@@ -155,7 +155,7 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
                   options
                       .as(BigQueryOptions.class)
                       .setTempLocation(testFolder.getRoot().getAbsolutePath());
-                  options.as(BigQueryOptions.class).setUseReadAPIStreamBundleSource(true);
+                  options.as(BigQueryOptions.class).setEnableBundling(true);
                   p = TestPipeline.fromOptions(options);
                   p.apply(base, description).evaluate();
                 }

@@ -1418,7 +1418,7 @@ public class BigQueryIO {
       // cleanup can be removed. [https://github.com/apache/beam/issues/19375]
       //
 
-      if (bqOptions.getUseReadAPIStreamBundleSource()) {
+      if (bqOptions.getEnableBundling()) {
         return expandAnonForDirectReadWithStreamBundle(input, outputCoder, beamSchema);
       }
 

@@ -137,7 +137,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     // an appropriate number of streams for the Session to produce reasonable throughput.
     // This is required when using the Read API Source V2.
     int streamCount = 0;
-    if (!bqOptions.getUseReadAPIStreamBundleSource()) {
+    if (!bqOptions.getEnableBundling()) {
       if (desiredBundleSizeBytes > 0) {
         long tableSizeBytes = (targetTable != null) ? targetTable.getNumBytes() : 0;
         streamCount = (int) Math.min(tableSizeBytes / desiredBundleSizeBytes, MAX_SPLIT_COUNT);
@@ -178,7 +178,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     LOG.info(
         "readSession.getEstimatedTotalBytesScanned(): '{}'",
         readSession.getEstimatedTotalBytesScanned());
-    if (bqOptions.getUseReadAPIStreamBundleSource()) {
+    if (bqOptions.getEnableBundling()) {
       if (desiredBundleSizeBytes > 0) {
         bytesPerStream =
             (double) readSession.getEstimatedTotalBytesScanned() / readSession.getStreamsCount();
@@ -210,7 +210,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         targetTable); // TODO: this is inconsistent with method above, where it can be null
     TableSchema trimmedSchema =
         BigQueryAvroUtils.trimBigQueryTableSchema(targetTable.getSchema(), sessionSchema);
-    if (!bqOptions.getUseReadAPIStreamBundleSource()) {
+    if (!bqOptions.getEnableBundling()) {
       List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
       for (ReadStream readStream : readSession.getStreamsList()) {
         sources.add(
