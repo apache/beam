@@ -26,22 +26,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
+@Experimental
 @AutoService(SchemaTransformProvider.class)
 public class SqlTransformSchemaTransformProvider implements SchemaTransformProvider {
 
@@ -109,7 +110,7 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
 
   @Override
   public List<String> outputCollectionNames() {
-    return ImmutableList.of("output");
+    return ImmutableList.of("output", "errors");
   }
 
   static class ErrorCapture extends PTransform<PCollection<Row>, PDone> {
@@ -210,7 +211,11 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
 
           List<PCollection<Row>> errorList = errors.getInputs();
           if (errorList.size() == 0) {
-            return PCollectionRowTuple.of("output", output);
+            PCollection<Row> emptyErrors =
+                input
+                    .getPipeline()
+                    .apply(Create.empty(BeamSqlRelUtils.getErrorRowSchema(Schema.of())));
+            return PCollectionRowTuple.of("output", output, "errors", emptyErrors);
           } else if (errorList.size() == 1) {
             return PCollectionRowTuple.of("output", output, "errors", errorList.get(0));
           } else {
