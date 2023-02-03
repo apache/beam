@@ -115,7 +115,6 @@ import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.Timer;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -289,11 +288,6 @@ public class ProcessBundleHandlerTest {
     @Override
     PCollectionConsumerRegistry getpCollectionConsumerRegistry() {
       return wrappedBundleProcessor.getpCollectionConsumerRegistry();
-    }
-
-    @Override
-    MetricsContainerStepMap getMetricsContainerRegistry() {
-      return wrappedBundleProcessor.getMetricsContainerRegistry();
     }
 
     @Override
@@ -731,7 +725,6 @@ public class ProcessBundleHandlerTest {
     Collection<CallbackRegistration> bundleFinalizationCallbacks = mock(Collection.class);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         mock(PCollectionConsumerRegistry.class);
-    MetricsContainerStepMap metricsContainerRegistry = mock(MetricsContainerStepMap.class);
     ExecutionStateTracker stateTracker = mock(ExecutionStateTracker.class);
     ProcessBundleHandler.HandleStateCallsForBundle beamFnStateClient =
         mock(ProcessBundleHandler.HandleStateCallsForBundle.class);
@@ -748,7 +741,6 @@ public class ProcessBundleHandlerTest {
             new ArrayList<>(),
             splitListener,
             pCollectionConsumerRegistry,
-            metricsContainerRegistry,
             new MetricsEnvironmentStateForBundle(),
             stateTracker,
             beamFnStateClient,
@@ -772,7 +764,6 @@ public class ProcessBundleHandlerTest {
     assertNull(bundleProcessor.getCacheTokens());
     assertNull(bundleCache.peek("A"));
     verify(splitListener, times(1)).clear();
-    verify(metricsContainerRegistry, times(1)).reset();
     verify(stateTracker, times(1)).reset();
     verify(bundleFinalizationCallbacks, times(1)).clear();
     verify(resetFunction, times(1)).run();

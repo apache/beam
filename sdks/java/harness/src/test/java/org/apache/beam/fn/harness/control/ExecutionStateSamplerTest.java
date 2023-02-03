@@ -32,7 +32,6 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
@@ -84,11 +83,11 @@ public class ExecutionStateSamplerTest {
             PipelineOptionsFactory.fromArgs("--experiments=state_sampling_period_millis=10")
                 .create(),
             clock);
-    ExecutionStateTracker tracker1 = sampler.create(new MetricsContainerStepMap());
+    ExecutionStateTracker tracker1 = sampler.create();
     ExecutionState state1 =
         tracker1.create("shortId1", "ptransformId1", "ptransformIdName1", "process");
 
-    ExecutionStateTracker tracker2 = sampler.create(new MetricsContainerStepMap());
+    ExecutionStateTracker tracker2 = sampler.create();
     ExecutionState state2 =
         tracker2.create("shortId2", "ptransformId2", "ptransformIdName2", "process");
 
@@ -279,11 +278,11 @@ public class ExecutionStateSamplerTest {
             PipelineOptionsFactory.fromArgs("--experiments=state_sampling_period_millis=10")
                 .create(),
             clock);
-    ExecutionStateTracker tracker1 = sampler.create(new MetricsContainerStepMap());
+    ExecutionStateTracker tracker1 = sampler.create();
     ExecutionState state1 =
         tracker1.create("shortId1", "ptransformId1", "ptransformIdName1", "process");
 
-    ExecutionStateTracker tracker2 = sampler.create(new MetricsContainerStepMap());
+    ExecutionStateTracker tracker2 = sampler.create();
     ExecutionState state2 =
         tracker2.create("shortId2", "ptransformId2", "ptransformIdName2", "process");
 
@@ -367,8 +366,7 @@ public class ExecutionStateSamplerTest {
             PipelineOptionsFactory.fromArgs("--experiments=state_sampling_period_millis=10")
                 .create(),
             clock);
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    ExecutionStateTracker tracker = sampler.create(metricsContainerRegistry);
+    ExecutionStateTracker tracker = sampler.create();
     MetricsEnvironment.setCurrentContainer(tracker.getMetricsContainer());
     ExecutionState state = tracker.create("shortId", "ptransformId", "uniqueName", "state");
 
@@ -389,14 +387,16 @@ public class ExecutionStateSamplerTest {
     assertEquals(
         1L,
         (long)
-            metricsContainerRegistry
+            tracker
+                .getMetricsContainerRegistry()
                 .getContainer("ptransformId")
                 .getCounter(TEST_USER_COUNTER.getName())
                 .getCumulative());
     assertEquals(
         2L,
         (long)
-            metricsContainerRegistry
+            tracker
+                .getMetricsContainerRegistry()
                 .getContainer("ptransformId")
                 .getDistribution(TEST_USER_DISTRIBUTION.getName())
                 .getCumulative()
@@ -404,7 +404,8 @@ public class ExecutionStateSamplerTest {
     assertEquals(
         3L,
         (long)
-            metricsContainerRegistry
+            tracker
+                .getMetricsContainerRegistry()
                 .getContainer("ptransformId")
                 .getGauge(TEST_USER_GAUGE.getName())
                 .getCumulative()
@@ -412,7 +413,8 @@ public class ExecutionStateSamplerTest {
     assertEquals(
         1L,
         (long)
-            metricsContainerRegistry
+            tracker
+                .getMetricsContainerRegistry()
                 .getContainer("ptransformId")
                 .getHistogram(
                     TEST_USER_HISTOGRAM.getName(), HistogramData.LinearBuckets.of(0, 100, 1))
@@ -423,14 +425,16 @@ public class ExecutionStateSamplerTest {
     assertEquals(
         11L,
         (long)
-            metricsContainerRegistry
+            tracker
+                .getMetricsContainerRegistry()
                 .getUnboundContainer()
                 .getCounter(TEST_USER_COUNTER.getName())
                 .getCumulative());
     assertEquals(
         12L,
         (long)
-            metricsContainerRegistry
+            tracker
+                .getMetricsContainerRegistry()
                 .getUnboundContainer()
                 .getDistribution(TEST_USER_DISTRIBUTION.getName())
                 .getCumulative()
@@ -438,7 +442,8 @@ public class ExecutionStateSamplerTest {
     assertEquals(
         13L,
         (long)
-            metricsContainerRegistry
+            tracker
+                .getMetricsContainerRegistry()
                 .getUnboundContainer()
                 .getGauge(TEST_USER_GAUGE.getName())
                 .getCumulative()
@@ -446,7 +451,8 @@ public class ExecutionStateSamplerTest {
     assertEquals(
         2L,
         (long)
-            metricsContainerRegistry
+            tracker
+                .getMetricsContainerRegistry()
                 .getUnboundContainer()
                 .getHistogram(
                     TEST_USER_HISTOGRAM.getName(), HistogramData.LinearBuckets.of(0, 100, 1))
@@ -462,7 +468,8 @@ public class ExecutionStateSamplerTest {
             PipelineOptionsFactory.fromArgs("--experiments=state_sampling_period_millis=10")
                 .create(),
             clock);
-    ExecutionStateTracker tracker = sampler.create(new MetricsContainerStepMap());
+    ExecutionStateTracker tracker = sampler.create();
+    MetricsEnvironment.setCurrentContainer(tracker.getMetricsContainer());
     ExecutionState state = tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
 
     CountDownLatch waitTillActive = new CountDownLatch(1);
@@ -503,6 +510,7 @@ public class ExecutionStateSamplerTest {
       state.activate();
       waitTillActive.countDown();
       waitForSamples.await();
+      TEST_USER_COUNTER.inc();
       state.deactivate();
       Map<String, ByteString> finalResults = new HashMap<>();
       tracker.updateFinalMonitoringData(finalResults);
@@ -512,6 +520,14 @@ public class ExecutionStateSamplerTest {
           // The CountDownLatch ensures that we will see either the prior value or
           // the latest value.
           anyOf(equalTo(900L), equalTo(1000L)));
+      assertEquals(
+          1L,
+          (long)
+              tracker
+                  .getMetricsContainerRegistry()
+                  .getContainer("ptransformId")
+                  .getCounter(TEST_USER_COUNTER.getName())
+                  .getCumulative());
       tracker.reset();
     }
 
@@ -520,6 +536,7 @@ public class ExecutionStateSamplerTest {
       state.activate();
       waitTillSecondStateActive.countDown();
       waitForMoreSamples.await();
+      TEST_USER_COUNTER.inc();
       state.deactivate();
       Map<String, ByteString> finalResults = new HashMap<>();
       tracker.updateFinalMonitoringData(finalResults);
@@ -529,6 +546,14 @@ public class ExecutionStateSamplerTest {
           // The CountDownLatch ensures that we will see either the prior value or
           // the latest value.
           anyOf(equalTo(400L), equalTo(500L)));
+      assertEquals(
+          1L,
+          (long)
+              tracker
+                  .getMetricsContainerRegistry()
+                  .getContainer("ptransformId")
+                  .getCounter(TEST_USER_COUNTER.getName())
+                  .getCumulative());
       tracker.reset();
     }
 
@@ -543,7 +568,7 @@ public class ExecutionStateSamplerTest {
             PipelineOptionsFactory.fromArgs("--experiments=state_sampling_period_millis=10")
                 .create(),
             clock);
-    ExecutionStateTracker tracker = sampler.create(new MetricsContainerStepMap());
+    ExecutionStateTracker tracker = sampler.create();
 
     CountDownLatch waitTillActive = new CountDownLatch(1);
     CountDownLatch waitForSamples = new CountDownLatch(10);
@@ -586,7 +611,7 @@ public class ExecutionStateSamplerTest {
             PipelineOptionsFactory.fromArgs("--experiments=state_sampling_period_millis=10")
                 .create(),
             clock);
-    ExecutionStateTracker tracker = sampler.create(new MetricsContainerStepMap());
+    ExecutionStateTracker tracker = sampler.create();
     ExecutionState state = tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
 
     CountDownLatch waitTillActive = new CountDownLatch(1);

@@ -44,7 +44,6 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.metrics.DistributionData;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
@@ -122,15 +121,11 @@ public class PCollectionConsumerRegistryTest {
   public void singleConsumer() throws Exception {
     final String pTransformIdA = "pTransformIdA";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ShortIdMap shortIds = new ShortIdMap();
     BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            sampler.create(metricsContainerRegistry),
-            shortIds,
-            reporterAndRegistrar,
-            TEST_DESCRIPTOR);
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
 
     consumers.register(P_COLLECTION_A, pTransformIdA, pTransformIdA + "Name", consumerA1);
@@ -182,15 +177,11 @@ public class PCollectionConsumerRegistryTest {
     final String pTransformId = "pTransformId";
     final String message = "testException";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ShortIdMap shortIds = new ShortIdMap();
     BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            sampler.create(metricsContainerRegistry),
-            shortIds,
-            reporterAndRegistrar,
-            TEST_DESCRIPTOR);
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
 
     consumers.register(P_COLLECTION_A, pTransformId, pTransformId + "Name", consumer);
@@ -208,15 +199,11 @@ public class PCollectionConsumerRegistryTest {
   /** Test that the counter increments even when there are no consumers of the PCollection. */
   @Test
   public void noConsumers() throws Exception {
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ShortIdMap shortIds = new ShortIdMap();
     BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            sampler.create(metricsContainerRegistry),
-            shortIds,
-            reporterAndRegistrar,
-            TEST_DESCRIPTOR);
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
@@ -266,15 +253,11 @@ public class PCollectionConsumerRegistryTest {
     final String pTransformIdA = "pTransformIdA";
     final String pTransformIdB = "pTransformIdB";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ShortIdMap shortIds = new ShortIdMap();
     BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            sampler.create(metricsContainerRegistry),
-            shortIds,
-            reporterAndRegistrar,
-            TEST_DESCRIPTOR);
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
@@ -329,15 +312,11 @@ public class PCollectionConsumerRegistryTest {
     final String pTransformId = "pTransformId";
     final String message = "testException";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ShortIdMap shortIds = new ShortIdMap();
     BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            sampler.create(metricsContainerRegistry),
-            shortIds,
-            reporterAndRegistrar,
-            TEST_DESCRIPTOR);
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
@@ -358,15 +337,11 @@ public class PCollectionConsumerRegistryTest {
   public void throwsOnRegisteringAfterMultiplexingConsumerWasInitialized() throws Exception {
     final String pTransformId = "pTransformId";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ShortIdMap shortIds = new ShortIdMap();
     BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            sampler.create(metricsContainerRegistry),
-            shortIds,
-            reporterAndRegistrar,
-            TEST_DESCRIPTOR);
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
@@ -380,8 +355,7 @@ public class PCollectionConsumerRegistryTest {
 
   @Test
   public void testMetricContainerUpdatedUponAcceptingElement() throws Exception {
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    ExecutionStateTracker executionStateTracker = sampler.create(metricsContainerRegistry);
+    ExecutionStateTracker executionStateTracker = sampler.create();
     MetricsEnvironment.setCurrentContainer(executionStateTracker.getMetricsContainer());
     ShortIdMap shortIds = new ShortIdMap();
     BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
@@ -408,21 +382,24 @@ public class PCollectionConsumerRegistryTest {
     assertEquals(
         1L,
         (long)
-            metricsContainerRegistry
+            executionStateTracker
+                .getMetricsContainerRegistry()
                 .getContainer("pTransformA")
                 .getCounter(TEST_USER_COUNTER.getName())
                 .getCumulative());
     assertEquals(
         2L,
         (long)
-            metricsContainerRegistry
+            executionStateTracker
+                .getMetricsContainerRegistry()
                 .getContainer("pTransformB")
                 .getCounter(TEST_USER_COUNTER.getName())
                 .getCumulative());
     assertEquals(
         3L,
         (long)
-            metricsContainerRegistry
+            executionStateTracker
+                .getMetricsContainerRegistry()
                 .getUnboundContainer()
                 .getCounter(TEST_USER_COUNTER.getName())
                 .getCumulative());
@@ -432,15 +409,11 @@ public class PCollectionConsumerRegistryTest {
   public void testHandlesSplitsPassedToOriginalConsumer() throws Exception {
     final String pTransformIdA = "pTransformIdA";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ShortIdMap shortIds = new ShortIdMap();
     BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            sampler.create(metricsContainerRegistry),
-            shortIds,
-            reporterAndRegistrar,
-            TEST_DESCRIPTOR);
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     SplittingReceiver consumerA1 = mock(SplittingReceiver.class);
 
     consumers.register(P_COLLECTION_A, pTransformIdA, pTransformIdA + "Name", consumerA1);
@@ -462,15 +435,11 @@ public class PCollectionConsumerRegistryTest {
   public void testLazyByteSizeEstimation() throws Exception {
     final String pTransformIdA = "pTransformIdA";
 
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ShortIdMap shortIds = new ShortIdMap();
     BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
-            sampler.create(metricsContainerRegistry),
-            shortIds,
-            reporterAndRegistrar,
-            TEST_DESCRIPTOR);
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
     FnDataReceiver<WindowedValue<Iterable<String>>> consumerA1 = mock(FnDataReceiver.class);
 
     consumers.register(P_COLLECTION_B, pTransformIdA, pTransformIdA + "Name", consumerA1);

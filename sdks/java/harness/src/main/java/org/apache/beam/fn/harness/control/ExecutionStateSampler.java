@@ -167,14 +167,9 @@ public class ExecutionStateSampler {
     return null;
   }
 
-  /**
-   * Returns a new {@link ExecutionStateTracker} associated with this state sampler.
-   *
-   * @param metricsContainerRegistry - Used to enable a metric container to properly account for the
-   *     pTransform in user metrics.
-   */
-  public ExecutionStateTracker create(MetricsContainerStepMap metricsContainerRegistry) {
-    return new ExecutionStateTracker(metricsContainerRegistry);
+  /** Returns a new {@link ExecutionStateTracker} associated with this state sampler. */
+  public ExecutionStateTracker create() {
+    return new ExecutionStateTracker();
   }
 
   /**
@@ -262,8 +257,8 @@ public class ExecutionStateSampler {
     // initialized by the time this method returns and no references are leaked to other threads
     // during construction.
     @SuppressWarnings({"assignment", "argument"})
-    private ExecutionStateTracker(MetricsContainerStepMap metricsContainerRegistry) {
-      this.metricsContainerRegistry = metricsContainerRegistry;
+    private ExecutionStateTracker() {
+      this.metricsContainerRegistry = new MetricsContainerStepMap();
       this.executionStates = new ArrayList<>();
       this.trackedThread = new AtomicReference<>();
       this.lastTransitionTime = new AtomicLong();
@@ -271,6 +266,15 @@ public class ExecutionStateSampler {
       this.currentStateLazy = new AtomicReference<>();
       this.processBundleId = new AtomicReference<>();
       this.metricsContainer = new MetricsContainerForTracker(this);
+    }
+
+    /**
+     * Returns the {@link MetricsContainerStepMap} that is managed by this {@link
+     * ExecutionStateTracker}. This metrics container registry stores all the user counters
+     * associated for the current bundle execution.
+     */
+    public MetricsContainerStepMap getMetricsContainerRegistry() {
+      return metricsContainerRegistry;
     }
 
     /**
@@ -505,6 +509,7 @@ public class ExecutionStateSampler {
       this.numTransitions = 0;
       this.numTransitionsLazy.lazySet(0);
       this.lastTransitionTime.lazySet(0);
+      this.metricsContainerRegistry.reset();
     }
   }
 

@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.function.ThrowingRunnable;
@@ -59,8 +58,7 @@ public class PTransformFunctionRegistryTest {
 
   @Test
   public void testStateTrackerRecordsStateTransitions() throws Exception {
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    ExecutionStateTracker executionStateTracker = sampler.create(metricsContainerRegistry);
+    ExecutionStateTracker executionStateTracker = sampler.create();
     MetricsEnvironment.setCurrentContainer(executionStateTracker.getMetricsContainer());
     PTransformFunctionRegistry testObject =
         new PTransformFunctionRegistry(
@@ -107,8 +105,7 @@ public class PTransformFunctionRegistryTest {
 
   @Test
   public void testMetricsUponRunningFunctions() throws Exception {
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    ExecutionStateTracker executionStateTracker = sampler.create(metricsContainerRegistry);
+    ExecutionStateTracker executionStateTracker = sampler.create();
     MetricsEnvironment.setCurrentContainer(executionStateTracker.getMetricsContainer());
     PTransformFunctionRegistry testObject =
         new PTransformFunctionRegistry(
@@ -123,30 +120,34 @@ public class PTransformFunctionRegistryTest {
       func.run();
     }
     TEST_USER_COUNTER.inc(3);
-    executionStateTracker.reset();
 
     // Verify that metrics environment state is updated with pTransform's counters including the
     // unbound container when outside the scope of the function
     assertEquals(
         1L,
         (long)
-            metricsContainerRegistry
+            executionStateTracker
+                .getMetricsContainerRegistry()
                 .getContainer("pTransformA")
                 .getCounter(TEST_USER_COUNTER.getName())
                 .getCumulative());
     assertEquals(
         2L,
         (long)
-            metricsContainerRegistry
+            executionStateTracker
+                .getMetricsContainerRegistry()
                 .getContainer("pTransformB")
                 .getCounter(TEST_USER_COUNTER.getName())
                 .getCumulative());
     assertEquals(
         3L,
         (long)
-            metricsContainerRegistry
+            executionStateTracker
+                .getMetricsContainerRegistry()
                 .getUnboundContainer()
                 .getCounter(TEST_USER_COUNTER.getName())
                 .getCumulative());
+
+    executionStateTracker.reset();
   }
 }
