@@ -21,17 +21,17 @@ import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface ChangeStreamTestPipelineOptions extends IOTestPipelineOptions, StreamingOptions {
   @Description("Project that hosts Spanner instance")
-  @Nullable
+  // @Nullable
+  @Default.String("span-cloud-testing")
   String getProjectId();
 
   void setProjectId(String value);
 
   @Description("Instance ID to write to in Spanner")
-  @Default.String("beam-test")
+  @Default.String("change-stream-test")
   String getInstanceId();
 
   void setInstanceId(String value);
