@@ -5,7 +5,7 @@
 // (the "License"); you may not use this file except in compliance with
 // the License.  You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -69,11 +69,11 @@ type playgroundController struct {
 }
 
 // RunCode is running code from requests using a particular SDK
-// - In case of incorrect sdk returns codes.InvalidArgument
-// - In case of error during preparing files/folders returns codes.Internal
-// - In case of no errors saves playground.Status_STATUS_EXECUTING as cache.Status into cache and sets expiration time
-//   for all cache values which will be saved into cache during processing received code.
-//   Returns id of code processing (pipelineId)
+//   - In case of incorrect sdk returns codes.InvalidArgument
+//   - In case of error during preparing files/folders returns codes.Internal
+//   - In case of no errors saves playground.Status_STATUS_EXECUTING as cache.Status into cache and sets expiration time
+//     for all cache values which will be saved into cache during processing received code.
+//     Returns id of code processing (pipelineId)
 func (controller *playgroundController) RunCode(ctx context.Context, info *pb.RunCodeRequest) (*pb.RunCodeResponse, error) {
 	// check for correct sdk
 	if info.Sdk != controller.env.BeamSdkEnvs.ApacheBeamSdk {
@@ -92,7 +92,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	var kafkaMockCluster emulators.EmulatorMockCluster
 	var prepareParams = make(map[string]string)
 	if len(info.Datasets) != 0 {
-		kafkaMockClusters, prepareParamsVal, err := emulators.PrepareMockClustersAndGetPrepareParams(info)
+		kafkaMockClusters, prepareParamsVal, err := emulators.PrepareMockClustersAndGetPrepareParams(&controller.env.ApplicationEnvs, info)
 		if err != nil {
 			return nil, cerrors.InternalError(errorTitleRunCode, "Failed to prepare a mock emulator cluster")
 		}
@@ -245,7 +245,7 @@ func (controller *playgroundController) GetRunError(ctx context.Context, info *p
 	return &pb.GetRunErrorResponse{Output: runError}, nil
 }
 
-//GetValidationOutput is returning output of validation for specific pipeline by PipelineUuid
+// GetValidationOutput is returning output of validation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetValidationOutput(ctx context.Context, info *pb.GetValidationOutputRequest) (*pb.GetValidationOutputResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	errorMessage := "Error during getting compilation output"
@@ -260,7 +260,7 @@ func (controller *playgroundController) GetValidationOutput(ctx context.Context,
 	return &pb.GetValidationOutputResponse{Output: validationOutput}, nil
 }
 
-//GetPreparationOutput is returning output of prepare step for specific pipeline by PipelineUuid
+// GetPreparationOutput is returning output of prepare step for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetPreparationOutput(ctx context.Context, info *pb.GetPreparationOutputRequest) (*pb.GetPreparationOutputResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	errorMessage := "Error during getting compilation output"
@@ -275,7 +275,7 @@ func (controller *playgroundController) GetPreparationOutput(ctx context.Context
 	return &pb.GetPreparationOutputResponse{Output: preparationOutput}, nil
 }
 
-//GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
+// GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetCompileOutput(ctx context.Context, info *pb.GetCompileOutputRequest) (*pb.GetCompileOutputResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	errorMessage := "Error during getting compilation output"
@@ -290,7 +290,7 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	return &pb.GetCompileOutputResponse{Output: compileOutput}, nil
 }
 
-//GetGraph is returning graph of execution for specific pipeline by PipelineUuid
+// GetGraph is returning graph of execution for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetGraph(ctx context.Context, info *pb.GetGraphRequest) (*pb.GetGraphResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	errorMessage := "Error during getting graph output"

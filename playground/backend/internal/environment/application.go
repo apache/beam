@@ -109,13 +109,16 @@ type ApplicationEnvs struct {
 	// propertyPath is the application properties path
 	propertyPath string
 
+	// datasetsPath is the datasets path used for Kafka examples
+	datasetsPath string
+
 	// cacheRequestTimeout is timeout to request data from cache
 	cacheRequestTimeout time.Duration
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
 func NewApplicationEnvs(
-	workingDir, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath string,
+	workingDir, launchSite, projectId, pipelinesFolder, sdkConfigPath, propertyPath, datasetsPath string,
 	cacheEnvs *CacheEnvs,
 	pipelineExecuteTimeout, cacheRequestTimeout time.Duration,
 ) *ApplicationEnvs {
@@ -128,6 +131,7 @@ func NewApplicationEnvs(
 		pipelinesFolder:        pipelinesFolder,
 		sdkConfigPath:          sdkConfigPath,
 		propertyPath:           propertyPath,
+		datasetsPath:           datasetsPath,
 		cacheRequestTimeout:    cacheRequestTimeout,
 	}
 }
@@ -185,4 +189,9 @@ func (ae *ApplicationEnvs) SetSchemaVersion(schemaVersion string) {
 // CacheRequestTimeout returns timeout to request data from cache
 func (ae *ApplicationEnvs) CacheRequestTimeout() time.Duration {
 	return ae.cacheRequestTimeout
+}
+
+// DatasetsPath returns paths to datasets used for Kafka examples
+func (ae *ApplicationEnvs) DatasetsPath() string {
+	return ae.datasetsPath
 }

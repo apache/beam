@@ -16,15 +16,15 @@
 package emulators
 
 import (
+	"beam.apache.org/playground/backend/internal/environment"
 	"errors"
-	"io/ioutil"
+	"os"
+	"path"
 
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/constants"
 	"beam.apache.org/playground/backend/internal/logger"
 )
-
-const DATASETS_PATH = "/opt/playground/backend/datasets"
 
 type EmulatorMockCluster interface {
 	Stop()
@@ -35,7 +35,7 @@ type EmulatorProducer interface {
 	ProduceDatasets(datasets []*DatasetDTO) error
 }
 
-func PrepareMockClustersAndGetPrepareParams(request *pb.RunCodeRequest) ([]EmulatorMockCluster, map[string]string, error) {
+func PrepareMockClustersAndGetPrepareParams(appEnvs *environment.ApplicationEnvs, request *pb.RunCodeRequest) ([]EmulatorMockCluster, map[string]string, error) {
 	datasetsByEmulatorTypeMap := map[pb.EmulatorType][]*pb.Dataset{}
 	for _, dataset := range request.Datasets {
 		datasets, ok := datasetsByEmulatorTypeMap[dataset.Type]
@@ -60,7 +60,7 @@ func PrepareMockClustersAndGetPrepareParams(request *pb.RunCodeRequest) ([]Emula
 				return nil, nil, err
 			}
 			mockClusters = append(mockClusters, kafkaMockCluster)
-			datasetDTOs, err := toDatasetDTOs(datasets)
+			datasetDTOs, err := toDatasetDTOs(appEnvs, datasets)
 			if err != nil {
 				logger.Errorf("failed to get datasets from the repository, %v", err)
 				return nil, nil, err
@@ -87,11 +87,11 @@ func PrepareMockClustersAndGetPrepareParams(request *pb.RunCodeRequest) ([]Emula
 	return mockClusters, prepareParams, nil
 }
 
-func toDatasetDTOs(datasets []*pb.Dataset) ([]*DatasetDTO, error) {
+func toDatasetDTOs(appEnvs *environment.ApplicationEnvs, datasets []*pb.Dataset) ([]*DatasetDTO, error) {
 	result := make([]*DatasetDTO, 0, len(datasets))
 	for _, dataset := range datasets {
-		path := DATASETS_PATH + "/" + dataset.DatasetPath
-		data, err := ioutil.ReadFile(path)
+		datasetPath := path.Join(appEnvs.DatasetsPath(), dataset.DatasetPath)
+		data, err := os.ReadFile(datasetPath)
 		if err != nil {
 			return nil, err
 		}
