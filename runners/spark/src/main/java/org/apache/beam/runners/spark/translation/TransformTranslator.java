@@ -27,9 +27,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
@@ -43,6 +45,8 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -357,10 +361,19 @@ public final class TransformTranslator {
 
   private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
+
+      private final PTransformMatcher splitDoFnMatcher =
+          PTransformMatchers.parDoWithFnType(SplittableParDoNaiveBounded.NaiveProcessFn.class);
+
       @Override
       @SuppressWarnings("unchecked")
       public void evaluate(
           ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
+
+        boolean useBoundedConcurrentOutput =
+            ExperimentalOptions.hasExperiment(
+                    context.getOptions(), "use_bounded_concurrent_output_for_sdf")
+                && splitDoFnMatcher.matches(context.getCurrentTransform());
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
         DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
@@ -409,7 +422,8 @@ public final class TransformTranslator {
                 windowingStrategy,
                 stateful,
                 doFnSchemaInformation,
-                sideInputMapping);
+                sideInputMapping,
+                useBoundedConcurrentOutput);
 
         if (stateful) {
           // Based on the fact that the signature is stateful, DoFnSignatures ensures

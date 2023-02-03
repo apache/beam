@@ -17,7 +17,7 @@
  */
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
-def pythonContainerVersion = project.ext.pythonVersion == '2.7' ? '2' : project.ext.pythonVersion
+def pythonContainerVersion = project.ext.pythonVersion
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
 // Basic test options for ITs running on Jenkins.
 def basicTestOpts = [

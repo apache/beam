@@ -245,22 +245,22 @@ hadoopVersions.each { kv ->
   }
 }
 
-def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
+def applyBatchValidatesRunnerSetup = { Test it ->
   group = "Verification"
   // Disable gradle cache
-  outputs.upToDateWhen { false }
-  systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false"])
-  jvmArgs += sparkTestJvmArgs()
-  jvmArgs '-Xmx3g'
+  it.outputs.upToDateWhen { false }
+  it.jvmArgs += sparkTestJvmArgs()
+  it.jvmArgs '-Xmx3g'
 
-  classpath = configurations.validatesRunner
-  testClassesDirs = files(
-    project(":sdks:java:core").sourceSets.test.output.classesDirs,
-    project(":runners:core-java").sourceSets.test.output.classesDirs,
+  it.classpath = project.configurations.validatesRunner
+  it.testClassesDirs = project.files(
+          project(":sdks:java:core").sourceSets.test.output.classesDirs,
+          project(":runners:core-java").sourceSets.test.output.classesDirs,
   )
 
-  maxParallelForks 4
-  useJUnit {
+  it.maxParallelForks 4
+
+  it.useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     // Should be run only in a properly configured SDK harness environment
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
@@ -287,6 +287,22 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
   }
 }
+
+def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
+  applyBatchValidatesRunnerSetup(it)
+  systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false"])
+}
+
+def validatesRunnerBatchWithBoundedSDFExperiment = tasks.register("validatesRunnerBatchWithBoundedSDFExperiment", Test) {
+  applyBatchValidatesRunnerSetup(it)
+  systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false", "--experiments":"use_bounded_concurrent_output_for_sdf"])
+
+  // experiment concerns only SDF implementation, therefore avoid needlessly rerunning other tests
+  it.filter {
+    includeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest'
+  }
+}
+
 
 def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) {
   group = "Verification"
@@ -413,6 +429,7 @@ tasks.register("validatesRunner") {
   group = "Verification"
   description "Validates Spark runner"
   dependsOn validatesRunnerBatch
+  dependsOn validatesRunnerBatchWithBoundedSDFExperiment
   dependsOn validatesRunnerStreaming
   // It should be uncommented once all "validatesStructuredStreamingRunnerBatch" tests will pass.
   // Otherwise, it breaks Spark runner ValidatesRunner tests.
