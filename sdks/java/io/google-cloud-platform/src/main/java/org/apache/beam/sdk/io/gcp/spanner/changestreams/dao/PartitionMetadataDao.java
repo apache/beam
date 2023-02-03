@@ -326,7 +326,6 @@ public class PartitionMetadataDao {
     public Void updateToRunning(String partitionToken) {
       Statement statement = getPartitionsMatchingState(
           Collections.singletonList(partitionToken), State.SCHEDULED);
-      LOG.info("Partition returned {}", partitionToken);
   
       try (ResultSet resultSet = transaction.executeQuery(statement)) {
         if (!resultSet.next()) {
