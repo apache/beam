@@ -144,6 +144,7 @@ do
             docker stop container-${sdk}
             docker rm container-${sdk}
       else
+            # Check this
             echo "Nothing changed in Examples. CI check is skipped" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
       fi
 done
