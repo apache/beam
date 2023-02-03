@@ -274,14 +274,14 @@ public class CsvIO {
   /** {@link PTransform} for writing CSV files. */
   @AutoValue
   public abstract static class Write<T>
-      extends PTransform<PCollection<T>, WriteFilesResult<String>> {
+      extends PTransform<PCollection<T>, WriteFilesResult<String>> implements HasDisplayData {
 
     /** Specifies the {@link Compression} of all generated shard files. */
     public Write<T> withCompression(Compression compression) {
       return toBuilder().setTextIOWrite(getTextIOWrite().withCompression(compression)).build();
     }
 
-    /** Specifies all data written without spilling, simplifying the pipeline. */
+    /** Whether to skip the spilling of data. See {@link WriteFiles#withNoSpilling}. */
     public Write<T> withNoSpilling() {
       return toBuilder().setTextIOWrite(getTextIOWrite().withNoSpilling()).build();
     }
@@ -439,10 +439,10 @@ public class CsvIO {
         }
       }
 
-      CSVFormat withoutHeaderComments = csvFormat.withHeaderComments();
+      CSVFormat withHeaderComments = csvFormat.withHeaderComments();
 
       result.add(
-          withoutHeaderComments
+          withHeaderComments
               // The withSkipHeaderRecord parameter prevents CSVFormat from outputting two copies of
               // the header.
               .withSkipHeaderRecord()
