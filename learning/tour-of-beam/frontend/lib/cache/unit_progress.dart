@@ -37,8 +37,6 @@ class UnitProgressCache extends Cache {
   final _updatingUnitIds = <String>{};
 
   final _unitProgressByUnitId = <String, UnitProgressModel>{};
-  Map<String, UnitProgressModel> get unitProgressByUnitId =>
-      _unitProgressByUnitId;
 
   Future<void> updateUnitProgress() async {
     final sdkId = GetIt.instance.get<AppNotifier>().sdkId;
