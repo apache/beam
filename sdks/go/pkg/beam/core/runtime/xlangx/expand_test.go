@@ -23,6 +23,8 @@ import (
 )
 
 func TestStartAutomated(t *testing.T) {
+	// TODO: https://github.com/apache/beam/issues/25303
+	t.Skipf("need a release SDK version to test auto python expansion service")
 	if strings.HasSuffix(core.SdkVersion, ".dev") {
 		t.Skipf("need a released SDK version to test auto python expansion service, got: %s", core.SdkVersion)
 	}
