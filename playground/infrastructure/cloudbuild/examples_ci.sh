@@ -67,6 +67,9 @@ BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
+# Get tag
+tag_name=$(git tag --points-at $commit_sha)
+
 # Get diff
 if [ -z $base_ref ] || [ $base_ref == "master" ]
 then
