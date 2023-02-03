@@ -32,9 +32,10 @@ from typing import Iterable
 from typing import Iterator
 from typing import Tuple
 
+import numpy as np
+
 import apache_beam as beam
 import torch
-import numpy as np
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference

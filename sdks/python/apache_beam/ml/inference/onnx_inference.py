@@ -24,9 +24,9 @@ from typing import Sequence
 from typing import Union
 
 import numpy
-import onnxruntime as ort
-import onnx
 
+import onnx
+import onnxruntime as ort
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
