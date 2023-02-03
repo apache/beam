@@ -53,10 +53,21 @@ COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/con
 ENV PYTHONPATH="$PYTHONPATH:/go/src/katas"
 
 # Install prerequisites for ML examples (latest available stable version of packages)
+# Gti LFS required for PyTorch
+RUN wget https://github.com/git-lfs/git-lfs/releases/download/v3.3.0/git-lfs-linux-amd64-v3.3.0.tar.gz
+RUN mkdir git-lfs && tar -xzf git-lfs-linux-amd64-v3.3.0.tar.gz -C git-lfs && ./git-lfs/git-lfs-3.3.0/install.sh && git lfs install
 RUN pip3 install --no-cache-dir --upgrade pip
 # PyTorch (CPU version)
-RUN pip3 install --no-cache-dir torch==1.13.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
+RUN pip3 install --no-cache-dir torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
 RUN pip3 install --no-cache-dir numpy==1.21.6
+RUN pip3 install --no-cache-dir matplotlib==3.5.3
+RUN pip3 install --no-cache-dir transformers==4.26.0 
+RUN pip3 install --no-cache-dir timm==0.6.12
+RUN pip3 install --no-cache-dir ftfy==6.1.1
+RUN pip3 install --no-cache-dir spacy==3.5.0
+RUN pip3 install --no-cache-dir fairscale==0.4.6
+RUN pip3 install --no-cache-dir gdown
+
 # Install mitmpoxy
 RUN mkdir /opt/mitmproxy &&\
     cd /opt/mitmproxy &&\
