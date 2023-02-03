@@ -324,7 +324,7 @@ if __name__ == '__main__':
             'ipywidgets>=8,<9',
             # Skip version 6.1.13 due to
             # https://github.com/jupyter/jupyter_client/issues/637
-            'jupyter-client>=6.1.11,<6.1.13',
+            'jupyter-client>=6.1.11,<8.0.3',
             'timeloop>=1.0.2,<2',
           ],
           'interactive_test': [
