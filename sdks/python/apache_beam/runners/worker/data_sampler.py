@@ -21,6 +21,7 @@
 
 import collections
 import threading
+import time
 from typing import Any
 from typing import DefaultDict
 from typing import Deque
@@ -41,18 +42,19 @@ class OutputSampler:
   """Represents a way to sample an output of a PTransform.
 
   This is configurable to only keep max_samples (see constructor) sampled
-  elements in memory. The first 10 elements are always sampled, then each
-  subsequent sample_every_n (see constructor).
+  elements in memory. The first 10 elements are always sampled, then after each
+  sample_every_sec (see constructor).
   """
   def __init__(
       self,
       coder: Coder,
       max_samples: int = 10,
-      sample_every_n: int = 1000) -> None:
+      sample_every_sec: float = 30) -> None:
     self._samples: Deque[Any] = collections.deque(maxlen=max_samples)
     self._coder_impl: CoderImpl = coder.get_impl()
     self._sample_count: int = 0
-    self._sample_every_n: int = sample_every_n
+    self._sample_every_sec: float = sample_every_sec
+    self._last_sample_sec: float = time.time()
 
   def remove_windowed_value(self, el: Union[WindowedValue, Any]) -> Any:
     """Retrieves the value from the WindowedValue.
@@ -71,20 +73,24 @@ class OutputSampler:
     else:
       samples = [self.remove_windowed_value(s) for s in self._samples]
 
+    # Encode in the nested context b/c this ensures that the SDK can decode the
+    # bytes with the ToStringFn.
     self._samples.clear()
-    return [self._coder_impl.encode(s) for s in samples]
+    return [self._coder_impl.encode_nested(s) for s in samples]
 
   def sample(self, element: Any) -> None:
     """Samples the given element to an internal buffer.
 
     Samples are only taken for the first 10 elements then every
-    `self._sample_every_n` after.
+    `self._sample_every_sec` second after.
     """
     self._sample_count += 1
+    now = time.time()
+    sample_diff = now - self._last_sample_sec
 
-    if (self._sample_count <= 10 or
-        self._sample_count % self._sample_every_n == 0):
+    if self._sample_count <= 10 or sample_diff >= self._sample_every_sec:
       self._samples.append(element)
+      self._last_sample_sec = now
 
 
 class DataSampler:
@@ -98,7 +104,8 @@ class DataSampler:
   Samples generated during execution can then be sampled with the `samples`
   method. This can filter to samples from a descriptor id and pcollection id.
   """
-  def __init__(self, max_samples: int = 10, sample_every_n: int = 1000) -> None:
+  def __init__(
+      self, max_samples: int = 10, sample_every_sec: float = 30) -> None:
     # Key is a tuple of (ProcessBundleDescriptor id, PCollection id). Is guarded
     # by the _samplers_lock.
     self._samplers: Dict[Tuple[str, str], OutputSampler] = {}
@@ -106,7 +113,7 @@ class DataSampler:
     # runner queries for samples.
     self._samplers_lock: threading.Lock = threading.Lock()
     self._max_samples = max_samples
-    self._sampler_every_n = sample_every_n
+    self._sample_every_sec = sample_every_sec
 
   def sample_output(
       self, descriptor_id: str, pcoll_id: str, coder: Coder) -> OutputSampler:
@@ -116,7 +123,8 @@ class DataSampler:
       if key in self._samplers:
         sampler = self._samplers[key]
       else:
-        sampler = OutputSampler(coder, self._max_samples, self._sampler_every_n)
+        sampler = OutputSampler(
+            coder, self._max_samples, self._sample_every_sec)
         self._samplers[key] = sampler
       return sampler
 
@@ -125,7 +133,12 @@ class DataSampler:
       descriptor_ids: Optional[Iterable[str]] = None,
       pcollection_ids: Optional[Iterable[str]] = None
   ) -> Dict[str, List[bytes]]:
-    """Returns all samples filtered by descriptor ids and pcollection ids."""
+    """Returns samples filtered by ProcessBundleDescriptor and PCollection
+    ids.
+
+    All samples from the given PCollections under eachgiven
+    ProcessBundleDescriptor id are returned. Empty lists are wildcards.
+    """
     ret: DefaultDict[str, List[bytes]] = collections.defaultdict(lambda: [])
 
     with self._samplers_lock:
