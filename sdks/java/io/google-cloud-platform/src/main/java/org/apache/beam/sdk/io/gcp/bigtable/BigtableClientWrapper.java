@@ -23,13 +23,12 @@ import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.byteStringUtf8;
 import com.google.auth.Credentials;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
-import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Internal
@@ -37,7 +36,7 @@ public class BigtableClientWrapper implements Serializable {
   private final BigtableTableAdminClient tableAdminClient;
   private final BigtableDataClient dataClient;
 
-  private final BigtableOptions bigtableOptions;
+  private final BigtableConfig bigtableConfig;
 
   public BigtableClientWrapper(
       String project,
@@ -45,21 +44,20 @@ public class BigtableClientWrapper implements Serializable {
       @Nullable Integer emulatorPort,
       @Nullable Credentials gcpCredentials)
       throws IOException {
-    BigtableOptions.Builder optionsBuilder =
-        BigtableOptions.builder()
-            .setProjectId(project)
-            .setInstanceId(instanceId)
-            .setUserAgent("apache-beam-test");
+    BigtableConfig.Builder configBuilder =
+        BigtableConfig.builder()
+            .setProjectId(ValueProvider.StaticValueProvider.of(project))
+            .setInstanceId(ValueProvider.StaticValueProvider.of(instanceId))
+            .setUserAgent("apache-beam-test")
+            .setValidate(true);
     if (emulatorPort != null) {
-      optionsBuilder.enableEmulator("localhost", emulatorPort);
+      configBuilder.setEmulatorHost("localhost:" + emulatorPort);
     }
     if (gcpCredentials != null) {
-      optionsBuilder.setCredentialOptions(CredentialOptions.credential(gcpCredentials));
+      configBuilder.setCredentials(gcpCredentials);
     }
-    bigtableOptions = optionsBuilder.build();
-
-    BigtableHBaseVeneeringSettings settings =
-        BigtableHBaseVeneeringSettings.create(bigtableOptions);
+    bigtableConfig = configBuilder.build();
+    BigtableConfigToVeneerSettings settings = BigtableConfigToVeneerSettings.create(bigtableConfig);
     tableAdminClient = BigtableTableAdminClient.create(settings.getTableAdminSettings());
     dataClient = BigtableDataClient.create(settings.getDataSettings());
   }

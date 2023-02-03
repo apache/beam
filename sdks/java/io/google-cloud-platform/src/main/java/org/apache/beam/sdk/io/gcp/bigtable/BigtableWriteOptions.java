@@ -20,38 +20,25 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.bigtable.v2.RowFilter;
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.List;
-import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Configuration for read from Bigtable. */
+/** Configuration for write to Bigtable. */
 @AutoValue
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-abstract class BigtableReadOptions implements Serializable {
+abstract class BigtableWriteOptions implements Serializable {
 
   /** Returns the table id. */
-  abstract ValueProvider<String> getTableId();
+  abstract @Nullable ValueProvider<String> getTableId();
 
-  /** Returns the row filter to use. */
-  abstract @Nullable ValueProvider<RowFilter> getRowFilter();
-
-  /** Returns the key ranges to read. */
-  abstract @Nullable ValueProvider<List<ByteKeyRange>> getKeyRanges();
-
-  /** Returns the size limit for reading segements. */
-  abstract @Nullable Integer getMaxBufferElementCount();
-
-  /** Returns the attempt timeout of the reads. */
+  /** Returns the attempt timeout for writes. */
   abstract @Nullable Long getAttemptTimeout();
 
-  /** Returns the operation timeout of the reads. */
+  /** Returns the operation timeout for writes. */
   abstract @Nullable Long getOperationTimeout();
 
   /** Returns the retry delay. */
@@ -60,22 +47,25 @@ abstract class BigtableReadOptions implements Serializable {
   /** Returns the retry delay multiplier. */
   abstract @Nullable Double getRetryDelayMultiplier();
 
+  /** Returns the number of elements of a batch. */
+  abstract @Nullable Long getBatchElements();
+
+  /** Returns the number of bytes of a batch. */
+  abstract @Nullable Long getBatchBytes();
+
+  /** Returns the max number of concurrent requests allowed. */
+  abstract @Nullable Long getMaxRequests();
+
   abstract Builder toBuilder();
 
-  static BigtableReadOptions.Builder builder() {
-    return new AutoValue_BigtableReadOptions.Builder();
+  static Builder builder() {
+    return new AutoValue_BigtableWriteOptions.Builder();
   }
 
   @AutoValue.Builder
   abstract static class Builder {
 
     abstract Builder setTableId(ValueProvider<String> tableId);
-
-    abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
-
-    abstract Builder setMaxBufferElementCount(@Nullable Integer maxBufferElementCount);
-
-    abstract Builder setKeyRanges(ValueProvider<List<ByteKeyRange>> keyRanges);
 
     abstract Builder setAttemptTimeout(long timeout);
 
@@ -85,23 +75,13 @@ abstract class BigtableReadOptions implements Serializable {
 
     abstract Builder setRetryDelayMultiplier(double multiplier);
 
-    abstract BigtableReadOptions build();
-  }
+    abstract Builder setBatchElements(long size);
 
-  BigtableReadOptions setMaxBufferElementCount(@Nullable Integer maxBufferElementCount) {
-    return toBuilder().setMaxBufferElementCount(maxBufferElementCount).build();
-  }
+    abstract Builder setBatchBytes(long bytes);
 
-  BigtableReadOptions withRowFilter(RowFilter rowFilter) {
-    return toBuilder().setRowFilter(ValueProvider.StaticValueProvider.of(rowFilter)).build();
-  }
+    abstract Builder setMaxRequests(long count);
 
-  BigtableReadOptions withKeyRanges(List<ByteKeyRange> keyRanges) {
-    return toBuilder().setKeyRanges(ValueProvider.StaticValueProvider.of(keyRanges)).build();
-  }
-
-  BigtableReadOptions withKeyRange(ByteKeyRange keyRange) {
-    return withKeyRanges(Collections.singletonList(keyRange));
+    abstract BigtableWriteOptions build();
   }
 
   boolean isDataAccessible() {
@@ -111,20 +91,26 @@ abstract class BigtableReadOptions implements Serializable {
   void populateDisplayData(DisplayData.Builder builder) {
     builder
         .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
-        .addIfNotNull(DisplayData.item("rowFilter", getRowFilter()).withLabel("Row Filter"))
-        .addIfNotNull(DisplayData.item("keyRanges", getKeyRanges()).withLabel("Key Ranges"))
         .addIfNotNull(
             DisplayData.item("attemptTimeout", getAttemptTimeout())
-                .withLabel("Read Attempt Timeout"))
+                .withLabel("Write Attempt Timeout"))
         .addIfNotNull(
             DisplayData.item("operationTimeout", getOperationTimeout())
-                .withLabel("Read Operation Timeout"))
+                .withLabel("Write Operation Timeout"))
         .addIfNotNull(
             DisplayData.item("retryInitialDelay", getRetryInitialDelay())
-                .withLabel("Read retry initial delay"))
+                .withLabel("Write retry initial delay"))
         .addIfNotNull(
             DisplayData.item("retryDelayMultiplier", getRetryDelayMultiplier())
-                .withLabel("Read retry delay multiplier"));
+                .withLabel("Write retry delay multiplier"))
+        .addIfNotNull(
+            DisplayData.item("batchELements", getBatchElements())
+                .withLabel("Write batch element count"))
+        .addIfNotNull(
+            DisplayData.item("batchBytes", getBatchBytes()).withLabel("Write batch byte size"))
+        .addIfNotNull(
+            DisplayData.item("maxRequests", getMaxRequests())
+                .withLabel("Write max concurrent requests"));
   }
 
   void validate() {
@@ -132,20 +118,10 @@ abstract class BigtableReadOptions implements Serializable {
         getTableId() != null && (!getTableId().isAccessible() || !getTableId().get().isEmpty()),
         "Could not obtain Bigtable table id");
 
-    if (getRowFilter() != null && getRowFilter().isAccessible()) {
-      checkArgument(getRowFilter().get() != null, "rowFilter can not be null");
-    }
-    if (getMaxBufferElementCount() != null) {
+    if (getAttemptTimeout() != null && getOperationTimeout() != null) {
       checkArgument(
-          getMaxBufferElementCount() > 0, "maxBufferElementCount can not be zero or negative");
-    }
-
-    if (getKeyRanges() != null && getKeyRanges().isAccessible()) {
-      checkArgument(getKeyRanges().get() != null, "keyRanges can not be null");
-      checkArgument(!getKeyRanges().get().isEmpty(), "keyRanges can not be empty");
-      for (ByteKeyRange range : getKeyRanges().get()) {
-        checkArgument(range != null, "keyRanges cannot hold null range");
-      }
+          getAttemptTimeout() <= getOperationTimeout(),
+          "attempt timeout can't be greater than operation timeout");
     }
   }
 }

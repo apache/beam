@@ -24,7 +24,6 @@ import com.google.bigtable.v2.Mutation;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
 import com.google.cloud.bigtable.admin.v2.models.Table;
-import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -61,8 +61,8 @@ public class BigtableWriteIT implements Serializable {
   private static final String COLUMN_FAMILY_NAME = "cf";
 
   private static BigtableTestOptions options;
-  private static BigtableHBaseVeneeringSettings veneerSettings;
-  private BigtableOptions bigtableOptions;
+  private static BigtableConfigToVeneerSettings veneerSettings;
+  private BigtableConfig bigtableConfig;
   private static BigtableDataClient client;
   private static BigtableTableAdminClient tableAdminClient;
   private final String tableId =
@@ -75,14 +75,14 @@ public class BigtableWriteIT implements Serializable {
     options = TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
     project = options.as(GcpOptions.class).getProject();
 
-    bigtableOptions =
-        new BigtableOptions.Builder()
-            .setProjectId(project)
-            .setInstanceId(options.getInstanceId())
+    bigtableConfig =
+        BigtableConfig.builder()
+            .setProjectId(ValueProvider.StaticValueProvider.of(project))
+            .setInstanceId(ValueProvider.StaticValueProvider.of(options.getInstanceId()))
             .setUserAgent("apache-beam-test")
             .build();
 
-    veneerSettings = BigtableHBaseVeneeringSettings.create(bigtableOptions);
+    veneerSettings = BigtableConfigToVeneerSettings.create(bigtableConfig);
 
     client = BigtableDataClient.create(veneerSettings.getDataSettings());
     tableAdminClient = BigtableTableAdminClient.create(veneerSettings.getTableAdminSettings());
@@ -115,7 +115,7 @@ public class BigtableWriteIT implements Serializable {
                     c.output(KV.of(testData.get(index).getKey(), mutations));
                   }
                 }))
-        .apply(BigtableIO.write().withBigtableOptions(bigtableOptions).withTableId(tableId));
+        .apply(BigtableIO.write().withTableId(tableId));
     p.run();
 
     // Test number of column families and column family name equality

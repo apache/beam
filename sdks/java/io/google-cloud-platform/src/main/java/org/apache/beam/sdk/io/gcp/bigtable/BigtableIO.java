@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
@@ -118,6 +119,16 @@ import org.slf4j.LoggerFactory;
  *         .withInstanceId(instanceId)
  *         .withTableId("table")
  *         .withRowFilter(filter));
+ *
+ * // Configure timeouts for reads
+ * p.apply("read",
+ *     BigtableIO.read()
+ *         .withProjectId(projectId)
+ *         .withInstanceId(instanceId)
+ *         .withTableId("table")
+ *         .withKeyRange(keyRange)
+ *         .withAttemptTimeout(100) // 100 milliseconds
+ *         .withOperationTimeout(60 * 1000)); // 1 minute
  * }</pre>
  *
  * <h3>Writing to Cloud Bigtable</h3>
@@ -139,6 +150,15 @@ import org.slf4j.LoggerFactory;
  *         .withProjectId("project")
  *         .withInstanceId("instance")
  *         .withTableId("table"));
+ * }
+ *
+ * // Configure batch size for writes
+ * data.apply("write",
+ *     BigtableIO.write()
+ *         .withProjectId("project")
+ *         .withInstanceId("instance")
+ *         .withTableId("table")
+ *         .withBatchElements(100)); // every batch will have 100 elements
  * }</pre>
  *
  * <p>Optionally, BigtableIO.write() may be configured to emit {@link BigtableWriteResult} elements
@@ -223,14 +243,14 @@ public class BigtableIO {
 
     /** Returns the table being read from. */
     public @Nullable String getTableId() {
-      ValueProvider<String> tableId = getBigtableConfig().getTableId();
+      ValueProvider<String> tableId = getBigtableReadOptions().getTableId();
       return tableId != null && tableId.isAccessible() ? tableId.get() : null;
     }
 
     /**
      * Returns the Google Cloud Bigtable instance being read from, and other parameters.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please use {@link #getBigtableReadOptions()}.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -240,13 +260,13 @@ public class BigtableIO {
     abstract Builder toBuilder();
 
     static Read create() {
-      BigtableConfig config =
-          BigtableConfig.builder().setTableId(StaticValueProvider.of("")).setValidate(true).build();
+      BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
 
       return new AutoValue_BigtableIO_Read.Builder()
           .setBigtableConfig(config)
           .setBigtableReadOptions(
               BigtableReadOptions.builder()
+                  .setTableId(StaticValueProvider.of(""))
                   .setKeyRanges(
                       StaticValueProvider.of(Collections.singletonList(ByteKeyRange.ALL_KEYS)))
                   .build())
@@ -315,8 +335,10 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withTableId(ValueProvider<String> tableId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withTableId(tableId)).build();
+      BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(bigtableReadOptions.toBuilder().setTableId(tableId).build())
+          .build();
     }
 
     /**
@@ -329,6 +351,16 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Read} with provided credentials.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withCredentials(Credentials credentials) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withCredentails(credentials)).build();
+    }
+
+    /**
      * WARNING: Should be used only to specify additional parameters for connection to the Cloud
      * Bigtable, instanceId and projectId should be provided over {@link #withInstanceId} and {@link
      * #withProjectId} respectively.
@@ -338,7 +370,7 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please set the configurations directly.
      */
     @Deprecated
     public Read withBigtableOptions(BigtableOptions options) {
@@ -359,12 +391,11 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please set the configurations directly.
      */
     @Deprecated
     public Read withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
       BigtableConfig config = getBigtableConfig();
-      // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       return toBuilder()
           .setBigtableConfig(config.withBigtableOptions(optionsBuilder.build().toBuilder().build()))
           .build();
@@ -378,7 +409,10 @@ public class BigtableIO {
      * {@link #withProjectId} and {@link #withInstanceId}.
      *
      * <p>Does not modify this object.
+     *
+     * @deprecated please set the configurations directly.
      */
+    @Deprecated
     public Read withBigtableOptionsConfigurator(
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
       BigtableConfig config = getBigtableConfig();
@@ -497,8 +531,86 @@ public class BigtableIO {
       return toBuilder().setBigtableConfig(config.withEmulator(emulatorHost)).build();
     }
 
+    /**
+     * Configures the attempt timeout in milliseconds of the reads.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withAttemptTimeout(long timeoutMs) {
+      checkArgument(timeoutMs > 0, "attempt timeout must be positive");
+      BigtableReadOptions readOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(readOptions.toBuilder().setAttemptTimeout(timeoutMs).build())
+          .build();
+    }
+
+    /**
+     * Configures the operation timeout in milliseconds of the reads.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withOperationTimeout(long timeoutMs) {
+      checkArgument(timeoutMs > 0, "operation timeout must be positive");
+      BigtableReadOptions readOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(readOptions.toBuilder().setOperationTimeout(timeoutMs).build())
+          .build();
+    }
+
+    /**
+     * Configures the initial retry delay in milliseconds.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withRetryInitialDelay(long initialDelayMs) {
+      checkArgument(initialDelayMs > 0, "initial delay must be positive");
+      BigtableReadOptions readOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(
+              readOptions.toBuilder().setRetryInitialDelay(initialDelayMs).build())
+          .build();
+    }
+
+    /**
+     * Configures the delay multiplier.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withRetryDelayMultiplier(double multiplier) {
+      checkArgument(multiplier > 0, "delay multiplier must be positive");
+      BigtableReadOptions readOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(
+              readOptions.toBuilder().setRetryDelayMultiplier(multiplier).build())
+          .build();
+    }
+
+    /** Helper method to translate BigtableOptions to BigtableReadOptions. */
+    private void translateBigtableOptions(BigtableOptions options) {
+      BigtableReadOptions.Builder readOptions = getBigtableReadOptions().toBuilder();
+      if (options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().isPresent()) {
+        readOptions.setAttemptTimeout(
+            options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().get());
+      }
+      readOptions.setOperationTimeout(options.getCallOptionsConfig().getReadStreamRpcTimeoutMs());
+      readOptions.setRetryInitialDelay(options.getRetryOptions().getInitialBackoffMillis());
+      readOptions.setRetryDelayMultiplier(options.getRetryOptions().getBackoffMultiplier());
+
+      toBuilder().setBigtableReadOptions(readOptions.build()).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
+      BigtableConfig config = this.getBigtableConfig();
+      // If BigtableOptions present, convert BigtableOptions into BigtableReadOptions
+      if (config.getBigtableOptions() != null) {
+        translateBigtableOptions(config.getBigtableOptions());
+      } else if (config.getBigtableOptionsConfigurator() != null) {
+        BigtableOptions.Builder options = BigtableOptions.builder();
+        options = config.getBigtableOptionsConfigurator().apply(options);
+        translateBigtableOptions(options.build());
+      }
+
       getBigtableConfig().validate();
       getBigtableReadOptions().validate();
 
@@ -509,7 +621,7 @@ public class BigtableIO {
 
     @Override
     public void validate(PipelineOptions options) {
-      validateTableExists(getBigtableConfig(), options);
+      validateTableExists(getBigtableConfig(), getBigtableReadOptions(), options);
     }
 
     @Override
@@ -553,10 +665,12 @@ public class BigtableIO {
 
     abstract BigtableConfig getBigtableConfig();
 
+    abstract BigtableWriteOptions getBigtableWriteOptions();
+
     /**
      * Returns the Google Cloud Bigtable instance being written to, and other parameters.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please configure the write options directly.
      */
     @Deprecated
     public @Nullable BigtableOptions getBigtableOptions() {
@@ -566,20 +680,23 @@ public class BigtableIO {
     abstract Builder toBuilder();
 
     static Write create() {
-      BigtableConfig config =
-          BigtableConfig.builder()
-              .setTableId(StaticValueProvider.of(""))
-              .setValidate(true)
-              .setBigtableOptionsConfigurator(enableBulkApiConfigurator(null))
-              .build();
+      BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
 
-      return new AutoValue_BigtableIO_Write.Builder().setBigtableConfig(config).build();
+      BigtableWriteOptions writeOptions =
+          BigtableWriteOptions.builder().setTableId(StaticValueProvider.of("")).build();
+
+      return new AutoValue_BigtableIO_Write.Builder()
+          .setBigtableConfig(config)
+          .setBigtableWriteOptions(writeOptions)
+          .build();
     }
 
     @AutoValue.Builder
     abstract static class Builder {
 
       abstract Builder setBigtableConfig(BigtableConfig bigtableConfig);
+
+      abstract Builder setBigtableWriteOptions(BigtableWriteOptions writeOptions);
 
       abstract Write build();
     }
@@ -636,8 +753,10 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withTableId(ValueProvider<String> tableId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withTableId(tableId)).build();
+      BigtableWriteOptions writeOptions = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(writeOptions.toBuilder().setTableId(tableId).build())
+          .build();
     }
 
     /**
@@ -650,6 +769,15 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Write} with the provided credentials.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withCredentials(Credentials credentials) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withCredentails(credentials)).build();
+    }
+    /**
      * WARNING: Should be used only to specify additional parameters for connection to the Cloud
      * Bigtable, instanceId and projectId should be provided over {@link #withInstanceId} and {@link
      * #withProjectId} respectively.
@@ -659,7 +787,7 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please configure the write options directly.
      */
     @Deprecated
     public Write withBigtableOptions(BigtableOptions options) {
@@ -680,14 +808,13 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      *
-     * @deprecated will be replaced by bigtable options configurator.
+     * @deprecated please configure the write options directly.
      */
     @Deprecated
     public Write withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
       BigtableConfig config = getBigtableConfig();
-      // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       return toBuilder()
-          .setBigtableConfig(config.withBigtableOptions(optionsBuilder.build().toBuilder().build()))
+          .setBigtableConfig(config.withBigtableOptions(optionsBuilder.build()))
           .build();
     }
 
@@ -699,7 +826,10 @@ public class BigtableIO {
      * {@link #withProjectId} and {@link #withInstanceId}.
      *
      * <p>Does not modify this object.
+     *
+     * @deprecated please configure the write options directly.
      */
+    @Deprecated
     public Write withBigtableOptionsConfigurator(
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
       BigtableConfig config = getBigtableConfig();
@@ -740,15 +870,135 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Write} with the attempt timeout in milliseconds for writes.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withAttemptTimeout(long timeoutMs) {
+      checkArgument(timeoutMs > 0, "attempt timeout must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setAttemptTimeout(timeoutMs).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the operation timeout in milliseconds for writes.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withOperationTimeout(long timeoutMs) {
+      checkArgument(timeoutMs > 0, "operation timeout must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setOperationTimeout(timeoutMs).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the retry delay in milliseconds.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withRetryInitialDelay(long delayMs) {
+      checkArgument(delayMs > 0, "delay must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setRetryInitialDelay(delayMs).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with retry multiplier.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withRetryDelayMultiplier(double multiplier) {
+      checkArgument(multiplier > 0, "multiplier must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setRetryDelayMultiplier(multiplier).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the number of elements in a batch.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withBatchElements(long size) {
+      checkArgument(size > 0, "batch element size must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setBatchElements(size).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the number of bytes in a batch.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withBatchBytes(long size) {
+      checkArgument(size > 0, "batch byte size must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setBatchBytes(size).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the max number of concurrent requests.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withMaxRequests(long requests) {
+      checkArgument(requests > 0, "max requests must be positive");
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setMaxRequests(requests).build())
+          .build();
+    }
+
+    /** Helper method to translate Bigtable Options to BigtableWriteOptions. */
+    private void translateBigtableOptions(BigtableOptions options) {
+      BigtableWriteOptions.Builder writeOptions = getBigtableWriteOptions().toBuilder();
+      // configure timeouts
+      if (options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().isPresent()) {
+        writeOptions.setAttemptTimeout(
+            options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().get());
+      }
+      writeOptions.setOperationTimeout(options.getCallOptionsConfig().getMutateRpcTimeoutMs());
+      // configure retry backoffs
+      writeOptions.setRetryInitialDelay(options.getRetryOptions().getInitialBackoffMillis());
+      writeOptions.setRetryDelayMultiplier(options.getRetryOptions().getBackoffMultiplier());
+      // configure batch size
+      writeOptions.setBatchElements(options.getBulkOptions().getBulkMaxRowKeyCount());
+      writeOptions.setBatchBytes(options.getBulkOptions().getBulkMaxRequestSize());
+      writeOptions.setMaxRequests(options.getBulkOptions().getMaxInflightRpcs());
+
+      toBuilder().setBigtableWriteOptions(writeOptions.build()).build();
+    }
+
+    /**
      * Returns a {@link BigtableIO.WriteWithResults} that will emit a {@link BigtableWriteResult}
      * for each batch of rows written.
      */
     public WriteWithResults withWriteResults() {
-      return new WriteWithResults(getBigtableConfig());
+      return new WriteWithResults(getBigtableConfig(), getBigtableWriteOptions());
     }
 
     @Override
     public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+      BigtableConfig config = this.getBigtableConfig();
+      if (config.getBigtableOptions() != null) {
+        translateBigtableOptions(config.getBigtableOptions());
+      } else if (config.getBigtableOptionsConfigurator() != null) {
+        BigtableOptions.Builder options = BigtableOptions.builder();
+        options = config.getBigtableOptionsConfigurator().apply(options);
+        translateBigtableOptions(options.build());
+      }
+
       input.apply(withWriteResults());
       return PDone.in(input.getPipeline());
     }
@@ -781,34 +1031,39 @@ public class BigtableIO {
           PCollection<KV<ByteString, Iterable<Mutation>>>, PCollection<BigtableWriteResult>> {
 
     private final BigtableConfig bigtableConfig;
+    private final BigtableWriteOptions bigtableWriteOptions;
 
-    WriteWithResults(BigtableConfig bigtableConfig) {
+    WriteWithResults(BigtableConfig bigtableConfig, BigtableWriteOptions bigtableWriteOptions) {
       this.bigtableConfig = bigtableConfig;
+      this.bigtableWriteOptions = bigtableWriteOptions;
     }
 
     @Override
     public PCollection<BigtableWriteResult> expand(
         PCollection<KV<ByteString, Iterable<Mutation>>> input) {
       bigtableConfig.validate();
+      bigtableWriteOptions.validate();
 
-      return input.apply(ParDo.of(new BigtableWriterFn(bigtableConfig)));
+      return input.apply(ParDo.of(new BigtableWriterFn(bigtableConfig, bigtableWriteOptions)));
     }
 
     @Override
     public void validate(PipelineOptions options) {
-      validateTableExists(bigtableConfig, options);
+      validateTableExists(bigtableConfig, bigtableWriteOptions, options);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       bigtableConfig.populateDisplayData(builder);
+      bigtableWriteOptions.populateDisplayData(builder);
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(WriteWithResults.class)
           .add("config", bigtableConfig)
+          .add("writeOptions", bigtableWriteOptions)
           .toString();
     }
   }
@@ -816,8 +1071,9 @@ public class BigtableIO {
   private static class BigtableWriterFn
       extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
 
-    BigtableWriterFn(BigtableConfig bigtableConfig) {
+    BigtableWriterFn(BigtableConfig bigtableConfig, BigtableWriteOptions writeOptions) {
       this.config = bigtableConfig;
+      this.writeOptions = writeOptions;
       this.failures = new ConcurrentLinkedQueue<>();
     }
 
@@ -827,7 +1083,7 @@ public class BigtableIO {
         bigtableWriter =
             config
                 .getBigtableService(c.getPipelineOptions())
-                .openForWriting(config.getTableId().get());
+                .openForWriting(writeOptions.getTableId().get(), writeOptions);
       }
       recordsWritten = 0;
       this.seenWindows = Maps.newHashMapWithExpectedSize(1);
@@ -877,6 +1133,7 @@ public class BigtableIO {
 
     ///////////////////////////////////////////////////////////////////////////////
     private final BigtableConfig config;
+    private final BigtableWriteOptions writeOptions;
     private BigtableService.Writer bigtableWriter;
     private long recordsWritten;
     private final ConcurrentLinkedQueue<BigtableWriteException> failures;
@@ -1223,7 +1480,7 @@ public class BigtableIO {
         return;
       }
 
-      ValueProvider<String> tableId = config.getTableId();
+      ValueProvider<String> tableId = readOptions.getTableId();
       checkArgument(
           tableId != null && tableId.isAccessible() && !tableId.get().isEmpty(),
           "tableId was not supplied");
@@ -1233,7 +1490,7 @@ public class BigtableIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add(DisplayData.item("tableId", config.getTableId()).withLabel("Table ID"));
+      builder.add(DisplayData.item("tableId", readOptions.getTableId()).withLabel("Table ID"));
 
       if (getRowFilter() != null) {
         builder.add(
@@ -1281,6 +1538,10 @@ public class BigtableIO {
       return splits.build();
     }
 
+    public BigtableReadOptions getReadOptions() {
+      return readOptions;
+    }
+
     public List<ByteKeyRange> getRanges() {
       return readOptions.getKeyRanges().get();
     }
@@ -1295,7 +1556,7 @@ public class BigtableIO {
     }
 
     public ValueProvider<String> getTableId() {
-      return config.getTableId();
+      return readOptions.getTableId();
     }
   }
 
@@ -1415,9 +1676,25 @@ public class BigtableIO {
     }
   }
 
-  static void validateTableExists(BigtableConfig config, PipelineOptions options) {
-    if (config.getValidate() && config.isDataAccessible()) {
-      String tableId = checkNotNull(config.getTableId().get());
+  static void validateTableExists(
+      BigtableConfig config, BigtableWriteOptions writeOptions, PipelineOptions options) {
+    if (config.getValidate() && config.isDataAccessible() && writeOptions.isDataAccessible()) {
+      String tableId = checkNotNull(writeOptions.getTableId().get());
+      try {
+        checkArgument(
+            config.getBigtableService(options).tableExists(tableId),
+            "Table %s does not exist",
+            tableId);
+      } catch (IOException e) {
+        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+      }
+    }
+  }
+
+  static void validateTableExists(
+      BigtableConfig config, BigtableReadOptions readOptions, PipelineOptions options) {
+    if (config.getValidate() && config.isDataAccessible() && readOptions.isDataAccessible()) {
+      String tableId = checkNotNull(readOptions.getTableId().get());
       try {
         checkArgument(
             config.getBigtableService(options).tableExists(tableId),

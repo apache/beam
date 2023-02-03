@@ -40,6 +40,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -52,7 +53,6 @@ import com.google.bigtable.v2.RowFilter;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
-import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.protobuf.ByteString;
@@ -308,8 +308,11 @@ public class BigtableIOTest {
     makeTableData(failureService, table, numRows);
     BigtableSource source =
         new BigtableSource(
-            failureConfig.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            failureConfig,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
             null);
     BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
 
@@ -330,8 +333,11 @@ public class BigtableIOTest {
     makeTableData(failureService, table, numRows);
     BigtableSource source =
         new BigtableSource(
-            failureConfig.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            failureConfig,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
             null);
     BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
 
@@ -350,7 +356,7 @@ public class BigtableIOTest {
             .withTableId("table")
             .withInstanceId("instance")
             .withProjectId("project");
-    assertEquals("table", write.getBigtableConfig().getTableId().get());
+    assertEquals("table", write.getBigtableWriteOptions().getTableId().get());
     assertEquals("options_project", write.getBigtableOptions().getProjectId());
     assertEquals("options_instance", write.getBigtableOptions().getInstanceId());
     assertEquals("instance", write.getBigtableConfig().getInstanceId().get());
@@ -426,32 +432,28 @@ public class BigtableIOTest {
 
   /** Tests that credentials are used from PipelineOptions if not supplied by BigtableOptions. */
   @Test
-  public void testUsePipelineOptionsCredentialsIfNotSpecifiedInBigtableOptions() throws Exception {
-    BigtableOptions options =
-        BIGTABLE_OPTIONS
-            .toBuilder()
-            .setCredentialOptions(CredentialOptions.defaultCredentials())
-            .build();
+  public void testUsePipelineOptionsCredentialsIfNotSpecifiedInBigtableOptions() {
     GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    Credentials credentials = new TestCredential();
+    pipelineOptions.setGcpCredential(credentials);
     BigtableService readService =
         BigtableIO.read()
-            .withBigtableOptions(options)
+            .withProjectId("project")
+            .withInstanceId("instance")
             .withTableId("TEST-TABLE")
             .getBigtableConfig()
             .getBigtableService(pipelineOptions);
     BigtableService writeService =
         BigtableIO.write()
-            .withBigtableOptions(options)
+            .withProjectId("project")
+            .withInstanceId("instance")
+            .withProjectId("TEST-PROJECT")
+            .withInstanceId("TEST-INSTANCE")
             .withTableId("TEST-TABLE")
             .getBigtableConfig()
             .getBigtableService(pipelineOptions);
-    assertEquals(
-        CredentialType.SuppliedCredentials,
-        readService.getBigtableOptions().getCredentialOptions().getCredentialType());
-    assertEquals(
-        CredentialType.SuppliedCredentials,
-        writeService.getBigtableOptions().getCredentialOptions().getCredentialType());
+    assertEquals(credentials, readService.getCredentials());
+    assertEquals(credentials, writeService.getCredentials());
   }
 
   /** Tests that credentials are not used from PipelineOptions if supplied by BigtableOptions. */
@@ -476,12 +478,8 @@ public class BigtableIOTest {
             .withTableId("TEST-TABLE")
             .getBigtableConfig()
             .getBigtableService(pipelineOptions);
-    assertEquals(
-        CredentialType.None,
-        readService.getBigtableOptions().getCredentialOptions().getCredentialType());
-    assertEquals(
-        CredentialType.None,
-        writeService.getBigtableOptions().getCredentialOptions().getCredentialType());
+    assertEquals(null, readService.getCredentials());
+    assertEquals(null, writeService.getCredentials());
   }
 
   /** Tests that when reading from a non-existent table, the read fails. */
@@ -723,8 +721,9 @@ public class BigtableIOTest {
 
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
+            config,
             BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
                 .setKeyRanges(
                     StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
                 .build(),
@@ -744,8 +743,9 @@ public class BigtableIOTest {
 
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
+            config,
             BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
                 .setKeyRanges(
                     StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
                 .build(),
@@ -780,8 +780,11 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
             null /*size*/);
     List<BigtableSource> splits =
         source.split(numRows * bytesPerRow / numSamples, null /* options */);
@@ -810,8 +813,11 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            failureConfig.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            failureConfig,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
             null /*size*/);
 
     thrown.expect(RuntimeException.class);
@@ -876,8 +882,11 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(StaticValueProvider.of(keyRanges))
+                .build(),
             null /*size*/);
 
     List<BigtableSource> splits = new ArrayList<>();
@@ -926,8 +935,11 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(StaticValueProvider.of(keyRanges))
+                .build(),
             null /*size*/);
 
     List<BigtableSource> splits = new ArrayList<>();
@@ -967,8 +979,11 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
             null /*size*/);
     List<BigtableSource> splits = new ArrayList<>();
     List<ByteKeyRange> keyRanges =
@@ -1038,13 +1053,17 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(StaticValueProvider.of(keyRanges))
+                .build(),
             null /*size*/);
     BigtableSource referenceSource =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
+            config,
             BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
                 .setKeyRanges(
                     StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
                 .build(),
@@ -1073,8 +1092,11 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
             null /*size*/);
     List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
 
@@ -1115,13 +1137,17 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(StaticValueProvider.of(keyRanges))
+                .build(),
             null /*size*/);
     BigtableSource referenceSource =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
+            config,
             BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
                 .setKeyRanges(
                     StaticValueProvider.of(ImmutableList.of(service.getTableRange(table))))
                 .build(),
@@ -1151,8 +1177,9 @@ public class BigtableIOTest {
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
+            config,
             BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
                 .setRowFilter(StaticValueProvider.of(filter))
                 .setKeyRanges(ALL_KEY_RANGE)
                 .build(),
@@ -1492,8 +1519,11 @@ public class BigtableIOTest {
 
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
             null);
 
     BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
@@ -1606,11 +1636,6 @@ public class BigtableIOTest {
     private final Map<String, SortedMap<ByteString, ByteString>> tables = new HashMap<>();
     private final Map<String, List<KeyOffset>> sampleRowKeys = new HashMap<>();
 
-    @Override
-    public BigtableOptions getBigtableOptions() {
-      return null;
-    }
-
     public @Nullable SortedMap<ByteString, ByteString> getTable(String tableId) {
       return tables.get(tableId);
     }
@@ -1640,7 +1665,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FakeBigtableWriter openForWriting(String tableId) {
+    public FakeBigtableWriter openForWriting(String tableId, BigtableWriteOptions writeOptions) {
       return new FakeBigtableWriter(tableId);
     }
 
@@ -1649,6 +1674,26 @@ public class BigtableIOTest {
       List<KeyOffset> samples = sampleRowKeys.get(source.getTableId().get());
       checkNotNull(samples, "No samples found for table %s", source.getTableId().get());
       return samples;
+    }
+
+    @Override
+    public String getProjectId() {
+      return null;
+    }
+
+    @Override
+    public String getInstanceId() {
+      return null;
+    }
+
+    @Override
+    public Credentials getCredentials() {
+      return null;
+    }
+
+    @Override
+    public String getEmulatorHost() {
+      return null;
     }
 
     /** Sets up the sample row keys for the specified table. */
@@ -1690,7 +1735,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FailureBigtableWriter openForWriting(String tableId) {
+    public FailureBigtableWriter openForWriting(String tableId, BigtableWriteOptions writeOptions) {
       return new FailureBigtableWriter(tableId, this, failureOptions);
     }
 

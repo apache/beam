@@ -27,8 +27,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.auth.Credentials;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
+import com.google.cloud.bigtable.config.CredentialOptions;
+import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -65,8 +68,6 @@ public class BigtableConfigTest {
   static final ValueProvider<String> INSTANCE_ID =
       ValueProvider.StaticValueProvider.of("instance_id");
 
-  static final ValueProvider<String> TABLE_ID = ValueProvider.StaticValueProvider.of("table");
-
   static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> CONFIGURATOR =
       (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>) input -> input;
 
@@ -98,14 +99,6 @@ public class BigtableConfigTest {
   }
 
   @Test
-  public void testWithTableId() {
-    assertEquals(TABLE_ID.get(), config.withTableId(TABLE_ID).getTableId().get());
-
-    thrown.expect(IllegalArgumentException.class);
-    config.withTableId(null);
-  }
-
-  @Test
   public void testWithBigtableOptionsConfigurator() {
     assertEquals(
         CONFIGURATOR,
@@ -130,12 +123,12 @@ public class BigtableConfigTest {
 
   @Test
   public void testValidate() {
-    config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID).withTableId(TABLE_ID).validate();
+    config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID).validate();
   }
 
   @Test
   public void testValidateFailsWithoutProjectId() {
-    config.withInstanceId(INSTANCE_ID).withTableId(TABLE_ID);
+    config.withInstanceId(INSTANCE_ID);
 
     thrown.expect(IllegalArgumentException.class);
     config.validate();
@@ -143,7 +136,7 @@ public class BigtableConfigTest {
 
   @Test
   public void testValidateFailsWithoutInstanceId() {
-    config.withProjectId(PROJECT_ID).withTableId(TABLE_ID);
+    config.withProjectId(PROJECT_ID);
 
     thrown.expect(IllegalArgumentException.class);
     config.validate();
@@ -161,8 +154,7 @@ public class BigtableConfigTest {
   public void testPopulateDisplayData() {
     DisplayData displayData =
         DisplayData.from(
-            config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID).withTableId(TABLE_ID)
-                ::populateDisplayData);
+            config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID)::populateDisplayData);
 
     assertThat(
         displayData,
@@ -177,11 +169,6 @@ public class BigtableConfigTest {
                 hasKey("instanceId"),
                 hasLabel("Bigtable Instance Id"),
                 hasValue(INSTANCE_ID.get()))));
-
-    assertThat(
-        displayData,
-        hasDisplayItem(
-            allOf(hasKey("tableId"), hasLabel("Bigtable Table Id"), hasValue(TABLE_ID.get()))));
   }
 
   @Test
@@ -195,45 +182,34 @@ public class BigtableConfigTest {
         (SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>)
             input ->
                 input
-                    .setInstanceId(INSTANCE_ID.get() + INSTANCE_ID.get())
-                    .setProjectId(PROJECT_ID.get() + PROJECT_ID.get())
+                    .setInstanceId(INSTANCE_ID.get())
+                    .setProjectId(PROJECT_ID.get())
                     .setBulkOptions(new BulkOptions.Builder().setUseBulkApi(true).build());
 
     BigtableService service =
         config
-            .withProjectId(PROJECT_ID)
-            .withInstanceId(INSTANCE_ID)
             .withBigtableOptionsConfigurator(configurator)
             .getBigtableService(PipelineOptionsFactory.as(GcpOptions.class));
 
-    assertEquals(PROJECT_ID.get(), service.getBigtableOptions().getProjectId());
-    assertEquals(INSTANCE_ID.get(), service.getBigtableOptions().getInstanceId());
-    assertTrue(service.getBigtableOptions().getBulkOptions().useBulkApi());
+    assertEquals(PROJECT_ID.get(), service.getProjectId());
+    assertEquals(INSTANCE_ID.get(), service.getInstanceId());
   }
 
   @Test
   public void testIsDataAccessible() {
+    assertTrue(config.withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID).isDataAccessible());
     assertTrue(
         config
-            .withTableId(TABLE_ID)
-            .withProjectId(PROJECT_ID)
-            .withInstanceId(INSTANCE_ID)
-            .isDataAccessible());
-    assertTrue(
-        config
-            .withTableId(TABLE_ID)
             .withProjectId(PROJECT_ID)
             .withBigtableOptions(new BigtableOptions.Builder().setInstanceId("instance_id").build())
             .isDataAccessible());
     assertTrue(
         config
-            .withTableId(TABLE_ID)
             .withInstanceId(INSTANCE_ID)
             .withBigtableOptions(new BigtableOptions.Builder().setProjectId("project_id").build())
             .isDataAccessible());
     assertTrue(
         config
-            .withTableId(TABLE_ID)
             .withBigtableOptions(
                 new BigtableOptions.Builder()
                     .setProjectId("project_id")
@@ -242,22 +218,29 @@ public class BigtableConfigTest {
             .isDataAccessible());
 
     assertFalse(
+        config.withProjectId(NOT_ACCESSIBLE_VALUE).withInstanceId(INSTANCE_ID).isDataAccessible());
+    assertFalse(
+        config.withProjectId(PROJECT_ID).withInstanceId(NOT_ACCESSIBLE_VALUE).isDataAccessible());
+  }
+
+  @Test
+  public void testBigtableOptionsAreTranslated() {
+    BigtableOptions.Builder optionsToTest = BigtableOptions.builder();
+
+    Credentials credentials = new TestCredential();
+    optionsToTest
+        .enableEmulator("localhost", 1234)
+        .setCredentialOptions(CredentialOptions.credential(credentials));
+
+    BigtableService service =
         config
-            .withTableId(NOT_ACCESSIBLE_VALUE)
             .withProjectId(PROJECT_ID)
             .withInstanceId(INSTANCE_ID)
-            .isDataAccessible());
-    assertFalse(
-        config
-            .withTableId(TABLE_ID)
-            .withProjectId(NOT_ACCESSIBLE_VALUE)
-            .withInstanceId(INSTANCE_ID)
-            .isDataAccessible());
-    assertFalse(
-        config
-            .withTableId(TABLE_ID)
-            .withProjectId(PROJECT_ID)
-            .withInstanceId(NOT_ACCESSIBLE_VALUE)
-            .isDataAccessible());
+            .withBigtableOptions(optionsToTest.build())
+            .withValidate(true)
+            .getBigtableService(PipelineOptionsFactory.as(GcpOptions.class));
+
+    assertEquals(credentials, service.getCredentials());
+    assertEquals("localhost:1234", service.getEmulatorHost());
   }
 }
