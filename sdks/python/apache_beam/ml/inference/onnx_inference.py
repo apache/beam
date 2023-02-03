@@ -64,7 +64,7 @@ def default_numpy_inference_fn(
   }
   if inference_args:
     ort_inputs = {**ort_inputs, **inference_args}
-  ort_outs = inference_session.run(None, ort_inputs)
+  ort_outs = inference_session.run(None, ort_inputs)[0]
   return ort_outs
 
 
@@ -130,7 +130,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       An Iterable of type PredictionResult.
     """
     predictions = self._model_inference_fn(
-        inference_session, batch, inference_args)[0]
+        inference_session, batch, inference_args)
 
     return _convert_to_result(batch, predictions)
 
