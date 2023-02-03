@@ -5085,6 +5085,7 @@ limitations under the License.
 &lt;li>&lt;a href="#apache-beam-a-unified-model-for-batch-and-streaming-data-processing">Apache Beam: A Unified Model for Batch and Streaming Data Processing&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#how-to-run-ml-inference-with-apache-beam">How to run ML Inference with Apache Beam&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#beam--friends">Beam &amp;amp; Friends&lt;/a>
@@ -5126,6 +5127,10 @@ limitations under the License.
 &lt;p>Presented by Frances Perry, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
 &lt;p>&lt;a href="https://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">&lt;img src="/images/resources/se-radio-podcast.png" alt="alt text">&lt;/a>
 &lt;br>&lt;/p>
+&lt;h3 id="how-to-run-ml-inference-with-apache-beam">How to run ML Inference with Apache Beam&lt;/h3>
+&lt;p>Video by Cassie Kozyrkov&lt;/p>
+&lt;iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;br>
 &lt;h2 id="beam--friends">Beam &amp;amp; Friends&lt;/h2>
 &lt;p>The following resources present Apache Beam partnerships.&lt;/p>
 &lt;h3 id="distributed-processing-for-machine-learning-production-pipelines">Distributed Processing for Machine Learning Production Pipelines&lt;/h3>
