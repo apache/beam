@@ -180,14 +180,11 @@ public class DetectNewPartitionsAction {
           partition.toBuilder().setScheduledAt(scheduledAt).build();
 
       LOG.info(
-          "["
-              + updatedPartition.getPartitionToken()
-              + "] Scheduled partition at "
-              + updatedPartition.getScheduledAt()
-              + " with start time "
-              + updatedPartition.getStartTimestamp()
-              + " and end time "
-              + updatedPartition.getEndTimestamp());
+          "[{}] Outputting partition at {} with start time {} and end time {}",
+          updatedPartition.getPartitionToken(),
+          updatedPartition.getScheduledAt(),
+          updatedPartition.getStartTimestamp(),
+          updatedPartition.getEndTimestamp());
 
       receiver.outputWithTimestamp(partition, new Instant(minWatermark.toSqlTimestamp()));
 

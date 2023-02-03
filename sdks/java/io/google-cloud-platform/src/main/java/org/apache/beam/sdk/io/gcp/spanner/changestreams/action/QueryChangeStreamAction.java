@@ -242,7 +242,8 @@ public class QueryChangeStreamAction {
       LOG.debug("[" + token + "] Finishing partition");
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
-      LOG.info("[" + token + "] Partition finished");
+
+      LOG.info("[{}] After Finish Partition attempt", token);
     }
     return ProcessContinuation.stop();
   }
