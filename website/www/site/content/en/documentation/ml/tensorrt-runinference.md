@@ -114,7 +114,7 @@ The following code example is a part of the pipeline. You use `TensorRTEngineHan
         | "PostProcess" >> beam.ParDo(Postprocess(tokenizer=tokenizer)))
 ```
 
-The full code can be found [on GitHub]().
+The full code can be found [on GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/tensorrt_text_classification.py).
 
 To run this job on Dataflow, run the following command locally:
 
@@ -137,3 +137,10 @@ python tensorrt_text_classification.py \
 
 
 ## Dataflow Benchmarking
+
+We ran experiments in Dataflow using a TensorRT engine and the following configurations: `n1-standard-4` machine with a disk size of `75GB`. To mimic data streaming into Dataflow via `PubSub`, we set the batch size to 1 by setting the min and max batch sizes for `ModelHandlers` to 1.
+
+|  | Stage with RunInference | Mean inference_batch_latency_micro_secs|
+|----------|----------|----------|
+|    TensorFlow with T4 GPU	      | - | 15,176 |
+| TensorRT with T4 GPU	 | - | 3,685 |
