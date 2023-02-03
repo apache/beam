@@ -90,7 +90,10 @@ public class OutputSampler<T> {
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     for (T el : buffer) {
       try {
-        coder.encode(el, stream);
+        // This is deprecated, but until this is fully removed, this specifically needs the nested
+        // context. This is because the SDK will need to decode the sampled elements with the
+        // ToStringFn.
+        coder.encode(el, stream, Coder.Context.NESTED);
         ret.add(stream.toByteArray());
       } catch (Exception exception) {
         LOG.warn("Could not encode element \"" + el + "\" to bytes: " + exception);
