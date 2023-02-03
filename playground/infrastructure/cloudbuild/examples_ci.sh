@@ -101,16 +101,16 @@ do
 # Run main logic if examples have been changed
       if [[ $example_has_changed == "True" ]]
       then
-            if [ -z ${tag_name} ] || [ ${commit_sha} ]
+            if [ -z "${tag_name}" ] && [ "${commit_sha}" ]
             then
                 DOCKERTAG=${commit_sha}
-            elif [ ${tag_name} ] || [ ${commit_sha} ]
+            elif [ "${tag_name}" ] && [ "${commit_sha}" ]
             then
                 DOCKERTAG=${tag_name}
-            elif [ ${tag_name} ] || [ -z ${commit_sha} ]
+            elif [ "${tag_name}" ] && [ -z "${commit_sha}" ]
             then
                 DOCKERTAG=${tag_name}
-            elif [ -z ${tag_name} ] || [ -z ${commit_sha} ]
+            elif [ -z "${tag_name}" ] && [ -z "${commit_sha}" ]
             then
                 echo "Error: DOCKERTAG is empty"
                 exit 1
