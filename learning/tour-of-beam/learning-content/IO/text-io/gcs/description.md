@@ -1,3 +1,16 @@
+<!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 ### TextIO google cloud storage file
 
 The `TextIO` class in the Apache Beam provides a way to read and write text files from **Google Cloud Storage** **(GCS)** in a pipeline. To read a text file from GCS using TextIO, you can use the Read method and pass in the GCS file path as a string, which starts with "**gs://**" prefix. Here is an example of reading a text file named "**myfile.txt**" from a GCS bucket named "**mybucket**" and printing its contents:
