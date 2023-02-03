@@ -16,11 +16,12 @@
 #
 
 """A pipeline to demonstrate usage of TensorRT with RunInference
-for a text classification model. This pipeline reads in memory data,
-does some preprocessing and then uses RunInference for getting prediction
-from the text classification TensorRT engine. Afterwards, it post process
-the RunInference outputs to print the input and the predicted class label.
-It also prints different metrics provided by RunInference.
+for a text classification model. This pipeline reads data from a text
+file, preprocesses the data, and then uses RunInference to generate
+predictions from the text classification TensorRT engine. Next,
+it postprocesses the RunInference outputs to print the input and
+the predicted class label.
+It also prints metrics provided by RunInference.
 """
 
 import argparse
@@ -37,9 +38,9 @@ from transformers import AutoTokenizer
 
 
 class Preprocess(beam.DoFn):
-  """Processes the input sentence to tokenize them.
+  """Processes the input sentences to tokenize them.
 
-  The input sentences are tokenized as the
+  The input sentences are tokenized because the
   model is expecting tokens.
   """
   def __init__(self, tokenizer: AutoTokenizer):
@@ -74,12 +75,18 @@ def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--trt-model-path',
+    '--input',
+    dest='input',
+    required=True,
+    help='Path to the text file containing sentences.')
+  parser.add_argument(
+      '--trt_model_path',
       dest='trt_model_path',
       required=True,
-      help='Path to the TensorRT engine.')
+      help='Path to the pre-built textattack/bert-base-uncased-SST-2'
+      'TensorRT engine.')
   parser.add_argument(
-      '--model-id',
+      '--model_id',
       dest='model_id',
       default="textattack/bert-base-uncased-SST-2",
       help="name of model.")
@@ -100,18 +107,12 @@ def run(
       engine_path=known_args.trt_model_path,
   )
 
-  task_sentences = [
-      "Hello, my dog is cute",
-      "I hate you",
-      "Shubham Krishna is a good coder",
-  ] * 4000
-
   tokenizer = AutoTokenizer.from_pretrained(known_args.model_id)
 
   with beam.Pipeline(options=pipeline_options) as pipeline:
     _ = (
         pipeline
-        | "CreateInputs" >> beam.Create(task_sentences)
+        | "ReadSentences" >> beam.io.ReadFromText(known_args.input)
         | "Preprocess" >> beam.ParDo(Preprocess(tokenizer=tokenizer))
         | "RunInference" >> RunInference(model_handler=model_handler)
         | "PostProcess" >> beam.ParDo(Postprocess(tokenizer=tokenizer)))

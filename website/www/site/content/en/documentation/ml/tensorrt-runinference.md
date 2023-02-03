@@ -15,19 +15,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Using TensorRT with RunInference
-- [NVIDIA TensorRT](https://developer.nvidia.com/tensorrt) is an SDK that facilitates high-performance machine learning inference. It is designed to work with deep learning frameworks such as TensorFlow, PyTorch, and MXNet. It focuses specifically on optimizing and running a trained neural network for inference efficiently on NVIDIA GPUs. TensorRT can maximize inference throughput with multiple optimizations while preserving model accuracy including model quantization, layer and tensor fusions, kernel auto-tuning, multi-stream executions, and efficient tensor memory usage.
+# Use TensorRT with RunInference
+- [NVIDIA TensorRT](https://developer.nvidia.com/tensorrt) is an SDK that facilitates high-performance machine learning inference. It is designed to work with deep learning frameworks such as TensorFlow, PyTorch, and MXNet. It focuses specifically on optimizing and running a trained neural network to efficiently run inference on NVIDIA GPUs. TensorRT can maximize inference throughput with multiple optimizations while preserving model accuracy including model quantization, layer and tensor fusions, kernel auto-tuning, multi-stream executions, and efficient tensor memory usage.
 
-- In Apache Beam 2.43.0, Beam introduced the `TensorRTEngineHandler`, which lets you deploy a TensorRT engine in a Beam pipeline. The RunInference transform simplifies the ML pipeline creation process by allowing developers to use Sklearn, PyTorch, TensorFlow and now TensorRT models in production pipelines without needing lots of boilerplate code.
+- In Apache Beam 2.43.0, Beam introduced the [TensorRTEngineHandler](https://beam.apache.org/releases/pydoc/2.43.0/apache_beam.ml.inference.tensorrt_inference.html#apache_beam.ml.inference.tensorrt_inference.TensorRTEngineHandlerNumPy), which lets you deploy a TensorRT engine in a Beam pipeline. The RunInference transform simplifies the ML inference pipeline creation process by allowing developers to use Sklearn, PyTorch, TensorFlow and now TensorRT models in production pipelines without needing lots of boilerplate code.
 
-Below, you can find an example that demonstrates how to utilize TensorRT with the RunInference API using a BERT-based text classification model in a Beam pipeline.
+The following example that demonstrates how to use TensorRT with the RunInference API using a BERT-based text classification model in a Beam pipeline.
 
-# Build a TensorRT engine for inference
-To use TensorRT with Apache Beam, you need a converted TensorRT engine file from a trained model. We take a trained BERT based text classification model that does sentiment analysis, i.e. classifies any text into two classes: positive or negative. The trained model is easily available [here](https://huggingface.co/textattack/bert-base-uncased-SST-2). In order to convert the PyTorch Model to TensorRT engine, you need to first convert the model to ONNX and then from ONNX to TensorRT.
+## Build a TensorRT engine for inference
+To use TensorRT with Apache Beam, you need a converted TensorRT engine file from a trained model. We take a trained BERT based text classification model that does sentiment analysis, that is, it classifies any text into two classes: positive or negative. The trained model is available [from HuggingFace](https://huggingface.co/textattack/bert-base-uncased-SST-2). To convert the PyTorch Model to TensorRT engine, you need to first convert the model to ONNX and then from ONNX to TensorRT.
 
 ### Conversion to ONNX
 
-Using HuggingFace `transformers` libray, one can easily convert a PyTorch model to ONNX. A detailed blogpost can be found [here](https://huggingface.co/blog/convert-transformers-to-onnx) which also mentions the required packages to install. The code that we used for the conversion can be found below.
+You can use the HuggingFace `transformers` library to convert a PyTorch model to ONNX. For details, see the blog post [Convert Transformers to ONNX with Hugging Face Optimum](https://huggingface.co/blog/convert-transformers-to-onnx). The blog post explains which required packages to install. The following code that is used for the conversion.
 
 ```
 from pathlib import Path
@@ -58,12 +58,12 @@ onnx_inputs, onnx_outputs = transformers.onnx.export(
 
 ### From ONNX to TensorRT engine
 
-In order to convert an ONNX model to a TensorRT engine you can use the following command from `CLI`:
+To convert an ONNX model to a TensorRT engine, use the following command from the `CLI`:
 ```
 trtexec --onnx=<path to onnx model> --saveEngine=<path to save TensorRT engine> --useCudaGraph --verbose
 ```
 
-For using `trtexec`, you can follow this [blogpost](https://developer.nvidia.com/blog/simplifying-and-accelerating-machine-learning-predictions-in-apache-beam-with-nvidia-tensorrt/) which builds a docker image built from a DockerFile. The dockerFile that we used is similar to it and can be found below:
+To use `trtexec`, follow the steps in the blog post [Simplifying and Accelerating Machine Learning Predictions in Apache Beam with NVIDIA TensorRT](https://developer.nvidia.com/blog/simplifying-and-accelerating-machine-learning-predictions-in-apache-beam-with-nvidia-tensorrt/). The post explains how to build a docker image from a DockerFile that can be used for conversion. We use the following Docker file, which is similar to the file used in the blog post:
 
 ```
 ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:22.05-py3
@@ -74,14 +74,9 @@ ENV PATH="/usr/src/tensorrt/bin:${PATH}"
 
 WORKDIR /workspace
 
-RUN apt-get update && \
-    apt-get install -y software-properties-common && \
-    add-apt-repository universe && \
-    apt-get update && \
-    apt-get install -y python3.8-venv
-
-RUN pip install --no-cache-dir apache-beam[gcp]==2.43.0
-COPY --from=apache/beam_python3.8_sdk:2.43.0 /opt/apache/beam /opt/apache/beam
+RUN apt-get update -y && apt-get install -y python3-venv
+RUN pip install --no-cache-dir apache-beam[gcp]==2.44.0
+COPY --from=apache/beam_python3.8_sdk:2.44.0 /opt/apache/beam /opt/apache/beam
 
 RUN pip install --upgrade pip \
     && pip install torch==1.13.1 \
@@ -92,14 +87,14 @@ RUN pip install --upgrade pip \
 
 ENTRYPOINT [ "/opt/apache/beam/boot" ]
 ```
-The blogpost also contains the instructions on how to test the TensorRT engine locally.
+The blog post also contains instructions explaining how to test the TensorRT engine locally.
 
 
-## Running TensorRT Engine with RunInference in a Beam Pipeline
+## Run TensorRT engine with RunInference in a Beam pipeline
 
-Now that you have the TensorRT engine, you can use TensorRT engine with RunInferece in a Beam pipeline that can be run both locally and on GCP.
+Now that you have the TensorRT engine, you can use TensorRT engine with RunInference in a Beam pipeline that can run both locally and on Google Cloud.
 
-The following code example is a part of the pipeline, where you use `TensorRTEngineHandlerNumPy` to load the TensorRT engine and set other inference parameters.
+The following code example is a part of the pipeline. You use `TensorRTEngineHandlerNumPy` to load the TensorRT engine and to set other inference parameters.
 
 ```
   model_handler = TensorRTEngineHandlerNumPy(
@@ -108,29 +103,24 @@ The following code example is a part of the pipeline, where you use `TensorRTEng
       engine_path=known_args.trt_model_path,
   )
 
-  task_sentences = [
-      "Hello, my dog is cute",
-      "I hate you",
-      "Shubham Krishna is a good coder",
-  ] * 4000
-
   tokenizer = AutoTokenizer.from_pretrained(known_args.model_id)
 
   with beam.Pipeline(options=pipeline_options) as pipeline:
     _ = (
         pipeline
-        | "CreateInputs" >> beam.Create(task_sentences)
+        | "ReadSentences" >> beam.io.ReadFromText(known_args.input)
         | "Preprocess" >> beam.ParDo(Preprocess(tokenizer=tokenizer))
         | "RunInference" >> RunInference(model_handler=model_handler)
         | "PostProcess" >> beam.ParDo(Postprocess(tokenizer=tokenizer)))
 ```
 
-The full code can be found [here]().
+The full code can be found [on GitHub]().
 
 To run this job on Dataflow, run the following command locally:
 
 ```
 python tensorrt_text_classification.py \
+--input gs://{GCP_PROJECT}/sentences.txt \
 --trt_model_path gs://{GCP_PROJECT}/sst2-text-classification.trt \
 --runner DataflowRunner \
 --experiment=use_runner_v2 \
