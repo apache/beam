@@ -121,7 +121,7 @@ do
             if [ "$sdk" == "python" ]
             then
                 # builds apache/beam_python3.7_sdk:$DOCKERTAG image
-                bash ../../gradlew -i -b ../../sdks/python/container/py37/docker -Pdocker-tag=${DOCKERTAG}
+                ./gradlew -i :sdks:python:container:py37:docker -Pdocker-tag=${DOCKERTAG}
                 # and set SDK_TAG to DOCKERTAG so that the next step would find it
                 SDK_TAG=${DOCKERTAG}
             else
@@ -140,7 +140,7 @@ do
                 opts="$opts -Pbase-image=apache/beam_java8_sdk:2.43.0"
             fi
 
-            bash ../../gradlew -i -b ../backend/containers/"${sdk}"/docker ${opts}
+            ./gradlew -i playground:backend:containers:"${sdk}":docker ${opts}
 
             IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
 
