@@ -45,7 +45,7 @@ func main() {
 
   words := beam.Create(s, "Hello", "world", "it`s", "triggering")
 
-  trigger := beam.Trigger(trigger.AfterProcessingTime().PlusDelay(500 * time.Millisecond))
+  trigger := beam.Trigger(trigger.AfterProcessingTime().PlusDelay(5 * time.Millisecond))
 
   fixedWindowedItems := beam.WindowInto(s, window.NewFixedWindows(60*time.Second),words,trigger,
                         beam.AllowedLateness(30*time.Minute),
