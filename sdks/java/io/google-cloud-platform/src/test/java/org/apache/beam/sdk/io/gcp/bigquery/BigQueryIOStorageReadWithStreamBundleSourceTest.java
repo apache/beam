@@ -31,8 +31,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import com.google.api.gax.grpc.GrpcStatusCode;
-import com.google.api.gax.rpc.FailedPreconditionException;
 import com.google.api.services.bigquery.model.Streamingbuffer;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -49,14 +47,9 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
-import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
-import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1.StreamStats;
 import com.google.cloud.bigquery.storage.v1.StreamStats.Progress;
 import com.google.protobuf.ByteString;
-import io.grpc.Status;
-import io.grpc.Status.Code;
-import io.grpc.StatusRuntimeException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -1066,15 +1059,19 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
                 Lists.newArrayList(
                     createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA)),
                 0.0,
-                0.25),
+                0.6),
             createResponse(
-                AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA)), 0.25, 0.50),
+                AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA)), 0.6, 1.0),
             createResponse(
                 AVRO_SCHEMA,
                 Lists.newArrayList(
-                    createRecord("D", 4, AVRO_SCHEMA), createRecord("E", 5, AVRO_SCHEMA)),
-                0.50,
-                0.75));
+                    createRecord("D", 4, AVRO_SCHEMA),
+                    createRecord("E", 5, AVRO_SCHEMA),
+                    createRecord("F", 6, AVRO_SCHEMA)),
+                0.0,
+                1.0),
+            createResponse(
+                AVRO_SCHEMA, Lists.newArrayList(createRecord("G", 7, AVRO_SCHEMA)), 0.0, 1.0));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
@@ -1083,11 +1080,15 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
     when(fakeStorageClient.readRows(
             ReadRowsRequest.newBuilder().setReadStream("readStream2").build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(responses.subList(2, 3)));
+    when(fakeStorageClient.readRows(
+            ReadRowsRequest.newBuilder().setReadStream("readStream3").build(), ""))
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(3, 4)));
 
     List<ReadStream> primaryStreamBundle =
         Lists.newArrayList(
             ReadStream.newBuilder().setName("readStream1").build(),
-            ReadStream.newBuilder().setName("readStream2").build());
+            ReadStream.newBuilder().setName("readStream2").build(),
+            ReadStream.newBuilder().setName("readStream3").build());
 
     BigQueryStorageStreamBundleSource<TableRow> primarySource =
         BigQueryStorageStreamBundleSource.create(
@@ -1102,21 +1103,21 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             new FakeBigQueryServices().withStorageClient(fakeStorageClient),
             1L);
 
-    // Read a few records from the primary bundle and ensure the records are returned in
-    // the prescribed order.
+    // Read a few records from the primary bundle and ensure that records are returned in the
+    // prescribed order.
     BoundedReader<TableRow> primary = primarySource.createReader(options);
     assertTrue(primary.start());
     assertEquals("A", primary.getCurrent().get("name"));
     assertTrue(primary.advance());
     assertEquals("B", primary.getCurrent().get("name"));
+    assertTrue(primary.advance());
 
-    // Now split the StreamBundle and ensure that the returned source points to a non-null secondary
-    // StreamBundle
-    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.5);
+    // Now split the StreamBundle, and ensure that the returned source points to a non-null
+    // secondary StreamBundle.
+    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.35);
     assertNotNull(secondarySource);
     BoundedReader<TableRow> secondary = secondarySource.createReader(options);
 
-    assertTrue(primary.advance());
     assertEquals("C", primary.getCurrent().get("name"));
     assertFalse(primary.advance());
 
@@ -1124,7 +1125,11 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
     assertEquals("D", secondary.getCurrent().get("name"));
     assertTrue(secondary.advance());
     assertEquals("E", secondary.getCurrent().get("name"));
-    assertFalse(secondary.advance());
+    assertTrue(secondary.advance());
+    assertEquals("F", secondary.getCurrent().get("name"));
+    assertTrue((secondary.advance()));
+    assertEquals("G", secondary.getCurrent().get("name"));
+    assertFalse((secondary.advance()));
   }
 
   @Test
@@ -1136,31 +1141,30 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
                 Lists.newArrayList(
                     createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA)),
                 0.0,
-                0.25),
+                0.6),
+            createResponse(
+                AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA)), 0.6, 1.0),
             createResponse(
                 AVRO_SCHEMA,
                 Lists.newArrayList(
-                    createRecord("C", 3, AVRO_SCHEMA), createRecord("D", 4, AVRO_SCHEMA)),
-                0.25,
-                0.50),
+                    createRecord("D", 4, AVRO_SCHEMA),
+                    createRecord("E", 5, AVRO_SCHEMA),
+                    createRecord("F", 6, AVRO_SCHEMA)),
+                0.0,
+                1.0),
             createResponse(
-                AVRO_SCHEMA,
-                Lists.newArrayList(
-                    createRecord("E", 5, AVRO_SCHEMA), createRecord("F", 6, AVRO_SCHEMA)),
-                0.50,
-                0.75));
+                AVRO_SCHEMA, Lists.newArrayList(createRecord("G", 7, AVRO_SCHEMA)), 0.0, 1.0));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
-
     when(fakeStorageClient.readRows(
             ReadRowsRequest.newBuilder().setReadStream("readStream1").build(), ""))
-        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(0, 1)));
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(0, 2)));
     when(fakeStorageClient.readRows(
             ReadRowsRequest.newBuilder().setReadStream("readStream2").build(), ""))
-        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(1, 2)));
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(2, 3)));
     when(fakeStorageClient.readRows(
             ReadRowsRequest.newBuilder().setReadStream("readStream3").build(), ""))
-        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(2, 3)));
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(3, 4)));
 
     List<ReadStream> primaryStreamBundle =
         Lists.newArrayList(
@@ -1168,7 +1172,7 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             ReadStream.newBuilder().setName("readStream2").build(),
             ReadStream.newBuilder().setName("readStream3").build());
 
-    BoundedSource<TableRow> primarySource =
+    BigQueryStorageStreamBundleSource<TableRow> primarySource =
         BigQueryStorageStreamBundleSource.create(
             ReadSession.newBuilder()
                 .setName("readSession")
@@ -1181,39 +1185,44 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             new FakeBigQueryServices().withStorageClient(fakeStorageClient),
             1L);
 
-    BoundedReader<TableRow> primaryReader = primarySource.createReader(options);
-    assertTrue(primaryReader.start());
-    assertEquals("A", primaryReader.getCurrent().get("name"));
+    // Read a few records from the primary bundle and ensure that records are returned in the
+    // prescribed order.
+    BoundedReader<TableRow> primary = primarySource.createReader(options);
+    assertTrue(primary.start());
+    assertEquals("A", primary.getCurrent().get("name"));
+    assertTrue(primary.advance());
+    assertEquals("B", primary.getCurrent().get("name"));
+    assertTrue(primary.advance());
 
-    // Should create two sources: the first with 1 stream, the second with 2.
-    BoundedSource<TableRow> secondarySource = primaryReader.splitAtFraction(0.5f);
+    // Now split the StreamBundle, and ensure that the returned source points to a non-null
+    // secondary StreamBundle. Since there are 3 streams in this Bundle, splitting will only
+    // occur when fraction >= 0.33.
+    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.35);
     assertNotNull(secondarySource);
-    assertEquals("A", primaryReader.getCurrent().get("name"));
+    BoundedReader<TableRow> secondary = secondarySource.createReader(options);
 
-    assertTrue(primaryReader.advance());
-    assertEquals("B", primaryReader.getCurrent().get("name"));
-    assertFalse(primaryReader.advance());
+    assertEquals("C", primary.getCurrent().get("name"));
+    assertFalse(primary.advance());
 
-    BoundedReader<TableRow> secondaryReader = secondarySource.createReader(options);
-    assertTrue(secondaryReader.start());
-    assertEquals("C", secondaryReader.getCurrent().get("name"));
+    assertTrue(secondary.start());
+    assertEquals("D", secondary.getCurrent().get("name"));
+    assertTrue(secondary.advance());
+    assertEquals("E", secondary.getCurrent().get("name"));
+    assertTrue(secondary.advance());
 
-    // Should create two sources: each with 1 stream.
-    BoundedSource<TableRow> tertiarySource = secondaryReader.splitAtFraction(0.5f);
+    // Now split the StreamBundle again, and ensure that the returned source points to a non-null
+    // tertiary StreamBundle. Since there are 2 streams in this Bundle, splitting will only
+    // occur when fraction >= 0.5.
+    BoundedSource<TableRow> tertiarySource = secondary.splitAtFraction(0.5);
     assertNotNull(tertiarySource);
-    assertEquals("C", secondaryReader.getCurrent().get("name"));
+    BoundedReader<TableRow> tertiary = tertiarySource.createReader(options);
 
-    assertTrue(secondaryReader.advance());
-    assertEquals("D", secondaryReader.getCurrent().get("name"));
-    assertFalse(secondaryReader.advance());
+    assertEquals("F", secondary.getCurrent().get("name"));
+    assertFalse((secondary.advance()));
 
-    BoundedReader<TableRow> tertiaryReader = tertiarySource.createReader(options);
-    assertTrue(tertiaryReader.start());
-    assertEquals("E", tertiaryReader.getCurrent().get("name"));
-
-    assertTrue(tertiaryReader.advance());
-    assertEquals("F", tertiaryReader.getCurrent().get("name"));
-    assertFalse(tertiaryReader.advance());
+    assertTrue(tertiary.start());
+    assertEquals("G", tertiary.getCurrent().get("name"));
+    assertFalse((tertiary.advance()));
   }
 
   @Test
@@ -1225,15 +1234,15 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
                 Lists.newArrayList(
                     createRecord("A", 1, AVRO_SCHEMA), createRecord("B", 2, AVRO_SCHEMA)),
                 0.0,
-                0.25),
+                0.66),
             createResponse(
-                AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA)), 0.25, 0.50),
+                AVRO_SCHEMA, Lists.newArrayList(createRecord("C", 3, AVRO_SCHEMA)), 0.66, 1.0),
             createResponse(
                 AVRO_SCHEMA,
                 Lists.newArrayList(
                     createRecord("D", 4, AVRO_SCHEMA), createRecord("E", 5, AVRO_SCHEMA)),
-                0.50,
-                0.75));
+                0.0,
+                1.0));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
@@ -1843,7 +1852,8 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
         Lists.newArrayList(
             createResponseArrow(ARROW_SCHEMA, names.subList(0, 2), values.subList(0, 2), 0.0, 0.6),
             createResponseArrow(ARROW_SCHEMA, names.subList(2, 3), values.subList(2, 3), 0.6, 1.0),
-            createResponseArrow(ARROW_SCHEMA, names.subList(3, 5), values.subList(3, 5), 0.0, 1.0));
+            createResponseArrow(ARROW_SCHEMA, names.subList(3, 6), values.subList(3, 6), 0.0, 1.0),
+            createResponseArrow(ARROW_SCHEMA, names.subList(6, 7), values.subList(6, 7), 0.0, 1.0));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
@@ -1852,11 +1862,15 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
     when(fakeStorageClient.readRows(
             ReadRowsRequest.newBuilder().setReadStream("readStream2").build(), ""))
         .thenReturn(new FakeBigQueryServerStream<>(responses.subList(2, 3)));
+    when(fakeStorageClient.readRows(
+            ReadRowsRequest.newBuilder().setReadStream("readStream3").build(), ""))
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(3, 4)));
 
     List<ReadStream> primaryStreamBundle =
         Lists.newArrayList(
             ReadStream.newBuilder().setName("readStream1").build(),
-            ReadStream.newBuilder().setName("readStream2").build());
+            ReadStream.newBuilder().setName("readStream2").build(),
+            ReadStream.newBuilder().setName("readStream3").build());
 
     BigQueryStorageStreamBundleSource<TableRow> primarySource =
         BigQueryStorageStreamBundleSource.create(
@@ -1882,14 +1896,14 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
     assertEquals("A", primary.getCurrent().get("name"));
     assertTrue(primary.advance());
     assertEquals("B", primary.getCurrent().get("name"));
+    assertTrue(primary.advance());
 
     // Now split the StreamBundle, and ensure that the returned source points to a non-null
     // secondary StreamBundle.
-    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.5);
+    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.35);
     assertNotNull(secondarySource);
     BoundedReader<TableRow> secondary = secondarySource.createReader(options);
 
-    assertTrue(primary.advance());
     assertEquals("C", primary.getCurrent().get("name"));
     assertFalse(primary.advance());
 
@@ -1897,31 +1911,35 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
     assertEquals("D", secondary.getCurrent().get("name"));
     assertTrue(secondary.advance());
     assertEquals("E", secondary.getCurrent().get("name"));
-    assertFalse(secondary.advance());
+    assertTrue(secondary.advance());
+    assertEquals("F", secondary.getCurrent().get("name"));
+    assertTrue((secondary.advance()));
+    assertEquals("G", secondary.getCurrent().get("name"));
+    assertFalse((secondary.advance()));
   }
 
   @Test
   public void testStreamSourceSplitAtFractionRepeatedWithArrowAndMultipleStreamsInBundle()
       throws Exception {
-    List<String> names = Arrays.asList("A", "B", "C", "D", "E", "F");
-    List<Long> values = Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L);
+    List<String> names = Arrays.asList("A", "B", "C", "D", "E", "F", "G");
+    List<Long> values = Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L);
     List<ReadRowsResponse> responses =
         Lists.newArrayList(
-            createResponseArrow(ARROW_SCHEMA, names.subList(0, 2), values.subList(0, 2), 0.0, 1.0),
-            createResponseArrow(ARROW_SCHEMA, names.subList(2, 4), values.subList(2, 4), 0.0, 1.0),
-            createResponseArrow(ARROW_SCHEMA, names.subList(4, 6), values.subList(4, 6), 0.0, 1.0));
+            createResponseArrow(ARROW_SCHEMA, names.subList(0, 2), values.subList(0, 2), 0.0, 0.6),
+            createResponseArrow(ARROW_SCHEMA, names.subList(2, 3), values.subList(2, 3), 0.6, 1.0),
+            createResponseArrow(ARROW_SCHEMA, names.subList(3, 6), values.subList(3, 6), 0.0, 1.0),
+            createResponseArrow(ARROW_SCHEMA, names.subList(6, 7), values.subList(6, 7), 0.0, 1.0));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
-
     when(fakeStorageClient.readRows(
             ReadRowsRequest.newBuilder().setReadStream("readStream1").build(), ""))
-        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(0, 1)));
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(0, 2)));
     when(fakeStorageClient.readRows(
             ReadRowsRequest.newBuilder().setReadStream("readStream2").build(), ""))
-        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(1, 2)));
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(2, 3)));
     when(fakeStorageClient.readRows(
             ReadRowsRequest.newBuilder().setReadStream("readStream3").build(), ""))
-        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(2, 3)));
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(3, 4)));
 
     List<ReadStream> primaryStreamBundle =
         Lists.newArrayList(
@@ -1929,7 +1947,7 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             ReadStream.newBuilder().setName("readStream2").build(),
             ReadStream.newBuilder().setName("readStream3").build());
 
-    BoundedSource<TableRow> primarySource =
+    BigQueryStorageStreamBundleSource<TableRow> primarySource =
         BigQueryStorageStreamBundleSource.create(
             ReadSession.newBuilder()
                 .setName("readSession")
@@ -1946,88 +1964,71 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
             new FakeBigQueryServices().withStorageClient(fakeStorageClient),
             1L);
 
-    BoundedReader<TableRow> primaryReader = primarySource.createReader(options);
-    assertTrue(primaryReader.start());
-    assertEquals("A", primaryReader.getCurrent().get("name"));
+    // Read a few records from the primary bundle and ensure that records are returned in the
+    // prescribed order.
+    BoundedReader<TableRow> primary = primarySource.createReader(options);
+    assertTrue(primary.start());
+    assertEquals("A", primary.getCurrent().get("name"));
+    assertTrue(primary.advance());
+    assertEquals("B", primary.getCurrent().get("name"));
+    assertTrue(primary.advance());
 
-    // Should create two sources: the first with 1 stream, the second with 2.
-    BoundedSource<TableRow> secondarySource = primaryReader.splitAtFraction(0.5f);
+    // Now split the StreamBundle, and ensure that the returned source points to a non-null
+    // secondary StreamBundle. Since there are 3 streams in this Bundle, splitting will only
+    // occur when fraction >= 0.33.
+    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.35);
     assertNotNull(secondarySource);
-    assertEquals("A", primaryReader.getCurrent().get("name"));
+    BoundedReader<TableRow> secondary = secondarySource.createReader(options);
 
-    assertTrue(primaryReader.advance());
-    assertEquals("B", primaryReader.getCurrent().get("name"));
-    assertFalse(primaryReader.advance());
+    assertEquals("C", primary.getCurrent().get("name"));
+    assertFalse(primary.advance());
 
-    BoundedReader<TableRow> secondaryReader = secondarySource.createReader(options);
-    assertTrue(secondaryReader.start());
-    assertEquals("C", secondaryReader.getCurrent().get("name"));
+    assertTrue(secondary.start());
+    assertEquals("D", secondary.getCurrent().get("name"));
+    assertTrue(secondary.advance());
+    assertEquals("E", secondary.getCurrent().get("name"));
+    assertTrue(secondary.advance());
 
-    // Should create two sources: each with 1 stream.
-    BoundedSource<TableRow> tertiarySource = secondaryReader.splitAtFraction(0.5f);
+    // Now split the StreamBundle again, and ensure that the returned source points to a non-null
+    // tertiary StreamBundle. Since there are 2 streams in this Bundle, splitting will only
+    // occur when fraction >= 0.5.
+    BoundedSource<TableRow> tertiarySource = secondary.splitAtFraction(0.5);
     assertNotNull(tertiarySource);
-    assertEquals("C", secondaryReader.getCurrent().get("name"));
+    BoundedReader<TableRow> tertiary = tertiarySource.createReader(options);
 
-    assertTrue(secondaryReader.advance());
-    assertEquals("D", secondaryReader.getCurrent().get("name"));
-    assertFalse(secondaryReader.advance());
+    assertEquals("F", secondary.getCurrent().get("name"));
+    assertFalse((secondary.advance()));
 
-    BoundedReader<TableRow> tertiaryReader = tertiarySource.createReader(options);
-    assertTrue(tertiaryReader.start());
-    assertEquals("E", tertiaryReader.getCurrent().get("name"));
-
-    assertTrue(tertiaryReader.advance());
-    assertEquals("F", tertiaryReader.getCurrent().get("name"));
-    assertFalse(tertiaryReader.advance());
+    assertTrue(tertiary.start());
+    assertEquals("G", tertiary.getCurrent().get("name"));
+    assertFalse((tertiary.advance()));
   }
 
   @Test
   public void testStreamSourceSplitAtFractionFailsWhenParentIsPastSplitPointArrow()
       throws Exception {
-    List<String> names = Arrays.asList("A", "B", "C", "D", "E", "F");
-    List<Long> values = Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L);
-    List<ReadRowsResponse> parentResponses =
+    List<String> names = Arrays.asList("A", "B", "C", "D", "E");
+    List<Long> values = Arrays.asList(1L, 2L, 3L, 4L, 5L);
+    List<ReadRowsResponse> responses =
         Lists.newArrayList(
-            createResponseArrow(ARROW_SCHEMA, names.subList(0, 2), values.subList(0, 2), 0.0, 0.25),
-            createResponseArrow(ARROW_SCHEMA, names.subList(2, 3), values.subList(2, 3), 0.25, 0.5),
-            createResponseArrow(
-                ARROW_SCHEMA, names.subList(3, 5), values.subList(3, 5), 0.5, 0.75));
+            createResponseArrow(ARROW_SCHEMA, names.subList(0, 2), values.subList(0, 2), 0.0, 0.66),
+            createResponseArrow(ARROW_SCHEMA, names.subList(2, 3), values.subList(2, 3), 0.66, 1.0),
+            createResponseArrow(ARROW_SCHEMA, names.subList(3, 5), values.subList(3, 5), 0.0, 1.0));
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder().setReadStream("parentStream").build(), ""))
-        .thenReturn(new FakeBigQueryServerStream<>(parentResponses));
-
-    // Mocks the split call. A response without a primary_stream and remainder_stream means
-    // that the split is not possible.
-    // Mocks the split call.
-    when(fakeStorageClient.splitReadStream(
-            SplitReadStreamRequest.newBuilder().setName("parentStream").setFraction(0.5f).build()))
-        .thenReturn(
-            SplitReadStreamResponse.newBuilder()
-                .setPrimaryStream(ReadStream.newBuilder().setName("primaryStream"))
-                .setRemainderStream(ReadStream.newBuilder().setName("remainderStream"))
-                .build());
-
-    // Mocks the ReadRows calls expected on the primary and residual streams.
+            ReadRowsRequest.newBuilder().setReadStream("readStream1").build(), ""))
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(0, 2)));
     when(fakeStorageClient.readRows(
-            ReadRowsRequest.newBuilder()
-                .setReadStream("primaryStream")
-                // This test will read rows 0 and 1 from the parent before calling split,
-                // so we expect the primary read to start at offset 2.
-                .setOffset(2)
-                .build(),
-            ""))
-        .thenThrow(
-            new FailedPreconditionException(
-                "Given row offset is invalid for stream.",
-                new StatusRuntimeException(Status.FAILED_PRECONDITION),
-                GrpcStatusCode.of(Code.FAILED_PRECONDITION),
-                /* retryable = */ false));
+            ReadRowsRequest.newBuilder().setReadStream("readStream2").build(), ""))
+        .thenReturn(new FakeBigQueryServerStream<>(responses.subList(2, 3)));
 
-    List<ReadStream> streamBundle =
-        Lists.newArrayList(ReadStream.newBuilder().setName("parentStream").build());
-    BigQueryStorageStreamBundleSource<TableRow> streamSource =
+    List<ReadStream> parentStreamBundle =
+        Lists.newArrayList(
+            ReadStream.newBuilder().setName("readStream1").build(),
+            ReadStream.newBuilder().setName("readStream2").build());
+
+    BigQueryStorageStreamBundleSource<TableRow> streamBundleSource =
         BigQueryStorageStreamBundleSource.create(
             ReadSession.newBuilder()
                 .setName("readSession")
@@ -2037,31 +2038,33 @@ public class BigQueryIOStorageReadWithStreamBundleSourceTest {
                         .build())
                 .setDataFormat(DataFormat.ARROW)
                 .build(),
-            streamBundle,
+            parentStreamBundle,
             TABLE_SCHEMA,
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient),
             1L);
 
-    // Read a few records from the parent stream and ensure that records are returned in the
-    // prescribed order.
-    BoundedReader<TableRow> parent = streamSource.createReader(options);
-    assertTrue(parent.start());
-    assertEquals("A", parent.getCurrent().get("name"));
-    assertTrue(parent.advance());
-    assertEquals("B", parent.getCurrent().get("name"));
+    // Read a few records from the parent bundle and ensure the records are returned in
+    // the prescribed order.
+    BoundedReader<TableRow> primary = streamBundleSource.createReader(options);
+    assertTrue(primary.start());
+    assertEquals("A", primary.getCurrent().get("name"));
+    assertTrue(primary.advance());
+    assertEquals("B", primary.getCurrent().get("name"));
+    assertTrue(primary.advance());
+    assertEquals("C", primary.getCurrent().get("name"));
+    assertTrue(primary.advance());
+    assertEquals("D", primary.getCurrent().get("name"));
 
-    assertNull(parent.splitAtFraction(0.5));
+    // We attempt to split the StreamBundle after starting to read the contents of the second
+    // stream.
+    BoundedSource<TableRow> secondarySource = primary.splitAtFraction(0.5);
+    assertNull(secondarySource);
 
-    // Verify that the parent source still works okay even after an unsuccessful split attempt.
-    assertTrue(parent.advance());
-    assertEquals("C", parent.getCurrent().get("name"));
-    assertTrue(parent.advance());
-    assertEquals("D", parent.getCurrent().get("name"));
-    assertTrue(parent.advance());
-    assertEquals("E", parent.getCurrent().get("name"));
-    assertFalse(parent.advance());
+    assertTrue(primary.advance());
+    assertEquals("E", primary.getCurrent().get("name"));
+    assertFalse(primary.advance());
   }
 
   @Test
