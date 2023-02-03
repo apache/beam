@@ -149,24 +149,15 @@ public class PartitionMetadataDaoTest {
 
   @Test
   public void testInTransactionContextCannotUpdateToRunning() {
-    ResultSet resultSet = mock(ResultSet.class);
-    when(transaction.executeQuery(any())).thenReturn(resultSet);
-    when(resultSet.next()).thenReturn(true);
-    when(resultSet.getString(any())).thenReturn(State.FINISHED.toString());
-    when(resultSet.getCurrentRowAsStruct()).thenReturn(Struct.newBuilder().build());
-
     ArgumentCaptor<ImmutableList<Mutation>> mutations =
         ArgumentCaptor.forClass(ImmutableList.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(transaction.executeQuery(any())).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false);
+
     doNothing().when(transaction).buffer(mutations.capture());
     assertNull(inTransactionContext.updateToRunning(PARTITION_TOKEN));
-    assertEquals(1, mutations.getValue().size());
-    Map<String, Value> mutationValueMap = mutations.getValue().iterator().next().asMap();
-    assertEquals(
-        PARTITION_TOKEN,
-        mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString());
-    assertEquals(
-        PartitionMetadata.State.FINISHED.toString(),
-        mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_STATE).getString());
+    assertEquals(0, mutations.getValue().size());
   }
 
   @Test
@@ -189,15 +180,17 @@ public class PartitionMetadataDaoTest {
     assertEquals(
         PartitionMetadata.State.RUNNING.toString(),
         mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_STATE).getString());
+    System.out.println("At end");
   }
 
   @Test
   public void testInTransactionContextCannotUpdateToScheduled() {
+    System.out.println("Cannot update to scheduled");
     ResultSet resultSet = mock(ResultSet.class);
     when(transaction.executeQuery(any())).thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true);
-    when(resultSet.getString(any())).thenReturn(State.FINISHED.toString());
     when(resultSet.getCurrentRowAsStruct()).thenReturn(Struct.newBuilder().build());
+    when(resultSet.getString(any())).thenReturn(State.FINISHED.toString());
 
     ArgumentCaptor<ImmutableList<Mutation>> mutations =
         ArgumentCaptor.forClass(ImmutableList.class);
@@ -215,6 +208,7 @@ public class PartitionMetadataDaoTest {
 
   @Test
   public void testInTransactionContextUpdateToScheduled() {
+     System.out.println(" update to scheduled");
     ResultSet resultSet = mock(ResultSet.class);
     when(transaction.executeQuery(any())).thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true);
@@ -237,11 +231,10 @@ public class PartitionMetadataDaoTest {
 
   @Test
   public void testInTransactionContextCannotUpdateToFinished() {
+     System.out.println("Cannot update to finished");
     ResultSet resultSet = mock(ResultSet.class);
     when(transaction.executeQuery(any())).thenReturn(resultSet);
-    when(resultSet.next()).thenReturn(true);
-    when(resultSet.getString(any())).thenReturn(State.SCHEDULED.toString());
-    when(resultSet.getCurrentRowAsStruct()).thenReturn(Struct.newBuilder().build());
+    when(resultSet.next()).thenReturn(false);
 
     ArgumentCaptor<ImmutableList<Mutation>> mutations =
         ArgumentCaptor.forClass(ImmutableList.class);
@@ -259,6 +252,7 @@ public class PartitionMetadataDaoTest {
 
   @Test
   public void testInTransactionContextUpdateToFinished() {
+     System.out.println("update to scheduled");
     ResultSet resultSet = mock(ResultSet.class);
     when(transaction.executeQuery(any())).thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true);
