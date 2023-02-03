@@ -253,9 +253,8 @@ public class ExecutionStateSampler {
     // Read and written by the ExecutionStateSampler thread
     private long transitionsAtLastSample;
 
-    // Ignore the @UnderInitialization for metricsContainer since both this and it will be
-    // initialized by the time this method returns and no references are leaked to other threads
-    // during construction.
+    // Ignore the @UnderInitialization for ExecutionStateTracker since it will be initialized by the
+    // time this method returns and no references are leaked to other threads during construction.
     @SuppressWarnings({"assignment", "argument"})
     private ExecutionStateTracker() {
       this.metricsContainerRegistry = new MetricsContainerStepMap();
