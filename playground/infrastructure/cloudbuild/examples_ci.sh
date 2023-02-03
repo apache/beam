@@ -68,7 +68,11 @@ sdks=("java" "python" "go") \
 allowlist=("playground/infrastructure" "playground/backend")
 
 # Get diff
-diff=$(git diff --name-only origin/master $commit_sha | tr '\n' ' ')
+if [ -z $base_ref ] || [ $base_ref == "master" ]
+then
+    base_ref=origin/master
+fi
+diff=$(git diff --name-only $base_ref $commit_sha | tr '\n' ' ')
 
 # Check if there are Examples
 for sdk in "${sdks[@]}"
@@ -80,11 +84,11 @@ do
       --paths ${diff}
       if [ $? -eq 0 ]
       then
-          echo "Checker has found changed examples" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
+          echo "Checker has found changed examples for ${sdk^^}" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
           example_has_changed=True
       elif [ $? -eq 11 ]
       then
-          echo "Checker has not found changed examples" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
+          echo "Checker has not found changed examples for ${sdk^^}" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
           example_has_changed=False
       else
           echo "Error: Checker is broken" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
