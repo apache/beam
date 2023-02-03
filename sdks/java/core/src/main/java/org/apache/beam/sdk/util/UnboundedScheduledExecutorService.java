@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -203,7 +204,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
             // Put a high-timeout on non-core threads. This reduces memory for per-thread caches
             // over time.
             1,
-            TimeUnit.HOURS,
+            HOURS,
             new SynchronousQueue<Runnable>() {
               @Override
               public boolean offer(Runnable r) {
