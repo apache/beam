@@ -327,8 +327,8 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
       examples = self.test_data_and_model.get_one_feature_samples()
-      expected_predictions = self.test_data_and_model \
-                                 .get_one_feature_predictions()
+      expected_predictions = (
+          self.test_data_and_model.get_one_feature_predictions())
       gs_path = 'gs://apache-beam-ml/models/torch_2xplus5_onnx'
       # first need to download model from remote
       model_handler = TestOnnxModelHandler(gs_path)
@@ -382,8 +382,8 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
       examples = self.test_data_and_model.get_one_feature_samples()
-      expected_predictions = self.test_data_and_model \
-                                 .get_one_feature_predictions()
+      expected_predictions = (
+          self.test_data_and_model.get_one_feature_predictions())
       gs_path = 'gs://apache-beam-ml/models/tf_2xplus5_onnx'
 
       model_handler = TestOnnxModelHandler(gs_path)
@@ -438,10 +438,9 @@ class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):
     with TestPipeline() as pipeline:
-      examples = self.test_data_and_model \
-                     .get_one_feature_samples()
-      expected_predictions = self.test_data_and_model \
-                                 .get_one_feature_predictions()
+      examples = (self.test_data_and_model.get_one_feature_samples())
+      expected_predictions = (
+          self.test_data_and_model.get_one_feature_predictions())
       gs_path = 'gs://apache-beam-ml/models/skl_2xplus5_onnx'
 
       model_handler = TestOnnxModelHandler(gs_path)
