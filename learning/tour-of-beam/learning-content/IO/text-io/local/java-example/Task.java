@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // beam-playground:
-//   name: local
+//   name: text-io-local
 //   description: TextIO local example.
 //   multifile: false
 //   context_line: 30

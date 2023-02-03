@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // beam-playground:
-//   name: gcs
+//   name: text-io-gcs
 //   description: TextIO GCS example.
 //   multifile: false
 //   context_line: 30

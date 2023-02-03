@@ -15,7 +15,7 @@
 #   limitations under the License.
 
 # beam-playground:
-#   name: gcs
+#   name: text-io-gcs
 #   description: TextIO gcs file example.
 #   multifile: false
 #   context_line: 30
@@ -35,7 +35,7 @@ lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://apache-beam-samples/shake
 lines | 'PrintMyFile' >> beam.Map(print_lines)
 
 data = ['Hello, World!', 'Apache Beam']
-p | 'CreateMyData' >> beam.Create(data)
+p | 'CreateMyData' >> beam.Create(data) \
   | 'WriteMyFile' >> beam.io.WriteToText('gs://apache-beam-samples/shakespeare/kinglea11r.txt')
 
 p.run()
