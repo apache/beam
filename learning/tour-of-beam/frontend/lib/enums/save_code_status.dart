@@ -17,7 +17,7 @@
  */
 
 enum SaveCodeStatus {
+  error,
   saved,
   saving,
-  error,
 }
