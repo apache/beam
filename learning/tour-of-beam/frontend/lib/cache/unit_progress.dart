@@ -59,6 +59,7 @@ class UnitProgressCache extends Cache {
 
     if (result != null) {
       _unitProgress = result.units;
+      _unitProgressByUnitId.clear();
       for (final unitProgress in _unitProgress) {
         _unitProgressByUnitId[unitProgress.id] = unitProgress;
       }
