@@ -177,10 +177,66 @@ public class ExecutionStateSampler {
     return new ExecutionStateTracker(metricsContainerRegistry);
   }
 
+  /**
+   * A {@link MetricsContainer} that uses the current {@link ExecutionState} tracked by the provided
+   * {@link ExecutionStateTracker}.
+   */
+  private static class MetricsContainerForTracker implements MetricsContainer {
+    private final transient ExecutionStateTracker tracker;
+
+    private MetricsContainerForTracker(ExecutionStateTracker tracker) {
+      this.tracker = tracker;
+    }
+
+    @Override
+    public Counter getCounter(MetricName metricName) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getCounter(metricName);
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getCounter(metricName);
+    }
+
+    @Override
+    public Distribution getDistribution(MetricName metricName) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getDistribution(metricName);
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getDistribution(metricName);
+    }
+
+    @Override
+    public Gauge getGauge(MetricName metricName) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getGauge(metricName);
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getGauge(metricName);
+    }
+
+    @Override
+    public Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getHistogram(metricName, bucketType);
+      }
+      return tracker
+          .metricsContainerRegistry
+          .getUnboundContainer()
+          .getHistogram(metricName, bucketType);
+    }
+
+    @Override
+    public Iterable<MonitoringInfo> getMonitoringInfos() {
+      if (tracker.currentState != null) {
+        return tracker.currentState.metricsContainer.getMonitoringInfos();
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer().getMonitoringInfos();
+    }
+  }
+
   /** Tracks the current state of a single execution thread. */
   public class ExecutionStateTracker implements BundleProgressReporter {
     // Used to create and store metrics containers for the execution states.
     private final MetricsContainerStepMap metricsContainerRegistry;
+    private final MetricsContainer metricsContainer;
     // The set of execution states that this tracker is responsible for. Effectively
     // final since create() should not be invoked once any bundle starts processing.
     private final List<ExecutionStateImpl> executionStates;
@@ -202,6 +258,10 @@ public class ExecutionStateSampler {
     // Read and written by the ExecutionStateSampler thread
     private long transitionsAtLastSample;
 
+    // Ignore the @UnderInitialization for metricsContainer since both this and it will be
+    // initialized by the time this method returns and no references are leaked to other threads
+    // during construction.
+    @SuppressWarnings({"assignment", "argument"})
     private ExecutionStateTracker(MetricsContainerStepMap metricsContainerRegistry) {
       this.metricsContainerRegistry = metricsContainerRegistry;
       this.executionStates = new ArrayList<>();
@@ -210,6 +270,7 @@ public class ExecutionStateSampler {
       this.numTransitionsLazy = new AtomicLong();
       this.currentStateLazy = new AtomicReference<>();
       this.processBundleId = new AtomicReference<>();
+      this.metricsContainer = new MetricsContainerForTracker(this);
     }
 
     /**
@@ -217,50 +278,8 @@ public class ExecutionStateSampler {
      * the appropriate metrics container that is bound to the current {@link ExecutionState} or to
      * the unbound {@link MetricsContainer} if no execution state is currently running.
      */
-    public @Nullable MetricsContainer getMetricsContainer() {
-      return new MetricsContainer() {
-        @Override
-        public Counter getCounter(MetricName metricName) {
-          if (currentState != null) {
-            return currentState.metricsContainer.getCounter(metricName);
-          }
-          return metricsContainerRegistry.getUnboundContainer().getCounter(metricName);
-        }
-
-        @Override
-        public Distribution getDistribution(MetricName metricName) {
-          if (currentState != null) {
-            return currentState.metricsContainer.getDistribution(metricName);
-          }
-          return metricsContainerRegistry.getUnboundContainer().getDistribution(metricName);
-        }
-
-        @Override
-        public Gauge getGauge(MetricName metricName) {
-          if (currentState != null) {
-            return currentState.metricsContainer.getGauge(metricName);
-          }
-          return metricsContainerRegistry.getUnboundContainer().getGauge(metricName);
-        }
-
-        @Override
-        public Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
-          if (currentState != null) {
-            return currentState.metricsContainer.getHistogram(metricName, bucketType);
-          }
-          return metricsContainerRegistry
-              .getUnboundContainer()
-              .getHistogram(metricName, bucketType);
-        }
-
-        @Override
-        public Iterable<MonitoringInfo> getMonitoringInfos() {
-          if (currentState != null) {
-            return currentState.metricsContainer.getMonitoringInfos();
-          }
-          return metricsContainerRegistry.getUnboundContainer().getMonitoringInfos();
-        }
-      };
+    public MetricsContainer getMetricsContainer() {
+      return metricsContainer;
     }
 
     /**
