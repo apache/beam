@@ -53,15 +53,17 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - > /dev/n
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable" > /dev/null
 apt update > /dev/null && apt install -y docker-ce > /dev/null
 
+cd playground/infrastructure
+
 # Assigning required values for CI_CD.py script
 export \
 ORIGIN=PG_EXAMPLES \
 STEP=CI \
 SUBDIRS="./learning/katas ./examples ./sdks" \
 GOOGLE_CLOUD_PROJECT=${PROJECT_ID} \
-BEAM_ROOT_DIR="." \
-SDK_CONFIG="playground/sdks.yaml" \
-BEAM_EXAMPLE_CATEGORIES="playground/categories.yaml" \
+BEAM_ROOT_DIR="../.." \
+SDK_CONFIG="../../playground/sdks.yaml" \
+BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
 BEAM_CONCURRENCY=4 \
 BEAM_VERSION=2.43.0 \
 sdks=("java" "python" "go") \
@@ -80,7 +82,7 @@ diff=$(git diff --name-only $base_ref $commit_sha | tr '\n' ' ')
 # Check if there are Examples
 for sdk in "${sdks[@]}"
 do
-      python3 playground/infrastructure/checker.py \
+      python3 checker.py \
       --verbose \
       --sdk SDK_"${sdk^^}" \
       --allowlist "${allowlist[@]}" \
@@ -145,7 +147,7 @@ do
             docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} $IMAGE_TAG
             sleep 10
             export SERVER_ADDRESS=container-${sdk}:8080
-            python3 playground/infrastructure/ci_cd.py \
+            python3 ci_cd.py \
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
