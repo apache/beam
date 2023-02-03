@@ -69,6 +69,8 @@ Presented by Frances Perry, *Apache Beam PPMC member*
 
 ### How to run ML Inference with Apache Beam
 
+Video by Cassie Kozyrkov
+
 <iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen></iframe>
 <br>
 
