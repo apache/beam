@@ -105,6 +105,10 @@ class UnitProgressCache extends Cache {
     return getCompletedUnits().contains(unitId);
   }
 
+  String? getUnitSavedSnippetId(String? unitId) {
+    return _unitProgressByUnitId[unitId]?.userSnippetId;
+  }
+
   UnitCompletion _getUnitCompletion(String unitId) {
     final authNotifier = GetIt.instance.get<AuthNotifier>();
     if (!authNotifier.isAuthenticated) {

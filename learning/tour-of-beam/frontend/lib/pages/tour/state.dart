@@ -81,8 +81,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
 
   bool get hasSolution => currentUnitContent?.solutionSnippetId != null;
   bool get hasSavedSnippet =>
-      _unitProgressCache.unitProgressByUnitId[currentUnitId]?.userSnippetId !=
-      null;
+      _unitProgressCache.getUnitSavedSnippetId(currentUnitId) != null;
 
   SnippetType _snippetType = SnippetType.original;
   SnippetType get snippetType => _snippetType;
@@ -246,8 +245,7 @@ class TourNotifier extends ChangeNotifier with PageStateMixin<void> {
         snippetId = unit.taskSnippetId;
         break;
       case SnippetType.saved:
-        snippetId = _unitProgressCache
-                .unitProgressByUnitId[currentUnitId]?.userSnippetId ??
+        snippetId = _unitProgressCache.getUnitSavedSnippetId(currentUnitId) ??
             unit.taskSnippetId;
         break;
       case SnippetType.solution:
