@@ -27,11 +27,14 @@ import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.SampleRowKeysResponse;
+import com.google.cloud.Timestamp;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -44,12 +47,22 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMutation;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.InitializeDoFn;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -66,6 +79,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -206,6 +220,40 @@ public class BigtableIO {
    */
   public static Write write() {
     return Write.create();
+  }
+
+  /**
+   * Creates an uninitialized {@link BigtableIO.ReadChangeStream}. Before use, the {@code
+   * ReadChangeStream} must be initialized with
+   *
+   * <ul>
+   *   <li>{@link BigtableIO.ReadChangeStream#withProjectId}
+   *   <li>{@link BigtableIO.ReadChangeStream#withInstanceId}
+   *   <li>{@link BigtableIO.ReadChangeStream#withTableId}
+   *   <li>{@link BigtableIO.ReadChangeStream#withAppProfileId}
+   * </ul>
+   *
+   * <p>And optionally with
+   *
+   * <ul>
+   *   <li>{@link BigtableIO.ReadChangeStream#withStartTime} which defaults to now.
+   *   <li>{@link BigtableIO.ReadChangeStream#withEndTime} which defaults to empty.
+   *   <li>{@link BigtableIO.ReadChangeStream#withHeartbeatDuration} with defaults to 1 seconds.
+   *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableProjectId} which defaults to value
+   *       from {@link BigtableIO.ReadChangeStream#withProjectId}
+   *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableInstanceId} which defaults to value
+   *       from {@link BigtableIO.ReadChangeStream#withInstanceId}
+   *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableTableId} which defaults to {@link
+   *       MetadataTableAdminDao#DEFAULT_METADATA_TABLE_NAME}
+   *   <li>{@link BigtableIO.ReadChangeStream#withMetadataTableAppProfileId} which defaults to value
+   *       from {@link BigtableIO.ReadChangeStream#withAppProfileId}
+   *   <li>{@link BigtableIO.ReadChangeStream#withChangeStreamName} which defaults to randomly
+   *       generated string.
+   * </ul>
+   */
+  @Experimental
+  public static ReadChangeStream readChangeStream() {
+    return ReadChangeStream.create();
   }
 
   /**
@@ -1429,6 +1477,313 @@ public class BigtableIO {
       } catch (IOException e) {
         LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
       }
+    }
+  }
+
+  @AutoValue
+  public abstract static class ReadChangeStream
+      extends PTransform<PBegin, PCollection<KV<ByteString, ChangeStreamMutation>>> {
+
+    static ReadChangeStream create() {
+      BigtableConfig config =
+          BigtableConfig.builder().setTableId(StaticValueProvider.of("")).setValidate(true).build();
+      BigtableConfig metadataTableconfig =
+          BigtableConfig.builder().setTableId(StaticValueProvider.of("")).setValidate(true).build();
+
+      return new AutoValue_BigtableIO_ReadChangeStream.Builder()
+          .setBigtableConfig(config)
+          .setMetadataTableBigtableConfig(metadataTableconfig)
+          .build();
+    }
+
+    abstract BigtableConfig getBigtableConfig();
+
+    abstract @Nullable Timestamp getStartTime();
+
+    abstract @Nullable Timestamp getEndTime();
+
+    abstract @Nullable Duration getHeartbeatDuration();
+
+    abstract @Nullable String getChangeStreamName();
+
+    abstract BigtableConfig getMetadataTableBigtableConfig();
+
+    abstract ReadChangeStream.Builder toBuilder();
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the Cloud Bigtable
+     * project indicated by given parameter, requires {@link #withInstanceId} to be called to
+     * determine the instance.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withProjectId(ValueProvider<String> projectId) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withProjectId(projectId)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the Cloud Bigtable
+     * project indicated by given parameter, requires {@link #withInstanceId} to be called to
+     * determine the instance.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withProjectId(String projectId) {
+      return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the Cloud Bigtable
+     * instance indicated by given parameter, requires {@link #withProjectId} to be called to
+     * determine the project.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withInstanceId(ValueProvider<String> instanceId) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withInstanceId(instanceId)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the Cloud Bigtable
+     * instance indicated by given parameter, requires {@link #withProjectId} to be called to
+     * determine the project.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withInstanceId(String instanceId) {
+      return withInstanceId(StaticValueProvider.of(instanceId));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the specified table.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withTableId(ValueProvider<String> tableId) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withTableId(tableId)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the specified table.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withTableId(String tableId) {
+      return withTableId(StaticValueProvider.of(tableId));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the cluster specified
+     * by app profile id.
+     *
+     * <p>This must use single-cluster routing policy. If not setting a separate app profile for the
+     * metadata table with {@link BigtableIO.ReadChangeStream#withMetadataTableAppProfileId}, this
+     * app profile also needs to enable allow single-row transactions.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withAppProfileId(ValueProvider<String> appProfileId) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withAppProfileId(appProfileId)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will stream from the cluster specified
+     * by app profile id.
+     *
+     * <p>This must use single-cluster routing policy. If not setting a separate app profile for the
+     * metadata table with {@link BigtableIO.ReadChangeStream#withMetadataTableAppProfileId}, this
+     * app profile also needs to enable allow single-row transactions.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withAppProfileId(String appProfileId) {
+      return withAppProfileId(StaticValueProvider.of(appProfileId));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will start streaming at the specified
+     * start time.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withStartTime(Timestamp startTime) {
+      return toBuilder().setStartTime(startTime).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will stop streaming at the specified
+     * end time.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withEndTime(Timestamp endTime) {
+      return toBuilder().setEndTime(endTime).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will send heartbeat messages at
+     * specified interval.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withHeartbeatDuration(Duration interval) {
+      return toBuilder().setHeartbeatDuration(interval).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that uses changeStreamName as prefix for
+     * the metadata table.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withChangeStreamName(String changeStreamName) {
+      return toBuilder().setChangeStreamName(changeStreamName).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will use the Cloud Bigtable project
+     * indicated by given parameter to manage the metadata of the stream.
+     *
+     * <p>Optional: defaults to value from withProjectId
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withMetadataTableProjectId(String projectId) {
+      BigtableConfig config = getMetadataTableBigtableConfig();
+      return toBuilder()
+          .setMetadataTableBigtableConfig(config.withProjectId(StaticValueProvider.of(projectId)))
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will use the Cloud Bigtable instance
+     * indicated by given parameter to manage the metadata of the stream.
+     *
+     * <p>Optional: defaults to value from withInstanceId
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withMetadataTableInstanceId(String instanceId) {
+      BigtableConfig config = getMetadataTableBigtableConfig();
+      return toBuilder()
+          .setMetadataTableBigtableConfig(config.withInstanceId(StaticValueProvider.of(instanceId)))
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will use specified table to store the
+     * metadata of the stream.
+     *
+     * <p>Optional: defaults to value from withTableId
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withMetadataTableTableId(String tableId) {
+      BigtableConfig config = getMetadataTableBigtableConfig();
+      return toBuilder()
+          .setMetadataTableBigtableConfig(config.withTableId(StaticValueProvider.of(tableId)))
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that will use the cluster specified by app
+     * profile id to store the metadata of the stream.
+     *
+     * <p>Optional: defaults to value from withAppProfileId
+     *
+     * <p>This must use single-cluster routing policy with allow single-row transactions enabled.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withMetadataTableAppProfileId(String appProfileId) {
+      BigtableConfig config = getMetadataTableBigtableConfig();
+      return toBuilder()
+          .setMetadataTableBigtableConfig(
+              config.withAppProfileId(StaticValueProvider.of(appProfileId)))
+          .build();
+    }
+
+    @Override
+    public PCollection<KV<ByteString, ChangeStreamMutation>> expand(PBegin input) {
+      checkArgument(getBigtableConfig() != null);
+      checkArgument(getBigtableConfig().getProjectId() != null);
+      checkArgument(getBigtableConfig().getInstanceId() != null);
+      checkArgument(getBigtableConfig().getTableId() != null);
+      checkArgument(getBigtableConfig().getAppProfileId() != null);
+
+      BigtableConfig metadataTableConfig = getMetadataTableBigtableConfig();
+      if (metadataTableConfig.getProjectId() == null
+          || metadataTableConfig.getProjectId().get().isEmpty()) {
+        metadataTableConfig = metadataTableConfig.withProjectId(getBigtableConfig().getProjectId());
+      }
+      if (metadataTableConfig.getInstanceId() == null
+          || metadataTableConfig.getInstanceId().get().isEmpty()) {
+        metadataTableConfig =
+            metadataTableConfig.withInstanceId(getBigtableConfig().getInstanceId());
+      }
+      if (metadataTableConfig.getTableId() == null
+          || metadataTableConfig.getTableId().get().isEmpty()) {
+        metadataTableConfig =
+            metadataTableConfig.withTableId(
+                StaticValueProvider.of(MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME));
+      }
+      if (metadataTableConfig.getAppProfileId() == null
+          || metadataTableConfig.getAppProfileId().get().isEmpty()) {
+        metadataTableConfig =
+            metadataTableConfig.withAppProfileId(getBigtableConfig().getAppProfileId());
+      }
+
+      Timestamp startTime = getStartTime();
+      if (startTime == null) {
+        startTime = Timestamp.of(Date.from(Instant.now()));
+      }
+      Duration heartbeatDuration = getHeartbeatDuration();
+      if (heartbeatDuration == null) {
+        heartbeatDuration = Duration.standardSeconds(1);
+      }
+      String changeStreamName = getChangeStreamName();
+      if (changeStreamName == null || changeStreamName.isEmpty()) {
+        changeStreamName = UniqueIdGenerator.generateRowKeyPrefix();
+      }
+
+      ActionFactory actionFactory = new ActionFactory();
+      DaoFactory daoFactory =
+          new DaoFactory(getBigtableConfig(), metadataTableConfig, changeStreamName);
+      ChangeStreamMetrics metrics = new ChangeStreamMetrics();
+      InitializeDoFn initializeDoFn =
+          new InitializeDoFn(daoFactory, metadataTableConfig.getAppProfileId().get(), startTime);
+      DetectNewPartitionsDoFn detectNewPartitionsDoFn =
+          new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
+      ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
+          new ReadChangeStreamPartitionDoFn(heartbeatDuration, daoFactory, actionFactory, metrics);
+
+      return input
+          .apply(Impulse.create())
+          .apply("Initialize", ParDo.of(initializeDoFn))
+          .apply("DetectNewPartition", ParDo.of(detectNewPartitionsDoFn))
+          .apply("ReadChangeStreamPartition", ParDo.of(readChangeStreamPartitionDoFn));
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+
+      abstract ReadChangeStream.Builder setBigtableConfig(BigtableConfig bigtableConfig);
+
+      abstract ReadChangeStream.Builder setMetadataTableBigtableConfig(
+          BigtableConfig bigtableConfig);
+
+      abstract ReadChangeStream.Builder setStartTime(Timestamp startTime);
+
+      abstract ReadChangeStream.Builder setEndTime(Timestamp endTime);
+
+      abstract ReadChangeStream.Builder setHeartbeatDuration(Duration interval);
+
+      abstract ReadChangeStream.Builder setChangeStreamName(String changeStreamName);
+
+      abstract ReadChangeStream build();
     }
   }
 }

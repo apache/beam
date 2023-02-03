@@ -79,7 +79,7 @@ public class BigQueryDirectReadSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return String.format("beam:transform:org.apache.beam:bigquery_storage_read:v1");
+    return "beam:schematransform:org.apache.beam:bigquery_storage_read:v1";
   }
 
   @Override

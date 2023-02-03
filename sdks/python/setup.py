@@ -240,7 +240,7 @@ if __name__ == '__main__':
         # and at runtime, therefore bounds need to be tight.
         # To avoid depending on an old dependency, update the minor version on
         # every Beam release, see: https://github.com/apache/beam/issues/23119
-        'cloudpickle~=2.2.0',
+        'cloudpickle~=2.2.1',
         'fastavro>=0.23.6,<2',
         'fasteners>=0.3,<1.0',
         'grpcio>=1.33.1,!=1.48.0,<2',
@@ -333,7 +333,7 @@ if __name__ == '__main__':
             'nbconvert>=6.2.0,<8',
             # headless chrome based integration tests
             'needle>=0.5.0,<1',
-            'chromedriver-binary>=100,<101',
+            'chromedriver-binary>=100,<111',
             # use a fixed major version of PIL for different python versions
             'pillow>=7.1.1,<8',
           ],

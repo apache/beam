@@ -109,6 +109,19 @@ public interface BigQueryOptions
 
   void setNumStorageWriteApiStreamAppendClients(Integer value);
 
+  @Description("The max number of messages inflight that we expect each connection will retain.")
+  @Default.Long(1000)
+  Long getStorageWriteMaxInflightRequests();
+
+  void setStorageWriteMaxInflightRequests(Long value);
+
+  @Description(
+      "The max size in bytes for inflight messages that we expect each connection will retain.")
+  @Default.Long(104857600)
+  Long getStorageWriteMaxInflightBytes();
+
+  void setStorageWriteMaxInflightBytes(Long value);
+
   @Default.Boolean(false)
   Boolean getUseStorageApiConnectionPool();
 
