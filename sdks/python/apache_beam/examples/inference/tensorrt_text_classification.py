@@ -75,10 +75,10 @@ def parse_known_args(argv):
   """Parses args for the workflow."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-    '--input',
-    dest='input',
-    required=True,
-    help='Path to the text file containing sentences.')
+      '--input',
+      dest='input',
+      required=True,
+      help='Path to the text file containing sentences.')
   parser.add_argument(
       '--trt_model_path',
       dest='trt_model_path',
