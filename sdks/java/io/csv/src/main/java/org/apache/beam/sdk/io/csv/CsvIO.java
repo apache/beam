@@ -40,6 +40,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -277,6 +278,39 @@ public class CsvIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, WriteFilesResult<String>>
       implements HasDisplayData {
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      CSVFormat csvFormat = getCSVFormat();
+      builder.add(DisplayData.item("delimiter", String.valueOf(csvFormat.getDelimiter())));
+      if (csvFormat.getQuoteCharacter() != null) {
+        builder.add(
+            DisplayData.item("quoteCharacter", String.valueOf(csvFormat.getQuoteCharacter())));
+      }
+      if (csvFormat.getQuoteMode() != null) {
+        builder.add(DisplayData.item("quoteMode", csvFormat.getQuoteMode().toString()));
+      }
+      if (csvFormat.getCommentMarker() != null) {
+        builder.add(DisplayData.item("commentMarker", csvFormat.getCommentMarker().toString()));
+      }
+      if (csvFormat.getEscapeCharacter() != null) {
+        builder.add(DisplayData.item("escapeCharacter", csvFormat.getEscapeCharacter().toString()));
+      }
+      builder.addIfNotNull(DisplayData.item("recordSeparator", csvFormat.getRecordSeparator()));
+      builder.addIfNotNull(DisplayData.item("nullString", csvFormat.getNullString()));
+      if (csvFormat.getHeaderComments() != null) {
+        builder.add(
+            DisplayData.item("headerComments", String.join("\n", csvFormat.getHeaderComments())));
+      }
+      if (csvFormat.getHeader() != null) {
+        builder.add(DisplayData.item("header", String.join(",", csvFormat.getHeader())));
+      }
+      builder.addIfNotNull(DisplayData.item("trailingDelimiter", csvFormat.getTrailingDelimiter()));
+      builder.addIfNotNull(DisplayData.item("trim", csvFormat.getTrim()));
+      builder.addIfNotNull(
+          DisplayData.item("allowDuplicateHeaderNames", csvFormat.getAllowDuplicateHeaderNames()));
+    }
 
     /** Specifies the {@link Compression} of all generated shard files. */
     public Write<T> withCompression(Compression compression) {
