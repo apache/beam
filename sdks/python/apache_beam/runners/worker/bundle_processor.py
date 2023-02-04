@@ -26,6 +26,7 @@ import copy
 import json
 import logging
 import random
+import sys
 import threading
 from typing import TYPE_CHECKING
 from typing import Any
@@ -113,6 +114,7 @@ URNS_NEEDING_PCOLLECTIONS = set([
 ])
 
 _LOGGER = logging.getLogger(__name__)
+_PY_SDK_CAPABILITY_PREFIX = "beam:version:sdk_base:apache/beam_python"
 
 
 class RunnerIOOperation(operations.Operation):
@@ -823,6 +825,38 @@ def only_element(iterable):
   return element
 
 
+def _extract_py_version(capability):
+  return capability[len(_PY_SDK_CAPABILITY_PREFIX):].split("_sdk:")[0]
+
+
+def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
+  # type: beam_fn_api_pb2.ProcessBundleDescriptor -> None
+
+  py_envs_at_submission = set()
+  for _, env in process_bundle_descriptor.environments.items():
+    for c in env.capabilities:
+      if c.startswith(_PY_SDK_CAPABILITY_PREFIX):
+        py_envs_at_submission.add(c)
+
+  # Likely we have 1 env, but in theory possible to have multiple in XLang.
+  py_envs_at_submission = {
+      _extract_py_version(e)
+      for e in py_envs_at_submission
+  }
+
+  runtime_py_version = '.'.join([str(i) for i in sys.version_info[0:2]])
+
+  if py_envs_at_submission and runtime_py_version not in py_envs_at_submission:
+    raise RuntimeError(
+        "Python version mismatch between pipleine submission environment and "
+        "pipeline runtime environment. Pipleine was submitted "
+        f"from Python {py_envs_at_submission.pop()}, but execution runtime "
+        f"has Python {runtime_py_version}. If you use a custom container, "
+        "check the Python version in the container.")
+
+  # TODO: Consider cross-matching versions of apache-beam and other packages.
+
+
 class BundleProcessor(object):
   """ A class for processing bundles of elements. """
 
@@ -846,6 +880,7 @@ class BundleProcessor(object):
     self.data_channel_factory = data_channel_factory
     self.current_instruction_id = None  # type: Optional[str]
 
+    _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
     # timer_api_service_descriptor when having timers. So this field cannot be
     # used as an indicator of timers.

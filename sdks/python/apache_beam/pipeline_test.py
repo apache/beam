@@ -23,6 +23,7 @@ import copy
 import platform
 import unittest
 
+import mock
 import pytest
 
 import apache_beam as beam
@@ -679,6 +680,18 @@ class PipelineTest(unittest.TestCase):
     self.assertIs(pcoll1_unbounded.is_bounded, False)
     self.assertIs(pcoll2_unbounded.is_bounded, False)
     self.assertIs(merged.is_bounded, False)
+
+  def test_incompatible_submission_and_runtime_envs_fail_pipeline(self):
+    with mock.patch(
+        'apache_beam.runners.worker.bundle_processor._extract_py_version',
+        return_value='2.7'):
+      with self.assertRaisesRegex(
+          RuntimeError,
+          'Python version mismatch between pipleine submission environment '
+          'and pipeline runtime environment. '
+          'Pipleine was submitted from Python 2.7'):
+        with TestPipeline() as pipeline:
+          _ = pipeline | Create([None])
 
 
 class DoFnTest(unittest.TestCase):
