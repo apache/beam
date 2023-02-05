@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.jms;
 
 import static org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-import static org.apache.beam.sdk.io.jms.JmsIO.JmsIOProducer.JMS_IO_PRODUCER_METRIC_NAME;
-import static org.apache.beam.sdk.io.jms.JmsIO.JmsIOProducer.PUBLICATION_RETRIES_METRIC_NAME;
+import static org.apache.beam.sdk.io.jms.JmsIO.Writer.JMS_IO_PRODUCER_METRIC_NAME;
+import static org.apache.beam.sdk.io.jms.JmsIO.Writer.PUBLICATION_RETRIES_METRIC_NAME;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -50,6 +50,7 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -710,7 +711,7 @@ public class JmsIOTest {
     int pipelineDuration = 5;
     Instant now = Instant.now();
     String messageText = now.toString();
-    ArrayList<String> data = new ArrayList<>(Collections.singleton(messageText));
+    List<String> data = Collections.singletonList(messageText);
     RetryConfiguration retryPolicy =
         RetryConfiguration.create(
             3, Duration.standardSeconds(waitingSeconds), Duration.standardDays(10));
@@ -749,7 +750,7 @@ public class JmsIOTest {
   public void testWriteMessageWithRetryPolicyReachesLimit() throws Exception {
     String messageText = "text";
     int maxPublicationAttempts = 2;
-    ArrayList<String> data = new ArrayList<>(Collections.singleton(messageText));
+    List<String> data = Collections.singletonList(messageText);
     RetryConfiguration retryConfiguration =
         RetryConfiguration.create(maxPublicationAttempts, null, null);
 
@@ -762,7 +763,7 @@ public class JmsIOTest {
                     .withValueMapper(
                         (SerializableBiFunction<String, Session, Message>)
                             (s, session) -> {
-                              throw new IllegalArgumentException("Error!!");
+                              throw new JmsIOException("Error!!");
                             })
                     .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
@@ -800,6 +801,45 @@ public class JmsIOTest {
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
     assertNull(consumer.receiveNoWait());
+  }
+
+  @Test
+  public void testWriteMessagesWithErrors() throws Exception {
+    int maxPublicationAttempts = 2;
+    // Message 1 should fail for Published DoFn handled by the republished DoFn and published to the
+    // queue
+    // Message 2 should fail both DoFn
+    // Message 3 & 4 should pass the publish DoFn
+    List<String> data = Arrays.asList("Message 1", "Message 2", "Message 3", "Message 4");
+
+    RetryConfiguration retryConfiguration =
+        RetryConfiguration.create(maxPublicationAttempts, null, null);
+
+    WriteJmsResult<String> output =
+        pipeline
+            .apply(Create.of(data))
+            .apply(
+                JmsIO.<String>write()
+                    .withConnectionFactory(connectionFactory)
+                    .withValueMapper(new TextMessageMapperWithErrorAndCounter())
+                    .withRetryConfiguration(retryConfiguration)
+                    .withQueue(QUEUE)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD));
+
+    PAssert.that(output.getFailedMessages()).containsInAnyOrder("Message 2");
+    pipeline.run();
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+    int count = 0;
+    while (consumer.receive(1000) != null) {
+      count++;
+    }
+    assertEquals(3, count);
+    System.out.println(count);
   }
 
   private int count(String queue) throws Exception {
@@ -936,6 +976,31 @@ public class JmsIOTest {
     public Message apply(String value, Session session) {
       try {
         if (errorCounter == 0) {
+          errorCounter++;
+          throw new JMSException("Error!!");
+        }
+        TextMessage msg = session.createTextMessage();
+        msg.setText(value);
+        return msg;
+      } catch (JMSException e) {
+        throw new JmsIOException("Error creating TextMessage", e);
+      }
+    }
+  }
+
+  private static class TextMessageMapperWithErrorAndCounter
+      implements SerializableBiFunction<String, Session, Message> {
+    private static int errorCounter = 0;
+
+    @Override
+    public Message apply(String value, Session session) {
+      try {
+        if (value.equals("Message 1") || value.equals("Message 2")) {
+          if (errorCounter != 0 && value.equals("Message 1")) {
+            TextMessage msg = session.createTextMessage();
+            msg.setText(value);
+            return msg;
+          }
           errorCounter++;
           throw new JMSException("Error!!");
         }

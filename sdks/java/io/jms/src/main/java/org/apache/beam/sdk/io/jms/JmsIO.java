@@ -933,7 +933,7 @@ public class JmsIO {
           "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be set.");
       checkArgument(getValueMapper() != null, "withValueMapper() is required");
 
-      return input.apply(new JmsIOProducer<>(this));
+      return input.apply(new Writer<>(this));
     }
 
     private boolean isExclusiveTopicQueue() {
@@ -946,134 +946,115 @@ public class JmsIO {
     }
   }
 
-  public static class JmsIOProducer<T> extends PTransform<PCollection<T>, WriteJmsResult<T>> {
+  static class Writer<T> extends PTransform<PCollection<T>, WriteJmsResult<T>> {
 
     public static final String CONNECTION_ERRORS_METRIC_NAME = "connectionErrors";
     public static final String PUBLICATION_RETRIES_METRIC_NAME = "publicationRetries";
-    public static final String JMS_IO_PRODUCER_METRIC_NAME = JmsIOProducer.class.getCanonicalName();
+    public static final String JMS_IO_PRODUCER_METRIC_NAME = Writer.class.getCanonicalName();
 
-    private static final Logger LOG = LoggerFactory.getLogger(JmsIOProducer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Writer.class);
     private static final String PUBLISH_TO_JMS_STEP_NAME = "Publish to JMS";
+    private static final String REPUBLISH_TO_JMS_STEP_NAME = "Republish to JMS";
 
     private final JmsIO.Write<T> spec;
     private final TupleTag<T> messagesTag;
     private final TupleTag<T> failedMessagesTag;
+    private final TupleTag<T> failedRepublishedMessagesTag;
 
-    JmsIOProducer(JmsIO.Write<T> spec) {
+    Writer(JmsIO.Write<T> spec) {
       this.spec = spec;
       this.messagesTag = new TupleTag<>();
       this.failedMessagesTag = new TupleTag<>();
+      this.failedRepublishedMessagesTag = new TupleTag<>();
     }
 
     @Override
     public WriteJmsResult<T> expand(PCollection<T> input) {
-      PCollectionTuple failedPublishedMessages =
+      PCollectionTuple failedPublishedMessagesTuple =
           input.apply(
               PUBLISH_TO_JMS_STEP_NAME,
-              ParDo.of(new JmsIOProducerFn())
+              ParDo.of(new JmsIOProducerFn<>(spec, failedMessagesTag))
                   .withOutputTags(messagesTag, TupleTagList.of(failedMessagesTag)));
-      PCollection<T> failedMessages =
-          failedPublishedMessages.get(failedMessagesTag).setCoder(input.getCoder());
-      failedPublishedMessages.get(messagesTag).setCoder(input.getCoder());
-      return WriteJmsResult.in(input.getPipeline(), failedMessagesTag, failedMessages);
+      PCollection<T> failedPublishedMessages =
+          failedPublishedMessagesTuple.get(failedMessagesTag).setCoder(input.getCoder());
+      failedPublishedMessagesTuple.get(messagesTag).setCoder(input.getCoder());
+
+      // Republishing failed messages
+      PCollectionTuple failedRepublishedMessagesTuple =
+          failedPublishedMessages.apply(
+              REPUBLISH_TO_JMS_STEP_NAME,
+              ParDo.of(new JmsIOProduceRetryFn<>(spec, failedRepublishedMessagesTag))
+                  .withOutputTags(messagesTag, TupleTagList.of(failedRepublishedMessagesTag)));
+      PCollection<T> failedRepublishedMessages =
+          failedRepublishedMessagesTuple
+              .get(failedRepublishedMessagesTag)
+              .setCoder(input.getCoder());
+      failedRepublishedMessagesTuple.get(messagesTag).setCoder(input.getCoder());
+
+      return WriteJmsResult.in(
+          input.getPipeline(), failedRepublishedMessagesTag, failedRepublishedMessages);
     }
 
-    private class JmsIOProducerFn extends DoFn<T, T> {
+    private static class JmsConnection<T> implements Serializable {
 
-      private transient @Initialized FluentBackoff retryBackOff;
+      private static final long serialVersionUID = 1L;
 
       private transient @Initialized Session session;
       private transient @Initialized Connection connection;
       private transient @Initialized Destination destination;
       private transient @Initialized MessageProducer producer;
 
+      private boolean isProducerNeedsToBeCreated = true;
+      private final JmsIO.Write<T> spec;
       private final Counter connectionErrors =
           Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, CONNECTION_ERRORS_METRIC_NAME);
-      private final Counter publicationRetries =
-          Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME);
 
-      @Setup
-      public void setup() {
-        RetryConfiguration retryConfiguration = checkStateNotNull(spec.getRetryConfiguration());
-
-        retryBackOff =
-            FluentBackoff.DEFAULT
-                .withInitialBackoff(checkStateNotNull(retryConfiguration.getInitialDuration()))
-                .withMaxCumulativeBackoff(checkStateNotNull(retryConfiguration.getMaxDuration()))
-                .withMaxRetries(retryConfiguration.getMaxAttempts());
+      public JmsConnection(Write<T> spec) {
+        this.spec = spec;
       }
 
-      @StartBundle
       public void start() throws JMSException {
-        ConnectionFactory connectionFactory = spec.getConnectionFactory();
-        if (spec.getUsername() != null) {
-          this.connection =
-              connectionFactory.createConnection(spec.getUsername(), spec.getPassword());
-        } else {
-          this.connection = connectionFactory.createConnection();
-        }
-        this.connection.setExceptionListener(
-            exception -> {
-              connectionErrors.inc();
-              throw new JmsIOException("An error occurred with JMS connection", exception);
-            });
-        this.connection.start();
-        // false means we don't use JMS transaction.
-        this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-
-        if (spec.getQueue() != null) {
-          this.destination = session.createQueue(spec.getQueue());
-        } else if (spec.getTopic() != null) {
-          this.destination = session.createTopic(spec.getTopic());
-        }
-        this.producer = this.session.createProducer(this.destination);
-      }
-
-      @ProcessElement
-      public void processElement(@Element T input, ProcessContext context) {
-        try {
-          publishMessage(input, context);
-        } catch (IOException | InterruptedException exception) {
-          LOG.error("Error while publishing the message", exception);
-          context.output(failedMessagesTag, input);
-          Thread.currentThread().interrupt();
-        }
-      }
-
-      private void publishMessage(T input, ProcessContext context)
-          throws IOException, InterruptedException {
-        Sleeper sleeper = Sleeper.DEFAULT;
-        Destination destinationToSendTo = destination;
-        BackOff backoff = checkStateNotNull(retryBackOff).backoff();
-        int publicationAttempt = 0;
-        while (publicationAttempt >= 0) {
-          publicationAttempt++;
-          try {
-            Message message = spec.getValueMapper().apply(input, session);
-            if (spec.getTopicNameMapper() != null) {
-              destinationToSendTo = session.createTopic(spec.getTopicNameMapper().apply(input));
-            }
-            producer.send(destinationToSendTo, message);
-            publicationAttempt = -1;
-          } catch (Exception exception) {
-            if (!BackOffUtils.next(sleeper, backoff)) {
-              LOG.error("The message wasn't published to topic {}", destinationToSendTo, exception);
-              context.output(failedMessagesTag, input);
-              publicationAttempt = -1;
-            } else {
-              publicationRetries.inc();
-              LOG.warn(
-                  "Error sending message on topic {}, retry attempt {}",
-                  destinationToSendTo,
-                  publicationAttempt,
-                  exception);
-            }
+        if (isProducerNeedsToBeCreated) {
+          ConnectionFactory connectionFactory = spec.getConnectionFactory();
+          if (spec.getUsername() != null) {
+            this.connection =
+                connectionFactory.createConnection(spec.getUsername(), spec.getPassword());
+          } else {
+            this.connection = connectionFactory.createConnection();
           }
+          this.connection.setExceptionListener(
+              exception -> {
+                this.isProducerNeedsToBeCreated = true;
+                this.connectionErrors.inc();
+              });
+          this.connection.start();
+          // false means we don't use JMS transaction.
+          this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+          if (spec.getQueue() != null) {
+            this.destination = session.createQueue(spec.getQueue());
+          } else if (spec.getTopic() != null) {
+            this.destination = session.createTopic(spec.getTopic());
+          }
+          this.producer = this.session.createProducer(this.destination);
         }
       }
 
-      @FinishBundle
-      public void teardown() throws JMSException {
+      public void publishMessage(T input) throws JMSException, JmsIOException {
+        Destination destinationToSendTo = destination;
+        try {
+          Message message = spec.getValueMapper().apply(input, session);
+          if (spec.getTopicNameMapper() != null) {
+            destinationToSendTo = session.createTopic(spec.getTopicNameMapper().apply(input));
+          }
+          producer.send(destinationToSendTo, message);
+        } catch (JMSException | JmsIOException exception) {
+          LOG.warn("Error sending message to the topic {}", destinationToSendTo, exception);
+          throw exception;
+        }
+      }
+
+      public void close() throws JMSException {
         if (producer != null) {
           producer.close();
           producer = null;
@@ -1092,6 +1073,107 @@ public class JmsIO {
           connection.close();
           connection = null;
         }
+      }
+    }
+
+    private static class JmsIOProducerFn<T> extends DoFn<T, T> {
+
+      private final @Initialized JmsConnection<T> jmsConnection;
+      private final TupleTag<T> failedMessagesTag;
+
+      JmsIOProducerFn(JmsIO.Write<T> spec, TupleTag<T> failedMessagesTag) {
+        this.failedMessagesTag = failedMessagesTag;
+        this.jmsConnection = new JmsConnection<>(spec);
+      }
+
+      @Setup
+      public void setup() throws JMSException {
+        this.jmsConnection.start();
+      }
+
+      @ProcessElement
+      public void processElement(@Element T input, ProcessContext context) {
+        try {
+          this.jmsConnection.publishMessage(input);
+        } catch (JMSException | JmsIOException exception) {
+          context.output(this.failedMessagesTag, input);
+        }
+      }
+
+      @Teardown
+      public void teardown() throws JMSException {
+        this.jmsConnection.close();
+      }
+    }
+
+    static class JmsIOProduceRetryFn<T> extends DoFn<T, T> {
+
+      private transient @Initialized FluentBackoff retryBackOff;
+
+      private final JmsIO.Write<T> spec;
+      private final TupleTag<T> failedMessagesTags;
+      private final @Initialized JmsConnection<T> jmsConnection;
+      private final Counter publicationRetries =
+          Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME);
+
+      JmsIOProduceRetryFn(JmsIO.Write<T> spec, TupleTag<T> failedMessagesTags) {
+        this.spec = spec;
+        this.failedMessagesTags = failedMessagesTags;
+        this.jmsConnection = new JmsConnection<>(spec);
+      }
+
+      @Setup
+      public void setup() throws JMSException {
+        this.jmsConnection.start();
+        RetryConfiguration retryConfiguration = checkStateNotNull(spec.getRetryConfiguration());
+        retryBackOff =
+            FluentBackoff.DEFAULT
+                .withInitialBackoff(checkStateNotNull(retryConfiguration.getInitialDuration()))
+                .withMaxCumulativeBackoff(checkStateNotNull(retryConfiguration.getMaxDuration()))
+                .withMaxRetries(retryConfiguration.getMaxAttempts());
+      }
+
+      @ProcessElement
+      public void processElement(@Element T input, ProcessContext context) {
+        try {
+          publishMessage(input, context);
+        } catch (IOException | InterruptedException exception) {
+          LOG.error("Error while publishing the message", exception);
+          context.output(this.failedMessagesTags, input);
+          if (exception instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
+        }
+      }
+
+      private void publishMessage(T input, ProcessContext context)
+          throws IOException, InterruptedException {
+        Sleeper sleeper = Sleeper.DEFAULT;
+        BackOff backoff = checkStateNotNull(retryBackOff).backoff();
+        int retryAttempt = 0;
+        while (true) {
+          try {
+            this.jmsConnection.publishMessage(input);
+            break;
+          } catch (JMSException | JmsIOException exception) {
+            if (!BackOffUtils.next(sleeper, backoff)) {
+              LOG.error("Error sending message", exception);
+              context.output(this.failedMessagesTags, input);
+              break;
+            } else {
+              publicationRetries.inc();
+              LOG.warn(
+                  "Error sending message, retrying to publish attempt {}",
+                  retryAttempt++,
+                  exception);
+            }
+          }
+        }
+      }
+
+      @Teardown
+      public void teardown() throws JMSException {
+        this.jmsConnection.close();
       }
     }
   }
