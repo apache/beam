@@ -21,13 +21,13 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import numpy
 
 import onnx
 import onnxruntime as ort
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 
@@ -36,23 +36,6 @@ __all__ = ['OnnxModelHandlerNumpy']
 NumpyInferenceFn = Callable[
     [Sequence[numpy.ndarray], ort.InferenceSession, Optional[Dict[str, Any]]],
     Iterable[PredictionResult]]
-
-
-def _convert_to_result(
-    batch: Iterable, predictions: Union[Iterable, Dict[Any, Iterable]]
-) -> Iterable[PredictionResult]:
-  if isinstance(predictions, dict):
-    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
-    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
-    # length batch_size, to a list of dictionaries:
-    # [{key_type1: value_type1, key_type2: value_type2}]
-    predictions_per_tensor = [
-        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
-    ]
-    return [
-        PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)
-    ]
-  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
 def default_numpy_inference_fn(
@@ -132,7 +115,8 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     predictions = self._model_inference_fn(
         inference_session, batch, inference_args)
 
-    return _convert_to_result(batch, predictions)
+    return utils._convert_to_result(
+        batch, predictions, model_id=self._model_uri)
 
   def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
     """
