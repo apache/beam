@@ -115,8 +115,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     predictions = self._model_inference_fn(
         inference_session, batch, inference_args)
 
-    return utils._convert_to_result(
-        batch, predictions, model_id=self._model_uri)
+    return utils._convert_to_result(batch, predictions)
 
   def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
     """
