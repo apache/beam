@@ -23,7 +23,7 @@
 import base64
 import datetime
 import logging
-import random
+import secrets
 import time
 import unittest
 import uuid
@@ -98,10 +98,8 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     cls.project = cls.test_pipeline.get_option('project')
 
     cls.bigquery_client = BigQueryWrapper()
-    cls.dataset_id = '%s%s%d' % (
-        cls.BIG_QUERY_DATASET_ID,
-        str(int(time.time())),
-        random.randint(0, 10000))
+    cls.dataset_id = '%s%d%s' % (
+        cls.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     cls.bigquery_client.get_or_create_dataset(cls.project, cls.dataset_id)
     _LOGGER.info(
         "Created dataset %s in project %s", cls.dataset_id, cls.project)
@@ -409,7 +407,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
         'materializing_table_before_reading',
         str(uuid.uuid4())[0:10],
         bigquery_tools.BigQueryJobTypes.QUERY,
-        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
+        '%d_%s' % (int(time.time()), secrets.token_hex(3)))
     cls._setup_temporary_dataset(cls.project, cls.query)
     job = cls.bigquery_client._start_query_job(
         project,
