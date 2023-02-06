@@ -1121,8 +1121,7 @@ public class Schema implements Serializable {
 
     private boolean equivalent(Field otherField, EquivalenceNullablePolicy nullablePolicy) {
       return getName().equals(otherField.getName())
-          && getType().equivalent(otherField.getType(), nullablePolicy)
-          && getDescription().equals(otherField.getDescription());
+          && getType().equivalent(otherField.getType(), nullablePolicy);
     }
 
     @Override

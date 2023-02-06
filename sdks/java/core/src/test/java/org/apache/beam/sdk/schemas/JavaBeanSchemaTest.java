@@ -34,6 +34,7 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.RENAMED_FIELDS_AND
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -600,7 +601,7 @@ public class JavaBeanSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(TestJavaBeans.FieldWithDescriptionBean.class);
 
-    assertThat(schema, equivalentTo(FIELD_WITH_DESCRIPTION_BEAN_SCHEMA));
+    assertThat(schema, equalTo(FIELD_WITH_DESCRIPTION_BEAN_SCHEMA));
   }
 
   @Test

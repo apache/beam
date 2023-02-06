@@ -624,7 +624,7 @@ public class JavaFieldSchemaTest {
   public void testFieldWithDescriptionAnnotation() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(TestPOJOs.SimplePOJOWithDescription.class);
-    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_WITH_DESCRIPTION_SCHEMA, schema);
+    assertEquals(SIMPLE_POJO_WITH_DESCRIPTION_SCHEMA, schema);
   }
 
   @Test
