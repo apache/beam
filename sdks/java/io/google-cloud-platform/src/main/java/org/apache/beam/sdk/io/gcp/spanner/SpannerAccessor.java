@@ -166,13 +166,13 @@ public class SpannerAccessor implements AutoCloseable {
     SpannerStubSettings.Builder spannerStubSettingsBuilder = builder
         .getSpannerStubSettingsBuilder();
     ValueProvider<Duration> partitionQueryTimeout = spannerConfig.getPartitionQueryTimeout();
-    if (partitionQueryTimeout != null && partitionQueryTimeout.get().getMillis() > 0) {
+    if (partitionQueryTimeout != null && partitionQueryTimeout.get() != null && partitionQueryTimeout.get().getMillis() > 0) {
       spannerStubSettingsBuilder.partitionQuerySettings()
           .setSimpleTimeoutNoRetries(
               org.threeten.bp.Duration.ofMillis(partitionQueryTimeout.get().getMillis()));
     }
     ValueProvider<Duration> partitionReadTimeout = spannerConfig.getPartitionReadTimeout();
-    if (partitionReadTimeout != null && partitionReadTimeout.get().getMillis() > 0) {
+    if (partitionReadTimeout != null && partitionReadTimeout.get() != null && partitionReadTimeout.get().getMillis() > 0) {
       spannerStubSettingsBuilder.partitionReadSettings()
           .setSimpleTimeoutNoRetries(
               org.threeten.bp.Duration.ofMillis(partitionReadTimeout.get().getMillis()));

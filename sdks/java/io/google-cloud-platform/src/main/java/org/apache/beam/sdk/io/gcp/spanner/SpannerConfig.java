@@ -48,10 +48,6 @@ public abstract class SpannerConfig implements Serializable {
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(15);
   // A default priority for batch traffic.
   static final RpcPriority DEFAULT_RPC_PRIORITY = RpcPriority.MEDIUM;
-  // Default timeout for PartitionQuery API call.
-  private static final Duration DEFAULT_PARTITION_QUERY_TIMEOUT = Duration.standardSeconds(30);
-  // Default timeout for PartitionRead API call.
-  private static final Duration DEFAULT_PARTITION_READ_TIMEOUT = Duration.standardSeconds(30);
 
   public abstract @Nullable ValueProvider<String> getProjectId();
 
@@ -95,10 +91,6 @@ public abstract class SpannerConfig implements Serializable {
         .setMaxCumulativeBackoff(
             ValueProvider.StaticValueProvider.of(DEFAULT_MAX_CUMULATIVE_BACKOFF))
         .setRpcPriority(ValueProvider.StaticValueProvider.of(DEFAULT_RPC_PRIORITY))
-        .setPartitionQueryTimeout(
-            ValueProvider.StaticValueProvider.of(DEFAULT_PARTITION_QUERY_TIMEOUT))
-        .setPartitionReadTimeout(
-            ValueProvider.StaticValueProvider.of(DEFAULT_PARTITION_READ_TIMEOUT))
         .build();
   }
 

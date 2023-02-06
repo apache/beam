@@ -169,7 +169,6 @@ public class SpannerReadIT {
   public void testRead() throws Exception {
 
     SpannerConfig spannerConfig = createSpannerConfig();
-    spannerConfig = spannerConfig.withPartitionReadTimeout(Duration.standardSeconds(30));
 
     PCollectionView<Transaction> tx =
         p.apply(
@@ -261,9 +260,7 @@ public class SpannerReadIT {
   @Test
   public void testQuery() throws Exception {
     SpannerConfig spannerConfig = createSpannerConfig();
-    spannerConfig = spannerConfig.withPartitionQueryTimeout(StaticValueProvider.of(Duration.standardSeconds(30)));
     SpannerConfig pgSpannerConfig = createPgSpannerConfig();
-    pgSpannerConfig = pgSpannerConfig.withPartitionQueryTimeout(StaticValueProvider.of(Duration.standardSeconds(30)));
 
     PCollectionView<Transaction> tx =
         p.apply(
