@@ -59,7 +59,7 @@ ORIGIN=PG_EXAMPLES \
 STEP=CI \
 SUBDIRS="./learning/katas ./examples ./sdks" \
 GOOGLE_CLOUD_PROJECT=${PROJECT_ID} \
-BEAM_ROOT_DIR="." \
+BEAM_ROOT_DIR="../.." \
 SDK_CONFIG="../sdks.yaml" \
 BEAM_EXAMPLE_CATEGORIES="../categories.yaml" \
 BEAM_CONCURRENCY=4 \
@@ -80,16 +80,19 @@ diff=$(git diff --name-only $base_ref $commit_sha | tr '\n' ' ')
 # Check if there are Examples as
 for sdk in "${sdks[@]}"
 do
-      python3 playground/infrastructure/checker.py \
+      cd playground/infrastructure
+      python3 checker.py \
       --verbose \
       --sdk SDK_"${sdk^^}" \
       --allowlist "${allowlist[@]}" \
       --paths ${diff}
-      if [ $? -eq 0 ]
+      checker_status=$?
+      cd -
+      if [ $checker_status -eq 0 ]
       then
           echo "Checker has found changed examples for ${sdk^^}" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
           example_has_changed=True
-      elif [ $? -eq 11 ]
+      elif [ $checker_status -eq 11 ]
       then
           echo "Checker has not found changed examples for ${sdk^^}" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
           example_has_changed=False
