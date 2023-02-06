@@ -141,6 +141,10 @@ python tensorrt_text_classification.py \
 We ran experiments in Dataflow using a TensorRT engine and the following configurations: `n1-standard-4` machine with a disk size of `75GB`. To mimic data streaming into Dataflow via `PubSub`, we set the batch size to 1 by setting the min and max batch sizes for `ModelHandlers` to 1.
 
 |  | Stage with RunInference | Mean inference_batch_latency_micro_secs|
-|----------|----------|----------|
-|    TensorFlow with T4 GPU	      | - | 15,176 |
-| TensorRT with T4 GPU	 | - | 3,685 |
+|:----------:|:----------:|:----------:|
+|    TensorFlow with T4 GPU	      | 3 min 1 sec | 15,176 |
+| TensorRT with T4 GPU	 | 45 sec | 3,685 |
+
+The Dataflow runner decomposes a pipeline into multiple stages. You can get a better picture of the performance of RunInference by looking at the stage that contains the inference call, and not the other stages that read and write data. This is in the Stage with RunInference column.
+
+The metric `inference_batch_latency_micro_secs` is the time, in microseconds, that it takes to perform the inference on the batch of examples, that is, the time to call `model_handler.run_inference`. This varies over time depending on the dynamic batching decision of BatchElements, and the particular values or dtype values of the elements. For this metric, you can see that TensorRT is about 4.1x faster than TensorFlow.

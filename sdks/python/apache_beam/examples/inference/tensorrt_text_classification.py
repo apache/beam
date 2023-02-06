@@ -68,7 +68,7 @@ class Postprocess(beam.DoFn):
     logits = element.inference[0]
     argmax = np.argmax(logits)
     output = "Positive" if argmax == 1 else "Negative"
-    print(f"Input: {decoded_input}, \t Sentiment: {output}")
+    yield decoded_input, output
 
 
 def parse_known_args(argv):
@@ -115,9 +115,10 @@ def run(
         | "ReadSentences" >> beam.io.ReadFromText(known_args.input)
         | "Preprocess" >> beam.ParDo(Preprocess(tokenizer=tokenizer))
         | "RunInference" >> RunInference(model_handler=model_handler)
-        | "PostProcess" >> beam.ParDo(Postprocess(tokenizer=tokenizer)))
+        | "PostProcess" >> beam.ParDo(Postprocess(tokenizer=tokenizer))
+        | "LogResult" >> beam.Map(logging.info))
   metrics = pipeline.result.metrics().query(beam.metrics.MetricsFilter())
-  print(metrics)
+  logging.info(metrics)
 
 
 if __name__ == '__main__':
