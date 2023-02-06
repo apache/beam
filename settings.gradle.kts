@@ -74,6 +74,7 @@ include(":playground:backend:containers:python")
 include(":playground:backend:containers:router")
 include(":playground:backend:containers:scio")
 include(":playground:terraform")
+include(":playground:kafka-emulator")
 
 include(":learning:tour-of-beam:frontend")
 
