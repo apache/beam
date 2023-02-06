@@ -77,7 +77,7 @@ then
 fi
 diff=$(git diff --name-only $base_ref $commit_sha | tr '\n' ' ')
 
-# Check if there are Examples
+# Check if there are Examples as
 for sdk in "${sdks[@]}"
 do
       python3 playground/infrastructure/checker.py \
