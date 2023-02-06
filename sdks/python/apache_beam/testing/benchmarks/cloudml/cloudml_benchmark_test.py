@@ -35,7 +35,7 @@ _CRITEO_FEATURES_FILE = 'testdata/criteo/expected/features.tfrecord.gz'
 _OUTPUT_GCS_BUCKET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
 
 
-def _publish_metrics(pipeline, metric_value, metrics_table):
+def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
   influx_options = InfluxDBMetricsPublisherOptions(
       metrics_table,
       pipeline.get_option('influx_db_name'),
@@ -51,7 +51,7 @@ def _publish_metrics(pipeline, metric_value, metrics_table):
       influxdb_options=influx_options,
   )
   metric_reader.publish_values([(
-      'runtime',
+      metric_name,
       metric_value,
   )])
 
@@ -73,7 +73,11 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     end_time = time.time()
 
     metrics_table = 'cloudml_benchmark_criteo_small'
-    _publish_metrics(test_pipeline, end_time - start_time, metrics_table)
+    _publish_metrics(
+        pipeline=test_pipeline,
+        metric_value=end_time - start_time,
+        metrics_table=metrics_table,
+        metric_name='runtime_sec')
 
   def test_cloudml_benchmark_cirteo_no_shuffle_10GB(self):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -91,7 +95,11 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     end_time = time.time()
 
     metrics_table = 'cloudml_benchmark_cirteo_no_shuffle_10GB'
-    _publish_metrics(test_pipeline, end_time - start_time, metrics_table)
+    _publish_metrics(
+        pipeline=test_pipeline,
+        metric_value=end_time - start_time,
+        metrics_table=metrics_table,
+        metric_name='runtime_sec')
 
   def test_cloudml_benchmark_criteo_10GB(self):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -108,7 +116,11 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     end_time = time.time()
 
     metrics_table = 'cloudml_benchmark_criteo_10GB'
-    _publish_metrics(test_pipeline, end_time - start_time, metrics_table)
+    _publish_metrics(
+        pipeline=test_pipeline,
+        metric_value=end_time - start_time,
+        metrics_table=metrics_table,
+        metric_name='runtime_sec')
 
   def test_cloud_ml_benchmark_criteo_fixed_workers_10GB(self):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -127,7 +139,12 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     end_time = time.time()
 
     metrics_table = 'cloudml_benchmark_criteo_10GB'
-    _publish_metrics(test_pipeline, end_time - start_time, metrics_table)
+
+    _publish_metrics(
+        pipeline=test_pipeline,
+        metric_value=end_time - start_time,
+        metrics_table=metrics_table,
+        metric_name='runtime_sec')
 
 
 if __name__ == '__main__':
