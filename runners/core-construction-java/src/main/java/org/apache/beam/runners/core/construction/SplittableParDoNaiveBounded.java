@@ -123,7 +123,8 @@ public class SplittableParDoNaiveBounded {
     }
   }
 
-  static class NaiveProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+  public static class NaiveProcessFn<
+          InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       extends DoFn<KV<InputT, RestrictionT>, OutputT> {
     private final DoFn<InputT, OutputT> fn;
     private final Map<String, PCollectionView<?>> sideInputMapping;

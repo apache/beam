@@ -27,6 +27,7 @@ import 'package:playground_components/playground_components.dart';
 import 'package:provider/provider.dart';
 
 import '../../../constants/sizes.dart';
+import '../../../modules/examples/components/example_actions.dart';
 import '../../../modules/messages/models/set_content_message.dart';
 import '../../../src/assets/assets.gen.dart';
 import '../../../utils/javascript_post_message.dart';
@@ -40,19 +41,38 @@ class EmbeddedActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(kMdSpacing),
-      child: SizedBox(
-        width: kTryPlaygroundButtonWidth,
-        height: kTryPlaygroundButtonHeight,
-        child: Consumer<PlaygroundController>(
-          builder: (context, controller, child) => ElevatedButton.icon(
-            icon: SvgPicture.asset(Assets.link),
-            label: Text(AppLocalizations.of(context)!.tryInPlayground),
-            onPressed: () => _openStandalonePlayground(controller),
-          ),
+    return Row(
+      children: [
+        Consumer<PlaygroundController>(
+          builder: (_, controller, __) {
+            return Row(
+              children: [
+                ...buildExampleActions(
+                  controller.selectedExample,
+                  showButtonsText: false,
+                ).map(
+                  (w) => _ButtonPadding(
+                    child: w,
+                  ),
+                ),
+                const SizedBox(width: kXxlSpacing),
+                _ButtonPadding(
+                  child: SizedBox(
+                    width: kTryPlaygroundButtonWidth,
+                    height: kTryPlaygroundButtonHeight,
+                    child: ElevatedButton.icon(
+                      icon: SvgPicture.asset(Assets.link),
+                      label:
+                          Text(AppLocalizations.of(context)!.tryInPlayground),
+                      onPressed: () => _openStandalonePlayground(controller),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
-      ),
+      ],
     );
   }
 
@@ -68,6 +88,20 @@ class EmbeddedActions extends StatelessWidget {
       SetContentMessage(
         descriptor: descriptor,
       ),
+    );
+  }
+}
+
+class _ButtonPadding extends StatelessWidget {
+  const _ButtonPadding({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(kMdSpacing),
+      child: child,
     );
   }
 }
