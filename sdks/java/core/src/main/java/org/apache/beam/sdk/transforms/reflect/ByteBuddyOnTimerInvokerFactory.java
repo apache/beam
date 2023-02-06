@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -282,29 +283,6 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     return res;
   }
 
-  private static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(Class<?> targetClass) {
-    try {
-      ClassLoadingStrategy<ClassLoader> strategy;
-      if (ClassInjector.UsingLookup.isAvailable()) {
-        Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles");
-        Object lookup = methodHandles.getMethod("lookup").invoke(null);
-        Method privateLookupIn =
-            methodHandles.getMethod(
-                "privateLookupIn",
-                Class.class,
-                Class.forName("java.lang.invoke.MethodHandles$Lookup"));
-        Object privateLookup = privateLookupIn.invoke(null, targetClass, lookup);
-        strategy = ClassLoadingStrategy.UsingLookup.of(privateLookup);
-      } else if (ClassInjector.UsingReflection.isAvailable()) {
-        strategy = ClassLoadingStrategy.Default.INJECTION;
-      } else {
-        throw new IllegalStateException("No code generation strategy available");
-      }
-      return strategy;
-    } catch (ReflectiveOperationException e) {
-      throw new LinkageError(e.getMessage(), e);
-    }
-  }
 
   /**
    * An "invokeOnTimer" method implementation akin to @ProcessElement, but simpler because no

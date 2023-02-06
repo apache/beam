@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -187,30 +188,6 @@ public abstract class RowCoderGenerator {
       GENERATED_CODERS.put(schema.getUUID(), rowCoder);
     }
     return rowCoder;
-  }
-
-  private static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategy(Class<?> targetClass) {
-    try {
-      ClassLoadingStrategy<ClassLoader> strategy;
-      if (ClassInjector.UsingLookup.isAvailable()) {
-        Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles");
-        Object lookup = methodHandles.getMethod("lookup").invoke(null);
-        Method privateLookupIn =
-            methodHandles.getMethod(
-                "privateLookupIn",
-                Class.class,
-                Class.forName("java.lang.invoke.MethodHandles$Lookup"));
-        Object privateLookup = privateLookupIn.invoke(null, targetClass, lookup);
-        strategy = ClassLoadingStrategy.UsingLookup.of(privateLookup);
-      } else if (ClassInjector.UsingReflection.isAvailable()) {
-        strategy = ClassLoadingStrategy.Default.INJECTION;
-      } else {
-        throw new IllegalStateException("No code generation strategy available");
-      }
-      return strategy;
-    } catch (ReflectiveOperationException e) {
-      throw new LinkageError(e.getMessage(), e);
-    }
   }
 
   private static class GeneratedCoderConstructor implements Implementation {
