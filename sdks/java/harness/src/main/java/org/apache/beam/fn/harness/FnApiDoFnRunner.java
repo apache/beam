@@ -2529,8 +2529,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public void outputWithTimestamp(T output, Instant timestamp) {
-                ProcessBundleContextBase.this.outputWithTimestamp(
-                    tag, output, currentElement.getTimestamp());
+                ProcessBundleContextBase.this.outputWithTimestamp(tag, output, timestamp);
               }
             };
           }
@@ -2816,7 +2815,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public void outputWithTimestamp(T output, Instant timestamp) {
-                context.outputWithTimestamp(tag, output, currentElement.getTimestamp());
+                context.outputWithTimestamp(tag, output, timestamp);
               }
             };
           }
@@ -3077,7 +3076,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public void outputWithTimestamp(T output, Instant timestamp) {
-                context.outputWithTimestamp(tag, output, currentElement.getTimestamp());
+                context.outputWithTimestamp(tag, output, timestamp);
               }
             };
           }
