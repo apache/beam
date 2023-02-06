@@ -405,9 +405,9 @@ from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
 
-from google.api_core.exceptions import ClientError, GoogleAPICallError
 
 try:
+  from google.api_core.exceptions import ClientError, GoogleAPICallError
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
   from apache_beam.io.gcp.internal.clients.bigquery import JobReference
