@@ -17,10 +17,8 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:playground_components/playground_components.dart';
 import 'package:playground_components_dev/playground_components_dev.dart';
 
 import 'common/common.dart';
@@ -43,7 +41,7 @@ void main() {
 Future<void> _checkAutocomplete(WidgetTester wt) async {
   // Several newlines are required here because suggestion
   // popup works incorrectly. Remove when fixed
-  await wt.enterText(find.codeField(), '\n\n\n\n\nsdk');
+  await wt.enterCodeFieldText('\n\n\n\n\nsdk');
 
   final playgroundController = wt.findPlaygroundController();
   await wt.runShortcut(
@@ -75,7 +73,7 @@ Future<void> _checkResetEditedCode(WidgetTester wt) async {
   final playgroundController = wt.findPlaygroundController();
   final code = playgroundController.source;
 
-  await wt.enterText(find.codeField(), 'print("Hello World!');
+  await wt.enterCodeFieldText('print("Hello World!');
   await wt.pumpAndSettle();
 
   expect(playgroundController.source, isNot(code));
@@ -116,7 +114,7 @@ public class MyClass {
 }
 ''';
 
-  await wt.enterText(find.codeField(), code);
+  await wt.enterCodeFieldText(code);
   await wt.pumpAndSettle();
 
   await wt.tapAndSettle(_getTopToggle(wt));

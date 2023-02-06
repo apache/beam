@@ -17,7 +17,6 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playground_components/playground_components.dart';
@@ -26,6 +25,12 @@ import 'package:provider/provider.dart';
 import 'common_finders.dart';
 
 extension WidgetTesterExtension on WidgetTester {
+  Future<void> enterCodeFieldText(String text) async {
+    final codeField = widget(find.codeField());
+    (codeField as CodeField).controller.fullText = text;
+    codeField.focusNode?.requestFocus();
+  }
+
   CodeController findOneCodeController() {
     final codeField = find.codeField();
     expect(codeField, findsOneWidget);
