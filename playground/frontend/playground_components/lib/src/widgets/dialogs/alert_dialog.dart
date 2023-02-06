@@ -16,47 +16,21 @@
  * limitations under the License.
  */
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:playground_components/playground_components.dart';
 
-import '../../../assets/assets.gen.dart';
-import '../../../constants/sizes.dart';
-import 'markdown/tob_markdown.dart';
+import '../../../playground_components.dart';
 
-class HintsWidget extends StatelessWidget {
-  final List<String> hints;
+class BeamAlertDialog extends StatelessWidget {
+  final String? body;
+  final String continueLabel;
+  final VoidCallback onContinue;
+  final String title;
 
-  const HintsWidget({
-    required this.hints,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: () {
-        if (hints.isNotEmpty) {
-          showDialog(
-            context: context,
-            builder: (context) => Dialog(
-              backgroundColor: Colors.transparent,
-              child: _Popup(hint: hints.first),
-            ),
-          );
-        }
-      },
-      icon: SvgPicture.asset(Assets.svg.hint),
-      label: const Text('ui.hint').tr(),
-    );
-  }
-}
-
-class _Popup extends StatelessWidget {
-  final String hint;
-
-  const _Popup({
-    required this.hint,
+  const BeamAlertDialog({
+    this.body,
+    required this.continueLabel,
+    required this.onContinue,
+    required this.title,
   });
 
   @override
@@ -70,13 +44,31 @@ class _Popup extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'ui.hint',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ).tr(),
+              title,
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            if (body != null)
+              Padding(
+                padding: const EdgeInsets.only(top: BeamSizes.size8),
+                child: Text(body!),
+              ),
             const SizedBox(height: BeamSizes.size8),
-            TobMarkdown(
-              padding: EdgeInsets.zero,
-              data: hint,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  // TODO(nausharipov): review: translate in PGC?
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: BeamSizes.size8),
+                TextButton(
+                  onPressed: onContinue,
+                  child: Text(continueLabel),
+                ),
+              ],
             ),
           ],
         ),

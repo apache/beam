@@ -22,8 +22,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart';
 import 'package:flutter/material.dart';
 
+import '../repositories/client/client.dart';
+
 class AuthNotifier extends ChangeNotifier {
-  AuthNotifier() {
+  final TobClient client;
+
+  AuthNotifier({required this.client}) {
     FirebaseAuth.instance.authStateChanges().listen((user) {
       notifyListeners();
     });
@@ -41,5 +45,10 @@ class AuthNotifier extends ChangeNotifier {
 
   Future<void> logOut() async {
     await FirebaseAuth.instance.signOut();
+  }
+
+  Future<void> deleteAccount() async {
+    await client.postDeleteUserProgress();
+    await FirebaseAuth.instance.currentUser?.delete();
   }
 }

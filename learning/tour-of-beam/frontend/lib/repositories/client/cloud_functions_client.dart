@@ -101,4 +101,17 @@ class CloudFunctionsTobClient extends TobClient {
       },
     );
   }
+
+  @override
+  Future<void> postDeleteUserProgress() async {
+    final token = await GetIt.instance.get<AuthNotifier>().getToken();
+    await http.post(
+      Uri.parse(
+        '$cloudFunctionsBaseUrl/postDeleteProgress',
+      ),
+      headers: {
+        HttpHeaders.authorizationHeader: 'Bearer $token',
+      },
+    );
+  }
 }

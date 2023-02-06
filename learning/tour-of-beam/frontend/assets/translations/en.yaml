@@ -23,7 +23,8 @@ ui:
   continueGoogle: Continue with Google
   copyright: © The Apache Software Foundation
   hint: Hint
-  deleteAccount: Delete my account
+  deleteMyAccount: Delete my account
+  deleteTobAccount: Delete my Tour of Beam account
   privacyPolicy: Privacy Policy
   reportIssue: Report Issue in GitHub
   signIn: Sign in
@@ -47,6 +48,7 @@ pages:
 
 dialogs:
   signInIf: If you would like to save your progress and track completed modules
+  deleteAccountWarning: Are you sure you want to delete your Tour of Beam account? This will permanently erase your learning progress.
 
 complexity:
   basic: Basic level

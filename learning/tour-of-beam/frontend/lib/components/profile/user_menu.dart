@@ -125,9 +125,29 @@ class _Buttons extends StatelessWidget {
         ),
         const BeamDivider(),
         _IconLabel(
-          onTap: () {},
+          onTap: () {
+            closeOverlayCallback();
+            showDialog(
+              context: context,
+              builder: (context) => Dialog(
+                backgroundColor: Colors.transparent,
+                child: BeamAlertDialog(
+                  continueLabel: 'ui.deleteMyAccount'.tr(),
+                  title: 'ui.deleteTobAccount'.tr(),
+                  body: 'dialogs.deleteAccountWarning'.tr(),
+                  onContinue: () {
+                    authNotifier.deleteAccount().then(
+                      (_) {
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            );
+          },
           iconPath: Assets.svg.profileDelete,
-          label: 'ui.deleteAccount'.tr(),
+          label: 'ui.deleteMyAccount'.tr(),
         ),
       ],
     );

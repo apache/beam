@@ -31,6 +31,8 @@ import 'router/page_factory.dart';
 import 'router/route_information_parser.dart';
 import 'state.dart';
 
+final _client = CloudFunctionsTobClient();
+
 Future<void> initializeServiceLocator() async {
   _initializeAuth();
   _initializeState();
@@ -38,17 +40,15 @@ Future<void> initializeServiceLocator() async {
 }
 
 void _initializeAuth() {
-  GetIt.instance.registerSingleton(AuthNotifier());
+  GetIt.instance.registerSingleton(AuthNotifier(client: _client));
 }
 
 void _initializeCaches() {
-  final client = CloudFunctionsTobClient();
-
-  GetIt.instance.registerSingleton<TobClient>(client);
-  GetIt.instance.registerSingleton(ContentTreeCache(client: client));
-  GetIt.instance.registerSingleton(SdkCache(client: client));
-  GetIt.instance.registerSingleton(UnitContentCache(client: client));
-  GetIt.instance.registerSingleton(UnitProgressCache(client: client));
+  GetIt.instance.registerSingleton<TobClient>(_client);
+  GetIt.instance.registerSingleton(ContentTreeCache(client: _client));
+  GetIt.instance.registerSingleton(SdkCache(client: _client));
+  GetIt.instance.registerSingleton(UnitContentCache(client: _client));
+  GetIt.instance.registerSingleton(UnitProgressCache(client: _client));
 }
 
 void _initializeState() {
