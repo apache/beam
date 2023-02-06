@@ -316,7 +316,7 @@ class _BatchSizeEstimator(object):
       min_batch_size=1,
       max_batch_size=10000,
       target_batch_overhead=.05,
-      target_batch_duration_secs=1,
+      target_batch_duration_secs=10,
       variance=0.25,
       clock=time.time,
       ignore_first_n_seen_per_batch_size=0,
@@ -502,8 +502,11 @@ class _BatchSizeEstimator(object):
     target = self._max_batch_size
 
     if self._target_batch_duration_secs:
-      # Solution to a + b*x = self._target_batch_duration_secs.
-      target = min(target, (self._target_batch_duration_secs - a) / b)
+      # Solution to b*x = self._target_batch_duration_secs.
+      # We ignore the fixed cost in this computation as it has negligeabel
+      # impact when it is small and unhelpfully forces the minimum batch size
+      # when it is large.
+      target = min(target, self._target_batch_duration_secs / b)
 
     if self._target_batch_overhead:
       # Solution to a / (a + b*x) = self._target_batch_overhead.
@@ -653,7 +656,7 @@ class BatchElements(PTransform):
     target_batch_overhead: (optional) a target for fixed_cost / time,
         as used in the formula above
     target_batch_duration_secs: (optional) a target for total time per bundle,
-        in seconds
+        in seconds, excluding fixed cost
     element_size_fn: (optional) A mapping of an element to its contribution to
         batch size, defaulting to every element having size 1.  When provided,
         attempts to provide batches of optimal total size which may consist of
@@ -671,7 +674,7 @@ class BatchElements(PTransform):
       min_batch_size=1,
       max_batch_size=10000,
       target_batch_overhead=.05,
-      target_batch_duration_secs=1,
+      target_batch_duration_secs=10,
       *,
       element_size_fn=lambda x: 1,
       variance=0.25,
