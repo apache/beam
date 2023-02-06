@@ -96,7 +96,7 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       default=default_xgboost_inference_fn
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
-    with PyTorch 1.6.0 and 1.7.0
+    with XGBoost 1.6.0 and 1.7.0
 
     XGBoost 1.0.0 introduced support for using JSON to save and load
     XGBoost models. XGBoost 1.6.0, additional support for Universal Binary JSON.
