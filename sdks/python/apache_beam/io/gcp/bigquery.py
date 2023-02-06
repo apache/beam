@@ -2325,11 +2325,7 @@ class StorageWriteToBigQuery(PTransform):
       result = (p
             | 'Create items' >> beam.Create(items)
             | 'Write data' >> StorageWriteToBigQuery(
-                table="google.com:clouddfe:ahmedabualsaud_test.xlang_table",
-                create_disposition="",
-                write_disposition="",
-                triggering_frequency=0,
-                use_at_least_once=False))
+                table="project:dataset.table"))
 
       _ = (result['failed_rows_with_errors']
            | 'Format errors' >> beam.Map(
@@ -2348,7 +2344,7 @@ class StorageWriteToBigQuery(PTransform):
       use_at_least_once=False,
       expansion_service=None):
     """Initialize a StorageWriteToBigQuery transform.
-    Args:
+
       :param table (str): a fully-qualified table ID specified as
         ``'PROJECT:DATASET.TABLE'``
       :param create_disposition (str): a string specifying the strategy to
