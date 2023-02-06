@@ -1297,7 +1297,6 @@ class BigQueryWriteFn(DoFn):
 
   FAILED_ROWS = 'FailedRows'
   FAILED_ROWS_WITH_ERRORS = 'FailedRowsWithErrors'
-  FAILED_INSERT_NOTFOUND = 'notFound'
   STREAMING_API_LOGGING_FREQUENCY_SEC = 300
 
   def __init__(
@@ -1568,9 +1567,12 @@ class BigQueryWriteFn(DoFn):
               skip_invalid_rows=True,
               ignore_unknown_values=self.ignore_unknown_columns)
       except (ClientError, GoogleAPICallError) as e:
-        if e.code == 404:
+        if e.code == 404 and destination in _KNOWN_TABLES:
           _KNOWN_TABLES.remove(destination)
-          raise
+          _LOGGER.info("Table {} was not found. Table will be removed from _KNOWN_TABLES and bundle will retry. "
+                        "This sometimes occurs due to the table being deleted while a streaming job is running and "
+                        "the destination was previously added to the _KNOWN_TABLES".format(destination))
+        raise
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
       failed_rows = [(rows[entry['index']], entry["errors"])
