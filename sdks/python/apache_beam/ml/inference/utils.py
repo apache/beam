@@ -31,6 +31,7 @@ from typing import Union
 
 import apache_beam as beam
 from apache_beam.io.fileio import MatchContinuously
+from apache_beam.io.fileio import EmptyMatchTreatment
 from apache_beam.ml.inference.base import ModelMetdata
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.transforms import window
@@ -102,27 +103,20 @@ class _GetLatestFileByTimeStamp(beam.DoFn):
   def process(
       self, element, time_state=beam.DoFn.StateParam(TIME_STATE)
   ) -> List[Tuple[str, ModelMetdata]]:
-    path, file_metadata = element
+    _, file_metadata = element
     new_ts = file_metadata.last_updated_in_seconds
     old_ts = time_state.read()
     if new_ts > old_ts:
       time_state.clear()
       time_state.add(new_ts)
-      return [(
-          path,
-          ModelMetdata(
-              model_id=file_metadata.path,
-              model_name=os.path.splitext(os.path.basename(
-                  file_metadata.path))[0]))]
+      model_path = file_metadata.path
     else:
-      path_short_name = None
-      if self._default_value:
-        path_short_name = os.path.splitext(
-            os.path.basename(self._default_value))[0]
-      return [(
-          self._default_value,
-          ModelMetdata(
-              model_id=self._default_value, model_name=path_short_name))]
+      model_path = self._default_value
+
+    model_name = os.path.splitext(os.path.basename(model_path))[0]
+    return [
+        (model_path, ModelMetdata(model_id=model_path, model_name=model_name))
+    ]
 
 
 class WatchFilePattern(beam.PTransform):
@@ -144,6 +138,9 @@ class WatchFilePattern(beam.PTransform):
         file_pattern: The file path to read from.
         interval: Interval at which to check for files in seconds.
         stop_timestamp: Timestamp after which no more files will be checked.
+        default_value: Default value to be emitted until there is a latest file
+          (latest is defined by timestamp of the file.) matching the
+          file pattern.
     """
     self.file_pattern = file_pattern
     self.interval = interval
@@ -157,7 +154,8 @@ class WatchFilePattern(beam.PTransform):
         | 'MatchContinuously' >> MatchContinuously(
             file_pattern=self.file_pattern,
             interval=self.interval,
-            stop_timestamp=self.stop_timestamp)
+            stop_timestamp=self.stop_timestamp,
+            empty_match_treatment=EmptyMatchTreatment.DISALLOW)
         | "AttachKey" >> beam.Map(lambda x: (x.path, x))
         | "GetLatestFileMetaData" >> beam.ParDo(
             _GetLatestFileByTimeStamp(default_value=self._default_value))
