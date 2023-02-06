@@ -169,13 +169,12 @@ public class TableSchemaTest {
 
   @Test
   public void testParseDefaultExpressionString() {
-    assertEquals(
-        "abc", ColumnType.parseDefaultExpression(ColumnType.STRING, "CAST('abc' AS String)"));
+    assertEquals("abc", ColumnType.parseDefaultExpression(ColumnType.STRING, "abc"));
   }
 
   @Test
   public void testParseDefaultExpressionInt64() {
-    assertEquals(-1L, ColumnType.parseDefaultExpression(ColumnType.INT64, "CAST(-1 AS Int64)"));
+    assertEquals(-1L, ColumnType.parseDefaultExpression(ColumnType.INT64, "-1"));
   }
 
   @Test

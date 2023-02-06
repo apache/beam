@@ -24,13 +24,13 @@ from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import numpy
 import pandas
 from sklearn.base import BaseEstimator
 
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils.annotations import experimental
@@ -69,23 +69,6 @@ def _load_model(model_uri, file_type):
       )
     return joblib.load(file)
   raise AssertionError('Unsupported serialization type.')
-
-
-def _convert_to_result(
-    batch: Iterable, predictions: Union[Iterable, Dict[Any, Iterable]]
-) -> Iterable[PredictionResult]:
-  if isinstance(predictions, dict):
-    # Go from one dictionary of type: {key_type1: Iterable<val_type1>,
-    # key_type2: Iterable<val_type2>, ...} where each Iterable is of
-    # length batch_size, to a list of dictionaries:
-    # [{key_type1: value_type1, key_type2: value_type2}]
-    predictions_per_tensor = [
-        dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
-    ]
-    return [
-        PredictionResult(x, y) for x, y in zip(batch, predictions_per_tensor)
-    ]
-  return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
 
 
 def _default_numpy_inference_fn(
@@ -128,6 +111,9 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """Loads and initializes a model for processing."""
     return _load_model(self._model_uri, self._model_file_type)
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._model_uri = model_path if model_path else self._model_uri
+
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
@@ -146,11 +132,16 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     Returns:
       An Iterable of type PredictionResult.
     """
-    predictions = self._model_inference_fn(model, batch, inference_args)
+    predictions = self._model_inference_fn(
+        model,
+        batch,
+        inference_args,
+    )
 
-    return _convert_to_result(batch, predictions)
+    return utils._convert_to_result(
+        batch, predictions, model_id=self._model_uri)
 
-  def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
+  def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
     """
     Returns:
       The number of bytes of data for a batch.
@@ -217,6 +208,9 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     """Loads and initializes a model for processing."""
     return _load_model(self._model_uri, self._model_file_type)
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._model_uri = model_path if model_path else self._model_uri
+
   def run_inference(
       self,
       batch: Sequence[pandas.DataFrame],
@@ -243,7 +237,8 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
 
     predictions, splits = self._model_inference_fn(model, batch, inference_args)
 
-    return _convert_to_result(splits, predictions)
+    return utils._convert_to_result(
+        splits, predictions, model_id=self._model_uri)
 
   def get_num_bytes(self, batch: Sequence[pandas.DataFrame]) -> int:
     """

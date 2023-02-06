@@ -40,9 +40,16 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
@@ -392,6 +399,45 @@ public class SchemaTranslationTest {
 
       assertThat(exception.getMessage(), containsString("field_no_typeInfo"));
       assertThat(exception.getCause().getMessage(), containsString("TYPEINFO_NOT_SET"));
+    }
+  }
+
+  /** Test schema translation of logical types. */
+  @RunWith(Parameterized.class)
+  public static class LogicalTypesTest {
+    @Parameters(name = "{index}: {0}")
+    public static Iterable<Schema.FieldType> data() {
+      return ImmutableList.<Schema.FieldType>builder()
+          .add(FieldType.logicalType(SqlTypes.DATE))
+          .add(FieldType.logicalType(SqlTypes.TIME))
+          .add(FieldType.logicalType(SqlTypes.DATETIME))
+          .add(FieldType.logicalType(SqlTypes.TIMESTAMP))
+          .add(FieldType.logicalType(new NanosInstant()))
+          .add(FieldType.logicalType(new NanosDuration()))
+          .add(FieldType.logicalType(FixedBytes.of(10)))
+          .add(FieldType.logicalType(VariableBytes.of(10)))
+          .add(FieldType.logicalType(FixedString.of(10)))
+          .add(FieldType.logicalType(VariableString.of(10)))
+          .add(FieldType.logicalType(FixedPrecisionNumeric.of(10)))
+          .build();
+    }
+
+    @Parameter(0)
+    public Schema.FieldType fieldType;
+
+    @Test
+    public void testPortableLogicalTypeSerializeDeserilizeCorrectly() {
+      SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, true);
+      Schema.FieldType translated = SchemaTranslation.fieldTypeFromProto(proto);
+
+      assertThat(
+          translated.getLogicalType().getClass(), equalTo(fieldType.getLogicalType().getClass()));
+      assertThat(
+          translated.getLogicalType().getArgumentType(),
+          equalTo(fieldType.getLogicalType().getArgumentType()));
+      assertThat(
+          translated.getLogicalType().getArgument(),
+          equalTo(fieldType.getLogicalType().getArgument()));
     }
   }
 

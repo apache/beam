@@ -29,7 +29,7 @@ func getTaskNode(id string, sdk tob.Sdk) tob.Node {
 		Id: id, Title: "Challenge Name",
 		Description: "## Challenge description\n\nawesome description\n",
 		Hints: []string{
-			"## Hint 1\n\nhint 1",
+			fmt.Sprintf("## Hint 1\n\nhint 1 %s", sdk),
 			"## Hint 2\n\nhint 2",
 		},
 		TaskSnippetId:     fmt.Sprintf("TB_EXAMPLES_%s_ChallengeTask", sdk.StorageID()),
@@ -89,4 +89,71 @@ func TestSample(t *testing.T) {
 			},
 		},
 	}, trees[1])
+}
+
+// TestTemplates test that templating engine is used correctly.
+// The test itself is intended as an example of typical template usage.
+func TestTemplateProcessing(t *testing.T) {
+	goSdkExpected := "Go SDK"
+	pythonSdkExpected := "Python SDK"
+	javaSdkExpected := "Java SDK"
+	scioSdkExpected := "SCIO SDK"
+	template := fmt.Sprintf(
+		"Using "+
+			"{{if (eq .Sdk \"go\")}}%s{{end}}"+
+			"{{if (eq .Sdk \"python\")}}%s{{end}}"+
+			"{{if (eq .Sdk \"java\")}}%s{{end}}"+
+			"{{if (eq .Sdk \"scio\")}}%s{{end}}",
+		goSdkExpected, pythonSdkExpected, javaSdkExpected, scioSdkExpected)
+
+	goOrJavaExpected := "Text for Go or Java SDK"
+	templateAboutGoOrJava := fmt.Sprintf("{{if (eq .Sdk \"go\" \"java\")}}%s{{end}}", goOrJavaExpected)
+
+	for _, s := range []struct {
+		sdk      tob.Sdk
+		template string
+		expected string
+	}{
+		{
+			sdk:      tob.SDK_GO,
+			template: template,
+			expected: fmt.Sprintf("Using %s", goSdkExpected),
+		},
+		{
+			sdk:      tob.SDK_PYTHON,
+			template: template,
+			expected: fmt.Sprintf("Using %s", pythonSdkExpected),
+		},
+		{
+			sdk:      tob.SDK_JAVA,
+			template: template,
+			expected: fmt.Sprintf("Using %s", javaSdkExpected),
+		},
+		{
+			sdk:      tob.SDK_SCIO,
+			template: template,
+			expected: fmt.Sprintf("Using %s", scioSdkExpected),
+		},
+		{
+			sdk:      tob.SDK_GO,
+			template: templateAboutGoOrJava,
+			expected: goOrJavaExpected,
+		},
+		{
+			sdk:      tob.SDK_JAVA,
+			template: templateAboutGoOrJava,
+			expected: goOrJavaExpected,
+		},
+		{
+			sdk:      tob.SDK_SCIO,
+			template: templateAboutGoOrJava,
+			expected: "",
+		},
+	} {
+		res, err := processTemplate([]byte(s.template), s.sdk)
+		if err != nil {
+			panic(err)
+		}
+		assert.Equal(t, s.expected, string(res))
+	}
 }

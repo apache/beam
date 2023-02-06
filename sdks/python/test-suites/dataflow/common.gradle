@@ -362,6 +362,40 @@ def tensorRTTests = tasks.create("tensorRTtests") {
  }
 }
 
+task installTFTRequirements {
+  dependsOn 'installGcpTest'
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+    }
+  }
+}
+
+// Tensorflow transform integration and benchmarking tests on Apache Beam.
+task tftTests {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn "installTFTRequirements"
+
+  doLast {
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+        "test_opts": testOpts,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "suite": "TFTransformTests-df${pythonVersionSuffix}",
+        "collect": "uses_tft",
+        "requirements_file": "apache_beam/testing/benchmarks/cloudml/requirements.txt"
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 // add all RunInference E2E tests that run on DataflowRunner
 // As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
 // contains Python 3.8.

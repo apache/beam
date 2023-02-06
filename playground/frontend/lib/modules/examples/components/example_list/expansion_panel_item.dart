@@ -47,21 +47,7 @@ class ExpansionPanelItem extends StatelessWidget {
             if (controller.selectedExample != example) {
               _closeDropdown(controller.exampleCache);
               AnalyticsService.get(context).trackSelectExample(example);
-              final exampleWithInfo =
-                  await controller.exampleCache.loadExampleInfo(example);
-              // TODO: setCurrentSdk = false when we do
-              //  per-SDK output and run status.
-              //  Now using true to reset the output and run status.
-              //  https://github.com/apache/beam/issues/23248
-              final descriptor = StandardExampleLoadingDescriptor(
-                sdk: exampleWithInfo.sdk,
-                path: exampleWithInfo.path,
-              );
-              controller.setExample(
-                exampleWithInfo,
-                descriptor: descriptor,
-                setCurrentSdk: true,
-              );
+              controller.setExampleBase(example);
             }
           },
           child: Container(

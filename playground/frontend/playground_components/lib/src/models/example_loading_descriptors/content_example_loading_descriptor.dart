@@ -19,12 +19,12 @@
 import '../../enums/complexity.dart';
 import '../example_view_options.dart';
 import '../sdk.dart';
+import '../snippet_file.dart';
 import 'example_loading_descriptor.dart';
 
 /// Fully contains an example data to be loaded.
 class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
-  /// The source code.
-  final String content;
+  final List<SnippetFile> files;
 
   /// The name of the example, if any, to show in the dropdown.
   final String? name;
@@ -34,7 +34,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   final Sdk sdk;
 
   const ContentExampleLoadingDescriptor({
-    required this.content,
+    required this.files,
     required this.sdk,
     this.complexity,
     this.name,
@@ -42,8 +42,8 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   });
 
   static ContentExampleLoadingDescriptor? tryParse(Map<String, dynamic> map) {
-    final content = map['content']?.toString();
-    if (content == null) {
+    final files = map['files'];
+    if (files is! List) {
       return null;
     }
 
@@ -53,7 +53,9 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
     }
 
     return ContentExampleLoadingDescriptor(
-      content: content,
+      files: (map['files'] as List<dynamic>)
+          .map((file) => SnippetFile.fromJson(file as Map<String, dynamic>))
+          .toList(growable: false),
       name: map['name']?.toString(),
       sdk: sdk,
       complexity: Complexity.fromString(map['complexity']),
@@ -64,7 +66,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   @override
   List<Object?> get props => [
         complexity,
-        content,
+        files,
         name,
         sdk.id,
       ];
@@ -72,7 +74,7 @@ class ContentExampleLoadingDescriptor extends ExampleLoadingDescriptor {
   @override
   Map<String, dynamic> toJson() => {
         'complexity': complexity?.name,
-        'content': content,
+        'files': files.map((e) => e.toJson()).toList(growable: false),
         'name': name,
         'sdk': sdk.id,
       };

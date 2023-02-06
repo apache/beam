@@ -18,11 +18,11 @@
 
 import '../../enums/complexity.dart';
 import '../../models/sdk.dart';
-import 'shared_file.dart';
+import '../../models/snippet_file.dart';
 
 class GetSnippetResponse {
   final Complexity? complexity;
-  final List<SharedFile> files;
+  final List<SnippetFile> files;
   final String pipelineOptions;
   final Sdk sdk;
 
