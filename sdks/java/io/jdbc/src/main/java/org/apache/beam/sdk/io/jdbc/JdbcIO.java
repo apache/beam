@@ -1705,15 +1705,18 @@ public class JdbcIO {
   static <T> PCollection<Iterable<T>> batchElements(
       PCollection<T> input, @Nullable Boolean withAutoSharding, long batchSize) {
     PCollection<Iterable<T>> iterables;
-    if (input.isBounded() == IsBounded.UNBOUNDED && withAutoSharding != null && withAutoSharding) {
-      iterables =
-          input
-              .apply(WithKeys.<String, T>of(""))
-              .apply(
-                  GroupIntoBatches.<String, T>ofSize(batchSize)
-                      .withMaxBufferingDuration(Duration.millis(200))
-                      .withShardedKey())
-              .apply(Values.create());
+    if (input.isBounded() == IsBounded.UNBOUNDED) {
+      PCollection<KV<String, T>> keyedInput = input.apply(WithKeys.<String, T>of(""));
+      GroupIntoBatches<String, T> groupTransform =
+          GroupIntoBatches.<String, T>ofSize(batchSize)
+              .withMaxBufferingDuration(Duration.millis(200));
+      if (withAutoSharding != null && withAutoSharding) {
+        // unbounded and withAutoSharding enabled, group into batches with shardedKey
+        iterables = keyedInput.apply(groupTransform.withShardedKey()).apply(Values.create());
+      } else {
+        // unbounded and without auto sharding, group into batches of assigned max size
+        iterables = keyedInput.apply(groupTransform).apply(Values.create());
+      }
     } else {
       iterables =
           input.apply(

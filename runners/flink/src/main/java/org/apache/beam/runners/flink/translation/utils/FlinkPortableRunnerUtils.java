@@ -53,6 +53,21 @@ public class FlinkPortableRunnerUtils {
     return requiresTimeSortedInput;
   }
 
+  public static boolean requiresStableInput(RunnerApi.ExecutableStagePayload payload) {
+
+    return payload.getComponents().getTransformsMap().values().stream()
+        .filter(t -> t.getSpec().getUrn().equals(PTransformTranslation.PAR_DO_TRANSFORM_URN))
+        .anyMatch(
+            t -> {
+              try {
+                return RunnerApi.ParDoPayload.parseFrom(t.getSpec().getPayload())
+                    .getRequiresStableInput();
+              } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+              }
+            });
+  }
+
   /** Do not construct. */
   private FlinkPortableRunnerUtils() {}
 }

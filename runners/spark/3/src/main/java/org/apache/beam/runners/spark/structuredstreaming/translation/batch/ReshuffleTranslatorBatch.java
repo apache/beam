@@ -31,6 +31,10 @@ import org.apache.spark.sql.internal.SQLConf;
 class ReshuffleTranslatorBatch<K, V>
     extends TransformTranslator<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle<K, V>> {
 
+  ReshuffleTranslatorBatch() {
+    super(0.1f);
+  }
+
   @Override
   protected void translate(Reshuffle<K, V> transform, Context cxt) throws IOException {
     Dataset<WindowedValue<KV<K, V>>> input = cxt.getDataset(cxt.getInput());
@@ -39,6 +43,10 @@ class ReshuffleTranslatorBatch<K, V>
 
   static class ViaRandomKey<V>
       extends TransformTranslator<PCollection<V>, PCollection<V>, Reshuffle.ViaRandomKey<V>> {
+
+    ViaRandomKey() {
+      super(0.1f);
+    }
 
     @Override
     protected void translate(Reshuffle.ViaRandomKey<V> transform, Context cxt) throws IOException {

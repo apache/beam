@@ -65,8 +65,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
@@ -77,30 +75,19 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingPerStageSystemCounterNames;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames;
-import org.apache.beam.runners.dataflow.worker.SdkHarnessRegistry.SdkWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker.Work.State;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.counters.CounterUpdateAggregators;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
-import org.apache.beam.runners.dataflow.worker.graph.CreateRegisterFnOperationFunction;
-import org.apache.beam.runners.dataflow.worker.graph.DeduceFlattenLocationsFunction;
-import org.apache.beam.runners.dataflow.worker.graph.DeduceNodeLocationsFunction;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
-import org.apache.beam.runners.dataflow.worker.graph.InsertFetchAndFilterStreamingSideInputNodes;
-import org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders;
 import org.apache.beam.runners.dataflow.worker.graph.MapTaskToNetworkFunction;
 import org.apache.beam.runners.dataflow.worker.graph.Networks;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
-import org.apache.beam.runners.dataflow.worker.graph.Nodes.RemoteGrpcPortNode;
-import org.apache.beam.runners.dataflow.worker.graph.RegisterNodeFunction;
-import org.apache.beam.runners.dataflow.worker.graph.ReplacePgbkWithPrecombineFunction;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
@@ -138,7 +125,6 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
@@ -220,8 +206,6 @@ public class StreamingDataflowWorker {
 
   private static final Duration MAX_LOCAL_PROCESSING_RETRY_DURATION = Duration.standardMinutes(5);
 
-  private final AtomicLong counterAggregationErrorCount = new AtomicLong();
-
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
   private static boolean isOutOfMemoryError(Throwable t) {
     while (t != null) {
@@ -285,10 +269,8 @@ public class StreamingDataflowWorker {
         "%s cannot be main() class with beam_fn_api enabled",
         StreamingDataflowWorker.class.getSimpleName());
 
-    // Create a non fnapi registry
-    SdkHarnessRegistry sdkHarnessRegistry = SdkHarnessRegistries.emptySdkHarnessRegistry();
     StreamingDataflowWorker worker =
-        StreamingDataflowWorker.fromDataflowWorkerHarnessOptions(options, sdkHarnessRegistry);
+        StreamingDataflowWorker.fromDataflowWorkerHarnessOptions(options);
 
     // Use the MetricsLogger container which is used by BigQueryIO to periodically log process-wide
     // metrics.
@@ -481,7 +463,6 @@ public class StreamingDataflowWorker {
 
   private final WorkUnitClient workUnitClient;
   private final CompletableFuture<Void> isDoneFuture;
-  private final SdkHarnessRegistry sdkHarnessRegistry;
   private final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork;
 
   /**
@@ -565,39 +546,14 @@ public class StreamingDataflowWorker {
     }
   }
 
-  public static StreamingDataflowWorker forStreamingFnWorkerHarness(
-      List<MapTask> mapTasks,
-      WorkUnitClient workUnitClient,
-      DataflowWorkerHarnessOptions options,
-      RunnerApi.@Nullable Pipeline pipeline,
-      SdkHarnessRegistry sdkHarnessRegistry)
-      throws IOException {
-    return new StreamingDataflowWorker(
-        mapTasks,
-        BeamFnMapTaskExecutorFactory.defaultFactory(),
-        workUnitClient,
-        options.as(StreamingDataflowWorkerOptions.class),
-        pipeline,
-        sdkHarnessRegistry,
-        true,
-        new HotKeyLogger(),
-        Instant::now,
-        (threadName) ->
-            Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build()));
-  }
-
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
-      DataflowWorkerHarnessOptions options, SdkHarnessRegistry sdkHarnessRegistry)
-      throws IOException {
+      DataflowWorkerHarnessOptions options) throws IOException {
 
     return new StreamingDataflowWorker(
         Collections.emptyList(),
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         new DataflowWorkUnitClient(options, LOG),
         options.as(StreamingDataflowWorkerOptions.class),
-        null,
-        sdkHarnessRegistry,
         true,
         new HotKeyLogger(),
         Instant::now,
@@ -612,8 +568,6 @@ public class StreamingDataflowWorker {
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       WorkUnitClient workUnitClient,
       StreamingDataflowWorkerOptions options,
-      RunnerApi.@Nullable Pipeline pipeline,
-      SdkHarnessRegistry sdkHarnessRegistry,
       boolean publishCounters,
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
@@ -627,15 +581,12 @@ public class StreamingDataflowWorker {
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.workUnitClient = workUnitClient;
     this.options = options;
-    this.sdkHarnessRegistry = sdkHarnessRegistry;
     this.hotKeyLogger = hotKeyLogger;
     this.clock = clock;
     this.executorSupplier = executorSupplier;
     this.windmillServiceEnabled = options.isEnableStreamingEngine();
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
-    this.statusPages =
-        WorkerStatusPages.create(
-            DEFAULT_STATUS_PORT, memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);
+    this.statusPages = WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor, () -> true);
     if (windmillServiceEnabled) {
       this.debugCaptureManager =
           new DebugCapture.Manager(options, statusPages.getDebugCapturePages());
@@ -735,57 +686,13 @@ public class StreamingDataflowWorker {
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
 
-    if (hasExperiment(options, "beam_fn_api")) {
-      Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
-          pipeline == null
-              ? RegisterNodeFunction.withoutPipeline(
-                  idGenerator,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
-                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
-              : RegisterNodeFunction.forPipeline(
-                  pipeline,
-                  idGenerator,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
-                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor());
-      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
-          LengthPrefixUnknownCoders::forSdkNetwork;
-      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>
-          addStreamingSideInputHandlers =
-              InsertFetchAndFilterStreamingSideInputNodes.with(pipeline)::forNetwork;
-
-      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
-          new CreateRegisterFnOperationFunction(
-              idGenerator,
-              this::createPortNode,
-              lengthPrefixUnknownCoders.andThen(sdkFusedStage),
-              false);
-
-      mapTaskToNetwork =
-          mapTaskToBaseNetwork
-              .andThen(new ReplacePgbkWithPrecombineFunction())
-              .andThen(new DeduceNodeLocationsFunction())
-              .andThen(new DeduceFlattenLocationsFunction())
-              .andThen(new CloneAmbiguousFlattensFunction())
-              .andThen(addStreamingSideInputHandlers)
-              .andThen(transformToRunnerNetwork)
-              .andThen(LengthPrefixUnknownCoders::andReplaceForRunnerNetwork);
-    } else {
-      mapTaskToNetwork = mapTaskToBaseNetwork;
-    }
+    this.mapTaskToNetwork = mapTaskToBaseNetwork;
 
     LOG.debug("windmillServiceEnabled: {}", windmillServiceEnabled);
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
     LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
     LOG.debug("maxWorkItemCommitBytes: {}", maxWorkItemCommitBytes);
-  }
-
-  private Node createPortNode() {
-    return RemoteGrpcPortNode.create(
-        RemoteGrpcPort.newBuilder()
-            .setApiServiceDescriptor(sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
-            .build(),
-        idGenerator.getId());
   }
 
   private int chooseMaximumNumberOfThreads() {
@@ -1129,32 +1036,20 @@ public class StreamingDataflowWorker {
         WindmillTimeUtils.windmillToHarnessWatermark(workItem.getOutputDataWatermark());
     Preconditions.checkState(
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
-    SdkWorkerHarness worker = sdkHarnessRegistry.getAvailableWorkerAndAssignWork();
-
     Work work =
         new Work(workItem, clock) {
           @Override
           public void run() {
-            try {
-              process(
-                  worker,
-                  computationState,
-                  inputDataWatermark,
-                  outputDataWatermark,
-                  synchronizedProcessingTime,
-                  this);
-            } finally {
-              // Reduce the work associated with the worker
-              sdkHarnessRegistry.completeWork(worker);
-            }
+            process(
+                computationState,
+                inputDataWatermark,
+                outputDataWatermark,
+                synchronizedProcessingTime,
+                this);
           }
         };
-    if (!computationState.activateWork(
-        ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), work)) {
-      // Free worker if the work was not activated.
-      // This can happen if it's duplicate work or some other reason.
-      sdkHarnessRegistry.completeWork(worker);
-    }
+    computationState.activateWork(
+        ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), work);
   }
 
   @AutoValue
@@ -1316,7 +1211,6 @@ public class StreamingDataflowWorker {
   }
 
   private void process(
-      final SdkWorkerHarness worker,
       final ComputationState computationState,
       final Instant inputDataWatermark,
       final @Nullable Instant outputDataWatermark,
@@ -1360,7 +1254,7 @@ public class StreamingDataflowWorker {
     ExecutionState executionState = null;
 
     try {
-      executionState = computationState.getExecutionStateQueue(worker).poll();
+      executionState = computationState.getExecutionStateQueue().poll();
       if (executionState == null) {
         MutableNetwork<Node, Edge> mapTaskNetwork = mapTaskToNetwork.apply(mapTask);
         if (LOG.isDebugEnabled()) {
@@ -1402,10 +1296,6 @@ public class StreamingDataflowWorker {
                 maxSinkBytes);
         DataflowMapTaskExecutor mapTaskExecutor =
             mapTaskExecutorFactory.create(
-                worker.getControlClientHandler(),
-                worker.getGrpcDataFnServer(),
-                sdkHarnessRegistry.beamFnDataApiServiceDescriptor(),
-                worker.getGrpcStateFnServer(),
                 mapTaskNetwork,
                 options,
                 mapTask.getStageName(),
@@ -1516,7 +1406,7 @@ public class StreamingDataflowWorker {
       commitCallbacks.putAll(executionState.getContext().flushState());
 
       // Release the execution state for another thread to use.
-      computationState.getExecutionStateQueue(worker).offer(executionState);
+      computationState.getExecutionStateQueue().offer(executionState);
       executionState = null;
 
       // Add the output to the commit queue.
@@ -2123,63 +2013,6 @@ public class StreamingDataflowWorker {
           cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
-      if (hasExperiment(options, "beam_fn_api")) {
-        Map<Object, List<CounterUpdate>> fnApiCounters = new HashMap<>();
-
-        while (!this.pendingMonitoringInfos.isEmpty()) {
-          final CounterUpdate item = this.pendingMonitoringInfos.poll();
-
-          // This change will treat counter as delta.
-          // This is required because we receive cumulative results from FnAPI harness,
-          // while streaming job is expected to receive delta updates to counters on same
-          // WorkItem.
-          if (item.getCumulative()) {
-            item.setCumulative(false);
-            // Group counterUpdates by counterUpdateKey so they can be aggregated before sending to
-            // dataflow service.
-            fnApiCounters
-                .computeIfAbsent(getCounterUpdateKey(item), k -> new ArrayList<>())
-                .add(item);
-          } else {
-            // In current world all counters coming from FnAPI are cumulative.
-            // This is a safety check in case new counter type appears in FnAPI.
-            throw new UnsupportedOperationException(
-                "FnApi counters are expected to provide cumulative values."
-                    + " Please, update conversion to delta logic"
-                    + " if non-cumulative counter type is required.");
-          }
-        }
-
-        // Aggregates counterUpdates with same counterUpdateKey to single CounterUpdate if possible
-        // so we can avoid excessive I/Os for reporting to dataflow service.
-        for (List<CounterUpdate> counterUpdateList : fnApiCounters.values()) {
-          if (counterUpdateList.isEmpty()) {
-            continue;
-          }
-          List<CounterUpdate> aggregatedCounterUpdateList =
-              CounterUpdateAggregators.aggregate(counterUpdateList);
-
-          // Log a warning message if encountered enough non-aggregatable counter updates since this
-          // can lead to a severe performance penalty if dataflow service can not handle the
-          // updates.
-          if (aggregatedCounterUpdateList.size() > 10) {
-            CounterUpdate head = aggregatedCounterUpdateList.get(0);
-            this.counterAggregationErrorCount.getAndIncrement();
-            // log warning message only when error count is the power of 2 to avoid spamming.
-            if (this.counterAggregationErrorCount.get() > 10
-                && Long.bitCount(this.counterAggregationErrorCount.get()) == 1) {
-              LOG.warn(
-                  "Found non-aggregated counter updates of size {} with kind {}, this will likely "
-                      + "cause performance degradation and excessive GC if size is large.",
-                  counterUpdateList.size(),
-                  MoreObjects.firstNonNull(
-                      head.getNameAndKind(), head.getStructuredNameAndMetadata()));
-            }
-          }
-
-          counterUpdates.addAll(aggregatedCounterUpdateList);
-        }
-      }
     }
 
     // Handle duplicate counters from different stages. Store all the counters in a multi-map and
@@ -2294,8 +2127,8 @@ public class StreamingDataflowWorker {
     // actively processing.  Synchronized by itself.
     private final Map<ShardedKey, Deque<Work>> activeWork = new HashMap<>();
     private final BoundedQueueExecutor executor;
-    private final ConcurrentMap<SdkWorkerHarness, ConcurrentLinkedQueue<ExecutionState>>
-        executionStateQueues = new ConcurrentHashMap<>();
+    private final ConcurrentLinkedQueue<ExecutionState> executionStateQueue =
+        new ConcurrentLinkedQueue<>();
     private final WindmillStateCache.ForComputation computationStateCache;
 
     public ComputationState(
@@ -2328,10 +2161,8 @@ public class StreamingDataflowWorker {
       return transformUserNameToStateFamily;
     }
 
-    public ConcurrentLinkedQueue<ExecutionState> getExecutionStateQueue(
-        SdkWorkerHarness sdkWorkerHarness) {
-      return executionStateQueues.computeIfAbsent(
-          sdkWorkerHarness, key -> new ConcurrentLinkedQueue<>());
+    public ConcurrentLinkedQueue<ExecutionState> getExecutionStateQueue() {
+      return executionStateQueue;
     }
 
     /** Mark the given shardedKey and work as active. */
@@ -2510,12 +2341,10 @@ public class StreamingDataflowWorker {
     @Override
     public void close() throws Exception {
       ExecutionState executionState;
-      for (ConcurrentLinkedQueue<ExecutionState> queue : executionStateQueues.values()) {
-        while ((executionState = queue.poll()) != null) {
-          executionState.getWorkExecutor().close();
-        }
+      while ((executionState = executionStateQueue.poll()) != null) {
+        executionState.getWorkExecutor().close();
       }
-      executionStateQueues.clear();
+      executionStateQueue.clear();
     }
   }
 
