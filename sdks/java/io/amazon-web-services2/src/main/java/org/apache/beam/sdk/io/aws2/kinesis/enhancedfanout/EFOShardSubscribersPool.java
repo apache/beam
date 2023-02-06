@@ -17,69 +17,71 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisReaderCheckpoint;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecord;
+import org.apache.beam.sdk.io.aws2.kinesis.ShardCheckpoint;
+import org.apache.beam.sdk.io.aws2.kinesis.WatermarkPolicy;
+import org.apache.beam.sdk.io.aws2.kinesis.WatermarkPolicyFactory;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ForwardingIterator;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
+import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
 import software.amazon.kinesis.retrieval.AggregatorUtil;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
-
 /**
- * TODO:
- * - switch to existing ShardCheckpoint
- *   - we don't care what consumer name was, we want to switch back and forth from / to EFO
- *   - back-fill -  EFO consumer, then use normal consumer to keep going
- * - test with real Kinesis
- * - check whenComplete (netty) vs whenCompleteAsync (fork join pool)
- * - Work on testing & stub
- * - think of delay of re-connect (in the pool - oneThreadScheduledExecService)
- * - Re-sharding: state is always reflecting the ack-ed checkpoint, so
- *   getNextRecord() executes actual state mutations. The caller of that thing will handle
- *   starting new subscriptions and deleting the orphaned shards' checkpoints from the map.
- * - Inner classes are fine:
- *   - You limit public surface, clear isolation
- *   - Everything in the package level - hard to navigate, too many classes
- *   - Inner class can be used only in the context of enclosing class, it is more clear
- *   - Readers don't need to worry about all the places class can be re-used
- *   - KinesisIO.Read / Write - Javadoc is easier to navigate
- *   - Sometimes classes with inner classes become too huge
- *   - Static helper classes (Util) used in a single place - also good candidates for inner classes
- *   - If you really re-use over and over - better not to
- * - DirectRunner interrupts and re-creates new sources too often. Use FlinkRunner
- * - Config class
- *   - potential alternative - Client configuration
- *   - option: not to have back-offs in custom code, client itself has back-offs internally
- *   - we can think of this later, add any custom back offs as late as possible
- *   - ? recommend in javadoc to use large initial back offs ?
+ * TODO: - switch to existing ShardCheckpoint - we don't care what consumer name was, we want to
+ * switch back and forth from / to EFO - back-fill - EFO consumer, then use normal consumer to keep
+ * going - test with real Kinesis - check whenComplete (netty) vs whenCompleteAsync (fork join pool)
+ * - Work on testing & stub - think of delay of re-connect (in the pool -
+ * oneThreadScheduledExecService) - Re-sharding: state is always reflecting the ack-ed checkpoint,
+ * so getNextRecord() executes actual state mutations. The caller of that thing will handle starting
+ * new subscriptions and deleting the orphaned shards' checkpoints from the map. - Inner classes are
+ * fine: - You limit public surface, clear isolation - Everything in the package level - hard to
+ * navigate, too many classes - Inner class can be used only in the context of enclosing class, it
+ * is more clear - Readers don't need to worry about all the places class can be re-used -
+ * KinesisIO.Read / Write - Javadoc is easier to navigate - Sometimes classes with inner classes
+ * become too huge - Static helper classes (Util) used in a single place - also good candidates for
+ * inner classes - If you really re-use over and over - better not to - DirectRunner interrupts and
+ * re-creates new sources too often. Use FlinkRunner - Config class - potential alternative - Client
+ * configuration - option: not to have back-offs in custom code, client itself has back-offs
+ * internally - we can think of this later, add any custom back offs as late as possible - ?
+ * recommend in javadoc to use large initial back offs ?
  */
+@SuppressWarnings({"nullness"})
 class EFOShardSubscribersPool {
   private static final Logger LOG = LoggerFactory.getLogger(EFOShardSubscribersPool.class);
+  private static final long ON_ERROR_COOL_DOWN_MS_DEFAULT = 1_000L;
+  private final long onErrorCoolDownMs;
 
-  // TODO: get rid of these 2?
   private final UUID poolId;
-  private final Config config;
-
   private final KinesisIO.Read read;
-  private final AsyncClientProxy kinesis;
+  private final KinesisAsyncClient kinesis;
 
   /**
    * Unbounded queue of events, but events in-flight are limited by the {@link EFOShardSubscriber}.
@@ -120,14 +122,27 @@ class EFOShardSubscribersPool {
         }
       };
 
+  private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
   // EventRecords iterator that is currently consumed
   @Nullable EventRecords current = null;
 
-  EFOShardSubscribersPool(Config config, KinesisIO.Read readSpec, AsyncClientProxy kinesis) {
+  private final WatermarkPolicy latestRecordTimestampPolicy =
+      WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
+
+  EFOShardSubscribersPool(KinesisIO.Read readSpec, KinesisAsyncClient kinesis) {
     this.poolId = UUID.randomUUID();
-    this.config = config;
     this.read = readSpec;
     this.kinesis = kinesis;
+    this.onErrorCoolDownMs = ON_ERROR_COOL_DOWN_MS_DEFAULT;
+  }
+
+  EFOShardSubscribersPool(
+      KinesisIO.Read readSpec, KinesisAsyncClient kinesis, long onErrorCoolDownMs) {
+    this.poolId = UUID.randomUUID();
+    this.read = readSpec;
+    this.kinesis = kinesis;
+    this.onErrorCoolDownMs = onErrorCoolDownMs;
   }
 
   /**
@@ -138,25 +153,27 @@ class EFOShardSubscribersPool {
    */
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start(Iterable<ShardCheckpoint> checkpoints) {
-    List<String> startingWithShards = checkpointToShardsIds(checkpoints);
     LOG.info(
-        "Starting pool {} {} {}. Shards = {}",
+        "Starting pool {} {} {}. Checkpoints = {}",
         poolId,
-        config.getStreamName(),
-        config.getConsumerArn(),
-        startingWithShards);
+        read.getStreamName(),
+        read.getConsumerArn(),
+        checkpoints);
     checkpoints.forEach(
         ch -> {
           EFOShardSubscriber subscriber =
-              new EFOShardSubscriber(this, ch.getShardId(), read, kinesis);
-          subscriber.subscribe(ch.toStartingPosition()).whenCompleteAsync(errorHandler);
+              new EFOShardSubscriber(this, ch.getShardId(), read, kinesis, onErrorCoolDownMs);
+          StartingPosition startingPosition = ch.toStartingPosition();
+          subscriber.subscribe(startingPosition).whenCompleteAsync(errorHandler);
           ShardState shardState = new ShardState(subscriber);
           state.putIfAbsent(ch.getShardId(), shardState);
         });
   }
 
   /**
-   * Returns the next deaggregated {@link KinesisRecord} if available and updates {@link #state}
+   * FIXME: this has some bug
+   *
+   * <p>Returns the next deaggregated {@link KinesisRecord} if available and updates {@link #state}
    * accordingly so that it reflects a mutable checkpoint AFTER returning that record.
    *
    * <p>Async subscription errors are delayed until {@link #eventQueue} is completely drained and
@@ -176,34 +193,34 @@ class EFOShardSubscribersPool {
    */
   @Nullable
   KinesisRecord getNextRecord() throws IOException {
-    while (true) {
-      if (current == null && eventQueue.isEmpty()) {
-        if (subscriptionError == null) {
-          return null;
-        } else {
-          throw new IOException(subscriptionError);
-        }
-      }
-
-      current = eventQueue.poll();
-      if (current != null) {
-        String shardId = current.shardId;
-        ShardState shardState = Preconditions.checkStateNotNull(state.get(shardId));
-        if (current.hasNext()) {
-          KinesisClientRecord r = current.next();
-          if (!current.hasNext()) {
-            onEventDone(shardState, current);
-            current = null;
-          }
-          shardState.update(r);
-          return new KinesisRecord(r, config.getStreamName(), shardId);
-        } else {
-          onEventDone(shardState, current);
-          shardState.update(current);
-          current = null;
-        }
+    if (current == null && eventQueue.isEmpty()) {
+      if (subscriptionError == null) {
+        return null;
+      } else {
+        throw new IOException(subscriptionError);
       }
     }
+
+    if (current == null) {
+      current = eventQueue.poll();
+    }
+
+    if (current != null) {
+      String shardId = current.shardId;
+      ShardState shardState = Preconditions.checkStateNotNull(state.get(shardId));
+      if (current.hasNext()) {
+        KinesisClientRecord r = current.next();
+        shardState.update(r);
+        KinesisRecord kinesisRecord = new KinesisRecord(r, read.getStreamName(), shardId);
+        latestRecordTimestampPolicy.update(kinesisRecord);
+        return kinesisRecord;
+      } else {
+        onEventDone(shardState, current);
+        shardState.update(current);
+        current = null;
+      }
+    }
+    return null;
   }
 
   /**
@@ -215,20 +232,44 @@ class EFOShardSubscribersPool {
    *
    * <p>In case of re-sharding, start all new {@link EFOShardSubscriber#subscribe subscriptions}
    * with the subscription {@link #errorHandler} if there is no {@link #subscriptionError} yet.
-   *
-   * <p>Finally, {@link EFOShardSubscriber#ackEvent() acknowledge} to the respective {@link
-   * EFOShardSubscriber} that processing of an event is complete.
    */
+  @SuppressWarnings("UnusedVariable")
   private void onEventDone(ShardState shardState, EventRecords records) {
     if (records.event.hasChildShards()) {
       LOG.info("Child shards: {} ", records.event.childShards());
     }
-    shardState.subscriber.ackEvent();
   }
 
   /** Adds a {@link EventRecords} iterator for shardId and event to {@link #eventQueue}. */
   void enqueueEvent(String shardId, SubscribeToShardEvent event) {
-    eventQueue.offer(new EventRecords(config.getStreamName(), shardId, event));
+    eventQueue.offer(new EventRecords(read.getStreamName(), shardId, event));
+  }
+
+  public Instant getWatermark() {
+    return latestRecordTimestampPolicy.getWatermark();
+  }
+
+  // TODO: handle case when no records passed, but there was a re-shard
+  public KinesisReaderCheckpoint getCheckpointMark() {
+    List<ShardCheckpoint> checkpoints =
+        state.entrySet().stream()
+            .map(
+                entry ->
+                    new ShardCheckpoint(
+                        read.getStreamName(),
+                        entry.getKey(),
+                        ShardIteratorType.AFTER_SEQUENCE_NUMBER,
+                        entry.getValue().sequenceNumber,
+                        entry.getValue().subSequenceNumber))
+            .collect(Collectors.toList());
+
+    return new KinesisReaderCheckpoint(checkpoints);
+  }
+
+  // TODO:
+  public boolean stop() throws InterruptedException {
+    state.forEach((shardId, st) -> st.subscriber.cancel());
+    return true;
   }
 
   /**
@@ -256,6 +297,7 @@ class EFOShardSubscribersPool {
     ShardState update(EventRecords eventRecords) {
       sequenceNumber = eventRecords.event.continuationSequenceNumber();
       subSequenceNumber = 0L;
+      subscriber.ackEvent();
       return this;
     }
   }
@@ -297,13 +339,20 @@ class EFOShardSubscribersPool {
     }
   }
 
-  private List<String> checkpointToShardsIds(Iterable<ShardCheckpoint> checkpoints) {
-    List<String> result = new ArrayList<>();
-    checkpoints.forEach(chk -> result.add(chk.getShardId()));
-    return Collections.unmodifiableList(result);
-  }
-
   UUID getPoolId() {
     return poolId;
+  }
+
+  @SuppressWarnings("FutureReturnValueIgnored")
+  <T> CompletableFuture<T> delayedTask(Supplier<CompletableFuture<T>> task, long delayMs) {
+    if (delayMs <= 0) {
+      return task.get();
+    }
+    final CompletableFuture<T> cf = new CompletableFuture<>();
+    scheduler.schedule(
+        () -> task.get().handle((t, e) -> e == null ? cf.complete(t) : cf.completeExceptionally(e)),
+        delayMs,
+        MILLISECONDS);
+    return cf;
   }
 }

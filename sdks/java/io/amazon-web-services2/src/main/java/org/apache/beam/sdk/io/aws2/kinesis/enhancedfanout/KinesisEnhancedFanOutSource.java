@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
-import static org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout.Checkers.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
 
 import java.io.IOException;
@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisReaderCheckpoint;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecord;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisRecordCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -42,22 +43,22 @@ public class KinesisEnhancedFanOutSource
   private final ClientBuilderFactory builderFactory;
 
   public KinesisEnhancedFanOutSource(KinesisIO.Read readSpec, ClientBuilderFactory builderFactory) {
-    this(readSpec, builderFactory, new FromScratchCheckpointGenerator(Config.fromIOSpec(readSpec)));
+    this(readSpec, builderFactory, new FromScratchCheckpointGenerator(readSpec));
   }
 
   private KinesisEnhancedFanOutSource(
       KinesisIO.Read readSpec,
       ClientBuilderFactory builderFactory,
       CheckpointGenerator initialCheckpoint) {
-    this.readSpec = checkNotNull(readSpec, "spec");
+    this.readSpec = checkArgumentNotNull(readSpec);
     this.builderFactory = builderFactory;
-    this.checkpointGenerator = checkNotNull(initialCheckpoint, "initialCheckpoint");
+    this.checkpointGenerator = checkArgumentNotNull(initialCheckpoint);
   }
 
   @Override
   public List<KinesisEnhancedFanOutSource> split(int desiredNumSplits, PipelineOptions options)
       throws Exception {
-    try (AsyncClientProxy kinesis = createClient()) {
+    try (KinesisAsyncClient kinesis = createClient()) {
       KinesisReaderCheckpoint checkpoint = checkpointGenerator.generate(kinesis);
       List<KinesisEnhancedFanOutSource> sources = newArrayList();
       for (KinesisReaderCheckpoint partition : checkpoint.splitInto(desiredNumSplits)) {
@@ -92,13 +93,12 @@ public class KinesisEnhancedFanOutSource
     return KinesisRecordCoder.of();
   }
 
-  private AsyncClientProxy createClient() {
-    return new AsyncClientProxyImpl(
-        builderFactory
-            .create(
-                KinesisClientUtil.adjustKinesisClientBuilder(KinesisAsyncClient.builder()),
-                checkNotNull(readSpec.getClientConfiguration(), "clientConfiguration"),
-                null) // builderFactory already created with AwsOptions
-            .build());
+  private KinesisAsyncClient createClient() {
+    return builderFactory
+        .create(
+            KinesisClientUtil.adjustKinesisClientBuilder(KinesisAsyncClient.builder()),
+            checkArgumentNotNull(readSpec.getClientConfiguration()),
+            null) // builderFactory already created with AwsOptions
+        .build();
   }
 }

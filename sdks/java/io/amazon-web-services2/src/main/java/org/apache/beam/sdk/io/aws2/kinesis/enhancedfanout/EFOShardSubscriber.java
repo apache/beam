@@ -17,20 +17,25 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis.enhancedfanout;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import io.netty.channel.ChannelException;
+import io.netty.handler.timeout.ReadTimeoutException;
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-
-import io.netty.handler.timeout.ReadTimeoutException;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
@@ -38,60 +43,26 @@ import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEventStream
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-
 class EFOShardSubscriber {
-  // TODO: get rid of these 2?
+  private static final Logger LOG = LoggerFactory.getLogger(EFOShardSubscriber.class);
   private final EFOShardSubscribersPool pool;
+  private final String consumerArn;
 
   // Shard id of this subscriber
-  private final String consumerArn;
   private final String shardId;
   // Read configuration
-  private final AsyncClientProxy kinesis;
+  private final KinesisAsyncClient kinesis;
 
   /** Signals if subscriber is stopped from externally. */
   volatile boolean isStopped = false;
 
   /**
    * Completes once this shard subscriber is done, either normally (stopped or shard is completely
-   * consumed) or exceptionally due to a non retryable error.
+   * consumed) or exceptionally due to a non retry-able error.
    */
   private final CompletableFuture<Void> done = new CompletableFuture<>();
 
   private final ShardEventsSubscriber eventsSubscriber = new ShardEventsSubscriber();
-
-  /**
-   * Async completion handler for {@link AsyncClientProxy#subscribeToShard} that:
-   * <li>exists immediately if {@link #done} is already completed (exceptionally),
-   * <li>re-subscribes at {@link ShardEventsSubscriber#sequenceNumber} for retryable errors such as
-   *     retryable {@link SdkException}, {@link ClosedChannelException}, {@link ChannelException},
-   *     {@link TimeoutException} (any of these might be wrapped in {@link CompletionException}s)
-   * <li>or completes {@link #done} exceptionally for any other error,
-   * <li>completes {@done} normally if subscriber {@link #isStopped} or if shard completed (no
-   *     further {@link ShardEventsSubscriber#sequenceNumber}),
-   * <li>or otherwise re-subscribes at {@link ShardEventsSubscriber#sequenceNumber}.
-   */
-  @SuppressWarnings({"FutureReturnValueIgnored", "all"})
-  BiConsumer<Void, Throwable> reSubscriptionHandler =
-      (Void unused, Throwable error) -> {
-        if (error != null && !isRetryAble(error)) {
-          done.completeExceptionally(error);
-        } else if (!isStopped) {
-          String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
-          if (lastContinuationSequenceNumber == null) {
-            done.complete(null); // completely consumed this shard, done
-          } else {
-            subscribe(
-                StartingPosition.builder()
-                    .type(ShardIteratorType.AT_SEQUENCE_NUMBER)
-                    .sequenceNumber(lastContinuationSequenceNumber)
-                    .build());
-          }
-        } else {
-          done.complete(null);
-        }
-      };
 
   /** Tracks number of delivered events in flight (until ack-ed). */
   AtomicInteger inFlight;
@@ -99,18 +70,39 @@ class EFOShardSubscriber {
   private static final Integer IN_FLIGHT_LIMIT = 3;
 
   /**
-   * TODO: add 2 other retry-able cases
+   * Async completion handler for {@link KinesisAsyncClient#subscribeToShard} that:
+   * <li>exists immediately if {@link #done} is already completed (exceptionally),
+   * <li>re-subscribes at {@link ShardEventsSubscriber#sequenceNumber} for retryable errors such as
+   *     retryable {@link SdkException}, {@link ClosedChannelException}, {@link ChannelException},
+   *     {@link TimeoutException} (any of these might be wrapped in {@link CompletionException}s)
+   * <li>or completes {@link #done} exceptionally for any other error,
+   * <li>completes {@link #done} normally if subscriber {@link #isStopped} or if shard completed (no
+   *     further {@link ShardEventsSubscriber#sequenceNumber}),
+   * <li>or otherwise re-subscribes at {@link ShardEventsSubscriber#sequenceNumber}.
+   */
+  private final BiConsumer<Void, Throwable> reSubscriptionHandler;
+
+  /**
+   * TODO: add 2 other retry-able cases.
    *
    * @param error
    * @return
    */
   private static boolean isRetryAble(Throwable error) {
     Throwable cause = unWrapCompletionException(error);
-    return cause instanceof ReadTimeoutException;
+    if (cause instanceof SdkClientException
+        && cause.getCause() != null
+        && cause.getCause() instanceof ReadTimeoutException) {
+      return true;
+    }
+    if (cause instanceof ReadTimeoutException) {
+      return true;
+    }
+    return false;
   }
 
   /**
-   * Loops through completion exceptions until we get the underlying cause
+   * Loops through completion exceptions until we get the underlying cause.
    *
    * @param completionException
    * @return
@@ -128,16 +120,42 @@ class EFOShardSubscriber {
     return current;
   }
 
+  @SuppressWarnings({"FutureReturnValueIgnored", "all"})
   public EFOShardSubscriber(
       EFOShardSubscribersPool pool,
       String shardId,
       KinesisIO.Read read,
-      AsyncClientProxy kinesis) {
+      KinesisAsyncClient kinesis,
+      long onErrorCoolDownMs) {
     this.pool = pool;
     this.consumerArn = checkArgumentNotNull(read.getConsumerArn());
     this.shardId = shardId;
     this.kinesis = kinesis;
     this.inFlight = new AtomicInteger();
+    this.reSubscriptionHandler =
+        (Void unused, Throwable error) -> {
+          eventsSubscriber.cancel();
+          if (error != null && !isRetryAble(error)) {
+            done.completeExceptionally(error);
+          } else if (!isStopped) {
+            String lastContinuationSequenceNumber = eventsSubscriber.sequenceNumber;
+            if (lastContinuationSequenceNumber == null) {
+              done.complete(null); // completely consumed this shard, done
+            } else {
+              Long delay = (error != null) ? onErrorCoolDownMs : 0L;
+              pool.delayedTask(
+                  () ->
+                      subscribe(
+                          StartingPosition.builder()
+                              .type(ShardIteratorType.AFTER_SEQUENCE_NUMBER)
+                              .sequenceNumber(lastContinuationSequenceNumber)
+                              .build()),
+                  delay);
+            }
+          } else {
+            done.complete(null);
+          }
+        };
   }
 
   /**
@@ -154,12 +172,12 @@ class EFOShardSubscriber {
    */
   @SuppressWarnings("FutureReturnValueIgnored")
   CompletableFuture<Void> subscribe(StartingPosition position) {
+    SubscribeToShardRequest request = subscribeRequest(position);
+    LOG.info("Pool {} Shard {} starting subscribe request {}", pool.getPoolId(), shardId, request);
     try {
-      kinesis
-          .subscribeToShard(subscribeRequest(position), responseHandler())
-          .whenCompleteAsync(reSubscriptionHandler);
+      kinesis.subscribeToShard(request, responseHandler()).whenComplete(reSubscriptionHandler);
       return done;
-    } catch (RuntimeException e) {
+    } catch (Exception e) {
       done.completeExceptionally(e);
       return done;
     }
@@ -182,6 +200,7 @@ class EFOShardSubscriber {
    * ShardEventsSubscriber#cancel()} if defined.
    */
   void cancel() {
+    LOG.info("Pool {} Shard {} cancelling", pool.getPoolId(), shardId);
     if (!isStopped && eventsSubscriber != null) {
       eventsSubscriber.cancel();
       isStopped = true;
@@ -193,7 +212,7 @@ class EFOShardSubscriber {
    * {@link ShardEventsSubscriber#subscription} (if active).
    */
   void ackEvent() {
-    if (inFlight.getAndDecrement() == IN_FLIGHT_LIMIT) {
+    if (inFlight.getAndDecrement() <= IN_FLIGHT_LIMIT) {
       Subscription s = eventsSubscriber.subscription;
       if (s != null) {
         s.request(1);
@@ -201,7 +220,7 @@ class EFOShardSubscriber {
     }
   }
 
-  /** Subscriber to the Kinesis event stream */
+  /** Subscriber to the Kinesis event stream. */
   private class ShardEventsSubscriber
       implements Subscriber<SubscribeToShardEventStream>, SubscribeToShardResponseHandler.Visitor {
     /** Tracks continuation sequence number. */
@@ -224,7 +243,7 @@ class EFOShardSubscriber {
      */
     @Override
     public void onSubscribe(Subscription subscription) {
-      if (inFlight.incrementAndGet() < IN_FLIGHT_LIMIT && subscription != null) {
+      if (subscription != null) {
         subscription.request(1);
       }
       this.subscription = subscription;
@@ -250,7 +269,7 @@ class EFOShardSubscriber {
       }
     }
 
-    /** Delegates to {@link #visit} */
+    /** Delegates to {@link #visit}. */
     @Override
     public void onNext(SubscribeToShardEventStream event) {
       event.accept(this);
@@ -258,7 +277,8 @@ class EFOShardSubscriber {
 
     @Override
     public void onError(Throwable t) {
-      // nothing to do here, handled in resubscriptionHandler
+      // nothing to do here, handled in {@link #reSubscriptionHandler}
+      LOG.warn("Pool id = {} shard id = {} subscriber got error", pool.getPoolId(), shardId, t);
     }
 
     /** Unsets {@link #eventsSubscriber} of {@link EFOShardSubscriber}. */

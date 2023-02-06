@@ -28,6 +28,7 @@ import java.util.Objects;
 import org.joda.time.Instant;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
+import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
 
 /**
@@ -46,7 +47,7 @@ import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class ShardCheckpoint implements Serializable {
+public class ShardCheckpoint implements Serializable {
   /**
    * Extracted from org.apache.beam:beam-sdks-java-io-amazon-web-services2:2.46.0.
    *
@@ -203,6 +204,20 @@ class ShardCheckpoint implements Serializable {
 
   public String getShardId() {
     return shardId;
+  }
+
+  public StartingPosition toStartingPosition() {
+    StartingPosition.Builder builder = StartingPosition.builder().type(shardIteratorType);
+    switch (shardIteratorType) {
+      case AT_TIMESTAMP:
+        return builder.timestamp(TimeUtil.toJava(checkNotNull(timestamp, "timestamp"))).build();
+      case AT_SEQUENCE_NUMBER:
+      case AFTER_SEQUENCE_NUMBER:
+        return builder.sequenceNumber(checkNotNull(sequenceNumber, "sequenceNumber")).build();
+
+      default:
+        return builder.build();
+    }
   }
 
   @Override
