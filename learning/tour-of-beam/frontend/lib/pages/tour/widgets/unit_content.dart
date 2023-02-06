@@ -157,10 +157,6 @@ class _Buttons extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        _SnippetTypeSwitcher(
-          tourNotifier: tourNotifier,
-          unitContent: unitContent,
-        ),
         if (hints.isNotEmpty)
           Padding(
             padding: _buttonPadding,
@@ -168,6 +164,10 @@ class _Buttons extends StatelessWidget {
               hints: hints,
             ),
           ),
+        _SnippetTypeSwitcher(
+          tourNotifier: tourNotifier,
+          unitContent: unitContent,
+        ),
       ],
     );
   }
