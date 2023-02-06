@@ -1569,7 +1569,7 @@ class BigQueryWriteFn(DoFn):
       except (ClientError, GoogleAPICallError) as e:
         if e.code == 404:
           _KNOWN_TABLES.remove(destination)
-          raise
+        raise
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
       failed_rows = [(rows[entry['index']], entry["errors"])
