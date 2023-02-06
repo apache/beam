@@ -144,31 +144,26 @@ class _Buttons extends StatelessWidget {
     required this.unitContent,
   });
 
-  static const _buttonPadding = EdgeInsets.only(
-    top: BeamSizes.size10,
-    right: BeamSizes.size10,
-  );
-
   @override
   Widget build(BuildContext context) {
     final hints = unitContent.hints;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        if (hints.isNotEmpty)
-          Padding(
-            padding: _buttonPadding,
-            child: HintsWidget(
+    return Padding(
+      padding: const EdgeInsets.all(BeamSizes.size10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (hints.isNotEmpty)
+            HintsWidget(
               hints: hints,
             ),
+          _SnippetTypeSwitcher(
+            tourNotifier: tourNotifier,
+            unitContent: unitContent,
           ),
-        _SnippetTypeSwitcher(
-          tourNotifier: tourNotifier,
-          unitContent: unitContent,
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -190,43 +185,40 @@ class _SnippetTypeSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: tourNotifier,
-      builder: (context, child) => Padding(
-        padding: const EdgeInsets.all(BeamSizes.size10),
-        child: Row(
-          children: [
-            if (tourNotifier.hasSolution)
-              _SnippetTypeButton(
-                groupValue: tourNotifier.snippetType,
-                title: 'pages.tour.solution'.tr(),
-                value: SnippetType.solution,
-                onChanged: () async {
-                  await _setSnippetByType(SnippetType.solution);
-                },
-              ),
-            if (tourNotifier.hasSolution || tourNotifier.hasSavedSnippet)
-              _SnippetTypeButton(
-                groupValue: tourNotifier.snippetType,
-                title: unitContent.isChallenge
-                    ? 'pages.tour.assignment'.tr()
-                    : 'pages.tour.example'.tr(),
-                value: SnippetType.original,
-                onChanged: () async {
-                  await _setSnippetByType(SnippetType.original);
-                },
-              ),
-            if (tourNotifier.hasSavedSnippet)
-              _SnippetTypeButton(
-                groupValue: tourNotifier.snippetType,
-                title: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
-                    ? 'pages.tour.saving'.tr()
-                    : 'pages.tour.myCode'.tr(),
-                value: SnippetType.saved,
-                onChanged: () async {
-                  await _setSnippetByType(SnippetType.saved);
-                },
-              ),
-          ],
-        ),
+      builder: (context, child) => Row(
+        children: [
+          if (tourNotifier.hasSolution)
+            _SnippetTypeButton(
+              groupValue: tourNotifier.snippetType,
+              title: 'pages.tour.solution'.tr(),
+              value: SnippetType.solution,
+              onChanged: () async {
+                await _setSnippetByType(SnippetType.solution);
+              },
+            ),
+          if (tourNotifier.hasSolution || tourNotifier.hasSavedSnippet)
+            _SnippetTypeButton(
+              groupValue: tourNotifier.snippetType,
+              title: unitContent.isChallenge
+                  ? 'pages.tour.assignment'.tr()
+                  : 'pages.tour.example'.tr(),
+              value: SnippetType.original,
+              onChanged: () async {
+                await _setSnippetByType(SnippetType.original);
+              },
+            ),
+          if (tourNotifier.hasSavedSnippet)
+            _SnippetTypeButton(
+              groupValue: tourNotifier.snippetType,
+              title: tourNotifier.saveCodeStatus == SaveCodeStatus.saving
+                  ? 'pages.tour.saving'.tr()
+                  : 'pages.tour.myCode'.tr(),
+              value: SnippetType.saved,
+              onChanged: () async {
+                await _setSnippetByType(SnippetType.saved);
+              },
+            ),
+        ],
       ),
     );
   }
