@@ -99,7 +99,6 @@ do
       fi
 
 # Run main logic if examples have been changed
-# Checking for tag or commit_sha 
       if [[ $example_has_changed == "True" ]]
       then
             if [ -z "${tag_name}" ] && [ "${commit_sha}" ]
