@@ -1554,8 +1554,9 @@ class BigQueryWriteFn(DoFn):
       insert_ids = [None for r in rows_and_insert_ids]
     else:
       insert_ids = [r[1] for r in rows_and_insert_ids]
-
     while True:
+      errors = []
+      passed = False
       start = time.time()
       try:
         passed, errors = self.bigquery_wrapper.insert_rows(
@@ -1568,10 +1569,7 @@ class BigQueryWriteFn(DoFn):
               ignore_unknown_values=self.ignore_unknown_columns)
       except (ClientError, GoogleAPICallError) as e:
         if e.code == 404:
-          passed = False
-          errors = []
           _KNOWN_TABLES.remove(destination)
-        else:
           raise
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
