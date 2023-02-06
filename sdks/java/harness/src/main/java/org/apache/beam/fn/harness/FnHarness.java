@@ -219,6 +219,10 @@ public class FnHarness {
     ShortIdMap metricsShortIds = new ShortIdMap();
     ExecutorService executorService =
         options.as(ExecutorOptions.class).getScheduledExecutorService();
+    // In order to reduce memory spent on per-thread coders and buffers, we separate finalizations
+    // from standard bundle processing.
+    ExecutorService finalizationExecutorService =
+        options.as(ExecutorOptions.class).getScheduledExecutorService();
     ExecutionStateSampler executionStateSampler =
         new ExecutionStateSampler(options, System::currentTimeMillis);
 
@@ -246,7 +250,8 @@ public class FnHarness {
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(idGenerator, channelFactory, outboundObserverFactory);
 
-      FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler(executorService);
+      FinalizeBundleHandler finalizeBundleHandler =
+          new FinalizeBundleHandler(finalizationExecutorService);
 
       Function<String, BeamFnApi.ProcessBundleDescriptor> getProcessBundleDescriptor =
           new Function<String, ProcessBundleDescriptor>() {
@@ -346,10 +351,12 @@ public class FnHarness {
         beamFnStatusClient.close();
       }
       processBundleHandler.shutdown();
+      finalizationExecutorService.shutdown();
     } finally {
       System.out.println("Shutting SDK harness down.");
       executionStateSampler.stop();
       executorService.shutdown();
+      finalizationExecutorService.shutdown();
     }
   }
 }

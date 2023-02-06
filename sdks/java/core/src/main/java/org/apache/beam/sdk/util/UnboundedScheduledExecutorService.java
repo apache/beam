@@ -186,6 +186,8 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
   private final AbstractExecutorService invokeMethodsAdapter;
   private final Future<?> launchTasks;
 
+  private static final AtomicLong instanceCount = new AtomicLong(0);
+
   public UnboundedScheduledExecutorService() {
     this(NanoClock.SYSTEM);
   }
@@ -196,6 +198,7 @@ public final class UnboundedScheduledExecutorService implements ScheduledExecuto
     ThreadFactoryBuilder threadFactoryBuilder = new ThreadFactoryBuilder();
     threadFactoryBuilder.setThreadFactory(MoreExecutors.platformThreadFactory());
     threadFactoryBuilder.setDaemon(true);
+    threadFactoryBuilder.setNameFormat("UnboundedSES-" + instanceCount.incrementAndGet() + "-%d");
 
     this.threadPoolExecutor =
         new ThreadPoolExecutor(
