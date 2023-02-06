@@ -24,6 +24,8 @@ Beam <3 machine learning. Being productive and successful as a machine learning 
   upscaling your data pipelines as part of your MLOps ecosystem in a production environment.
 * It enables you to run your model in production on a varying data load, both in batch and streaming.
 
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen></iframe>
+
 ## AI/ML workloads
 
 Let’s take a look at the different building blocks that we need to create an end-to-end AI/ML use case and where Apache Beam can help.
