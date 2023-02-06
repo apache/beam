@@ -19,8 +19,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:playground_components/playground_components.dart';
 
 import '../../../assets/assets.gen.dart';
+import '../../../constants/sizes.dart';
 import '../state.dart';
 
 class SolutionButton extends StatelessWidget {
@@ -42,9 +44,69 @@ class SolutionButton extends StatelessWidget {
                 : null,
           ),
         ),
-        onPressed: tourNotifier.toggleShowingSolution,
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => Dialog(
+              backgroundColor: Colors.transparent,
+              child: _Popup(tourNotifier: tourNotifier),
+            ),
+          );
+        },
         icon: SvgPicture.asset(Assets.svg.solution),
-        label: const Text('ui.solution').tr(),
+        label: Text(
+          tourNotifier.isShowingSolution
+              ? 'pages.tour.assignment'
+              : 'pages.tour.solution',
+        ).tr(),
+      ),
+    );
+  }
+}
+
+class _Popup extends StatelessWidget {
+  final TourNotifier tourNotifier;
+
+  const _Popup({
+    required this.tourNotifier,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OverlayBody(
+      child: Container(
+        width: TobSizes.hintPopupWidth,
+        padding: const EdgeInsets.all(BeamSizes.size16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'pages.tour.solveYourself',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ).tr(),
+            const SizedBox(height: BeamSizes.size8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('ui.cancel').tr(),
+                ),
+                const SizedBox(width: BeamSizes.size8),
+                TextButton(
+                  onPressed: () {
+                    tourNotifier.toggleShowingSolution();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('pages.tour.showSolution').tr(),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

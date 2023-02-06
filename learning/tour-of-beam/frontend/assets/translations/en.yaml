@@ -18,6 +18,7 @@
 ui:
   about: About Tour of Beam
   builtWith: Built with Apache Beam
+  cancel: Cancel
   continueGitHub: Continue with GitHub
   continueGoogle: Continue with Google
   copyright: © The Apache Software Foundation
@@ -27,7 +28,6 @@ ui:
   reportIssue: Report Issue in GitHub
   signIn: Sign in
   signOut: Sign out
-  solution: Solution
   toWebsite: To Apache Beam website
 
 pages:
@@ -38,7 +38,11 @@ pages:
     startTour: Start your tour
     title: Welcome to the Tour of Beam!
   tour:
+    assignment: Assignment
     completeUnit: Complete Unit
+    showSolution: Show
+    solution: Solution
+    solveYourself: Before revealing the solution, try solving the challenge on your own. Remember, the more you practice, the better you will become. Give it a shot and see how far you can get.
     summaryTitle: Table of Contents
 
 dialogs:
