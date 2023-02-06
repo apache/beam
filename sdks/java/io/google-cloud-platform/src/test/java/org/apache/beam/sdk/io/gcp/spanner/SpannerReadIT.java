@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static org.junit.Assert.assertThrows;
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.Database;
@@ -34,7 +33,6 @@ import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -298,9 +296,12 @@ public class SpannerReadIT {
 
   @Test
   public void testQueryWithTimeoutError() throws Exception {
+    thrown.expect(new SpannerWriteIT.StackTraceContainsString("SpannerException"));
+    thrown.expect(new SpannerWriteIT.StackTraceContainsString("DEADLINE_EXCEEDED"));
+
     SpannerConfig spannerConfig = createSpannerConfig();
-    spannerConfig = spannerConfig
-        .withPartitionQueryTimeout(StaticValueProvider.of(Duration.millis(1)));
+    spannerConfig =
+        spannerConfig.withPartitionQueryTimeout(StaticValueProvider.of(Duration.millis(1)));
 
     PCollectionView<Transaction> tx =
         p.apply(
@@ -309,21 +310,24 @@ public class SpannerReadIT {
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
-        p.apply(
-            "Read db",
-            SpannerIO.read()
-                .withSpannerConfig(spannerConfig)
-                .withQuery("SELECT * FROM " + options.getTable())
-                .withTransaction(tx));
+    p.apply(
+        "Read db",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery("SELECT * FROM " + options.getTable())
+            .withTransaction(tx));
 
-    assertThrows("PartitionQuery Timeout error", PipelineExecutionException.class, () -> p.run());
+    p.run().waitUntilFinish();
   }
 
   @Test
   public void testQueryWithTimeoutErrorPG() throws Exception {
+    thrown.expect(new SpannerWriteIT.StackTraceContainsString("SpannerException"));
+    thrown.expect(new SpannerWriteIT.StackTraceContainsString("DEADLINE_EXCEEDED"));
+
     SpannerConfig pgSpannerConfig = createPgSpannerConfig();
-    pgSpannerConfig = pgSpannerConfig
-        .withPartitionQueryTimeout(StaticValueProvider.of(Duration.millis(1)));
+    pgSpannerConfig =
+        pgSpannerConfig.withPartitionQueryTimeout(StaticValueProvider.of(Duration.millis(1)));
 
     PCollectionView<Transaction> pgTx =
         p.apply(
@@ -333,17 +337,19 @@ public class SpannerReadIT {
                 .withTimestampBound(TimestampBound.strong()));
 
     p.apply(
-            "Read PG db",
-            SpannerIO.read()
-                .withSpannerConfig(pgSpannerConfig)
-                .withQuery("SELECT * FROM " + options.getTable())
-                .withTransaction(pgTx));
+        "Read PG db",
+        SpannerIO.read()
+            .withSpannerConfig(pgSpannerConfig)
+            .withQuery("SELECT * FROM " + options.getTable())
+            .withTransaction(pgTx));
 
-    assertThrows("PartitionQuery Timeout error", PipelineExecutionException.class, () -> p.run());
+    p.run().waitUntilFinish();
   }
 
   @Test
   public void testReadWithTimeoutError() throws Exception {
+    thrown.expect(new SpannerWriteIT.StackTraceContainsString("SpannerException"));
+    thrown.expect(new SpannerWriteIT.StackTraceContainsString("DEADLINE_EXCEEDED"));
 
     SpannerConfig spannerConfig = createSpannerConfig();
     spannerConfig = spannerConfig.withPartitionReadTimeout(Duration.millis(1));
@@ -355,15 +361,15 @@ public class SpannerReadIT {
                 .withSpannerConfig(spannerConfig)
                 .withTimestampBound(TimestampBound.strong()));
 
-        p.apply(
-            "read db",
-            SpannerIO.read()
-                .withSpannerConfig(spannerConfig)
-                .withTable(options.getTable())
-                .withColumns("Key", "Value")
-                .withTransaction(tx));
+    p.apply(
+        "read db",
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withTable(options.getTable())
+            .withColumns("Key", "Value")
+            .withTransaction(tx));
 
-    assertThrows("PartitionRead Timeout error", PipelineExecutionException.class, () -> p.run().waitUntilFinish());
+    p.run().waitUntilFinish();
   }
 
   @Test
