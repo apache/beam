@@ -71,7 +71,8 @@
 * Python's BatchElements performs more aggressive batching in some cases,
   capping at 10 second rather than 1 second batches by default and excluding
   fixed cost in this computation to better handle cases where the fixed cost
-  is larger than a single second.
+  is larger than a single second. To get the old behavior, one can pass
+  `target_batch_duration_secs_including_fixed_cost=1` to BatchElements.
 
 ## Deprecations
 
