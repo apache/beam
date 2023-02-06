@@ -424,9 +424,9 @@ public class PartitionMetadataDao {
      * @param partitionToken the partition unique identifier
      */
     public Void updateToRunning(String partitionToken) {
-      Statement statement = getPartitionsMatchingState(
-          Collections.singletonList(partitionToken), State.SCHEDULED);
-  
+      Statement statement =
+          getPartitionsMatchingState(Collections.singletonList(partitionToken), State.SCHEDULED);
+
       try (ResultSet resultSet = transaction.executeQuery(statement)) {
         if (!resultSet.next()) {
           LOG.info("[{}] Did not update to be RUNNING", partitionToken);
@@ -445,8 +445,8 @@ public class PartitionMetadataDao {
      * @param partitionToken the partition unique identifier
      */
     public Void updateToFinished(String partitionToken) {
-      Statement statement = getPartitionsMatchingState(
-          Collections.singletonList(partitionToken), State.RUNNING);
+      Statement statement =
+          getPartitionsMatchingState(Collections.singletonList(partitionToken), State.RUNNING);
       try (ResultSet resultSet = transaction.executeQuery(statement)) {
         if (!resultSet.next()) {
           LOG.info("[{}] Did not update to be FINISHED", partitionToken);

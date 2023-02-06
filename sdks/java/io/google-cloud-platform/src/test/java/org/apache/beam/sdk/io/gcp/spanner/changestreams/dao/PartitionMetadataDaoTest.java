@@ -190,7 +190,7 @@ public class PartitionMetadataDaoTest {
 
   @Test
   public void testInTransactionContextUpdateToScheduled() {
-     System.out.println(" update to scheduled");
+    System.out.println(" update to scheduled");
     ResultSet resultSet = mock(ResultSet.class);
     when(transaction.executeQuery(any())).thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true).thenReturn(false);
@@ -213,7 +213,7 @@ public class PartitionMetadataDaoTest {
 
   @Test
   public void testInTransactionContextCannotUpdateToFinished() {
-     System.out.println("Cannot update to finished");
+    System.out.println("Cannot update to finished");
     ResultSet resultSet = mock(ResultSet.class);
     when(transaction.executeQuery(any())).thenReturn(resultSet);
     when(resultSet.next()).thenReturn(false);
@@ -226,7 +226,7 @@ public class PartitionMetadataDaoTest {
 
   @Test
   public void testInTransactionContextUpdateToFinished() {
-     System.out.println("update to scheduled");
+    System.out.println("update to scheduled");
     ResultSet resultSet = mock(ResultSet.class);
     when(transaction.executeQuery(any())).thenReturn(resultSet);
     when(resultSet.next()).thenReturn(true).thenReturn(false);
@@ -246,7 +246,6 @@ public class PartitionMetadataDaoTest {
         PartitionMetadata.State.FINISHED.toString(),
         mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_STATE).getString());
   }
-
 
   @Test
   public void testInTransactionContextUpdateWatermark() {
