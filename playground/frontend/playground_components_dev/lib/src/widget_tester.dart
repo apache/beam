@@ -25,6 +25,7 @@ import 'package:provider/provider.dart';
 import 'common_finders.dart';
 
 extension WidgetTesterExtension on WidgetTester {
+  //workaround for https://github.com/flutter/flutter/issues/120060
   Future<void> enterCodeFieldText(String text) async {
     final codeField = widget(find.codeField());
     (codeField as CodeField).controller.fullText = text;
