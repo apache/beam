@@ -132,9 +132,9 @@ class _Buttons extends StatelessWidget {
               builder: (context) => Dialog(
                 backgroundColor: Colors.transparent,
                 child: BeamAlertDialog(
+                  body: 'dialogs.deleteAccountWarning'.tr(),
                   continueLabel: 'ui.deleteMyAccount'.tr(),
                   title: 'ui.deleteTobAccount'.tr(),
-                  body: 'dialogs.deleteAccountWarning'.tr(),
                   onContinue: () {
                     authNotifier.deleteAccount().then(
                       (_) {

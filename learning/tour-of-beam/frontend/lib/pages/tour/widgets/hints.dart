@@ -22,7 +22,6 @@ import 'package:flutter_svg/svg.dart';
 import 'package:playground_components/playground_components.dart';
 
 import '../../../assets/assets.gen.dart';
-import '../../../constants/sizes.dart';
 import 'markdown/tob_markdown.dart';
 
 class HintsWidget extends StatelessWidget {

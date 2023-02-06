@@ -44,6 +44,7 @@ class SolutionButton extends StatelessWidget {
           ),
         ),
         onPressed: () {
+          // TODO(nausharipov): resolve the conflict with save user code
           showDialog(
             context: context,
             builder: (context) => Dialog(
@@ -60,11 +61,7 @@ class SolutionButton extends StatelessWidget {
           );
         },
         icon: SvgPicture.asset(Assets.svg.solution),
-        label: Text(
-          tourNotifier.isShowingSolution
-              ? 'pages.tour.assignment'
-              : 'pages.tour.solution',
-        ).tr(),
+        label: const Text('ui.solution').tr(),
       ),
     );
   }
