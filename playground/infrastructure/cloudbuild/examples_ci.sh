@@ -142,10 +142,12 @@ do
 
             IMAGE_TAG=apache/beam_playground-backend-${sdk}:${DOCKERTAG}
 
+
             docker run -d -p 8080:8080 --network=cloudbuild -e PROTOCOL_TYPE=TCP --name container-${sdk} $IMAGE_TAG
             sleep 10
             export SERVER_ADDRESS=container-${sdk}:8080
-            python3 playground/infrastructure/ci_cd.py \
+            cd playground/infrastructure
+            python3 ci_cd.py \
             --step ${STEP} \
             --sdk SDK_"${sdk^^}" \
             --origin ${ORIGIN} \
@@ -153,6 +155,7 @@ do
 
             docker stop container-${sdk}
             docker rm container-${sdk}
+            cd -
       else
             echo "Nothing changed in Examples. CI step is skipped" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
       fi
