@@ -1567,7 +1567,7 @@ class BigQueryWriteFn(DoFn):
               skip_invalid_rows=True,
               ignore_unknown_values=self.ignore_unknown_columns)
       except (ClientError, GoogleAPICallError) as e:
-        if e.code == 404:
+        if e.code == 404 and destination in  _KNOWN_TABLES:
           _KNOWN_TABLES.remove(destination)
         raise
       self.batch_latency_metric.update((time.time() - start) * 1000)
