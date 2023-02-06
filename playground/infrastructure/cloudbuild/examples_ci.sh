@@ -160,6 +160,6 @@ do
             docker rm container-${sdk}
             cd -
       else
-            echo "Nothing changed in Examples. CI step is skipped" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
+            echo "No changes in examples. CI stage is skipped" >> /tmp/build-log-${pr_number}-${commit_sha}-${BUILD_ID}.txt
       fi
 done
